@@ -17,35 +17,36 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 1. Foundation (Not started)
-**Plan:** None yet
+**Phase:** 1. Foundation (Planned)
+**Plan:** 01-01 (Ready to execute)
 
 ## Session Context
 
 ### Current Objectives
-1. Complete Phase 1: Foundation
-2. Set up project infrastructure
+1. Execute Phase 1 plans
+2. Set up frontend, backend, and RBAC
 
 ### Recent Progress
 - Project initialized with PROJECT.md
 - Roadmap created with 5 phases
-- Tech stack confirmed: React + FastAPI + PostgreSQL
+- Phase 1 planned with 3 detailed PLAN.md files
 
 ## Key Decisions
 
 | Decision | Choice | Date |
 |----------|--------|------|
 | Tech Stack | React + FastAPI + PostgreSQL | 2025-12-25 |
-| Auth | Azure AD via MSAL | 2025-12-25 |
+| Auth | Azure AD via MSAL (mocked for now) | 2025-12-25 |
 | Language | English first, Czech option | 2025-12-25 |
+| Roles | SII compliant (9 roles) | 2025-12-25 |
 
 ## Continuity
 
 ### Last Action
-- Created ROADMAP.md with 5 phases
+- Created Phase 1 PLAN.md files (01-01, 01-02, 01-03)
 
 ### Next Step
-- Plan Phase 1: Foundation
+- Execute Plan 01-01: React + Vite frontend scaffolding
 
 ---
 *Updated: 2025-12-25*
