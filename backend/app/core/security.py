@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models import User, Role
+from app.models import User, Role, RolePermission
 
 
 async def get_current_user(
@@ -18,11 +18,14 @@ async def get_current_user(
     In development, uses X-Mock-User-Id header to simulate different users.
     In production, this will validate Azure AD tokens.
     """
+    # Eager load role -> permissions -> permission
+    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+    
     if x_mock_user_id:
         # Mock auth: get user by ID from header
         result = await db.execute(
             select(User)
-            .options(selectinload(User.role).selectinload(Role.permissions))
+            .options(permission_load)
             .where(User.id == x_mock_user_id)
         )
         user = result.scalar_one_or_none()
@@ -32,7 +35,7 @@ async def get_current_user(
     # Default: return first admin user for development
     result = await db.execute(
         select(User)
-        .options(selectinload(User.role).selectinload(Role.permissions))
+        .options(permission_load)
         .join(User.role)
         .where(Role.name == "admin")
         .limit(1)
