@@ -49,10 +49,12 @@ How we know this worked:
 - Export to PDF/Excel
 
 **Infrastructure:**
-- Next.js 14+ frontend with App Router
-- PostgreSQL database with Prisma ORM
+- React 18+ frontend with Vite
+- Python FastAPI backend
+- PostgreSQL database with SQLAlchemy ORM
 - Docker containerization
 - On-premise deployment ready
+- i18n support (English default, Czech option)
 
 ### Not Building (v1)
 
@@ -60,7 +62,6 @@ How we know this worked:
 - **Advanced Analytics/AI** — Deferred to v2 (requires data accumulation first)
 - **Incident Management** — Included in v1 as basic logging, full workflow in v2
 - **Mobile App** — Responsive web only for v1
-- **Multi-language UI** — Czech/Slovak only for v1
 
 ## Context
 
@@ -101,11 +102,13 @@ How we know this worked:
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Frontend | Next.js 14+ | SSR, App Router, excellent for dashboards, React ecosystem |
-| Database | PostgreSQL + Prisma | Enterprise-grade, excellent with Next.js, type-safe ORM |
-| Auth | NextAuth.js + Azure AD | Native Entra ID integration, session management |
+| Frontend | React 18+ with Vite | Fast builds, mature ecosystem, excellent for dashboards |
+| Backend | Python FastAPI | Async, fast, great for APIs, strong typing with Pydantic |
+| Database | PostgreSQL + SQLAlchemy | Enterprise-grade, async support, type-safe ORM |
+| Auth | Azure AD via MSAL | Native Entra ID integration, token management |
 | Deployment | Docker + K8s ready | On-premise first, cloud migration path |
 | UI Framework | Tailwind + shadcn/ui | Modern, accessible, fast development |
+| i18n | react-i18next | English default, Czech language option |
 
 ## Open Questions
 
