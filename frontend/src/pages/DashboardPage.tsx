@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
     ClipboardList,
@@ -5,44 +6,21 @@ import {
     AlertTriangle,
     CheckCircle,
     TrendingUp,
-    Clock,
-    ExternalLink
+    RefreshCw,
+    ShieldAlert
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { dashboardApi } from '@/services/dashboardApi';
+import type {
+    DashboardSummary,
+    DepartmentMetrics,
+    RiskDistribution,
+    ControlTrend
+} from '@/types/dashboard';
 
-const stats = [
-    {
-        title: 'Total Controls',
-        value: '1,248',
-        icon: ClipboardList,
-        color: 'text-accent',
-        bg: 'bg-accent/10',
-        trend: '+12%',
-    },
-    {
-        title: 'Active Depts',
-        value: '14',
-        icon: Building2,
-        color: 'text-purple-400',
-        bg: 'bg-purple-400/10',
-        trend: 'Stable',
-    },
-    {
-        title: 'Critical Risks',
-        value: '23',
-        icon: AlertTriangle,
-        color: 'text-amber-400',
-        bg: 'bg-amber-400/10',
-        trend: '-5%',
-    },
-    {
-        title: 'Compliance',
-        value: '98.2%',
-        icon: CheckCircle,
-        color: 'text-emerald-400',
-        bg: 'bg-emerald-400/10',
-        trend: '+0.5%',
-    },
-];
+import { RiskDistributionMatrix } from '@/components/dashboard/RiskDistributionMatrix';
+import { ControlTrendChart } from '@/components/dashboard/ControlTrendChart';
+import { DepartmentTable } from '@/components/dashboard/DepartmentTable';
 
 const container = {
     hidden: { opacity: 0 },
@@ -60,11 +38,118 @@ const item = {
 };
 
 export function DashboardPage() {
+    const { mockUserId } = useAuth();
+    const [summary, setSummary] = useState<DashboardSummary | null>(null);
+    const [deptMetrics, setDeptMetrics] = useState<DepartmentMetrics[]>([]);
+    const [distribution, setDistribution] = useState<RiskDistribution | null>(null);
+    const [trends, setTrends] = useState<ControlTrend[]>([]);
+
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchData = useCallback(async () => {
+        try {
+            setError(null);
+            const [summaryData, deptData, distData, trendData] = await Promise.all([
+                dashboardApi.fetchDashboardSummary(mockUserId),
+                dashboardApi.fetchDepartmentMetrics(mockUserId),
+                dashboardApi.fetchRiskDistribution(mockUserId),
+                dashboardApi.fetchControlTrends(mockUserId)
+            ]);
+
+            setSummary(summaryData);
+            setDeptMetrics(deptData);
+            setDistribution(distData);
+            setTrends(trendData);
+        } catch (err) {
+            console.error('Dashboard fetch error:', err);
+            setError('Failed to load dashboard data. Please check your connection.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [mockUserId]);
+
+    useEffect(() => {
+        fetchData();
+        const interval = setInterval(fetchData, 60000); // Auto-refresh every 60s
+        return () => clearInterval(interval);
+    }, [fetchData]);
+
+    if (isLoading && !summary) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="flex flex-col items-center gap-4">
+                    <RefreshCw className="h-8 w-8 text-accent animate-spin" />
+                    <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Synchronizing Insight...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error && !summary) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="glass-card p-10 flex flex-col items-center text-center max-w-md">
+                    <ShieldAlert className="h-12 w-12 text-rose-500 mb-4" />
+                    <h3 className="text-xl font-bold text-white mb-2">Connection Interrupted</h3>
+                    <p className="text-slate-500 mb-6">{error}</p>
+                    <button
+                        onClick={() => { setIsLoading(true); fetchData(); }}
+                        className="px-6 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/80 transition-all"
+                    >
+                        Retry Connection
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    const stats = [
+        {
+            title: 'Total Controls',
+            value: summary?.total_controls ?? 0,
+            icon: ClipboardList,
+            color: 'text-accent',
+            bg: 'bg-accent/10',
+            trend: 'Live',
+        },
+        {
+            title: 'Active Depts',
+            value: deptMetrics.length,
+            icon: Building2,
+            color: 'text-purple-400',
+            bg: 'bg-purple-400/10',
+            trend: 'Stable',
+        },
+        {
+            title: 'Critical Risks',
+            value: summary?.critical_risks_count ?? 0,
+            icon: AlertTriangle,
+            color: 'text-rose-400',
+            bg: 'bg-rose-400/10',
+            trend: 'Urgent',
+        },
+        {
+            title: 'Avg Risk Score',
+            value: summary?.average_net_risk_score ?? 0,
+            icon: CheckCircle,
+            color: 'text-emerald-400',
+            bg: 'bg-emerald-400/10',
+            trend: 'Calculated',
+        },
+    ];
+
     return (
         <div className="space-y-10">
-            <div>
-                <h2 className="text-3xl font-black text-white mb-2">Operational Insight</h2>
-                <p className="text-slate-500 font-medium">Overview of risk posture and control performance across the organization.</p>
+            <div className="flex justify-between items-end">
+                <div>
+                    <h2 className="text-3xl font-black text-white mb-2">Operational Insight</h2>
+                    <p className="text-slate-500 font-medium">Overview of risk posture and control performance across the organization.</p>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Live Data
+                </div>
             </div>
 
             <motion.div
@@ -92,71 +177,60 @@ export function DashboardPage() {
                 ))}
             </motion.div>
 
-            <div className="grid gap-8 lg:grid-cols-3">
+            <div className="grid gap-8 lg:grid-cols-2">
                 <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
-                    className="lg:col-span-2 glass-card h-[400px] flex flex-col"
+                    className="glass-card flex flex-col"
                 >
                     <div className="flex items-center justify-between mb-8">
                         <h3 className="text-lg font-bold text-white flex items-center gap-2">
                             <TrendingUp className="h-5 w-5 text-accent" />
-                            Risk Distribution
+                            Control Execution Trends
                         </h3>
-                        <button className="text-xs font-bold text-accent hover:underline flex items-center gap-1">
-                            Export View <ExternalLink className="h-3 w-3" />
-                        </button>
                     </div>
-                    <div className="flex-1 border-t border-white/5 flex flex-col items-center justify-center text-slate-600">
-                        <div className="w-full h-32 flex items-end justify-center gap-4 px-20">
-                            {[40, 70, 45, 90, 65, 80, 50, 85].map((h, i) => (
-                                <motion.div
-                                    key={i}
-                                    initial={{ height: 0 }}
-                                    animate={{ height: `${h}%` }}
-                                    transition={{ delay: 0.8 + (i * 0.1), duration: 0.8 }}
-                                    className="w-full bg-accent/20 rounded-t-lg relative group"
-                                >
-                                    <div className="absolute inset-0 bg-accent opacity-0 group-hover:opacity-40 transition-opacity rounded-t-lg" />
-                                </motion.div>
-                            ))}
-                        </div>
-                        <p className="mt-8 text-sm font-medium">Aggregated control data over last 30 days</p>
+                    <div className="flex-1 min-h-[300px]">
+                        {trends.length > 0 ? (
+                            <ControlTrendChart data={trends} />
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-600 border-t border-white/5">
+                                <p className="text-sm font-medium">No execution history available</p>
+                            </div>
+                        )}
                     </div>
                 </motion.div>
 
                 <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.6 }}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.7 }}
                     className="glass-card flex flex-col"
                 >
-                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-purple-400" />
-                        Recent Activity
+                    <h3 className="text-lg font-bold text-white mb-8 flex items-center gap-2">
+                        <ShieldAlert className="h-5 w-5 text-purple-400" />
+                        Risk Matrix Distribution
                     </h3>
-                    <div className="space-y-6">
-                        {[
-                            { type: 'Control Approved', user: 'Jan Novák', time: '12m ago', color: 'bg-emerald-500' },
-                            { type: 'Risk Identified', user: 'Petra Svobodová', time: '45m ago', color: 'bg-amber-500' },
-                            { type: 'Dept Created', user: 'System Admin', time: '2h ago', color: 'bg-accent' },
-                            { type: 'Report Exported', user: 'Martin Horák', time: '5h ago', color: 'bg-purple-500' },
-                        ].map((activity, i) => (
-                            <div key={i} className="flex gap-4 items-start">
-                                <div className={`mt-1.5 w-2 h-2 rounded-full ${activity.color} shadow-sm`} />
-                                <div>
-                                    <p className="text-sm font-bold text-white leading-none mb-1">{activity.type}</p>
-                                    <p className="text-xs text-slate-500 font-medium">{activity.user} • {activity.time}</p>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="flex-1 flex items-center justify-center pb-4">
+                        <RiskDistributionMatrix distribution={distribution?.distribution ?? []} />
                     </div>
-                    <button className="mt-auto w-full py-3 border border-white/5 rounded-xl text-xs font-bold text-slate-400 hover:bg-white/5 hover:text-white transition-all">
-                        View Audit Log
-                    </button>
                 </motion.div>
             </div>
+
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                className="glass-card !p-0 overflow-hidden"
+            >
+                <div className="p-6 border-b border-white/5">
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-emerald-400" />
+                        Departmental Visibility
+                    </h3>
+                </div>
+                <DepartmentTable metrics={deptMetrics} />
+            </motion.div>
         </div>
     );
 }
