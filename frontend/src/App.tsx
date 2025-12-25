@@ -9,6 +9,8 @@ import {
   ControlEditPage,
   RisksPage,
   RiskDetailPage,
+  RiskNewPage,
+  RiskEditPage,
   DepartmentsPage,
   SettingsPage,
   HeroPage,
@@ -42,7 +44,9 @@ function App() {
             <Route path="controls/:id" element={<ControlDetailPage />} />
             <Route path="controls/:id/edit" element={<ControlEditPage />} />
             <Route path="risks" element={<RisksPage />} />
+            <Route path="risks/new" element={<RiskNewPage />} />
             <Route path="risks/:id" element={<RiskDetailPage />} />
+            <Route path="risks/:id/edit" element={<RiskEditPage />} />
             <Route path="departments" element={<DepartmentsPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
