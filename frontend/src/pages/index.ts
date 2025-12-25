@@ -2,6 +2,7 @@ export { DashboardPage } from './DashboardPage';
 export { ControlsPage } from './ControlsPage';
 export { RisksPage } from './RisksPage';
 export { RiskDetailPage } from './RiskDetailPage';
+export { RiskNewPage, RiskEditPage } from './RiskForms';
 export { DepartmentsPage } from './DepartmentsPage';
 export { SettingsPage } from './SettingsPage';
 export { HeroPage } from './HeroPage';

@@ -16,10 +16,11 @@ import {
     FileText
 } from 'lucide-react';
 import { riskApi } from '@/services/riskApi';
-import type { Risk, RiskControlLink } from '@/types/risk';
+import type { Risk, RiskControlLink, ControlEffectiveness } from '@/types/risk';
 import { useAuth } from '@/contexts/AuthContext';
 import { PermissionGate } from '@/components/PermissionGate';
 import { RiskScoreMatrix } from '@/components/RiskScoreMatrix';
+import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 
 const container = {
     hidden: { opacity: 0 },
@@ -43,6 +44,7 @@ export function RiskDetailPage() {
     const [linkedControls, setLinkedControls] = useState<RiskControlLink[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
 
     const fetchData = useCallback(async () => {
         if (!id) return;
@@ -76,6 +78,32 @@ export function RiskDetailPage() {
         } catch (err) {
             console.error('Error deleting risk:', err);
             alert('Failed to archive risk.');
+        }
+    };
+
+    const handleLinkControl = async (controlId: number, effectiveness: ControlEffectiveness, notes?: string) => {
+        if (!risk) return;
+        try {
+            await riskApi.linkControl(risk.id, { control_id: controlId, effectiveness, notes }, mockUserId);
+            // Refresh linked controls
+            const controlsData = await riskApi.getLinkedControls(risk.id, mockUserId);
+            setLinkedControls(controlsData);
+        } catch (err) {
+            console.error('Linking failed:', err);
+            alert('Failed to link control.');
+        }
+    };
+
+    const handleUnlinkControl = async (controlId: number) => {
+        if (!risk) return;
+        try {
+            await riskApi.unlinkControl(risk.id, controlId, mockUserId);
+            // Refresh linked controls
+            const controlsData = await riskApi.getLinkedControls(risk.id, mockUserId);
+            setLinkedControls(controlsData);
+        } catch (err) {
+            console.error('Unlinking failed:', err);
+            alert('Failed to unlink control.');
         }
     };
 
@@ -218,8 +246,8 @@ export function RiskDetailPage() {
                         <div className="flex justify-between items-center">
                             <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Type</span>
                             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${risk.risk_type === 'strategic'
-                                    ? 'text-purple-400 bg-purple-400/10'
-                                    : 'text-blue-400 bg-blue-400/10'
+                                ? 'text-purple-400 bg-purple-400/10'
+                                : 'text-blue-400 bg-blue-400/10'
                                 }`}>
                                 {risk.risk_type}
                             </span>
@@ -363,10 +391,24 @@ export function RiskDetailPage() {
                             </div>
                         ))
                     )}
-                    <button className="w-full py-3 border border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-all">
-                        Manage Control Linkage
-                    </button>
+                    <PermissionGate resource="risks" action="write">
+                        <button
+                            onClick={() => setIsLinkDialogOpen(true)}
+                            className="w-full py-3 border border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-all"
+                        >
+                            Manage Control Linkage
+                        </button>
+                    </PermissionGate>
                 </div>
+
+                <LinkManagementDialog
+                    isOpen={isLinkDialogOpen}
+                    onClose={() => setIsLinkDialogOpen(false)}
+                    mode="risk-to-control"
+                    existingLinks={linkedControls}
+                    onLink={handleLinkControl}
+                    onUnlink={handleUnlinkControl}
+                />
             </motion.div>
 
             {/* Timestamps */}
