@@ -33,6 +33,7 @@ Plans:
 - [x] 01-01: React + Vite frontend scaffolding with Tailwind/shadcn
 - [x] 01-02: FastAPI backend with SQLAlchemy and PostgreSQL
 - [x] 01-03: Role-based access structure (SII roles, auth mocked for now)
+- [x] 01-04: Premium Frontend Redesign (Hero page, glassmorphism)
 
 ### Phase 2: Control Catalog
 **Goal**: Implement the 13-point control data structure with full CRUD
@@ -85,7 +86,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 3/3 | Complete | 2025-12-25 |
+| 1. Foundation | 4/4 | Complete | 2025-12-25 |
 | 2. Control Catalog | 0/3 | Not started | - |
 | 3. Dashboards | 0/2 | Not started | - |
 | 4. Reporting | 0/2 | Not started | - |
