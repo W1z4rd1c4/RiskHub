@@ -53,8 +53,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02.1-01: Risk Register list/detail views with risk matrix visualization
-- [ ] 02.1-02: Control-Risk linking UI (from control → see risks, from risk → see controls)
+- [x] 02.1-01: Risk Register list/detail views with risk matrix visualization
+- [x] 02.1-02: Control-Risk linking UI (from control → see risks, from risk → see controls)
 
 ### Phase 3: Dashboards
 **Goal**: Build executive and department-level dashboards
@@ -64,8 +64,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Dashboard backend (aggregations, metrics endpoints)
-- [ ] 03-02: Dashboard UI components and layouts
+- [x] 03-01: Dashboard backend (aggregations, metrics endpoints)
+- [x] 03-02: Dashboard UI components and layouts
 
 ### Phase 4: Reporting
 **Goal**: PDF/Excel exports and audit trail functionality
@@ -98,7 +98,7 @@ Phases execute in numeric order: 1 → 2 → 2.1 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete | 2025-12-25 |
 | 2. Control Catalog | 3/3 | Complete | 2025-12-25 |
-| 2.1 Risk Register | 0/2 | Not started | - |
-| 3. Dashboards | 0/2 | Not started | - |
+| 2.1 Risk Register | 2/2 | Complete | 2025-12-25 |
+| 3. Dashboards | 2/2 | Complete | 2025-12-25 |
 | 4. Reporting | 0/2 | Not started | - |
 | 5. Polish & Deploy | 0/3 | Not started | - |
