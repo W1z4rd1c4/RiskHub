@@ -43,7 +43,8 @@ docker-compose.yml
 - ✅ FastAPI server starts at http://localhost:8000
 - ✅ Health check returns `{"status":"healthy","version":"1.0.0","service":"RiskHub API"}`
 - ✅ OpenAPI docs available at http://localhost:8000/docs
-- ⚠️ Database connection requires Docker (not running)
+- ✅ Database connection working with PostgreSQL
+- ✅ Alembic migrations applied successfully
 
 ## Notes
 
