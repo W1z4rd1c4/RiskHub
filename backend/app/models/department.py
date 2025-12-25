@@ -15,6 +15,8 @@ class Department(Base):
     
     # Relationships
     users: Mapped[list["User"]] = relationship("User", back_populates="department")
+    controls: Mapped[list["Control"]] = relationship("Control", back_populates="department")
+    risks: Mapped[list["Risk"]] = relationship("Risk", back_populates="department")
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -23,3 +25,6 @@ class Department(Base):
 
 # Import for type hints
 from app.models.user import User
+from app.models.control import Control
+from app.models.risk import Risk
+
