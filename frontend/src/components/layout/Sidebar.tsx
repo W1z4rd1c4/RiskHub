@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import {
     LayoutDashboard,
     ClipboardList,
+    ShieldAlert,
     Building2,
     Settings,
     Shield,
@@ -12,6 +13,7 @@ import {
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Controls', href: '/controls', icon: ClipboardList },
+    { name: 'Risk Register', href: '/risks', icon: ShieldAlert },
     { name: 'Departments', href: '/departments', icon: Building2 },
     { name: 'Settings', href: '/settings', icon: Settings },
 ];
