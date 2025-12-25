@@ -18,7 +18,7 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 2.1 Risk Register (In Progress)
-**Plan:** 02.1-01 complete, ready for 02.1-02
+**Plan:** 02.1-01 and 02.1-02 complete, ready for 02.1-03
 
 ## Session Context
 
@@ -35,6 +35,7 @@
 - **02-02 Complete**: Controls & Risks API endpoints with RBAC
 - **02-03 Complete**: Control Catalog UI (List, Detail, Forms)
 - **02.1-01 Complete**: Risk Register UI (List, Detail, RiskScoreMatrix)
+- **02.1-02 Complete**: Control-Risk Linking and Forms (Wizard, Linking UI)
 
 ## Key Decisions
 
@@ -49,10 +50,10 @@
 ## Continuity
 
 ### Last Action
-- Executed 02.1-01-PLAN.md: Risk Register UI with list, detail, and risk matrices
+- Executed 02.1-02-PLAN.md: Control-Risk linking UI and Risk forms
 
 ### Next Step
-- Execute 02.1-02-PLAN.md: Control-Risk linking UI and Risk forms
+- Execute 02.1-03-PLAN.md: SII Mapping and Advanced Filtering
 
 ---
 *Updated: 2025-12-25*

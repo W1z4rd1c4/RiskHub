@@ -44,7 +44,7 @@ Plans:
 Plans:
 - [x] 02-01: Database schema for controls, risks, and control-risk linkage
 - [x] 02-02: API endpoints for control and risk management
-- [ ] 02-03: Control catalog UI with forms and validation
+- [x] 02-03: Control catalog UI with forms and validation
 
 ### Phase 2.1: Risk Register
 **Goal**: Build Risk Register UI with gross/net risk visualization and Control-Risk navigation
@@ -97,7 +97,7 @@ Phases execute in numeric order: 1 → 2 → 2.1 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete | 2025-12-25 |
-| 2. Control Catalog | 2/3 | In Progress | - |
+| 2. Control Catalog | 3/3 | Complete | 2025-12-25 |
 | 2.1 Risk Register | 0/2 | Not started | - |
 | 3. Dashboards | 0/2 | Not started | - |
 | 4. Reporting | 0/2 | Not started | - |
