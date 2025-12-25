@@ -27,7 +27,7 @@ Building an enterprise risk management platform for insurance companies, startin
 **Goal**: Set up project infrastructure with role-based access (auth mocked)
 **Depends on**: Nothing (first phase)
 **Research**: Unlikely (established patterns)
-**Plans**: 3 plans
+**Plans**: 4 plans
 
 Plans:
 - [x] 01-01: React + Vite frontend scaffolding with Tailwind/shadcn
