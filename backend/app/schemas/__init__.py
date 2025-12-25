@@ -3,9 +3,29 @@ from app.schemas.user import (
     UserBase, UserCreate, UserRead, UserBrief,
     DepartmentBase, DepartmentRead,
 )
+from app.schemas.control import (
+    ControlFormEnum, ControlFrequencyEnum, ControlStatusEnum, ExecutionResultEnum,
+    ControlBase, ControlCreate, ControlUpdate, ControlRead, ControlSummary,
+    ControlExecutionCreate, ControlExecutionRead,
+)
+from app.schemas.risk import (
+    RiskTypeEnum, RiskStatusEnum, ControlEffectivenessEnum,
+    RiskBase, RiskCreate, RiskUpdate, RiskRead, RiskSummary,
+    ControlRiskLinkCreate, ControlRiskLinkFromRisk, ControlRiskLinkRead,
+)
 
 __all__ = [
+    # User schemas
     "RoleBase", "RoleRead",
     "UserBase", "UserCreate", "UserRead", "UserBrief",
     "DepartmentBase", "DepartmentRead",
+    # Control schemas
+    "ControlFormEnum", "ControlFrequencyEnum", "ControlStatusEnum", "ExecutionResultEnum",
+    "ControlBase", "ControlCreate", "ControlUpdate", "ControlRead", "ControlSummary",
+    "ControlExecutionCreate", "ControlExecutionRead",
+    # Risk schemas
+    "RiskTypeEnum", "RiskStatusEnum", "ControlEffectivenessEnum",
+    "RiskBase", "RiskCreate", "RiskUpdate", "RiskRead", "RiskSummary",
+    "ControlRiskLinkCreate", "ControlRiskLinkFromRisk", "ControlRiskLinkRead",
 ]
+

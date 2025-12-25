@@ -36,15 +36,25 @@ Plans:
 - [x] 01-04: Premium Frontend Redesign (Hero page, glassmorphism)
 
 ### Phase 2: Control Catalog
-**Goal**: Implement the 13-point control data structure with full CRUD
+**Goal**: Implement the 13-point control data structure with full CRUD and Risk-Control linkage
 **Depends on**: Phase 1
-**Research**: Unlikely (domain requirements clear from DEFINICIA KONTROL)
+**Research**: Unlikely (domain requirements clear from DEFINICIA KONTROL + OS 18)
 **Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Database schema for controls, departments, and users
-- [ ] 02-02: API endpoints for control management
+- [x] 02-01: Database schema for controls, risks, and control-risk linkage
+- [ ] 02-02: API endpoints for control and risk management
 - [ ] 02-03: Control catalog UI with forms and validation
+
+### Phase 2.1: Risk Register
+**Goal**: Build Risk Register UI with gross/net risk visualization and Control-Risk navigation
+**Depends on**: Phase 2
+**Research**: Unlikely (OS 18 Řízení rizik provides clear structure)
+**Plans**: 2 plans
+
+Plans:
+- [ ] 02.1-01: Risk Register list/detail views with risk matrix visualization
+- [ ] 02.1-02: Control-Risk linking UI (from control → see risks, from risk → see controls)
 
 ### Phase 3: Dashboards
 **Goal**: Build executive and department-level dashboards
@@ -82,12 +92,13 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 2.1 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete | 2025-12-25 |
-| 2. Control Catalog | 0/3 | Not started | - |
+| 2. Control Catalog | 1/3 | In Progress | - |
+| 2.1 Risk Register | 0/2 | Not started | - |
 | 3. Dashboards | 0/2 | Not started | - |
 | 4. Reporting | 0/2 | Not started | - |
 | 5. Polish & Deploy | 0/3 | Not started | - |
