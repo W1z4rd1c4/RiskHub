@@ -15,7 +15,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions
 
-- [ ] **Phase 1: Foundation** — Project scaffolding, auth, and database setup
+- [x] **Phase 1: Foundation** — Project scaffolding, auth, and database setup
 - [ ] **Phase 2: Control Catalog** — 13-point control structure and CRUD operations
 - [ ] **Phase 3: Dashboards** — Executive and department-level dashboards
 - [ ] **Phase 4: Reporting** — PDF/Excel exports and audit trails
@@ -30,9 +30,9 @@ Building an enterprise risk management platform for insurance companies, startin
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: React + Vite frontend scaffolding with Tailwind/shadcn
-- [ ] 01-02: FastAPI backend with SQLAlchemy and PostgreSQL
-- [ ] 01-03: Role-based access structure (SII roles, auth mocked for now)
+- [x] 01-01: React + Vite frontend scaffolding with Tailwind/shadcn
+- [x] 01-02: FastAPI backend with SQLAlchemy and PostgreSQL
+- [x] 01-03: Role-based access structure (SII roles, auth mocked for now)
 
 ### Phase 2: Control Catalog
 **Goal**: Implement the 13-point control data structure with full CRUD
@@ -85,7 +85,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Not started | - |
+| 1. Foundation | 3/3 | Complete | 2025-12-25 |
 | 2. Control Catalog | 0/3 | Not started | - |
 | 3. Dashboards | 0/2 | Not started | - |
 | 4. Reporting | 0/2 | Not started | - |
