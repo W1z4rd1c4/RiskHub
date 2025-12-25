@@ -4,6 +4,11 @@ import { MainLayout } from '@/components/layout';
 import {
   DashboardPage,
   ControlsPage,
+  ControlDetailPage,
+  ControlNewPage,
+  ControlEditPage,
+  RisksPage,
+  RiskDetailPage,
   DepartmentsPage,
   SettingsPage,
   HeroPage,
@@ -33,6 +38,11 @@ function App() {
           }>
             <Route index element={<DashboardPage />} />
             <Route path="controls" element={<ControlsPage />} />
+            <Route path="controls/new" element={<ControlNewPage />} />
+            <Route path="controls/:id" element={<ControlDetailPage />} />
+            <Route path="controls/:id/edit" element={<ControlEditPage />} />
+            <Route path="risks" element={<RisksPage />} />
+            <Route path="risks/:id" element={<RiskDetailPage />} />
             <Route path="departments" element={<DepartmentsPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>

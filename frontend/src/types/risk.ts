@@ -1,0 +1,126 @@
+// Risk types matching backend schemas from OS 18 Řízení rizik
+
+export type RiskType = 'strategic' | 'operational';
+export const RiskType = {
+    STRATEGIC: 'strategic' as RiskType,
+    OPERATIONAL: 'operational' as RiskType,
+};
+
+export type RiskStatus = 'active' | 'monitoring' | 'closed' | 'archived';
+export const RiskStatus = {
+    ACTIVE: 'active' as RiskStatus,
+    MONITORING: 'monitoring' as RiskStatus,
+    CLOSED: 'closed' as RiskStatus,
+    ARCHIVED: 'archived' as RiskStatus,
+};
+
+export type ControlEffectiveness = 'high' | 'medium' | 'low';
+export const ControlEffectiveness = {
+    HIGH: 'high' as ControlEffectiveness,
+    MEDIUM: 'medium' as ControlEffectiveness,
+    LOW: 'low' as ControlEffectiveness,
+};
+
+export interface Risk {
+    id: number;
+    risk_id_code: string;
+    process: string;
+    subprocess?: string;
+    risk_type: RiskType;
+    category?: string;
+    description: string;
+    department_id?: number;
+    owner_id?: number;
+
+    // Gross risk (before controls)
+    gross_probability: number;
+    gross_impact: number;
+    gross_score: number;
+
+    // Net risk (after controls)
+    net_probability: number;
+    net_impact: number;
+    net_score: number;
+
+    status: RiskStatus;
+    is_priority: boolean;
+
+    // KRI fields
+    kri_indicator?: string;
+    kri_threshold_green?: string;
+    kri_threshold_yellow?: string;
+    kri_threshold_red?: string;
+
+    created_at: string;
+    updated_at: string;
+
+    // Relationships
+    owner?: {
+        id: number;
+        name: string;
+        email: string;
+    };
+    department?: {
+        id: number;
+        name: string;
+        code: string;
+    };
+}
+
+export interface RiskSummary {
+    id: number;
+    risk_id_code: string;
+    process: string;
+    risk_type: RiskType;
+    category?: string;
+    gross_score: number;
+    net_score: number;
+    status: RiskStatus;
+    is_priority: boolean;
+    department_id?: number;
+}
+
+export interface RiskCreate {
+    risk_id_code: string;
+    process: string;
+    subprocess?: string;
+    risk_type: RiskType;
+    category?: string;
+    description: string;
+    department_id?: number;
+    owner_id?: number;
+    gross_probability: number;
+    gross_impact: number;
+    net_probability: number;
+    net_impact: number;
+    status?: RiskStatus;
+    is_priority?: boolean;
+    kri_indicator?: string;
+    kri_threshold_green?: string;
+    kri_threshold_yellow?: string;
+    kri_threshold_red?: string;
+}
+
+export interface RiskUpdate extends Partial<RiskCreate> { }
+
+export interface RiskControlLink {
+    id: number;
+    control_id: number;
+    risk_id: number;
+    effectiveness: ControlEffectiveness;
+    notes?: string;
+    created_at: string;
+    control?: {
+        id: number;
+        name: string;
+        frequency: string;
+        risk_level: number;
+    };
+    risk?: {
+        id: number;
+        risk_id_code: string;
+        process: string;
+        gross_score: number;
+        net_score: number;
+    };
+}
