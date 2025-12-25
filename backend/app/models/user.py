@@ -24,8 +24,30 @@ class User(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    
+    # Control relationships
+    owned_controls: Mapped[list["Control"]] = relationship(
+        "Control", 
+        foreign_keys="Control.control_owner_id",
+        back_populates="control_owner"
+    )
+    executed_controls: Mapped[list["ControlExecution"]] = relationship(
+        "ControlExecution",
+        back_populates="executed_by"
+    )
+    
+    # Risk relationships
+    owned_risks: Mapped[list["Risk"]] = relationship(
+        "Risk",
+        foreign_keys="Risk.owner_id",
+        back_populates="owner"
+    )
 
 
 # Import for type hints
 from app.models.role import Role
 from app.models.department import Department
+from app.models.control import Control
+from app.models.control_execution import ControlExecution
+from app.models.risk import Risk
+
