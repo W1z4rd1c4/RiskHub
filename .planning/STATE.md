@@ -18,7 +18,7 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 2. Control Catalog (In Progress)
-**Plan:** 02-01 complete, 02-02 next
+**Plan:** 02-02 complete, 02-03 next
 
 ## Session Context
 
@@ -30,8 +30,8 @@
 
 ### Recent Progress
 - Phase 1 Foundation complete (4 plans)
-- **02-01 Complete**: Control (13 fields), Risk (OS 18), ControlExecution, ControlRiskLink models
-- Migration applied: 4 new tables with indexes
+- **02-01 Complete**: Control, Risk, ControlExecution, ControlRiskLink models
+- **02-02 Complete**: Controls & Risks API endpoints with RBAC
 
 ## Key Decisions
 
@@ -46,10 +46,10 @@
 ## Continuity
 
 ### Last Action
-- Executed 02-01-PLAN.md: Created Control, Risk, ControlExecution, ControlRiskLink models + schemas + migration
+- Executed 02-02-PLAN.md: CRUD API for controls/risks, execution logging, bidirectional linking
 
 ### Next Step
-- Execute 02-02-PLAN.md: API endpoints for controls and risks
+- Execute 02-03-PLAN.md: Control Catalog UI
 
 ---
 *Updated: 2025-12-25*
