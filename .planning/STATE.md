@@ -17,8 +17,8 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 2. Control Catalog (In Progress)
-**Plan:** 02-02 complete, 02-03 next
+**Phase:** 2.1 Risk Register (In Progress)
+**Plan:** 02.1-01 complete, ready for 02.1-02
 
 ## Session Context
 
@@ -26,12 +26,15 @@
 1. ~~Execute Phase 1 plans~~ ✅
 2. ~~Premium UI Redesign~~ ✅
 3. ~~Plan Phase 2: Control Catalog~~ ✅
-4. Execute Phase 2 plans (02-01 → 02-02 → 02-03)
+4. ~~Execute Phase 2 plans (02-01 → 02-02 → 02-03)~~ ✅
+5. Execute Phase 2.1: Risk Register UI
 
 ### Recent Progress
 - Phase 1 Foundation complete (4 plans)
 - **02-01 Complete**: Control, Risk, ControlExecution, ControlRiskLink models
 - **02-02 Complete**: Controls & Risks API endpoints with RBAC
+- **02-03 Complete**: Control Catalog UI (List, Detail, Forms)
+- **02.1-01 Complete**: Risk Register UI (List, Detail, RiskScoreMatrix)
 
 ## Key Decisions
 
@@ -46,10 +49,11 @@
 ## Continuity
 
 ### Last Action
-- Executed 02-02-PLAN.md: CRUD API for controls/risks, execution logging, bidirectional linking
+- Executed 02.1-01-PLAN.md: Risk Register UI with list, detail, and risk matrices
 
 ### Next Step
-- Execute 02-03-PLAN.md: Control Catalog UI
+- Execute 02.1-02-PLAN.md: Control-Risk linking UI and Risk forms
 
 ---
 *Updated: 2025-12-25*
+
