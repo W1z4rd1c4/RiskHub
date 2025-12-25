@@ -38,8 +38,18 @@ How we know this worked:
 - Control Catalog Management (13-point data structure)
 - Department-based ownership and permissions
 - Control execution logging and verification
-- Active Directory/Entra ID integration
-- Role-based access (Admin, Risk Manager, Department Head, Auditor, Viewer)
+- Role-based access (mocked auth, AD integration deferred)
+
+**SII Role Structure (Solvency II Compliance):**
+- **Admin** — System administration, user management
+- **Chief Risk Officer (CRO)** — Full access, risk oversight, reporting
+- **Risk Manager** — Risk register management, control oversight
+- **Actuarial Function** — Actuarial controls, reserving oversight
+- **Compliance Officer** — Regulatory compliance, policy controls
+- **Internal Audit** — Read-only audit access, verification rights
+- **Department Head** — Department control catalog ownership
+- **Control Owner** — Specific control management and execution
+- **Viewer** — Read-only dashboard access
 
 **Dashboards & Reporting:**
 - Executive dashboard with risk overview

@@ -24,7 +24,7 @@ Building an enterprise risk management platform for insurance companies, startin
 ## Phase Details
 
 ### Phase 1: Foundation
-**Goal**: Set up project infrastructure with authentication and database
+**Goal**: Set up project infrastructure with role-based access (auth mocked)
 **Depends on**: Nothing (first phase)
 **Research**: Unlikely (established patterns)
 **Plans**: 3 plans
@@ -32,7 +32,7 @@ Building an enterprise risk management platform for insurance companies, startin
 Plans:
 - [ ] 01-01: React + Vite frontend scaffolding with Tailwind/shadcn
 - [ ] 01-02: FastAPI backend with SQLAlchemy and PostgreSQL
-- [ ] 01-03: Azure AD authentication integration (MSAL)
+- [ ] 01-03: Role-based access structure (SII roles, auth mocked for now)
 
 ### Phase 2: Control Catalog
 **Goal**: Implement the 13-point control data structure with full CRUD
