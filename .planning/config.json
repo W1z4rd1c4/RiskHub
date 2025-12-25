@@ -1,0 +1,13 @@
+{
+  "mode": "interactive",
+  "gates": {
+    "plan_approval": true,
+    "execution_checkpoints": true,
+    "auto_commit": false
+  },
+  "project": {
+    "name": "RiskHub",
+    "version": "1.0.0",
+    "initialized": "2025-12-25"
+  }
+}
