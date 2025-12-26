@@ -8,22 +8,23 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.models import User, Control, ControlExecution, ControlRiskLink
 from app.schemas.control import (
-    ControlCreate, ControlUpdate, ControlRead, ControlSummary,
+    ControlCreate, ControlUpdate, ControlRead, ControlSummary, ControlListResponse,
     ControlExecutionCreate, ControlExecutionRead,
     ControlFormEnum, ControlFrequencyEnum, ControlStatusEnum,
 )
 from app.schemas.risk import ControlRiskLinkCreate, ControlRiskLinkRead
-from app.core.security import get_current_user, check_permission, require_permission
+from app.api import deps
+from app.core.permissions import get_user_department_ids
 
 router = APIRouter()
 
 
 # ============== CRUD Operations ==============
 
-@router.get("", response_model=list[ControlSummary])
+@router.get("", response_model=ControlListResponse)
 async def list_controls(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(deps.get_current_user),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     department_id: Optional[int] = None,
@@ -33,43 +34,47 @@ async def list_controls(
     """
     List controls with pagination and filters.
     Department heads without admin/cro/risk_manager role see only their department's controls.
+    Returns paginated response with total count.
     """
-    query = select(Control).options(selectinload(Control.department))
+    base_query = select(Control)
     
     # Department filtering based on role
-    is_privileged = check_permission(current_user, "controls", "read_all") or \
-                    current_user.role.name in ["admin", "cro", "risk_manager"]
-    
-    if not is_privileged and current_user.department_id:
-        query = query.where(Control.department_id == current_user.department_id)
-    elif department_id:
-        query = query.where(Control.department_id == department_id)
+    dept_ids = get_user_department_ids(current_user)
+    if dept_ids:  # If not empty, user is restricted to specific departments
+        base_query = base_query.where(Control.department_id.in_(dept_ids))
+    elif department_id:  # Privileged user can filter by specific department
+        base_query = base_query.where(Control.department_id == department_id)
     
     # Status filter
     if status:
-        query = query.where(Control.status == status.value)
+        base_query = base_query.where(Control.status == status.value)
     else:
         # Default: exclude archived
-        query = query.where(Control.status != ControlStatusEnum.archived.value)
+        base_query = base_query.where(Control.status != ControlStatusEnum.archived.value)
     
     # Search filter
     if search:
         search_pattern = f"%{search}%"
-        query = query.where(
+        base_query = base_query.where(
             or_(
                 Control.name.ilike(search_pattern),
                 Control.description.ilike(search_pattern),
             )
         )
     
-    # Pagination
-    query = query.offset(skip).limit(limit).order_by(Control.name)
+    # Get total count before pagination
+    count_query = select(func.count()).select_from(base_query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # Apply pagination and ordering with eager loading
+    query = base_query.options(selectinload(Control.department)).offset(skip).limit(limit).order_by(Control.name)
     
     result = await db.execute(query)
     controls = result.scalars().all()
     
     # Map to summary with department_name
-    return [
+    items = [
         ControlSummary(
             id=c.id,
             name=c.name,
@@ -82,6 +87,8 @@ async def list_controls(
         )
         for c in controls
     ]
+    
+    return ControlListResponse(items=items, total=total, skip=skip, limit=limit)
 
 
 @router.get("/{control_id}", response_model=ControlRead)
