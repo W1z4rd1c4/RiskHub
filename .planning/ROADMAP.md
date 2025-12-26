@@ -158,7 +158,7 @@ Plans:
 - [x] 07-02: Backend API endpoints for user CRUD and permission checking
 - [x] 07-03: Frontend user management UI (list, forms, hierarchy tree)
 - [x] 07-04: Authentication context updates with role and permissions (CORE COMPLETE - pattern established)
-- [ ] 07-05: Seed script for sample users with different roles
+- [x] 07-05: Seed script for sample users with different roles
 
 ### Phase 8: Permission-Based Data Filtering
 **Goal**: Implement data filtering based on user roles and approval workflows for sensitive operations
@@ -276,7 +276,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 6. Risk Appetite | 3/3 | Complete | 2025-12-26 |
 | 6.1 KRI Management | 2/2 | Complete | 2025-12-26 |
 | **Ad-hoc: AUDIT Fixes** | 14/16 | Complete | 2025-12-26 |
-| 7. User Management & RBAC | 3/5 | In Progress | - |
+| 7. User Management & RBAC | 5/5 | Complete | 2025-12-26 |
 | 8. Permission Filtering | 0/5 | Not started | - |
 | 9. Notification System | 0/5 | Not started | - |
 | 10. Historization | 0/5 | Not started | - |
