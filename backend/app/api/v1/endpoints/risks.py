@@ -1,28 +1,29 @@
 from typing import Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.models import User, Risk, ControlRiskLink
 from app.schemas.risk import (
-    RiskCreate, RiskUpdate, RiskRead, RiskSummary,
+    RiskCreate, RiskUpdate, RiskRead, RiskSummary, RiskListResponse,
     RiskTypeEnum, RiskStatusEnum,
     ControlRiskLinkFromRisk, ControlRiskLinkRead, ControlEffectivenessEnum,
 )
-from app.core.security import get_current_user, check_permission, require_permission
+from app.api import deps
+from app.core.permissions import get_user_department_ids
 
 router = APIRouter()
 
 
 # ============== CRUD Operations ==============
 
-@router.get("", response_model=list[RiskSummary])
+@router.get("", response_model=RiskListResponse)
 async def list_risks(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(deps.get_current_user),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     department_id: Optional[int] = None,
@@ -30,41 +31,41 @@ async def list_risks(
     risk_type: Optional[RiskTypeEnum] = None,
     is_priority: Optional[bool] = None,
     search: Optional[str] = None,
+    include_archived: bool = Query(False, description="Include archived risks in results"),
 ):
     """
     List risks with pagination and filters.
     Department heads without admin/cro/risk_manager role see only their department's risks.
+    Returns paginated response with total count.
     """
-    query = select(Risk)
+    base_query = select(Risk)
     
     # Department filtering based on role
-    is_privileged = check_permission(current_user, "risks", "read_all") or \
-                    current_user.role.name in ["admin", "cro", "risk_manager"]
-    
-    if not is_privileged and current_user.department_id:
-        query = query.where(Risk.department_id == current_user.department_id)
-    elif department_id:
-        query = query.where(Risk.department_id == department_id)
+    dept_ids = get_user_department_ids(current_user)
+    if dept_ids:  # If not empty, user is restricted to specific departments
+        base_query = base_query.where(Risk.department_id.in_(dept_ids))
+    elif department_id:  # Privileged user can filter by specific department
+        base_query = base_query.where(Risk.department_id == department_id)
     
     # Status filter
     if status:
-        query = query.where(Risk.status == status.value)
-    else:
-        # Default: exclude archived
-        query = query.where(Risk.status != RiskStatusEnum.archived.value)
+        base_query = base_query.where(Risk.status == status.value)
+    elif not include_archived:
+        # Default: exclude archived unless explicitly requested
+        base_query = base_query.where(Risk.status != RiskStatusEnum.archived.value)
     
     # Risk type filter
     if risk_type:
-        query = query.where(Risk.risk_type == risk_type.value)
+        base_query = base_query.where(Risk.risk_type == risk_type.value)
     
     # Priority filter
     if is_priority is not None:
-        query = query.where(Risk.is_priority == is_priority)
+        base_query = base_query.where(Risk.is_priority == is_priority)
     
     # Search filter
     if search:
         search_pattern = f"%{search}%"
-        query = query.where(
+        base_query = base_query.where(
             or_(
                 Risk.risk_id_code.ilike(search_pattern),
                 Risk.description.ilike(search_pattern),
@@ -72,18 +73,44 @@ async def list_risks(
             )
         )
     
-    # Pagination
-    query = query.offset(skip).limit(limit).order_by(Risk.risk_id_code)
+    # Get total count before pagination
+    count_query = select(func.count()).select_from(base_query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # Apply pagination and ordering
+    query = base_query.options(
+        selectinload(Risk.department),
+        selectinload(Risk.kris)
+    ).offset(skip).limit(limit).order_by(Risk.risk_id_code)
     
     result = await db.execute(query)
-    return result.scalars().all()
+    risks = result.scalars().all()
+    
+    # Build items with department_name and KRI summary populated
+    items = [
+        {
+            **{c.name: getattr(r, c.name) for c in Risk.__table__.columns},
+            "department_name": r.department.name if r.department else None,
+            "gross_probability": r.gross_probability,
+            "gross_impact": r.gross_impact,
+            "kri_count": len(r.kris),
+            "has_breach": any(
+                k.current_value < k.lower_limit or k.current_value > k.upper_limit 
+                for k in r.kris
+            )
+        }
+        for r in risks
+    ]
+    
+    return RiskListResponse(items=items, total=total, skip=skip, limit=limit)
 
 
 @router.get("/{risk_id}", response_model=RiskRead)
 async def get_risk(
     risk_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """Get a single risk with all relationships."""
     result = await db.execute(
@@ -91,6 +118,7 @@ async def get_risk(
         .options(
             selectinload(Risk.department),
             selectinload(Risk.owner),
+            selectinload(Risk.kris),
         )
         .where(Risk.id == risk_id)
     )
@@ -130,10 +158,6 @@ async def create_risk(
         net_score=net_score,
         status=risk_data.status.value,
         is_priority=risk_data.is_priority,
-        kri_indicator=risk_data.kri_indicator,
-        kri_threshold_green=risk_data.kri_threshold_green,
-        kri_threshold_yellow=risk_data.kri_threshold_yellow,
-        kri_threshold_red=risk_data.kri_threshold_red,
     )
     
     db.add(risk)
@@ -210,7 +234,7 @@ async def update_risk(
 async def delete_risk(
     risk_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("risks", "delete")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """
     Soft delete a risk (set status to archived).
