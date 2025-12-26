@@ -1,9 +1,16 @@
-import { User, Bell, Search } from 'lucide-react';
+import { Bell, Search, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export function Header() {
-    const { user, isLoading } = useAuth();
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
     return (
         <header className="flex h-20 items-center justify-between px-8 bg-transparent">
@@ -16,29 +23,29 @@ export function Header() {
                 />
             </div>
 
-            <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="relative text-slate-400 hover:text-white hover:bg-white/5 rounded-xl">
-                        <Bell className="h-5 w-5" />
-                        <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-background" />
-                    </Button>
-                </div>
+            <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" className="relative text-slate-400 hover:text-white hover:bg-white/5 rounded-xl">
+                    <Bell className="h-5 w-5" />
+                    <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-background" />
+                </Button>
 
-                <div className="h-8 w-[1px] bg-white/10" />
-
-                {isLoading ? (
-                    <div className="h-10 w-40 animate-pulse rounded-xl bg-white/5" />
-                ) : user ? (
-                    <div className="flex items-center gap-4">
-                        <div className="text-right hidden sm:block">
-                            <p className="text-sm font-bold text-white leading-none mb-1">{user.name}</p>
-                            <p className="text-[10px] font-black text-accent uppercase tracking-tighter">{user.role_display_name}</p>
+                {user && (
+                    <>
+                        <div className="text-sm text-white/80 px-3 py-2 bg-white/5 rounded-xl border border-white/10">
+                            <span className="font-medium">{user.name}</span>
+                            <span className="text-white/60 ml-2">({user.role_display_name})</span>
                         </div>
-                        <div className="h-10 w-10 rounded-xl bg-accent/20 border border-accent/30 flex items-center justify-center group cursor-pointer hover:bg-accent/30 transition-colors">
-                            <User className="h-6 w-6 text-accent" />
-                        </div>
-                    </div>
-                ) : null}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleLogout}
+                            className="text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
+                        >
+                            <LogOut className="h-4 w-4 mr-2" />
+                            Logout
+                        </Button>
+                    </>
+                )}
             </div>
         </header>
     );
