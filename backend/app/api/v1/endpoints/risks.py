@@ -14,6 +14,7 @@ from app.schemas.risk import (
 )
 from app.api import deps
 from app.core.permissions import get_user_department_ids
+from app.core.security import require_permission
 
 router = APIRouter()
 
@@ -181,7 +182,7 @@ async def update_risk(
     risk_id: int,
     risk_data: RiskUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """
     Update a risk. Requires risks:write permission OR being the risk owner.
@@ -259,7 +260,7 @@ async def delete_risk(
 async def list_risk_controls(
     risk_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """List controls that mitigate this risk."""
     # Verify risk exists

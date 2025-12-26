@@ -1,6 +1,6 @@
 from app.schemas.user import (
     RoleBase, RoleRead,
-    UserBase, UserCreate, UserRead, UserBrief,
+    UserBase, UserCreate, UserUpdate, UserRead, UserBrief,
     DepartmentBase, DepartmentRead,
 )
 from app.schemas.control import (
@@ -17,7 +17,7 @@ from app.schemas.risk import (
 __all__ = [
     # User schemas
     "RoleBase", "RoleRead",
-    "UserBase", "UserCreate", "UserRead", "UserBrief",
+    "UserBase", "UserCreate", "UserUpdate", "UserRead", "UserBrief",
     "DepartmentBase", "DepartmentRead",
     # Control schemas
     "ControlFormEnum", "ControlFrequencyEnum", "ControlStatusEnum", "ExecutionResultEnum",
