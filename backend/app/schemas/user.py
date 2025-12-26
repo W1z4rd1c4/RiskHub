@@ -25,11 +25,21 @@ class UserBase(BaseModel):
     is_active: bool = True
     role_id: int
     department_id: Optional[int] = None
+    manager_id: Optional[int] = None  # Manager-employee hierarchy
 
 
 class UserCreate(UserBase):
     """Schema for creating User."""
-    pass
+    password: str  # Plain password, will be hashed
+
+
+class UserUpdate(BaseModel):
+    """Schema for updating an existing user."""
+    name: Optional[str] = None
+    role_id: Optional[int] = None
+    department_id: Optional[int] = None
+    manager_id: Optional[int] = None
+    is_active: Optional[bool] = None
 
 
 class UserRead(BaseModel):
@@ -40,6 +50,8 @@ class UserRead(BaseModel):
     is_active: bool
     role: RoleRead
     department_id: Optional[int] = None
+    manager_id: Optional[int] = None
+    manager_name: Optional[str] = None  # Manager's name
     created_at: datetime
     updated_at: datetime
     

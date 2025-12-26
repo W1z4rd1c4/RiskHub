@@ -13,6 +13,9 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     
+    # Authentication (nullable for future Entra ID integration)
+    hashed_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    
     # Role relationship
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"))
     role: Mapped["Role"] = relationship("Role", back_populates="users")
@@ -20,6 +23,11 @@ class User(Base):
     # Department relationship (optional)
     department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
     department: Mapped["Department"] = relationship("Department", back_populates="users")
+    
+    # Manager-employee hierarchy
+    manager_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    manager: Mapped["User | None"] = relationship("User", remote_side=[id], back_populates="subordinates", foreign_keys="User.manager_id")
+    subordinates: Mapped[list["User"]] = relationship("User", back_populates="manager", foreign_keys="User.manager_id")
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
