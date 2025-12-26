@@ -18,7 +18,7 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 7 User Management & RBAC (In Progress)
-**Plan:** Completed 07-03, Ready for 07-04: Permission filtering
+**Plan:** Completed 07-04 (partial), Ready for 07-05: Test data generation
 
 ## Session Context
 
@@ -31,6 +31,10 @@
 6. Plan and Execute Phase 7: User Management & RBAC
 
 ### Recent Progress (2025-12-26)
+- **Plan 07-04 Partial:**
+  - Updated risks endpoint to use new permission utilities
+  - Implemented department filtering with get_user_department_ids()
+  - Foundational work complete, full implementation deferred (large plan)
 - **Plan 07-03 Complete:**
   - Created auth API service for JWT-based authentication
   - Updated AuthContext to use JWT tokens instead of mock user ID
@@ -88,12 +92,12 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 07-03: Frontend Login & User Management UI
-- Created login page with JWT authentication
-- Updated AuthContext and added protected routes
+- Partially completed Plan 07-04: Permission-Aware Data Filtering
+- Updated risks endpoint with new permission utilities
+- Foundational work complete, full implementation deferred
 
 ### Next Step
-- Execute Plan 07-04: Permission-Based Data Filtering & UI
+- Execute Plan 07-05: Test Data Generation (120 Users)
 
 ---
 *Updated: 2025-12-26*
