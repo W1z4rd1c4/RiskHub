@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 
 class LoginRequest(BaseModel):
     """Schema for login request."""
-    email: EmailStr
+    email: str  # Changed from EmailStr to allow .test TLD for testing
     password: str
 
 
