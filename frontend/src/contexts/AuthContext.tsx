@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { authApi } from '@/services/authApi';
 
 interface User {
     id: number;
@@ -6,83 +7,78 @@ interface User {
     name: string;
     role: string;
     role_display_name: string;
+    department_id?: number;
+    department_name?: string;
     permissions: string[];
 }
 
 interface AuthContextType {
     user: User | null;
     isLoading: boolean;
-    error: string | null;
     hasPermission: (resource: string, action: string) => boolean;
-    setMockUserId: (userId: number) => void;
-    mockUserId: number | null;
+    isAuthenticated: boolean;
+    login: (email: string, password: string) => Promise<User>;
+    logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
+    const [token, setTokenState] = useState<string | null>(() =>
+        localStorage.getItem('access_token')
+    );
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [mockUserId, setMockUserId] = useState<number | null>(null);
 
-    const fetchCurrentUser = async () => {
+    const setToken = (newToken: string) => {
+        localStorage.setItem('access_token', newToken);
+        setTokenState(newToken);
+    };
+
+    const login = async (email: string, password: string): Promise<User> => {
         try {
-            setIsLoading(true);
-            setError(null);
-
-            const headers: HeadersInit = {};
-            if (mockUserId) {
-                headers['X-Mock-User-Id'] = String(mockUserId);
-            }
-
-            const response = await fetch(`${API_URL}/users/me`, { headers });
-
-            if (response.ok) {
-                const userData = await response.json();
-                setUser(userData);
-            } else {
-                // For development, create a mock user if backend is not available
-                setUser({
-                    id: 1,
-                    email: 'admin@riskhub.local',
-                    name: 'Admin User',
-                    role: 'admin',
-                    role_display_name: 'Administrator',
-                    permissions: ['*:*'],
-                });
-            }
+            const response = await authApi.login({ email, password });
+            setToken(response.access_token);
+            setUser(response.user);
+            return response.user;
         } catch (err) {
-            // For development, create a mock user if backend is not available
-            setUser({
-                id: 1,
-                email: 'admin@riskhub.local',
-                name: 'Admin User',
-                role: 'admin',
-                role_display_name: 'Administrator',
-                permissions: ['*:*'],
-            });
-            setError('Using mock user (backend not available)');
-        } finally {
-            setIsLoading(false);
+            throw new Error(err instanceof Error ? err.message : 'Login failed');
         }
     };
 
+    const logout = () => {
+        localStorage.removeItem('access_token');
+        setTokenState(null);
+        setUser(null);
+    };
+
     useEffect(() => {
+        const fetchCurrentUser = async () => {
+            if (!token) {
+                setIsLoading(false);
+                return;
+            }
+
+            try {
+                const userData = await authApi.getCurrentUser(token);
+                setUser(userData);
+            } catch (err) {
+                // Token invalid, clear it
+                logout();
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
         fetchCurrentUser();
-    }, [mockUserId]);
+    }, [token]);
 
     const hasPermission = (resource: string, action: string): boolean => {
-        if (!user || !user.permissions) return false;
-
+        if (!user?.permissions) return false;
         return user.permissions.some((perm) => {
             const [permResource, permAction] = perm.split(':');
-            // Check for exact match or wildcard
-            const resourceMatch = permResource === '*' || permResource === resource;
-            const actionMatch = permAction === '*' || permAction === action;
-            return resourceMatch && actionMatch;
+            return (permResource === '*' || permResource === resource) &&
+                (permAction === '*' || permAction === action);
         });
     };
 
@@ -91,10 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             value={{
                 user,
                 isLoading,
-                error,
                 hasPermission,
-                setMockUserId,
-                mockUserId,
+                isAuthenticated: !!token && !!user,
+                login,
+                logout,
             }}
         >
             {children}
