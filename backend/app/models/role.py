@@ -4,6 +4,36 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
+class RoleType:
+    """Standard role names for non-life insurance company."""
+    # C-Suite
+    CEO = "ceo"
+    CFO = "cfo"
+    CRO = "cro"
+    COO = "coo"
+    
+    # Governance
+    RISK_MANAGER = "risk_manager"
+    COMPLIANCE = "compliance"
+    LEGAL = "legal"
+    INTERNAL_AUDIT = "internal_audit"
+    ACTUARIAL = "actuarial"
+    
+    # Department
+    DEPARTMENT_HEAD = "department_head"
+    EMPLOYEE = "employee"
+    
+    # System
+    ADMIN = "admin"
+    VIEWER = "viewer"
+    
+    @classmethod
+    def privileged_roles(cls):
+        """Roles with full system access."""
+        return {cls.CEO, cls.CFO, cls.CRO, cls.RISK_MANAGER, 
+                cls.COMPLIANCE, cls.LEGAL, cls.INTERNAL_AUDIT, cls.ACTUARIAL, cls.ADMIN}
+
+
 class Role(Base):
     """Role model for SII-compliant access control."""
     __tablename__ = "roles"
