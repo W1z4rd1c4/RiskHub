@@ -15,6 +15,7 @@ from app.schemas.control import (
 from app.schemas.risk import ControlRiskLinkCreate, ControlRiskLinkRead
 from app.api import deps
 from app.core.permissions import get_user_department_ids
+from app.core.security import require_permission
 
 router = APIRouter()
 
@@ -95,7 +96,7 @@ async def list_controls(
 async def get_control(
     control_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """Get a single control with all relationships."""
     result = await db.execute(
@@ -162,7 +163,7 @@ async def update_control(
     control_id: int,
     control_data: ControlUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """
     Update a control. Requires controls:write permission OR being the control owner.
@@ -253,7 +254,7 @@ async def log_execution(
     control_id: int,
     execution_data: ControlExecutionCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """Log a control execution."""
     # Verify control exists
@@ -296,7 +297,7 @@ async def log_execution(
 async def list_executions(
     control_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(deps.get_current_user),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
@@ -325,7 +326,7 @@ async def list_executions(
 async def list_control_risks(
     control_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """List risks that this control mitigates."""
     # Verify control exists
