@@ -155,7 +155,7 @@ Plans:
 
 Plans:
 - [x] 07-01: Backend schema and user models (users, roles, department hierarchy)
-- [ ] 07-02: Backend API endpoints for user CRUD and permission checking
+- [x] 07-02: Backend API endpoints for user CRUD and permission checking
 - [ ] 07-03: Frontend user management UI (list, forms, hierarchy tree)
 - [ ] 07-04: Authentication context updates with role and permissions
 - [ ] 07-05: Seed script for sample users with different roles
@@ -276,7 +276,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 6. Risk Appetite | 3/3 | Complete | 2025-12-26 |
 | 6.1 KRI Management | 2/2 | Complete | 2025-12-26 |
 | **Ad-hoc: AUDIT Fixes** | 14/16 | Complete | 2025-12-26 |
-| 7. User Management & RBAC | 1/5 | In Progress | - |
+| 7. User Management & RBAC | 2/5 | In Progress | - |
 | 8. Permission Filtering | 0/5 | Not started | - |
 | 9. Notification System | 0/5 | Not started | - |
 | 10. Historization | 0/5 | Not started | - |
