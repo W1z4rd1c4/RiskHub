@@ -17,8 +17,8 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 7 User Management & RBAC (Ready to Start)
-**Plan:** Ready for 07-01: Backend schema and user models
+**Phase:** 7 User Management & RBAC (In Progress)
+**Plan:** Completed 07-01, Ready for 07-02: Backend API endpoints
 
 ## Session Context
 
@@ -31,6 +31,13 @@
 6. Plan and Execute Phase 7: User Management & RBAC
 
 ### Recent Progress (2025-12-26)
+- **Plan 07-01 Complete:**
+  - Added hashed_password and manager_id to User model
+  - Created RoleType enum with insurance company roles
+  - Implemented password hashing (bcrypt) and JWT tokens
+  - Created Pydantic schemas for user CRUD and authentication
+  - Created Alembic migration for auth fields
+  - Added python-jose and passlib dependencies
 - **Roadmap Reorganization Complete:**
   - Designed 5 new phases (7-11) for Users, Workflow, Historization
   - Moved old phases 7-10 to 12-15 (deferred)
@@ -69,12 +76,12 @@
 ## Continuity
 
 ### Last Action
-- Reorganized roadmap with 5 new phases for User Management, Workflow, and Historization
-- Moved phases 7-10 to 12-15 (deferred)
-- Updated ROADMAP.md and STATE.md
+- Completed Plan 07-01: User Schema & Authentication Backend
+- Added authentication fields to User model
+- Implemented password hashing and JWT tokens
 
 ### Next Step
-- Plan Phase 7: User Management & RBAC (07-01: Backend schema and user models)
+- Execute Plan 07-02: Authentication & User Management APIs
 
 ---
 *Updated: 2025-12-26*

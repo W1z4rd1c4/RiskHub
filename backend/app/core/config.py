@@ -11,7 +11,11 @@ class Settings(BaseSettings):
     debug: bool = True
     
     # Database
-    database_url: str = "postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub"
+    database_url: str = "postgresql+asyncpg://localhost:5432/riskhub"
+    
+    # Authentication
+    SECRET_KEY: str = "your-secret-key-change-in-production-use-env-var"  # TODO: Use env var in production
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     
     # CORS
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
