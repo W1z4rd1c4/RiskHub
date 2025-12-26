@@ -17,27 +17,44 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 3 Dashboards (Complete)
-**Plan:** Ready for Phase 4: Reporting
+**Phase:** 7 User Management & RBAC (Ready to Start)
+**Plan:** Ready for 07-01: Backend schema and user models
 
 ## Session Context
 
 ### Current Objectives
-1. ~~Execute Phase 1 plans~~ ✅
-2. ~~Premium UI Redesign~~ ✅
-3. ~~Plan Phase 2: Control Catalog~~ ✅
-4. ~~Execute Phase 2 plans (02-01 → 02-02 → 02-03)~~ ✅
-5. ~~Execute Phase 2.1: Risk Register UI~~ ✅
-6. ~~Execute Phase 3: Dashboards~~ ✅
-7. Execute Phase 4: Reporting
+1. ~~Execute Phase 1-5~~ ✅
+2. ~~Execute Phase 6: Risk Appetite~~ ✅
+3. ~~Execute Phase 6.1: KRI Management Tab~~ ✅
+4. ~~Execute AUDIT.md fixes~~ ✅ (14/16 resolved)
+5. ~~Reorganize roadmap for User Management & Workflow~~ ✅
+6. Plan and Execute Phase 7: User Management & RBAC
 
-### Recent Progress
-- Phase 1 Foundation complete (4 plans)
-- Phase 2 Control Catalog complete (3 plans)
-- Phase 2.1 Risk Register complete (2 plans)
-- **Phase 3 Dashboards complete (2 plans)**
-  - 03-01: Dashboard aggregation API endpoints
-  - 03-02: Dashboard UI with Recharts, Risk Matrix, Department Table
+### Recent Progress (2025-12-26)
+- **Roadmap Reorganization Complete:**
+  - Designed 5 new phases (7-11) for Users, Workflow, Historization
+  - Moved old phases 7-10 to 12-15 (deferred)
+  - Each new phase has 5 detailed implementation steps
+  - User approved implementation plan
+- **AUDIT.md Fixes Complete:**
+  - Fixed 14/16 issues (all Critical and High severity)
+  - API response format standardized ({items, total, skip, limit})
+  - KRI filters for archived risks added
+  - Breach filter applied before pagination
+  - Migration user check moved before destructive deletes
+  - Verified by 4 parallel Codex agents
+- **Codebase Documentation Refreshed:**
+  - Spawned 4 parallel agents to analyze codebase
+  - Updated all 7 docs in .planning/codebase/
+- **KRI Metadata Added:**
+  - Department risks endpoint now includes kri_count and has_breach
+
+### Roadmap Evolution
+- Inserted Phase 6: Risk Appetite ✅
+- Inserted Phase 6.1: KRI Management Tab ✅
+- Completed ad-hoc AUDIT fixes ✅
+- **Reorganized roadmap with 5 new phases (7-11)** ✅
+- Next: Phase 7 User Management & RBAC
 
 ## Key Decisions
 
@@ -45,19 +62,20 @@
 |----------|--------|------|
 | Tech Stack | React + FastAPI + PostgreSQL | 2025-12-25 |
 | Auth | Azure AD via MSAL (mocked for now) | 2025-12-25 |
-| Language | English first, Czech option | 2025-12-25 |
-| Roles | SII compliant (9 roles) | 2025-12-25 |
 | UI Style | Glassmorphism + Mesh Gradients | 2025-12-25 |
-| Vite Proxy | `/api` → `localhost:8000` | 2025-12-25 |
 | Chart Library | Recharts | 2025-12-25 |
+| API Format | Paginated {items, total, skip, limit} | 2025-12-26 |
 
 ## Continuity
 
 ### Last Action
-- Executed 03-02-PLAN.md: Dashboard UI components with live data
+- Reorganized roadmap with 5 new phases for User Management, Workflow, and Historization
+- Moved phases 7-10 to 12-15 (deferred)
+- Updated ROADMAP.md and STATE.md
 
 ### Next Step
-- Plan and execute Phase 4: Reporting (PDF/Excel exports, audit trails)
+- Plan Phase 7: User Management & RBAC (07-01: Backend schema and user models)
 
 ---
-*Updated: 2025-12-25*
+*Updated: 2025-12-26*
+
