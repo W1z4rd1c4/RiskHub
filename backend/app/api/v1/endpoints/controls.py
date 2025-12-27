@@ -14,8 +14,8 @@ from app.schemas.control import (
 )
 from app.schemas.risk import ControlRiskLinkCreate, ControlRiskLinkRead
 from app.api import deps
-from app.core.permissions import get_user_department_ids
-from app.core.security import require_permission
+from app.core.permissions import get_user_department_ids, check_department_access
+from app.core.security import require_permission, check_permission
 
 router = APIRouter()
 
@@ -41,7 +41,7 @@ async def list_controls(
     
     # Department filtering based on role
     dept_ids = get_user_department_ids(current_user)
-    if dept_ids:  # If not empty, user is restricted to specific departments
+    if dept_ids is not None:  # If not empty, user is restricted to specific departments
         base_query = base_query.where(Control.department_id.in_(dept_ids))
     elif department_id:  # Privileged user can filter by specific department
         base_query = base_query.where(Control.department_id == department_id)
@@ -112,6 +112,9 @@ async def get_control(
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
+    # Verify department access
+    check_department_access(control.department_id, current_user)
+    
     return control
 
 
@@ -122,6 +125,9 @@ async def create_control(
     current_user: User = Depends(require_permission("controls", "write")),
 ):
     """Create a new control. Requires controls:write permission."""
+    # Verify department access
+    check_department_access(control_data.department_id, current_user)
+    
     control = Control(
         name=control_data.name,
         description=control_data.description,
@@ -158,7 +164,7 @@ async def create_control(
     return result.scalar_one()
 
 
-@router.put("/{control_id}", response_model=ControlRead)
+@router.patch("/{control_id}", response_model=ControlRead)
 async def update_control(
     control_id: int,
     control_data: ControlUpdate,
@@ -175,6 +181,9 @@ async def update_control(
     
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
+    
+    # Verify department access
+    check_department_access(control.department_id, current_user)
     
     # Check permission: either controls:write or is control owner
     has_write = check_permission(current_user, "controls", "write")
@@ -210,16 +219,22 @@ async def update_control(
     return result.scalar_one()
 
 
-@router.delete("/{control_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{control_id}", status_code=status.HTTP_202_ACCEPTED)
 async def delete_control(
     control_id: int,
+    reason: str = Query(..., min_length=1, description="Reason for deletion (mandatory)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("controls", "delete")),
 ):
     """
-    Soft delete a control (set status to archived).
-    Requires controls:delete permission.
+    Request deletion of a control.
+    - Risk Manager/CRO/Admin: deletes immediately (204)
+    - Others: creates approval request (202), item stays visible
     """
+    from app.core.permissions import can_resolve_approvals
+    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType
+    from fastapi.responses import Response
+    
     result = await db.execute(
         select(Control).where(Control.id == control_id)
     )
@@ -228,10 +243,41 @@ async def delete_control(
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
-    control.status = ControlStatusEnum.archived.value
-    control.updated_by_id = current_user.id
+    # Verify department access
+    check_department_access(control.department_id, current_user)
     
+    # Privileged users can delete immediately
+    if can_resolve_approvals(current_user):
+        control.status = ControlStatusEnum.archived.value
+        control.updated_by_id = current_user.id
+        await db.commit()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    
+    # Check for existing pending request
+    existing = await db.execute(
+        select(ApprovalRequest).where(
+            ApprovalRequest.resource_type == ApprovalResourceType.CONTROL,
+            ApprovalRequest.resource_id == control.id,
+            ApprovalRequest.status == ApprovalStatus.PENDING
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Deletion request already pending")
+    
+    # Create approval request - ITEM STAYS VISIBLE
+    name_snippet = control.name[:50] if control.name else ""
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.CONTROL,
+        resource_id=control.id,
+        resource_name=f"{control.control_id_code}: {name_snippet}",
+        requested_by_id=current_user.id,
+        reason=reason,
+        status=ApprovalStatus.PENDING,
+    )
+    db.add(approval)
     await db.commit()
+    
+    return {"message": "Deletion request submitted for approval", "approval_id": approval.id}
 
 
 # ============== Control Execution Endpoints ==============
@@ -265,6 +311,9 @@ async def log_execution(
     
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
+    
+    # Verify department access
+    check_department_access(control.department_id, current_user)
     
     executed_at = datetime.utcnow()
     next_scheduled = calculate_next_scheduled(control.frequency, executed_at)
@@ -306,8 +355,12 @@ async def list_executions(
     result = await db.execute(
         select(Control).where(Control.id == control_id)
     )
-    if not result.scalar_one_or_none():
+    control = result.scalar_one_or_none()
+    if not control:
         raise HTTPException(status_code=404, detail="Control not found")
+    
+    # Verify department access
+    check_department_access(control.department_id, current_user)
     
     result = await db.execute(
         select(ControlExecution)
@@ -333,8 +386,12 @@ async def list_control_risks(
     result = await db.execute(
         select(Control).where(Control.id == control_id)
     )
-    if not result.scalar_one_or_none():
+    control = result.scalar_one_or_none()
+    if not control:
         raise HTTPException(status_code=404, detail="Control not found")
+    
+    # Verify department access
+    check_department_access(control.department_id, current_user)
     
     result = await db.execute(
         select(ControlRiskLink)
@@ -361,15 +418,23 @@ async def link_control_to_risk(
     result = await db.execute(
         select(Control).where(Control.id == control_id)
     )
-    if not result.scalar_one_or_none():
+    control = result.scalar_one_or_none()
+    if not control:
         raise HTTPException(status_code=404, detail="Control not found")
+    
+    # Verify department access for control
+    check_department_access(control.department_id, current_user)
     
     # Verify risk exists
     result = await db.execute(
         select(Risk).where(Risk.id == link_data.risk_id)
     )
-    if not result.scalar_one_or_none():
+    risk = result.scalar_one_or_none()
+    if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
+    
+    # Verify department access for risk
+    check_department_access(risk.department_id, current_user)
     
     # Check if link already exists
     result = await db.execute(
@@ -420,6 +485,18 @@ async def unlink_control_from_risk(
     
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
+    
+    # Verify department access for both control and risk
+    # (Since the link exists, we should verify the user can access both sides)
+    result = await db.execute(select(Control).where(Control.id == control_id))
+    control = result.scalar_one_or_none()
+    if control:
+        check_department_access(control.department_id, current_user)
+        
+    result = await db.execute(select(Risk).where(Risk.id == risk_id))
+    risk = result.scalar_one_or_none()
+    if risk:
+        check_department_access(risk.department_id, current_user)
     
     await db.delete(link)
     await db.commit()

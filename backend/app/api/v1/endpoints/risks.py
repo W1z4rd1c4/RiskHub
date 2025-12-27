@@ -6,15 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models import User, Risk, ControlRiskLink
+from app.models import User, Risk, ControlRiskLink, KeyRiskIndicator
 from app.schemas.risk import (
     RiskCreate, RiskUpdate, RiskRead, RiskSummary, RiskListResponse,
     RiskTypeEnum, RiskStatusEnum,
     ControlRiskLinkFromRisk, ControlRiskLinkRead, ControlEffectivenessEnum,
 )
 from app.api import deps
-from app.core.permissions import get_user_department_ids
-from app.core.security import require_permission
+from app.core.permissions import get_user_department_ids, check_department_access
+from app.core.security import require_permission, check_permission
 
 router = APIRouter()
 
@@ -33,6 +33,7 @@ async def list_risks(
     is_priority: Optional[bool] = None,
     search: Optional[str] = None,
     include_archived: bool = Query(False, description="Include archived risks in results"),
+    has_breach: Optional[bool] = None,
 ):
     """
     List risks with pagination and filters.
@@ -43,7 +44,7 @@ async def list_risks(
     
     # Department filtering based on role
     dept_ids = get_user_department_ids(current_user)
-    if dept_ids:  # If not empty, user is restricted to specific departments
+    if dept_ids is not None:  # If not empty, user is restricted to specific departments
         base_query = base_query.where(Risk.department_id.in_(dept_ids))
     elif department_id:  # Privileged user can filter by specific department
         base_query = base_query.where(Risk.department_id == department_id)
@@ -73,7 +74,20 @@ async def list_risks(
                 Risk.process.ilike(search_pattern),
             )
         )
-    
+    # Breach filter
+    if has_breach is not None:
+        breaching_subq = select(KeyRiskIndicator.risk_id).where(
+            or_(
+                KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
+                KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit
+            )
+        ).scalar_subquery()
+        
+        if has_breach:
+            base_query = base_query.where(Risk.id.in_(breaching_subq))
+        else:
+            base_query = base_query.where(Risk.id.notin_(breaching_subq))
+
     # Get total count before pagination
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
@@ -128,6 +142,9 @@ async def get_risk(
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
     
+    # Verify department access
+    check_department_access(risk.department_id, current_user)
+    
     return risk
 
 
@@ -138,12 +155,38 @@ async def create_risk(
     current_user: User = Depends(require_permission("risks", "write")),
 ):
     """Create a new risk. Requires risks:write permission."""
+    # Verify department access
+    check_department_access(risk_data.department_id, current_user)
+    
+    # Auto-generate risk_id_code if not provided
+    risk_id_code = risk_data.risk_id_code
+    if not risk_id_code:
+        # Generate process abbreviation from first 3-4 letters of process
+        process_abbr = ''.join(c for c in risk_data.process.upper() if c.isalpha())[:4] or "RISK"
+        
+        # Find the next available number for this prefix
+        pattern = f"{process_abbr}-R%"
+        result = await db.execute(
+            select(func.count()).select_from(Risk).where(Risk.risk_id_code.like(pattern))
+        )
+        count = result.scalar() or 0
+        risk_id_code = f"{process_abbr}-R{count + 1:02d}"
+        
+        # Check for uniqueness, increment if collision (handle edge cases)
+        for i in range(100):  # Safety limit
+            existing = await db.execute(
+                select(Risk).where(Risk.risk_id_code == risk_id_code)
+            )
+            if not existing.scalar_one_or_none():
+                break
+            risk_id_code = f"{process_abbr}-R{count + 2 + i:02d}"
+    
     # Calculate scores
     gross_score = risk_data.gross_probability * risk_data.gross_impact
     net_score = risk_data.net_probability * risk_data.net_impact
     
     risk = Risk(
-        risk_id_code=risk_data.risk_id_code,
+        risk_id_code=risk_id_code,
         process=risk_data.process,
         subprocess=risk_data.subprocess,
         risk_type=risk_data.risk_type.value,
@@ -171,13 +214,14 @@ async def create_risk(
         .options(
             selectinload(Risk.department),
             selectinload(Risk.owner),
+            selectinload(Risk.kris),
         )
         .where(Risk.id == risk.id)
     )
     return result.scalar_one()
 
 
-@router.put("/{risk_id}", response_model=RiskRead)
+@router.patch("/{risk_id}", response_model=RiskRead)
 async def update_risk(
     risk_id: int,
     risk_data: RiskUpdate,
@@ -195,6 +239,9 @@ async def update_risk(
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
     
+    # Verify department access
+    check_department_access(risk.department_id, current_user)
+    
     # Check permission: either risks:write or is risk owner
     has_write = check_permission(current_user, "risks", "write")
     is_owner = risk.owner_id == current_user.id
@@ -207,6 +254,18 @@ async def update_risk(
     
     # Update fields
     update_data = risk_data.model_dump(exclude_unset=True)
+    
+    # Prevent un-archiving via update
+    if risk.status == RiskStatusEnum.archived.value:
+        if "status" in update_data and update_data["status"] != RiskStatusEnum.archived.value:
+             # Only allow if explicitly intended (could add specific permission check here later)
+             # For now, we just proceed but it's good to be aware. 
+             # Actually, per plan, let's enforce a rule or at least valid transition.
+             raise HTTPException(
+                 status_code=status.HTTP_400_BAD_REQUEST,
+                 detail="Cannot reactivate archived risk. Please create a new risk or contact administrator."
+             )
+
     for field, value in update_data.items():
         if hasattr(value, 'value'):  # Handle enums
             value = value.value
@@ -225,22 +284,29 @@ async def update_risk(
         .options(
             selectinload(Risk.department),
             selectinload(Risk.owner),
+            selectinload(Risk.kris),
         )
         .where(Risk.id == risk.id)
     )
     return result.scalar_one()
 
 
-@router.delete("/{risk_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{risk_id}", status_code=status.HTTP_202_ACCEPTED)
 async def delete_risk(
     risk_id: int,
+    reason: str = Query(..., min_length=1, description="Reason for deletion (mandatory)"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "delete")),
 ):
     """
-    Soft delete a risk (set status to archived).
-    Requires risks:delete permission.
+    Request deletion of a risk.
+    - Risk Manager/CRO/Admin: deletes immediately (204)
+    - Others: creates approval request (202), item stays visible
     """
+    from app.core.permissions import check_department_access, can_resolve_approvals
+    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType
+    from fastapi.responses import Response
+    
     result = await db.execute(
         select(Risk).where(Risk.id == risk_id)
     )
@@ -249,9 +315,40 @@ async def delete_risk(
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
     
-    risk.status = RiskStatusEnum.archived.value
+    # Verify department access
+    check_department_access(risk.department_id, current_user)
     
+    # Privileged users can delete immediately
+    if can_resolve_approvals(current_user):
+        risk.status = RiskStatusEnum.archived.value
+        await db.commit()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    
+    # Check for existing pending request
+    existing = await db.execute(
+        select(ApprovalRequest).where(
+            ApprovalRequest.resource_type == ApprovalResourceType.RISK,
+            ApprovalRequest.resource_id == risk.id,
+            ApprovalRequest.status == ApprovalStatus.PENDING
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Deletion request already pending")
+    
+    # Create approval request - ITEM STAYS VISIBLE
+    desc_snippet = risk.description[:50] if risk.description else ""
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=risk.id,
+        resource_name=f"{risk.risk_id_code}: {desc_snippet}",
+        requested_by_id=current_user.id,
+        reason=reason,
+        status=ApprovalStatus.PENDING,
+    )
+    db.add(approval)
     await db.commit()
+    
+    return {"message": "Deletion request submitted for approval", "approval_id": approval.id}
 
 
 # ============== Risk-Control Linking Endpoints ==============
@@ -267,8 +364,12 @@ async def list_risk_controls(
     result = await db.execute(
         select(Risk).where(Risk.id == risk_id)
     )
-    if not result.scalar_one_or_none():
+    risk = result.scalar_one_or_none()
+    if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
+    
+    # Verify department access
+    check_department_access(risk.department_id, current_user)
     
     result = await db.execute(
         select(ControlRiskLink)
@@ -295,15 +396,23 @@ async def link_risk_to_control(
     result = await db.execute(
         select(Risk).where(Risk.id == risk_id)
     )
-    if not result.scalar_one_or_none():
+    risk = result.scalar_one_or_none()
+    if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
+    
+    # Verify department access for risk
+    check_department_access(risk.department_id, current_user)
     
     # Verify control exists
     result = await db.execute(
         select(Control).where(Control.id == link_data.control_id)
     )
-    if not result.scalar_one_or_none():
+    control = result.scalar_one_or_none()
+    if not control:
         raise HTTPException(status_code=404, detail="Control not found")
+    
+    # Verify department access for control
+    check_department_access(control.department_id, current_user)
     
     # Check if link already exists
     result = await db.execute(
@@ -354,6 +463,17 @@ async def unlink_risk_from_control(
     
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
+    
+    # Verify department access for both sides
+    result = await db.execute(select(Risk).where(Risk.id == risk_id))
+    risk = result.scalar_one_or_none()
+    if risk:
+        check_department_access(risk.department_id, current_user)
+        
+    result = await db.execute(select(Control).where(Control.id == control_id))
+    control = result.scalar_one_or_none()
+    if control:
+        check_department_access(control.department_id, current_user)
     
     await db.delete(link)
     await db.commit()
