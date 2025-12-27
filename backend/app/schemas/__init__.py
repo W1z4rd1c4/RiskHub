@@ -14,9 +14,9 @@ from app.schemas.risk import (
     ControlRiskLinkCreate, ControlRiskLinkFromRisk, ControlRiskLinkRead,
 )
 from app.schemas.approval_request import (
-    ApprovalStatusEnum, ApprovalResourceTypeEnum,
-    ApprovalRequestCreate, ApprovalRequestResolve, ApprovalRequestRead,
-    ApprovalRequestListResponse,
+    ApprovalStatusEnum, ApprovalResourceTypeEnum, ApprovalActionTypeEnum,
+    ApprovalRequestCreate, ApprovalEditRequestCreate, ApprovalRequestResolve,
+    ApprovalRequestRead, ApprovalRequestListResponse,
 )
 
 __all__ = [
@@ -33,9 +33,10 @@ __all__ = [
     "RiskBase", "RiskCreate", "RiskUpdate", "RiskRead", "RiskSummary",
     "ControlRiskLinkCreate", "ControlRiskLinkFromRisk", "ControlRiskLinkRead",
     # Approval request schemas
-    "ApprovalStatusEnum", "ApprovalResourceTypeEnum",
-    "ApprovalRequestCreate", "ApprovalRequestResolve", "ApprovalRequestRead",
-    "ApprovalRequestListResponse",
+    "ApprovalStatusEnum", "ApprovalResourceTypeEnum", "ApprovalActionTypeEnum",
+    "ApprovalRequestCreate", "ApprovalEditRequestCreate", "ApprovalRequestResolve",
+    "ApprovalRequestRead", "ApprovalRequestListResponse",
 ]
+
 
 
