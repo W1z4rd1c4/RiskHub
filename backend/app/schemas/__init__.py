@@ -13,6 +13,11 @@ from app.schemas.risk import (
     RiskBase, RiskCreate, RiskUpdate, RiskRead, RiskSummary,
     ControlRiskLinkCreate, ControlRiskLinkFromRisk, ControlRiskLinkRead,
 )
+from app.schemas.approval_request import (
+    ApprovalStatusEnum, ApprovalResourceTypeEnum,
+    ApprovalRequestCreate, ApprovalRequestResolve, ApprovalRequestRead,
+    ApprovalRequestListResponse,
+)
 
 __all__ = [
     # User schemas
@@ -27,5 +32,10 @@ __all__ = [
     "RiskTypeEnum", "RiskStatusEnum", "ControlEffectivenessEnum",
     "RiskBase", "RiskCreate", "RiskUpdate", "RiskRead", "RiskSummary",
     "ControlRiskLinkCreate", "ControlRiskLinkFromRisk", "ControlRiskLinkRead",
+    # Approval request schemas
+    "ApprovalStatusEnum", "ApprovalResourceTypeEnum",
+    "ApprovalRequestCreate", "ApprovalRequestResolve", "ApprovalRequestRead",
+    "ApprovalRequestListResponse",
 ]
+
 
