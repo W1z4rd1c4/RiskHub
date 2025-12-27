@@ -11,7 +11,7 @@ from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.schemas.kri import KRICreate, KRIUpdate, KRIResponse, KRIListResponse
 from app.api import deps
-from app.core.permissions import get_user_department_ids
+from app.core.permissions import get_user_department_ids, check_department_access
 
 router = APIRouter(prefix="/kris", tags=["Key Risk Indicators"])
 
@@ -30,7 +30,7 @@ async def list_kris(
     query = select(KeyRiskIndicator).join(Risk)
     
     dept_ids = get_user_department_ids(current_user)
-    if dept_ids:
+    if dept_ids is not None:
         query = query.filter(Risk.department_id.in_(dept_ids))
     
     if risk_id:
@@ -67,6 +67,7 @@ async def list_kris(
         if k.risk:
             res.risk_category = k.risk.category
             res.risk_process = k.risk.process
+            res.risk_description = k.risk.description
             if k.risk.department:
                 res.department_name = k.risk.department.name
         items.append(res)
@@ -78,9 +79,25 @@ async def list_kris(
 async def list_breaches(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
+    department_id: Optional[int] = Query(None, description="Filter by department ID"),
 ):
     """List only breached KRIs for dashboard widget."""
-    result = await db.execute(select(KeyRiskIndicator))
+    # Apply department filtering via Risk join
+    query = select(KeyRiskIndicator).join(Risk)
+    
+    dept_ids = get_user_department_ids(current_user)
+    if dept_ids is not None:
+        query = query.filter(Risk.department_id.in_(dept_ids))
+    
+    # Apply explicit department filter if provided (and allowed)
+    if department_id:
+        if dept_ids is not None and department_id not in dept_ids:
+             # User trying to access authorized department
+             # Just return empty, or could raise 403. Returning empty is safer for filters.
+             return []
+        query = query.filter(Risk.department_id == department_id)
+    
+    result = await db.execute(query)
     kris = result.scalars().all()
     
     # Filter to breached only
@@ -98,12 +115,18 @@ async def get_kri(
 ):
     """Get a single KRI by ID."""
     result = await db.execute(
-        select(KeyRiskIndicator).where(KeyRiskIndicator.id == kri_id)
+        select(KeyRiskIndicator)
+        .join(Risk)
+        .where(KeyRiskIndicator.id == kri_id)
+        .options(joinedload(KeyRiskIndicator.risk))
     )
     kri = result.scalar_one_or_none()
     
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
+    
+    # Verify department access
+    check_department_access(kri.risk.department_id, current_user)
     
     return KRIResponse.model_validate(kri)
 
@@ -119,8 +142,12 @@ async def create_kri(
     risk_result = await db.execute(
         select(Risk).where(Risk.id == data.risk_id)
     )
-    if not risk_result.scalar_one_or_none():
+    risk = risk_result.scalar_one_or_none()
+    if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
+    
+    # Verify department access
+    check_department_access(risk.department_id, current_user)
     
     # Validate limits
     if data.lower_limit >= data.upper_limit:
@@ -146,12 +173,18 @@ async def update_kri(
 ):
     """Update a KRI."""
     result = await db.execute(
-        select(KeyRiskIndicator).where(KeyRiskIndicator.id == kri_id)
+        select(KeyRiskIndicator)
+        .join(Risk)
+        .where(KeyRiskIndicator.id == kri_id)
+        .options(joinedload(KeyRiskIndicator.risk))
     )
     kri = result.scalar_one_or_none()
     
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
+    
+    # Verify department access
+    check_department_access(kri.risk.department_id, current_user)
     
     update_data = data.model_dump(exclude_unset=True)
     
@@ -173,20 +206,64 @@ async def update_kri(
     return KRIResponse.model_validate(kri)
 
 
-@router.delete("/{kri_id}", status_code=204)
+@router.delete("/{kri_id}", status_code=202)
 async def delete_kri(
     kri_id: int,
+    reason: str = Query(..., min_length=1, description="Reason for deletion (mandatory)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    """Delete a KRI."""
+    """
+    Request deletion of a KRI.
+    - Risk Manager/CRO/Admin: deletes immediately (204)
+    - Others: creates approval request (202), item stays visible
+    """
+    from app.core.permissions import can_resolve_approvals
+    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType
+    from fastapi.responses import Response
+    
     result = await db.execute(
-        select(KeyRiskIndicator).where(KeyRiskIndicator.id == kri_id)
+        select(KeyRiskIndicator)
+        .join(Risk)
+        .where(KeyRiskIndicator.id == kri_id)
+        .options(joinedload(KeyRiskIndicator.risk))
     )
     kri = result.scalar_one_or_none()
     
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
     
-    await db.delete(kri)
+    # Verify department access via linked risk
+    check_department_access(kri.risk.department_id, current_user)
+    
+    # Privileged users can delete immediately
+    if can_resolve_approvals(current_user):
+        await db.delete(kri)
+        await db.commit()
+        return Response(status_code=204)
+    
+    # Check for existing pending request
+    existing = await db.execute(
+        select(ApprovalRequest).where(
+            ApprovalRequest.resource_type == ApprovalResourceType.KRI,
+            ApprovalRequest.resource_id == kri.id,
+            ApprovalRequest.status == ApprovalStatus.PENDING
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Deletion request already pending")
+    
+    # Create approval request - ITEM STAYS VISIBLE
+    name_snippet = kri.name[:50] if kri.name else f"KRI-{kri.id}"
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name=name_snippet,
+        requested_by_id=current_user.id,
+        reason=reason,
+        status=ApprovalStatus.PENDING,
+    )
+    db.add(approval)
     await db.commit()
+    
+    return {"message": "Deletion request submitted for approval", "approval_id": approval.id}
