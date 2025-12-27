@@ -171,7 +171,14 @@ async def update_kri(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    """Update a KRI."""
+    """
+    Update a KRI. Non-privileged users editing KRIs linked to critical risks
+    will trigger an approval request instead of immediate update.
+    """
+    from app.core.permissions import can_resolve_approvals, is_critical_risk
+    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
+    import json
+    
     result = await db.execute(
         select(KeyRiskIndicator)
         .join(Risk)
@@ -196,6 +203,42 @@ async def update_kri(
             status_code=400, 
             detail="lower_limit must be less than upper_limit"
         )
+    
+    # Check if KRI is linked to critical risk (non-privileged users only)
+    if not can_resolve_approvals(current_user):
+        if kri.risk and is_critical_risk(kri.risk):
+            # Check for existing pending edit request
+            existing = await db.execute(
+                select(ApprovalRequest).where(
+                    ApprovalRequest.resource_type == ApprovalResourceType.KRI,
+                    ApprovalRequest.resource_id == kri.id,
+                    ApprovalRequest.action_type == ApprovalActionType.EDIT,
+                    ApprovalRequest.status == ApprovalStatus.PENDING
+                )
+            )
+            if existing.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
+            
+            pending_changes = {k: {"old": getattr(kri, k, None), "new": v} for k, v in update_data.items()}
+            name_snippet = kri.name[:50] if kri.name else f"KRI-{kri.id}"
+            
+            approval = ApprovalRequest(
+                resource_type=ApprovalResourceType.KRI,
+                resource_id=kri.id,
+                resource_name=name_snippet,
+                requested_by_id=current_user.id,
+                reason=f"Edit to KRI linked to critical risk {kri.risk.risk_id_code}",
+                action_type=ApprovalActionType.EDIT,
+                pending_changes=json.dumps(pending_changes),
+                status=ApprovalStatus.PENDING,
+            )
+            db.add(approval)
+            await db.commit()
+            
+            raise HTTPException(
+                status_code=status.HTTP_202_ACCEPTED,
+                detail={"message": "Change requires approval", "approval_id": approval.id}
+            )
     
     for field, value in update_data.items():
         setattr(kri, field, value)
