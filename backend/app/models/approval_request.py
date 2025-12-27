@@ -1,4 +1,4 @@
-"""Approval request model for tracking deletion approval workflows."""
+"""Approval request model for tracking deletion and edit approval workflows."""
 from enum import Enum as PyEnum
 from datetime import datetime
 from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, Enum as SQLEnum, Index
@@ -15,31 +15,47 @@ class ApprovalStatus(str, PyEnum):
 
 
 class ApprovalResourceType(str, PyEnum):
-    """Type of resource being requested for deletion."""
+    """Type of resource being requested for deletion/edit."""
     RISK = "risk"
     CONTROL = "control"
     KRI = "kri"
 
 
+class ApprovalActionType(str, PyEnum):
+    """Type of action requiring approval."""
+    DELETE = "delete"
+    EDIT = "edit"
+
+
 class ApprovalRequest(Base):
     """
-    Tracks deletion approval requests.
+    Tracks approval requests for deletions and edits.
     
-    When a non-privileged user requests deletion of a risk/control/KRI,
+    When a non-privileged user requests deletion or edits sensitive data,
     an ApprovalRequest is created. Risk Manager must approve before
-    the deletion is executed.
+    the action is executed.
     """
     __tablename__ = "approval_requests"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     
-    # What resource is being deleted
+    # What resource is being modified
     resource_type: Mapped[ApprovalResourceType] = mapped_column(
         SQLEnum(ApprovalResourceType, name="approval_resource_type", create_constraint=True),
         nullable=False
     )
     resource_id: Mapped[int] = mapped_column(Integer, nullable=False)
     resource_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Snapshot for display
+    
+    # Action type: delete or edit
+    action_type: Mapped[ApprovalActionType] = mapped_column(
+        SQLEnum(ApprovalActionType, name="approval_action_type", create_constraint=True),
+        default=ApprovalActionType.DELETE,
+        nullable=False
+    )
+    
+    # For edits: JSON storing pending changes {"field": {"old": v1, "new": v2}}
+    pending_changes: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     # Request details
     requested_by_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
@@ -69,8 +85,10 @@ class ApprovalRequest(Base):
         Index("ix_approval_resource", "resource_type", "resource_id"),
         Index("ix_approval_status", "status"),
         Index("ix_approval_requested_by", "requested_by_id"),
+        Index("ix_approval_action_type", "action_type"),
     )
 
 
 # Import for type hints
 from app.models.user import User
+

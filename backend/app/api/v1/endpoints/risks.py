@@ -230,7 +230,13 @@ async def update_risk(
 ):
     """
     Update a risk. Requires risks:write permission OR being the risk owner.
+    Non-privileged users changing sensitive fields (owner, department, category, is_priority)
+    will trigger an approval request instead of immediate update.
     """
+    from app.core.permissions import can_resolve_approvals, has_sensitive_field_changes
+    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
+    import json
+    
     result = await db.execute(
         select(Risk).where(Risk.id == risk_id)
     )
@@ -258,13 +264,58 @@ async def update_risk(
     # Prevent un-archiving via update
     if risk.status == RiskStatusEnum.archived.value:
         if "status" in update_data and update_data["status"] != RiskStatusEnum.archived.value:
-             # Only allow if explicitly intended (could add specific permission check here later)
-             # For now, we just proceed but it's good to be aware. 
-             # Actually, per plan, let's enforce a rule or at least valid transition.
              raise HTTPException(
                  status_code=status.HTTP_400_BAD_REQUEST,
                  detail="Cannot reactivate archived risk. Please create a new risk or contact administrator."
              )
+    
+    # Check for sensitive field changes (non-privileged users only)
+    if not can_resolve_approvals(current_user):
+        old_data = {
+            "owner_id": risk.owner_id,
+            "department_id": risk.department_id,
+            "category": risk.category,
+            "is_priority": risk.is_priority
+        }
+        has_sensitive, changed = has_sensitive_field_changes("risk", old_data, update_data)
+        
+        if has_sensitive:
+            # Check for existing pending edit request
+            existing = await db.execute(
+                select(ApprovalRequest).where(
+                    ApprovalRequest.resource_type == ApprovalResourceType.RISK,
+                    ApprovalRequest.resource_id == risk.id,
+                    ApprovalRequest.action_type == ApprovalActionType.EDIT,
+                    ApprovalRequest.status == ApprovalStatus.PENDING
+                )
+            )
+            if existing.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Edit request already pending for this risk")
+            
+            # Create approval request instead of applying changes
+            desc_snippet = risk.description[:50] if risk.description else ""
+            approval = ApprovalRequest(
+                resource_type=ApprovalResourceType.RISK,
+                resource_id=risk.id,
+                resource_name=f"{risk.risk_id_code}: {desc_snippet}",
+                requested_by_id=current_user.id,
+                reason=f"Change to sensitive fields: {', '.join(changed.keys())}",
+                action_type=ApprovalActionType.EDIT,
+                pending_changes=json.dumps(changed),
+                status=ApprovalStatus.PENDING,
+            )
+            db.add(approval)
+            await db.commit()
+            
+            # Return 202 with approval info
+            raise HTTPException(
+                status_code=status.HTTP_202_ACCEPTED,
+                detail={
+                    "message": "Change requires approval",
+                    "approval_id": approval.id,
+                    "pending_fields": list(changed.keys())
+                }
+            )
 
     for field, value in update_data.items():
         if hasattr(value, 'value'):  # Handle enums

@@ -5,7 +5,7 @@ from app.models.control import Control, ControlForm, ControlFrequency, ControlSt
 from app.models.control_execution import ControlExecution, ExecutionResult
 from app.models.risk import Risk, ControlRiskLink, RiskType, RiskStatus, ControlEffectiveness
 from app.models.key_risk_indicator import KeyRiskIndicator
-from app.models.approval_request import ApprovalRequest, ApprovalStatus, ApprovalResourceType
+from app.models.approval_request import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
 
 __all__ = [
     "Role", "Permission", "RolePermission", 
@@ -15,7 +15,7 @@ __all__ = [
     "ControlExecution", "ExecutionResult",
     "Risk", "ControlRiskLink", "RiskType", "RiskStatus", "ControlEffectiveness",
     "KeyRiskIndicator",
-    "ApprovalRequest", "ApprovalStatus", "ApprovalResourceType",
+    "ApprovalRequest", "ApprovalStatus", "ApprovalResourceType", "ApprovalActionType",
 ]
 
 

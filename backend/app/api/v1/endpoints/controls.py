@@ -173,7 +173,13 @@ async def update_control(
 ):
     """
     Update a control. Requires controls:write permission OR being the control owner.
+    Non-privileged users editing controls linked to critical risks or changing
+    sensitive fields (owner, department) will trigger an approval request.
     """
+    from app.core.permissions import can_resolve_approvals, is_critical_risk, has_sensitive_field_changes
+    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType, ControlRiskLink
+    import json
+    
     result = await db.execute(
         select(Control).where(Control.id == control_id)
     )
@@ -197,6 +203,66 @@ async def update_control(
     
     # Update fields
     update_data = control_data.model_dump(exclude_unset=True)
+    
+    # Check for approval requirements (non-privileged users only)
+    if not can_resolve_approvals(current_user):
+        requires_approval = False
+        approval_reason = ""
+        pending_changes = {}
+        
+        # Check 1: Is control linked to critical risk?
+        linked_risks_result = await db.execute(
+            select(Risk).join(ControlRiskLink).where(ControlRiskLink.control_id == control.id)
+        )
+        for risk in linked_risks_result.scalars():
+            if is_critical_risk(risk):
+                requires_approval = True
+                approval_reason = f"Edit to control linked to critical risk {risk.risk_id_code}"
+                pending_changes = {k: {"old": getattr(control, k, None), "new": v.value if hasattr(v, 'value') else v} 
+                                   for k, v in update_data.items()}
+                break
+        
+        # Check 2: Sensitive field changes (even if not linked to critical risk)
+        if not requires_approval:
+            old_data = {"control_owner_id": control.control_owner_id, "department_id": control.department_id}
+            has_sensitive, changed = has_sensitive_field_changes("control", old_data, update_data)
+            if has_sensitive:
+                requires_approval = True
+                approval_reason = f"Change to sensitive fields: {', '.join(changed.keys())}"
+                pending_changes = changed
+        
+        if requires_approval:
+            # Check for existing pending edit request
+            existing = await db.execute(
+                select(ApprovalRequest).where(
+                    ApprovalRequest.resource_type == ApprovalResourceType.CONTROL,
+                    ApprovalRequest.resource_id == control.id,
+                    ApprovalRequest.action_type == ApprovalActionType.EDIT,
+                    ApprovalRequest.status == ApprovalStatus.PENDING
+                )
+            )
+            if existing.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="Edit request already pending for this control")
+            
+            name_snippet = control.name[:50] if control.name else ""
+            approval = ApprovalRequest(
+                resource_type=ApprovalResourceType.CONTROL,
+                resource_id=control.id,
+                resource_name=f"{control.control_id_code}: {name_snippet}",
+                requested_by_id=current_user.id,
+                reason=approval_reason,
+                action_type=ApprovalActionType.EDIT,
+                pending_changes=json.dumps(pending_changes),
+                status=ApprovalStatus.PENDING,
+            )
+            db.add(approval)
+            await db.commit()
+            
+            raise HTTPException(
+                status_code=status.HTTP_202_ACCEPTED,
+                detail={"message": "Change requires approval", "approval_id": approval.id}
+            )
+    
     for field, value in update_data.items():
         if hasattr(value, 'value'):  # Handle enums
             value = value.value

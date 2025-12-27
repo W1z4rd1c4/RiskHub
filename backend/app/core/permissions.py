@@ -111,3 +111,69 @@ def can_resolve_approvals(user: User) -> bool:
         return False
     return user.role.name in {RoleType.RISK_MANAGER, RoleType.CRO, RoleType.ADMIN}
 
+
+# ============== Critical Risk and Sensitive Field Detection ==============
+
+CRITICAL_RISK_THRESHOLD = 15  # net_score >= this = critical
+
+
+def is_critical_risk(risk) -> bool:
+    """
+    Check if a risk is critical (requires approval for linked item edits).
+    
+    A risk is critical if:
+    - is_priority = True, OR
+    - net_score >= CRITICAL_RISK_THRESHOLD (15)
+    """
+    if risk.is_priority:
+        return True
+    if risk.net_score >= CRITICAL_RISK_THRESHOLD:
+        return True
+    return False
+
+
+SENSITIVE_FIELDS = {
+    "risk": {"owner_id", "department_id", "category", "is_priority"},
+    "control": {"control_owner_id", "department_id"},
+    "kri": {},  # KRIs inherit sensitivity from linked risk
+}
+
+
+def has_sensitive_field_changes(
+    resource_type: str, 
+    old_data: dict, 
+    new_data: dict
+) -> tuple[bool, dict]:
+    """
+    Check if any sensitive fields are being changed.
+    
+    Args:
+        resource_type: "risk", "control", or "kri"
+        old_data: Current field values
+        new_data: Proposed new field values (from update request)
+    
+    Returns:
+        Tuple of (has_sensitive_changes, changed_fields_dict)
+        changed_fields_dict format: {"field_name": {"old": value, "new": value}}
+    """
+    sensitive = SENSITIVE_FIELDS.get(resource_type, set())
+    changed = {}
+    
+    for field in sensitive:
+        old_val = old_data.get(field)
+        new_val = new_data.get(field)
+        
+        # Only check if new value is explicitly provided and different
+        if new_val is not None and old_val != new_val:
+            # Special case: is_priority can only go false→true without approval
+            # Changing true→false (downgrading) requires approval
+            if field == "is_priority":
+                if old_val is True and new_val is False:
+                    changed[field] = {"old": old_val, "new": new_val}
+                # false→true is allowed without approval
+            else:
+                changed[field] = {"old": old_val, "new": new_val}
+    
+    return bool(changed), changed
+
+

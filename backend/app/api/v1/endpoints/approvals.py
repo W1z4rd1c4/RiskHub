@@ -1,4 +1,5 @@
-"""Approval request endpoints for deletion workflow."""
+"""Approval request endpoints for deletion and edit workflows."""
+import json
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -9,13 +10,14 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.models import (
     User, Risk, Control, KeyRiskIndicator,
-    ApprovalRequest, ApprovalStatus, ApprovalResourceType,
+    ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType,
 )
 from app.models.risk import RiskStatus as RiskStatusEnum
 from app.models.control import ControlStatus
 from app.schemas.approval_request import (
     ApprovalRequestCreate, ApprovalRequestResolve, ApprovalRequestRead,
     ApprovalRequestListResponse, ApprovalStatusEnum, ApprovalResourceTypeEnum,
+    ApprovalActionTypeEnum,
 )
 from app.api import deps
 from app.core.permissions import can_resolve_approvals
@@ -25,11 +27,20 @@ router = APIRouter()
 
 def _build_approval_read(approval: ApprovalRequest) -> dict:
     """Build ApprovalRequestRead dict from model with user names."""
+    pending_changes = None
+    if approval.pending_changes:
+        try:
+            pending_changes = json.loads(approval.pending_changes)
+        except (json.JSONDecodeError, TypeError):
+            pending_changes = None
+    
     return {
         "id": approval.id,
         "resource_type": approval.resource_type.value,
         "resource_id": approval.resource_id,
         "resource_name": approval.resource_name,
+        "action_type": approval.action_type.value if approval.action_type else "delete",
+        "pending_changes": pending_changes,
         "status": approval.status.value,
         "reason": approval.reason,
         "requested_by_id": approval.requested_by_id,
@@ -220,22 +231,50 @@ async def approve_request(
     approval.resolved_at = datetime.utcnow()
     approval.resolution_notes = resolve_data.resolution_notes
     
-    # AUTO-EXECUTE: Archive/delete the resource
-    if approval.resource_type == ApprovalResourceType.RISK:
-        risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
-        risk = risk_result.scalar_one_or_none()
-        if risk:
-            risk.status = RiskStatusEnum.archived.value
-    elif approval.resource_type == ApprovalResourceType.CONTROL:
-        control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
-        control = control_result.scalar_one_or_none()
-        if control:
-            control.status = ControlStatus.inactive.value
-    elif approval.resource_type == ApprovalResourceType.KRI:
-        kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
-        kri = kri_result.scalar_one_or_none()
-        if kri:
-            await db.delete(kri)
+    # AUTO-EXECUTE based on action type
+    if approval.action_type == ApprovalActionType.DELETE:
+        # DELETE: Archive/delete the resource
+        if approval.resource_type == ApprovalResourceType.RISK:
+            risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
+            risk = risk_result.scalar_one_or_none()
+            if risk:
+                risk.status = RiskStatusEnum.archived.value
+        elif approval.resource_type == ApprovalResourceType.CONTROL:
+            control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
+            control = control_result.scalar_one_or_none()
+            if control:
+                control.status = ControlStatus.inactive.value
+        elif approval.resource_type == ApprovalResourceType.KRI:
+            kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
+            kri = kri_result.scalar_one_or_none()
+            if kri:
+                await db.delete(kri)
+    
+    elif approval.action_type == ApprovalActionType.EDIT:
+        # EDIT: Apply pending changes to the resource
+        if approval.pending_changes:
+            changes = json.loads(approval.pending_changes)
+            if approval.resource_type == ApprovalResourceType.RISK:
+                risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
+                risk = risk_result.scalar_one_or_none()
+                if risk:
+                    for field, vals in changes.items():
+                        if hasattr(risk, field):
+                            setattr(risk, field, vals.get("new"))
+            elif approval.resource_type == ApprovalResourceType.CONTROL:
+                control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
+                control = control_result.scalar_one_or_none()
+                if control:
+                    for field, vals in changes.items():
+                        if hasattr(control, field):
+                            setattr(control, field, vals.get("new"))
+            elif approval.resource_type == ApprovalResourceType.KRI:
+                kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
+                kri = kri_result.scalar_one_or_none()
+                if kri:
+                    for field, vals in changes.items():
+                        if hasattr(kri, field):
+                            setattr(kri, field, vals.get("new"))
     
     await db.commit()
     

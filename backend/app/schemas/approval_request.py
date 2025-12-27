@@ -1,6 +1,7 @@
 """Pydantic schemas for approval request API endpoints."""
 from enum import Enum
 from datetime import datetime
+from typing import Any
 from pydantic import BaseModel, Field
 
 
@@ -13,17 +14,31 @@ class ApprovalStatusEnum(str, Enum):
 
 
 class ApprovalResourceTypeEnum(str, Enum):
-    """Type of resource being requested for deletion."""
+    """Type of resource being requested for deletion/edit."""
     risk = "risk"
     control = "control"
     kri = "kri"
 
 
+class ApprovalActionTypeEnum(str, Enum):
+    """Type of action requiring approval."""
+    delete = "delete"
+    edit = "edit"
+
+
 class ApprovalRequestCreate(BaseModel):
-    """Schema for creating a new approval request."""
+    """Schema for creating a new delete approval request."""
     resource_type: ApprovalResourceTypeEnum
     resource_id: int
     reason: str = Field(..., min_length=1, max_length=1000, description="Reason for deletion (mandatory)")
+
+
+class ApprovalEditRequestCreate(BaseModel):
+    """Schema for creating an edit approval request."""
+    resource_type: ApprovalResourceTypeEnum
+    resource_id: int
+    reason: str = Field(..., min_length=1, max_length=1000, description="Reason for edit (mandatory)")
+    pending_changes: dict[str, dict[str, Any]] = Field(..., description="Changes: {field: {old: v1, new: v2}}")
 
 
 class ApprovalRequestResolve(BaseModel):
@@ -37,6 +52,8 @@ class ApprovalRequestRead(BaseModel):
     resource_type: ApprovalResourceTypeEnum
     resource_id: int
     resource_name: str
+    action_type: ApprovalActionTypeEnum = ApprovalActionTypeEnum.delete
+    pending_changes: dict | None = None
     status: ApprovalStatusEnum
     reason: str
     
@@ -61,3 +78,4 @@ class ApprovalRequestListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+
