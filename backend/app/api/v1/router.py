@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health, auth, users, controls, risks, dashboard, departments, reports, executions, kris
+from app.api.v1.endpoints import health, auth, users, controls, risks, dashboard, departments, reports, executions, kris, approvals
 
 api_router = APIRouter()
 
@@ -14,6 +14,8 @@ api_router.include_router(departments.router, prefix="/departments", tags=["depa
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(executions.router, prefix="/executions", tags=["executions"])
 api_router.include_router(kris.router)
+api_router.include_router(approvals.router, prefix="/approvals", tags=["approvals"])
+
 
 
 
