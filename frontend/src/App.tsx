@@ -19,7 +19,12 @@ import {
   SettingsPage,
   HeroPage,
   AuditTrailPage,
+  UsersPage,
+  UserNewPage,
+  UserDetailPage,
+  ApprovalsPage,
 } from '@/pages';
+import { KRINewPage } from '@/pages/KRIForms';
 import LoginPage from '@/pages/LoginPage';
 import './index.css';
 
@@ -48,6 +53,7 @@ function App() {
             </ProtectedRoute>
           }>
             <Route index element={<DashboardPage />} />
+            <Route path="approvals" element={<ApprovalsPage />} />
             <Route path="controls" element={<ControlsPage />} />
             <Route path="controls/new" element={<ControlNewPage />} />
             <Route path="controls/:id" element={<ControlDetailPage />} />
@@ -57,10 +63,14 @@ function App() {
             <Route path="risks/:id" element={<RiskDetailPage />} />
             <Route path="risks/:id/edit" element={<RiskEditPage />} />
             <Route path="kris" element={<KRIsPage />} />
+            <Route path="kris/new" element={<KRINewPage />} />
             <Route path="kris/:id" element={<KRIDetailPage />} />
             <Route path="departments" element={<DepartmentsPage />} />
             <Route path="departments/:id" element={<DepartmentDetailPage />} />
             <Route path="audit-trail" element={<AuditTrailPage />} />
+            <Route path="users" element={<UsersPage />} />
+            <Route path="users/new" element={<UserNewPage />} />
+            <Route path="users/:id" element={<UserDetailPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
 

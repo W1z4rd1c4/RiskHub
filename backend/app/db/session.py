@@ -21,7 +21,7 @@ async def get_db() -> AsyncSession:
     async with async_session_maker() as session:
         try:
             yield session
-            await session.commit()
+            # Note: No auto-commit here. Endpoints must explicitly commit changes.
         except Exception:
             await session.rollback()
             raise

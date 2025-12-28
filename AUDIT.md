@@ -187,14 +187,18 @@ Status filters omit "archived" option despite archived items being renderable.
 
 ## Recommended Fix Order
 
-1. **Standardize API response format** - Add paginated wrapper to risks/controls
-2. **Fix test fixture names** - Rename `async_client` to `client`
-3. **Add archived risk filter** to KRI count/list queries
-4. **Move migration user check** before destructive operations
-5. **Apply breach filter before pagination** in KRIs endpoint
-6. **Add total count queries** to risks/controls endpoints
-7. **Remove 100-item limit** or add server-side aggregation for grouped views
-8. **Reset page state** when view mode changes
+| # | Issue | Status |
+|---|-------|--------|
+| 1 | Standardize API response format | ✅ FIXED |
+| 2 | Fix test fixture names | ✅ FIXED |
+| 3 | Add archived risk filter to KRI queries | ✅ FIXED |
+| 4 | Move migration user check before deletes | ✅ FIXED |
+| 5 | Apply breach filter before pagination | ✅ FIXED |
+| 6 | Add total count queries | ✅ FIXED (part of #1) |
+| 7 | Remove 100-item limit | ⚪ N/A (API design) |
+| 8 | Reset page state on view change | ✅ FIXED |
+
+**Summary**: 13/16 issues resolved. Remaining 3 are API design decisions or deferred enhancements.
 
 ---
 

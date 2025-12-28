@@ -14,7 +14,6 @@ import { cn } from '@/lib/utils';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
 import { ControlEffectiveness } from '@/types/risk';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface LinkManagementDialogProps {
     mode: 'control-to-risk' | 'risk-to-control';
@@ -33,8 +32,6 @@ export function LinkManagementDialog({
     isOpen,
     onClose
 }: LinkManagementDialogProps) {
-    const { mockUserId } = useAuth();
-
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -78,17 +75,15 @@ export function LinkManagementDialog({
             if (mode === 'control-to-risk') {
                 const results = await riskApi.getRisks({
                     search: searchQuery,
-                    limit: 5,
-                    mockUserId
+                    limit: 5
                 });
-                setSearchResults(results.filter(r => !linkedTargetIds.includes(r.id)));
+                setSearchResults(results.items.filter(r => !linkedTargetIds.includes(r.id)));
             } else {
                 const results = await controlApi.getControls({
                     search: searchQuery,
-                    limit: 5,
-                    mockUserId
+                    limit: 5
                 });
-                setSearchResults(results.filter(c => !linkedTargetIds.includes(c.id)));
+                setSearchResults(results.items.filter(c => !linkedTargetIds.includes(c.id)));
             }
         } catch (err) {
             console.error('Search failed:', err);
@@ -152,7 +147,7 @@ export function LinkManagementDialog({
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative w-full max-w-2xl max-h-[90vh] glass-card overflow-hidden flex flex-col shadow-2xl border-white/10"
+                        className="relative w-full max-w-2xl max-h-[90vh] bg-slate-900/95 backdrop-blur-xl rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-white/10"
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between p-6 border-b border-white/5">
@@ -207,10 +202,10 @@ export function LinkManagementDialog({
                                                     className="w-full flex flex-col items-start px-4 py-3 hover:bg-accent/10 transition-colors text-left"
                                                 >
                                                     <span className="text-xs font-bold text-white">
-                                                        {mode === 'control-to-risk' ? result.risk_id_code : result.name}
+                                                        {mode === 'control-to-risk' ? result.process : result.name}
                                                     </span>
                                                     <span className="text-[10px] text-slate-500 line-clamp-1">
-                                                        {mode === 'control-to-risk' ? result.process : `#CTL-${String(result.id).padStart(4, '0')}`}
+                                                        {mode === 'control-to-risk' ? result.category : result.department?.name}
                                                     </span>
                                                 </button>
                                             ))}
@@ -232,7 +227,7 @@ export function LinkManagementDialog({
                                                             <p className="text-[10px] text-accent font-black uppercase tracking-widest mb-1">Link Configuration</p>
                                                             <p className="text-sm font-bold text-white">
                                                                 {mode === 'control-to-risk'
-                                                                    ? searchResults.find(r => r.id === selectedTargetId)?.risk_id_code
+                                                                    ? searchResults.find(r => r.id === selectedTargetId)?.process
                                                                     : searchResults.find(r => r.id === selectedTargetId)?.name
                                                                 }
                                                             </p>
@@ -309,7 +304,7 @@ export function LinkManagementDialog({
                                                 <div className="flex-1 min-w-0 pr-4">
                                                     <div className="flex items-center gap-3 mb-1">
                                                         <span className="text-xs font-bold text-white truncate">
-                                                            {mode === 'control-to-risk' ? link.risk?.risk_id_code : link.control?.name}
+                                                            {mode === 'control-to-risk' ? (link.risk?.description || 'Unknown Risk') : link.control?.name}
                                                         </span>
                                                         <span className={cn(
                                                             "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border",

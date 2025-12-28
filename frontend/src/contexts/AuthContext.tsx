@@ -53,24 +53,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     useEffect(() => {
+        let isMounted = true;
+
         const fetchCurrentUser = async () => {
             if (!token) {
-                setIsLoading(false);
+                if (isMounted) setIsLoading(false);
                 return;
             }
 
             try {
                 const userData = await authApi.getCurrentUser(token);
-                setUser(userData);
+                if (isMounted) {
+                    setUser(userData);
+                }
             } catch (err) {
                 // Token invalid, clear it
-                logout();
+                if (isMounted) {
+                    logout();
+                }
             } finally {
-                setIsLoading(false);
+                if (isMounted) {
+                    setIsLoading(false);
+                }
             }
         };
 
         fetchCurrentUser();
+
+        return () => {
+            isMounted = false;
+        };
     }, [token]);
 
     const hasPermission = (resource: string, action: string): boolean => {

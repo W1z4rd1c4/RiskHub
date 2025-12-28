@@ -129,3 +129,10 @@ export interface ControlRiskLink {
         description: string;
     };
 }
+
+export interface ControlListResponse {
+    items: ControlSummary[];
+    total: number;
+    skip: number;
+    limit: number;
+}

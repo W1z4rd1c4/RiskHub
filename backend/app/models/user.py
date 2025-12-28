@@ -50,6 +50,17 @@ class User(Base):
         foreign_keys="Risk.owner_id",
         back_populates="owner"
     )
+    
+    # Notification relationship
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification",
+        back_populates="user"
+    )
+
+    @property
+    def manager_name(self) -> str | None:
+        """Get manager's name if manager exists."""
+        return self.manager.name if self.manager else None
 
 
 # Import for type hints
@@ -58,4 +69,6 @@ from app.models.department import Department
 from app.models.control import Control
 from app.models.control_execution import ControlExecution
 from app.models.risk import Risk
+from app.models.notification import Notification
+
 

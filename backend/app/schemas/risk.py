@@ -1,7 +1,12 @@
 from pydantic import BaseModel, Field, field_validator, computed_field
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from enum import Enum
+
+if TYPE_CHECKING:
+    from app.schemas.kri import KRIResponse
+else:
+    from app.schemas.kri import KRIResponse
 
 
 class RiskTypeEnum(str, Enum):
@@ -29,7 +34,7 @@ class ControlEffectivenessEnum(str, Enum):
 
 class RiskBase(BaseModel):
     """Base schema for Risk based on OS 18 Registr rizik."""
-    risk_id_code: str = Field(..., max_length=50, description="Risk ID (e.g., Mkt-R01)")
+    risk_id_code: Optional[str] = Field(None, max_length=50, description="Risk ID (auto-generated if not provided)")
     process: str = Field(..., max_length=255, description="Main process")
     subprocess: Optional[str] = Field(None, max_length=255, description="Subprocess/area")
     risk_type: RiskTypeEnum = Field(RiskTypeEnum.operational, description="Strategic/Operational")
@@ -49,12 +54,6 @@ class RiskBase(BaseModel):
     # Metadata
     status: RiskStatusEnum = Field(RiskStatusEnum.active)
     is_priority: bool = Field(False, description="In Risk Catalog (high priority)")
-    
-    # KRI fields
-    kri_indicator: Optional[str] = Field(None, max_length=500)
-    kri_threshold_green: Optional[str] = Field(None, max_length=255)
-    kri_threshold_yellow: Optional[str] = Field(None, max_length=255)
-    kri_threshold_red: Optional[str] = Field(None, max_length=255)
 
     @field_validator('gross_probability', 'gross_impact', 'net_probability', 'net_impact')
     @classmethod
@@ -85,10 +84,8 @@ class RiskUpdate(BaseModel):
     net_impact: Optional[int] = Field(None, ge=1, le=5)
     status: Optional[RiskStatusEnum] = None
     is_priority: Optional[bool] = None
-    kri_indicator: Optional[str] = Field(None, max_length=500)
-    kri_threshold_green: Optional[str] = Field(None, max_length=255)
-    kri_threshold_yellow: Optional[str] = Field(None, max_length=255)
-    kri_threshold_red: Optional[str] = Field(None, max_length=255)
+    status: Optional[RiskStatusEnum] = None
+    is_priority: Optional[bool] = None
 
 
 class UserBriefForRisk(BaseModel):
@@ -116,6 +113,7 @@ class RiskRead(RiskBase):
     net_score: int    # Computed: net_probability × net_impact
     owner: Optional[UserBriefForRisk] = None
     department: Optional[DepartmentBriefForRisk] = None
+    kris: list["KRIResponse"] = []
     created_at: datetime
     updated_at: datetime
     
@@ -129,13 +127,27 @@ class RiskSummary(BaseModel):
     process: str
     risk_type: RiskTypeEnum
     category: Optional[str] = None
+    description: str
     gross_score: int
+    gross_probability: int
+    gross_impact: int
     net_score: int
     status: RiskStatusEnum
     is_priority: bool
     department_id: Optional[int] = None
+    department_name: Optional[str] = None
+    kri_count: int = 0
+    has_breach: bool = False
     
     model_config = {"from_attributes": True}
+
+
+class RiskListResponse(BaseModel):
+    """Paginated list of risks."""
+    items: list[RiskSummary]
+    total: int
+    skip: int
+    limit: int
 
 
 # ============== Control-Risk Link Schemas ==============
