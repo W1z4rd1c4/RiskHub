@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -204,6 +204,18 @@ async def update_control(
     # Update fields
     update_data = control_data.model_dump(exclude_unset=True)
     
+    # Check for pending DELETE request (block any updates if delete is pending)
+    existing_delete = await db.execute(
+        select(ApprovalRequest).where(
+            ApprovalRequest.resource_type == ApprovalResourceType.CONTROL,
+            ApprovalRequest.resource_id == control.id,
+            ApprovalRequest.action_type == ApprovalActionType.DELETE,
+            ApprovalRequest.status == ApprovalStatus.PENDING
+        )
+    )
+    if existing_delete.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Cannot update control while deletion is pending approval")
+    
     # Check for approval requirements (non-privileged users only)
     if not can_resolve_approvals(current_user):
         requires_approval = False
@@ -248,19 +260,26 @@ async def update_control(
             approval = ApprovalRequest(
                 resource_type=ApprovalResourceType.CONTROL,
                 resource_id=control.id,
-                resource_name=f"{control.control_id_code}: {name_snippet}",
+                resource_name=f"Control #{control.id}: {name_snippet}",
                 requested_by_id=current_user.id,
                 reason=approval_reason,
                 action_type=ApprovalActionType.EDIT,
-                pending_changes=json.dumps(pending_changes),
+                pending_changes=pending_changes,
                 status=ApprovalStatus.PENDING,
             )
             db.add(approval)
             await db.commit()
             
-            raise HTTPException(
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
                 status_code=status.HTTP_202_ACCEPTED,
-                detail={"message": "Change requires approval", "approval_id": approval.id}
+                content={
+                    "message": "Change requires approval",
+                    "approval_id": approval.id,
+                    "action_type": "edit",
+                    "pending_fields": list(pending_changes.keys()),
+                    "pending_changes": pending_changes
+                }
             )
     
     for field, value in update_data.items():
@@ -335,7 +354,7 @@ async def delete_control(
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.CONTROL,
         resource_id=control.id,
-        resource_name=f"{control.control_id_code}: {name_snippet}",
+        resource_name=f"Control #{control.id}: {name_snippet}",
         requested_by_id=current_user.id,
         reason=reason,
         status=ApprovalStatus.PENDING,
@@ -343,7 +362,15 @@ async def delete_control(
     db.add(approval)
     await db.commit()
     
-    return {"message": "Deletion request submitted for approval", "approval_id": approval.id}
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED,
+        content={
+            "message": "Deletion request submitted for approval",
+            "approval_id": approval.id,
+            "action_type": "delete"
+        }
+    )
 
 
 # ============== Control Execution Endpoints ==============
@@ -381,7 +408,7 @@ async def log_execution(
     # Verify department access
     check_department_access(control.department_id, current_user)
     
-    executed_at = datetime.utcnow()
+    executed_at = datetime.now(UTC)
     next_scheduled = calculate_next_scheduled(control.frequency, executed_at)
     
     execution = ControlExecution(

@@ -1,204 +1,68 @@
 # Concerns
 
-> Last updated: 2025-12-26 (Post Phase 7: User Management & RBAC)
+Prioritized list of technical debt, risks, and issues identified in the codebase.
 
-## Technical Debt
+## Critical
 
-| Issue | Location | Severity | Status |
-|-------|----------|----------|--------|
-| N+1 queries in department listing | `departments.py:41-104` | Medium | Existing |
-| Hardcoded risk score thresholds | `departments.py:27-33` | Low | Existing |
-| Hardcoded localhost URLs | `config.py:14-17`, verification scripts | Low | Existing |
-| Some deferred audit issues | `AUDIT.md:101-163` | Low | Documented |
-| **Incomplete permission filtering** | `kris.py`, `departments.py`, `dashboard.py` | **Medium** | **New** |
-| **No frontend permission hook** | `frontend/src/hooks/` | **Low** | **New** |
+### 1. Default Secrets in Production
+- **Issue**: Hardcoded `secret_key` and `debug=True` in config defaults
+- **Risk**: JWT forgery, info leak if env vars not overridden
+- **Location**: `backend/app/core/config.py:11,17`
+- **Fix**: Require env vars, fail startup if missing
 
-### N+1 Query Pattern
-Department listing runs 5+ SQL queries per department:
-- user_count, risk_count, kri_count, high_risk_count, control_count
+## Major
 
-**Recommendation**: Use subquery aggregations or window functions.
+### 2. Unauthenticated Report Endpoints
+- **Issue**: Report download endpoints lack auth checks
+- **Risk**: Anyone can export controls/risks/summary data
+- **Location**: `backend/app/api/v1/endpoints/reports.py:34,154`
+- **Fix**: Add `Depends(get_current_user)` + permission check
 
-### Incomplete Permission Filtering (Plan 07-04)
-**Status**: Core implementation complete for risks and controls, remaining endpoints need updates.
+### 3. JWT in localStorage (XSS Risk)
+- **Issue**: Token stored in localStorage, vulnerable to XSS
+- **Risk**: Token exfiltration via script injection
+- **Location**: `frontend/src/services/apiClient.ts:33`, `frontend/src/contexts/AuthContext.tsx:27`
+- **Fix**: Use httpOnly cookies or secure storage
 
-**Completed**:
-- ✅ Risks endpoint - Full permission filtering with `get_user_department_ids()`
-- ✅ Controls endpoint - Full permission filtering
+### 4. Mock Auth in Production Risk
+- **Issue**: `X-Mock-User-Id` enabled by env flag
+- **Risk**: Impersonation if misconfigured in prod
+- **Location**: `backend/app/api/deps.py:16,28`
+- **Fix**: Disable by default, require explicit dev flag
 
-**Pending**:
-- ❌ KRIs endpoint - Needs department filtering via risk relationship
-- ❌ Departments endpoint - Needs to filter by accessible departments
-- ❌ Dashboard endpoint - Aggregations need department filtering
+### 5. N+1 Queries in Department Summary
+- **Issue**: Multiple per-department count queries
+- **Risk**: Slow dashboards with many departments
+- **Location**: `backend/app/api/v1/endpoints/departments.py:38,173`
+- **Fix**: Use subqueries or eager loading
 
-**Impact**: Medium - Users can currently see all KRIs, departments, and dashboard stats regardless of permissions. This is a data visibility issue, not a security vulnerability (authentication still required).
+### 6. Race Condition in risk_id_code Generation
+- **Issue**: `count + loop` without transactional protection
+- **Risk**: Unique constraint violations under concurrent writes
+- **Location**: `backend/app/api/v1/endpoints/risks.py:161`, `backend/app/models/risk.py:42`
+- **Fix**: Use database sequence or SELECT FOR UPDATE
 
-**Recommendation**: Complete remaining endpoints following the established pattern:
-```python
-from app.core.permissions import get_user_department_ids
+## Minor
 
-dept_ids = get_user_department_ids(current_user)
-if dept_ids:
-    query = query.filter(Model.department_id.in_(dept_ids))
-```
+### 7. Double-Commit Pattern
+- **Issue**: DB dependency commits + endpoints also commit
+- **Risk**: Masks transactional boundaries
+- **Location**: `backend/app/db/session.py:19`
 
-### Missing Frontend Permission Hook
-**Status**: Backend permission system complete, frontend UI not yet permission-aware.
+### 8. Silent Auth Errors
+- **Issue**: `get_current_user_optional` swallows exceptions
+- **Risk**: Hides auth parsing bugs
+- **Location**: `backend/app/api/deps.py:59`
 
-**Impact**: Low - All security is enforced at API level. Frontend just needs to hide UI elements for better UX.
+### 9. Memory Usage in Report Generation
+- **Issue**: Loads full tables into memory for PDF/Excel
+- **Risk**: Memory spikes with large datasets
+- **Location**: `backend/app/api/v1/endpoints/reports.py:34`, `backend/app/services/report_service.py`
 
-**Pending**:
-- Create `usePermissions()` hook
-- Update Sidebar to hide "User Management" for non-admins
-- Hide create/delete buttons based on permissions
+### 10. Database File in Repository
+- **Issue**: `backend/risk_management.db` committed
+- **Risk**: Data exposure if contains real data
+- **Fix**: Add to `.gitignore`
 
-## Security Concerns
-
-| Issue | Location | Risk | Status |
-|-------|----------|------|--------|
-| Debug mode default `True` | `config.py:11` | Medium | Existing |
-| Hardcoded DB credentials | `config.py:14` | Medium | Existing |
-| Localhost-only CORS | `config.py:17` | Low | Existing |
-| **JWT secret in code** | `config.py` | **High** | **New** |
-| **No token refresh** | Auth system | **Medium** | **New** |
-| **No rate limiting** | All endpoints | **Medium** | **New** |
-
-### JWT Secret Management
-**Issue**: JWT secret key should be in environment variable, not hardcoded.
-
-**Current**: `SECRET_KEY = "your-secret-key-here"`
-
-**Recommendation**:
-```python
-SECRET_KEY: str = Field(default=..., env="JWT_SECRET_KEY")
-```
-
-### Token Expiration
-**Current**: 60-minute token expiration, no refresh mechanism.
-
-**Impact**: Users must re-login every hour.
-
-**Recommendation**: Implement refresh token flow or extend expiration for trusted clients.
-
-### Rate Limiting
-**Issue**: No rate limiting on login endpoint or API calls.
-
-**Impact**: Vulnerable to brute force attacks and API abuse.
-
-**Recommendation**: Add `slowapi` or similar rate limiting middleware.
-
-## Authentication & Authorization Status
-
-### ✅ Implemented (Phase 7)
-- JWT token authentication
-- Password hashing with bcrypt
-- Role-based access control (13 roles)
-- Permission system (12 permissions)
-- Department-scoped data filtering (risks, controls)
-- User management APIs
-- Login/logout endpoints
-- Protected routes (frontend)
-- Hierarchical user relationships (manager_id)
-- 120 test users with seed scripts
-
-### ⚠️ Partially Complete
-- Permission filtering (2/5 endpoints done)
-- Frontend permission-aware UI (0/3 components done)
-
-### ❌ Not Implemented
-- Token refresh mechanism
-- Rate limiting
-- CSRF protection
-- Entra ID/M365 integration
-- Password reset flow
-- Email verification
-- Two-factor authentication
-- Session management
-- Audit logging
-
-## Data Quality Concerns
-
-### Seed Data
-**Status**: 120 test users created with realistic structure.
-
-**Quality**: Good - Includes C-suite, governance roles, department heads, and employees.
-
-**Demo Accounts**: 3 accounts for testing (CRO, COO, Employee).
-
-**Concern**: No automated tests to verify seed data integrity.
-
-**Recommendation**: Add tests to verify:
-- User count (120)
-- Role distribution
-- Department distribution
-- Manager-employee relationships
-
-## Improvement Areas
-
-### Short-term (1-2 weeks)
-- Complete permission filtering for KRIs, departments, dashboard
-- Create frontend `usePermissions()` hook
-- Move JWT secret to environment variable
-- Add rate limiting to login endpoint
-- Add tests for seed data integrity
-
-### Medium-term (1-2 months)
-- Implement token refresh mechanism
-- Replace N+1 queries with optimized aggregations
-- Add comprehensive error handling
-- Implement password reset flow
-- Add audit logging for sensitive operations
-
-### Long-term (3+ months)
-- Implement Entra ID/M365 integration
-- Add two-factor authentication
-- Implement CSRF protection
-- Add session management
-- Comprehensive security audit
-
-## From AUDIT.md (Deferred)
-- 100-item grouped view limit (API design decision)
-- 1000-item cap in verification scripts (API constraint)
-- Frontend grouping null guards (already handled)
-
-## Positive Notes
-
-### ✅ No Critical Security Issues
-- Authentication properly implemented with JWT
-- Passwords hashed with bcrypt
-- SQL injection prevented (SQLAlchemy ORM)
-- Input validation (Pydantic)
-- Permission checks at API level
-
-### ✅ Clean Codebase
-- No TODO/FIXME markers
-- No deprecated code patterns
-- API response format standardized
-- Consistent async/await usage
-- Type safety (TypeScript + Pydantic)
-
-### ✅ Good Architecture
-- Clear separation of concerns
-- Dependency injection
-- Modular structure
-- Scalable patterns
-
-## Risk Assessment
-
-| Risk | Likelihood | Impact | Priority |
-|------|------------|--------|----------|
-| JWT secret exposure | Medium | High | **Critical** |
-| Brute force login | High | Medium | **High** |
-| Incomplete permission filtering | Low | Medium | Medium |
-| Token expiration UX | High | Low | Low |
-| N+1 query performance | Medium | Low | Low |
-
-## Recommendations Priority
-
-1. **Critical**: Move JWT secret to environment variable
-2. **High**: Add rate limiting to login endpoint
-3. **High**: Complete permission filtering (KRIs, departments, dashboard)
-4. **Medium**: Implement token refresh mechanism
-5. **Medium**: Add audit logging
-6. **Low**: Create frontend permission hook
-7. **Low**: Optimize N+1 queries
+---
+*Last updated: 2025-12-28*

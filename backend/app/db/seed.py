@@ -1,6 +1,6 @@
 """Seed script to populate database with initial data."""
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,13 +62,23 @@ DEPARTMENTS = [
     {"name": "Compliance", "code": "COMP", "description": "Compliance function"},
 ]
 
-# Test users
+# Demo users - structured for testing different permission levels
+# ID 1-3: Privileged accounts (full access)
+# ID 4-6: Department heads (department-scoped write access)
+# ID 7-9: Employees (limited access under department heads)
 TEST_USERS = [
+    # Privileged accounts
     {"email": "admin@riskhub.local", "name": "System Admin", "role": "admin", "department": None},
-    {"email": "cro@riskhub.local", "name": "Jan Novák", "role": "cro", "department": "RISK"},
+    {"email": "cro@riskhub.local", "name": "Anna Kowalski", "role": "cro", "department": "RISK"},
     {"email": "risk.manager@riskhub.local", "name": "Petra Svobodová", "role": "risk_manager", "department": "RISK"},
-    {"email": "auditor@riskhub.local", "name": "Martin Horák", "role": "internal_audit", "department": None},
+    # Department heads
     {"email": "ops.head@riskhub.local", "name": "Eva Králová", "role": "department_head", "department": "OPS"},
+    {"email": "fin.head@riskhub.local", "name": "Martin Procházka", "role": "department_head", "department": "FIN"},
+    {"email": "it.head@riskhub.local", "name": "Tomáš Novotný", "role": "department_head", "department": "IT"},
+    # Employees (control owners under department heads)
+    {"email": "ops.analyst@riskhub.local", "name": "Jana Horáková", "role": "control_owner", "department": "OPS"},
+    {"email": "fin.analyst@riskhub.local", "name": "Lukáš Dvořák", "role": "control_owner", "department": "FIN"},
+    {"email": "it.analyst@riskhub.local", "name": "Barbora Němcová", "role": "control_owner", "department": "IT"},
 ]
 
 # Sample controls based on DEFINICIA KONTROL
@@ -389,7 +399,7 @@ async def seed_controls_and_risks(db: AsyncSession):
     # Create sample executions for first 3 controls
     for i, control in enumerate(controls[:3]):
         for days_ago in [30, 15, 0]:
-            exec_time = datetime.utcnow() - timedelta(days=days_ago)
+            exec_time = datetime.now(UTC) - timedelta(days=days_ago)
             execution = ControlExecution(
                 control_id=control.id,
                 executed_by_id=admin_user.id if admin_user else None,

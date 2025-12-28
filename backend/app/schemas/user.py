@@ -14,8 +14,7 @@ class RoleRead(RoleBase):
     """Schema for reading Role."""
     id: int
     
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class UserBase(BaseModel):
@@ -35,7 +34,9 @@ class UserCreate(UserBase):
 
 class UserUpdate(BaseModel):
     """Schema for updating an existing user."""
+    email: Optional[EmailStr] = None
     name: Optional[str] = None
+    password: Optional[str] = None
     role_id: Optional[int] = None
     department_id: Optional[int] = None
     manager_id: Optional[int] = None
@@ -55,8 +56,7 @@ class UserRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class UserBrief(BaseModel):
@@ -67,9 +67,11 @@ class UserBrief(BaseModel):
     role: str
     role_display_name: str
     permissions: list[str]
+    department_id: Optional[int] = None
+    department_name: Optional[str] = None
+
     
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 
 class DepartmentBase(BaseModel):
@@ -85,5 +87,4 @@ class DepartmentRead(DepartmentBase):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}

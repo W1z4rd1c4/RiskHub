@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { RiskForm } from '@/components/RiskForm';
 import { riskApi } from '@/services/riskApi';
 import type { Risk } from '@/types/risk';
-import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Edit } from 'lucide-react';
 
 export function RiskNewPage() {
@@ -29,7 +28,6 @@ export function RiskNewPage() {
 export function RiskEditPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { mockUserId } = useAuth();
     const [risk, setRisk] = useState<Risk | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -37,7 +35,7 @@ export function RiskEditPage() {
         const fetchRisk = async () => {
             if (!id) return;
             try {
-                const data = await riskApi.getRisk(parseInt(id), mockUserId);
+                const data = await riskApi.getRisk(parseInt(id));
                 setRisk(data);
             } catch (err) {
                 console.error('Failed to fetch risk:', err);
@@ -47,7 +45,7 @@ export function RiskEditPage() {
             }
         };
         fetchRisk();
-    }, [id, mockUserId, navigate]);
+    }, [id, navigate]);
 
     if (isLoading) {
         return (
@@ -64,7 +62,7 @@ export function RiskEditPage() {
                     <Edit className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                    <h2 className="text-3xl font-black text-white tracking-tighter">Edit Risk {risk?.risk_id_code}</h2>
+                    <h2 className="text-3xl font-black text-white tracking-tighter">Edit Risk</h2>
                     <p className="text-slate-500 font-medium tracking-tight uppercase text-[10px] tracking-widest mt-1">
                         Risk Register / Update Entry
                     </p>

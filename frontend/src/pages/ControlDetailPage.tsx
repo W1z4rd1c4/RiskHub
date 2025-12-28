@@ -11,19 +11,19 @@ import {
     BookOpen,
     BarChart3,
     History,
-    CheckCircle2,
     XCircle,
-    AlertTriangle,
     ShieldAlert,
-    RefreshCw
+    Plus
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
-import type { Control, ControlExecution, ControlRiskLink } from '@/types/control';
+import type { Control, ControlRiskLink } from '@/types/control';
 import { ControlStatus } from '@/types/control';
-import { useAuth } from '@/contexts/AuthContext';
 import { PermissionGate } from '@/components/PermissionGate';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { ControlEffectiveness } from '@/types/risk';
+import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
+import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
+import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 
 const container = {
     hidden: { opacity: 0 },
@@ -41,27 +41,25 @@ const item = {
 export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { mockUserId } = useAuth();
-
     const [control, setControl] = useState<Control | null>(null);
-    const [executions, setExecutions] = useState<ControlExecution[]>([]);
     const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+    const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+    const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+    const [historyKey, setHistoryKey] = useState(0);
 
     const fetchData = useCallback(async () => {
         if (!id) return;
         try {
             setIsLoading(true);
             const ctrlId = parseInt(id);
-            const [ctrlData, execData, riskData] = await Promise.all([
-                controlApi.getControl(ctrlId, mockUserId),
-                controlApi.getExecutions(ctrlId, mockUserId),
-                controlApi.getLinkedRisks(ctrlId, mockUserId)
+            const [ctrlData, riskData] = await Promise.all([
+                controlApi.getControl(ctrlId),
+                controlApi.getLinkedRisks(ctrlId)
             ]);
             setControl(ctrlData);
-            setExecutions(execData);
             setLinkedRisks(riskData);
             setError(null);
         } catch (err) {
@@ -70,29 +68,23 @@ export function ControlDetailPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [id, mockUserId]);
+    }, [id]);
 
     useEffect(() => {
         fetchData();
     }, [fetchData]);
 
-    const handleDelete = async () => {
-        if (!control || !window.confirm('Are you sure you want to archive this control?')) return;
-        try {
-            await controlApi.deleteControl(control.id, mockUserId);
-            navigate('/controls');
-        } catch (err) {
-            console.error('Error deleting control:', err);
-            alert('Failed to archive control.');
-        }
+    const handleArchive = async (reason: string) => {
+        if (!control) return;
+        await controlApi.deleteControl(control.id, reason);
+        navigate('/controls');
     };
 
     const handleLinkRisk = async (riskId: number, effectiveness: ControlEffectiveness, notes?: string) => {
         if (!control) return;
         try {
-            await controlApi.linkRisk(control.id, { risk_id: riskId, effectiveness, notes }, mockUserId);
-            // Refresh linked risks
-            const riskData = await controlApi.getLinkedRisks(control.id, mockUserId);
+            await controlApi.linkRisk(control.id, { risk_id: riskId, effectiveness, notes });
+            const riskData = await controlApi.getLinkedRisks(control.id);
             setLinkedRisks(riskData);
         } catch (err) {
             console.error('Linking failed:', err);
@@ -103,9 +95,8 @@ export function ControlDetailPage() {
     const handleUnlinkRisk = async (riskId: number) => {
         if (!control) return;
         try {
-            await controlApi.unlinkRisk(control.id, riskId, mockUserId);
-            // Refresh linked risks
-            const riskData = await controlApi.getLinkedRisks(control.id, mockUserId);
+            await controlApi.unlinkRisk(control.id, riskId);
+            const riskData = await controlApi.getLinkedRisks(control.id);
             setLinkedRisks(riskData);
         } catch (err) {
             console.error('Unlinking failed:', err);
@@ -181,7 +172,7 @@ export function ControlDetailPage() {
                     </PermissionGate>
                     <PermissionGate resource="controls" action="delete">
                         <button
-                            onClick={handleDelete}
+                            onClick={() => setIsArchiveDialogOpen(true)}
                             className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
                         >
                             <Trash2 className="h-5 w-5" />
@@ -300,7 +291,7 @@ export function ControlDetailPage() {
                             linkedRisks.map((link) => (
                                 <div key={link.id} className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer">
                                     <div className="flex justify-between items-start mb-2">
-                                        <span className="text-[10px] font-black text-accent uppercase tracking-widest">{link.risk?.risk_id_code}</span>
+                                        <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.description}</span>
                                         <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${link.effectiveness === 'high' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
                                             }`}>
                                             {link.effectiveness}
@@ -343,63 +334,36 @@ export function ControlDetailPage() {
                             <History className="h-4 w-4 text-accent" />
                             Execution Audit Trail
                         </h3>
-                        <button className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2">
-                            <RefreshCw className="h-3 w-3" />
-                            Log New Review
-                        </button>
+                        <PermissionGate resource="controls" action="write">
+                            <button
+                                onClick={() => setIsLogModalOpen(true)}
+                                className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2 group-hover:shadow-[0_0_15px_rgba(30,132,255,0.2)]"
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                Log Execution
+                            </button>
+                        </PermissionGate>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-white/[0.02]">
-                                <tr>
-                                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Date</th>
-                                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Result</th>
-                                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Executor</th>
-                                    <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Findings</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {executions.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={4} className="px-4 py-12 text-center text-xs text-slate-500 font-medium">No execution history found.</td>
-                                    </tr>
-                                ) : (
-                                    executions.map((exec) => (
-                                        <tr key={exec.id} className="border-b border-white/5 hover:bg-white/[0.01] transition-colors">
-                                            <td className="px-4 py-3">
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs font-bold text-white font-mono">{new Date(exec.executed_at).toLocaleDateString()}</span>
-                                                    <span className="text-[9px] text-slate-600 uppercase font-bold tracking-tighter">At {new Date(exec.executed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-1.5">
-                                                    {exec.result === 'passed' ? (
-                                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                                                    ) : exec.result === 'failed' ? (
-                                                        <XCircle className="h-3.5 w-3.5 text-rose-500" />
-                                                    ) : (
-                                                        <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
-                                                    )}
-                                                    <span className={`text-[10px] font-black uppercase tracking-widest ${exec.result === 'passed' ? 'text-emerald-400' : exec.result === 'failed' ? 'text-rose-500' : 'text-amber-400'
-                                                        }`}>{exec.result}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className="text-xs text-slate-300 font-medium">{exec.executed_by?.name || 'Unknown'}</span>
-                                            </td>
-                                            <td className="px-4 py-3 max-w-[200px]">
-                                                <p className="text-[10px] text-slate-500 font-medium line-clamp-2 italic">{exec.findings || 'No findings reported.'}</p>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <ExecutionHistory key={historyKey} controlId={control.id} />
                 </motion.div>
             </div>
+
+            <ExecutionLogModal
+                isOpen={isLogModalOpen}
+                onClose={() => setIsLogModalOpen(false)}
+                controlId={control.id}
+                controlName={control.name}
+                onSuccess={() => setHistoryKey(prev => prev + 1)}
+            />
+
+            <ArchiveConfirmDialog
+                isOpen={isArchiveDialogOpen}
+                onClose={() => setIsArchiveDialogOpen(false)}
+                onConfirm={handleArchive}
+                resourceType="control"
+                resourceName={control.name}
+            />
         </div>
     );
 }

@@ -8,8 +8,11 @@ class LoginRequest(BaseModel):
     password: str
 
 
+from app.schemas.user import UserBrief
+
+
 class TokenResponse(BaseModel):
     """Schema for JWT token response."""
     access_token: str
     token_type: str = "bearer"
-    user: dict  # UserBrief serialized
+    user: UserBrief  # Use specific schema instead of dict

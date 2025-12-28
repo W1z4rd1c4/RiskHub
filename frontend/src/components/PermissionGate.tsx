@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface PermissionGateProps {
     resource: string;
@@ -22,7 +23,8 @@ export function PermissionGate({
     children,
     fallback = null,
 }: PermissionGateProps) {
-    const { hasPermission, isLoading } = useAuth();
+    const { isLoading } = useAuth();
+    const { hasPermission } = usePermissions();
 
     if (isLoading) {
         return null;

@@ -1,0 +1,294 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, RefreshCw, AlertTriangle, CheckCircle, ChevronRight } from 'lucide-react';
+import { kriApi } from '@/services/kriApi';
+import { PermissionGate } from '@/components/PermissionGate';
+import { ViewSwitcher, SortableTable, Pagination, CategoryDrillDown } from '@/components/tables';
+import type { Column, ViewMode } from '@/components/tables';
+import type { KeyRiskIndicator } from '@/types/kri';
+
+type StatusFilter = 'all' | 'within' | 'breach';
+
+export function KRIsPage() {
+    const navigate = useNavigate();
+    const [kris, setKris] = useState<KeyRiskIndicator[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+    const [viewMode, setViewMode] = useState<ViewMode>('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const limit = 10;
+
+    const fetchKRIs = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            // Fetch up to 100 KRIs for client-side filtering/pagination
+            const data = await kriApi.getKRIs({ size: 100 });
+            setKris(data.items || []);
+        } catch (err) {
+            console.error('Failed to fetch KRIs:', err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchKRIs();
+    }, [fetchKRIs]);
+
+    const formatNumber = (val: number): string => {
+        if (val === 0) return '0';
+        if (Math.abs(val) < 1) return val.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (Math.abs(val) < 100) return val.toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+        return Math.round(val).toLocaleString('cs-CZ');
+    };
+
+    // Filter KRIs
+    const filteredKRIs = kris.filter(kri => {
+        const matchesSearch = !search || kri.metric_name.toLowerCase().includes(search.toLowerCase());
+        const matchesStatus = statusFilter === 'all' ||
+            (statusFilter === 'within' && kri.breach_status === 'within') ||
+            (statusFilter === 'breach' && kri.breach_status !== 'within');
+        return matchesSearch && matchesStatus;
+    });
+
+    // Table columns matching Risks page style
+    const columns: Column<KeyRiskIndicator>[] = [
+        {
+            key: 'metric_name',
+            label: 'Metric',
+            sortable: true,
+            render: (kri) => (
+                <div className="flex items-center gap-2">
+                    <span className="font-medium text-white">{kri.metric_name}</span>
+                </div>
+            ),
+        },
+        {
+            key: 'current_value',
+            label: 'Value',
+            sortable: true,
+            render: (kri) => {
+                const isBreaching = kri.breach_status !== 'within';
+                return (
+                    <span className={`font-black ${isBreaching ? 'text-rose-400' : 'text-white'}`}>
+                        {formatNumber(kri.current_value)} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
+                    </span>
+                );
+            },
+        },
+        {
+            key: 'lower_limit',
+            label: 'Limits',
+            render: (kri) => (
+                <span className="text-xs text-slate-500">
+                    {formatNumber(kri.lower_limit)} – {formatNumber(kri.upper_limit)}
+                </span>
+            ),
+        },
+        {
+            key: 'breach_status',
+            label: 'Status',
+            sortable: true,
+            render: (kri) => {
+                const isBreaching = kri.breach_status !== 'within';
+                return (
+                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase w-fit ${isBreaching
+                        ? 'bg-rose-500/10 text-rose-400'
+                        : 'bg-emerald-500/10 text-emerald-400'
+                        }`}>
+                        {isBreaching ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
+                        {isBreaching ? 'Breach' : 'OK'}
+                    </span>
+                );
+            },
+        },
+        {
+            key: 'risk_process',
+            label: 'Risk',
+            sortable: true,
+            render: (kri) => (
+                <span className="text-white text-xs font-bold block truncate max-w-[150px]" title={kri.risk_process}>
+                    {kri.risk_process || `Risk #${kri.risk_id}`}
+                </span>
+            ),
+        },
+        {
+            key: 'risk_description',
+            label: 'Description',
+            sortable: true,
+            render: (kri) => (
+                <span className="text-slate-400 text-xs font-medium block truncate max-w-[200px]" title={kri.risk_description}>
+                    {kri.risk_description || '—'}
+                </span>
+            ),
+        },
+    ];
+
+    // Get group by field based on view mode
+    const getGroupByField = (): keyof KeyRiskIndicator | null => {
+        switch (viewMode) {
+            case 'category': return 'risk_category';
+            case 'department': return 'department_name';
+            case 'process': return 'risk_process';
+            default: return null;
+        }
+    };
+
+    // Pagination
+    const totalPages = Math.ceil(filteredKRIs.length / limit) || 1;
+    const paginatedKRIs = viewMode === 'all'
+        ? filteredKRIs.slice((currentPage - 1) * limit, currentPage * limit)
+        : filteredKRIs;
+
+    return (
+        <div className="space-y-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-3xl font-black text-white mb-2">Risk Appetite</h2>
+                    <p className="text-slate-500 font-medium tracking-tight">Monitor Key Risk Indicators and appetite breaches.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={fetchKRIs}
+                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
+                        title="Refresh"
+                    >
+                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
+                    </button>
+                    <PermissionGate resource="risks" action="write">
+                        <button onClick={() => navigate('/kris/new')} className="btn-primary">
+                            <Plus className="h-5 w-5" /> New KRI
+                        </button>
+                    </PermissionGate>
+                </div>
+            </div>
+
+            {/* View Switcher - Same as Risks */}
+            <ViewSwitcher value={viewMode} onChange={setViewMode} />
+
+            {/* Filters - Same style as Risks */}
+            <div className="glass-card flex flex-col md:flex-row gap-4">
+                <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
+                    <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
+                    <input
+                        type="text"
+                        placeholder="Search by metric name..."
+                        value={search}
+                        onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+                        className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
+                    />
+                </div>
+                <div className="flex gap-2 flex-wrap items-center">
+                    {/* Button-style status filters */}
+                    {(['all', 'within', 'breach'] as StatusFilter[]).map((opt) => (
+                        <button
+                            key={opt}
+                            onClick={() => { setStatusFilter(opt); setCurrentPage(1); }}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${statusFilter === opt
+                                ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                                : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                                }`}
+                        >
+                            {opt === 'all' ? 'All' : opt === 'within' ? 'Within' : 'Breach'}
+                        </button>
+                    ))}
+                    <button
+                        onClick={() => { setSearch(''); setStatusFilter('all'); setCurrentPage(1); }}
+                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
+                    >
+                        <RefreshCw className="h-4 w-4" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Content */}
+            {isLoading ? (
+                <div className="glass-card overflow-hidden">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-white/10">
+                                {columns.map((col) => (
+                                    <th key={String(col.key)} className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        {col.label}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {[...Array(limit)].map((_, i) => (
+                                <tr key={`skeleton-${i}`} className="border-b border-white/5 animate-pulse">
+                                    <td className="px-6 py-4"><div className="h-4 w-32 bg-white/5 rounded" /></td>
+                                    <td className="px-6 py-4"><div className="h-4 w-16 bg-white/5 rounded" /></td>
+                                    <td className="px-6 py-4"><div className="h-4 w-20 bg-white/5 rounded" /></td>
+                                    <td className="px-6 py-4"><div className="h-5 w-16 bg-white/5 rounded-md" /></td>
+                                    <td className="px-6 py-4"><div className="h-4 w-8 bg-white/5 rounded mx-auto" /></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : viewMode === 'all' ? (
+                <>
+                    <SortableTable
+                        data={paginatedKRIs}
+                        columns={columns}
+                        keyExtractor={(kri) => kri.id}
+                        onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
+                        emptyMessage="No KRIs found matching your criteria."
+                    />
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={filteredKRIs.length}
+                        itemsPerPage={limit}
+                        onPageChange={setCurrentPage}
+                    />
+                </>
+            ) : (
+                <CategoryDrillDown
+                    data={filteredKRIs}
+                    groupBy={getGroupByField() as keyof KeyRiskIndicator}
+                    keyExtractor={(kri) => kri.id}
+                    getStats={(items: KeyRiskIndicator[]) => ({
+                        total: items.length,
+                        activeCount: items.filter(k => k.breach_status === 'within').length,
+                        highRiskCount: items.filter(k => k.breach_status !== 'within').length,
+                    })}
+                    renderTable={(items: KeyRiskIndicator[]) => (
+                        <SortableTable
+                            data={items}
+                            columns={columns}
+                            keyExtractor={(kri) => kri.id}
+                            onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
+                            emptyMessage="No KRIs in this group."
+                        />
+                    )}
+                    renderItem={(kri: KeyRiskIndicator) => (
+                        <div
+                            key={kri.id}
+                            onClick={() => navigate(`/kris/${kri.id}`)}
+                            className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between border-b border-white/5"
+                        >
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm font-bold text-white">{kri.metric_name}</span>
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${kri.breach_status === 'within'
+                                    ? 'bg-emerald-500/10 text-emerald-400'
+                                    : 'bg-rose-500/10 text-rose-400'
+                                    }`}>
+                                    {kri.breach_status === 'within' ? 'OK' : 'Breach'}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-6">
+                                <span className="text-sm font-black text-white">
+                                    {formatNumber(kri.current_value)} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
+                                </span>
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                            </div>
+                        </div>
+                    )}
+                />
+            )}
+        </div>
+    );
+}
