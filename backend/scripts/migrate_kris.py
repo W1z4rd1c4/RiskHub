@@ -143,8 +143,14 @@ async def migrate_kris():
                         match_score = 0.3
                 
                 if not matched_risk:
-                    unmatched.append(f"{sheet_name} row {row_idx}: {metric} - {risk_desc[:50]}")
-                    continue
+                    # Assign random risk from same process or any risk
+                    import random
+                    proc_key = normalize_string(hlavni_proces)
+                    if proc_key in risk_by_process and risk_by_process[proc_key]:
+                        matched_risk = random.choice(risk_by_process[proc_key])
+                    else:
+                        matched_risk = random.choice(all_risks)
+                    unmatched.append(f"{sheet_name} row {row_idx}: {metric} -> random: {matched_risk.risk_id_code}")
                 
                 # Create KRI
                 kri = KeyRiskIndicator(
