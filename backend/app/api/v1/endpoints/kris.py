@@ -177,7 +177,6 @@ async def update_kri(
     """
     from app.core.permissions import can_resolve_approvals, is_critical_risk
     from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
-    import json
     
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -204,6 +203,18 @@ async def update_kri(
             detail="lower_limit must be less than upper_limit"
         )
     
+    # Check for pending DELETE request (block any updates if delete is pending)
+    existing_delete = await db.execute(
+        select(ApprovalRequest).where(
+            ApprovalRequest.resource_type == ApprovalResourceType.KRI,
+            ApprovalRequest.resource_id == kri.id,
+            ApprovalRequest.action_type == ApprovalActionType.DELETE,
+            ApprovalRequest.status == ApprovalStatus.PENDING
+        )
+    )
+    if existing_delete.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Cannot update KRI while deletion is pending approval")
+    
     # Check if KRI is linked to critical risk (non-privileged users only)
     if not can_resolve_approvals(current_user):
         if kri.risk and is_critical_risk(kri.risk):
@@ -229,15 +240,22 @@ async def update_kri(
                 requested_by_id=current_user.id,
                 reason=f"Edit to KRI linked to critical risk {kri.risk.risk_id_code}",
                 action_type=ApprovalActionType.EDIT,
-                pending_changes=json.dumps(pending_changes),
+                pending_changes=pending_changes,
                 status=ApprovalStatus.PENDING,
             )
             db.add(approval)
             await db.commit()
             
-            raise HTTPException(
-                status_code=status.HTTP_202_ACCEPTED,
-                detail={"message": "Change requires approval", "approval_id": approval.id}
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=202,
+                content={
+                    "message": "Change requires approval",
+                    "approval_id": approval.id,
+                    "action_type": "edit",
+                    "pending_fields": list(pending_changes.keys()),
+                    "pending_changes": pending_changes
+                }
             )
     
     for field, value in update_data.items():
@@ -309,4 +327,12 @@ async def delete_kri(
     db.add(approval)
     await db.commit()
     
-    return {"message": "Deletion request submitted for approval", "approval_id": approval.id}
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=202,
+        content={
+            "message": "Deletion request submitted for approval",
+            "approval_id": approval.id,
+            "action_type": "delete"
+        }
+    )

@@ -1,47 +1,52 @@
-import type { DashboardSummary, DepartmentMetrics, RiskDistribution, ControlTrend } from '../types/dashboard';
+import { apiClient } from './apiClient';
+import type { DashboardSummary, DepartmentMetrics, RiskDistribution, ControlTrend, DashboardFilters } from '../types/dashboard';
 
-const API_URL = '/api/v1/dashboard';
+function buildQueryParams(filters?: DashboardFilters): Record<string, any> {
+    if (!filters) return {};
 
-async function getHeaders(mockUserId: number | null) {
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-    };
-    if (mockUserId) {
-        headers['X-Mock-User-Id'] = mockUserId.toString();
+    const params: Record<string, any> = {};
+
+    if (filters.departmentId !== null) {
+        params.department_id = filters.departmentId;
     }
-    return headers;
+    if (filters.riskLevel !== 'all') {
+        params.risk_level = filters.riskLevel;
+    }
+    if (filters.controlStatus) {
+        params.control_status = filters.controlStatus;
+    }
+    if (filters.controlForm) {
+        params.control_form = filters.controlForm;
+    }
+
+    return params;
 }
 
 export const dashboardApi = {
-    async fetchDashboardSummary(mockUserId: number | null): Promise<DashboardSummary> {
-        const response = await fetch(`${API_URL}/summary`, {
-            headers: await getHeaders(mockUserId),
-        });
-        if (!response.ok) throw new Error('Failed to fetch dashboard summary');
-        return response.json();
+    async fetchRisksByCell(probability: number, impact: number, filters?: DashboardFilters): Promise<any[]> {
+        const params = buildQueryParams(filters);
+        params.probability = probability;
+        params.impact = impact;
+        return apiClient.get<any[]>('/dashboard/risks-by-cell', { params });
     },
 
-    async fetchDepartmentMetrics(mockUserId: number | null): Promise<DepartmentMetrics[]> {
-        const response = await fetch(`${API_URL}/departments`, {
-            headers: await getHeaders(mockUserId),
-        });
-        if (!response.ok) throw new Error('Failed to fetch department metrics');
-        return response.json();
+    async fetchDashboardSummary(filters?: DashboardFilters): Promise<DashboardSummary> {
+        const params = buildQueryParams(filters);
+        return apiClient.get<DashboardSummary>('/dashboard/summary', { params });
     },
 
-    async fetchRiskDistribution(mockUserId: number | null): Promise<RiskDistribution> {
-        const response = await fetch(`${API_URL}/risk-distribution`, {
-            headers: await getHeaders(mockUserId),
-        });
-        if (!response.ok) throw new Error('Failed to fetch risk distribution');
-        return response.json();
+    async fetchDepartmentMetrics(filters?: DashboardFilters): Promise<DepartmentMetrics[]> {
+        const params = buildQueryParams(filters);
+        return apiClient.get<DepartmentMetrics[]>('/dashboard/departments', { params });
     },
 
-    async fetchControlTrends(mockUserId: number | null): Promise<ControlTrend[]> {
-        const response = await fetch(`${API_URL}/control-trends`, {
-            headers: await getHeaders(mockUserId),
-        });
-        if (!response.ok) throw new Error('Failed to fetch control trends');
-        return response.json();
+    async fetchRiskDistribution(filters?: DashboardFilters): Promise<RiskDistribution> {
+        const params = buildQueryParams(filters);
+        return apiClient.get<RiskDistribution>('/dashboard/risk-distribution', { params });
+    },
+
+    async fetchControlTrends(filters?: DashboardFilters): Promise<ControlTrend[]> {
+        const params = buildQueryParams(filters);
+        return apiClient.get<ControlTrend[]>('/dashboard/control-trends', { params });
     },
 };

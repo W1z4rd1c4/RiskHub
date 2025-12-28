@@ -5,8 +5,6 @@ import { ArrowLeft } from 'lucide-react';
 import { ControlForm } from '@/components/ControlForm';
 import { controlApi } from '@/services/controlApi';
 import type { Control } from '@/types/control';
-import { useAuth } from '@/contexts/AuthContext';
-
 export function ControlNewPage() {
     const navigate = useNavigate();
 
@@ -37,7 +35,6 @@ export function ControlNewPage() {
 export function ControlEditPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { mockUserId } = useAuth();
     const [control, setControl] = useState<Control | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -46,7 +43,7 @@ export function ControlEditPage() {
             if (!id) return;
             try {
                 setIsLoading(true);
-                const data = await controlApi.getControl(parseInt(id), mockUserId);
+                const data = await controlApi.getControl(parseInt(id));
                 setControl(data);
             } catch (err) {
                 console.error('Error fetching control for edit:', err);
@@ -55,7 +52,7 @@ export function ControlEditPage() {
             }
         };
         fetchControl();
-    }, [id, mockUserId]);
+    }, [id]);
 
     if (isLoading) {
         return (
@@ -77,7 +74,7 @@ export function ControlEditPage() {
                     <ArrowLeft className="h-3 w-3" /> Back to Detail
                 </button>
                 <h2 className="text-3xl font-black text-white tracking-tighter">Edit Control</h2>
-                <p className="text-slate-500 font-medium tracking-tight">Updating configuration for #CTL-{String(control.id).padStart(4, '0')}</p>
+                <p className="text-slate-500 font-medium tracking-tight">Updating configuration for {control.name}</p>
             </div>
 
             <motion.div

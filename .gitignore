@@ -106,3 +106,8 @@ Thumbs.db
 
 # Node
 node_modules/
+
+# Database files
+backend/risk_management.db
+backend/*.db
+*.db-journal

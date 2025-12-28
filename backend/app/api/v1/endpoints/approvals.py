@@ -1,6 +1,6 @@
 """Approval request endpoints for deletion and edit workflows."""
-import json
-from datetime import datetime
+import datetime
+from datetime import datetime, UTC
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func, or_
@@ -27,12 +27,7 @@ router = APIRouter()
 
 def _build_approval_read(approval: ApprovalRequest) -> dict:
     """Build ApprovalRequestRead dict from model with user names."""
-    pending_changes = None
-    if approval.pending_changes:
-        try:
-            pending_changes = json.loads(approval.pending_changes)
-        except (json.JSONDecodeError, TypeError):
-            pending_changes = None
+    pending_changes = approval.pending_changes
     
     return {
         "id": approval.id,
@@ -147,9 +142,9 @@ async def list_approval_requests(
     
     # Apply filters
     if status_filter:
-        base_query = base_query.where(ApprovalRequest.status == ApprovalStatus(status_filter.value.upper()))
+        base_query = base_query.where(ApprovalRequest.status == ApprovalStatus(status_filter.value))
     if resource_type:
-        base_query = base_query.where(ApprovalRequest.resource_type == ApprovalResourceType(resource_type.value.upper()))
+        base_query = base_query.where(ApprovalRequest.resource_type == ApprovalResourceType(resource_type.value))
     
     # Count total
     count_query = select(func.count()).select_from(base_query.subquery())
@@ -228,7 +223,7 @@ async def approve_request(
     # Update approval status
     approval.status = ApprovalStatus.APPROVED
     approval.resolved_by_id = current_user.id
-    approval.resolved_at = datetime.utcnow()
+    approval.resolved_at = datetime.now(UTC)
     approval.resolution_notes = resolve_data.resolution_notes
     
     # AUTO-EXECUTE based on action type
@@ -243,7 +238,7 @@ async def approve_request(
             control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
             control = control_result.scalar_one_or_none()
             if control:
-                control.status = ControlStatus.inactive.value
+                control.status = ControlStatus.archived.value
         elif approval.resource_type == ApprovalResourceType.KRI:
             kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
             kri = kri_result.scalar_one_or_none()
@@ -253,7 +248,7 @@ async def approve_request(
     elif approval.action_type == ApprovalActionType.EDIT:
         # EDIT: Apply pending changes to the resource
         if approval.pending_changes:
-            changes = json.loads(approval.pending_changes)
+            changes = approval.pending_changes
             if approval.resource_type == ApprovalResourceType.RISK:
                 risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
                 risk = risk_result.scalar_one_or_none()
@@ -320,7 +315,7 @@ async def reject_request(
     # Update approval status
     approval.status = ApprovalStatus.REJECTED
     approval.resolved_by_id = current_user.id
-    approval.resolved_at = datetime.utcnow()
+    approval.resolved_at = datetime.now(UTC)
     approval.resolution_notes = resolve_data.resolution_notes
     
     await db.commit()
@@ -364,7 +359,7 @@ async def cancel_request(
     
     # Update status
     approval.status = ApprovalStatus.CANCELLED
-    approval.resolved_at = datetime.utcnow()
+    approval.resolved_at = datetime.now(UTC)
     
     await db.commit()
     

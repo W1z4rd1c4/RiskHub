@@ -101,9 +101,20 @@ async def create_user(
     
     db.add(new_user)
     await db.commit()
-    await db.refresh(new_user, ["role", "department", "manager"])
+    await db.refresh(new_user)
     
-    return new_user
+    # Reload with all relationships to ensure they are available for schema validation
+    # This prevents MissingGreenlet errors in async context
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.role),
+            selectinload(User.department),
+            selectinload(User.manager)
+        )
+        .where(User.id == new_user.id)
+    )
+    return result.scalar_one()
 
 
 @router.get("/{user_id}", response_model=UserRead)
@@ -146,7 +157,7 @@ async def get_user(
     return user
 
 
-@router.put("/{user_id}", response_model=UserRead)
+@router.patch("/{user_id}", response_model=UserRead)
 async def update_user(
     user_id: int,
     user_data: UserUpdate,
@@ -179,14 +190,39 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # Check email uniqueness if changing email
+    if user_data.email and user_data.email != user.email:
+        email_check = await db.execute(
+            select(User).where(User.email == user_data.email)
+        )
+        if email_check.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Email already registered")
+
     # Update fields
-    for field, value in user_data.dict(exclude_unset=True).items():
+    update_data = user_data.model_dump(exclude_unset=True)
+    
+    # Handle password hashing
+    if "password" in update_data:
+        password = update_data.pop("password")
+        user.hashed_password = get_password_hash(password)
+        
+    for field, value in update_data.items():
         setattr(user, field, value)
     
     await db.commit()
-    await db.refresh(user, ["role", "department", "manager"])
+    await db.refresh(user)
     
-    return user
+    # Reload with all relationships
+    result = await db.execute(
+        select(User)
+        .options(
+            selectinload(User.role),
+            selectinload(User.department),
+            selectinload(User.manager)
+        )
+        .where(User.id == user.id)
+    )
+    return result.scalar_one()
 
 
 @router.get("/{user_id}/subordinates", response_model=list[UserRead])
@@ -197,21 +233,26 @@ async def get_user_subordinates(
 ):
     """
     Get all direct subordinates of a user.
-    
-    Args:
-        user_id: User ID
-        current_user: Authenticated user
-        db: Database session
-        
-    Returns:
-        List of subordinate users
-        
-    Raises:
-        HTTPException: If user not found
+    Requires: admin/manager access OR self-lookup.
     """
+    from app.core.permissions import can_manage_users
+    
+    # Allow self-lookup or admin/manager access
+    if current_user.id != user_id and not can_manage_users(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied - can only view own subordinates or requires admin access"
+        )
+    
     result = await db.execute(
         select(User)
-        .options(selectinload(User.subordinates))
+        .options(
+            selectinload(User.subordinates).options(
+                 selectinload(User.role),
+                 selectinload(User.department),
+                 selectinload(User.manager)
+            )
+        )
         .where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
@@ -225,8 +266,9 @@ async def get_user_subordinates(
 @router.get("/roles", response_model=list[RoleRead])
 async def list_roles(
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
 ):
-    """List all available roles."""
+    """List all available roles. Requires authentication."""
     result = await db.execute(select(Role))
     return result.scalars().all()
 
@@ -241,6 +283,10 @@ async def mock_login(
     Mock login endpoint for development.
     Returns user info that can be used with X-Mock-User-Id header.
     """
+    import os
+    if os.getenv("MOCK_AUTH_ENABLED", "false").lower() != "true":
+        raise HTTPException(status_code=404, detail="Mock auth not enabled")
+
     result = await db.execute(
         select(User)
         .options(selectinload(User.role))

@@ -1,87 +1,154 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { Shield, Building2, User, ChevronRight, Loader2 } from 'lucide-react';
+
+// Demo accounts organized by tier - IDs match database
+const DEMO_ACCOUNTS = {
+    privileged: [
+        { id: 1, name: 'System Admin', role: 'Administrator', email: 'admin@riskhub.local', color: 'rose' },
+        { id: 2, name: 'Jan Novák', role: 'Chief Risk Officer', email: 'cro@riskhub.local', color: 'purple' },
+        { id: 8, name: 'Anna Kowalski', role: 'Chief Risk Officer', email: 'anna@riskhub.local', color: 'violet' },
+    ],
+    department_heads: [
+        { id: 17, name: 'Jordan Johnson', role: 'Department Head', email: 'it.head@riskhub.test', dept: 'IT', color: 'sky' },
+    ],
+    employees: [
+        { id: 37, name: 'Harper Martinez', role: 'Control Owner', email: 'hmartinez@riskhub.local', dept: 'OPS', color: 'amber' },
+        { id: 38, name: 'Charlotte Thomas', role: 'Control Owner', email: 'cthomas@riskhub.local', dept: 'FIN', color: 'emerald' },
+        { id: 39, name: 'Amelia Martinez', role: 'Control Owner', email: 'amelia@riskhub.local', dept: 'IT', color: 'sky' },
+    ],
+};
 
 export default function LoginPage() {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState<number | null>(null);
     const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const { login } = useAuth();
-    const navigate = useNavigate();
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleDemoLogin = async (userId: number) => {
         setError('');
-        setIsLoading(true);
+        setIsLoading(userId);
 
         try {
-            await login(email, password);
-            navigate('/dashboard');
+            // Use mock auth via special demo login
+            const response = await fetch(`/api/v1/auth/demo-login/${userId}`, {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                throw new Error('Demo login failed');
+            }
+
+            const data = await response.json();
+            localStorage.setItem('access_token', data.access_token);
+            window.location.href = '/dashboard';
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Login failed');
         } finally {
-            setIsLoading(false);
+            setIsLoading(null);
         }
     };
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-            <div className="w-full max-w-md p-8 bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 shadow-2xl">
-                <h1 className="text-3xl font-bold text-white mb-6 text-center">
-                    RiskHub Login
-                </h1>
+    const AccountButton = ({ account }: { account: typeof DEMO_ACCOUNTS.privileged[0] }) => {
+        const colorClasses = {
+            rose: 'hover:border-rose-400/50 hover:bg-rose-400/5',
+            purple: 'hover:border-purple-400/50 hover:bg-purple-400/5',
+            violet: 'hover:border-violet-400/50 hover:bg-violet-400/5',
+            amber: 'hover:border-amber-400/50 hover:bg-amber-400/5',
+            emerald: 'hover:border-emerald-400/50 hover:bg-emerald-400/5',
+            sky: 'hover:border-sky-400/50 hover:bg-sky-400/5',
+            teal: 'hover:border-teal-400/50 hover:bg-teal-400/5',
+            indigo: 'hover:border-indigo-400/50 hover:bg-indigo-400/5',
+            pink: 'hover:border-pink-400/50 hover:bg-pink-400/5',
+        };
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-white/80 mb-2">
-                            Email
-                        </label>
-                        <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            placeholder="your.email@company.com"
-                            required
-                        />
+        return (
+            <button
+                onClick={() => handleDemoLogin(account.id)}
+                disabled={isLoading !== null}
+                className={`w-full p-3 flex items-center justify-between bg-white/[0.03] border border-white/10 rounded-xl transition-all group disabled:opacity-50 ${colorClasses[account.color as keyof typeof colorClasses]}`}
+            >
+                <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full bg-${account.color}-400/10 border border-${account.color}-400/20 flex items-center justify-center text-${account.color}-400 text-xs font-bold`}>
+                        {account.name.split(' ').map(n => n[0]).join('')}
                     </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-white/80 mb-2">
-                            Password
-                        </label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            placeholder="••••••••"
-                            required
-                        />
+                    <div className="text-left">
+                        <p className="text-sm font-bold text-white">{account.name}</p>
+                        <p className="text-[10px] text-slate-500 font-medium">{account.role}</p>
                     </div>
-
-                    {error && (
-                        <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
-                            {error}
-                        </div>
-                    )}
-
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all disabled:opacity-50"
-                    >
-                        {isLoading ? 'Logging in...' : 'Login'}
-                    </button>
-                </form>
-
-                <div className="mt-6 text-center text-sm text-white/60">
-                    <p>Demo Accounts:</p>
-                    <p>CRO: cro@riskhub.test / test123</p>
-                    <p>COO: coo@riskhub.test / test123</p>
                 </div>
+                {isLoading === account.id ? (
+                    <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />
+                ) : (
+                    <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-white transition-colors" />
+                )}
+            </button>
+        );
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900/50 to-slate-900 p-4">
+            <div className="w-full max-w-2xl">
+                {/* Header */}
+                <div className="text-center mb-8">
+                    <h1 className="text-4xl font-black text-white tracking-tight mb-2">
+                        RiskHub <span className="text-purple-400">Demo</span>
+                    </h1>
+                    <p className="text-slate-500 font-medium">Select an account to explore different permission levels</p>
+                </div>
+
+                {error && (
+                    <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm font-medium text-center">
+                        {error}
+                    </div>
+                )}
+
+                <div className="grid gap-6 md:grid-cols-3">
+                    {/* Privileged Tier */}
+                    <div className="glass-card">
+                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
+                            <Shield className="h-4 w-4 text-purple-400" />
+                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">Privileged</h2>
+                        </div>
+                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">Full access to all resources, approval rights, and system settings.</p>
+                        <div className="space-y-2">
+                            {DEMO_ACCOUNTS.privileged.map(account => (
+                                <AccountButton key={account.id} account={account} />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Department Heads */}
+                    <div className="glass-card">
+                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
+                            <Building2 className="h-4 w-4 text-amber-400" />
+                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">Department Heads</h2>
+                        </div>
+                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">Write access scoped to their department. Can create and manage controls.</p>
+                        <div className="space-y-2">
+                            {DEMO_ACCOUNTS.department_heads.map(account => (
+                                <AccountButton key={account.id} account={account} />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Employees */}
+                    <div className="glass-card">
+                        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
+                            <User className="h-4 w-4 text-sky-400" />
+                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">Employees</h2>
+                        </div>
+                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">Control owners with limited access. Changes require approval.</p>
+                        <div className="space-y-2">
+                            {DEMO_ACCOUNTS.employees.map(account => (
+                                <AccountButton key={account.id} account={account} />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <p className="text-center text-[10px] text-slate-600 mt-8 font-medium">
+                    This is a demo environment. All data is synthetic and resets periodically.
+                </p>
             </div>
         </div>
     );
 }
+

@@ -55,7 +55,7 @@ async def get_dashboard_summary(
     control_dept_filter = None
     risk_dept_filter = None
     
-    if dept_ids:
+    if dept_ids is not None:
         control_dept_filter = Control.department_id.in_(dept_ids)
         risk_dept_filter = Risk.department_id.in_(dept_ids)
     elif department_id:
@@ -101,12 +101,11 @@ async def get_dashboard_summary(
     # Controls by form
     controls_by_form = {}
     for form in ControlForm:
-        base_conditions = [c for c in control_conditions if not (hasattr(c, 'right') and str(c.right) == control_form)]
-        conditions = [Control.control_form == form.value] + base_conditions
-        if department_id:
-            conditions.append(Control.department_id == department_id)
+        # Avoid including the form filter itself in the breakdown
+        other_control_conditions = [c for c in control_conditions if not (hasattr(c, 'right') and str(c.right) == control_form)]
+        conditions = [Control.control_form == form.value] + other_control_conditions
         result = await db.execute(
-            select(func.count(Control.id)).where(and_(*conditions)) if conditions else select(func.count(Control.id)).where(Control.control_form == form.value)
+            select(func.count(Control.id)).where(and_(*conditions))
         )
         count = result.scalar() or 0
         if count > 0:
@@ -115,11 +114,7 @@ async def get_dashboard_summary(
     # Controls by frequency
     controls_by_frequency = {}
     for freq in ControlFrequency:
-        conditions = [Control.frequency == freq.value]
-        if department_id:
-            conditions.append(Control.department_id == department_id)
-        if control_status:
-            conditions.append(Control.status == control_status)
+        conditions = [Control.frequency == freq.value] + control_conditions
         result = await db.execute(
             select(func.count(Control.id)).where(and_(*conditions))
         )
@@ -137,9 +132,7 @@ async def get_dashboard_summary(
     # Risks by status
     risks_by_status = {}
     for status in RiskStatus:
-        conditions = [Risk.status == status.value]
-        if department_id:
-            conditions.append(Risk.department_id == department_id)
+        conditions = [Risk.status == status.value] + risk_conditions
         result = await db.execute(
             select(func.count(Risk.id)).where(and_(*conditions))
         )
@@ -148,9 +141,7 @@ async def get_dashboard_summary(
             risks_by_status[status.value] = count
     
     # Critical risks (net_score >= 15)
-    critical_conditions = [Risk.net_score >= 15]
-    if department_id:
-        critical_conditions.append(Risk.department_id == department_id)
+    critical_conditions = [Risk.net_score >= 15] + risk_conditions
     critical_result = await db.execute(
         select(func.count(Risk.id)).where(and_(*critical_conditions))
     )
@@ -158,8 +149,8 @@ async def get_dashboard_summary(
     
     # Average net risk score
     avg_query = select(func.avg(Risk.net_score))
-    if department_id:
-        avg_query = avg_query.where(Risk.department_id == department_id)
+    if risk_conditions:
+        avg_query = avg_query.where(and_(*risk_conditions))
     avg_result = await db.execute(avg_query)
     average_net_risk_score = float(avg_result.scalar() or 0)
     
@@ -186,7 +177,7 @@ async def get_department_metrics(
 
     # Get departments (filtered if department_id provided)
     dept_query = select(Department)
-    if dept_ids:
+    if dept_ids is not None:
         dept_query = dept_query.where(Department.id.in_(dept_ids))
     elif department_id:
         dept_query = dept_query.where(Department.id == department_id)
@@ -252,7 +243,7 @@ async def get_risk_distribution(
 
     # Build conditions
     conditions = []
-    if dept_ids:
+    if dept_ids is not None:
         conditions.append(Risk.department_id.in_(dept_ids))
     elif department_id:
         conditions.append(Risk.department_id == department_id)
@@ -308,7 +299,7 @@ async def get_control_trends(
         if dept_ids or department_id or control_status:
             # Build subquery for control IDs matching filters
             control_conditions = []
-            if dept_ids:
+            if dept_ids is not None:
                 control_conditions.append(Control.department_id.in_(dept_ids))
             elif department_id:
                 control_conditions.append(Control.department_id == department_id)
@@ -383,7 +374,7 @@ async def get_risks_by_cell(
         Risk.net_impact == impact
     ]
     
-    if dept_ids:
+    if dept_ids is not None:
         conditions.append(Risk.department_id.in_(dept_ids))
     elif department_id:
         conditions.append(Risk.department_id == department_id)

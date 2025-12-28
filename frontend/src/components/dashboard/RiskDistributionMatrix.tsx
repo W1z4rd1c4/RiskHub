@@ -3,13 +3,15 @@ import type { RiskDistributionItem } from '../../types/dashboard';
 
 interface RiskDistributionMatrixProps {
     distribution: RiskDistributionItem[];
+    onCellClick?: (probability: number, impact: number) => void;
 }
 
 /**
  * Aggregated 5x5 risk heatmap for dashboard.
  * Shows COUNT of risks in each cell.
+ * Cells with count > 0 are clickable for drill-down.
  */
-export function RiskDistributionMatrix({ distribution }: RiskDistributionMatrixProps) {
+export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistributionMatrixProps) {
     const getCountForCell = (p: number, i: number) => {
         const item = distribution.find(d => d.probability === p && d.impact === i);
         return item ? item.count : 0;
@@ -24,6 +26,20 @@ export function RiskDistributionMatrix({ distribution }: RiskDistributionMatrixP
         if (score >= 10) return 'bg-orange-500/40 hover:bg-orange-500/60';
         if (score >= 5) return 'bg-amber-500/40 hover:bg-amber-500/60';
         return 'bg-emerald-500/40 hover:bg-emerald-500/60';
+    };
+
+    const handleCellClick = (p: number, i: number) => {
+        const count = getCountForCell(p, i);
+        if (count > 0 && onCellClick) {
+            onCellClick(p, i);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent, p: number, i: number) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCellClick(p, i);
+        }
     };
 
     return (
@@ -41,24 +57,33 @@ export function RiskDistributionMatrix({ distribution }: RiskDistributionMatrixP
                         <div key={p} className="flex">
                             {[1, 2, 3, 4, 5].map((i) => {
                                 const count = getCountForCell(p, i);
+                                const isClickable = count > 0 && !!onCellClick;
                                 return (
                                     <motion.div
                                         key={`${p}-${i}`}
                                         initial={{ opacity: 0, scale: 0.8 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         transition={{ delay: (p + i) * 0.02 }}
+                                        onClick={() => handleCellClick(p, i)}
+                                        onKeyDown={(e) => handleKeyDown(e, p, i)}
+                                        tabIndex={isClickable ? 0 : -1}
+                                        role={isClickable ? 'button' : undefined}
+                                        aria-label={isClickable ? `View ${count} risks at probability ${p}, impact ${i}` : undefined}
                                         className={`
-                                            w-12 h-12 ${getCellColor(p, i)}
-                                            rounded-lg flex flex-col items-center justify-center
-                                            transition-all duration-300 m-1 glass-card
+                                            w-16 h-16 ${getCellColor(p, i)}
+                                            rounded-xl flex flex-col items-center justify-center
+                                            transition-all duration-300 m-1.5 glass-card
                                             ${count > 0 ? 'scale-100 opacity-100 shadow-lg shadow-black/20' : 'scale-95'}
+                                            ${isClickable ? 'cursor-pointer focus:ring-2 focus:ring-accent focus:outline-none' : ''}
                                         `}
-                                        title={`P:${p} × I:${i} | ${count} Risks`}
+                                        title={`P:${p} × I:${i} | ${count} Risks${isClickable ? ' - Click to view' : ''}`}
+                                        whileHover={isClickable ? { scale: 1.08, y: -3 } : undefined}
+                                        whileTap={isClickable ? { scale: 0.95 } : undefined}
                                     >
                                         {count > 0 && (
                                             <>
-                                                <span className="text-white font-black text-lg leading-none">{count}</span>
-                                                <span className="text-[8px] text-white/60 font-medium uppercase mt-1">Risks</span>
+                                                <span className="text-white font-black text-2xl leading-none">{count}</span>
+                                                <span className="text-[9px] text-white/70 font-bold uppercase mt-1">Risks</span>
                                             </>
                                         )}
                                     </motion.div>
@@ -93,6 +118,7 @@ export function RiskDistributionMatrix({ distribution }: RiskDistributionMatrixP
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Critical</span>
                 </div>
             </div>
+
         </div>
     );
 }

@@ -1,0 +1,122 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: RiskHub
+      - navigation [ref=e11]:
+        - link "Dashboard" [ref=e12] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e13]:
+            - img [ref=e14]
+            - text: Dashboard
+        - link "Workflow" [ref=e19] [cursor=pointer]:
+          - /url: /approvals
+          - generic [ref=e20]:
+            - img [ref=e21]
+            - text: Workflow
+        - link "Controls" [ref=e25] [cursor=pointer]:
+          - /url: /controls
+          - generic [ref=e26]:
+            - img [ref=e27]
+            - text: Controls
+        - link "Risks" [active] [ref=e30] [cursor=pointer]:
+          - /url: /risks
+          - generic [ref=e31]:
+            - img [ref=e32]
+            - text: Risks
+          - img [ref=e34]
+        - link "Risk Appetite" [ref=e36] [cursor=pointer]:
+          - /url: /kris
+          - generic [ref=e37]:
+            - img [ref=e38]
+            - text: Risk Appetite
+        - link "Departments" [ref=e42] [cursor=pointer]:
+          - /url: /departments
+          - generic [ref=e43]:
+            - img [ref=e44]
+            - text: Departments
+        - link "Audit Trail" [ref=e48] [cursor=pointer]:
+          - /url: /audit-trail
+          - generic [ref=e49]:
+            - img [ref=e50]
+            - text: Audit Trail
+        - link "Settings" [ref=e54] [cursor=pointer]:
+          - /url: /settings
+          - generic [ref=e55]:
+            - img [ref=e56]
+            - text: Settings
+      - generic [ref=e59]:
+        - generic [ref=e60]:
+          - generic [ref=e62]: O
+          - generic [ref=e63]:
+            - paragraph [ref=e64]: Operations Employee
+            - paragraph [ref=e65]: Employee
+        - button "Sign Out" [ref=e66] [cursor=pointer]:
+          - img [ref=e67]
+          - text: Sign Out
+  - generic [ref=e70]:
+    - banner [ref=e71]:
+      - generic [ref=e72]:
+        - img [ref=e73]
+        - textbox "Search controls, departments..." [ref=e76]
+      - generic [ref=e77]:
+        - button [ref=e78] [cursor=pointer]:
+          - img
+        - generic [ref=e80]:
+          - text: Operations Employee
+          - generic [ref=e81]: (Employee)
+        - button "Logout" [ref=e82] [cursor=pointer]:
+          - img
+          - text: Logout
+    - main [ref=e83]:
+      - generic [ref=e84]:
+        - generic [ref=e85]:
+          - generic [ref=e86]:
+            - heading "Risk Register" [level=2] [ref=e87]
+            - paragraph [ref=e88]: Track and manage organizational risks with gross/net scoring from OS 18.
+          - generic [ref=e89]:
+            - button "Export PDF" [ref=e90] [cursor=pointer]:
+              - img [ref=e91]
+            - button "Export Excel" [ref=e94] [cursor=pointer]:
+              - img [ref=e95]
+            - button "New Risk" [ref=e97] [cursor=pointer]:
+              - img [ref=e98]
+              - text: New Risk
+        - generic [ref=e99]:
+          - button "All" [ref=e100] [cursor=pointer]
+          - button "By Category" [ref=e101] [cursor=pointer]
+          - button "By Department" [ref=e102] [cursor=pointer]
+          - button "By Process" [ref=e103] [cursor=pointer]
+        - generic [ref=e104]:
+          - generic [ref=e105]:
+            - img [ref=e106]
+            - textbox "Search by process or category..." [ref=e109]
+          - generic [ref=e110]:
+            - combobox [ref=e111]:
+              - option "All Statuses" [selected]
+              - option "Active"
+              - option "Monitoring"
+              - option "Closed"
+            - combobox [ref=e112]:
+              - option "All Types" [selected]
+              - option "Strategic"
+              - option "Operational"
+            - button "Priority" [ref=e113] [cursor=pointer]:
+              - img [ref=e114]
+              - text: Priority
+            - button [ref=e116] [cursor=pointer]:
+              - img [ref=e117]
+        - paragraph [ref=e123]: No risks found matching your criteria.
+        - generic [ref=e124]:
+          - generic [ref=e125]: Showing 1 to 0 of 0 results
+          - generic [ref=e126]:
+            - button [disabled] [ref=e127]:
+              - img [ref=e128]
+            - button "1" [ref=e131] [cursor=pointer]
+            - button [disabled] [ref=e132]:
+              - img [ref=e133]
+```

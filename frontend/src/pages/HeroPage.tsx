@@ -1,15 +1,11 @@
 import { motion } from 'framer-motion';
 import { Shield, ArrowRight, Zap, BarChart3, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-
 export function HeroPage() {
     const navigate = useNavigate();
-    const { setMockUserId } = useAuth();
-
     const handleLogin = () => {
         // Mock login as admin (ID 1 from seed)
-        setMockUserId(1);
+        // Mock auth removed
         navigate('/');
     };
 

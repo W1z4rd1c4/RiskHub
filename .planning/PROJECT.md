@@ -22,11 +22,11 @@ Manual processes in spreadsheets lead to inconsistencies, missed controls, and a
 
 How we know this worked:
 
-- [ ] All departments can create and manage their control catalogs with 13 required data points
+- [x] All departments can create and manage their control catalogs with 13 required data points
 - [ ] Role-based access control works with Active Directory/Entra ID
-- [ ] Dashboards show real-time control status across departments
+- [x] Dashboards show real-time control status across departments
 - [ ] Auditors can verify control execution through the system
-- [ ] Control execution is documented and timestamped
+- [x] Control execution is documented and timestamped
 - [ ] System can be deployed on-premise with Docker/Kubernetes
 - [ ] Architecture supports future cloud migration to Azure
 
@@ -38,6 +38,10 @@ How we know this worked:
 - Control Catalog Management (13-point data structure)
 - Department-based ownership and permissions
 - Control execution logging and verification
+- Risk Register with gross/net risk scoring
+- Risk-Control linkage and mitigation tracking
+- Key Risk Indicator (KRI) management and appetite monitoring
+- KRI limit tracking with breach detection
 - Role-based access (mocked auth, AD integration deferred)
 
 **SII Role Structure (Solvency II Compliance):**
@@ -54,8 +58,10 @@ How we know this worked:
 **Dashboards & Reporting:**
 - Executive dashboard with risk overview
 - Department-level control status
+- KRI breach monitoring widget
 - Control execution frequency tracking
 - Risk significance heatmaps
+- Risk appetite grouped views (by category, department, process)
 - Export to PDF/Excel
 
 **Infrastructure:**

@@ -13,14 +13,18 @@ import {
     Clock,
     AlertTriangle,
     CheckCircle2,
-    FileText
+    FileText,
+    Plus
 } from 'lucide-react';
 import { riskApi } from '@/services/riskApi';
 import type { Risk, RiskControlLink, ControlEffectiveness } from '@/types/risk';
-import { useAuth } from '@/contexts/AuthContext';
 import { PermissionGate } from '@/components/PermissionGate';
 import { RiskScoreMatrix } from '@/components/RiskScoreMatrix';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
+import { KRIGaugeCard } from '@/components/kri/KRIGaugeCard';
+import { KRIModal } from '@/components/kri/KRIModal';
+import { kriApi } from '@/services/kriApi';
+import type { KeyRiskIndicator, KRICreate, KRIUpdate } from '@/types/kri';
 
 const container = {
     hidden: { opacity: 0 },
@@ -38,13 +42,15 @@ const item = {
 export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { mockUserId } = useAuth();
-
     const [risk, setRisk] = useState<Risk | null>(null);
     const [linkedControls, setLinkedControls] = useState<RiskControlLink[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+
+    // KRI Modal State
+    const [isKRIModalOpen, setIsKRIModalOpen] = useState(false);
+    const [selectedKRI, setSelectedKRI] = useState<KeyRiskIndicator | null>(null);
 
     const fetchData = useCallback(async () => {
         if (!id) return;
@@ -52,8 +58,8 @@ export function RiskDetailPage() {
             setIsLoading(true);
             const riskId = parseInt(id);
             const [riskData, controlsData] = await Promise.all([
-                riskApi.getRisk(riskId, mockUserId),
-                riskApi.getLinkedControls(riskId, mockUserId)
+                riskApi.getRisk(riskId),
+                riskApi.getLinkedControls(riskId)
             ]);
             setRisk(riskData);
             setLinkedControls(controlsData);
@@ -64,7 +70,7 @@ export function RiskDetailPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [id, mockUserId]);
+    }, [id]);
 
     useEffect(() => {
         fetchData();
@@ -73,7 +79,7 @@ export function RiskDetailPage() {
     const handleDelete = async () => {
         if (!risk || !window.confirm('Are you sure you want to archive this risk?')) return;
         try {
-            await riskApi.deleteRisk(risk.id, mockUserId);
+            await riskApi.deleteRisk(risk.id);
             navigate('/risks');
         } catch (err) {
             console.error('Error deleting risk:', err);
@@ -84,9 +90,9 @@ export function RiskDetailPage() {
     const handleLinkControl = async (controlId: number, effectiveness: ControlEffectiveness, notes?: string) => {
         if (!risk) return;
         try {
-            await riskApi.linkControl(risk.id, { control_id: controlId, effectiveness, notes }, mockUserId);
+            await riskApi.linkControl(risk.id, { control_id: controlId, effectiveness, notes });
             // Refresh linked controls
-            const controlsData = await riskApi.getLinkedControls(risk.id, mockUserId);
+            const controlsData = await riskApi.getLinkedControls(risk.id);
             setLinkedControls(controlsData);
         } catch (err) {
             console.error('Linking failed:', err);
@@ -97,13 +103,40 @@ export function RiskDetailPage() {
     const handleUnlinkControl = async (controlId: number) => {
         if (!risk) return;
         try {
-            await riskApi.unlinkControl(risk.id, controlId, mockUserId);
+            await riskApi.unlinkControl(risk.id, controlId);
             // Refresh linked controls
-            const controlsData = await riskApi.getLinkedControls(risk.id, mockUserId);
+            const controlsData = await riskApi.getLinkedControls(risk.id);
             setLinkedControls(controlsData);
         } catch (err) {
             console.error('Unlinking failed:', err);
             alert('Failed to unlink control.');
+        }
+    };
+
+    const handleSaveKRI = async (data: KRICreate | KRIUpdate) => {
+        if (!risk) return;
+        try {
+            if (selectedKRI) {
+                await kriApi.updateKRI(selectedKRI.id, data as KRIUpdate);
+            } else {
+                await kriApi.createKRI(data as KRICreate);
+            }
+            // Refresh risk data to get updated KRIs
+            await fetchData();
+        } catch (err) {
+            console.error('KRI Save failed:', err);
+            alert('Failed to save KRI.');
+        }
+    };
+
+    const handleDeleteKRI = async (kriId: number) => {
+        try {
+            await kriApi.deleteKRI(kriId);
+            // Refresh risk data
+            await fetchData();
+        } catch (err) {
+            console.error('KRI Delete failed:', err);
+            alert('Failed to delete KRI.');
         }
     };
 
@@ -167,7 +200,7 @@ export function RiskDetailPage() {
                         <ArrowLeft className="h-3 w-3" /> Back to Register
                     </button>
                     <div className="flex items-center gap-4">
-                        <h2 className="text-4xl font-black text-white tracking-tighter font-mono">{risk.risk_id_code}</h2>
+                        <h2 className="text-4xl font-black text-white tracking-tighter">{risk.process}</h2>
                         {risk.is_priority && (
                             <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
                         )}
@@ -307,44 +340,42 @@ export function RiskDetailPage() {
                 </motion.div>
 
                 {/* KRI Section */}
-                <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <FileText className="h-5 w-5 text-amber-400" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">Key Risk Indicator</h3>
+                <motion.div variants={item} className="glass-card flex flex-col gap-6 md:col-span-2 lg:col-span-3">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                        <div className="flex items-center gap-3">
+                            <FileText className="h-5 w-5 text-amber-400" />
+                            <h3 className="font-bold text-white uppercase tracking-widest text-xs">Risk Appetite Indicators</h3>
+                        </div>
+                        <PermissionGate resource="risks" action="write">
+                            <button
+                                onClick={() => {
+                                    setSelectedKRI(null);
+                                    setIsKRIModalOpen(true);
+                                }}
+                                className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/20 transition-all font-bold"
+                            >
+                                <Plus className="h-3 w-3 inline mr-1" /> Add KRI
+                            </button>
+                        </PermissionGate>
                     </div>
 
-                    {risk.kri_indicator ? (
-                        <div className="space-y-4">
-                            <div>
-                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Indicator</p>
-                                <p className="text-sm text-slate-300 leading-relaxed">{risk.kri_indicator}</p>
-                            </div>
-                            {(risk.kri_threshold_green || risk.kri_threshold_yellow || risk.kri_threshold_red) && (
-                                <div className="space-y-2 pt-2 border-t border-white/5">
-                                    {risk.kri_threshold_green && (
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                            <span className="text-xs text-slate-400">{risk.kri_threshold_green}</span>
-                                        </div>
-                                    )}
-                                    {risk.kri_threshold_yellow && (
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-amber-500" />
-                                            <span className="text-xs text-slate-400">{risk.kri_threshold_yellow}</span>
-                                        </div>
-                                    )}
-                                    {risk.kri_threshold_red && (
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 rounded-full bg-rose-500" />
-                                            <span className="text-xs text-slate-400">{risk.kri_threshold_red}</span>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                    {risk.kris && risk.kris.length > 0 ? (
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {risk.kris.map(kri => (
+                                <KRIGaugeCard
+                                    key={kri.id}
+                                    kri={kri as any}
+                                    onClick={() => {
+                                        setSelectedKRI(kri as any);
+                                        setIsKRIModalOpen(true);
+                                    }}
+                                />
+                            ))}
                         </div>
                     ) : (
-                        <div className="flex-1 flex items-center justify-center py-6 text-slate-600 text-sm font-medium">
-                            No KRI configured for this risk.
+                        <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-white/5 rounded-2xl">
+                            <p className="text-slate-600 text-sm font-medium mb-2">No Key Risk Indicators (KRIs) configured for this risk.</p>
+                            <p className="text-[10px] text-slate-700 max-w-xs mx-auto">KRIs help monitor if the risk remains within the organization's appetite framework.</p>
                         </div>
                     )}
                 </motion.div>
@@ -357,12 +388,19 @@ export function RiskDetailPage() {
                 transition={{ delay: 0.5 }}
                 className="glass-card"
             >
-                <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-bold text-white uppercase tracking-widest text-xs flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                        Mitigating Controls
-                    </h3>
-                    <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-black rounded-full border border-emerald-500/20">{linkedControls.length}</span>
+                <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
+                    <div className="flex items-center gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">Mitigating Controls</h3>
+                    </div>
+                    <PermissionGate resource="risks" action="write">
+                        <button
+                            onClick={() => setIsLinkDialogOpen(true)}
+                            className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/20 transition-all"
+                        >
+                            <Plus className="h-3 w-3 inline mr-1" /> Add Control
+                        </button>
+                    </PermissionGate>
                 </div>
 
                 <div className="space-y-3">
@@ -410,6 +448,17 @@ export function RiskDetailPage() {
                     onUnlink={handleUnlinkControl}
                 />
             </motion.div>
+
+            {risk && (
+                <KRIModal
+                    risk_id={risk.id}
+                    kri={selectedKRI}
+                    isOpen={isKRIModalOpen}
+                    onClose={() => setIsKRIModalOpen(false)}
+                    onSave={handleSaveKRI}
+                    onDelete={handleDeleteKRI}
+                />
+            )}
 
             {/* Timestamps */}
             <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">
