@@ -1,7 +1,7 @@
 """Approval request model for tracking deletion and edit approval workflows."""
 from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, Enum as SQLEnum, Index
+from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, Enum as SQLEnum, Index, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -55,7 +55,7 @@ class ApprovalRequest(Base):
     )
     
     # For edits: JSON storing pending changes {"field": {"old": v1, "new": v2}}
-    pending_changes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pending_changes: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     
     # Request details
     requested_by_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
@@ -74,7 +74,7 @@ class ApprovalRequest(Base):
     resolution_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
     
     # Relationships
     requested_by: Mapped["User"] = relationship("User", foreign_keys=[requested_by_id])
@@ -90,5 +90,6 @@ class ApprovalRequest(Base):
 
 
 # Import for type hints
+from datetime import UTC
 from app.models.user import User
 

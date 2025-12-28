@@ -32,3 +32,13 @@ export interface ControlTrend {
     period: string; // e.g., "2025-W24"
     execution_count: number;
 }
+
+export type RiskLevel = 'all' | 'critical' | 'high' | 'medium' | 'low';
+
+export interface DashboardFilters {
+    departmentId: number | null;
+    riskLevel: RiskLevel;
+    controlStatus: string | null;
+    controlForm: string | null;
+}
+

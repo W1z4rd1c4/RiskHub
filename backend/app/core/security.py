@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from fastapi import Depends, HTTPException, Header, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,9 +39,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
         Encoded JWT token string
     """
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
+    return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
 
 
 def decode_access_token(token: str) -> dict:
@@ -57,7 +57,7 @@ def decode_access_token(token: str) -> dict:
     Raises:
         JWTError: If token is invalid or expired
     """
-    return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+    return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
 
 
 async def get_current_user(
@@ -65,15 +65,18 @@ async def get_current_user(
     x_mock_user_id: Optional[int] = Header(None, alias="X-Mock-User-Id"),
 ) -> User:
     """
-    Get the current user - mocked for now, will integrate with Azure AD later.
+    Get the current user - mocked for development only.
     
-    In development, uses X-Mock-User-Id header to simulate different users.
-    In production, this will validate Azure AD tokens.
+    In development with MOCK_AUTH_ENABLED=true, uses X-Mock-User-Id header.
+    In production, this endpoint is disabled - use deps.get_current_user with JWT.
     """
-    # Eager load role -> permissions -> permission
-    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+    import os
     
-    if x_mock_user_id:
+    # Only allow mock auth if explicitly enabled (never in production)
+    if os.getenv("MOCK_AUTH_ENABLED", "false").lower() == "true" and x_mock_user_id:
+        # Eager load role -> permissions -> permission
+        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+        
         # Mock auth: get user by ID from header
         result = await db.execute(
             select(User)
@@ -84,27 +87,16 @@ async def get_current_user(
         if user:
             return user
     
-    # Default: return first admin user for development
-    result = await db.execute(
-        select(User)
-        .options(permission_load)
-        .join(User.role)
-        .where(Role.name == "admin")
-        .limit(1)
+    # Production: Mock auth not allowed - this function should not be used
+    # Use deps.get_current_user instead for JWT-based auth
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Mock auth disabled. Use JWT authentication via /auth/login",
+        headers={"WWW-Authenticate": "Bearer"},
     )
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No authenticated user found",
-        )
-    
-    return user
 
 
 def check_permission(user: User, resource: str, action: str) -> bool:
-    """Check if user has permission for a resource/action combination."""
     if not user.role or not user.role.permissions:
         return False
     
@@ -126,8 +118,11 @@ def check_permission(user: User, resource: str, action: str) -> bool:
 
 def require_permission(resource: str, action: str):
     """FastAPI dependency factory for requiring specific permissions."""
+    # Delayed import to avoid circular dependency
+    from app.api import deps
+    
     async def permission_checker(
-        current_user: User = Depends(get_current_user),
+        current_user: User = Depends(deps.get_current_user),
     ) -> User:
         if not check_permission(current_user, resource, action):
             raise HTTPException(

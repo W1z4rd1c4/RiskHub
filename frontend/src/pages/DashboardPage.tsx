@@ -7,10 +7,12 @@ import {
     CheckCircle,
     TrendingUp,
     RefreshCw,
-    ShieldAlert
+    ShieldAlert,
+    FileText
 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { dashboardApi } from '@/services/dashboardApi';
+import { reportApi } from '@/services/reportApi';
 import type {
     DashboardSummary,
     DepartmentMetrics,
@@ -18,9 +20,13 @@ import type {
     ControlTrend
 } from '@/types/dashboard';
 
+import { FilterBar } from '@/components/dashboard/FilterBar';
 import { RiskDistributionMatrix } from '@/components/dashboard/RiskDistributionMatrix';
+import { RiskDrilldownModal } from '@/components/dashboard/RiskDrilldownModal';
 import { ControlTrendChart } from '@/components/dashboard/ControlTrendChart';
 import { DepartmentTable } from '@/components/dashboard/DepartmentTable';
+import { CategoryBreakdownCharts } from '@/components/dashboard/CategoryBreakdownCharts';
+import { KRIBreachWidget } from '@/components/dashboard/KRIBreachWidget';
 
 const container = {
     hidden: { opacity: 0 },
@@ -38,7 +44,7 @@ const item = {
 };
 
 export function DashboardPage() {
-    const { mockUserId } = useAuth();
+    const { filters } = useDashboardFilters();
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [deptMetrics, setDeptMetrics] = useState<DepartmentMetrics[]>([]);
     const [distribution, setDistribution] = useState<RiskDistribution | null>(null);
@@ -47,14 +53,17 @@ export function DashboardPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Risk matrix drill-down state
+    const [selectedCell, setSelectedCell] = useState<{ probability: number; impact: number } | null>(null);
+
     const fetchData = useCallback(async () => {
         try {
             setError(null);
             const [summaryData, deptData, distData, trendData] = await Promise.all([
-                dashboardApi.fetchDashboardSummary(mockUserId),
-                dashboardApi.fetchDepartmentMetrics(mockUserId),
-                dashboardApi.fetchRiskDistribution(mockUserId),
-                dashboardApi.fetchControlTrends(mockUserId)
+                dashboardApi.fetchDashboardSummary(filters),
+                dashboardApi.fetchDepartmentMetrics(filters),
+                dashboardApi.fetchRiskDistribution(filters),
+                dashboardApi.fetchControlTrends(filters)
             ]);
 
             setSummary(summaryData);
@@ -67,7 +76,7 @@ export function DashboardPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [mockUserId]);
+    }, [filters]);
 
     useEffect(() => {
         fetchData();
@@ -146,11 +155,22 @@ export function DashboardPage() {
                     <h2 className="text-3xl font-black text-white mb-2">Operational Insight</h2>
                     <p className="text-slate-500 font-medium">Overview of risk posture and control performance across the organization.</p>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Live Data
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => reportApi.downloadSummaryPdf({ departmentId: filters.departmentId })}
+                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
+                        title="Export Summary PDF"
+                    >
+                        <FileText className="h-5 w-5" />
+                    </button>
+                    <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Live Data
+                    </div>
                 </div>
             </div>
+
+            <FilterBar />
 
             <motion.div
                 variants={container}
@@ -177,12 +197,32 @@ export function DashboardPage() {
                 ))}
             </motion.div>
 
-            <div className="grid gap-8 lg:grid-cols-2">
+            {/* Category Breakdown Charts */}
+            {summary && (summary.controls_by_status && Object.keys(summary.controls_by_status).length > 0) && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="glass-card"
+                >
+                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                        <ClipboardList className="h-5 w-5 text-accent" />
+                        Control Analytics
+                    </h3>
+                    <CategoryBreakdownCharts
+                        controlsByStatus={summary.controls_by_status}
+                        controlsByForm={summary.controls_by_form}
+                        controlsByFrequency={summary.controls_by_frequency}
+                    />
+                </motion.div>
+            )}
+
+            <div className="grid gap-8 lg:grid-cols-3">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.6 }}
-                    className="glass-card flex flex-col"
+                    className="glass-card flex flex-col lg:col-span-2"
                 >
                     <div className="flex items-center justify-between mb-8">
                         <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -195,12 +235,23 @@ export function DashboardPage() {
                             <ControlTrendChart data={trends} />
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-slate-600 border-t border-white/5">
-                                <p className="text-sm font-medium">No execution history available</p>
+                                <p className="text-sm font-medium" >No execution history available</p>
                             </div>
                         )}
                     </div>
                 </motion.div>
 
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.65 }}
+                    className="h-full"
+                >
+                    <KRIBreachWidget />
+                </motion.div>
+            </div>
+
+            <div className="grid gap-8 lg:grid-cols-2">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -212,9 +263,14 @@ export function DashboardPage() {
                         Risk Matrix Distribution
                     </h3>
                     <div className="flex-1 flex items-center justify-center pb-4">
-                        <RiskDistributionMatrix distribution={distribution?.distribution ?? []} />
+                        <RiskDistributionMatrix
+                            distribution={distribution?.distribution ?? []}
+                            onCellClick={(p, i) => setSelectedCell({ probability: p, impact: i })}
+                        />
                     </div>
                 </motion.div>
+                {/* Placeholder for future widget or more detailed category charts */}
+                <div className="hidden lg:block"></div>
             </div>
 
             <motion.div
@@ -231,6 +287,14 @@ export function DashboardPage() {
                 </div>
                 <DepartmentTable metrics={deptMetrics} />
             </motion.div>
+
+            {/* Risk Drill-down Modal */}
+            <RiskDrilldownModal
+                isOpen={selectedCell !== null}
+                onClose={() => setSelectedCell(null)}
+                probability={selectedCell?.probability ?? 0}
+                impact={selectedCell?.impact ?? 0}
+            />
         </div>
     );
 }

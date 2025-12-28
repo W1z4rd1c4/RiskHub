@@ -1,58 +1,58 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus,
     Search,
     Calendar,
     ChevronRight,
-    ChevronLeft,
     RefreshCw,
-    AlertCircle
+    AlertCircle,
+    FileText,
+
+    Sheet,
+    Lock
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
+import { reportApi } from '@/services/reportApi';
+import { approvalsApi } from '@/services/approvalsApi';
 import type { ControlSummary } from '@/types/control';
 import { ControlStatus } from '@/types/control';
-import { useAuth } from '@/contexts/AuthContext';
 import { PermissionGate } from '@/components/PermissionGate';
+import { SortableTable, CategoryDrillDown, ViewSwitcher, Pagination } from '@/components/tables';
+import type { Column, ViewMode } from '@/components/tables';
 
-const container = {
-    hidden: { opacity: 0 },
-    show: {
-        opacity: 1,
-        transition: { staggerChildren: 0.05 }
-    }
-};
-
-const item = {
-    hidden: { opacity: 0, y: 10 },
-    show: { opacity: 1, y: 0 }
-};
 
 export function ControlsPage() {
     const navigate = useNavigate();
-    const { mockUserId } = useAuth();
-
     // State
     const [controls, setControls] = useState<ControlSummary[]>([]);
+    const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('');
-    const [skip, setSkip] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [viewMode, setViewMode] = useState<ViewMode>('all');
+    const [isExporting, setIsExporting] = useState(false);
+
+    const [pendingApprovalIds, setPendingApprovalIds] = useState<Set<number>>(new Set());
     const limit = 10;
 
     const fetchControls = useCallback(async () => {
         try {
             setIsLoading(true);
-            const data = await controlApi.getControls({
+            const fetchLimit = viewMode === 'all' ? limit : 100;
+            const skip = viewMode === 'all' ? (currentPage - 1) * limit : 0;
+
+            const response = await controlApi.getControls({
                 skip,
-                limit,
+                limit: fetchLimit,
                 search: search || undefined,
-                status: statusFilter || undefined,
-                mockUserId
+                status: statusFilter || undefined
             });
-            setControls(data);
+            setControls(response.items);
+            // Use actual total from API response
+            setTotalCount(response.total);
             setError(null);
         } catch (err) {
             console.error('Error fetching controls:', err);
@@ -60,11 +60,50 @@ export function ControlsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [skip, search, statusFilter, mockUserId]);
+    }, [currentPage, search, statusFilter, viewMode]);
 
     useEffect(() => {
         fetchControls();
     }, [fetchControls]);
+
+    useEffect(() => {
+        const fetchPending = async () => {
+            try {
+                const response = await approvalsApi.list({ status: 'pending', limit: 1000 });
+                const ids = new Set(
+                    response.items
+                        .filter(a => a.resource_type === 'control')
+                        .map(a => a.resource_id)
+                );
+                setPendingApprovalIds(ids);
+            } catch (error) {
+                console.error('Failed to fetch pending approvals:', error);
+            }
+        };
+        fetchPending();
+    }, []);
+
+    const handleExportPdf = async () => {
+        setIsExporting(true);
+        try {
+            await reportApi.downloadControlsPdf({ status: statusFilter || null });
+        } catch (err) {
+            console.error('Export failed:', err);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const handleExportExcel = async () => {
+        setIsExporting(true);
+        try {
+            await reportApi.downloadControlsExcel({ status: statusFilter || null });
+        } catch (err) {
+            console.error('Export failed:', err);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     const getRiskLevelColor = (level: number) => {
         if (level >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
@@ -84,6 +123,89 @@ export function ControlsPage() {
         }
     };
 
+    // Column definitions for SortableTable
+    const columns: Column<ControlSummary>[] = useMemo(() => [
+        {
+            key: 'name',
+            label: 'Name',
+            sortable: true,
+            render: (control) => (
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-white">{control.name}</span>
+                    {pendingApprovalIds.has(control.id) && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20" title="Changes Pending Approval">
+                            <Lock className="h-2.5 w-2.5" />
+                            Pending
+                        </div>
+                    )}
+                </div>
+            ),
+        },
+        {
+            key: 'department_name',
+            label: 'Department',
+            sortable: true,
+            render: (control) => (
+                <span className="text-xs font-medium text-slate-300">{control.department_name || 'Unassigned'}</span>
+            ),
+        },
+        {
+            key: 'frequency',
+            label: 'Frequency',
+            sortable: true,
+            render: (control) => (
+                <div className="flex items-center gap-2 text-xs text-slate-400 capitalize">
+                    <Calendar className="h-3 w-3 text-accent" />
+                    {control.frequency}
+                </div>
+            ),
+        },
+        {
+            key: 'risk_level',
+            label: 'Risk Level',
+            sortable: true,
+            className: 'text-center',
+            render: (control) => (
+                <div className="flex justify-center">
+                    <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getRiskLevelColor(control.risk_level)}`}>
+                        {control.risk_level} / 5
+                    </div>
+                </div>
+            ),
+        },
+        {
+            key: 'status',
+            label: 'Status',
+            sortable: true,
+            render: (control) => (
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getStatusColor(control.status)}`}>
+                    {control.status}
+                </span>
+            ),
+        },
+        {
+            key: 'actions',
+            label: '',
+            render: () => (
+                <div className="text-right">
+                    <ChevronRight className="h-4 w-4 text-slate-500" />
+                </div>
+            ),
+        },
+    ], []);
+
+    // Get group by field based on view mode
+    const getGroupByField = (): keyof ControlSummary | null => {
+        switch (viewMode) {
+            case 'category': return 'control_form';
+            case 'department': return 'department_name';
+            case 'process': return 'frequency';
+            default: return null;
+        }
+    };
+
+    const totalPages = Math.ceil(totalCount / limit) || 1;
+
     return (
         <div className="space-y-8">
             {/* Header */}
@@ -92,16 +214,37 @@ export function ControlsPage() {
                     <h2 className="text-3xl font-black text-white mb-2">Control Catalog</h2>
                     <p className="text-slate-500 font-medium tracking-tight">Manage and audit organizational risk controls according to the 13-point standard.</p>
                 </div>
-                <PermissionGate resource="controls" action="write">
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={() => navigate('/controls/new')}
-                        className="btn-primary"
+                        onClick={handleExportPdf}
+                        disabled={isExporting}
+                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-50"
+                        title="Export PDF"
                     >
-                        <Plus className="h-5 w-5" />
-                        New Control
+                        <FileText className="h-5 w-5" />
                     </button>
-                </PermissionGate>
+                    <button
+                        onClick={handleExportExcel}
+                        disabled={isExporting}
+                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 transition-colors disabled:opacity-50"
+                        title="Export Excel"
+                    >
+                        <Sheet className="h-5 w-5" />
+                    </button>
+                    <PermissionGate resource="controls" action="write">
+                        <button
+                            onClick={() => navigate('/controls/new')}
+                            className="btn-primary"
+                        >
+                            <Plus className="h-5 w-5" />
+                            New Control
+                        </button>
+                    </PermissionGate>
+                </div>
             </div>
+
+            {/* View Switcher */}
+            <ViewSwitcher value={viewMode} onChange={setViewMode} />
 
             {/* Filters Bar */}
             <div className="glass-card flex flex-col md:flex-row gap-4">
@@ -135,126 +278,103 @@ export function ControlsPage() {
                 </div>
             </div>
 
-            {/* Table Area */}
-            <div className="glass-card !p-0 overflow-hidden">
-                {error ? (
-                    <div className="p-20 flex flex-col items-center justify-center text-center gap-4">
-                        <AlertCircle className="h-12 w-12 text-rose-500" />
-                        <div>
-                            <p className="text-white font-bold text-xl">Error Loading Controls</p>
-                            <p className="text-slate-500 max-w-sm mx-auto">{error}</p>
-                        </div>
-                        <button onClick={fetchControls} className="text-accent font-bold hover:underline">Try Again</button>
+            {/* Content */}
+            {error ? (
+                <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
+                    <AlertCircle className="h-12 w-12 text-rose-500" />
+                    <div>
+                        <p className="text-white font-bold text-xl">Error Loading Controls</p>
+                        <p className="text-slate-500 max-w-sm mx-auto">{error}</p>
                     </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-white/5 bg-white/[0.02]">
-                                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Name & ID</th>
-                                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Department</th>
-                                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Frequency</th>
-                                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Risk Level</th>
-                                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Status</th>
-                                    <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <motion.tbody
-                                variants={container}
-                                initial="hidden"
-                                animate="show"
-                            >
-                                <AnimatePresence mode="popLayout">
-                                    {isLoading ? (
-                                        [...Array(limit)].map((_, i) => (
-                                            <tr key={`skeleton-${i}`} className="border-b border-white/5 animate-pulse">
-                                                <td className="px-6 py-4"><div className="h-4 w-40 bg-white/5 rounded" /></td>
-                                                <td className="px-6 py-4"><div className="h-4 w-24 bg-white/5 rounded" /></td>
-                                                <td className="px-6 py-4"><div className="h-4 w-20 bg-white/5 rounded" /></td>
-                                                <td className="px-6 py-4 flex justify-center"><div className="h-6 w-12 bg-white/5 rounded-full" /></td>
-                                                <td className="px-6 py-4"><div className="h-6 w-16 bg-white/5 rounded-full" /></td>
-                                                <td className="px-6 py-4"><div className="h-4 w-10 bg-white/5 rounded ml-auto" /></td>
-                                            </tr>
-                                        ))
-                                    ) : controls.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={6} className="px-6 py-20 text-center">
-                                                <p className="text-slate-500 font-medium">No controls found matching your criteria.</p>
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        controls.map((control) => (
-                                            <motion.tr
-                                                key={control.id}
-                                                variants={item}
-                                                onClick={() => navigate(`/controls/${control.id}`)}
-                                                className="border-b border-white/5 hover:bg-white/[0.03] transition-colors cursor-pointer group"
-                                            >
-                                                <td className="px-6 py-4">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-sm font-bold text-white group-hover:text-accent transition-colors">{control.name}</span>
-                                                        <span className="text-[10px] font-mono text-slate-500">#CTL-{String(control.id).padStart(4, '0')}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className="text-xs font-medium text-slate-300">{control.department_name || 'Unassigned'}</span>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-2 text-xs text-slate-400 capitalize">
-                                                        <Calendar className="h-3 w-3 text-accent" />
-                                                        {control.frequency}
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex justify-center">
-                                                        <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getRiskLevelColor(control.risk_level)}`}>
-                                                            {control.risk_level} / 5
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${getStatusColor(control.status)}`}>
-                                                        {control.status}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <button className="p-2 text-slate-500 hover:text-white transition-colors">
-                                                        <ChevronRight className="h-4 w-4" />
-                                                    </button>
-                                                </td>
-                                            </motion.tr>
-                                        ))
-                                    )}
-                                </AnimatePresence>
-                            </motion.tbody>
-                        </table>
-                    </div>
-                )}
-
-                {/* Pagination */}
-                <div className="px-6 py-4 border-t border-white/5 flex items-center justify-between bg-white/[0.01]">
-                    <p className="text-xs text-slate-500 font-medium font-mono uppercase tracking-widest">
-                        Page {Math.floor(skip / limit) + 1}
-                    </p>
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => setSkip(Math.max(0, skip - limit))}
-                            disabled={skip === 0 || isLoading}
-                            className="p-1.5 rounded-lg border border-white/5 text-slate-500 hover:text-white hover:bg-white/5 disabled:opacity-20 transition-all"
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        <button
-                            onClick={() => setSkip(skip + limit)}
-                            disabled={controls.length < limit || isLoading}
-                            className="p-1.5 rounded-lg border border-white/5 text-slate-500 hover:text-white hover:bg-white/5 disabled:opacity-20 transition-all"
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </button>
-                    </div>
+                    <button onClick={fetchControls} className="text-accent font-bold hover:underline">Try Again</button>
                 </div>
-            </div>
+            ) : isLoading ? (
+                <div className="glass-card !p-0 overflow-hidden">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-white/5 bg-white/[0.02]">
+                                {columns.map((col) => (
+                                    <th key={String(col.key)} className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        {col.label}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {[...Array(limit)].map((_, i) => (
+                                <tr key={`skeleton-${i}`} className="border-b border-white/5 animate-pulse">
+                                    <td className="px-6 py-4"><div className="h-4 w-40 bg-white/5 rounded" /></td>
+                                    <td className="px-6 py-4"><div className="h-4 w-24 bg-white/5 rounded" /></td>
+                                    <td className="px-6 py-4"><div className="h-4 w-20 bg-white/5 rounded" /></td>
+                                    <td className="px-6 py-4"><div className="h-6 w-12 bg-white/5 rounded-full mx-auto" /></td>
+                                    <td className="px-6 py-4"><div className="h-6 w-16 bg-white/5 rounded-full" /></td>
+                                    <td className="px-6 py-4"><div className="h-4 w-4 bg-white/5 rounded ml-auto" /></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : viewMode === 'all' ? (
+                <>
+                    <SortableTable
+                        data={controls}
+                        columns={columns}
+                        keyExtractor={(control) => control.id}
+                        onRowClick={(control) => navigate(`/controls/${control.id}`)}
+                        emptyMessage="No controls found matching your criteria."
+                    />
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalCount}
+                        itemsPerPage={limit}
+                        onPageChange={setCurrentPage}
+                    />
+                </>
+            ) : (
+                <CategoryDrillDown
+                    data={controls}
+                    groupBy={getGroupByField() as keyof ControlSummary}
+                    keyExtractor={(control) => control.id}
+                    getStats={(items) => ({
+                        total: items.length,
+                        activeCount: items.filter(c => c.status === ControlStatus.ACTIVE).length,
+                        highRiskCount: items.filter(c => c.risk_level >= 4).length,
+                    })}
+                    renderTable={(items) => (
+                        <SortableTable
+                            data={items}
+                            columns={columns}
+                            keyExtractor={(control) => control.id}
+                            onRowClick={(control) => navigate(`/controls/${control.id}`)}
+                            emptyMessage="No controls in this category."
+                        />
+                    )}
+                    renderItem={(control) => (
+                        <div
+                            onClick={() => navigate(`/controls/${control.id}`)}
+                            className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
+                        >
+                            <div className="flex items-center gap-4">
+                                <span className="text-sm font-bold text-white">{control.name}</span>
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getStatusColor(control.status)}`}>
+                                    {control.status}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 text-xs text-slate-400 capitalize">
+                                    <Calendar className="h-3 w-3 text-accent" />
+                                    {control.frequency}
+                                </div>
+                                <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getRiskLevelColor(control.risk_level)}`}>
+                                    {control.risk_level}/5
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                            </div>
+                        </div>
+                    )}
+                />
+            )}
         </div>
     );
 }
-

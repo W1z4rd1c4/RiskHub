@@ -133,6 +133,14 @@ class ControlSummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ControlListResponse(BaseModel):
+    """Paginated list of controls."""
+    items: list[ControlSummary]
+    total: int
+    skip: int
+    limit: int
+
+
 # ============== Control Execution Schemas ==============
 
 class ControlExecutionCreate(BaseModel):

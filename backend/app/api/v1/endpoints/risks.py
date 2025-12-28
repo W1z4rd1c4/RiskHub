@@ -163,17 +163,31 @@ async def create_risk(
     if not risk_id_code:
         # Generate process abbreviation from first 3-4 letters of process
         process_abbr = ''.join(c for c in risk_data.process.upper() if c.isalpha())[:4] or "RISK"
-        
-        # Find the next available number for this prefix
         pattern = f"{process_abbr}-R%"
+        
+        # Lock the latest risk with this prefix to serialize generation (prevents race conditions)
+        # Note: with_for_update() works on Postgres to lock the row. On SQLite it may be ignored or lock table.
+        try:
+            await db.execute(
+                select(Risk.id)
+                .where(Risk.risk_id_code.like(pattern))
+                .order_by(Risk.created_at.desc())
+                .limit(1)
+                .with_for_update()
+            )
+        except Exception:
+            # Fallback for DBs that don't support row locking or complex queries with locking (e.g. SQLite)
+            pass
+
+        # Find the next available number for this prefix
         result = await db.execute(
             select(func.count()).select_from(Risk).where(Risk.risk_id_code.like(pattern))
         )
         count = result.scalar() or 0
         risk_id_code = f"{process_abbr}-R{count + 1:02d}"
         
-        # Check for uniqueness, increment if collision (handle edge cases)
-        for i in range(100):  # Safety limit
+        # Check for uniqueness, increment if collision (safety net)
+        for i in range(100):
             existing = await db.execute(
                 select(Risk).where(Risk.risk_id_code == risk_id_code)
             )
@@ -269,6 +283,18 @@ async def update_risk(
                  detail="Cannot reactivate archived risk. Please create a new risk or contact administrator."
              )
     
+    # Check for pending DELETE request (block any updates if delete is pending)
+    existing_delete = await db.execute(
+        select(ApprovalRequest).where(
+            ApprovalRequest.resource_type == ApprovalResourceType.RISK,
+            ApprovalRequest.resource_id == risk.id,
+            ApprovalRequest.action_type == ApprovalActionType.DELETE,
+            ApprovalRequest.status == ApprovalStatus.PENDING
+        )
+    )
+    if existing_delete.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail="Cannot update risk while deletion is pending approval")
+    
     # Check for sensitive field changes (non-privileged users only)
     if not can_resolve_approvals(current_user):
         old_data = {
@@ -301,19 +327,22 @@ async def update_risk(
                 requested_by_id=current_user.id,
                 reason=f"Change to sensitive fields: {', '.join(changed.keys())}",
                 action_type=ApprovalActionType.EDIT,
-                pending_changes=json.dumps(changed),
+                pending_changes=changed,
                 status=ApprovalStatus.PENDING,
             )
             db.add(approval)
             await db.commit()
             
             # Return 202 with approval info
-            raise HTTPException(
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
                 status_code=status.HTTP_202_ACCEPTED,
-                detail={
+                content={
                     "message": "Change requires approval",
                     "approval_id": approval.id,
-                    "pending_fields": list(changed.keys())
+                    "action_type": "edit",
+                    "pending_fields": list(changed.keys()),
+                    "pending_changes": changed
                 }
             )
 
@@ -399,7 +428,15 @@ async def delete_risk(
     db.add(approval)
     await db.commit()
     
-    return {"message": "Deletion request submitted for approval", "approval_id": approval.id}
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED,
+        content={
+            "message": "Deletion request submitted for approval",
+            "approval_id": approval.id,
+            "action_type": "delete"
+        }
+    )
 
 
 # ============== Risk-Control Linking Endpoints ==============

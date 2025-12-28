@@ -21,7 +21,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 4: Reporting** — PDF/Excel exports and audit trails
 - [x] **Phase 5: Automated Testing** — Backend and frontend test coverage
 - [x] **Phase 6: Risk Appetite** — Key Risk Indicators with limit monitoring
-- [ ] **Phase 7: User Management & RBAC** — Role-based access and department hierarchy
+- [ ] **Phase 7: User Management & RBAC** — Role-based access and department hierarchy (6/7 plans done)
 - [ ] **Phase 8: Permission-Based Filtering** — Data filtering and approval workflows
 - [ ] **Phase 9: Notification System** — KRI deadlines and approval notifications
 - [ ] **Phase 10: Historization** — Historical tracking and audit trails
@@ -151,14 +151,16 @@ Plans:
 **Goal**: Implement comprehensive user management with role-based access control and department hierarchy
 **Depends on**: Phase 6.1
 **Research**: Unlikely (standard RBAC patterns)
-**Plans**: 5 plans
+**Plans**: 7 plans
 
 Plans:
 - [x] 07-01: Backend schema and user models (users, roles, department hierarchy)
 - [x] 07-02: Backend API endpoints for user CRUD and permission checking
 - [x] 07-03: Frontend user management UI (list, forms, hierarchy tree)
-- [x] 07-04: Authentication context updates with role and permissions (CORE COMPLETE - pattern established)
+- [x] 07-04: Permission filtering for all endpoints (risks, controls, KRIs, dashboard)
 - [x] 07-05: Seed script for sample users with different roles
+- [x] 07-06: Security Fixes & Permission Hardening (Deep Check Results)
+- [ ] 07-07: Phase 7 Audit Remediation (API methods, password updates, auth fixes)
 
 ### Phase 8: Permission-Based Data Filtering
 **Goal**: Implement data filtering based on user roles and approval workflows for sensitive operations
@@ -276,7 +278,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 6. Risk Appetite | 3/3 | Complete | 2025-12-26 |
 | 6.1 KRI Management | 2/2 | Complete | 2025-12-26 |
 | **Ad-hoc: AUDIT Fixes** | 14/16 | Complete | 2025-12-26 |
-| 7. User Management & RBAC | 5/5 | Complete | 2025-12-26 |
+| 7. User Management & RBAC | 6/7 | In Progress | - |
 | 8. Permission Filtering | 0/5 | Not started | - |
 | 9. Notification System | 0/5 | Not started | - |
 | 10. Historization | 0/5 | Not started | - |

@@ -1,25 +1,77 @@
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
     LayoutDashboard,
     ClipboardList,
     ShieldAlert,
+    Target,
     Building2,
     Settings,
     Shield,
     ChevronRight,
+    History,
+    LogOut,
+    Users as UsersIcon,
+    ClipboardCheck
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
+import { approvalsApi } from '@/services/approvalsApi';
 
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Controls', href: '/controls', icon: ClipboardList },
-    { name: 'Risk Register', href: '/risks', icon: ShieldAlert },
+    { name: 'Risks', href: '/risks', icon: ShieldAlert },
+    { name: 'Risk Appetite', href: '/kris', icon: Target },
     { name: 'Departments', href: '/departments', icon: Building2 },
+    { name: 'Audit Trail', href: '/audit-trail', icon: History },
     { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 export function Sidebar() {
     const location = useLocation();
+    const navigate = useNavigate();
+    const { user, logout } = useAuth();
+    const { canManageUsers } = usePermissions();
+    const [pendingCount, setPendingCount] = useState(0);
+
+    useEffect(() => {
+        const fetchCount = async () => {
+            try {
+                const { count } = await approvalsApi.getPendingCount();
+                setPendingCount(count);
+            } catch (error) {
+                console.error('Failed to fetch pending count:', error);
+            }
+        };
+
+        // Fetch immediately on mount
+        fetchCount();
+
+        // Then poll every 60 seconds
+        const interval = setInterval(fetchCount, 60000);
+        return () => clearInterval(interval);
+    }, []); // Only fetch once on mount + polling
+
+    const handleLogout = () => {
+        logout();
+        navigate('/landing');
+    };
+
+    const workflowItem = {
+        name: 'Workflow',
+        href: '/approvals',
+        icon: ClipboardCheck,
+        badge: pendingCount > 0 ? pendingCount : undefined
+    };
+
+    const filteredNavigation = [
+        navigation[0], // Dashboard
+        workflowItem,
+        ...navigation.slice(1),
+        ...(canManageUsers ? [{ name: 'User Management', href: '/users', icon: UsersIcon }] : [])
+    ];
 
     return (
         <aside className="hidden lg:flex w-72 flex-col p-6 h-screen">
@@ -34,7 +86,7 @@ export function Sidebar() {
                 </div>
 
                 <nav className="flex-1 space-y-2">
-                    {navigation.map((item) => {
+                    {filteredNavigation.map((item) => {
                         const isActive = location.pathname === item.href;
                         return (
                             <Link
@@ -51,19 +103,36 @@ export function Sidebar() {
                                     <item.icon className={cn('h-5 w-5', isActive ? 'text-white' : 'text-slate-500 group-hover:text-white')} />
                                     {item.name}
                                 </div>
-                                {isActive && <ChevronRight className="h-4 w-4" />}
+                                {(item as any).badge && (
+                                    <span className="bg-accent text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                        {(item as any).badge}
+                                    </span>
+                                )}
+                                {isActive && !(item as any).badge && <ChevronRight className="h-4 w-4" />}
                             </Link>
                         );
                     })}
                 </nav>
 
-                <div className="mt-auto pt-6 border-t border-white/10">
-                    <div className="flex items-center gap-3 px-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                            Live Environment
-                        </span>
-                    </div>
+                <div className="mt-auto pt-6 border-t border-white/10 space-y-4">
+                    {user && (
+                        <div className="flex items-center gap-3 px-2">
+                            <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
+                                <span className="text-xs font-bold text-accent">{user.name.charAt(0)}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                                <p className="text-xs text-slate-500 truncate">{user.role_display_name}</p>
+                            </div>
+                        </div>
+                    )}
+                    <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all duration-200"
+                    >
+                        <LogOut className="h-4 w-4" />
+                        Sign Out
+                    </button>
                 </div>
             </div>
         </aside>

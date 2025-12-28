@@ -18,6 +18,10 @@ from app.schemas.approval_request import (
     ApprovalRequestCreate, ApprovalEditRequestCreate, ApprovalRequestResolve,
     ApprovalRequestRead, ApprovalRequestListResponse,
 )
+from app.schemas.notification import (
+    NotificationTypeEnum,
+    NotificationBase, NotificationCreate, NotificationRead, NotificationListResponse,
+)
 
 __all__ = [
     # User schemas
@@ -36,7 +40,11 @@ __all__ = [
     "ApprovalStatusEnum", "ApprovalResourceTypeEnum", "ApprovalActionTypeEnum",
     "ApprovalRequestCreate", "ApprovalEditRequestCreate", "ApprovalRequestResolve",
     "ApprovalRequestRead", "ApprovalRequestListResponse",
+    # Notification schemas
+    "NotificationTypeEnum",
+    "NotificationBase", "NotificationCreate", "NotificationRead", "NotificationListResponse",
 ]
+
 
 
 
