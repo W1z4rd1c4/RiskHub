@@ -8,6 +8,8 @@ from app.models import User
 from app.models.notification import Notification
 from app.schemas.notification import NotificationRead, NotificationListResponse
 from app.api import deps
+from app.core.permissions import can_resolve_approvals
+from app.services.kri_deadline_service import KRIDeadlineService
 
 router = APIRouter()
 
@@ -134,3 +136,24 @@ async def mark_all_as_read(
         .values(is_read=True)
     )
     await db.commit()
+
+
+@router.post("/trigger-kri-check", status_code=status.HTTP_200_OK)
+async def trigger_kri_deadline_check(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """
+    Manually trigger KRI deadline check.
+    Admin, CRO, and Risk Manager only.
+    Useful for testing without waiting for scheduled job.
+    """
+    if not can_resolve_approvals(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Only Admin, CRO, or Risk Manager can trigger."
+        )
+    
+    result = await KRIDeadlineService.check_kri_deadlines(db)
+    return {"status": "completed", "results": result}
+
