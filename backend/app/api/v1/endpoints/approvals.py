@@ -21,6 +21,7 @@ from app.schemas.approval_request import (
 )
 from app.api import deps
 from app.core.permissions import can_resolve_approvals
+from app.services.notification_service import NotificationService
 
 router = APIRouter()
 
@@ -110,6 +111,13 @@ async def create_approval_request(
         .where(ApprovalRequest.id == approval.id)
     )
     approval = result.scalar_one()
+    
+    # Notify approvers about the new request (within same transaction context)
+    try:
+        await NotificationService.notify_approvers(db, approval)
+        await db.commit()
+    except Exception:
+        pass  # Notification failure should not fail the approval request
     
     return _build_approval_read(approval)
 
@@ -281,6 +289,13 @@ async def approve_request(
     )
     approval = result.scalar_one()
     
+    # Notify requester about approval
+    try:
+        await NotificationService.notify_requester_resolved(db, approval, approved=True)
+        await db.commit()
+    except Exception:
+        pass  # Notification failure should not fail the approval
+    
     return _build_approval_read(approval)
 
 
@@ -327,6 +342,13 @@ async def reject_request(
         .where(ApprovalRequest.id == approval.id)
     )
     approval = result.scalar_one()
+    
+    # Notify requester about rejection
+    try:
+        await NotificationService.notify_requester_resolved(db, approval, approved=False)
+        await db.commit()
+    except Exception:
+        pass  # Notification failure should not fail the rejection
     
     return _build_approval_read(approval)
 
