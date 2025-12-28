@@ -25,6 +25,7 @@ import {
   ApprovalsPage,
 } from '@/pages';
 import { KRINewPage } from '@/pages/KRIForms';
+import { NotificationsPage } from '@/pages/NotificationsPage';
 import LoginPage from '@/pages/LoginPage';
 import './index.css';
 
@@ -54,6 +55,7 @@ function App() {
           }>
             <Route index element={<DashboardPage />} />
             <Route path="approvals" element={<ApprovalsPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
             <Route path="controls" element={<ControlsPage />} />
             <Route path="controls/new" element={<ControlNewPage />} />
             <Route path="controls/:id" element={<ControlDetailPage />} />

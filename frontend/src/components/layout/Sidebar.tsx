@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { approvalsApi } from '@/services/approvalsApi';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -76,13 +77,16 @@ export function Sidebar() {
     return (
         <aside className="hidden lg:flex w-72 flex-col p-6 h-screen">
             <div className="glass-card h-full flex flex-col p-4">
-                <div className="flex items-center gap-3 px-2 mb-10">
-                    <div className="bg-accent p-2 rounded-xl">
-                        <Shield className="h-6 w-6 text-white" />
+                <div className="flex items-center justify-between px-2 mb-10">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-accent p-2 rounded-xl">
+                            <Shield className="h-6 w-6 text-white" />
+                        </div>
+                        <span className="text-xl font-bold tracking-tight text-white font-heading">
+                            Risk<span className="text-accent">Hub</span>
+                        </span>
                     </div>
-                    <span className="text-xl font-bold tracking-tight text-white font-heading">
-                        Risk<span className="text-accent">Hub</span>
-                    </span>
+                    <NotificationBell />
                 </div>
 
                 <nav className="flex-1 space-y-2">
