@@ -147,11 +147,12 @@ Plans:
 - [x] 06.1-01: KRI list page, detail page, create/edit forms, navigation
 - [x] 06.1-02: Department view integration (KRI tab and counts)
 
-### Phase 7: User Management & RBAC
+### Phase 7: User Management & RBAC (COMPLETE)
 **Goal**: Implement comprehensive user management with role-based access control and department hierarchy
 **Depends on**: Phase 6.1
 **Research**: Unlikely (standard RBAC patterns)
 **Plans**: 7 plans
+**Completed**: 2025-12-27
 
 Plans:
 - [x] 07-01: Backend schema and user models (users, roles, department hierarchy)
@@ -160,34 +161,38 @@ Plans:
 - [x] 07-04: Permission filtering for all endpoints (risks, controls, KRIs, dashboard)
 - [x] 07-05: Seed script for sample users with different roles
 - [x] 07-06: Security Fixes & Permission Hardening (Deep Check Results)
-- [ ] 07-07: Phase 7 Audit Remediation (API methods, password updates, auth fixes)
+- [x] 07-07: Phase 7 Audit Remediation (API methods, password updates, auth fixes)
 
-### Phase 8: Permission-Based Data Filtering
+### Phase 8: Permission-Based Data Filtering (COMPLETE)
 **Goal**: Implement data filtering based on user roles and approval workflows for sensitive operations
 **Depends on**: Phase 7
 **Research**: Unlikely (building on Phase 7 foundation)
-**Plans**: 5 plans
+**Plans**: 8 plans (expanded from original 5)
+**Completed**: 2025-12-28
 
 Plans:
-- [ ] 08-01: Backend query filters with permission-based data access
-- [ ] 08-02: Approval system schema (approval requests, status tracking)
-- [ ] 08-03: Approval API endpoints (request, approve, reject)
-- [ ] 08-04: Modify delete endpoints to require approval from Risk Manager
-- [ ] 08-05: Frontend approval UI (pending approvals page, notification badge)
+- [x] 08-01: ApprovalRequest model & migration
+- [x] 08-02: Approval API endpoints (create, approve, reject, cancel, count)
+- [x] 08-03: Delete endpoint integration (Risk, Control, KRI)
+- [x] 08-03.1: Edit approval for critical risks & sensitive fields
+- [x] 08-04: Frontend Workflow UI (Approvals page, badges, pending indicators)
+- [x] 08-05: Integration testing & verification
+- [x] 08-06: Refinement & optimization (Pydantic V2, timezone, JSON)
+- [x] 08-07: Bug fixes & edge cases
 
-### Phase 9: Notification System
+### Phase 9: Notification System (COMPLETE)
 **Goal**: Implement notification system for KRI reporting deadlines and approval workflows
 **Depends on**: Phase 8
-**Research**: Likely (APScheduler setup, background tasks)
-**Research topics**: APScheduler vs Celery, notification polling strategies
+**Research**: Unlikely (used APScheduler)
 **Plans**: 5 plans
+**Completed**: 2025-12-28
 
 Plans:
-- [ ] 09-01: Notification schema and models
-- [ ] 09-02: Notification generation logic (KRI due dates, overdue, approvals)
-- [ ] 09-03: Notification API endpoints (list, mark read, unread count)
-- [ ] 09-04: Frontend notification UI (bell icon, dropdown panel, auto-refresh)
-- [ ] 09-05: Background task scheduler for KRI deadline checking
+- [x] 09-01: Notification schema and models
+- [x] 09-02: Notification generation logic (approval events)
+- [x] 09-03: Notification API endpoints (list, mark read, unread count)
+- [x] 09-04: Frontend notification UI (bell icon, dropdown panel, page)
+- [x] 09-05: Background task scheduler for KRI breach checking
 
 ### Phase 10: Historization Schema & API
 **Goal**: Implement historical tracking for all changes to risks, controls, and KRIs
@@ -278,9 +283,9 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 6. Risk Appetite | 3/3 | Complete | 2025-12-26 |
 | 6.1 KRI Management | 2/2 | Complete | 2025-12-26 |
 | **Ad-hoc: AUDIT Fixes** | 14/16 | Complete | 2025-12-26 |
-| 7. User Management & RBAC | 6/7 | In Progress | - |
-| 8. Permission Filtering | 0/5 | Not started | - |
-| 9. Notification System | 0/5 | Not started | - |
+| 7. User Management & RBAC | 7/7 | Complete | 2025-12-27 |
+| 8. Permission Filtering | 8/8 | Complete | 2025-12-28 |
+| 9. Notification System | 5/5 | Complete | 2025-12-28 |
 | 10. Historization | 0/5 | Not started | - |
 | 11. Historical Visualization | 0/5 | Not started | - |
 | 12-15. Deferred | 0/10 | Deferred | - |
