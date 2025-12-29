@@ -144,6 +144,7 @@ async def test_role_employee(db_session: AsyncSession) -> Role:
         Permission(resource="controls", action="read", description="Read controls"),
         Permission(resource="controls", action="write", description="Request control edits"),
         Permission(resource="controls", action="delete", description="Request control deletions"),
+        Permission(resource="reports", action="read", description="Read reports"),
     ]
     for p in permissions:
         db_session.add(p)
