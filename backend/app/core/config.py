@@ -8,14 +8,15 @@ class Settings(BaseSettings):
     # Application
     app_name: str = "RiskHub"
     app_version: str = "1.0.0"
-    debug: bool = True
+    debug: bool = False  # Set to True in .env for development
     
     # Database
     database_url: str = "postgresql+asyncpg://localhost:5432/riskhub"
     
     # Authentication
     secret_key: str = "your-secret-key-change-in-production-use-env-var"
-    mock_auth_enabled: bool = True  # Enabled by default in dev (protected by debug check in deps.py)
+    # SECURITY: Never enable in production - allows X-Mock-User-Id header bypass
+    mock_auth_enabled: bool = False  # Set to True in .env for development/demo
     access_token_expire_minutes: int = 60
     
     # CORS
