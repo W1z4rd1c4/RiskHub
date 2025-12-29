@@ -34,8 +34,7 @@ PERMISSIONS = [
     {"resource": "risks", "action": "delete", "description": "Delete risks"},
     {"resource": "departments", "action": "read", "description": "View departments"},
     {"resource": "departments", "action": "write", "description": "Create/edit departments"},
-    {"resource": "reports", "action": "read", "description": "View reports"},
-    {"resource": "reports", "action": "export", "description": "Export reports"},
+    {"resource": "reports", "action": "read", "description": "View and export reports"},
     {"resource": "users", "action": "read", "description": "View users"},
     {"resource": "users", "action": "write", "description": "Manage users"},
 ]
