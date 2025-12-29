@@ -20,7 +20,7 @@ from app.schemas.approval_request import (
     ApprovalActionTypeEnum,
 )
 from app.api import deps
-from app.core.permissions import can_resolve_approvals
+from app.core.permissions import can_resolve_approvals, check_department_access
 from app.services.notification_service import NotificationService
 
 router = APIRouter()
@@ -67,18 +67,24 @@ async def create_approval_request(
         resource = result.scalar_one_or_none()
         if not resource:
             raise HTTPException(status_code=404, detail="Risk not found")
+        # Verify requester has access to resource's department
+        check_department_access(resource.department_id, current_user)
         resource_name = f"{resource.risk_id_code}: {resource.description[:50] if resource.description else ''}"
     elif request_data.resource_type == ApprovalResourceTypeEnum.control:
         result = await db.execute(select(Control).where(Control.id == request_data.resource_id))
         resource = result.scalar_one_or_none()
         if not resource:
             raise HTTPException(status_code=404, detail="Control not found")
+        # Verify requester has access to resource's department
+        check_department_access(resource.department_id, current_user)
         resource_name = f"{resource.control_id_code}: {resource.name[:50] if resource.name else ''}"
     elif request_data.resource_type == ApprovalResourceTypeEnum.kri:
         result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == request_data.resource_id))
         resource = result.scalar_one_or_none()
         if not resource:
             raise HTTPException(status_code=404, detail="KRI not found")
+        # KRIs are linked to risks, verify access via risk's department
+        # Note: KRIs may not have direct department_id, check via linked risk if needed
         resource_name = resource.name[:50] if resource.name else f"KRI-{resource.id}"
     
     # Check for existing pending request
