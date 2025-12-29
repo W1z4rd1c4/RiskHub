@@ -41,7 +41,17 @@ async def list_departments(
     current_user: User = Depends(deps.get_current_user),
 ):
     """List all departments with summary statistics."""
-    query = select(Department).order_by(Department.name)
+    # Subquery for departments with ACTIVE users
+    active_dept_ids = select(User.department_id).where(
+        and_(User.department_id.isnot(None), User.is_active == True)
+    ).distinct()
+
+    query = select(Department).where(
+        or_(
+            Department.is_system == True,
+            Department.id.in_(active_dept_ids)
+        )
+    ).order_by(Department.name)
     
     # Apply department filtering
     dept_ids = get_user_department_ids(current_user)
@@ -51,10 +61,11 @@ async def list_departments(
     result = await db.execute(query)
     departments = result.scalars().all()
     dept_map = {d.id: d for d in departments}
-    
+
     # 1. User counts
     user_counts_result = await db.execute(
         select(User.department_id, func.count(User.id))
+        .where(User.is_active == True)  # Only count active users for accurate stats
         .group_by(User.department_id)
     )
     user_counts = dict(user_counts_result.all())
@@ -96,6 +107,14 @@ async def list_departments(
     )
     kri_counts = dict(kri_counts_result.all())
     
+    # 6. Total net scores per department
+    net_score_totals_result = await db.execute(
+        select(Risk.department_id, func.sum(Risk.net_score))
+        .where(Risk.status != RiskStatus.archived.value)
+        .group_by(Risk.department_id)
+    )
+    net_score_totals = dict(net_score_totals_result.all())
+    
     summaries = []
     for dept in departments:
         summaries.append(DepartmentSummary(
@@ -107,6 +126,7 @@ async def list_departments(
             control_count=control_counts.get(dept.id, 0),
             high_risk_count=high_risk_counts.get(dept.id, 0),
             kri_count=kri_counts.get(dept.id, 0),
+            total_net_score=int(net_score_totals.get(dept.id, 0) or 0),
         ))
     
     return summaries
