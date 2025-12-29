@@ -304,10 +304,11 @@ Plans:
 **Goal**: Create a stunning single-file HTML presentation in Czech for the board to implement the application.
 **Depends on**: All previous phases (content)
 **Research**: None
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
-- [ ] 100-01: Single-file HTML slide deck presentation (Czech)
+- [x] 100-01: Single-file HTML slide deck presentation (Czech)
+- [x] 100-02: Enhance presentation with screenshots, architecture, and roadmap (Czech)
 
 ## Progress
 
