@@ -16,7 +16,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { userApi } from '@/services/userApi';
 import { departmentApi } from '@/services/departmentApi';
-import type { UserRead, UserUpdate } from '@/types/user';
+import type { UserRead, UserUpdate, Role } from '@/types/user';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -25,6 +25,7 @@ export function UserDetailPage() {
     const navigate = useNavigate();
     const [user, setUser] = useState<UserRead | null>(null);
     const [departments, setDepartments] = useState<any[]>([]);
+    const [roles, setRoles] = useState<Role[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [editData, setEditData] = useState<UserUpdate & { name: string; email: string }>({
@@ -47,12 +48,14 @@ export function UserDetailPage() {
     const fetchData = async () => {
         try {
             setIsLoading(true);
-            const [userData, deptData] = await Promise.all([
+            const [userData, deptData, rolesData] = await Promise.all([
                 userApi.getUser(Number(id)),
-                departmentApi.getDepartments()
+                departmentApi.getDepartments(),
+                userApi.listRoles()
             ]);
             setUser(userData);
             setDepartments(deptData);
+            setRoles(rolesData);
             setEditData({
                 name: userData.name,
                 email: userData.email,
@@ -186,11 +189,9 @@ export function UserDetailPage() {
                                     value={editData.role_id}
                                     onChange={e => setEditData({ ...editData, role_id: Number(e.target.value) })}
                                 >
-                                    <option value={1}>Administrator</option>
-                                    <option value={2}>CRO (Chief Risk Officer)</option>
-                                    <option value={3}>Department Head</option>
-                                    <option value={4}>Employee</option>
-                                    <option value={5}>Risk Manager</option>
+                                    {roles.map(role => (
+                                        <option key={role.id} value={role.id}>{role.display_name}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="space-y-2">
