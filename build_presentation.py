@@ -230,23 +230,6 @@ HTML_CONTENT = f"""<!DOCTYPE html>
         </div>
     </header>
 
-    <!-- Detailed Features Gallery -->
-    <section id="gallery" class="py-24 px-6 md:px-12 bg-slate-900/10">
-        <div class="max-w-7xl mx-auto space-y-24">
-            <div class="text-center space-y-4 mb-20">
-                <h2 class="text-4xl md:text-6xl font-display font-bold">Detailní Průvodce Systémem</h2>
-                <p class="text-slate-400 max-w-2xl mx-auto text-lg">
-                    RiskHub není jen dashboard. Je to komplexní ekosystém navržený pro precizní 
-                    správu rizikové zralosti organizace.
-                </p>
-            </div>
-            
-            <div class="space-y-32">
-                {screenshots_html}
-            </div>
-        </div>
-    </section>
-
     <!-- Architecture Section -->
     <section id="arch" class="py-32 px-6 bg-slate-900/30 border-y border-white/5 page-break-before">
         <div class="max-w-7xl mx-auto space-y-16">
@@ -323,7 +306,7 @@ HTML_CONTENT = f"""<!DOCTYPE html>
                         <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Dokončených Fází</div>
                     </div>
                     <div>
-                        <div class="text-4xl font-black text-slavia-red">7 Dní</div>
+                        <div class="text-4xl font-black text-slavia-red">3 Dny</div>
                         <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Čas Exekuce</div>
                     </div>
                     <div>
@@ -337,38 +320,54 @@ HTML_CONTENT = f"""<!DOCTYPE html>
                         <div class="text-green-500 font-mono text-sm pt-1">23.12.</div>
                         <div class="flex-1 pb-8 border-l border-white/10 pl-8 relative">
                             <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                            <h4 class="font-bold text-white text-xl">Projekt Kickoff & Architektura</h4>
+                            <h4 class="font-bold text-white text-xl">Den 1: Architektura & Foundation</h4>
                             <p class="text-slate-400 text-sm mt-3 leading-relaxed">
-                                Inicializace projektu, definice technologického stacku a strategie vývoje.
-                                Zahájení práce na Control Catalog a základech Risk Registru.
+                                Inicializace projektu, technologický stack, databázové modely.
+                                Základy Risk Registru a Control Catalog.
                             </p>
                         </div>
                     </div>
 
                     <div class="flex gap-6 group">
-                        <div class="text-green-500 font-mono text-sm pt-1">26.12.</div>
+                        <div class="text-green-500 font-mono text-sm pt-1">24.12.</div>
                         <div class="flex-1 pb-8 border-l border-white/10 pl-8 relative">
                             <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                            <h4 class="font-bold text-white text-xl">Core Features & RBAC</h4>
+                            <h4 class="font-bold text-white text-xl">Den 2: Core Features & UI</h4>
                             <p class="text-slate-400 text-sm mt-3 leading-relaxed">
-                                Implementace Control Catalog (13 bodů), Risk Register se scoringem, dashboard.
-                                RBAC (řízení přístupů), schvalovací workflow a in-app notifikace.
+                                Dashboard, KRI monitoring, RBAC. Schvalovací workflow.
+                                Premium frontend design s glassmorphism efekty.
                             </p>
                         </div>
                     </div>
 
                     <div class="flex gap-6 group">
-                        <div class="text-slavia-red font-mono text-sm pt-1">29.12.</div>
+                        <div class="text-slavia-red font-mono text-sm pt-1">25-26.12.</div>
                         <div class="flex-1 pb-4 border-l border-white/10 pl-8 relative">
                             <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-slavia-red shadow-[0_0_10px_rgba(225,29,43,0.5)] animate-pulse"></div>
-                            <h4 class="font-bold text-white text-xl">Integrace & Governance</h4>
+                            <h4 class="font-bold text-white text-xl">Den 3: Integrace & Polish</h4>
                             <p class="text-slate-400 text-sm mt-3 leading-relaxed">
-                                AD Emulator pro simulaci Active Directory, automatická synchronizace uživatelů.
-                                Governance Overseer modul pro detekci osiřelých rizik a kontrol.
+                                AD Emulator, Governance modul, notifikace.
+                                Finální testování a příprava prezentace.
                             </p>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Detailed Features Gallery -->
+    <section id="gallery" class="py-24 px-6 md:px-12 bg-slate-900/10 page-break-before">
+        <div class="max-w-7xl mx-auto space-y-24">
+            <div class="text-center space-y-4 mb-20">
+                <h2 class="text-4xl md:text-6xl font-display font-bold">Příloha: Screenshoty Aplikace</h2>
+                <p class="text-slate-400 max-w-2xl mx-auto text-lg">
+                    Vizuální průvodce jednotlivými moduly a funkcemi systému RiskHub.
+                </p>
+            </div>
+            
+            <div class="space-y-32">
+                {screenshots_html}
             </div>
         </div>
     </section>
