@@ -12,6 +12,7 @@ from app.models import KeyRiskIndicator, Risk, User
 from app.schemas.kri import KRICreate, KRIUpdate, KRIResponse, KRIListResponse
 from app.api import deps
 from app.core.permissions import get_user_department_ids, check_department_access
+from app.core.security import require_permission
 
 router = APIRouter(prefix="/kris", tags=["Key Risk Indicators"])
 
@@ -135,9 +136,9 @@ async def get_kri(
 async def create_kri(
     data: KRICreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "write")),
 ):
-    """Create a new KRI. Requires risk_id."""
+    """Create a new KRI. Requires risks:write permission."""
     # Verify risk exists
     risk_result = await db.execute(
         select(Risk).where(Risk.id == data.risk_id)
@@ -169,7 +170,7 @@ async def update_kri(
     kri_id: int,
     data: KRIUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "write")),
 ):
     """
     Update a KRI. Non-privileged users editing KRIs linked to critical risks
@@ -272,7 +273,7 @@ async def delete_kri(
     kri_id: int,
     reason: str = Query(..., min_length=1, description="Reason for deletion (mandatory)"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "delete")),
 ):
     """
     Request deletion of a KRI.
