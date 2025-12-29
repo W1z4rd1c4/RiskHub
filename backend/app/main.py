@@ -7,6 +7,17 @@ from app.core.scheduler import start_scheduler, stop_scheduler
 
 settings = get_settings()
 
+# Production security checks
+INSECURE_SECRET = "your-secret-key-change-in-production-use-env-var"
+if not settings.debug and settings.secret_key == INSECURE_SECRET:
+    raise RuntimeError(
+        "FATAL: SECRET_KEY must be set via environment variable in production mode. "
+        "Set DEBUG=true for development or provide a secure SECRET_KEY."
+    )
+if settings.debug and settings.secret_key == INSECURE_SECRET:
+    import logging
+    logging.warning("WARNING: Using placeholder SECRET_KEY in debug mode - DO NOT USE IN PRODUCTION")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
