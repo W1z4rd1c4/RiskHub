@@ -30,6 +30,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 13: Vendor Risk Management** — Third-party risk assessments (deferred)
 - [ ] **Phase 14: Advanced Audit Workflows** — Audit automation (deferred)
 - [ ] **Phase 15: Polish & Deploy** — i18n, Docker, and documentation (deferred)
+- [ ] **Phase 90: AD Emulator** — Active Directory emulator server + user sync + change management UI
 
 ## Phase Details
 
@@ -264,10 +265,43 @@ Plans:
 - [ ] 15-05: System Documentation (Admin & User Guides)
 - [ ] 15-06: Verification & Deployment Checklist
 
+### Phase 90: AD Integration (Real-Time Sync & Governance)
+**Goal**: Implement real-time sync from AD Emulator to RiskHub via webhooks, with Governance UI for managing orphaned risks/controls
+**Depends on**: Phase 99 (Data Migration & Standalone AD Emulator)
+**Research**: None (building on existing webhook patterns)
+**Status**: In Progress
+**Plans**: 9 plans
+
+Plans:
+- [x] 90-04: Webhook Infrastructure (AD Emulator → RiskHub push notifications)
+- [x] 90-05: Automatic Sync on Webhook (process webhooks, sync single users)
+- [x] 90-06: Orphan Flagging Model (database model for tracking orphaned items)
+- [x] 90-07: Orphaned Items API (REST endpoints for governance)
+- [x] 90-08: Governance Page UI (navigation, stats cards, page layout)
+- [x] 90-09: Orphan List & Resolution UI (table, filters, resolve modal)
+- [x] 90-10: Testing & Polish (E2E tests, error handling, verification)
+- [x] 90-11: Uncategorised Department Fallback (default dept for orphans without dept)
+- [x] 90-12: AD Emulator Role Awareness (Dept Head vs Employee)
+- [x] 90-13: Empty Department Cleanup (hide empty depts & move legacy items)
+
+### Phase 99: Data Migration & AD Emulator Standalone
+**Goal**: Migrate real data and separate AD Emulator into standalone application that communicates with RiskHub via HTTP API
+**Depends on**: Phase 90 (AD Emulator), Phase 7 (User Management)
+**Research**: None (building on existing work)
+**Plans**: 6 plans
+
+Plans:
+- [x] 99-01: Risks migration from Registr_Rizik_2022.xlsx
+- [x] 99-02: Controls migration from Katalog kontrol Provoz_06 2025.xlsx
+- [x] 99-03: KRIs migration from Register rizik - limity - Q3.xlsx
+- [x] 99-04: AD Emulator standalone backend (separate FastAPI app in /AD Emulator)
+- [x] 99-05: AD Emulator standalone frontend (separate React app with premium design)
+- [x] 99-06: RiskHub integration with external AD Emulator (HTTP sync)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15
+Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 90
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -289,4 +323,6 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 10. Historization | 0/5 | Not started | - |
 | 11. Historical Visualization | 0/5 | Not started | - |
 | 12-15. Deferred | 0/10 | Deferred | - |
-
+| 12-15. Deferred | 0/10 | Deferred | - |
+| 90. AD Integration | 10/10 | Complete | 2025-12-29 |
+| 99. Data Migration & Standalone AD | 7/7 | Complete | 2025-12-28 |
