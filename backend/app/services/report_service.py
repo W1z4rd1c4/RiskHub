@@ -215,14 +215,14 @@ def generate_risks_pdf(risks: list["Risk"]) -> bytes:
         elements.append(Paragraph("No risks found.", styles['Normal']))
     else:
         # Table header
-        table_data = [["Name", "Category", "Department", "Gross Score", "Net Score", "Status"]]
+        table_data = [["Process", "Category", "Department", "Gross Score", "Net Score", "Status"]]
         
         for risk in risks:
             dept_name = risk.department.name if risk.department else "N/A"
             gross_score = risk.gross_probability * risk.gross_impact
             net_score = risk.net_probability * risk.net_impact
             table_data.append([
-                risk.name[:35] + "..." if len(risk.name) > 35 else risk.name,
+                risk.process[:35] + "..." if len(risk.process) > 35 else risk.process,
                 risk.category.title() if risk.category else "N/A",
                 dept_name[:15] + "..." if len(dept_name) > 15 else dept_name,
                 f"{gross_score} (P{risk.gross_probability}×I{risk.gross_impact})",
@@ -276,7 +276,7 @@ def generate_risks_excel(risks: list["Risk"]) -> bytes:
     
     # Headers
     headers = [
-        "ID", "Name", "Description", "Category", "Department", "Status",
+        "ID", "Risk ID Code", "Process", "Description", "Category", "Department", "Status",
         "Gross Probability", "Gross Impact", "Gross Score",
         "Net Probability", "Net Impact", "Net Score",
         "Owner", "Treatment Strategy", "Created At"
@@ -292,20 +292,21 @@ def generate_risks_excel(risks: list["Risk"]) -> bytes:
     # Data rows
     for row, risk in enumerate(risks, 2):
         ws.cell(row=row, column=1, value=risk.id)
-        ws.cell(row=row, column=2, value=risk.name)
-        ws.cell(row=row, column=3, value=risk.description[:500] if risk.description else "")
-        ws.cell(row=row, column=4, value=risk.category or "")
-        ws.cell(row=row, column=5, value=risk.department.name if risk.department else "N/A")
-        ws.cell(row=row, column=6, value=risk.status or "")
-        ws.cell(row=row, column=7, value=risk.gross_probability)
-        ws.cell(row=row, column=8, value=risk.gross_impact)
-        ws.cell(row=row, column=9, value=risk.gross_probability * risk.gross_impact)
-        ws.cell(row=row, column=10, value=risk.net_probability)
-        ws.cell(row=row, column=11, value=risk.net_impact)
-        ws.cell(row=row, column=12, value=risk.net_probability * risk.net_impact)
-        ws.cell(row=row, column=13, value=risk.owner.name if hasattr(risk, 'owner') and risk.owner else "")
-        ws.cell(row=row, column=14, value=risk.treatment_strategy or "")
-        ws.cell(row=row, column=15, value=risk.created_at.strftime('%Y-%m-%d') if risk.created_at else "")
+        ws.cell(row=row, column=2, value=risk.risk_id_code)
+        ws.cell(row=row, column=3, value=risk.process)
+        ws.cell(row=row, column=4, value=risk.description[:500] if risk.description else "")
+        ws.cell(row=row, column=5, value=risk.category or "")
+        ws.cell(row=row, column=6, value=risk.department.name if risk.department else "N/A")
+        ws.cell(row=row, column=7, value=risk.status or "")
+        ws.cell(row=row, column=8, value=risk.gross_probability)
+        ws.cell(row=row, column=9, value=risk.gross_impact)
+        ws.cell(row=row, column=10, value=risk.gross_probability * risk.gross_impact)
+        ws.cell(row=row, column=11, value=risk.net_probability)
+        ws.cell(row=row, column=12, value=risk.net_impact)
+        ws.cell(row=row, column=13, value=risk.net_probability * risk.net_impact)
+        ws.cell(row=row, column=14, value=risk.owner.name if hasattr(risk, 'owner') and risk.owner else "")
+        ws.cell(row=row, column=15, value="")  # Treatment strategy not in model
+        ws.cell(row=row, column=16, value=risk.created_at.strftime('%Y-%m-%d') if risk.created_at else "")
     
     # Adjust column widths
     ws.column_dimensions['A'].width = 8
