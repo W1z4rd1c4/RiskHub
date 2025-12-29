@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskHub - Prezentace pro Board</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Outfit:wght@300;400;700;900&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.4);
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .mesh-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background:
+                radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(244, 63, 94, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 100% 0%, rgba(14, 165, 233, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 0% 100%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+        }
+
+        .presentation-container {
+            display: flex;
+            transition: transform 0.8s cubic-bezier(0.85, 0, 0.15, 1);
+            height: 100%;
+            width: 1000%;
+            /* 10 slides */
+        }
+
+        .slide {
+            width: 10vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 5rem;
+            position: relative;
+            opacity: 0.1;
+            transform: scale(0.95);
+            transition: all 1s ease;
+        }
+
+        .slide.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .glass-card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 2rem;
+            padding: 4rem;
+            width: 100%;
+            max-width: 1200px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .slide-number {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            font-size: 0.875rem;
+            font-weight: 800;
+            letter-spacing: 0.2em;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        .title-accent {
+            color: var(--accent);
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-size: 1rem;
+        }
+
+        h1 {
+            font-size: 5rem;
+            font-weight: 900;
+            line-height: 1;
+            margin-bottom: 2rem;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 2rem;
+            line-height: 1.1;
+        }
+
+        p.lead {
+            font-size: 1.5rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            max-width: 800px;
+        }
+
+        ul {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        li {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 2rem;
+            border-radius: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        li:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-5px);
+            border-color: var(--accent);
+        }
+
+        li strong {
+            display: block;
+            font-size: 1.25rem;
+            color: #fff;
+            margin-bottom: 0.5rem;
+            font-family: 'Outfit';
+        }
+
+        li span {
+            font-size: 0.95rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 3rem;
+            right: 3rem;
+            display: flex;
+            gap: 1rem;
+            z-index: 100;
+        }
+
+        button {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: #fff;
+            width: 3.5rem;
+            height: 3.5rem;
+            border-radius: 1rem;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .nav-dots {
+            position: fixed;
+            bottom: 3.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            background: var(--glass-border);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+        }
+
+        .dot.active {
+            background: var(--accent);
+            width: 1.5rem;
+            border-radius: 1rem;
+        }
+
+        @media (max-width: 1024px) {
+            h1 {
+                font-size: 3.5rem;
+            }
+
+            h2 {
+                font-size: 2.5rem;
+            }
+
+            ul {
+                grid-template-columns: 1fr;
+            }
+
+            .slide {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mesh-bg"></div>
+
+    <div class="presentation-container" id="slides-wrapper">
+        <!-- SLIDE 1: INTRO -->
+        <section class="slide active">
+            <div class="glass-card">
+                <span class="slide-number">01 / 10</span>
+                <span class="title-accent">Představení projektu</span>
+                <h1>RiskHub</h1>
+                <p class="lead">Moderní digitální platforma pro komplexní řízení rizik a katalogizaci kontrol ve
+                    standardu OS 18 ČNB.</p>
+                <div style="margin-top: 3rem; display: flex; gap: 2rem; align-items: center;">
+                    <div style="background: var(--accent); height: 2px; width: 100px;"></div>
+                    <span
+                        style="font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim);">Board
+                        Presentation 2025</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- SLIDE 2: PROBLÉM & ŘEŠENÍ -->
+        <section class="slide">
+            <div class="glass-card">
+                <span class="slide-number">02 / 10</span>
+                <span class="title-accent">Strategický posun</span>
+                <h2>Digitální transformace GRC</h2>
+                <p class="lead">Přechod od fragmentovaných Excelů k centralizovanému systému s reálnými daty.</p>
+                <ul>
+                    <li>
+                        <strong>Konsolidace dat</strong>
+                        <span>Jednotné úložiště pro rizika, kontroly a indikátory (KRI) napříč celou organizací.</span>
+                    </li>
+                    <li>
+                        <strong>Automatizovaný reporting</strong>
+                        <span>Okamžitý přehled pro management bez nutnosti manuálního sběru dat.</span>
+                    </li>
+                    <li>
+                        <strong>Standard OS 18</strong>
+                        <span>Plná shoda s regulatorními požadavky na systém vnitřní kontroly.</span>
+                    </li>
+                    <li>
+                        <strong>Auditní stopa</strong>
+                        <span>Nezpochybnitelná historie každé změny a schvalovacího procesu.</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- SLIDE 3: REGISTR RIZIK -->
+        <section class="slide">
+            <div class="glass-card">
+                <span class="slide-number">03 / 10</span>
+                <span class="title-accent">Klíčové Funkce</span>
+                <h2>Pokročilý Registr Rizik</h2>
+                <p class="lead">Standardizace hodnocení a vizualizace rizikového profilu pojišťovny.</p>
+                <ul>
+                    <li>
+                        <strong>Gross & Net Scoring</strong>
+                        <span>Rozlišení mezi hrubým rizikem a zbytkovým rizikem po aplikaci kontrolních
+                            mechanismů.</span>
+                    </li>
+                    <li>
+                        <strong>Heatmapa rizik</strong>
+                        <span>Vizuální matice pravděpodobnosti a dopadu pro prioritizaci kritických oblastí.</span>
+                    </li>
+                    <li>
+                        <strong>Kategorizace S/O</strong>
+                        <span>Automatické dělení na strategická (S) a operační (O) rizika dle metodiky OS 18.</span>
+                    </li>
+                    <li>
+                        <strong>Vlastnictví (Ownership)</strong>
+                        <span>Jasné přiřazení odpovědnosti konkrétním oddělením a vedoucím pracovníkům.</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- SLIDE 4: KATALOG KONTROL -->
+        <section class="slide">
+            <div class="glass-card">
+                <span class="slide-number">04 / 10</span>
+                <span class="title-accent">Systém vnitřní kontroly</span>
+                <h2>Inteligentní Katalog Kontrol</h2>
+                <p class="lead">Strukturovaný přehled všech zmírňujících opatření s aktivní vazbou na rizika.</p>
+                <ul>
+                    <li>
+                        <strong>13-bodová struktura</strong>
+                        <span>Kompletní záznam kontroly: od frekvence a formy až po určení testera a
+                            schvalovatele.</span>
+                    </li>
+                    <li>
+                        <strong>Vazba na rizika</strong>
+                        <span>Dynamické propojení, kde jedna kontrola může efektivně řešit více rizik naráz.</span>
+                    </li>
+                    <li>
+                        <strong>Evidence provádění</strong>
+                        <span>Modul pro záznam výsledků pravidelných testů a sledování jejich účinnosti v čase.</span>
+                    </li>
+                    <li>
+                        <strong>Hodnocení efektivity</strong>
+                        <span>Automatický výpočet dopadu kontrol na snížení rizikového skóre.</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- SLIDE 5: KRI MONITORING -->
+        <section class="slide">
+            <div class="glass-card">
+                <span class="slide-number">05 / 10</span>
+                <span class="title-accent">Včasné varování</span>
+                <h2>Klíčové Indikátory (KRI)</h2>
+                <p class="lead">Sledování limitů a limitních stavů v reálném čase pro proaktivní řízení.</p>
+                <ul>
+                    <li>
+                        <strong>Prahové hodnoty</strong>
+                        <span>Definice Semaforu (Zelená / Žlutá / Červená) pro každý sledovaný indikátor.</span>
+                    </li>
+                    <li>
+                        <strong>Detekce porušení</strong>
+                        <span>Okamžité upozornění při překročení stanovených limitních hodnot.</span>
+                    </li>
+                    <li>
+                        <strong>Vazba na chuť k riziku</strong>
+                        <span>Přímo propojené s Risk Appetite Statement pojišťovny.</span>
+                    </li>
+                    <li>
+                        <strong>Historie vývoje</strong>
+                        <span>Sledování trendů KRI pro predikci budoucího rizikového vývoje.</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- SLIDE 6: DASHBOARDY -->
+        <section class="slide">
+            <div class="glass-card">
+                <span class="slide-number">06 / 10</span>
+                <span class="title-accent">Management Information System</span>
+                <h2>Dashboardy & Analytika</h2>
+                <p class="lead">Manažerský pohled na celkové zdraví organizace dostupný na jeden klik.</p>
+                <ul>
+                    <li>
+                        <strong>Executive Dashboard</strong>
+                        <span>Agregovaný pohled na top rizika, stav kontrol a narušená KRI pro nejvyšší vedení.</span>
+                    </li>
+                    <li>
+                        <strong>Department Analytics</strong>
+                        <span>Detailní pohledy pro vedoucí oddělení na rizika spadající do jejich kompetence.</span>
+                    </li>
+                    <li>
+                        <strong>Interaktivní grafy</strong>
+                        <span>Moderní vizualizace distribuce skóre, trendů a efektivity kontrolního prostředí.</span>
+                    </li>
+                    <li>
+                        <strong>Filtrace dat</strong>
+                        <span>Možnost hloubkové analýzy (drill-down) od celku až po konkrétní záznam.</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- SLIDE 7: INTEGRACE & GOVERNANCE -->
+        <section class="slide">
+            <div class="glass-card">
+                <span class="slide-number">07 / 10</span>
+                <span class="title-accent">Technologický ekosystém</span>
+                <h2>Integrace & Governance</h2>
+                <p class="lead">Bezpečné propojení se stávající infrastrukturou a správa datové integrity.</p>
+                <ul>
+                    <li>
+                        <strong>Active Directory Sync</strong>
+                        <span>Automatická synchronizace zaměstnanců a organizační struktury (real-time).</span>
+                    </li>
+                    <li>
+                        <strong>Správa "Sirotků"</strong>
+                        <span>Governance UI pro řešení položek bez vlastníka po organizačních změnách.</span>
+                    </li>
+                    <li>
+                        <strong>Role-Based Access</strong>
+                        <span>Řízení přístupu (RBAC) zajišťující, že uživatelé vidí pouze relevantní data.</span>
+                    </li>
+                    <li>
+                        <strong>Webhooks & Události</strong>
+                        <span>Okamžitá reakce systému na změny v personální databázi.</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- SLIDE 8: REPORTING & AUDIT -->
+        <section class="slide">
+            <div class="glass-card">
+                <span class="slide-number">08 / 10</span>
+                <span class="title-accent">Důvěryhodnost dat</span>
+                <h2>Reporting & Audit Trail</h2>
+                <p class="lead">Záznamy připravené pro interní i externí auditory (členy dozorčí rady, ČNB).</p>
+                <ul>
+                    <li>
+                        <strong>Exporty do PDF/Excel</strong>
+                        <span>Profesionálně formátované reporty registru rizik a kontrol na jedno kliknutí.</span>
+                    </li>
+                    <li>
+                        <strong>Kompletní Historizace</strong>
+                        <span>Sledování historie každého pole - víme kdo, co a kdy v systému změnil.</span>
+                    </li>
+                    <li>
+                        <strong>Archivace dokumentů</strong>
+                        <span>Možnost přikládat důkazy k testům kontrol pro auditorské účely.</span>
+                    </li>
+                    <li>
+                        <strong>Logy provádění</strong>
+                        <span>Detailní záznamy o každém proběhlém testu a jeho schválení.</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- SLIDE 9: BEZPEČNOST -->
+        <section class="slide">
+            <div class="glass-card">
+                <span class="slide-number">09 / 10</span>
+                <span class="title-accent">Workflow Management</span>
+                <h2>Bezpečnost & Schvalování</h2>
+                <p class="lead">Robustní systém záruk proti neoprávněným nebo chybným zásahům do dat.</p>
+                <ul>
+                    <li>
+                        <strong>Schvalovací procesy</strong>
+                        <span>Změny kritických parametrů vyžadují potvrzení od CRO nebo admina.</span>
+                    </li>
+                    <li>
+                        <strong>Notifikační systém</strong>
+                        <span>Automatické e-maily a in-app upozornění na blížící se termíny a úkoly.</span>
+                    </li>
+                    <li>
+                        <strong>Validace polí</strong>
+                        <span>Systém vynucuje správné vyplnění dat, čímž eliminuje technické chyby.</span>
+                    </li>
+                    <li>
+                        <strong>Hierarchie oddělení</strong>
+                        <span>Přesné zrcadlení struktury firmy pro dědění práv a odpovědností.</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- SLIDE 10: ZÁVĚR -->
+        <section class="slide">
+            <div class="glass-card">
+                <span class="slide-number">10 / 10</span>
+                <span class="title-accent">Příští kroky</span>
+                <h2>Závěr a Implementace</h2>
+                <p class="lead">RiskHub představuje moderní, bezpečný a efektivní způsob řízení rizik pojišťovny.</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; margin-top: 2rem;">
+                    <div>
+                        <h3 style="color: var(--accent); margin-bottom: 1rem;">Benefity pro Board</h3>
+                        <ul style="grid-template-columns: 1fr; gap: 1rem; margin-top: 0;">
+                            <li style="padding: 1rem;"><span>Redukce rizika díky lepší viditelnosti</span></li>
+                            <li style="padding: 1rem;"><span>Zvýšení provozní efektivity</span></li>
+                            <li style="padding: 1rem;"><span>Plná regulatorní shoda (Compliance)</span></li>
+                        </ul>
+                    </div>
+                    <div
+                        style="display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;">
+                        <div style="text-align: right;">
+                            <p style="font-size: 1.25rem; font-weight: 700; color: #fff;">Děkujeme za pozornost</p>
+                            <p style="color: var(--text-dim); margin-top: 0.5rem;">RiskHub Implementation Team</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="nav-dots" id="nav-dots"></div>
+
+    <div class="controls">
+        <button id="prev-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+        </button>
+        <button id="next-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+        </button>
+    </div>
+
+    <script>
+        const container = document.getElementById('slides-wrapper');
+        const slides = document.querySelectorAll('.slide');
+        const dotsContainer = document.getElementById('nav-dots');
+        let currentSlide = 0;
+
+        // Create dots
+        slides.forEach((_, i) => {
+            const dot = document.createElement('div');
+            dot.className = `dot ${i === 0 ? 'active' : ''}`;
+            dot.addEventListener('click', () => goToSlide(i));
+            dotsContainer.appendChild(dot);
+        });
+
+        const dots = document.querySelectorAll('.dot');
+
+        function updateSlides() {
+            container.style.transform = `translateX(-${currentSlide * 10}vw)`;
+            slides.forEach((slide, i) => {
+                slide.classList.toggle('active', i === currentSlide);
+            });
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentSlide);
+            });
+        }
+
+        function goToSlide(i) {
+            currentSlide = i;
+            updateSlides();
+        }
+
+        function nextSlide() {
+            if (currentSlide < slides.length - 1) {
+                currentSlide++;
+                updateSlides();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                updateSlides();
+            }
+        }
+
+        document.getElementById('next-btn').addEventListener('click', nextSlide);
+        document.getElementById('prev-btn').addEventListener('click', prevSlide);
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+
+        // Touch support
+        let touchstartX = 0;
+        let touchendX = 0;
+
+        document.addEventListener('touchstart', e => {
+            touchstartX = e.changedTouches[0].screenX;
+        });
+
+        document.addEventListener('touchend', e => {
+            touchendX = e.changedTouches[0].screenX;
+            handleGesture();
+        });
+
+        function handleGesture() {
+            if (touchendX < touchstartX - 50) nextSlide();
+            if (touchendX > touchstartX + 50) prevSlide();
+        }
+    </script>
+</body>
+
+</html>
