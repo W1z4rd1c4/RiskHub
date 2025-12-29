@@ -1,3 +1,6 @@
+"""
+Control execution endpoints with RBAC and department scoping.
+"""
 from typing import Any, List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -9,9 +12,12 @@ from app.db.session import get_db
 from app.models.control_execution import ControlExecution as ControlExecutionModel
 from app.models.control import Control as ControlModel
 from app.models.user import User as UserModel
+from app.models.risk import ControlRiskLink
 from app.schemas import execution as schemas
 from app.api import deps
 from app.models import User
+from app.core.permissions import get_user_department_ids, check_department_access
+from app.core.security import require_permission
 
 router = APIRouter()
 
@@ -28,12 +34,25 @@ async def read_executions(
     to_date: Optional[datetime] = None,
 ) -> Any:
     """
-    Retrieve control executions.
+    Retrieve control executions. Scoped to user's accessible departments.
     """
+    # Get user's department scope
+    dept_ids = get_user_department_ids(current_user)
+    
     query = select(ControlExecutionModel).options(
         selectinload(ControlExecutionModel.executed_by),
-        selectinload(ControlExecutionModel.control)
+        selectinload(ControlExecutionModel.control).options(
+            selectinload(ControlModel.control_owner),
+            selectinload(ControlModel.department),
+            selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk)
+        )
     )
+    
+    # Apply department scoping via join to Control
+    if dept_ids is not None:
+        if not dept_ids:
+            return []  # User has no departments, no access
+        query = query.join(ControlModel).where(ControlModel.department_id.in_(dept_ids))
     
     if control_id:
         query = query.where(ControlExecutionModel.control_id == control_id)
@@ -54,6 +73,18 @@ async def read_executions(
         exe.executed_by_name = exe.executed_by.name if exe.executed_by else "Unknown"
         exe.control_name = exe.control.name if exe.control else "Unknown"
         
+        if exe.control:
+            exe.control_owner_name = exe.control.control_owner.name if exe.control.control_owner else "Unassigned"
+            # Get linked risk names (process + risk_id_code if available)
+            exe.linked_risks = []
+            if exe.control.risk_links:
+                for link in exe.control.risk_links:
+                    if link.risk:
+                        exe.linked_risks.append(link.risk.process) # Using Process as the main risk name equivalent based on user request context
+        else:
+            exe.control_owner_name = "Unknown"
+            exe.linked_risks = []
+        
     return executions
 
 
@@ -62,16 +93,23 @@ async def create_execution(
     *,
     db: AsyncSession = Depends(get_db),
     execution_in: schemas.ControlExecutionCreate,
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("controls", "write")),
 ) -> Any:
     """
-    Log a new control execution.
+    Log a new control execution. Requires controls:write permission and department access.
     """
-    # Verify control exists
-    control_result = await db.execute(select(ControlModel).where(ControlModel.id == execution_in.control_id))
+    # Verify control exists and load department
+    control_result = await db.execute(
+        select(ControlModel)
+        .options(selectinload(ControlModel.department))
+        .where(ControlModel.id == execution_in.control_id)
+    )
     control = control_result.scalar_one_or_none()
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
+    
+    # Check department access
+    check_department_access(control.department_id, current_user)
         
     db_obj = ControlExecutionModel(
         control_id=execution_in.control_id,
@@ -90,13 +128,27 @@ async def create_execution(
     # Reload with relations for the response
     query = select(ControlExecutionModel).options(
         selectinload(ControlExecutionModel.executed_by),
-        selectinload(ControlExecutionModel.control)
+        selectinload(ControlExecutionModel.control).options(
+            selectinload(ControlModel.control_owner),
+            selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk)
+        )
     ).where(ControlExecutionModel.id == db_obj.id)
     
     res = await db.execute(query)
     db_obj = res.scalar_one()
     db_obj.executed_by_name = db_obj.executed_by.name if db_obj.executed_by else "Unknown"
     db_obj.control_name = db_obj.control.name if db_obj.control else "Unknown"
+    
+    if db_obj.control:
+        db_obj.control_owner_name = db_obj.control.control_owner.name if db_obj.control.control_owner else "Unassigned"
+        db_obj.linked_risks = []
+        if db_obj.control.risk_links:
+            for link in db_obj.control.risk_links:
+                if link.risk:
+                    db_obj.linked_risks.append(link.risk.process)
+    else:
+        db_obj.control_owner_name = "Unknown"
+        db_obj.linked_risks = []
     
     return db_obj
 
@@ -109,19 +161,38 @@ async def read_execution(
     id: int,
 ) -> Any:
     """
-    Get control execution by ID.
+    Get control execution by ID. Validates department access.
     """
     query = select(ControlExecutionModel).options(
         selectinload(ControlExecutionModel.executed_by),
-        selectinload(ControlExecutionModel.control)
+        selectinload(ControlExecutionModel.control).options(
+            selectinload(ControlModel.control_owner),
+            selectinload(ControlModel.department),
+            selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk)
+        )
     ).where(ControlExecutionModel.id == id)
     
     result = await db.execute(query)
     db_obj = result.scalar_one_or_none()
     if not db_obj:
         raise HTTPException(status_code=404, detail="Execution not found")
+    
+    # Check department access
+    if db_obj.control:
+        check_department_access(db_obj.control.department_id, current_user)
         
     db_obj.executed_by_name = db_obj.executed_by.name if db_obj.executed_by else "Unknown"
     db_obj.control_name = db_obj.control.name if db_obj.control else "Unknown"
+    
+    if db_obj.control:
+        db_obj.control_owner_name = db_obj.control.control_owner.name if db_obj.control.control_owner else "Unassigned"
+        db_obj.linked_risks = []
+        if db_obj.control.risk_links:
+            for link in db_obj.control.risk_links:
+                if link.risk:
+                    db_obj.linked_risks.append(link.risk.process)
+    else:
+        db_obj.control_owner_name = "Unknown"
+        db_obj.linked_risks = []
     
     return db_obj
