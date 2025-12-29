@@ -21,7 +21,7 @@ SCREENSHOTS_ORDER = [
     ("risk_register.png", "Centrální Registr Rizik", 
      "Kompletní evidence všech identifikovaných rizik v organizaci. Systém podporuje kategorizaci dle procesů a oblastí. "
      "Každé riziko je ohodnoceno pomocí Gross (hrubého) a Net (čistého) skóre, což umožňuje sledovat efektivitu zmírňujících opatření. "
-     "Vše je navrženo v souladu s regulatorními standardy OS 18 ČNB."),
+     "Umožňuje přehledné filtrování a vyhledávání v celém rizikovém portfoliu."),
 
     ("risk_assessment_details.png", "Detailní Posouzení Rizika", 
      "Interaktivní modul pro kvantifikaci a vizualizaci rizik. Obsahuje heatmapu rizikovosti, kde lze přehledně sledovat posun mezi "
@@ -203,7 +203,7 @@ HTML_CONTENT = f"""<!DOCTYPE html>
                 </h1>
                 <p class="text-lg text-slate-400 max-w-lg leading-relaxed">
                     Nová generace řízení rizik pro <strong>Slavia Pojišťovnu</strong>. Transparentní governance, 
-                    integrovaná automatizace a plný soulad s regulatorními požadavky ČNB (OS 18).
+                    integrovaná automatizace a profesionální nástroje pro risk management.
                 </p>
                 
                 <!-- Author Badge -->
@@ -323,37 +323,36 @@ HTML_CONTENT = f"""<!DOCTYPE html>
                         <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Dokončených Fází</div>
                     </div>
                     <div>
-                        <div class="text-4xl font-black text-slavia-red">5 Dní</div>
+                        <div class="text-4xl font-black text-slavia-red">7 Dní</div>
                         <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Čas Exekuce</div>
                     </div>
                     <div>
-                        <div class="text-4xl font-black text-white">100%</div>
-                        <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Regulatorní Shoda</div>
+                        <div class="text-4xl font-black text-white">1</div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Architekt</div>
                     </div>
                 </div>
                 
                 <div class="space-y-12">
                     <div class="flex gap-6 group">
-                        <div class="text-green-500 font-mono text-sm pt-1">26.12.</div>
+                        <div class="text-green-500 font-mono text-sm pt-1">23.12.</div>
                         <div class="flex-1 pb-8 border-l border-white/10 pl-8 relative">
                             <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                            <h4 class="font-bold text-white text-xl">Základy & Jádro Systému</h4>
+                            <h4 class="font-bold text-white text-xl">Projekt Kickoff & Architektura</h4>
                             <p class="text-slate-400 text-sm mt-3 leading-relaxed">
-                                Inicializace architektury, Control Catalog (13 bodů), interaktivní Risk Register se scoringem 
-                                a první verze manažerských dashboardů pro vizualizaci rizikového landscape.
+                                Inicializace projektu, definice technologického stacku a strategie vývoje.
+                                Zahájení práce na Control Catalog a základech Risk Registru.
                             </p>
                         </div>
                     </div>
 
                     <div class="flex gap-6 group">
-                        <div class="text-green-500 font-mono text-sm pt-1">28.12.</div>
+                        <div class="text-green-500 font-mono text-sm pt-1">26.12.</div>
                         <div class="flex-1 pb-8 border-l border-white/10 pl-8 relative">
                             <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                            <h4 class="font-bold text-white text-xl">Bezpečnost, Approval & Notifikace</h4>
+                            <h4 class="font-bold text-white text-xl">Core Features & RBAC</h4>
                             <p class="text-slate-400 text-sm mt-3 leading-relaxed">
-                                Implementace RBAC (řízení přístupů), pokročilé filtrování dat dle oprávnění a komplexní 
-                                schvalovací workflow (Approval Requests) pro zachování integrity dat při změnách. 
-                                In-app notifikační systém pro KRI breach.
+                                Implementace Control Catalog (13 bodů), Risk Register se scoringem, dashboard.
+                                RBAC (řízení přístupů), schvalovací workflow a in-app notifikace.
                             </p>
                         </div>
                     </div>
@@ -364,8 +363,8 @@ HTML_CONTENT = f"""<!DOCTYPE html>
                             <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-slavia-red shadow-[0_0_10px_rgba(225,29,43,0.5)] animate-pulse"></div>
                             <h4 class="font-bold text-white text-xl">Integrace & Governance</h4>
                             <p class="text-slate-400 text-sm mt-3 leading-relaxed">
-                                Nasazení AD Emulatoru, automatizace synchronizace uživatelů a vytvoření Governance Overseer 
-                                modulu pro detekci osiřelých rizik. Kompletní migrace historických dat z Excel registrů (80+ rizik).
+                                AD Emulator pro simulaci Active Directory, automatická synchronizace uživatelů.
+                                Governance Overseer modul pro detekci osiřelých rizik a kontrol.
                             </p>
                         </div>
                     </div>
