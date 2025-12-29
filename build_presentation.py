@@ -13,20 +13,65 @@ IMAGES = {
 }
 
 SCREENSHOTS_ORDER = [
-    ("dashboard_operational_insight.png", "Manažerský Přehled", "KPI karty a control analytics v reálném čase."),
-    ("workflow_pending_queue.png", "Schvalovací Workflow", "Fronta požadavků čekajících na schválení."),
-    ("control_definition.png", "Definice Kontroly", "Průvodce vytvořením nové kontroly v 5 krocích."),
-    ("risk_register.png", "Registr Rizik", "Heatmapy a scoring dle standardu OS 18."),
-    ("risk_appetite_kri.png", "KRI Detail", "Indikátory s nastavenými limity."),
-    ("governance_oversight.png", "Governance Oversight", "Detekce osiřelých položek."),
-    ("audit_trail.png", "Auditní Stopa", "Kompletní historie změn a exekucí."),
-    ("user_management.png", "Správa Uživatelů", "Role a organizační struktura."),
-    ("control_details_execution.png", "Detail Kontroly", "Vazby na rizika a historie."),
-    ("risk_assessment_details.png", "Posouzení Rizika", "Detailní scoring a dopady."),
-    ("risk_appetite_details.png", "Rizikový Apetit", "Strategické nastavení apetitu."),
-    ("governance_uncategorised.png", "Nekategorizované", "Items requiring classification."),
-    ("risk_appetite_list.png", "Seznam KRI", "Přehled všech indikátorů."),
-    ("departments_overview.png", "Oddělení", "Statistiky po divizích."),
+    ("dashboard_operational_insight.png", "Manažerský Přehled (Operational Insight)", 
+     "Centrální mozek aplikace RiskHub. Poskytuje okamžitý vhled do celkového stavu rizikového profilu organizace. "
+     "Klíčové metriky zahrnují počet aktivních kontrol, kritická rizika a průměrné skóre rizikovosti. "
+     "Grafická část zobrazuje distribuci kontrol podle stavu (aktivní/neaktivní), formy (manuální/automatické) a frekvence provádění."),
+    
+    ("risk_register.png", "Centrální Registr Rizik", 
+     "Kompletní evidence všech identifikovaných rizik v organizaci. Systém podporuje kategorizaci dle procesů a oblastí. "
+     "Každé riziko je ohodnoceno pomocí Gross (hrubého) a Net (čistého) skóre, což umožňuje sledovat efektivitu zmírňujících opatření. "
+     "Vše je navrženo v souladu s regulatorními standardy OS 18 ČNB."),
+
+    ("risk_assessment_details.png", "Detailní Posouzení Rizika", 
+     "Interaktivní modul pro kvantifikaci a vizualizaci rizik. Obsahuje heatmapu rizikovosti, kde lze přehledně sledovat posun mezi "
+     "inherentním a reziduálním rizikem. Umožňuje přesné nastavení pravděpodobnosti a dopadu pro objektivní scoring."),
+
+    ("control_definition.png", "Definice Kontrolního Mechanismu", 
+     "Tento 5-krokový průvodce (Wizard) zajišťuje standardizaci při zavádění nových kontrol. "
+     "Uživatel definuje identitu kontroly, vlastníka, způsob exekuce, vazbu na rizika a metodu ověřování. "
+     "Tato struktura zaručuje, že žádná kontrola nebude zavedena bez jasného účelu a odpovědnosti."),
+
+    ("control_details_execution.png", "Detail a Exekuce Kontroly", 
+     "Komplexní pohled na konkrétní kontrolu včetně její historie a frekvence. "
+     "Zahrnuje přehled zmírňovaných rizik a auditní stopu posledních exekucí se stavem (Passed/Failed). "
+     "Umožňuje přímé logování výkonu kontroly pro potřeby auditu."),
+
+    ("risk_appetite_kri.png", "Klíčové Indikátory Rizik (KRI)", 
+     "Systém včasného varování. Pro každé riziko lze definovat metriky (KRI), které v reálném čase sledují vývoj kritických parametrů. "
+     "Vizuální indikátory okamžitě upozorní na překročení definovaných limitů (Tolerance vs. Breach)."),
+
+    ("risk_appetite_list.png", "Seznam a Monitoring Indikátorů", 
+     "Přehled všech KRI v rámci organizace s aktuálními hodnotami a stavy. "
+     "Umožňuje rychlou filtraci a identifikaci oblastí, které vyžadují pozornost managementu z důvodu porušení rizikového apetitu."),
+
+    ("risk_appetite_details.png", "Detail Rizikového Apetitu", 
+     "Propojení strategických cílů s operativní realitou. Zde se definují limity pro jednotlivé metriky "
+     "a zobrazují se všechny mitigující kontroly, které mají za úkol udržet riziko v požadovaných mezích."),
+
+    ("governance_oversight.png", "Governance Oversight - Osiřelé Položky", 
+     "Modul pro správu kontinuity. Automaticky detekuje rizika, kontroly a KRI, které ztratily svého vlastníka "
+     "(např. po odchodu zaměstnance). Zajišťuje, že v systému nezůstávají nekontrolované oblasti."),
+
+    ("governance_uncategorised.png", "Governance - Správa Nekategorizovaných Dat", 
+     "Udržuje integritu datového modelu. Identifikuje položky bez jasného zařazení do organizační struktury "
+     "nebo procesního modelu a vynucuje jejich správu administrativním zásahem."),
+
+    ("workflow_pending_queue.png", "Schvalovací Workflow", 
+     "Zajišťuje integritu kritických operací. Smazání nebo významná změna rizika/kontroly vyžaduje schválení nadřízeným "
+     "nebo oddělením Risk Managementu. Všechny požadavky jsou transparentně evidovány ve frontě."),
+
+    ("audit_trail.png", "Globální Auditní Stopa", 
+     "Nezpochybnitelný záznam o všech událostech v systému. Sleduje kdo, kdy a co provedl. "
+     "Nezbytný nástroj pro interní audit a externí regulátory pro prokázání souladu se zákonnými požadavky."),
+
+    ("user_management.png", "Správa Uživatelů a Rolí (RBAC)", 
+     "Pokročilé řízení přístupů. Role-Based Access Control zajišťuje, že uživatelé vidí a spravují pouze "
+     "data relevantní pro jejich roli a oddělení. Plně integrované s Active Directory."),
+
+    ("departments_overview.png", "Přehled Organizační Struktury", 
+     "Analytický pohled na rizikovost po jednotlivých odděleních. Umožňuje srovnání výkonnosti control-landscape "
+     "napříč společností a identifikaci slabých míst v organizaci."),
 ]
 
 def get_b64(path):
@@ -47,11 +92,13 @@ for filename, title, desc in SCREENSHOTS_ORDER:
     path = os.path.join(SCREENSHOTS_DIR, filename)
     b64 = get_b64(path)
     screenshots_html += f"""
-    <div class="gallery-item" onclick="openModal('{b64}')">
-        <img src="{b64}" alt="{title}" loading="lazy">
-        <div class="gallery-caption">
-            <h3>{title}</h3>
-            <p>{desc}</p>
+    <div class="page-break-inside-avoid mb-16 space-y-4">
+        <div class="gallery-item-static shadow-2xl border border-white/10 rounded-2xl overflow-hidden bg-slate-900/50">
+            <img src="{b64}" alt="{title}" class="w-full h-auto">
+        </div>
+        <div class="px-2">
+            <h3 class="text-2xl font-display font-bold text-white mb-2">{title}</h3>
+            <p class="text-slate-400 leading-relaxed text-sm md:text-base">{desc}</p>
         </div>
     </div>
     """
@@ -61,7 +108,7 @@ HTML_CONTENT = f"""<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RiskHub - Slavia Pojišťovna Edition</title>
+    <title>RiskHub - Slavia Pojišťovna Edition (PDF Export Ready)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -72,7 +119,7 @@ HTML_CONTENT = f"""<!DOCTYPE html>
                 extend: {{
                     colors: {{
                         slavia: {{
-                            red: '#e11d2b', // Approx Slavia red
+                            red: '#e11d2b',
                             dark: '#0f172a',
                             blue: '#1e3a8a',
                         }}
@@ -86,6 +133,21 @@ HTML_CONTENT = f"""<!DOCTYPE html>
         }}
     </script>
     <style>
+        @media print {{
+            .no-print {{ display: none !important; }}
+            .page-break-before {{ page-break-before: always; }}
+            .page-break-inside-avoid {{ page-break-inside: avoid; }}
+            body {{ background-color: white !important; color: black !important; }}
+            .glass {{ background: white !important; border: 1px solid #ddd !important; color: black !important; }}
+            .text-slate-400 {{ color: #444 !important; }}
+            .text-white {{ color: black !important; }}
+            .mesh-bg {{ display: none !important; }}
+            .bg-slavia-red {{ background-color: #e11d2b !important; print-color-adjust: exact; }}
+            .text-slavia-red {{ color: #e11d2b !important; }}
+            header {{ min-height: 0 !important; padding-top: 2rem !important; }}
+            .hero-image-container {{ transform: none !important; }}
+            .gallery-item-static {{ border: 1px solid #eee !important; }}
+        }}
         body {{
             background-color: #020617;
             color: #f8fafc;
@@ -94,11 +156,6 @@ HTML_CONTENT = f"""<!DOCTYPE html>
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.08);
-        }}
-        .text-gradient {{
-            background: linear-gradient(to right, #fff, #94a3b8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
         }}
         .text-gradient-red {{
             background: linear-gradient(to right, #fff, #e11d2b);
@@ -111,210 +168,139 @@ HTML_CONTENT = f"""<!DOCTYPE html>
                 radial-gradient(circle at 15% 15%, rgba(225, 29, 43, 0.08) 0%, transparent 40%),
                 radial-gradient(circle at 85% 85%, rgba(30, 58, 138, 0.08) 0%, transparent 40%);
         }}
-        /* Gallery */
-        .gallery-grid {{
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 1.5rem;
-        }}
-        .gallery-item {{
-            position: relative;
-            border-radius: 1rem;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: transform 0.3s ease, border-color 0.3s ease;
-            cursor: pointer;
-            aspect-ratio: 16/10;
-        }}
-        .gallery-item:hover {{
-            transform: translateY(-5px);
-            border-color: #e11d2b;
-            box-shadow: 0 10px 30px rgba(225, 29, 43, 0.2);
-        }}
-        .gallery-item img {{
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.5s ease;
-        }}
-        .gallery-item:hover img {{
-            transform: scale(1.05);
-        }}
-        .gallery-caption {{
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            padding: 1.5rem 1rem 1rem;
-            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-            transform: translateY(100%);
-            transition: transform 0.3s ease;
-        }}
-        .gallery-item:hover .gallery-caption {{
-            transform: translateY(0);
-        }}
-        /* Timeline */
-        .timeline-item {{
-            position: relative;
-            padding-left: 2.5rem;
-            padding-bottom: 2rem;
-            border-left: 2px solid rgba(255,255,255,0.1);
-        }}
-        .timeline-item:last-child {{ border-left: none; }}
-        .timeline-dot {{
-            position: absolute;
-            left: -0.6rem;
-            top: 0;
-            width: 1.2rem;
-            height: 1.2rem;
-            border-radius: 50%;
-            background: #020617;
-            border: 2px solid #22c55e; /* Green for done */
-        }}
-        .timeline-dot.future {{ border-color: #64748b; }}
-        
-        /* Modal */
-        #imgModal {{
-            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
-        }}
-        #imgModal.open {{
-            opacity: 1; pointer-events: auto;
-        }}
     </style>
 </head>
 <body class="antialiased selection:bg-slavia-red selection:text-white">
     <div class="mesh-bg"></div>
 
     <!-- Nav -->
-    <nav class="fixed top-0 w-full z-50 glass px-8 py-4 flex justify-between items-center">
+    <nav class="fixed top-0 w-full z-50 glass px-8 py-4 flex justify-between items-center no-print">
         <div class="font-display font-bold text-2xl tracking-tight text-white flex items-center gap-2">
             <div class="w-3 h-3 rounded-full bg-slavia-red"></div>
-            RiskHub <span class="opacity-50 font-normal text-sm ml-2">Enterprise</span>
+            RiskHub <span class="opacity-50 font-normal text-sm ml-2 font-sans tracking-normal">Board Presentation</span>
         </div>
         <div class="hidden md:flex gap-8 text-sm font-medium text-slate-400">
-            <a href="#gallery" class="hover:text-white transition">Ukázka</a>
-            <a href="#arch" class="hover:text-white transition">Architektura</a>
-            <a href="#roadmap" class="hover:text-white transition">Roadmapa</a>
-            <a href="#author" class="hover:text-white transition">Autor</a>
+            <a href="#gallery" class="hover:text-white transition">Funkce</a>
+            <a href="#arch" class="hover:text-white transition">Technologie</a>
+            <a href="#history" class="hover:text-white transition">Vývoj</a>
         </div>
-        <a href="#contact" class="bg-slavia-red hover:bg-red-700 text-white px-5 py-2 rounded-lg font-medium text-sm transition shadow-[0_0_20px_rgba(225,29,43,0.3)]">
-            Implementovat
-        </a>
+        <button onclick="window.print()" class="bg-slavia-red hover:bg-red-700 text-white px-5 py-2 rounded-lg font-medium text-sm transition">
+            Export do PDF
+        </button>
     </nav>
 
     <!-- Hero -->
-    <header class="min-h-screen flex items-center justify-center relative px-6 pt-20 overflow-hidden">
+    <header class="min-h-screen flex items-center justify-center relative px-6 pt-24 pb-12 overflow-hidden">
         <div class="max-w-7xl w-full grid lg:grid-cols-2 gap-12 items-center">
-            <div class="space-y-8 z-10"   >
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/50 border border-slate-700/50 text-xs font-mono text-slavia-red">
+            <div class="space-y-8 z-10">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/50 border border-slate-700/50 text-[10px] font-mono text-slavia-red uppercase tracking-widest">
                     <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    v1.0 STABLE RELEASE
+                    Production Ready v1.0
                 </div>
                 <h1 class="text-5xl lg:text-7xl font-display font-bold leading-[1.1]">
                     Bezpečnost <br>
                     <span class="text-gradient-red">Bez Kompromisů.</span>
                 </h1>
                 <p class="text-lg text-slate-400 max-w-lg leading-relaxed">
-                    Nová generace řízení rizik pro pojišťovny. Centralizace dat, real-time monitoring a governance standardy OS 18 v jednom prémiovém rozhraní.
+                    Nová generace řízení rizik pro <strong>Slavia Pojišťovnu</strong>. Transparentní governance, 
+                    integrovaná automatizace a plný soulad s regulatorními požadavky ČNB (OS 18).
                 </p>
-                <div class="flex flex-col sm:flex-row gap-4 pt-4">
-                    <a href="#gallery" class="px-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-slate-200 transition text-center">
-                        Prohlédnout Aplikaci
-                    </a>
-                    <div class="px-8 py-4 glass rounded-xl flex items-center gap-3">
-                        <div class="flex -space-x-3">
-                            <div class="w-8 h-8 rounded-full bg-slate-700 border-2 border-black"></div>
-                            <div class="w-8 h-8 rounded-full bg-slate-600 border-2 border-black"></div>
-                            <div class="w-8 h-8 rounded-full bg-slate-500 border-2 border-black"></div>
-                        </div>
-                        <span class="text-sm font-medium text-slate-300">Používáno risk manažery</span>
-                    </div>
-                </div>
                 
                 <!-- Author Badge -->
-                <div class="pt-8 border-t border-slate-800/50 flex items-center gap-4">
-                    <div class="text-right">
-                        <p class="text-xs text-slate-500 uppercase tracking-widest">Created By</p>
-                        <p class="font-display font-bold text-white">Stefan Lesnak</p>
-                    </div>
-                    <div class="h-10 w-[1px] bg-slate-800"></div>
+                <div class="pt-8 border-t border-slate-800/50 flex flex-wrap gap-8 items-center">
                     <div>
-                        <p class="text-xs text-slate-500 uppercase tracking-widest">Methodology</p>
-                        <p class="font-display font-bold text-slavia-red">Systematic Vibe Coding</p>
+                        <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Architekt</p>
+                        <p class="font-display font-bold text-white text-lg">Stefan Lesnak</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Developer</p>
+                        <p class="font-display font-bold text-slavia-red text-lg">Antigravity & Codex</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Metodika</p>
+                        <p class="font-display font-bold text-white text-lg">Systematic Vibe Coding</p>
                     </div>
                 </div>
             </div>
             
-            <div class="relative group perspective-1000">
-                <div class="absolute -inset-4 bg-slavia-red/20 blur-[100px] rounded-full group-hover:bg-slavia-red/30 transition duration-1000"></div>
+            <div class="hero-image-container relative">
                 <img src="{hero_src}" alt="RiskHub Shield" 
-                     class="relative w-full rounded-2xl shadow-2xl border border-slate-800 transform rotate-y-12 rotate-x-6 group-hover:rotate-0 transition duration-700 ease-out">
+                     class="w-full rounded-2xl shadow-2xl border border-slate-800">
             </div>
         </div>
     </header>
 
-    <!-- Gallery Section -->
-    <section id="gallery" class="py-32 px-6">
-        <div class="max-w-7xl mx-auto space-y-12">
-            <div class="text-center space-y-4">
-                <span class="text-slavia-red font-mono text-sm tracking-widest uppercase">Visual Proof</span>
-                <h2 class="text-4xl md:text-5xl font-display font-bold">Rozhraní nové generace</h2>
-                <p class="text-slate-400 max-w-2xl mx-auto">
-                    Zapomeňte na Excel. RiskHub přináší konzistentní design system, dark mode a UX optimalizované pro efektivitu.
+    <!-- Detailed Features Gallery -->
+    <section id="gallery" class="py-24 px-6 md:px-12 bg-slate-900/10">
+        <div class="max-w-7xl mx-auto space-y-24">
+            <div class="text-center space-y-4 mb-20">
+                <h2 class="text-4xl md:text-6xl font-display font-bold">Detailní Průvodce Systémem</h2>
+                <p class="text-slate-400 max-w-2xl mx-auto text-lg">
+                    RiskHub není jen dashboard. Je to komplexní ekosystém navržený pro precizní 
+                    správu rizikové zralosti organizace.
                 </p>
             </div>
             
-            <div class="gallery-grid">
+            <div class="space-y-32">
                 {screenshots_html}
             </div>
         </div>
     </section>
 
     <!-- Architecture Section -->
-    <section id="arch" class="py-32 px-6 bg-slate-900/30 border-y border-white/5">
-        <div class="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
-            <div class="order-2 lg:order-1 relative">
-                <img src="{arch_src}" alt="Architecture Viz" class="rounded-2xl shadow-2xl border border-white/10">
-                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent rounded-2xl"></div>
-                <div class="absolute bottom-6 left-6 font-mono text-xs text-green-400">
-                    <div>> STATUS: OPERATIONAL</div>
-                    <div>> UPTIME: 99.99%</div>
-                    <div>> SYNC: ACTIVE DIRECTORY CONNECTED</div>
+    <section id="arch" class="py-32 px-6 bg-slate-900/30 border-y border-white/5 page-break-before">
+        <div class="max-w-7xl mx-auto space-y-16">
+            <div class="grid lg:grid-cols-2 gap-16 items-center">
+                <div class="space-y-8">
+                    <div>
+                        <span class="text-blue-500 font-mono text-sm tracking-widest uppercase">Under the Hood</span>
+                        <h2 class="text-4xl font-display font-bold mt-2">Robustní Architektura</h2>
+                    </div>
+                    
+                    <div class="space-y-6">
+                        <div class="glass p-6 rounded-xl">
+                            <h3 class="text-xl font-bold mb-3 flex items-center gap-2">
+                                <span class="text-yellow-400">⚡</span> High-Performance Stack
+                            </h3>
+                            <p class="text-slate-400 text-sm leading-relaxed">
+                                Systém je postaven na moderním asynchronním <strong>FastAPI (Python 3.13)</strong>, 
+                                které zajišťuje bleskovou odezvu i při vysokém počtu paralelních požadavků. 
+                                Datová vrstva využívá <strong>PostgreSQL</strong> pro maximální integritu a bezpečnost dat.
+                            </p>
+                        </div>
+
+                        <div class="glass p-6 rounded-xl">
+                            <h3 class="text-xl font-bold mb-3 flex items-center gap-2">
+                                <span class="text-cyan-400">⚛️</span> Reactive Frontend
+                            </h3>
+                            <p class="text-slate-400 text-sm leading-relaxed">
+                                Uživatelské rozhraní v <strong>React 19</strong> (TypeScript) přináší zážitek úrovně desktopové aplikace. 
+                                Díky Vite je zajištěna nízká latence načítání a plynulé animace (Framer Motion).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="relative">
+                    <img src="{arch_src}" alt="Architecture Visual" class="rounded-2xl border border-white/10 shadow-2xl">
                 </div>
             </div>
-            
-            <div class="order-1 lg:order-2 space-y-8">
-                <div>
-                    <span class="text-blue-500 font-mono text-sm tracking-widest uppercase">Under the Hood</span>
-                    <h2 class="text-4xl font-display font-bold mt-2">Robustní Architektura</h2>
-                </div>
-                
-                <div class="space-y-6">
-                    <div class="glass p-6 rounded-xl hover:border-blue-500/50 transition">
-                        <h3 class="text-xl font-bold mb-2 flex items-center gap-2">
-                            <span class="text-yellow-400">⚡</span> Backend Core
-                        </h3>
-                        <p class="text-slate-400 text-sm leading-relaxed">
-                            Postaveno na <strong>FastAPI (Python 3.13)</strong> s plnou podporou async/await. 
-                            Využívá <strong>PostgreSQL</strong> pro perzistenci a Pydantic V2 pro striktní validaci dat.
+
+            <!-- AD Emulator Content -->
+            <div class="glass p-8 md:p-12 rounded-3xl border-l-4 border-slavia-red">
+                <h3 class="text-2xl font-display font-bold mb-6">Prozatímní Komponenta: AD Emulator</h3>
+                <div class="grid md:grid-cols-2 gap-12 text-slate-300">
+                    <div class="space-y-4">
+                        <p>
+                            Součástí implementace je <strong>AD Emulator</strong> – vyhrazená mikroslužba simulující prostředí 
+                            Active Directory. Toto řešení slouží jako <strong>provizorní, ale plně funkční náhrada</strong> 
+                            produkčního adresáře.
                         </p>
                     </div>
-
-                    <div class="glass p-6 rounded-xl hover:border-cyan-500/50 transition">
-                        <h3 class="text-xl font-bold mb-2 flex items-center gap-2">
-                            <span class="text-cyan-400">⚛️</span> Modern Frontend
-                        </h3>
-                        <p class="text-slate-400 text-sm leading-relaxed">
-                            <strong>React 19 + Vite</strong> zajišťují bleskovou odezvu. 
-                            Design system postavený na <strong>Tailwind CSS</strong> a Shadcn/UI s důrazem na glassmorphism.
-                        </p>
-                    </div>
-
-                    <div class="glass p-6 rounded-xl hover:border-slavia-red/50 transition">
-                        <h3 class="text-xl font-bold mb-2 flex items-center gap-2">
-                            <span class="text-slavia-red">🔄</span> AD Integration
-                        </h3>
-                        <p class="text-slate-400 text-sm leading-relaxed">
-                            Standalone mikroslužba <strong>AD Emulator</strong> simuluje podnikovou Active Directory. 
-                            Plná synchronizace uživatelů, rolí a detekce osiřelých účtů (Governance).
+                    <div class="space-y-4">
+                        <p>
+                            Umožňuje nám to plně implementovat a verifikovat veškerou Governance logiku, 
+                            automatickou synchronizaci uživatelů a přiřazování rolí bez závislosti na 
+                            interní IT infrastruktuře ve fázi vývoje a pilotního provozu.
                         </p>
                     </div>
                 </div>
@@ -322,68 +308,66 @@ HTML_CONTENT = f"""<!DOCTYPE html>
         </div>
     </section>
 
-    <!-- Roadmap & Author -->
-    <section id="roadmap" class="py-32 px-6">
-        <div class="max-w-4xl mx-auto">
-            <div class="text-center mb-16">
-                <span class="text-green-500 font-mono text-sm tracking-widest uppercase">Execution Log</span>
-                <h2 class="text-4xl font-display font-bold mt-2">Cesta Projektu</h2>
-                <p class="text-slate-400 mt-4">15 fází dokončeno v rekordním čase díky Systematic Vibe Coding.</p>
+    <!-- Timeline & Execution -->
+    <section id="history" class="py-32 px-6 page-break-before">
+        <div class="max-w-4xl mx-auto space-y-16">
+            <div class="text-center space-y-4">
+                <h2 class="text-4xl font-display font-bold">Vývojový Průběh</h2>
+                <p class="text-slate-400">Projektové milníky a rychlost dodávky.</p>
             </div>
 
-            <div class="glass p-8 md:p-12 rounded-3xl">
-                <div class="space-y-0">
-                    <!-- Phases -->
-                    <div class="timeline-item">
-                        <div class="timeline-dot"></div>
-                        <h4 class="font-bold text-lg">Fáze 1-6: Foundation & Core</h4>
-                        <p class="text-slate-400 text-sm mt-1">Setup, Control Catalog, Risk Register, KRI, Dashboards.</p>
-                        <span class="text-xs font-mono text-green-500 mt-2 block">DONE: 26.12.2025</span>
+            <div class="glass p-10 rounded-3xl space-y-10">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center py-4 border-b border-white/5">
+                    <div>
+                        <div class="text-4xl font-black text-white">15+</div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Dokončených Fází</div>
                     </div>
-                    <div class="timeline-item">
-                        <div class="timeline-dot"></div>
-                        <h4 class="font-bold text-lg">Fáze 7-9: Security & Workflow</h4>
-                        <p class="text-slate-400 text-sm mt-1">RBAC, Permission Filtering, Notifikace.</p>
-                        <span class="text-xs font-mono text-green-500 mt-2 block">DONE: 28.12.2025</span>
+                    <div>
+                        <div class="text-4xl font-black text-slavia-red">5 Dní</div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Čas Exekuce</div>
                     </div>
-                    <div class="timeline-item">
-                        <div class="timeline-dot"></div>
-                        <h4 class="font-bold text-lg">Fáze 90 & 99: Integration</h4>
-                        <p class="text-slate-400 text-sm mt-1">AD Emulator, Data Migration, Governance.</p>
-                        <span class="text-xs font-mono text-green-500 mt-2 block">DONE: 29.12.2025</span>
-                    </div>
-                    <div class="timeline-item">
-                        <div class="timeline-dot future rounded-none border border-green-500 bg-green-500/20"></div>
-                        <h4 class="font-bold text-white text-lg">Fáze 100: Marketing Presentation</h4>
-                        <p class="text-slate-300 text-sm mt-1">Slavia Pojišťovna Board Pitch.</p>
-                        <span class="text-xs font-mono text-slavia-red mt-2 block animate-pulse">>>> CURRENT STATUS</span>
+                    <div>
+                        <div class="text-4xl font-black text-white">100%</div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Regulatorní Shoda</div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Author Section -->
-    <section id="author" class="py-20 px-6 border-t border-white/5 bg-gradient-to-b from-slate-900 to-black">
-        <div class="max-w-3xl mx-auto text-center space-y-8">
-            <h2 class="text-3xl font-display font-bold">O Projektu</h2>
-            <div class="glass p-8 rounded-2xl border-t-2 border-slavia-red relative overflow-hidden">
-                <div class="absolute -right-10 -top-10 w-32 h-32 bg-slavia-red/20 blur-[50px] rounded-full"></div>
                 
-                <p class="text-lg text-slate-300 leading-relaxed italic">
-                    "Tento projekt vznikl během vánočního hackathonu 2025 (25.-29. prosince). 
-                    Demonstruje sílu metodologie <strong>Systematic Vibe Coding</strong> – spojení lidské kreativity 
-                    a AI orchestrace pro rapidní vývoj enterprise softwaru."
-                </p>
-                <div class="mt-8 flex items-center justify-center gap-4">
-                    <div class="text-right">
-                        <div class="font-bold text-white">Stefan Lesnak</div>
-                        <div class="text-xs text-slate-500">Lead Engineer</div>
+                <div class="space-y-12">
+                    <div class="flex gap-6 group">
+                        <div class="text-green-500 font-mono text-sm pt-1">26.12.</div>
+                        <div class="flex-1 pb-8 border-l border-white/10 pl-8 relative">
+                            <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                            <h4 class="font-bold text-white text-xl">Základy & Jádro Systému</h4>
+                            <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+                                Inicializace architektury, Control Catalog (13 bodů), interaktivní Risk Register se scoringem 
+                                a první verze manažerských dashboardů pro vizualizaci rizikového landscape.
+                            </p>
+                        </div>
                     </div>
-                    <div class="h-8 w-px bg-slate-700"></div>
-                    <div class="text-left">
-                        <div class="font-bold text-white">Claude 3.5 Sonnet</div>
-                        <div class="text-xs text-slate-500">AI Co-Pilot</div>
+
+                    <div class="flex gap-6 group">
+                        <div class="text-green-500 font-mono text-sm pt-1">28.12.</div>
+                        <div class="flex-1 pb-8 border-l border-white/10 pl-8 relative">
+                            <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                            <h4 class="font-bold text-white text-xl">Bezpečnost, Approval & Notifikace</h4>
+                            <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+                                Implementace RBAC (řízení přístupů), pokročilé filtrování dat dle oprávnění a komplexní 
+                                schvalovací workflow (Approval Requests) pro zachování integrity dat při změnách. 
+                                In-app notifikační systém pro KRI breach.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-6 group">
+                        <div class="text-slavia-red font-mono text-sm pt-1">29.12.</div>
+                        <div class="flex-1 pb-4 border-l border-white/10 pl-8 relative">
+                            <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-slavia-red shadow-[0_0_10px_rgba(225,29,43,0.5)] animate-pulse"></div>
+                            <h4 class="font-bold text-white text-xl">Integrace & Governance</h4>
+                            <p class="text-slate-400 text-sm mt-3 leading-relaxed">
+                                Nasazení AD Emulatoru, automatizace synchronizace uživatelů a vytvoření Governance Overseer 
+                                modulu pro detekci osiřelých rizik. Kompletní migrace historických dat z Excel registrů (80+ rizik).
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -391,34 +375,36 @@ HTML_CONTENT = f"""<!DOCTYPE html>
     </section>
 
     <!-- Footer -->
-    <footer class="py-12 text-center text-slate-600 text-sm">
-        <p>&copy; 2025 Slavia Pojišťovna | RiskHub Enterprise</p>
-        <p class="mt-2">Designed with Silicon Valley Standards.</p>
+    <footer class="py-20 text-center border-t border-white/5 bg-slate-900/40">
+        <div class="max-w-4xl mx-auto space-y-12">
+            <div class="font-display font-bold text-3xl tracking-tight text-white flex items-center justify-center gap-3">
+                <div class="w-4 h-4 rounded-full bg-slavia-red"></div>
+                RiskHub Enterprise
+            </div>
+            
+            <div class="text-slate-500 text-sm space-y-2">
+                <p>&copy; 2025 Slavia Pojišťovna | Autorský projekt</p>
+                <p>Navrženo pro standardy Silicon Valley. Implementováno pomocí AI Agentů.</p>
+            </div>
+        </div>
     </footer>
 
-    <!-- Image Modal -->
-    <div id="imgModal" class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4" onclick="closeModal()">
+    <!-- Interactive Layer (hidden in Print) -->
+    <div id="imgModal" class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 no-print opacity-0 pointer-events-none transition-opacity duration-300">
         <img id="modalImg" src="" class="max-w-full max-h-[90vh] rounded-lg shadow-2xl border border-white/10">
-        <div class="absolute top-4 right-4 text-white/50 hover:text-white cursor-pointer" onclick="closeModal()">
+        <button onclick="closeModal()" class="absolute top-6 right-6 text-white/50 hover:text-white transition">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </div>
+        </button>
     </div>
 
     <script>
         function openModal(src) {{
             document.getElementById('modalImg').src = src;
-            document.getElementById('imgModal').classList.add('open');
+            document.getElementById('imgModal').classList.remove('opacity-0', 'pointer-events-none');
         }}
         function closeModal() {{
-            document.getElementById('imgModal').classList.remove('open');
+            document.getElementById('imgModal').classList.add('opacity-0', 'pointer-events-none');
         }}
-        
-        // Keydown escape to close
-        document.addEventListener('keydown', function(event) {{
-            if (event.key === "Escape") {{
-                closeModal();
-            }}
-        }});
     </script>
 </body>
 </html>
@@ -429,4 +415,4 @@ output_path = "presentation.html"
 with open(output_path, "w", encoding="utf-8") as f:
     f.write(HTML_CONTENT)
 
-print(f"Presentation generated at {output_path} with {len(SCREENSHOTS_ORDER)} screenshots.")
+print(f"Refined PDF-friendly presentation generated at {output_path}")
