@@ -17,8 +17,10 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 10 Historization (Not started)
-**Plan:** Ready for Phase 10 planning
+**Milestone:** v1.0 MVP
+**Phase:** 100. Marketing Presentation
+**Current Plan:** 100-01 (Completed)
+**Next Plan:** None (Presentation Ready)
 
 ## Progress Summary
 
@@ -31,15 +33,19 @@
 | 10 Historization | ⏳ Not started | - |
 | 11 Historical Visualization | ⏳ Not started | - |
 | 12-15 Deferred | ⏸ Deferred | - |
+| 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
+| 99 Data Migration & Standalone AD | ✅ Complete (7/7) | 2025-12-28 |
+| 100 Marketing Presentation | ✅ Complete (1/1) | 2025-12-29 |
 
 ## Session Context
 
-### Phase 9 Accomplishments (Just Completed)
-- ✅ **09-01**: Notification model with 6 types + Alembic migration
-- ✅ **09-02**: NotificationService with approval event integration
-- ✅ **09-03**: 4 API endpoints (list, unread count, mark read)
-- ✅ **09-04**: Frontend NotificationBell + NotificationsPage
-- ✅ **09-05**: APScheduler with daily KRI breach checking
+### Phase 99 Progress
+- ✅ **99-01**: Migrated 83 risks from placeholder-risk-register.xlsx
+- ✅ **99-02**: Migrated 21 controls with 62 risk links
+- ✅ **99-03**: Migrated 67 KRIs with risk matching
+- ⏳ **99-04**: AD Emulator standalone backend (PLANNED)
+- ⏳ **99-05**: AD Emulator standalone frontend (PLANNED)
+- ⏳ **99-06**: RiskHub integration with external AD Emulator (PLANNED)
 
 ### Key Decisions
 
@@ -50,6 +56,7 @@
 | UI Style | Glassmorphism + Mesh Gradients | 2025-12-25 |
 | Approval Workflow | Delete + Edit approvals for non-privileged | 2025-12-27 |
 | Scheduler | APScheduler (in-process) | 2025-12-28 |
+| AD Emulator | Standalone app (port 8001/5174) | 2025-12-28 |
 
 ## Open Concerns
 
@@ -59,13 +66,26 @@
 | No token refresh | Medium | Auth system |
 | No rate limiting | Medium | Login endpoint |
 
+## Accumulated Context
+
+### Roadmap Evolution
+- Phase 90 (Integrated AD) superseded by Phase 99
+- AD Emulator will be standalone app communicating with RiskHub via HTTP
+- RiskHub will fetch directory users from AD Emulator, not store internally
+
+### AD Emulator Architecture
+- **AD Emulator Backend**: Port 8001, FastAPI, separate PostgreSQL database
+- **AD Emulator Frontend**: Port 5174, React/Vite, purple/violet branding
+- **RiskHub Integration**: HTTP client to fetch from AD Emulator, sync to local users
+
 ## Continuity
 
 ### Last Action
-- Completed Phase 09 Notification System (5/5 plans)
+- Created phase plans 99-04, 99-05, 99-06 for AD Emulator standalone separation
 
 ### Next Step
-- Plan Phase 10: Historization Schema & API
+- Execute Phase 99-04: Create AD Emulator standalone backend
 
 ---
 *Updated: 2025-12-28*
+

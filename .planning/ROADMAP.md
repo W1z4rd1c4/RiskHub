@@ -31,6 +31,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 14: Advanced Audit Workflows** — Audit automation (deferred)
 - [ ] **Phase 15: Polish & Deploy** — i18n, Docker, and documentation (deferred)
 - [ ] **Phase 90: AD Emulator** — Active Directory emulator server + user sync + change management UI
+- [x] **Phase 100: Marketing Presentation** — Single HTML presentation for the board (Czech)
 
 ## Phase Details
 
@@ -283,6 +284,7 @@ Plans:
 - [x] 90-11: Uncategorised Department Fallback (default dept for orphans without dept)
 - [x] 90-12: AD Emulator Role Awareness (Dept Head vs Employee)
 - [x] 90-13: Empty Department Cleanup (hide empty depts & move legacy items)
+- [x] 90-14: Uncategorised Items Governance (auto-flag uncat items as orphans)
 
 ### Phase 99: Data Migration & AD Emulator Standalone
 **Goal**: Migrate real data and separate AD Emulator into standalone application that communicates with RiskHub via HTTP API
@@ -297,6 +299,15 @@ Plans:
 - [x] 99-04: AD Emulator standalone backend (separate FastAPI app in /AD Emulator)
 - [x] 99-05: AD Emulator standalone frontend (separate React app with premium design)
 - [x] 99-06: RiskHub integration with external AD Emulator (HTTP sync)
+
+### Phase 100: Marketing Presentation
+**Goal**: Create a stunning single-file HTML presentation in Czech for the board to implement the application.
+**Depends on**: All previous phases (content)
+**Research**: None
+**Plans**: 1 plan
+
+Plans:
+- [ ] 100-01: Single-file HTML slide deck presentation (Czech)
 
 ## Progress
 
