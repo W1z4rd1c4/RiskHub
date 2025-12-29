@@ -44,7 +44,7 @@ PERMISSIONS = [
 ROLE_PERMISSIONS = {
     "admin": ["*:*"],
     "cro": ["*:*"],
-    "risk_manager": ["controls:*", "risks:*", "departments:read", "reports:*", "users:read"],
+    "risk_manager": ["controls:*", "risks:*", "departments:read", "reports:*", "users:read", "approvals:write"],
     "actuarial": ["controls:read", "controls:write", "risks:read", "reports:read"],
     "compliance": ["controls:read", "controls:write", "risks:read", "reports:read"],
     "internal_audit": ["controls:read", "risks:read", "departments:read", "reports:read"],
@@ -399,7 +399,7 @@ async def seed_controls_and_risks(db: AsyncSession):
     # Create sample executions for first 3 controls
     for i, control in enumerate(controls[:3]):
         for days_ago in [30, 15, 0]:
-            exec_time = datetime.now(UTC) - timedelta(days=days_ago)
+            exec_time = datetime.now() - timedelta(days=days_ago)
             execution = ControlExecution(
                 control_id=control.id,
                 executed_by_id=admin_user.id if admin_user else None,
