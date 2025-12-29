@@ -23,9 +23,10 @@ export function usePermissions() {
         canCreateControls: hasPermission('controls', 'write'),
         canEditControls: hasPermission('controls', 'write'),
         canDeleteControls: hasPermission('controls', 'delete'),
-        canCreateKRIs: hasPermission('kris', 'write'),
-        canEditKRIs: hasPermission('kris', 'write'),
-        canDeleteKRIs: hasPermission('kris', 'delete'),
+        // KRI permissions inherit from risks (KRIs are risk sub-entities)
+        canCreateKRIs: hasPermission('risks', 'write'),
+        canEditKRIs: hasPermission('risks', 'write'),
+        canDeleteKRIs: hasPermission('risks', 'delete'),
         isAdmin: user?.role === 'admin' || user?.role === 'cro',
         user,
     };
