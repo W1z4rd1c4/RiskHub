@@ -12,17 +12,18 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { userApi } from '@/services/userApi';
 import { departmentApi } from '@/services/departmentApi';
-import type { UserCreate } from '@/types/user';
+import type { UserCreate, Role } from '@/types/user';
 
 export function UserNewPage() {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [departments, setDepartments] = useState<any[]>([]);
+    const [roles, setRoles] = useState<Role[]>([]);
     const [formData, setFormData] = useState<UserCreate>({
         email: '',
         name: '',
         password: '',
-        role_id: 4, // Default to Employee
+        role_id: 0, // Will be set to employee role once fetched
         department_id: null,
         manager_id: null,
         is_active: true
@@ -31,7 +32,24 @@ export function UserNewPage() {
 
     useEffect(() => {
         fetchDepartments();
+        fetchRoles();
     }, []);
+
+    const fetchRoles = async () => {
+        try {
+            const data = await userApi.listRoles();
+            setRoles(data);
+            // Default to employee role if found
+            const employeeRole = data.find(r => r.name === 'employee');
+            if (employeeRole) {
+                setFormData(prev => ({ ...prev, role_id: employeeRole.id }));
+            } else if (data.length > 0) {
+                setFormData(prev => ({ ...prev, role_id: data[0].id }));
+            }
+        } catch (err) {
+            console.error('Failed to fetch roles:', err);
+        }
+    };
 
     const fetchDepartments = async () => {
         try {
@@ -156,11 +174,9 @@ export function UserNewPage() {
                                     value={formData.role_id}
                                     onChange={e => setFormData({ ...formData, role_id: Number(e.target.value) })}
                                 >
-                                    <option value={1}>Administrator</option>
-                                    <option value={2}>CRO (Chief Risk Officer)</option>
-                                    <option value={3}>Department Head</option>
-                                    <option value={4}>Employee</option>
-                                    <option value={5}>Risk Manager</option>
+                                    {roles.map(role => (
+                                        <option key={role.id} value={role.id}>{role.display_name}</option>
+                                    ))}
                                 </select>
                             </div>
                         </div>

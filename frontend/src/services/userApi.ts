@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { UserRead, UserCreate, UserUpdate } from '../types/user';
+import type { UserRead, UserCreate, UserUpdate, Role } from '../types/user';
 
 export const userApi = {
     async listUsers(skip = 0, limit = 100, departmentId?: number, roleId?: number) {
@@ -30,7 +30,7 @@ export const userApi = {
         return apiClient.get<UserRead[]>(`/users/${userId}/subordinates`);
     },
 
-    async listRoles() { // Added helper for roles based on router
-        return apiClient.get<any[]>('/users/roles');
+    async listRoles() {
+        return apiClient.get<Role[]>('/users/roles');
     }
 };

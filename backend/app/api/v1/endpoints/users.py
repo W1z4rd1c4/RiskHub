@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get("", response_model=list[UserRead])
 async def list_users(
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
+    limit: int = Query(100, ge=1, le=1000),
     department_id: int | None = None,
     role_id: int | None = None,
     current_user: User = Depends(deps.get_current_user),
@@ -115,6 +115,16 @@ async def create_user(
         .where(User.id == new_user.id)
     )
     return result.scalar_one()
+
+
+@router.get("/roles", response_model=list[RoleRead])
+async def list_roles(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """List all available roles. Requires authentication."""
+    result = await db.execute(select(Role))
+    return result.scalars().all()
 
 
 @router.get("/{user_id}", response_model=UserRead)
@@ -263,14 +273,6 @@ async def get_user_subordinates(
     return user.subordinates
 
 
-@router.get("/roles", response_model=list[RoleRead])
-async def list_roles(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    """List all available roles. Requires authentication."""
-    result = await db.execute(select(Role))
-    return result.scalars().all()
 
 
 # Keep mock login for development
