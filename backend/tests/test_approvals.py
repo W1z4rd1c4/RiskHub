@@ -203,3 +203,72 @@ async def test_update_blocked_during_pending_delete(auth_client: AsyncClient, te
     )
     assert response.status_code == 409
     assert "pending" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_create_approval_cross_department_forbidden(
+    client: AsyncClient,
+    db_session,
+    test_role_employee,
+):
+    """
+    Users should not be able to create approval requests for resources
+    in departments they don't have access to.
+    """
+    from app.models import User, Department, Risk
+    from app.models.risk import RiskStatus as RiskStatusEnum
+    
+    # Create two departments
+    dept_a = Department(name="Department A", code="DEPT-A")
+    dept_b = Department(name="Department B", code="DEPT-B")
+    db_session.add_all([dept_a, dept_b])
+    await db_session.commit()
+    await db_session.refresh(dept_a)
+    await db_session.refresh(dept_b)
+    
+    # Create user in Department A
+    user_in_a = User(
+        name="User A",
+        email="user-a@example.com",
+        role_id=test_role_employee.id,
+        department_id=dept_a.id,
+        is_active=True,
+    )
+    db_session.add(user_in_a)
+    await db_session.commit()
+    await db_session.refresh(user_in_a)
+    
+    # Create risk in Department B
+    risk_in_b = Risk(
+        risk_id_code="RISK-CROSS-DEPT",
+        process="Cross-department test",
+        description="Risk in department B",
+        category="Test",
+        department_id=dept_b.id,
+        owner_id=user_in_a.id,  # Owner doesn't matter, testing dept access
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=3,
+        status=RiskStatusEnum.active.value,
+    )
+    db_session.add(risk_in_b)
+    await db_session.commit()
+    await db_session.refresh(risk_in_b)
+    
+    # Try to create approval request as user_in_a for risk_in_b
+    response = await client.post(
+        "/api/v1/approvals",
+        headers={"X-Mock-User-Id": str(user_in_a.id)},
+        json={
+            "resource_type": "risk",
+            "resource_id": risk_in_b.id,
+            "reason": "Should not be allowed"
+        }
+    )
+    
+    # Should get 403 Forbidden
+    assert response.status_code == 403
+    assert "department" in response.json()["detail"].lower()
+
