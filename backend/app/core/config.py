@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     
+    # AD Emulator Integration
+    ad_emulator_url: str = "http://localhost:8001/api/v1"
+    webhook_secret: str = ""  # Required in production for webhook signature verification
+    
     model_config = {
         "env_file": ".env",
         "extra": "ignore"
