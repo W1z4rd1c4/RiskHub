@@ -292,11 +292,15 @@ async def get_control_trends(
     try:
         dept_ids = get_user_department_ids(current_user)
 
+        # Early return for users with no department access
+        if dept_ids is not None and len(dept_ids) == 0:
+            return []  # User has no department access - return empty results
+
         # Build base conditions
         conditions = [ControlExecution.executed_at.isnot(None)]
         
         # For department filtering, we need to join with Control
-        if dept_ids or department_id or control_status:
+        if dept_ids is not None or department_id or control_status:
             # Build subquery for control IDs matching filters
             control_conditions = []
             if dept_ids is not None:
