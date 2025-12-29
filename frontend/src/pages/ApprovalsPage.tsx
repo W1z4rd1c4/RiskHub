@@ -20,8 +20,7 @@ export default function ApprovalsPage() {
     const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'pending' | 'all' | 'mine'>('pending');
-    const { hasPermission, user } = usePermissions();
-    const canResolve = hasPermission('approvals', 'write');
+    const { canResolveApprovals: canResolve, user } = usePermissions();
 
     // Dialog State
     const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null);

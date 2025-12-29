@@ -1,18 +1,13 @@
 import { useAuth } from '@/contexts/AuthContext';
 
+/**
+ * Permission helper hook.
+ * Uses AuthContext.hasPermission as the single source of truth for all permission checks.
+ * 
+ * KRI permissions inherit from risks (KRIs are risk sub-entities).
+ */
 export function usePermissions() {
-    const { user } = useAuth();
-
-    const hasPermission = (resource: string, action: string) => {
-        if (!user || !user.permissions) return false;
-
-        // Admin often has "*" or "resource:*" permissions
-        const requiredPermission = `${resource}:${action}`;
-        return user.permissions.includes(requiredPermission) ||
-            user.permissions.includes(`${resource}:*`) ||
-            user.permissions.includes('*:*') ||
-            user.role === 'admin' || user.role === 'cro';
-    };
+    const { user, hasPermission } = useAuth();
 
     return {
         hasPermission,
@@ -27,6 +22,8 @@ export function usePermissions() {
         canCreateKRIs: hasPermission('risks', 'write'),
         canEditKRIs: hasPermission('risks', 'write'),
         canDeleteKRIs: hasPermission('risks', 'delete'),
+        // Approvals permission for workflow management
+        canResolveApprovals: hasPermission('approvals', 'write'),
         isAdmin: user?.role === 'admin' || user?.role === 'cro',
         user,
     };

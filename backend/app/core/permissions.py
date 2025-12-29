@@ -20,7 +20,13 @@ def check_department_access(
         HTTPException 403: If user doesn't have access to the department
     """
     if item_dept_id is None:
-        return  # No department = anyone can access
+        # Null department = only privileged users can access unassigned items
+        if not is_privileged_user(current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to unassigned items"
+            )
+        return  # Privileged user can access
     
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is None:
@@ -66,6 +72,10 @@ def get_user_department_ids(user: User) -> Optional[list[int]]:
     
     if user.department_id:
         return [user.department_id]
+    
+    # Inherit from manager if available
+    if user.manager and user.manager.department_id:
+        return [user.manager.department_id]
     
     return []  # Empty list means no access
 
