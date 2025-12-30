@@ -112,6 +112,37 @@ async def list_breaches(
     return breaches
 
 
+@router.get("/overdue", response_model=list[dict])
+async def list_overdue_kris(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """
+    List all KRIs that are overdue for reporting.
+    
+    Returns KRIs with due_date, days_overdue, and reporting_owner info.
+    """
+    from app.services.kri_history_service import KRIHistoryService
+    
+    overdue = await KRIHistoryService.get_overdue_kris(db)
+    
+    # Filter by department access
+    dept_ids = get_user_department_ids(current_user)
+    if dept_ids is not None:
+        # Need to check each KRI's risk department
+        filtered = []
+        for item in overdue:
+            risk_result = await db.execute(
+                select(Risk).where(Risk.id == item["risk_id"])
+            )
+            risk = risk_result.scalar_one_or_none()
+            if risk and risk.department_id in dept_ids:
+                filtered.append(item)
+        return filtered
+    
+    return overdue
+
+
 @router.get("/{kri_id}", response_model=KRIResponse)
 async def get_kri(
     kri_id: int,
@@ -441,37 +472,6 @@ async def get_kri_history(
         items.append(item)
     
     return KRIHistoryListResponse(items=items, total=total, page=page, size=size)
-
-
-@router.get("/overdue", response_model=list[dict])
-async def list_overdue_kris(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    """
-    List all KRIs that are overdue for reporting.
-    
-    Returns KRIs with due_date, days_overdue, and reporting_owner info.
-    """
-    from app.services.kri_history_service import KRIHistoryService
-    
-    overdue = await KRIHistoryService.get_overdue_kris(db)
-    
-    # Filter by department access
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:
-        # Need to check each KRI's risk department
-        filtered = []
-        for item in overdue:
-            risk_result = await db.execute(
-                select(Risk).where(Risk.id == item["risk_id"])
-            )
-            risk = risk_result.scalar_one_or_none()
-            if risk and risk.department_id in dept_ids:
-                filtered.append(item)
-        return filtered
-    
-    return overdue
 
 
 @router.patch("/{kri_id}/history/{entry_id}", response_model=KRIHistoryEntry)
