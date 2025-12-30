@@ -32,6 +32,8 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 15: Polish & Deploy** — i18n, Docker, and documentation (deferred)
 - [ ] **Phase 90: AD Emulator** — Active Directory emulator server + user sync + change management UI
 - [x] **Phase 100: Marketing Presentation** — Single HTML presentation for the board (Czech)
+- [ ] **Phase 150: Audit (RiskHub-only)** — Systematic code and logic audit for RiskHub (exclude AD Emulator)
+- [ ] **Phase 151: Audit Resolution** — Remediate Phase 150 audit findings across backend and frontend
 
 ## Phase Details
 
@@ -203,7 +205,7 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 10-01: History tables for risks, controls, KRIs (field changes and values)
+- [x] 10-01: KRI historization backend (KRIValueHistory model, fields, migration)
 - [ ] 10-02: History tracking service (automatic change recording)
 - [ ] 10-03: Modify update endpoints to track changes
 - [ ] 10-04: History API endpoints (query change history, time-series data)
@@ -304,11 +306,40 @@ Plans:
 **Goal**: Create a stunning single-file HTML presentation in Czech for the board to implement the application.
 **Depends on**: All previous phases (content)
 **Research**: None
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 100-01: Single-file HTML slide deck presentation (Czech)
 - [x] 100-02: Enhance presentation with screenshots, architecture, and roadmap (Czech)
+- [x] 100-03: PDF optimization and content expansion (Czech)
+
+
+### Phase 150: Audit (RiskHub-only)
+**Goal**: Systematically review RiskHub backend and frontend for bugs and logic issues (exclude AD Emulator).
+**Depends on**: None
+**Research**: None
+**Plans**: 3 plans
+
+Plans:
+- [ ] 150-01: Backend auth/permissions audit
+- [x] 150-02: Backend domain/services audit
+- [x] 150-03: Frontend audit + consolidation
+
+
+### Phase 151: Audit Resolution
+**Goal**: Resolve Phase 150 audit findings across RiskHub backend and frontend.
+**Depends on**: Phase 150
+**Research**: None
+**Plans**: 7 plans
+
+Plans:
+- [ ] 151-01: Backend department/KRI list consistency
+- [ ] 151-02: Dashboard metrics archived filtering + control trend errors
+- [ ] 151-03: Lookup auth + default role safety + approvals permission seed
+- [ ] 151-04: Script/timestamp hygiene fixes
+- [ ] 151-05: Frontend user/approvals permission gating + role defaults
+- [ ] 151-06: Execution enum alignment + risk list fixes
+- [ ] 151-07: Frontend pagination and grouped view completeness
 
 ## Progress
 
@@ -332,9 +363,11 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 7. User Management & RBAC | 7/7 | Complete | 2025-12-27 |
 | 8. Permission Filtering | 8/8 | Complete | 2025-12-28 |
 | 9. Notification System | 5/5 | Complete | 2025-12-28 |
-| 10. Historization | 0/5 | Not started | - |
+| 10. Historization | 1/5 | In progress | - |
 | 11. Historical Visualization | 0/5 | Not started | - |
 | 12-15. Deferred | 0/10 | Deferred | - |
 | 12-15. Deferred | 0/10 | Deferred | - |
 | 90. AD Integration | 10/10 | Complete | 2025-12-29 |
 | 99. Data Migration & Standalone AD | 7/7 | Complete | 2025-12-28 |
+| 150. Audit (RiskHub-only) | 2/3 | In progress | - |
+| 151. Audit Resolution | 0/7 | Not started | - |
