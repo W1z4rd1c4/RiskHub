@@ -1,6 +1,7 @@
 """
 API endpoints for Key Risk Indicators.
 """
+from datetime import date
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, or_
@@ -9,7 +10,10 @@ from sqlalchemy.orm import selectinload, joinedload
 
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
-from app.schemas.kri import KRICreate, KRIUpdate, KRIResponse, KRIListResponse
+from app.schemas.kri import (
+    KRICreate, KRIUpdate, KRIResponse, KRIListResponse,
+    KRIRecordValue, KRIHistoryEntry, KRIHistoryListResponse, KRIHistoryEdit,
+)
 from app.api import deps
 from app.core.permissions import get_user_department_ids, check_department_access
 from app.core.security import require_permission
@@ -337,3 +341,239 @@ async def delete_kri(
             "action_type": "delete"
         }
     )
+
+
+# ============ HISTORY ENDPOINTS ============
+
+@router.post("/{kri_id}/values", response_model=KRIResponse)
+async def record_kri_value(
+    kri_id: int,
+    data: KRIRecordValue,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("risks", "write")),
+):
+    """
+    Record a new value for a KRI.
+    
+    Creates a history entry and updates the current value.
+    Non-privileged users can only record for the current period within the grace window.
+    Privileged users can backdate by specifying period_end.
+    """
+    from app.core.permissions import can_resolve_approvals
+    from app.services.kri_history_service import KRIHistoryService
+    
+    result = await db.execute(
+        select(KeyRiskIndicator)
+        .join(Risk)
+        .where(KeyRiskIndicator.id == kri_id)
+        .options(joinedload(KeyRiskIndicator.risk))
+    )
+    kri = result.scalar_one_or_none()
+    
+    if not kri:
+        raise HTTPException(status_code=404, detail="KRI not found")
+    
+    # Verify department access
+    check_department_access(kri.risk.department_id, current_user)
+    
+    try:
+        history_entry = await KRIHistoryService.record_value(
+            db=db,
+            kri=kri,
+            value=data.value,
+            recorded_by_id=current_user.id,
+            recorded_at=data.recorded_at,
+            period_end=data.period_end,
+            is_privileged=can_resolve_approvals(current_user),
+        )
+        await db.commit()
+        await db.refresh(kri)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    return KRIResponse.model_validate(kri)
+
+
+@router.get("/{kri_id}/history", response_model=KRIHistoryListResponse)
+async def get_kri_history(
+    kri_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+    from_date: Optional[date] = Query(None, description="Filter from date"),
+    to_date: Optional[date] = Query(None, description="Filter to date"),
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+):
+    """Get paginated history for a KRI."""
+    from datetime import date
+    from app.services.kri_history_service import KRIHistoryService
+    from app.schemas.kri import KRIHistoryEntry
+    
+    result = await db.execute(
+        select(KeyRiskIndicator)
+        .join(Risk)
+        .where(KeyRiskIndicator.id == kri_id)
+        .options(joinedload(KeyRiskIndicator.risk))
+    )
+    kri = result.scalar_one_or_none()
+    
+    if not kri:
+        raise HTTPException(status_code=404, detail="KRI not found")
+    
+    # Verify department access
+    check_department_access(kri.risk.department_id, current_user)
+    
+    entries, total = await KRIHistoryService.get_history(
+        db=db,
+        kri_id=kri_id,
+        from_date=from_date,
+        to_date=to_date,
+        page=page,
+        size=size,
+    )
+    
+    # Map to response with user names
+    items = []
+    for entry in entries:
+        item = KRIHistoryEntry.model_validate(entry)
+        if entry.recorded_by:
+            item.recorded_by_name = entry.recorded_by.name
+        items.append(item)
+    
+    return KRIHistoryListResponse(items=items, total=total, page=page, size=size)
+
+
+@router.get("/overdue", response_model=list[dict])
+async def list_overdue_kris(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """
+    List all KRIs that are overdue for reporting.
+    
+    Returns KRIs with due_date, days_overdue, and reporting_owner info.
+    """
+    from app.services.kri_history_service import KRIHistoryService
+    
+    overdue = await KRIHistoryService.get_overdue_kris(db)
+    
+    # Filter by department access
+    dept_ids = get_user_department_ids(current_user)
+    if dept_ids is not None:
+        # Need to check each KRI's risk department
+        filtered = []
+        for item in overdue:
+            risk_result = await db.execute(
+                select(Risk).where(Risk.id == item["risk_id"])
+            )
+            risk = risk_result.scalar_one_or_none()
+            if risk and risk.department_id in dept_ids:
+                filtered.append(item)
+        return filtered
+    
+    return overdue
+
+
+@router.patch("/{kri_id}/history/{entry_id}", response_model=KRIHistoryEntry)
+async def correct_history_entry(
+    kri_id: int,
+    entry_id: int,
+    data: KRIHistoryEdit,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("risks", "write")),
+):
+    """
+    Correct a historical KRI value entry.
+    
+    Non-privileged users submit an approval request.
+    Privileged users apply the correction immediately.
+    """
+    from app.core.permissions import can_resolve_approvals
+    from app.services.kri_history_service import KRIHistoryService
+    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
+    from app.models.kri_history import KRIValueHistory
+    from app.schemas.kri import KRIHistoryEntry
+    
+    # Verify KRI exists and access
+    result = await db.execute(
+        select(KeyRiskIndicator)
+        .join(Risk)
+        .where(KeyRiskIndicator.id == kri_id)
+        .options(joinedload(KeyRiskIndicator.risk))
+    )
+    kri = result.scalar_one_or_none()
+    
+    if not kri:
+        raise HTTPException(status_code=404, detail="KRI not found")
+    
+    check_department_access(kri.risk.department_id, current_user)
+    
+    # Verify history entry exists and belongs to this KRI
+    entry_result = await db.execute(
+        select(KRIValueHistory)
+        .where(KRIValueHistory.id == entry_id, KRIValueHistory.kri_id == kri_id)
+    )
+    entry = entry_result.scalar_one_or_none()
+    
+    if not entry:
+        raise HTTPException(status_code=404, detail="History entry not found")
+    
+    if can_resolve_approvals(current_user):
+        # Apply correction immediately
+        try:
+            updated_entry = await KRIHistoryService.apply_history_correction(
+                db=db,
+                entry_id=entry_id,
+                new_value=data.value,
+                corrected_by_id=current_user.id,
+            )
+            await db.commit()
+            await db.refresh(updated_entry)
+            return KRIHistoryEntry.model_validate(updated_entry)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    else:
+        # Check for existing pending request
+        existing = await db.execute(
+            select(ApprovalRequest).where(
+                ApprovalRequest.resource_type == ApprovalResourceType.KRI,
+                ApprovalRequest.resource_id == kri.id,
+                ApprovalRequest.action_type == ApprovalActionType.EDIT,
+                ApprovalRequest.status == ApprovalStatus.PENDING
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
+        
+        # Create approval request with history entry info
+        pending_changes = {
+            "history_entry_id": entry_id,
+            "old_value": entry.value,
+            "new_value": data.value,
+            "reason": data.reason,
+            "period_end": entry.period_end.isoformat(),
+        }
+        
+        approval = ApprovalRequest(
+            resource_type=ApprovalResourceType.KRI,
+            resource_id=kri.id,
+            resource_name=f"{kri.metric_name[:30]} (history correction)",
+            requested_by_id=current_user.id,
+            reason=data.reason,
+            action_type=ApprovalActionType.EDIT,
+            pending_changes=pending_changes,
+            status=ApprovalStatus.PENDING,
+        )
+        db.add(approval)
+        await db.commit()
+        
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=202,
+            content={
+                "message": "History correction requires approval",
+                "approval_id": approval.id,
+                "action_type": "edit",
+                "pending_changes": pending_changes
+            }
+        )
