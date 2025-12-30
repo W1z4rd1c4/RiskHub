@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.models import Department, User, Risk, Control, ControlExecution, KeyRiskIndicator
 from app.models.risk import RiskStatus
 from app.models.control import ControlStatus, ControlForm, ControlFrequency
+from app.schemas.control import ControlFormEnum, ControlFrequencyEnum, ControlStatusEnum
 from app.schemas.department import (
     DepartmentRead,
     DepartmentSummary,
@@ -91,9 +92,10 @@ async def list_departments(
     )
     high_risk_counts = dict(high_risk_counts_result.all())
     
-    # 4. Control counts
+    # 4. Control counts (non-archived)
     control_counts_result = await db.execute(
         select(Control.department_id, func.count(Control.id))
+        .where(Control.status != ControlStatus.archived.value)
         .group_by(Control.department_id)
     )
     control_counts = dict(control_counts_result.all())
@@ -167,9 +169,14 @@ async def get_department(
     )
     risk_count = risk_count_result.scalar() or 0
     
-    # Count controls
+    # Count controls (non-archived)
     control_count_result = await db.execute(
-        select(func.count(Control.id)).where(Control.department_id == department_id)
+        select(func.count(Control.id)).where(
+            and_(
+                Control.department_id == department_id,
+                Control.status != ControlStatus.archived.value
+            )
+        )
     )
     control_count = control_count_result.scalar() or 0
     
@@ -402,11 +409,34 @@ async def list_department_controls(
     
     if status:
         query = query.where(Control.status == status)
+    else:
+        # Default: exclude archived
+        query = query.where(Control.status != ControlStatus.archived.value)
     
-    query = query.offset(skip).limit(limit).order_by(Control.name)
+    # Eager load relationships for ControlSummary fields
+    query = query.options(
+        selectinload(Control.department),
+        selectinload(Control.control_owner)
+    ).offset(skip).limit(limit).order_by(Control.name)
     
     result = await db.execute(query)
-    return result.scalars().all()
+    controls = result.scalars().all()
+    
+    # Map to ControlSummary with populated fields
+    return [
+        ControlSummary(
+            id=c.id,
+            name=c.name,
+            department_id=c.department_id,
+            department_name=c.department.name if c.department else None,
+            frequency=ControlFrequencyEnum(c.frequency),
+            risk_level=c.risk_level,
+            status=ControlStatusEnum(c.status),
+            control_form=ControlFormEnum(c.control_form),
+            control_owner_name=c.control_owner.name if c.control_owner else None,
+        )
+        for c in controls
+    ]
 
 
 @router.get("/{department_id}/kris", response_model=list[KRIResponse])
