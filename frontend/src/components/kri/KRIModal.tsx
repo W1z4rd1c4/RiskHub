@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, Trash2, Calendar, Activity, Plus } from 'lucide-react';
+import { X, Save, Trash2, Calendar, Activity, Plus, User } from 'lucide-react';
 import type { KeyRiskIndicator, KRIUpdate, KRICreate } from '@/types/kri';
+import { userApi } from '@/services/userApi';
+import type { UserRead } from '@/types/user';
 
 interface KRIModalProps {
     risk_id: number;
@@ -22,8 +24,12 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
         current_value: 0,
         lower_limit: 0,
         upper_limit: 100,
-        unit: '%'
+        unit: '%',
+        frequency: 'quarterly',
+        reporting_owner_id: undefined,
     });
+
+    const [users, setUsers] = useState<UserRead[]>([]);
 
     useEffect(() => {
         if (kri) {
@@ -32,7 +38,9 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                 current_value: kri.current_value,
                 lower_limit: kri.lower_limit,
                 upper_limit: kri.upper_limit,
-                unit: kri.unit
+                unit: kri.unit,
+                frequency: kri.frequency || 'quarterly',
+                reporting_owner_id: kri.reporting_owner_id,
             });
         } else {
             setFormData({
@@ -40,10 +48,25 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                 current_value: 0,
                 lower_limit: 0,
                 upper_limit: 100,
-                unit: '%'
+                unit: '%',
+                frequency: 'quarterly',
+                reporting_owner_id: undefined,
             });
         }
     }, [kri, isOpen]);
+
+    // Load users for reporting owner dropdown
+    useEffect(() => {
+        const loadUsers = async () => {
+            try {
+                const userList = await userApi.listUsers(0, 200);
+                setUsers(userList);
+            } catch (err) {
+                console.error('Error loading users:', err);
+            }
+        };
+        loadUsers();
+    }, []);
 
     if (!isOpen) return null;
 
@@ -157,6 +180,45 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                     onChange={e => setFormData({ ...formData, upper_limit: parseFloat(e.target.value) })}
                                     className="w-full bg-rose-500/5 border border-rose-500/20 rounded-xl px-4 py-3 text-white outline-none focus:border-rose-500/50 transition-all font-mono"
                                 />
+                            </div>
+                        </div>
+
+                        {/* Frequency and Reporting Owner */}
+                        <div className="grid grid-cols-2 gap-6 pt-6 border-t border-white/5">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    Reporting Frequency
+                                </label>
+                                <select
+                                    value={formData.frequency || 'quarterly'}
+                                    onChange={e => setFormData({ ...formData, frequency: e.target.value as any })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
+                                >
+                                    <option value="daily" className="bg-slate-900">Daily</option>
+                                    <option value="weekly" className="bg-slate-900">Weekly</option>
+                                    <option value="monthly" className="bg-slate-900">Monthly</option>
+                                    <option value="quarterly" className="bg-slate-900">Quarterly</option>
+                                    <option value="annually" className="bg-slate-900">Annually</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1">
+                                    <User className="h-3 w-3" />
+                                    Reporting Owner
+                                </label>
+                                <select
+                                    value={formData.reporting_owner_id || ''}
+                                    onChange={e => setFormData({ ...formData, reporting_owner_id: e.target.value ? parseInt(e.target.value) : undefined })}
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
+                                >
+                                    <option value="" className="bg-slate-900">Risk Owner (Default)</option>
+                                    {users.map(user => (
+                                        <option key={user.id} value={user.id} className="bg-slate-900">
+                                            {user.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
