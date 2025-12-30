@@ -207,7 +207,7 @@ Plans:
 Plans:
 - [x] 10-01: KRI historization backend (KRIValueHistory model, fields, migration)
 - [x] 10-02: KRI history service and API endpoints
-- [ ] 10-03: Modify update endpoints to track changes
+- [x] 10-03: KRI frontend historization (types, forms, value recording, history UI)
 - [ ] 10-04: History API endpoints (query change history, time-series data)
 - [ ] 10-05: KRI value recording endpoint with breach detection
 
@@ -363,7 +363,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 7. User Management & RBAC | 7/7 | Complete | 2025-12-27 |
 | 8. Permission Filtering | 8/8 | Complete | 2025-12-28 |
 | 9. Notification System | 5/5 | Complete | 2025-12-28 |
-| 10. Historization | 2/5 | In progress | - |
+| 10. Historization | 3/5 | In progress | - |
 | 11. Historical Visualization | 0/5 | Not started | - |
 | 12-15. Deferred | 0/10 | Deferred | - |
 | 12-15. Deferred | 0/10 | Deferred | - |
