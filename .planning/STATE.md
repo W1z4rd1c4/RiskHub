@@ -17,9 +17,9 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 10. Historization
-**Current Plan:** 10-04 (Completed)
-**Next Plan:** 10-05 (KRI value recording refinements)
+**Phase:** 151. Audit Resolution
+**Current Plan:** 151-01 (Completed)
+**Next Plan:** 151-02 (Dashboard metrics archived filtering)
 
 ## Progress Summary
 
@@ -80,10 +80,10 @@
 ## Continuity
 
 ### Last Action
-- Executed Phase 10-04: History tests and human verification (32 tests, timezone fix)
+- Executed Phase 151-01: Department/KRI list consistency (archived filtering, ControlSummary fields)
 
 ### Next Step
-- Execute Phase 10-05: KRI value recording refinements
+- Execute Phase 151-02: Dashboard metrics archived filtering + control trend errors
 
 ---
 *Updated: 2025-12-31*
