@@ -1,5 +1,15 @@
 import { apiClient } from './apiClient';
-import type { KeyRiskIndicator, KRICreate, KRIUpdate, KRIListResponse } from '../types/kri';
+import type {
+    KeyRiskIndicator,
+    KRICreate,
+    KRIUpdate,
+    KRIListResponse,
+    KRIHistoryEntry,
+    KRIHistoryListResponse,
+    KRIRecordValue,
+    KRIHistoryEdit,
+    OverdueKRI,
+} from '../types/kri';
 
 export const kriApi = {
     async getKRIs(params?: { risk_id?: number; breach_only?: boolean; page?: number; size?: number }): Promise<KRIListResponse> {
@@ -24,5 +34,29 @@ export const kriApi = {
 
     async deleteKRI(id: number): Promise<void> {
         return apiClient.delete<void>(`/kris/${id}`);
+    },
+
+    // History endpoints
+    async recordValue(kriId: number, data: KRIRecordValue): Promise<KeyRiskIndicator> {
+        return apiClient.post<KeyRiskIndicator>(`/kris/${kriId}/values`, data);
+    },
+
+    async getHistory(
+        kriId: number,
+        params?: { from_date?: string; to_date?: string; page?: number; size?: number }
+    ): Promise<KRIHistoryListResponse> {
+        return apiClient.get<KRIHistoryListResponse>(`/kris/${kriId}/history`, { params });
+    },
+
+    async requestHistoryEdit(
+        kriId: number,
+        entryId: number,
+        data: KRIHistoryEdit
+    ): Promise<KRIHistoryEntry | { message: string; approval_id: number }> {
+        return apiClient.patch<KRIHistoryEntry>(`/kris/${kriId}/history/${entryId}`, data);
+    },
+
+    async getOverdue(): Promise<OverdueKRI[]> {
+        return apiClient.get<OverdueKRI[]>('/kris/overdue');
     },
 };
