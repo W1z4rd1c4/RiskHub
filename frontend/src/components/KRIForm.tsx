@@ -5,12 +5,16 @@ import {
     X,
     AlertCircle,
     Target,
-    Search
+    Search,
+    User,
+    Calendar
 } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
+import { userApi } from '@/services/userApi';
 import type { KRICreate } from '@/types/kri';
 import type { RiskSummary } from '@/types/risk';
+import type { UserRead } from '@/types/user';
 
 interface KRIFormProps {
     initialData?: Partial<KRICreate>;
@@ -38,8 +42,13 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
         lower_limit: 0,
         upper_limit: 100,
         unit: '%',
+        frequency: 'quarterly',
+        reporting_owner_id: undefined,
         ...initialData
     });
+
+    // User list for reporting owner selection
+    const [users, setUsers] = useState<UserRead[]>([]);
 
     useEffect(() => {
         const loadRisks = async () => {
@@ -58,6 +67,19 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
             }
         };
         loadRisks();
+    }, []);
+
+    // Load users for reporting owner dropdown
+    useEffect(() => {
+        const loadUsers = async () => {
+            try {
+                const userList = await userApi.listUsers(0, 200);
+                setUsers(userList);
+            } catch (err) {
+                console.error('Error loading users:', err);
+            }
+        };
+        loadUsers();
     }, []);
 
     const handleInputChange = (field: keyof KRICreate, value: any) => {
@@ -373,6 +395,46 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                         <option value="EUR" className="bg-slate-900">EUR</option>
                                         <option value="ratio" className="bg-slate-900">Ratio</option>
                                     </select>
+                                </div>
+
+                                {/* Frequency and Reporting Owner */}
+                                <div className="grid md:grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                            <Calendar className="h-3 w-3" />
+                                            Reporting Frequency
+                                        </label>
+                                        <select
+                                            value={formData.frequency || 'quarterly'}
+                                            onChange={(e) => handleInputChange('frequency', e.target.value)}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
+                                        >
+                                            <option value="daily" className="bg-slate-900">Daily</option>
+                                            <option value="weekly" className="bg-slate-900">Weekly</option>
+                                            <option value="monthly" className="bg-slate-900">Monthly</option>
+                                            <option value="quarterly" className="bg-slate-900">Quarterly</option>
+                                            <option value="annually" className="bg-slate-900">Annually</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
+                                            <User className="h-3 w-3" />
+                                            Reporting Owner
+                                        </label>
+                                        <select
+                                            value={formData.reporting_owner_id || ''}
+                                            onChange={(e) => handleInputChange('reporting_owner_id', e.target.value ? parseInt(e.target.value) : undefined)}
+                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
+                                        >
+                                            <option value="" className="bg-slate-900">Risk Owner (Default)</option>
+                                            {users.map(user => (
+                                                <option key={user.id} value={user.id} className="bg-slate-900">
+                                                    {user.name} ({user.email})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-[9px] text-slate-600 mt-1 ml-1">Leave empty to use Risk owner as default</p>
+                                    </div>
                                 </div>
                             </div>
                         </section>

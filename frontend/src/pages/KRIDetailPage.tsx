@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Edit2, Trash2, Target, AlertTriangle, CheckCircle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, Target, AlertTriangle, CheckCircle, ExternalLink, Plus, Calendar, User, Clock, History } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
 import { PermissionGate } from '@/components/PermissionGate';
 import { KRIModal } from '@/components/kri/KRIModal';
+import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import { Button } from '@/components/ui/button';
-import type { KeyRiskIndicator } from '@/types/kri';
+import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
 
 export function KRIDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -16,7 +17,13 @@ export function KRIDetailPage() {
     const [riskName, setRiskName] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isValueModalOpen, setIsValueModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // History state
+    const [history, setHistory] = useState<KRIHistoryEntry[]>([]);
+    const [historyTotal, setHistoryTotal] = useState(0);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
     useEffect(() => {
         if (id) fetchKRI(parseInt(id));
@@ -36,10 +43,25 @@ export function KRIDetailPage() {
                     setRiskName(`Risk #${data.risk_id}`);
                 }
             }
+            // Fetch history
+            fetchHistory(kriId);
         } catch (err) {
             console.error('Failed to fetch KRI:', err);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchHistory = async (kriId: number) => {
+        setIsLoadingHistory(true);
+        try {
+            const response = await kriApi.getHistory(kriId, { size: 50 });
+            setHistory(response.items);
+            setHistoryTotal(response.total);
+        } catch (err) {
+            console.error('Failed to fetch history:', err);
+        } finally {
+            setIsLoadingHistory(false);
         }
     };
 
@@ -62,12 +84,27 @@ export function KRIDetailPage() {
         await fetchKRI(kri.id);
     };
 
+    const handleRecordSuccess = () => {
+        if (kri) fetchKRI(kri.id);
+    };
+
     const formatNumber = (val: number): string => {
         if (val === 0) return '0';
         if (Math.abs(val) < 1) return val.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         if (Math.abs(val) < 100) return val.toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
         return Math.round(val).toLocaleString('cs-CZ');
     };
+
+    // Calculate due date (period_end + 15 days)
+    const calculateDueDate = (): Date | null => {
+        if (!kri?.last_period_end) return null;
+        const periodEnd = new Date(kri.last_period_end);
+        periodEnd.setDate(periodEnd.getDate() + 15);
+        return periodEnd;
+    };
+
+    const dueDate = calculateDueDate();
+    const isOverdue = dueDate && new Date() > dueDate;
 
     if (isLoading) {
         return (
@@ -121,17 +158,27 @@ export function KRIDetailPage() {
                         </div>
                         <div>
                             <h1 className="text-2xl font-black text-white leading-tight">{kri.metric_name}</h1>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase mt-1 ${isBreaching ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                }`}>
-                                {isBreaching ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
-                                {isBreaching ? 'BREACH' : 'WITHIN LIMITS'}
-                            </span>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${isBreaching ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                    }`}>
+                                    {isBreaching ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
+                                    {isBreaching ? 'BREACH' : 'WITHIN LIMITS'}
+                                </span>
+                                {isOverdue && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                        <Clock className="h-3 w-3" /> OVERDUE
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <PermissionGate resource="risks" action="write">
                     <div className="flex items-center gap-2">
+                        <Button onClick={() => setIsValueModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500">
+                            <Plus className="h-4 w-4 mr-1" /> Record Value
+                        </Button>
                         <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
                             <Edit2 className="h-4 w-4 mr-1" /> Edit
                         </Button>
@@ -166,7 +213,6 @@ export function KRIDetailPage() {
 
                     {/* Visual Gauge */}
                     <div className="relative h-4 bg-white/5 rounded-full overflow-hidden mt-6">
-                        {/* Tolerance Zone */}
                         <div
                             className="absolute h-full bg-emerald-500/20"
                             style={{
@@ -174,12 +220,47 @@ export function KRIDetailPage() {
                                 width: `${Math.min(100, ((kri.upper_limit - kri.lower_limit) / kri.upper_limit) * 100)}%`
                             }}
                         />
-                        {/* Current Value Marker */}
                         <motion.div
                             initial={{ left: 0 }}
                             animate={{ left: `${Math.min(100, Math.max(0, (kri.current_value / kri.upper_limit) * 80))}%` }}
                             className={`absolute w-4 h-4 rounded-full -top-0 ${isBreaching ? 'bg-rose-500' : 'bg-emerald-500'}`}
                         />
+                    </div>
+                </motion.div>
+
+                {/* Reporting Info Card */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="glass-card"
+                >
+                    <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-accent" /> Reporting
+                    </h3>
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between py-2 border-b border-white/5">
+                            <span className="text-xs text-slate-500">Frequency</span>
+                            <span className="text-sm font-bold text-white capitalize">{kri.frequency || 'Quarterly'}</span>
+                        </div>
+                        <div className="flex items-center justify-between py-2 border-b border-white/5">
+                            <span className="text-xs text-slate-500 flex items-center gap-1"><User className="h-3 w-3" /> Owner</span>
+                            <span className="text-sm font-bold text-white">{kri.reporting_owner_name || '(Risk Owner)'}</span>
+                        </div>
+                        {kri.last_period_end && (
+                            <div className="flex items-center justify-between py-2 border-b border-white/5">
+                                <span className="text-xs text-slate-500">Last Period End</span>
+                                <span className="text-sm font-bold text-white">{new Date(kri.last_period_end).toLocaleDateString()}</span>
+                            </div>
+                        )}
+                        {dueDate && (
+                            <div className="flex items-center justify-between py-2">
+                                <span className="text-xs text-slate-500">Due Date</span>
+                                <span className={`text-sm font-bold ${isOverdue ? 'text-amber-400' : 'text-white'}`}>
+                                    {dueDate.toLocaleDateString()}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </motion.div>
 
@@ -201,6 +282,59 @@ export function KRIDetailPage() {
                         </div>
                         <p className="text-[10px] text-slate-500 mt-2">Click to view risk details</p>
                     </div>
+                </motion.div>
+
+                {/* History Card */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 }}
+                    className="glass-card lg:col-span-2"
+                >
+                    <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <History className="h-4 w-4 text-accent" /> Value History
+                        {historyTotal > 0 && <span className="text-slate-500 font-normal">({historyTotal} entries)</span>}
+                    </h3>
+
+                    {isLoadingHistory ? (
+                        <div className="text-center py-8 text-slate-500 text-sm">Loading history...</div>
+                    ) : history.length === 0 ? (
+                        <div className="text-center py-8 text-slate-500 text-sm">
+                            No history recorded yet. Click "Record Value" to start tracking.
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="border-b border-white/10">
+                                        <th className="text-left py-2 px-2 text-slate-500 font-black uppercase">Period End</th>
+                                        <th className="text-right py-2 px-2 text-slate-500 font-black uppercase">Value</th>
+                                        <th className="text-center py-2 px-2 text-slate-500 font-black uppercase">Status</th>
+                                        <th className="text-left py-2 px-2 text-slate-500 font-black uppercase">Recorded At</th>
+                                        <th className="text-left py-2 px-2 text-slate-500 font-black uppercase">By</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {history.map((entry) => (
+                                        <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5">
+                                            <td className="py-2 px-2 text-white">{new Date(entry.period_end).toLocaleDateString()}</td>
+                                            <td className="py-2 px-2 text-right font-mono text-white">{formatNumber(entry.value)} {entry.unit}</td>
+                                            <td className="py-2 px-2 text-center">
+                                                <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase ${entry.breach_status === 'within'
+                                                        ? 'bg-emerald-500/10 text-emerald-400'
+                                                        : 'bg-rose-500/10 text-rose-400'
+                                                    }`}>
+                                                    {entry.breach_status}
+                                                </span>
+                                            </td>
+                                            <td className="py-2 px-2 text-slate-400">{new Date(entry.recorded_at).toLocaleString()}</td>
+                                            <td className="py-2 px-2 text-slate-400">{entry.recorded_by_name || '—'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </motion.div>
 
                 {/* Metadata */}
@@ -241,6 +375,16 @@ export function KRIDetailPage() {
                     onClose={() => setIsEditModalOpen(false)}
                     onSave={handleSave}
                     onDelete={handleDelete}
+                />
+            )}
+
+            {/* Record Value Modal */}
+            {kri && (
+                <KRIValueModal
+                    kri={kri}
+                    isOpen={isValueModalOpen}
+                    onClose={() => setIsValueModalOpen(false)}
+                    onSuccess={handleRecordSuccess}
                 />
             )}
         </div>
