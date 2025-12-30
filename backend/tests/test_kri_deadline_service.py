@@ -1,7 +1,7 @@
 """Tests for KRI deadline checking service."""
 import pytest
 import pytest_asyncio
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -159,3 +159,94 @@ async def test_check_returns_correct_counts(
     assert "notifications_created" in result
     
     assert result["total_kris_checked"] >= 3  # At least our 3 test KRIs
+
+
+# Frequency-based Reminder Tests
+
+@pytest_asyncio.fixture
+async def test_kri_due_soon(db_session: AsyncSession, test_risk):
+    """Create a KRI where period end is in 7 days (advance reminder trigger)."""
+    from datetime import date, timedelta
+    
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Due Soon KRI",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+        created_at=datetime.now(UTC) - timedelta(days=23),  # Period ends in 7 days
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+    return kri
+
+
+@pytest.mark.asyncio
+async def test_deadline_service_returns_due_soon_count(
+    db_session: AsyncSession,
+    test_risk,
+    test_user_cro,
+):
+    """Test that check includes due_soon count in results."""
+    result = await KRIDeadlineService.check_kri_deadlines(db_session)
+    
+    assert "due_soon" in result
+    assert "deadline" in result
+    assert "overdue" in result
+
+
+@pytest.mark.asyncio
+async def test_frequency_conversion(db_session: AsyncSession):
+    """Test the frequency-to-days helper."""
+    from app.services.kri_deadline_service import KRIDeadlineService
+    
+    assert KRIDeadlineService._frequency_to_days("daily") == 1
+    assert KRIDeadlineService._frequency_to_days("weekly") == 7
+    assert KRIDeadlineService._frequency_to_days("monthly") == 30
+    assert KRIDeadlineService._frequency_to_days("quarterly") == 90
+    assert KRIDeadlineService._frequency_to_days("annually") == 365
+
+
+@pytest.mark.asyncio
+async def test_period_calculation(db_session: AsyncSession, test_risk):
+    """Test the period start/end calculation."""
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Test Period KRI",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="quarterly",
+        created_at=datetime.now(UTC) - timedelta(days=10),
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+    
+    period_start, period_end = KRIDeadlineService._current_period(kri)
+    
+    assert period_start == kri.created_at.date()
+    assert (period_end - period_start).days == 89  # Quarterly = 90 days
+
+
+@pytest.mark.asyncio
+async def test_due_date_calculation(db_session: AsyncSession, test_risk):
+    """Test due date is period_end + 15 days."""
+    from datetime import date, timedelta
+    
+    period_end = date(2025, 3, 31)
+    due = KRIDeadlineService._due_date(period_end)
+    
+    assert due == date(2025, 4, 15)
+
+
+@pytest.mark.asyncio
+async def test_deadline_service_constants():
+    """Test deadline service constants are set correctly."""
+    assert KRIDeadlineService.REPORTING_GRACE_DAYS == 15
+    assert KRIDeadlineService.ADVANCE_REMINDER_DAYS == 7
+    assert KRIDeadlineService.OVERDUE_REMINDER_WEEKS == 7
