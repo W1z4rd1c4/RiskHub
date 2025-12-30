@@ -146,12 +146,17 @@ class KRIHistoryService:
         else:
             breach_status = "within"
         
+        # Convert to timezone-naive for database compatibility
+        history_recorded_at = recorded_at or now
+        if history_recorded_at.tzinfo:
+            history_recorded_at = history_recorded_at.replace(tzinfo=None)
+        
         # Create history entry
         history_entry = KRIValueHistory(
             kri_id=kri.id,
             period_start=period_start,
             period_end=period_end,
-            recorded_at=recorded_at or now,
+            recorded_at=history_recorded_at,
             recorded_by_id=recorded_by_id,
             value=value,
             lower_limit=kri.lower_limit,
@@ -164,7 +169,9 @@ class KRIHistoryService:
         # Update KRI current value and period tracking
         kri.current_value = value
         kri.last_period_end = period_end
-        kri.last_reported_at = recorded_at or now
+        # Convert to timezone-naive for database compatibility
+        reported_time = recorded_at or now
+        kri.last_reported_at = reported_time.replace(tzinfo=None) if reported_time.tzinfo else reported_time
         
         await db.flush()
         logger.info(f"Recorded KRI {kri.id} value {value} for period {period_start} to {period_end}")

@@ -208,7 +208,7 @@ Plans:
 - [x] 10-01: KRI historization backend (KRIValueHistory model, fields, migration)
 - [x] 10-02: KRI history service and API endpoints
 - [x] 10-03: KRI frontend historization (types, forms, value recording, history UI)
-- [ ] 10-04: History API endpoints (query change history, time-series data)
+- [x] 10-04: History tests and human verification
 - [ ] 10-05: KRI value recording endpoint with breach detection
 
 ### Phase 11: Historical Visualization & Charts
