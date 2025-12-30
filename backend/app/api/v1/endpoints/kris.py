@@ -85,10 +85,17 @@ async def list_breaches(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
     department_id: Optional[int] = Query(None, description="Filter by department ID"),
+    include_archived: bool = Query(False, description="Include KRIs linked to archived risks"),
 ):
-    """List only breached KRIs for dashboard widget."""
+    """List only breached KRIs for dashboard widget. Excludes archived risks by default."""
+    from app.models.risk import RiskStatus
+    
     # Apply department filtering via Risk join
     query = select(KeyRiskIndicator).join(Risk)
+    
+    # Exclude archived risks by default
+    if not include_archived:
+        query = query.where(Risk.status != RiskStatus.archived.value)
     
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:
@@ -97,7 +104,7 @@ async def list_breaches(
     # Apply explicit department filter if provided (and allowed)
     if department_id:
         if dept_ids is not None and department_id not in dept_ids:
-             # User trying to access authorized department
+             # User trying to access unauthorized department
              # Just return empty, or could raise 403. Returning empty is safer for filters.
              return []
         query = query.filter(Risk.department_id == department_id)
@@ -110,6 +117,7 @@ async def list_breaches(
     breaches = [i for i in items if i.breach_status != "within"]
     
     return breaches
+
 
 
 @router.get("/overdue", response_model=list[dict])
