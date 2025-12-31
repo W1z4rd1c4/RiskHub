@@ -56,7 +56,7 @@ export const kriApi = {
         return apiClient.patch<KRIHistoryEntry>(`/kris/${kriId}/history/${entryId}`, data);
     },
 
-    async getOverdue(): Promise<OverdueKRI[]> {
-        return apiClient.get<OverdueKRI[]>('/kris/overdue');
+    async getOverdue(params?: { department_id?: number }): Promise<OverdueKRI[]> {
+        return apiClient.get<OverdueKRI[]>('/kris/overdue', { params });
     },
 };
