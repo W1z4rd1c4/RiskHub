@@ -2,7 +2,8 @@
 Dashboard API endpoints for executive and department-level metrics.
 """
 from typing import Optional, Literal
-from fastapi import APIRouter, Depends, Query
+import logging
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +22,7 @@ from app.api import deps
 from app.core.permissions import get_user_department_ids
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Risk level score ranges
 RISK_LEVEL_RANGES = {
@@ -47,6 +49,7 @@ async def get_dashboard_summary(
     control_status: Optional[str] = Query(None, description="Filter by control status"),
     control_form: Optional[str] = Query(None, description="Filter by control form"),
     risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(None, description="Filter by risk level"),
+    include_archived: bool = Query(False, description="Include archived items"),
 ):
     """Get overview statistics for executive dashboard with optional filters."""
     
@@ -68,6 +71,9 @@ async def get_dashboard_summary(
         control_conditions.append(control_dept_filter)
     if control_status:
         control_conditions.append(Control.status == control_status)
+    elif not include_archived:
+        # Default: exclude archived unless status filter or include_archived is set
+        control_conditions.append(Control.status != ControlStatus.archived.value)
     if control_form:
         control_conditions.append(Control.control_form == control_form)
     
@@ -75,6 +81,8 @@ async def get_dashboard_summary(
     risk_conditions = []
     if risk_dept_filter is not None:
         risk_conditions.append(risk_dept_filter)
+    if not include_archived:
+        risk_conditions.append(Risk.status != RiskStatus.archived.value)
     if risk_level:
         risk_level_cond = build_risk_level_condition(risk_level)
         if risk_level_cond is not None:
@@ -171,6 +179,7 @@ async def get_department_metrics(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
     department_id: Optional[int] = Query(None, description="Filter to specific department"),
+    include_archived: bool = Query(False, description="Include archived items"),
 ):
     """Get per-department statistics, optionally filtered to a single department."""
     dept_ids = get_user_department_ids(current_user)
@@ -186,10 +195,11 @@ async def get_department_metrics(
     
     metrics = []
     for dept in departments:
-        # Control count
-        control_count_result = await db.execute(
-            select(func.count(Control.id)).where(Control.department_id == dept.id)
-        )
+        # Control count (exclude archived by default)
+        control_query = select(func.count(Control.id)).where(Control.department_id == dept.id)
+        if not include_archived:
+            control_query = control_query.where(Control.status != ControlStatus.archived.value)
+        control_count_result = await db.execute(control_query)
         control_count = control_count_result.scalar() or 0
         
         # Active control count for compliance rate
@@ -201,19 +211,21 @@ async def get_department_metrics(
         )
         active_control_count = active_control_result.scalar() or 0
         
-        # Risk count
-        risk_count_result = await db.execute(
-            select(func.count(Risk.id)).where(Risk.department_id == dept.id)
-        )
+        # Risk count (exclude archived by default)
+        risk_query = select(func.count(Risk.id)).where(Risk.department_id == dept.id)
+        if not include_archived:
+            risk_query = risk_query.where(Risk.status != RiskStatus.archived.value)
+        risk_count_result = await db.execute(risk_query)
         risk_count = risk_count_result.scalar() or 0
         
-        # High risk count (net_score >= 12)
-        high_risk_result = await db.execute(
-            select(func.count(Risk.id)).where(
-                Risk.department_id == dept.id,
-                Risk.net_score >= 12
-            )
+        # High risk count (net_score >= 12, exclude archived by default)
+        high_risk_query = select(func.count(Risk.id)).where(
+            Risk.department_id == dept.id,
+            Risk.net_score >= 12
         )
+        if not include_archived:
+            high_risk_query = high_risk_query.where(Risk.status != RiskStatus.archived.value)
+        high_risk_result = await db.execute(high_risk_query)
         high_risk_count = high_risk_result.scalar() or 0
         
         # Compliance rate
@@ -237,12 +249,15 @@ async def get_risk_distribution(
     current_user: User = Depends(deps.get_current_user),
     department_id: Optional[int] = Query(None, description="Filter by department"),
     risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(None, description="Filter by risk level"),
+    include_archived: bool = Query(False, description="Include archived risks"),
 ):
     """Get risk distribution for 5x5 risk matrix visualization with optional filters."""
     dept_ids = get_user_department_ids(current_user)
 
     # Build conditions
     conditions = []
+    if not include_archived:
+        conditions.append(Risk.status != RiskStatus.archived.value)
     if dept_ids is not None:
         conditions.append(Risk.department_id.in_(dept_ids))
     elif department_id:
@@ -284,6 +299,7 @@ async def get_risk_distribution(
 async def get_control_trends(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
+    response: Response = None,
     department_id: Optional[int] = Query(None, description="Filter by department"),
     control_status: Optional[str] = Query(None, description="Filter by control status"),
 ):
@@ -356,8 +372,12 @@ async def get_control_trends(
         
         # Reverse to show oldest first for charts
         return list(reversed(trends))
-    except Exception:
-        # Return empty list on any error
+    except Exception as e:
+        # Log the error for observability
+        logger.exception("Error fetching control trends: %s", str(e))
+        # Signal error via response header if response object available
+        if response is not None:
+            response.headers["X-Control-Trends-Error"] = "1"
         return []
 
 
@@ -368,6 +388,7 @@ async def get_risks_by_cell(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
     department_id: Optional[int] = Query(None, description="Filter by department"),
+    include_archived: bool = Query(False, description="Include archived risks"),
 ):
     """Get list of risks at a specific probability/impact intersection for drill-down."""
     
@@ -377,6 +398,9 @@ async def get_risks_by_cell(
         Risk.net_probability == probability,
         Risk.net_impact == impact
     ]
+    
+    if not include_archived:
+        conditions.append(Risk.status != RiskStatus.archived.value)
     
     if dept_ids is not None:
         conditions.append(Risk.department_id.in_(dept_ids))
