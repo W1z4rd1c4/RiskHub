@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 11. Historical Visualization
-**Current Plan:** 11-02 (Completed)
-**Next Plan:** 11-03 (Dashboard Widgets) or Phase Complete
+**Current Plan:** 11-03 (Completed)
+**Next Plan:** 11-04 (Correction UI) or Phase Complete
 
 ## Progress Summary
 
@@ -30,7 +30,7 @@
 | 8 Permission Filtering | ✅ Complete (8/8) | 2025-12-28 |
 | 9 Notification System | ✅ Complete (5/5) | 2025-12-28 |
 | 10 Historization | ⏳ In progress (4/5) | 2025-12-31 |
-| 11 Historical Visualization | ⏳ In progress (2/4) | 2025-12-31 |
+| 11 Historical Visualization | ⏳ In progress (3/4) | 2025-12-31 |
 | 12-15 Deferred | ⏸ Deferred | - |
 | 85 Workflow & Users | ✅ Complete (3/3) | 2025-12-31 |
 | 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
@@ -87,10 +87,10 @@
 ## Continuity
 
 ### Last Action
-- Executed Phase 11-02: Added history tabs to KRIDetailPage, ControlDetailPage, and RiskDetailPage with HistoryTrendChart and HistoryTimeline components.
+- Executed Phase 11-03: Built HistoryComparisonPanel for side-by-side KRI value comparison with deltas and breach status changes.
 
 ### Next Step
-- Execute Phase 11-03 (dashboard widgets) or mark Phase 11 complete.
+- Execute Phase 11-04 (correction UI) or mark Phase 11 complete.
 
 ---
 *Updated: 2025-12-31*
