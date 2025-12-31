@@ -37,6 +37,7 @@ PERMISSIONS = [
     {"resource": "reports", "action": "read", "description": "View and export reports"},
     {"resource": "users", "action": "read", "description": "View users"},
     {"resource": "users", "action": "write", "description": "Manage users"},
+    {"resource": "approvals", "action": "write", "description": "Resolve approval requests"},
 ]
 
 # Role-permission mappings

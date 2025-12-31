@@ -75,17 +75,21 @@ def _build_department_code(name: str, existing_codes: set[str]) -> str:
 
 
 async def _resolve_default_role(db: AsyncSession) -> Role:
+    """Resolve a safe default role for new directory users.
+    
+    Only returns non-privileged roles (employee, control_owner, viewer).
+    Raises ValueError if no suitable role exists - never falls back to privileged roles.
+    """
     for name in DEFAULT_ROLE_CANDIDATES:
         result = await db.execute(select(Role).where(Role.name == name))
         role = result.scalar_one_or_none()
         if role:
             return role
 
-    result = await db.execute(select(Role).order_by(Role.id))
-    role = result.scalars().first()
-    if not role:
-        raise ValueError("No roles found; seed roles before syncing directory users")
-    return role
+    raise ValueError(
+        "No safe default role found (employee, control_owner, or viewer). "
+        "Seed roles before syncing directory users."
+    )
 
 
 async def _get_or_create_department(
