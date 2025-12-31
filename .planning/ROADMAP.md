@@ -335,7 +335,7 @@ Plans:
 Plans:
 - [x] 151-01: Backend department/KRI list consistency
 - [x] 151-02: Dashboard metrics archived filtering + control trend errors
-- [ ] 151-03: Lookup auth + default role safety + approvals permission seed
+- [x] 151-03: Lookup auth + default role safety + approvals permission seed
 - [ ] 151-04: Script/timestamp hygiene fixes
 - [ ] 151-05: Frontend user/approvals permission gating + role defaults
 - [ ] 151-06: Execution enum alignment + risk list fixes
@@ -370,4 +370,4 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 90. AD Integration | 10/10 | Complete | 2025-12-29 |
 | 99. Data Migration & Standalone AD | 7/7 | Complete | 2025-12-28 |
 | 150. Audit (RiskHub-only) | 2/3 | In progress | - |
-| 151. Audit Resolution | 2/7 | In progress | - |
+| 151. Audit Resolution | 3/7 | In progress | - |
