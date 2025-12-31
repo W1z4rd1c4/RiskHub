@@ -1,6 +1,6 @@
 """Service for managing orphaned items (risks/controls without owners)."""
 import logging
-from datetime import datetime, UTC
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import select, func
@@ -128,9 +128,11 @@ class OrphanedItemService:
         new_orphans_count = 0
         fallback_owner_id = await OrphanedItemService._get_fallback_owner_id(db)
         
+        processed_risk_ids = set()
+        processed_control_ids = set()
+        
         # 1. Scan Risks
         # Find risks in UNCAT that are NOT in orphaned_items (pending)
-        # Using a left join exclusion pattern or simple NOT IN subquery
         
         pending_risk_ids_stmt = select(OrphanedItem.item_id).where(
             OrphanedItem.item_type == "risk",
@@ -160,10 +162,12 @@ class OrphanedItemService:
                 item_id=risk.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.now(UTC).replace(tzinfo=None)
+                orphaned_at=datetime.utcnow()
             )
             db.add(orphan)
+            db.add(orphan)
             new_orphans_count += 1
+            processed_risk_ids.add(risk.id)
             
         # 2. Scan Controls
         pending_control_ids_stmt = select(OrphanedItem.item_id).where(
@@ -198,14 +202,99 @@ class OrphanedItemService:
                 item_id=control.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.now(UTC).replace(tzinfo=None)
+                orphaned_at=datetime.utcnow()
             )
             db.add(orphan)
             new_orphans_count += 1
+            processed_control_ids.add(control.id)
             
+        # 3. Scan KRIs without Risks
+        # Note: risk_id is mandatory in DB, but we might want to flag KRIs
+        # that are somehow floating or in UNCAT (though they belong to Risks).
+        # "KRI NOT LINKED TO A RISK" (User requirement)
+        # We'll check for any KRI records that for some reason have missing Risk links 
+        # (unlikely due to FK) or KRIs that belong to "Uncategorised" risks.
+        
+        # For now, let's scan for KRIs whose parent RISK is in UNCAT dept
+        pending_kri_ids_stmt = select(OrphanedItem.item_id).where(
+            OrphanedItem.item_type == "kri",
+            OrphanedItem.status == "pending"
+        )
+        
+        from app.models.key_risk_indicator import KeyRiskIndicator
+        from sqlalchemy.orm import selectinload
+        
+        stmt = (
+            select(KeyRiskIndicator)
+            .options(selectinload(KeyRiskIndicator.risk))
+            .join(Risk)
+            .where(Risk.department_id == uncat_dept.id)
+            .where(KeyRiskIndicator.id.not_in(pending_kri_ids_stmt))
+        )
+        
+        result = await db.execute(stmt)
+        uncat_kris = result.scalars().all()
+        
+        for kri in uncat_kris:
+            # KRIs don't have separate owners, they follow the Risk owner
+            # We use the Risk owner as the previous owner for the orphan record
+            prev_owner_id = kri.risk.owner_id or fallback_owner_id
+            
+            if not prev_owner_id:
+                continue
+                
+            orphan = OrphanedItem(
+                item_type="kri",
+                item_id=kri.id,
+                previous_owner_id=prev_owner_id,
+                status="pending",
+                orphaned_at=datetime.utcnow()
+            )
+            db.add(orphan)
+            new_orphans_count += 1
+
+        # 4. Scan Controls without Risk Linkage
+
+        # "CONTROLS: NO DEPARTMENT, NO OWNER OR NO RISK LINKAGE"
+        from app.models.risk import ControlRiskLink
+        
+        # Controls with NO risk links
+        linked_control_ids = select(ControlRiskLink.control_id).distinct()
+        
+        stmt = (
+            select(Control)
+            .where(Control.id.not_in(linked_control_ids))
+            .where(Control.id.not_in(pending_control_ids_stmt))
+        )
+        
+        result = await db.execute(stmt)
+        unlinked_controls = result.scalars().all()
+        
+        for control in unlinked_controls:
+            if control.id in processed_control_ids:
+                continue
+                
+            prev_owner_id = (
+                control.control_owner_id or 
+                control.created_by_id or 
+                fallback_owner_id
+            )
+            if not prev_owner_id:
+                continue
+                
+            orphan = OrphanedItem(
+                item_type="control",
+                item_id=control.id,
+                previous_owner_id=prev_owner_id,
+                status="pending",
+                orphaned_at=datetime.utcnow()
+            )
+            db.add(orphan)
+            new_orphans_count += 1
+
         if new_orphans_count > 0:
             await db.commit()
-            logger.info(f"Uncategorised Sweep: Flagged {new_orphans_count} new orphaned items")
+            logger.info(f"Uncategorised/Orphan Sweep: Flagged {new_orphans_count} new orphaned items")
             
         return new_orphans_count
     
@@ -237,12 +326,12 @@ class OrphanedItemService:
     @staticmethod
     async def get_orphan_stats(db: AsyncSession) -> dict:
         """
-        Get statistics about orphaned items.
+        Get statistics about orphaned items for the 4-bar layout.
         
         Returns:
-            Dict with total_pending and by_type counts
+            Dict matching OrphanedItemStats schema
         """
-        # Count by type
+        # Count pending orphans in the database by type
         result = await db.execute(
             select(
                 OrphanedItem.item_type,
@@ -252,25 +341,28 @@ class OrphanedItemService:
             .group_by(OrphanedItem.item_type)
         )
         
-        by_type = {"risks": 0, "controls": 0}
+        counts = {"risk": 0, "control": 0, "kri": 0}
         total = 0
         for row in result:
-            type_key = f"{row.item_type}s" if row.item_type in ("risk", "control") else row.item_type
-            by_type[type_key] = row.count
-            total += row.count
+            if row.item_type in counts:
+                counts[row.item_type] = row.count
+                total += row.count
         
         return {
-            "total_pending": total,
-            "by_type": by_type,
+            "risk_count": counts["risk"],
+            "control_count": counts["control"],
+            "kri_count": counts["kri"],
+            "total_count": total,
         }
     
     @staticmethod
     async def resolve_orphan(
         db: AsyncSession,
         orphan_id: int,
-        new_owner_id: int,
         resolved_by_id: int,
+        new_owner_id: int | None = None,
         department_id: int | None = None,
+        target_risk_id: int | None = None,
     ) -> OrphanedItem:
         """
         Resolve an orphaned item by assigning a new owner.
@@ -278,9 +370,10 @@ class OrphanedItemService:
         Args:
             db: Database session
             orphan_id: ID of the orphaned_item record
-            new_owner_id: ID of new owner to assign
             resolved_by_id: ID of admin who resolved this
-            department_id: Optional department to assign (falls back to owner's dept or Uncategorised)
+            new_owner_id: Optional ID of new owner to assign
+            department_id: Optional department to assign
+            target_risk_id: Optional risk ID to link item to
             
         Returns:
             Updated OrphanedItem record
@@ -300,24 +393,26 @@ class OrphanedItemService:
         if orphan.status == "resolved":
             raise ValueError(f"Orphaned item {orphan_id} is already resolved")
         
-        # Verify new owner exists and is active
-        owner_result = await db.execute(
-            select(User).where(User.id == new_owner_id)
-        )
-        new_owner = owner_result.scalar_one_or_none()
-        
-        if not new_owner:
-            raise ValueError(f"New owner {new_owner_id} not found")
-        
-        if not new_owner.is_active:
-            raise ValueError(f"New owner {new_owner_id} is not active")
+        new_owner = None
+        if new_owner_id:
+            # Verify new owner exists and is active
+            owner_result = await db.execute(
+                select(User).where(User.id == new_owner_id)
+            )
+            new_owner = owner_result.scalar_one_or_none()
+            
+            if not new_owner:
+                raise ValueError(f"New owner {new_owner_id} not found")
+            
+            if not new_owner.is_active:
+                raise ValueError(f"New owner {new_owner_id} is not active")
         
         # Determine department: explicit > owner's department > Uncategorised
         target_dept_id = department_id
-        if target_dept_id is None:
+        if target_dept_id is None and new_owner:
             target_dept_id = new_owner.department_id
         
-        if target_dept_id is None:
+        if target_dept_id is None and (new_owner or orphan.item_type != "kri"):
             # Fall back to Uncategorised department
             uncat_result = await db.execute(
                 select(Department).where(Department.code == "UNCAT")
@@ -325,7 +420,7 @@ class OrphanedItemService:
             uncat_dept = uncat_result.scalar_one_or_none()
             if uncat_dept:
                 target_dept_id = uncat_dept.id
-                logger.info(f"No department for user {new_owner_id}, using Uncategorised")
+                logger.info("Using Uncategorised department as fallback")
         
         # Update the actual item's owner and department
         if orphan.item_type == "risk":
@@ -348,7 +443,40 @@ class OrphanedItemService:
                 control.control_owner_id = new_owner_id
                 if target_dept_id:
                     control.department_id = target_dept_id
+                
+                # Link to risk if target_risk_id provided
+                if target_risk_id:
+                    from app.models.risk import ControlRiskLink
+                    # Check existing link
+                    link_res = await db.execute(
+                        select(ControlRiskLink).where(
+                            ControlRiskLink.control_id == control.id,
+                            ControlRiskLink.risk_id == target_risk_id
+                        )
+                    )
+                    if not link_res.scalar_one_or_none():
+                        link = ControlRiskLink(
+                            control_id=control.id,
+                            risk_id=target_risk_id,
+                            effectiveness="partially_effective" # Default
+                        )
+                        db.add(link)
+                
                 logger.info(f"Reassigned control {control.id} to user {new_owner_id}, dept {target_dept_id}")
+
+        elif orphan.item_type == "kri":
+            from app.models.key_risk_indicator import KeyRiskIndicator
+            kri_result = await db.execute(
+                select(KeyRiskIndicator).where(KeyRiskIndicator.id == orphan.item_id)
+            )
+            kri = kri_result.scalar_one_or_none()
+            if kri:
+                # KRIs follow Risk owner, but we can update the Risk link
+                if target_risk_id:
+                    kri.risk_id = target_risk_id
+                
+                # We don't have separate owner for KRI, but we can log the resolution
+                logger.info(f"Resolved KRI {kri.id} by linking to risk {target_risk_id or kri.risk_id}")
         
         # Mark orphan as resolved
         orphan.status = "resolved"
@@ -415,10 +543,25 @@ class OrphanedItemService:
                 )
                 control = control_result.scalar_one_or_none()
                 if control:
-                    item_name = control.control_name or f"Control #{control.id}"
+                    item_name = control.name or f"Control #{control.id}"
                     item_identifier = str(control.id)
                     if control.department:
                         department_name = control.department.name
+            
+            elif orphan.item_type == "kri":
+                from app.models.key_risk_indicator import KeyRiskIndicator
+                kri_result = await db.execute(
+                    select(KeyRiskIndicator).where(KeyRiskIndicator.id == orphan.item_id)
+                )
+                kri = kri_result.scalar_one_or_none()
+                if kri:
+                    item_name = kri.metric_name or f"KRI #{kri.id}"
+                    item_identifier = str(kri.id)
+                    # KRIs link to risks, which have depts
+                    risk_res = await db.execute(select(Risk).options(selectinload(Risk.department)).where(Risk.id == kri.risk_id))
+                    risk = risk_res.scalar_one_or_none()
+                    if risk and risk.department:
+                        department_name = risk.department.name
             
             details.append({
                 "id": orphan.id,
@@ -477,10 +620,24 @@ class OrphanedItemService:
             )
             control = control_result.scalar_one_or_none()
             if control:
-                item_name = control.control_name or f"Control #{control.id}"
+                item_name = control.name or f"Control #{control.id}"
                 item_identifier = str(control.id)
                 if control.department:
                     department_name = control.department.name
+        
+        elif orphan.item_type == "kri":
+            from app.models.key_risk_indicator import KeyRiskIndicator
+            kri_result = await db.execute(
+                select(KeyRiskIndicator).where(KeyRiskIndicator.id == orphan.item_id)
+            )
+            kri = kri_result.scalar_one_or_none()
+            if kri:
+                item_name = kri.metric_name or f"KRI #{kri.id}"
+                item_identifier = str(kri.id)
+                risk_res = await db.execute(select(Risk).options(selectinload(Risk.department)).where(Risk.id == kri.risk_id))
+                risk = risk_res.scalar_one_or_none()
+                if risk and risk.department:
+                    department_name = risk.department.name
         
         return {
             "id": orphan.id,
