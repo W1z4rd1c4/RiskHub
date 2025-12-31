@@ -14,7 +14,6 @@ import { riskApi } from '@/services/riskApi';
 import { userApi } from '@/services/userApi';
 import type { KRICreate } from '@/types/kri';
 import type { RiskSummary } from '@/types/risk';
-import type { UserRead } from '@/types/user';
 
 interface KRIFormProps {
     initialData?: Partial<KRICreate>;
@@ -47,8 +46,8 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
         ...initialData
     });
 
-    // User list for reporting owner selection
-    const [users, setUsers] = useState<UserRead[]>([]);
+    // User list for reporting owner selection (scoped visibility)
+    const [users, setUsers] = useState<{ id: number; name: string; email: string }[]>([]);
 
     useEffect(() => {
         const loadRisks = async () => {
@@ -69,11 +68,11 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
         loadRisks();
     }, []);
 
-    // Load users for reporting owner dropdown
+    // Load users for reporting owner dropdown (scoped visibility)
     useEffect(() => {
         const loadUsers = async () => {
             try {
-                const userList = await userApi.listUsers(0, 200);
+                const userList = await userApi.listVisibleUsers();
                 setUsers(userList);
             } catch (err) {
                 console.error('Error loading users:', err);
