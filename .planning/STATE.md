@@ -17,9 +17,9 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 85. Workflow & Users
-**Current Plan:** 85-03 (Completed)
-**Next Plan:** Phase 85 Complete - Pending Human Verification
+**Phase:** 11. Historical Visualization
+**Current Plan:** 11-01 (Completed)
+**Next Plan:** 11-02 (Page Integration)
 
 ## Progress Summary
 
@@ -30,7 +30,7 @@
 | 8 Permission Filtering | ✅ Complete (8/8) | 2025-12-28 |
 | 9 Notification System | ✅ Complete (5/5) | 2025-12-28 |
 | 10 Historization | ⏳ In progress (4/5) | 2025-12-31 |
-| 11 Historical Visualization | ⏳ Not started | - |
+| 11 Historical Visualization | ⏳ In progress (1/4) | 2025-12-31 |
 | 12-15 Deferred | ⏸ Deferred | - |
 | 85 Workflow & Users | ✅ Complete (3/3) | 2025-12-31 |
 | 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
@@ -87,10 +87,10 @@
 ## Continuity
 
 ### Last Action
-- Executed Phase 85-03: Implemented frontend access management UI with types, API client, PermissionMatrix, AccessEditModal, and upgraded UsersPage.
+- Executed Phase 11-01: Created reusable history components (HistoryTimeline, HistoryChangeCard, HistoryTrendChart) with shared types.
 
 ### Next Step
-- Manual verification of access UI as admin/CRO and non-privileged user.
+- Plan and execute Phase 11-02 (integrate history components into detail pages).
 
 ---
 *Updated: 2025-12-31*
