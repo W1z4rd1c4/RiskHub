@@ -1,16 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Edit2, Trash2, Target, AlertTriangle, CheckCircle, ExternalLink, Plus, Calendar, User, Clock, History, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, Target, AlertTriangle, CheckCircle, ExternalLink, Plus, Calendar, User, Clock, History, TrendingUp, Shield } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
 import { PermissionGate } from '@/components/PermissionGate';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { KRIValueModal } from '@/components/kri/KRIValueModal';
+import { KRIHistoryEditModal } from '@/components/kri/KRIHistoryEditModal';
 import { Button } from '@/components/ui/button';
 import { HistoryTimeline, HistoryTrendChart, HistoryComparisonPanel } from '@/components/history';
 import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
 import type { HistoryTimelineItem, HistoryTrendPoint } from '@/types/history';
+import type { Risk } from '@/types/risk';
 
 type TabView = 'overview' | 'history';
 
@@ -18,7 +20,7 @@ export function KRIDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const [kri, setKri] = useState<KeyRiskIndicator | null>(null);
-    const [riskName, setRiskName] = useState<string>('');
+    const [linkedRisk, setLinkedRisk] = useState<Risk | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isValueModalOpen, setIsValueModalOpen] = useState(false);
@@ -29,6 +31,7 @@ export function KRIDetailPage() {
     const [history, setHistory] = useState<KRIHistoryEntry[]>([]);
     const [historyTotal, setHistoryTotal] = useState(0);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<KRIHistoryEntry | null>(null);
 
     useEffect(() => {
         if (id) fetchKRI(parseInt(id));
@@ -43,9 +46,9 @@ export function KRIDetailPage() {
             if (data.risk_id) {
                 try {
                     const risk = await riskApi.getRisk(data.risk_id);
-                    setRiskName(risk.description?.substring(0, 80) || risk.risk_id_code || 'Unknown');
+                    setLinkedRisk(risk);
                 } catch {
-                    setRiskName(`Risk #${data.risk_id}`);
+                    // Silently fail, card will show empty state
                 }
             }
             // Fetch history
@@ -329,19 +332,80 @@ export function KRIDetailPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2 }}
-                        className="glass-card"
+                        className="glass-card lg:col-span-3 group/risk"
                     >
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4">Linked Risk</h3>
-                        <div
-                            onClick={() => navigate(`/risks/${kri.risk_id}`)}
-                            className="p-4 bg-white/5 rounded-xl border border-white/10 hover:border-accent/30 hover:bg-white/10 cursor-pointer group transition-all"
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm font-bold text-white group-hover:text-accent transition-colors line-clamp-2">{riskName}</span>
-                                <ExternalLink className="h-4 w-4 text-slate-600 group-hover:text-accent transition-colors" />
-                            </div>
-                            <p className="text-[10px] text-slate-500 mt-2">Click to view risk details</p>
+                        <div className="flex items-center justify-between mb-8">
+                            <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                                <Shield className="h-4 w-4 text-accent" />
+                                Linked Risk
+                            </h3>
                         </div>
+
+                        {linkedRisk ? (
+                            <div
+                                onClick={() => navigate(`/risks/${linkedRisk.id}`)}
+                                className="relative overflow-hidden cursor-pointer rounded-2xl border border-white/5 bg-white/[0.02] p-8 hover:bg-white/[0.04] hover:border-accent/20 transition-all duration-500 group"
+                            >
+                                {/* Decorative elements */}
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 blur-3xl rounded-full -mr-32 -mt-32 pointer-events-none group-hover:bg-accent/10 transition-colors duration-500" />
+
+                                <div className="relative grid gap-12 lg:grid-cols-[1.5fr_1fr]">
+                                    <div className="space-y-8">
+                                        <div>
+                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-3">Process / Name</span>
+                                            <h4 className="text-xl font-bold text-white group-hover:text-accent transition-colors duration-500 leading-tight">
+                                                {linkedRisk.process}
+                                            </h4>
+                                        </div>
+
+                                        <div>
+                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-3">Description</span>
+                                            <p className="text-sm text-slate-400 font-medium leading-relaxed max-w-2xl">
+                                                {linkedRisk.description}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-8 lg:border-l lg:border-white/5 lg:pl-12">
+                                        <div className="grid grid-cols-2 lg:grid-cols-1 gap-8">
+                                            <div>
+                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-3">Department</span>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                                                        <Target className="h-4 w-4 text-emerald-400" />
+                                                    </div>
+                                                    <span className="text-sm font-bold text-white">{linkedRisk.department?.name || 'Central Systems'}</span>
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-3">Risk Owner</span>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                                                        <User className="h-4 w-4 text-accent" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-white leading-none">{linkedRisk.owner?.name || 'Unassigned'}</p>
+                                                        {linkedRisk.owner?.email && <p className="text-[10px] text-slate-500 mt-1">{linkedRisk.owner.email}</p>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-8 border-t border-white/5">
+                                            <div className="flex items-center gap-2 text-xs font-black text-accent uppercase tracking-widest opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-500">
+                                                View Complete Risk Analysis
+                                                <ExternalLink className="h-3.5 w-3.5" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-12 text-center bg-white/5 rounded-2xl border border-dashed border-white/10">
+                                <span className="text-sm text-slate-500 italic">No detailed risk information available</span>
+                            </div>
+                        )}
                     </motion.div>
 
                     {/* Metadata */}
@@ -410,6 +474,12 @@ export function KRIDetailPage() {
                             items={timelineItems}
                             loading={isLoadingHistory}
                             emptyMessage="No history recorded yet. Click 'Record Value' to start tracking."
+                            onItemAction={(item) => {
+                                // Find the corresponding history entry
+                                const entry = history.find(h => h.id === item.id);
+                                if (entry) setSelectedHistoryEntry(entry);
+                            }}
+                            actionLabel="Request Correction"
                         />
                     </motion.div>
 
@@ -456,6 +526,17 @@ export function KRIDetailPage() {
                     isOpen={isValueModalOpen}
                     onClose={() => setIsValueModalOpen(false)}
                     onSuccess={handleRecordSuccess}
+                />
+            )}
+
+            {/* History Edit Modal */}
+            {kri && selectedHistoryEntry && (
+                <KRIHistoryEditModal
+                    isOpen={!!selectedHistoryEntry}
+                    onClose={() => setSelectedHistoryEntry(null)}
+                    kriId={kri.id}
+                    entry={selectedHistoryEntry}
+                    onSuccess={() => fetchHistory(kri.id)}
                 />
             )}
         </div>

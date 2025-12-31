@@ -22,7 +22,7 @@ import {
 import { riskApi } from '@/services/riskApi';
 import { kriApi } from '@/services/kriApi';
 import type { Risk, RiskControlLink, ControlEffectiveness } from '@/types/risk';
-import type { KeyRiskIndicator, KRICreate, KRIUpdate, KRIHistoryEntry } from '@/types/kri';
+import type { KeyRiskIndicator, KRICreate, KRIUpdate, KRIHistoryEntry, OverdueKRI } from '@/types/kri';
 import type { HistoryTimelineItem } from '@/types/history';
 import { PermissionGate } from '@/components/PermissionGate';
 import { RiskScoreMatrix } from '@/components/RiskScoreMatrix';
@@ -68,17 +68,22 @@ export function RiskDetailPage() {
     const [kriHistoryItems, setKriHistoryItems] = useState<HistoryTimelineItem[]>([]);
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
+    // Overdue KRI State
+    const [overdueKRIs, setOverdueKRIs] = useState<OverdueKRI[]>([]);
+
     const fetchData = useCallback(async () => {
         if (!id) return;
         try {
             setIsLoading(true);
             const riskId = parseInt(id);
-            const [riskData, controlsData] = await Promise.all([
+            const [riskData, controlsData, overdueData] = await Promise.all([
                 riskApi.getRisk(riskId),
-                riskApi.getLinkedControls(riskId)
+                riskApi.getLinkedControls(riskId),
+                kriApi.getOverdue()
             ]);
             setRisk(riskData);
             setLinkedControls(controlsData);
+            setOverdueKRIs(overdueData);
             setError(null);
         } catch (err) {
             console.error('Error fetching risk details:', err);
@@ -445,16 +450,21 @@ export function RiskDetailPage() {
 
                             {risk.kris && risk.kris.length > 0 ? (
                                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                    {risk.kris.map(kri => (
-                                        <KRIGaugeCard
-                                            key={kri.id}
-                                            kri={kri as any}
-                                            onClick={() => {
-                                                setSelectedKRI(kri as any);
-                                                setIsKRIModalOpen(true);
-                                            }}
-                                        />
-                                    ))}
+                                    {risk.kris.map(kri => {
+                                        const overdueInfo = overdueKRIs.find(o => o.kri_id === kri.id);
+                                        return (
+                                            <KRIGaugeCard
+                                                key={kri.id}
+                                                kri={kri as any}
+                                                isOverdue={!!overdueInfo}
+                                                daysOverdue={overdueInfo?.days_overdue}
+                                                onClick={() => {
+                                                    setSelectedKRI(kri as any);
+                                                    setIsKRIModalOpen(true);
+                                                }}
+                                            />
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-white/5 rounded-2xl">

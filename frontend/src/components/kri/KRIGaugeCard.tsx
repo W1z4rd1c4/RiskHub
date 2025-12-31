@@ -1,13 +1,15 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, Clock } from 'lucide-react';
 import type { KeyRiskIndicator } from '@/types/kri';
 
 interface KRIGaugeCardProps {
     kri: KeyRiskIndicator;
     onClick?: () => void;
+    isOverdue?: boolean;
+    daysOverdue?: number;
 }
 
-export function KRIGaugeCard({ kri, onClick }: KRIGaugeCardProps) {
+export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeCardProps) {
     const {
         metric_name,
         current_value,
@@ -85,22 +87,28 @@ export function KRIGaugeCard({ kri, onClick }: KRIGaugeCardProps) {
                     <h4 className="text-white font-bold text-sm leading-tight mb-1 group-hover:text-accent transition-colors">
                         {metric_name}
                     </h4>
-                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+                    <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
                         Metric Detail
                     </span>
                 </div>
-                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/5 border border-white/5 font-bold text-[10px] uppercase tracking-wide ${getStatusColor()}`}>
+                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 border border-white/20 font-bold text-[10px] uppercase tracking-wide ${getStatusColor()}`}>
                     {getStatusIcon()}
                     {breach_status === 'within' ? 'Optimal' : breach_status.toUpperCase()}
                 </div>
+                {isOverdue && (
+                    <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-[10px] uppercase">
+                        <Clock className="h-3 w-3" />
+                        {daysOverdue ? `${daysOverdue}d` : 'Overdue'}
+                    </div>
+                )}
             </div>
 
             <div className="space-y-4">
                 <div className="flex items-end justify-between">
                     <div>
-                        <div className="text-2xl font-black text-white">
+                        <div className="text-2xl font-black text-white flex items-baseline gap-2">
                             {formatNumber(current_value)}
-                            <span className="text-xs text-slate-500 ml-1 font-bold">{unit}</span>
+                            <span className="text-xs text-slate-300 font-bold">{unit}</span>
                         </div>
                     </div>
                 </div>
@@ -139,9 +147,9 @@ export function KRIGaugeCard({ kri, onClick }: KRIGaugeCardProps) {
                     />
                 </div>
 
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter text-slate-600">
-                    <span>{formatNumber(lower_limit)}{unit} min</span>
-                    <span>{formatNumber(upper_limit)}{unit} max</span>
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter text-slate-400">
+                    <span>{formatNumber(lower_limit)} {unit} MIN</span>
+                    <span>{formatNumber(upper_limit)} {unit} MAX</span>
                 </div>
             </div>
         </motion.div>
