@@ -34,6 +34,7 @@ async def list_risks(
     search: Optional[str] = None,
     include_archived: bool = Query(False, description="Include archived risks in results"),
     has_breach: Optional[bool] = None,
+    min_net_score: Optional[int] = Query(None, ge=0, le=25, description="Filter risks with net_score >= this value (e.g., 15 for critical)"),
 ):
     """
     List risks with pagination and filters.
@@ -87,6 +88,10 @@ async def list_risks(
             base_query = base_query.where(Risk.id.in_(breaching_subq))
         else:
             base_query = base_query.where(Risk.id.notin_(breaching_subq))
+
+    # Net score filter (for critical risks: min_net_score=15)
+    if min_net_score is not None:
+        base_query = base_query.where(Risk.net_score >= min_net_score)
 
     # Get total count before pagination
     count_query = select(func.count()).select_from(base_query.subquery())
