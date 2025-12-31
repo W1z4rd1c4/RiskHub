@@ -41,18 +41,42 @@ export function ControlsPage() {
     const fetchControls = useCallback(async () => {
         try {
             setIsLoading(true);
-            const fetchLimit = viewMode === 'all' ? limit : 100;
-            const skip = viewMode === 'all' ? (currentPage - 1) * limit : 0;
 
-            const response = await controlApi.getControls({
-                skip,
-                limit: fetchLimit,
-                search: search || undefined,
-                status: statusFilter || undefined
-            });
-            setControls(response.items);
-            // Use actual total from API response
-            setTotalCount(response.total);
+            // For paginated "all" view, just fetch the current page
+            if (viewMode === 'all') {
+                const skip = (currentPage - 1) * limit;
+                const response = await controlApi.getControls({
+                    skip,
+                    limit,
+                    search: search || undefined,
+                    status: statusFilter || undefined
+                });
+                setControls(response.items);
+                setTotalCount(response.total);
+            } else {
+                // For grouped views, fetch ALL pages for accurate group counts
+                const pageSize = 100;
+                let allControls: ControlSummary[] = [];
+                let skip = 0;
+                let total = 0;
+
+                do {
+                    const response = await controlApi.getControls({
+                        skip,
+                        limit: pageSize,
+                        search: search || undefined,
+                        status: statusFilter || undefined
+                    });
+
+                    total = response.total;
+                    allControls = [...allControls, ...response.items];
+                    skip += pageSize;
+                } while (skip < total);
+
+                setControls(allControls);
+                setTotalCount(total);
+            }
+
             setError(null);
         } catch (err) {
             console.error('Error fetching controls:', err);
