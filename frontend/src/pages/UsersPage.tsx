@@ -12,7 +12,8 @@ import {
     Building2,
     Crown,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
+    Key
 } from 'lucide-react';
 import { accessApi } from '@/services/accessApi';
 import { userApi } from '@/services/userApi';
@@ -31,6 +32,24 @@ const scopeColors: Record<string, string> = {
     manager: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
 };
 
+// Permission filter options
+const permissionResources = [
+    { value: 'all', label: 'All Permissions' },
+    { value: 'risks', label: '⚠️ Risks' },
+    { value: 'controls', label: '🛡️ Controls' },
+    { value: 'users', label: '👥 Users' },
+    { value: 'reports', label: '📊 Reports' },
+    { value: 'approvals', label: '✅ Approvals' },
+    { value: 'departments', label: '🏢 Departments' },
+];
+
+const permissionActions = [
+    { value: 'all', label: 'Any Action' },
+    { value: 'read', label: 'Can View' },
+    { value: 'write', label: 'Can Edit' },
+    { value: 'delete', label: 'Can Delete' },
+];
+
 export function UsersPage() {
     const [users, setUsers] = useState<AccessUserRead[]>([]);
     const [fallbackUsers, setFallbackUsers] = useState<UserRead[]>([]);
@@ -38,6 +57,8 @@ export function UsersPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
     const [scopeFilter, setScopeFilter] = useState('all');
+    const [permResourceFilter, setPermResourceFilter] = useState('all');
+    const [permActionFilter, setPermActionFilter] = useState('all');
     const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<AccessUserRead | null>(null);
@@ -59,21 +80,22 @@ export function UsersPage() {
                 setUsers(data);
                 setIsAccessMode(true);
             } else {
-                // Non-privileged fall back to basic user list
-                const data = await userApi.listUsers();
-                setFallbackUsers(data);
+                // Non-privileged get scoped user lookup (read-only)
+                const data = await userApi.listVisibleUsers();
+                // Map to UserRead-like structure for display
+                setFallbackUsers(data.map(u => ({
+                    ...u,
+                    is_active: true, // Lookup only returns active by default
+                    role: { name: u.role_name || 'Unknown', display_name: u.role_name || 'Unknown' },
+                    manager_name: null,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    access_scope: 'manager', // Placeholder
+                })) as any[]);
                 setIsAccessMode(false);
             }
         } catch (error) {
             console.error('Failed to fetch users:', error);
-            // Fall back to basic user list if access API fails
-            try {
-                const data = await userApi.listUsers();
-                setFallbackUsers(data);
-                setIsAccessMode(false);
-            } catch (fallbackError) {
-                console.error('Fallback also failed:', fallbackError);
-            }
         } finally {
             setIsLoading(false);
         }
@@ -99,13 +121,25 @@ export function UsersPage() {
         fetchUsers();
     };
 
+    // Check if user has specific permission
+    const hasPermission = (perms: string[], resource: string, action: string) => {
+        if (resource === 'all' && action === 'all') return true;
+        return perms.some(p => {
+            const [r, a] = p.split(':');
+            const matchesResource = resource === 'all' || r === resource;
+            const matchesAction = action === 'all' || a === action;
+            return matchesResource && matchesAction;
+        });
+    };
+
     // Filter logic for access mode
     const filteredAccessUsers = users.filter(user => {
         const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user.email.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesRole = roleFilter === 'all' || user.role.name === roleFilter;
         const matchesScope = scopeFilter === 'all' || user.access_scope === scopeFilter;
-        return matchesSearch && matchesRole && matchesScope;
+        const matchesPerm = hasPermission(user.effective_permissions, permResourceFilter, permActionFilter);
+        return matchesSearch && matchesRole && matchesScope && matchesPerm;
     });
 
     // Filter logic for fallback mode
@@ -127,6 +161,9 @@ export function UsersPage() {
     const privilegedCount = isAccessMode
         ? users.filter(u => u.access_scope === 'global').length
         : 0;
+
+    // Clear permission filters
+    const hasPermFilters = permResourceFilter !== 'all' || permActionFilter !== 'all';
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -184,49 +221,98 @@ export function UsersPage() {
             </div>
 
             <div className="glass-card p-6">
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
-                        <input
-                            type="text"
-                            placeholder="Search by name or email..."
-                            className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                    <div className="flex gap-4">
-                        <div className="relative">
-                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                            <select
-                                className="bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-8 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all"
-                                value={roleFilter}
-                                onChange={(e) => setRoleFilter(e.target.value)}
-                            >
-                                <option value="all">All Roles</option>
-                                <option value="admin">Admins</option>
-                                <option value="cro">CROs</option>
-                                <option value="risk_manager">Risk Managers</option>
-                                <option value="department_head">Dept Heads</option>
-                                <option value="control_owner">Control Owners</option>
-                            </select>
+                {/* Search and Filters */}
+                <div className="flex flex-col gap-4 mb-6">
+                    {/* Row 1: Search + Role + Scope */}
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+                            <input
+                                type="text"
+                                placeholder="Search by name or email..."
+                                className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
                         </div>
-                        {isAccessMode && (
+                        <div className="flex gap-2 flex-wrap">
                             <div className="relative">
-                                <Crown className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                                 <select
-                                    className="bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-8 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all"
-                                    value={scopeFilter}
-                                    onChange={(e) => setScopeFilter(e.target.value)}
+                                    className="bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-8 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-sm"
+                                    value={roleFilter}
+                                    onChange={(e) => setRoleFilter(e.target.value)}
                                 >
-                                    <option value="all">All Scopes</option>
-                                    <option value="global">Global</option>
-                                    <option value="department">Department</option>
-                                    <option value="manager">Manager</option>
+                                    <option value="all">All Roles</option>
+                                    <option value="admin">Admins</option>
+                                    <option value="cro">CROs</option>
+                                    <option value="risk_manager">Risk Managers</option>
+                                    <option value="department_head">Dept Heads</option>
+                                    <option value="control_owner">Control Owners</option>
                                 </select>
                             </div>
-                        )}
+                            {isAccessMode && (
+                                <div className="relative">
+                                    <Crown className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                                    <select
+                                        className="bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-8 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-sm"
+                                        value={scopeFilter}
+                                        onChange={(e) => setScopeFilter(e.target.value)}
+                                    >
+                                        <option value="all">All Scopes</option>
+                                        <option value="global">Global</option>
+                                        <option value="department">Department</option>
+                                        <option value="manager">Manager</option>
+                                    </select>
+                                </div>
+                            )}
+                        </div>
                     </div>
+
+                    {/* Row 2: Permission Filters (Access Mode only) */}
+                    {isAccessMode && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+                                <Key className="h-3.5 w-3.5" />
+                                Filter by Capability:
+                            </span>
+                            <select
+                                className={cn(
+                                    "bg-white/5 border rounded-lg py-1.5 px-3 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all",
+                                    permResourceFilter !== 'all' ? "border-purple-500/50 text-purple-400" : "border-white/10 text-white"
+                                )}
+                                value={permResourceFilter}
+                                onChange={(e) => setPermResourceFilter(e.target.value)}
+                            >
+                                {permissionResources.map(r => (
+                                    <option key={r.value} value={r.value}>{r.label}</option>
+                                ))}
+                            </select>
+                            <select
+                                className={cn(
+                                    "bg-white/5 border rounded-lg py-1.5 px-3 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all",
+                                    permActionFilter !== 'all' ? "border-emerald-500/50 text-emerald-400" : "border-white/10 text-white"
+                                )}
+                                value={permActionFilter}
+                                onChange={(e) => setPermActionFilter(e.target.value)}
+                            >
+                                {permissionActions.map(a => (
+                                    <option key={a.value} value={a.value}>{a.label}</option>
+                                ))}
+                            </select>
+                            {hasPermFilters && (
+                                <button
+                                    onClick={() => { setPermResourceFilter('all'); setPermActionFilter('all'); }}
+                                    className="text-xs text-slate-500 hover:text-white underline transition-colors"
+                                >
+                                    Clear
+                                </button>
+                            )}
+                            <span className="text-xs text-slate-500 ml-2">
+                                {filteredAccessUsers.length} of {users.length} users
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="overflow-x-auto">
