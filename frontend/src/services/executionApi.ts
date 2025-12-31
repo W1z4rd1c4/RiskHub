@@ -2,7 +2,7 @@
  * API service for control executions.
  */
 
-export type ExecutionResult = 'pass' | 'fail' | 'issues_found' | 'not_applicable';
+export type ExecutionResult = 'passed' | 'failed' | 'warning' | 'not_applicable';
 
 export interface ControlExecutionCreate {
     control_id: number;
@@ -34,6 +34,10 @@ export interface ControlExecution {
         id: number;
         name: string;
     };
+    control_name?: string;
+    executed_by_name?: string;
+    control_owner_name?: string;
+    linked_risks?: string[];
 }
 
 import { apiClient } from './apiClient';
