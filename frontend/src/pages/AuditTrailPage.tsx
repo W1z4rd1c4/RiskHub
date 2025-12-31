@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
     ClipboardCheck,
     Filter,
@@ -11,25 +10,13 @@ import {
     AlertTriangle,
     MinusCircle,
     History,
-    ArrowLeft,
     FileText,
-    Sheet
+    Sheet,
+    Shield,
+    Target
 } from 'lucide-react';
 import { executionApi } from '@/services/executionApi';
 import type { ControlExecution, ExecutionResult } from '@/services/executionApi';
-
-const container = {
-    hidden: { opacity: 0 },
-    show: {
-        opacity: 1,
-        transition: { staggerChildren: 0.05 }
-    }
-};
-
-const itemItem = {
-    hidden: { opacity: 0, y: 10 },
-    show: { opacity: 1, y: 0 }
-};
 
 export function AuditTrailPage() {
     const navigate = useNavigate();
@@ -62,41 +49,28 @@ export function AuditTrailPage() {
 
     const getResultIcon = (result: ExecutionResult) => {
         switch (result) {
-            case 'pass': return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-            case 'fail': return <XCircle className="h-4 w-4 text-rose-400" />;
-            case 'issues_found': return <AlertTriangle className="h-4 w-4 text-amber-400" />;
+            case 'passed': return <CheckCircle className="h-4 w-4 text-emerald-400" />;
+            case 'failed': return <XCircle className="h-4 w-4 text-rose-400" />;
+            case 'warning': return <AlertTriangle className="h-4 w-4 text-amber-400" />;
             case 'not_applicable': return <MinusCircle className="h-4 w-4 text-slate-400" />;
         }
     };
 
     const getResultColor = (result: ExecutionResult) => {
         switch (result) {
-            case 'pass': return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-            case 'fail': return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
-            case 'issues_found': return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
+            case 'passed': return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+            case 'failed': return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
+            case 'warning': return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
             case 'not_applicable': return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
         }
     };
 
     return (
         <div className="space-y-8">
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                <div className="space-y-2">
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest mb-4"
-                    >
-                        <ArrowLeft className="h-3 w-3" /> Back
-                    </button>
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 bg-accent/10 border border-accent/20 rounded-2xl">
-                            <History className="h-8 w-8 text-accent" />
-                        </div>
-                        <div>
-                            <h2 className="text-4xl font-black text-white tracking-tighter">Audit Trail</h2>
-                            <p className="text-slate-500 font-medium max-w-2xl">Global log of all control executions and compliance checks.</p>
-                        </div>
-                    </div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-3xl font-black text-white mb-2">Audit Trail</h2>
+                    <p className="text-slate-500 font-medium">Global log of all control executions and compliance checks.</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -123,9 +97,9 @@ export function AuditTrailPage() {
                             className="bg-transparent border-none outline-none text-sm text-white w-full appearance-none cursor-pointer"
                         >
                             <option value="" className="bg-slate-900">All Results</option>
-                            <option value="pass" className="bg-slate-900">Pass</option>
-                            <option value="fail" className="bg-slate-900">Fail</option>
-                            <option value="issues_found" className="bg-slate-900">Issues Found</option>
+                            <option value="passed" className="bg-slate-900">Passed</option>
+                            <option value="failed" className="bg-slate-900">Failed</option>
+                            <option value="warning" className="bg-slate-900">Warning</option>
                             <option value="not_applicable" className="bg-slate-900">N/A</option>
                         </select>
                     </div>
@@ -146,16 +120,15 @@ export function AuditTrailPage() {
                             <tr className="border-b border-white/5 bg-white/[0.02]">
                                 <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Date/Time</th>
                                 <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Control</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Owner</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Risk</th>
                                 <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Executor</th>
                                 <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Result</th>
                                 <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Key Finding</th>
                                 <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Action</th>
                             </tr>
                         </thead>
-                        <motion.tbody
-                            variants={container}
-                            initial="hidden"
-                            animate="show"
+                        <tbody
                             key={resultFilter}
                         >
                             {isLoading ? (
@@ -163,6 +136,8 @@ export function AuditTrailPage() {
                                     <tr key={`skeleton-${i}`} className="border-b border-white/5 animate-pulse">
                                         <td className="px-6 py-6"><div className="h-4 w-32 bg-white/5 rounded" /></td>
                                         <td className="px-6 py-6"><div className="h-4 w-48 bg-white/5 rounded" /></td>
+                                        <td className="px-6 py-6"><div className="h-4 w-32 bg-white/5 rounded" /></td>
+                                        <td className="px-6 py-6"><div className="h-4 w-32 bg-white/5 rounded" /></td>
                                         <td className="px-6 py-6"><div className="h-5 w-24 bg-white/5 rounded-full" /></td>
                                         <td className="px-6 py-6 flex justify-center"><div className="h-6 w-16 bg-white/5 rounded-md" /></td>
                                         <td className="px-6 py-6"><div className="h-4 w-40 bg-white/5 rounded" /></td>
@@ -171,7 +146,7 @@ export function AuditTrailPage() {
                                 ))
                             ) : executions.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-24 text-center">
+                                    <td colSpan={8} className="px-6 py-24 text-center">
                                         <div className="bg-white/5 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6">
                                             <History className="h-8 w-8 text-slate-700" />
                                         </div>
@@ -181,9 +156,8 @@ export function AuditTrailPage() {
                                 </tr>
                             ) : (
                                 executions.map((exec) => (
-                                    <motion.tr
+                                    <tr
                                         key={exec.id}
-                                        variants={itemItem}
                                         className="border-b border-white/5 hover:bg-white/[0.03] transition-colors group cursor-pointer"
                                         onClick={() => navigate(`/controls/${exec.control_id}`)}
                                     >
@@ -200,11 +174,28 @@ export function AuditTrailPage() {
                                         <td className="px-6 py-5">
                                             <div className="flex flex-col">
                                                 <span className="text-sm font-bold text-white group-hover:text-accent transition-colors truncate max-w-[200px]">
-                                                    {exec.control?.name || `Control #${exec.control_id}`}
+                                                    {exec.control_name || exec.control?.name || `Control #${exec.control_id}`}
                                                 </span>
-                                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                                                    ID: {exec.control?.id || '—'}
-                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex items-center gap-2">
+                                                <Shield className="h-3 w-3 text-slate-500" />
+                                                <span className="text-xs font-bold text-slate-400">{exec.control_owner_name || 'Unassigned'}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-5">
+                                            <div className="flex flex-col gap-1">
+                                                {exec.linked_risks && exec.linked_risks.length > 0 ? (
+                                                    exec.linked_risks.map((risk, i) => (
+                                                        <div key={i} className="flex items-center gap-1.5">
+                                                            <Target className="h-3 w-3 text-rose-500/70" />
+                                                            <span className="text-xs font-medium text-slate-400">{risk}</span>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-xs text-slate-600 italic">No linked risks</span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
@@ -212,7 +203,7 @@ export function AuditTrailPage() {
                                                 <div className="w-6 h-6 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-[10px] font-black text-accent">
                                                     <User className="h-3 w-3" />
                                                 </div>
-                                                <span className="text-xs font-bold text-slate-400">{exec.executed_by?.name || 'System Admin'}</span>
+                                                <span className="text-xs font-bold text-slate-400">{exec.executed_by_name || exec.executed_by?.name || 'System Admin'}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
@@ -233,10 +224,10 @@ export function AuditTrailPage() {
                                                 <ChevronRight className="h-4 w-4" />
                                             </button>
                                         </td>
-                                    </motion.tr>
+                                    </tr>
                                 ))
                             )}
-                        </motion.tbody>
+                        </tbody>
                     </table>
                 </div>
             </div>
