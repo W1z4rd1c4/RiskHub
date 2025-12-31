@@ -81,9 +81,14 @@
 
 ### Last Action
 - Executed Phase 151-07: Removed 100-item caps from grouped views, added AuditTrailPage pagination
+- Ad-hoc Fixes:
+  - Fixed CORS options to allow port 5174
+  - Fixed Demo Login IDs to match database seeded users
+  - Updated Dashboard "Active Depts" to filter out empty departments
+  - Fixed Governance badge to only show for privileged users
 
 ### Next Step
-- Phase 151 audit resolution complete
+- Phase 151 audit resolution complete. Ready for final verification or Phase 10 (Historization) continuation.
 
 ---
 *Updated: 2025-12-31*
