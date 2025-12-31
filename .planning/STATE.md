@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 11. Historical Visualization
-**Current Plan:** 11-01 (Completed)
-**Next Plan:** 11-02 (Page Integration)
+**Current Plan:** 11-02 (Completed)
+**Next Plan:** 11-03 (Dashboard Widgets) or Phase Complete
 
 ## Progress Summary
 
@@ -30,7 +30,7 @@
 | 8 Permission Filtering | ✅ Complete (8/8) | 2025-12-28 |
 | 9 Notification System | ✅ Complete (5/5) | 2025-12-28 |
 | 10 Historization | ⏳ In progress (4/5) | 2025-12-31 |
-| 11 Historical Visualization | ⏳ In progress (1/4) | 2025-12-31 |
+| 11 Historical Visualization | ⏳ In progress (2/4) | 2025-12-31 |
 | 12-15 Deferred | ⏸ Deferred | - |
 | 85 Workflow & Users | ✅ Complete (3/3) | 2025-12-31 |
 | 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
@@ -87,10 +87,10 @@
 ## Continuity
 
 ### Last Action
-- Executed Phase 11-01: Created reusable history components (HistoryTimeline, HistoryChangeCard, HistoryTrendChart) with shared types.
+- Executed Phase 11-02: Added history tabs to KRIDetailPage, ControlDetailPage, and RiskDetailPage with HistoryTrendChart and HistoryTimeline components.
 
 ### Next Step
-- Plan and execute Phase 11-02 (integrate history components into detail pages).
+- Execute Phase 11-03 (dashboard widgets) or mark Phase 11 complete.
 
 ---
 *Updated: 2025-12-31*

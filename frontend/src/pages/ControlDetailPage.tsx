@@ -13,7 +13,8 @@ import {
     History,
     XCircle,
     ShieldAlert,
-    Plus
+    Plus,
+    Target
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
 import type { Control, ControlRiskLink } from '@/types/control';
@@ -24,6 +25,8 @@ import { ControlEffectiveness } from '@/types/risk';
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
+
+type TabView = 'overview' | 'history';
 
 const container = {
     hidden: { opacity: 0 },
@@ -49,6 +52,7 @@ export function ControlDetailPage() {
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [historyKey, setHistoryKey] = useState(0);
+    const [activeTab, setActiveTab] = useState<TabView>('overview');
 
     const fetchData = useCallback(async () => {
         if (!id) return;
@@ -181,153 +185,179 @@ export function ControlDetailPage() {
                 </div>
             </div>
 
-            <motion.div
-                variants={container}
-                initial="hidden"
-                animate="show"
-                className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
-            >
-                {/* Core Info */}
-                <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <BarChart3 className="h-5 w-5 text-accent" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">Standard Configuration</h3>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center group">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Risk Level</span>
-                            <div className={`px-3 py-1 rounded-full text-xs font-black border ${getRiskLevelColor(control.risk_level)}`}>
-                                {control.risk_level} / 5
-                            </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Frequency</span>
-                            <div className="flex items-center gap-2 text-white font-bold text-sm bg-white/5 px-3 py-1 rounded-lg border border-white/5">
-                                <Calendar className="h-3.5 w-3.5 text-accent" />
-                                <span className="capitalize">{control.frequency}</span>
-                            </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Control Form</span>
-                            <span className="text-white font-bold text-sm capitalize">{control.control_form}</span>
-                        </div>
-                    </div>
-                </motion.div>
-
-                {/* Owner Info */}
-                <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <User className="h-5 w-5 text-purple-400" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">Ownership & Responsibility</h3>
-                    </div>
-
-                    <div className="space-y-5">
-                        <div className="flex gap-3 items-start">
-                            <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-xs font-bold">
-                                {control.control_owner?.name?.[0] || 'U'}
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Control Owner</p>
-                                <p className="text-sm font-bold text-white leading-snug">{control.control_owner?.name || 'Unassigned'}</p>
-                                <p className="text-xs text-slate-500">{control.control_owner?.email || ''}</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-3 items-start">
-                            <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
-                                <Building2 className="h-4 w-4" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Department / Position</p>
-                                <p className="text-sm font-bold text-white leading-snug">{control.department?.name || 'No Dept'}</p>
-                                <p className="text-xs text-slate-500 italic uppercase tracking-tighter text-[10px] font-bold mt-0.5">{control.process_owner_position || 'N/A'}</p>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
-
-                {/* Methodology / Refs */}
-                <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <BookOpen className="h-5 w-5 text-amber-400" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">Methodology & Source</h3>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div>
-                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Methodology Ref</p>
-                            <p className="text-sm font-medium text-slate-300 bg-white/5 p-2 rounded-lg border border-white/5 font-mono truncate">{control.methodology_reference || 'N/A'}</p>
-                        </div>
-                        <div>
-                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Data Source</p>
-                            <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-accent/30 pl-3">{control.data_source || 'Not specified'}</p>
-                        </div>
-                    </div>
-                </motion.div>
-            </motion.div>
-
-            <div className="grid gap-6 lg:grid-cols-3">
-                {/* Linked Risks */}
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="lg:col-span-1 glass-card"
+            {/* Tabs */}
+            <div className="flex items-center gap-2 border-b border-white/10">
+                <button
+                    onClick={() => setActiveTab('overview')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'overview'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
                 >
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs flex items-center gap-2">
-                            <ShieldAlert className="h-4 w-4 text-emerald-400" />
-                            Mitigated Risks
-                        </h3>
-                        <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-black rounded-full border border-emerald-500/20">{linkedRisks.length}</span>
-                    </div>
+                    <Target className="h-4 w-4 inline mr-2" />Overview
+                </button>
+                <button
+                    onClick={() => setActiveTab('history')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'history'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <History className="h-4 w-4 inline mr-2" />Execution History
+                </button>
+            </div>
 
-                    <div className="space-y-3">
-                        {linkedRisks.length === 0 ? (
-                            <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                                <p className="text-xs text-slate-600 font-medium">No risks linked to this control.</p>
+            {/* Overview Tab */}
+            {activeTab === 'overview' && (
+                <>
+                    <motion.div
+                        variants={container}
+                        initial="hidden"
+                        animate="show"
+                        className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+                    >
+                        {/* Core Info */}
+                        <motion.div variants={item} className="glass-card flex flex-col gap-6">
+                            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                                <BarChart3 className="h-5 w-5 text-accent" />
+                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">Standard Configuration</h3>
                             </div>
-                        ) : (
-                            linkedRisks.map((link) => (
-                                <div key={link.id} className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.description}</span>
-                                        <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${link.effectiveness === 'high' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
-                                            }`}>
-                                            {link.effectiveness}
-                                        </span>
+
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center group">
+                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Risk Level</span>
+                                    <div className={`px-3 py-1 rounded-full text-xs font-black border ${getRiskLevelColor(control.risk_level)}`}>
+                                        {control.risk_level} / 5
                                     </div>
-                                    <p className="text-xs font-bold text-white leading-tight line-clamp-2">{link.risk?.description}</p>
-                                    {link.notes && <p className="mt-2 text-[10px] text-slate-500 font-medium italic">"{link.notes}"</p>}
                                 </div>
-                            ))
-                        )}
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Frequency</span>
+                                    <div className="flex items-center gap-2 text-white font-bold text-sm bg-white/5 px-3 py-1 rounded-lg border border-white/5">
+                                        <Calendar className="h-3.5 w-3.5 text-accent" />
+                                        <span className="capitalize">{control.frequency}</span>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Control Form</span>
+                                    <span className="text-white font-bold text-sm capitalize">{control.control_form}</span>
+                                </div>
+                            </div>
+                        </motion.div>
+
+                        {/* Owner Info */}
+                        <motion.div variants={item} className="glass-card flex flex-col gap-6">
+                            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                                <User className="h-5 w-5 text-purple-400" />
+                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">Ownership & Responsibility</h3>
+                            </div>
+
+                            <div className="space-y-5">
+                                <div className="flex gap-3 items-start">
+                                    <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-xs font-bold">
+                                        {control.control_owner?.name?.[0] || 'U'}
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Control Owner</p>
+                                        <p className="text-sm font-bold text-white leading-snug">{control.control_owner?.name || 'Unassigned'}</p>
+                                        <p className="text-xs text-slate-500">{control.control_owner?.email || ''}</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 items-start">
+                                    <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
+                                        <Building2 className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Department / Position</p>
+                                        <p className="text-sm font-bold text-white leading-snug">{control.department?.name || 'No Dept'}</p>
+                                        <p className="text-xs text-slate-500 italic uppercase tracking-tighter text-[10px] font-bold mt-0.5">{control.process_owner_position || 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+
+                        {/* Methodology / Refs */}
+                        <motion.div variants={item} className="glass-card flex flex-col gap-6">
+                            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                                <BookOpen className="h-5 w-5 text-amber-400" />
+                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">Methodology & Source</h3>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Methodology Ref</p>
+                                    <p className="text-sm font-medium text-slate-300 bg-white/5 p-2 rounded-lg border border-white/5 font-mono truncate">{control.methodology_reference || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Data Source</p>
+                                    <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-accent/30 pl-3">{control.data_source || 'Not specified'}</p>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+
+                    {/* Linked Risks */}
+                    <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="glass-card"
+                    >
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="font-bold text-white uppercase tracking-widest text-xs flex items-center gap-2">
+                                <ShieldAlert className="h-4 w-4 text-emerald-400" />
+                                Mitigated Risks
+                            </h3>
+                            <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-black rounded-full border border-emerald-500/20">{linkedRisks.length}</span>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                            {linkedRisks.length === 0 ? (
+                                <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl col-span-full">
+                                    <p className="text-xs text-slate-600 font-medium">No risks linked to this control.</p>
+                                </div>
+                            ) : (
+                                linkedRisks.map((link) => (
+                                    <div key={link.id} className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.description}</span>
+                                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${link.effectiveness === 'high' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                                                }`}>
+                                                {link.effectiveness}
+                                            </span>
+                                        </div>
+                                        {link.notes && <p className="mt-2 text-[10px] text-slate-500 font-medium italic">"{link.notes}"</p>}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
                         <PermissionGate resource="controls" action="write">
                             <button
                                 onClick={() => setIsLinkDialogOpen(true)}
-                                className="w-full py-3 border border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-all"
+                                className="w-full mt-4 py-3 border border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-all"
                             >
                                 Manage Risk Linkage
                             </button>
                         </PermissionGate>
-                    </div>
 
-                    <LinkManagementDialog
-                        isOpen={isLinkDialogOpen}
-                        onClose={() => setIsLinkDialogOpen(false)}
-                        mode="control-to-risk"
-                        existingLinks={linkedRisks}
-                        onLink={handleLinkRisk}
-                        onUnlink={handleUnlinkRisk}
-                    />
-                </motion.div>
+                        <LinkManagementDialog
+                            isOpen={isLinkDialogOpen}
+                            onClose={() => setIsLinkDialogOpen(false)}
+                            mode="control-to-risk"
+                            existingLinks={linkedRisks}
+                            onLink={handleLinkRisk}
+                            onUnlink={handleUnlinkRisk}
+                        />
+                    </motion.div>
+                </>
+            )}
 
-                {/* Execution History */}
+            {/* History Tab */}
+            {activeTab === 'history' && (
                 <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="lg:col-span-2 glass-card"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="glass-card"
                 >
                     <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
                         <h3 className="font-bold text-white uppercase tracking-widest text-xs flex items-center gap-2">
@@ -347,7 +377,7 @@ export function ControlDetailPage() {
 
                     <ExecutionHistory key={historyKey} controlId={control.id} />
                 </motion.div>
-            </div>
+            )}
 
             <ExecutionLogModal
                 isOpen={isLogModalOpen}
