@@ -13,17 +13,17 @@ interface ExecutionLogModalProps {
 }
 
 const RESULTS = [
-    { value: 'pass', label: 'Passed', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-    { value: 'fail', label: 'Failed', icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-400/10' },
-    { value: 'issues_found', label: 'Issues Found', icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-400/10' },
-    { value: 'not_applicable', label: 'N/A', icon: MinusCircle, color: 'text-slate-400', bg: 'bg-slate-400/10' },
-] as const;
+    { value: 'passed' as const, label: 'Passed', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
+    { value: 'failed' as const, label: 'Failed', icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-400/10' },
+    { value: 'warning' as const, label: 'Issues Found', icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-400/10' },
+    { value: 'not_applicable' as const, label: 'N/A', icon: MinusCircle, color: 'text-slate-400', bg: 'bg-slate-400/10' },
+];
 
 export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onSuccess }: ExecutionLogModalProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState<Omit<ControlExecutionCreate, 'control_id'>>({
-        result: 'pass',
+        result: 'passed',
         findings: '',
         evidence_reference: '',
         notes: '',
