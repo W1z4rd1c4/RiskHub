@@ -12,6 +12,7 @@ type StatusFilter = 'all' | 'within' | 'breach';
 export function KRIsPage() {
     const navigate = useNavigate();
     const [kris, setKris] = useState<KeyRiskIndicator[]>([]);
+    const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -22,15 +23,35 @@ export function KRIsPage() {
     const fetchKRIs = useCallback(async () => {
         setIsLoading(true);
         try {
-            // Fetch up to 100 KRIs for client-side filtering/pagination
-            const data = await kriApi.getKRIs({ size: 100 });
-            setKris(data.items || []);
+            // For 'all' view, use server-side pagination
+            if (viewMode === 'all') {
+                const skip = (currentPage - 1) * limit;
+                const data = await kriApi.getKRIs({ skip, size: limit });
+                setKris(data.items || []);
+                setTotalCount(data.total || 0);
+            } else {
+                // For grouped views, fetch ALL pages for accurate group counts
+                const pageSize = 100;
+                let allKRIs: KeyRiskIndicator[] = [];
+                let skip = 0;
+                let total = 0;
+
+                do {
+                    const data = await kriApi.getKRIs({ skip, size: pageSize });
+                    total = data.total || 0;
+                    allKRIs = [...allKRIs, ...(data.items || [])];
+                    skip += pageSize;
+                } while (skip < total);
+
+                setKris(allKRIs);
+                setTotalCount(total);
+            }
         } catch (err) {
             console.error('Failed to fetch KRIs:', err);
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [viewMode, currentPage]);
 
     useEffect(() => {
         fetchKRIs();
@@ -135,11 +156,14 @@ export function KRIsPage() {
         }
     };
 
-    // Pagination
-    const totalPages = Math.ceil(filteredKRIs.length / limit) || 1;
+    // Pagination - use server total for 'all' view, filtered length for grouped views
+    const totalPages = viewMode === 'all'
+        ? Math.ceil(totalCount / limit) || 1
+        : Math.ceil(filteredKRIs.length / limit) || 1;
+    // For 'all' view, data is already paginated from server; for grouped, use client-side slice
     const paginatedKRIs = viewMode === 'all'
-        ? filteredKRIs.slice((currentPage - 1) * limit, currentPage * limit)
-        : filteredKRIs;
+        ? filteredKRIs
+        : filteredKRIs.slice((currentPage - 1) * limit, currentPage * limit);
 
     return (
         <div className="space-y-8">

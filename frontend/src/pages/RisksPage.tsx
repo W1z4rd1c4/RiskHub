@@ -75,34 +75,64 @@ export function RisksPage() {
     const fetchRisks = useCallback(async () => {
         try {
             setIsLoading(true);
-            // Fetch more items for grouped views or all for client-side grouping
-            const fetchLimit = viewMode === 'all' ? limit : 100;
-            const skip = viewMode === 'all' ? (currentPage - 1) * limit : 0;
 
-            const response = await riskApi.getRisks({
-                skip,
-                limit: fetchLimit,
-                search: search || undefined,
-                status: (statusFilter as RiskStatus) || undefined,
-                risk_type: (typeFilter as RiskType) || undefined,
-                is_priority: priorityFilter,
-                has_breach: hasBreachFilter,
-                // Use server-side critical filter (net_score >= 15)
-                min_net_score: criticalFilter ? 15 : undefined,
-            });
+            // For paginated "all" view, just fetch the current page
+            if (viewMode === 'all') {
+                const skip = (currentPage - 1) * limit;
+                const response = await riskApi.getRisks({
+                    skip,
+                    limit,
+                    search: search || undefined,
+                    status: (statusFilter as RiskStatus) || undefined,
+                    risk_type: (typeFilter as RiskType) || undefined,
+                    is_priority: priorityFilter,
+                    has_breach: hasBreachFilter,
+                    min_net_score: criticalFilter ? 15 : undefined,
+                });
 
-            // Backend provides kri_count, has_breach, control_count - no additional fetches needed
-            const risksWithCounts = response.items.map(risk => ({
-                ...risk,
-                // Ensure fields have defaults if not provided
-                kri_count: risk.kri_count ?? 0,
-                has_breach: risk.has_breach ?? false,
-                control_count: risk.control_count ?? 0
-            }));
+                const risksWithCounts = response.items.map(risk => ({
+                    ...risk,
+                    kri_count: risk.kri_count ?? 0,
+                    has_breach: risk.has_breach ?? false,
+                    control_count: risk.control_count ?? 0
+                }));
 
-            setRisks(risksWithCounts);
-            // Use actual total from API response (already filtered server-side)
-            setTotalCount(response.total);
+                setRisks(risksWithCounts);
+                setTotalCount(response.total);
+            } else {
+                // For grouped views, fetch ALL pages for accurate group counts
+                const pageSize = 100;
+                let allRisks: RiskSummary[] = [];
+                let skip = 0;
+                let total = 0;
+
+                do {
+                    const response = await riskApi.getRisks({
+                        skip,
+                        limit: pageSize,
+                        search: search || undefined,
+                        status: (statusFilter as RiskStatus) || undefined,
+                        risk_type: (typeFilter as RiskType) || undefined,
+                        is_priority: priorityFilter,
+                        has_breach: hasBreachFilter,
+                        min_net_score: criticalFilter ? 15 : undefined,
+                    });
+
+                    total = response.total;
+                    const risksWithCounts = response.items.map(risk => ({
+                        ...risk,
+                        kri_count: risk.kri_count ?? 0,
+                        has_breach: risk.has_breach ?? false,
+                        control_count: risk.control_count ?? 0
+                    }));
+                    allRisks = [...allRisks, ...risksWithCounts];
+                    skip += pageSize;
+                } while (skip < total);
+
+                setRisks(allRisks);
+                setTotalCount(total);
+            }
+
             setError(null);
         } catch (err) {
             console.error('[RisksPage] Error fetching risks:', err);

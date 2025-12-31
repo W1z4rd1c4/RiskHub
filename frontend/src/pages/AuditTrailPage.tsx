@@ -17,31 +17,43 @@ import {
 } from 'lucide-react';
 import { executionApi } from '@/services/executionApi';
 import type { ControlExecution, ExecutionResult } from '@/services/executionApi';
+import { Pagination } from '@/components/tables';
 
 export function AuditTrailPage() {
     const navigate = useNavigate();
 
     const [executions, setExecutions] = useState<ControlExecution[]>([]);
+    const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [resultFilter, setResultFilter] = useState<ExecutionResult | ''>('');
-    const [skip] = useState(0);
+    const [currentPage, setCurrentPage] = useState(1);
     const limit = 50;
 
     const fetchExecutions = useCallback(async () => {
         try {
             setIsLoading(true);
+            const skip = (currentPage - 1) * limit;
             const data = await executionApi.getExecutions({
                 skip,
                 limit,
                 result: resultFilter || undefined
             });
+            // Note: executionApi.getExecutions returns array directly, not paginated response
+            // In a full fix, the backend would return { items, total }
             setExecutions(data);
+            // Estimate total based on whether we got a full page
+            setTotalCount(data.length < limit ? skip + data.length : skip + limit + 1);
         } catch (err) {
             console.error('Failed to fetch audit trail:', err);
         } finally {
             setIsLoading(false);
         }
-    }, [skip, resultFilter]);
+    }, [currentPage, resultFilter]);
+
+    // Reset page when filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [resultFilter]);
 
     useEffect(() => {
         fetchExecutions();
@@ -231,6 +243,15 @@ export function AuditTrailPage() {
                     </table>
                 </div>
             </div>
+
+            {/* Pagination */}
+            <Pagination
+                currentPage={currentPage}
+                totalPages={Math.ceil(totalCount / limit) || 1}
+                totalItems={totalCount}
+                itemsPerPage={limit}
+                onPageChange={setCurrentPage}
+            />
         </div>
     );
 }
