@@ -6,6 +6,7 @@ import {
     ChevronRight,
     RefreshCw,
     AlertCircle,
+    AlertTriangle,
     Star,
     FileText,
     Sheet,
@@ -13,7 +14,6 @@ import {
 } from 'lucide-react';
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
-import { kriApi } from '@/services/kriApi';
 import { approvalsApi } from '@/services/approvalsApi';
 import type { RiskSummary, RiskType, RiskStatus } from '@/types/risk';
 import { PermissionGate } from '@/components/PermissionGate';
@@ -35,6 +35,7 @@ export function RisksPage() {
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [isExporting, setIsExporting] = useState(false);
     const [hasBreachFilter, setHasBreachFilter] = useState<boolean | undefined>(undefined);
+    const [criticalFilter, setCriticalFilter] = useState<boolean>(false);
 
     const [pendingApprovalIds, setPendingApprovalIds] = useState<Set<number>>(new Set());
     const [searchParams, setSearchParams] = useSearchParams();
@@ -45,6 +46,12 @@ export function RisksPage() {
             setHasBreachFilter(true);
         } else {
             setHasBreachFilter(undefined);
+        }
+        // Check for critical filter
+        if (searchParams.get('critical') === 'true') {
+            setCriticalFilter(true);
+        } else {
+            setCriticalFilter(false);
         }
     }, [searchParams]);
 
@@ -80,29 +87,21 @@ export function RisksPage() {
                 risk_type: (typeFilter as RiskType) || undefined,
                 is_priority: priorityFilter,
                 has_breach: hasBreachFilter,
+                // Use server-side critical filter (net_score >= 15)
+                min_net_score: criticalFilter ? 15 : undefined,
             });
 
-            // Extract items from paginated response
-            const data = response.items;
+            // Backend provides kri_count, has_breach, control_count - no additional fetches needed
+            const risksWithCounts = response.items.map(risk => ({
+                ...risk,
+                // Ensure fields have defaults if not provided
+                kri_count: risk.kri_count ?? 0,
+                has_breach: risk.has_breach ?? false,
+                control_count: risk.control_count ?? 0
+            }));
 
-            // Fetch KRI summaries for these risks
-            // In a real app, this would be part of the Risk API response
-            // For now, we'll fetch KRIs and map them
-            const krisResponse = await Promise.all(
-                data.map(risk => kriApi.getKRIs({ risk_id: risk.id }))
-            );
-
-            const risksWithKri = data.map((risk, index) => {
-                const kris = krisResponse[index].items;
-                return {
-                    ...risk,
-                    kri_count: kris.length,
-                    has_breach: kris.some(k => k.breach_status !== 'within')
-                };
-            });
-
-            setRisks(risksWithKri);
-            // Use actual total from API response
+            setRisks(risksWithCounts);
+            // Use actual total from API response (already filtered server-side)
             setTotalCount(response.total);
             setError(null);
         } catch (err) {
@@ -111,7 +110,7 @@ export function RisksPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, search, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter]);
+    }, [currentPage, search, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter]);
 
     useEffect(() => {
         fetchRisks();
@@ -260,6 +259,22 @@ export function RisksPage() {
             ),
         },
         {
+            key: 'control_count',
+            label: 'Controls',
+            className: 'text-center',
+            render: (risk) => {
+                const count = risk.control_count || 0;
+                if (count === 0) return <span className="text-slate-600 text-[10px]">—</span>;
+                return (
+                    <div className="flex justify-center">
+                        <div className="px-2 py-0.5 rounded-md text-[10px] font-bold text-blue-400 bg-blue-400/10">
+                            {count} {count === 1 ? 'Ctrl' : 'Ctrls'}
+                        </div>
+                    </div>
+                );
+            },
+        },
+        {
             key: 'id', // Reusing ID key for KRIs column
             label: 'KRIs',
             className: 'text-center',
@@ -388,6 +403,21 @@ export function RisksPage() {
                         <Star className="h-4 w-4" />
                         Priority
                     </button>
+                    {criticalFilter && (
+                        <button
+                            onClick={() => {
+                                setCriticalFilter(false);
+                                const newParams = new URLSearchParams(searchParams);
+                                newParams.delete('critical');
+                                setSearchParams(newParams);
+                            }}
+                            className="px-4 py-2.5 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 bg-rose-400/20 border-rose-400/50 text-rose-400"
+                        >
+                            <AlertTriangle className="h-4 w-4" />
+                            Critical Only
+                            <span className="text-xs opacity-60 ml-1">✕</span>
+                        </button>
+                    )}
                     {hasBreachFilter && (
                         <button
                             onClick={() => {
