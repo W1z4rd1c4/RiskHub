@@ -11,10 +11,14 @@ export function usePermissions() {
 
     return {
         hasPermission,
+        // User management permissions
+        canViewUsers: hasPermission('users', 'read'),
         canManageUsers: hasPermission('users', 'write'),
+        // Risk permissions
         canCreateRisks: hasPermission('risks', 'write'),
         canEditRisks: hasPermission('risks', 'write'),
         canDeleteRisks: hasPermission('risks', 'delete'),
+        // Control permissions
         canCreateControls: hasPermission('controls', 'write'),
         canEditControls: hasPermission('controls', 'write'),
         canDeleteControls: hasPermission('controls', 'delete'),
@@ -28,3 +32,4 @@ export function usePermissions() {
         user,
     };
 }
+

@@ -134,8 +134,9 @@ export function UsersPage() {
                                 <option value="all">All Roles</option>
                                 <option value="admin">Admins</option>
                                 <option value="cro">CROs</option>
+                                <option value="risk_manager">Risk Managers</option>
                                 <option value="department_head">Dept Heads</option>
-                                <option value="employee">Employees</option>
+                                <option value="control_owner">Control Owners</option>
                             </select>
                         </div>
                     </div>
@@ -199,25 +200,31 @@ export function UsersPage() {
                                         </td>
                                         <td className="py-4 px-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => navigate(`/users/${user.id}`)}
-                                                    className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-                                                    title="Edit User"
-                                                >
-                                                    <Edit2 className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => toggleUserStatus(user)}
-                                                    className={cn(
-                                                        "p-2 rounded-lg transition-all",
-                                                        user.is_active
-                                                            ? "text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
-                                                            : "text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
-                                                    )}
-                                                    title={user.is_active ? "Deactivate" : "Activate"}
-                                                >
-                                                    {user.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
-                                                </button>
+                                                {canManageUsers ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => navigate(`/users/${user.id}`)}
+                                                            className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                                                            title="Edit User"
+                                                        >
+                                                            <Edit2 className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => toggleUserStatus(user)}
+                                                            className={cn(
+                                                                "p-2 rounded-lg transition-all",
+                                                                user.is_active
+                                                                    ? "text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
+                                                                    : "text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+                                                            )}
+                                                            title={user.is_active ? "Deactivate" : "Activate"}
+                                                        >
+                                                            {user.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-xs text-slate-500 italic">View only</span>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
