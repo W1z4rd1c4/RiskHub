@@ -13,9 +13,11 @@ import { useNavigate } from 'react-router-dom';
 import { userApi } from '@/services/userApi';
 import { departmentApi } from '@/services/departmentApi';
 import type { UserCreate, Role } from '@/types/user';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export function UserNewPage() {
     const navigate = useNavigate();
+    const { canManageUsers } = usePermissions();
     const [isLoading, setIsLoading] = useState(false);
     const [departments, setDepartments] = useState<any[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
@@ -23,29 +25,55 @@ export function UserNewPage() {
         email: '',
         name: '',
         password: '',
-        role_id: 0, // Will be set to employee role once fetched
+        role_id: 0, // Will be set to safe role once fetched
         department_id: null,
         manager_id: null,
         is_active: true
     });
     const [error, setError] = useState<string | null>(null);
 
+    // Redirect if no permission to manage users
     useEffect(() => {
-        fetchDepartments();
-        fetchRoles();
-    }, []);
+        if (!canManageUsers) {
+            navigate('/users', { replace: true });
+        }
+    }, [canManageUsers, navigate]);
+
+    useEffect(() => {
+        if (canManageUsers) {
+            fetchDepartments();
+            fetchRoles();
+        }
+    }, [canManageUsers]);
+
+    // Safe roles that can be selected by default (non-privileged)
+    const SAFE_ROLE_NAMES = ['control_owner', 'viewer', 'department_head'];
+    // Privileged roles that should never be auto-selected
+    const PRIVILEGED_ROLE_NAMES = ['admin', 'cro', 'risk_manager'];
 
     const fetchRoles = async () => {
         try {
             const data = await userApi.listRoles();
             setRoles(data);
-            // Default to employee role if found
-            const employeeRole = data.find(r => r.name === 'employee');
-            if (employeeRole) {
-                setFormData(prev => ({ ...prev, role_id: employeeRole.id }));
-            } else if (data.length > 0) {
-                setFormData(prev => ({ ...prev, role_id: data[0].id }));
+
+            // Find the safest default role (control_owner preferred, then viewer, then department_head)
+            let defaultRole: Role | undefined;
+            for (const safeName of SAFE_ROLE_NAMES) {
+                defaultRole = data.find(r => r.name === safeName);
+                if (defaultRole) break;
             }
+
+            // If still no safe role found, filter out privileged roles and pick first non-privileged
+            if (!defaultRole) {
+                const nonPrivileged = data.filter(r => !PRIVILEGED_ROLE_NAMES.includes(r.name));
+                defaultRole = nonPrivileged[0];
+            }
+
+            // Only set if we found a safe role - never fallback to privileged
+            if (defaultRole) {
+                setFormData(prev => ({ ...prev, role_id: defaultRole!.id }));
+            }
+            // If no safe role found, role_id stays 0 and form validation will catch it
         } catch (err) {
             console.error('Failed to fetch roles:', err);
         }
