@@ -11,7 +11,8 @@ import {
     UserCircle,
     CheckCircle2,
     XCircle,
-    Lock as LockIcon
+    Lock as LockIcon,
+    Eye
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { userApi } from '@/services/userApi';
@@ -19,10 +20,12 @@ import { departmentApi } from '@/services/departmentApi';
 import type { UserRead, UserUpdate, Role } from '@/types/user';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export function UserDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { canManageUsers } = usePermissions();
     const [user, setUser] = useState<UserRead | null>(null);
     const [departments, setDepartments] = useState<any[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
@@ -142,9 +145,20 @@ export function UserDetailPage() {
                 <div className="lg:col-span-2 space-y-6">
                     <form onSubmit={handleSubmit} className="glass-card p-6 space-y-6">
                         <h2 className="text-xl font-semibold text-white flex items-center gap-2 mb-2">
-                            <UserCircle className="h-5 w-5 text-accent" />
-                            Edit Profile
+                            {canManageUsers ? (
+                                <UserCircle className="h-5 w-5 text-accent" />
+                            ) : (
+                                <Eye className="h-5 w-5 text-slate-400" />
+                            )}
+                            {canManageUsers ? 'Edit Profile' : 'View Profile'}
                         </h2>
+
+                        {!canManageUsers && (
+                            <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 p-3 rounded-xl flex items-center gap-2 text-sm mb-4">
+                                <Eye className="h-4 w-4 shrink-0" />
+                                <span>You have view-only access to user profiles</span>
+                            </div>
+                        )}
 
                         {error && (
                             <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3 animate-in shake duration-300">
@@ -166,7 +180,11 @@ export function UserDetailPage() {
                                 <input
                                     required
                                     type="text"
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                    disabled={!canManageUsers}
+                                    className={cn(
+                                        "w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-accent/50",
+                                        !canManageUsers && "opacity-60 cursor-not-allowed"
+                                    )}
                                     value={editData.name}
                                     onChange={e => setEditData({ ...editData, name: e.target.value })}
                                 />
@@ -176,7 +194,11 @@ export function UserDetailPage() {
                                 <input
                                     required
                                     type="email"
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                    disabled={!canManageUsers}
+                                    className={cn(
+                                        "w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white focus:outline-none focus:ring-2 focus:ring-accent/50",
+                                        !canManageUsers && "opacity-60 cursor-not-allowed"
+                                    )}
                                     value={editData.email}
                                     onChange={e => setEditData({ ...editData, email: e.target.value })}
                                 />
@@ -185,7 +207,11 @@ export function UserDetailPage() {
                                 <label className="text-sm font-medium text-slate-300">Role</label>
                                 <select
                                     required
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                    disabled={!canManageUsers}
+                                    className={cn(
+                                        "w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50",
+                                        !canManageUsers && "opacity-60 cursor-not-allowed"
+                                    )}
                                     value={editData.role_id}
                                     onChange={e => setEditData({ ...editData, role_id: Number(e.target.value) })}
                                 >
@@ -197,7 +223,11 @@ export function UserDetailPage() {
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-300">Department</label>
                                 <select
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                    disabled={!canManageUsers}
+                                    className={cn(
+                                        "w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50",
+                                        !canManageUsers && "opacity-60 cursor-not-allowed"
+                                    )}
                                     value={editData.department_id || ''}
                                     onChange={e => setEditData({ ...editData, department_id: e.target.value ? Number(e.target.value) : null })}
                                 >
@@ -209,42 +239,46 @@ export function UserDetailPage() {
                             </div>
                         </div>
 
-                        <div className="pt-4 border-t border-white/5 flex justify-end">
-                            <button
-                                disabled={isSaving}
-                                className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-white px-8 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
-                            >
-                                {isSaving ? (
-                                    <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : <Save className="h-5 w-5" />}
-                                Save Changes
-                            </button>
-                        </div>
+                        {canManageUsers && (
+                            <div className="pt-4 border-t border-white/5 flex justify-end">
+                                <button
+                                    disabled={isSaving}
+                                    className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-white px-8 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
+                                >
+                                    {isSaving ? (
+                                        <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : <Save className="h-5 w-5" />}
+                                    Save Changes
+                                </button>
+                            </div>
+                        )}
                     </form>
 
-                    <div className="glass-card p-6">
-                        <h2 className="text-xl font-semibold text-white flex items-center gap-2 mb-4">
-                            <LockIcon className="h-5 w-5 text-accent" />
-                            Security
-                        </h2>
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border border-white/5 rounded-2xl bg-white/5">
-                            <div>
-                                <p className="text-white font-medium">Deactivate account</p>
-                                <p className="text-sm text-slate-500">Temporarily block this user from accessing the platform.</p>
+                    {canManageUsers && (
+                        <div className="glass-card p-6">
+                            <h2 className="text-xl font-semibold text-white flex items-center gap-2 mb-4">
+                                <LockIcon className="h-5 w-5 text-accent" />
+                                Security
+                            </h2>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border border-white/5 rounded-2xl bg-white/5">
+                                <div>
+                                    <p className="text-white font-medium">Deactivate account</p>
+                                    <p className="text-sm text-slate-500">Temporarily block this user from accessing the platform.</p>
+                                </div>
+                                <button
+                                    onClick={() => setEditData({ ...editData, is_active: !editData.is_active })}
+                                    className={cn(
+                                        "px-4 py-2 rounded-xl text-sm font-semibold transition-all",
+                                        editData.is_active
+                                            ? "bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"
+                                            : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                                    )}
+                                >
+                                    {editData.is_active ? 'Deactivate Account' : 'Reactivate Account'}
+                                </button>
                             </div>
-                            <button
-                                onClick={() => setEditData({ ...editData, is_active: !editData.is_active })}
-                                className={cn(
-                                    "px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-                                    editData.is_active
-                                        ? "bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"
-                                        : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-                                )}
-                            >
-                                {editData.is_active ? 'Deactivate Account' : 'Reactivate Account'}
-                            </button>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 <div className="space-y-6">
