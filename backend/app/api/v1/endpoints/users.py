@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.models import User, Role
 from app.schemas import RoleRead, UserRead, UserBrief, UserCreate, UserUpdate
+from app.schemas.user import UserLookup
 from app.core.security import get_password_hash
 from app.core.permissions import can_manage_users
 from app.api import deps
@@ -127,7 +128,7 @@ async def list_roles(
     return result.scalars().all()
 
 
-@router.get("/lookup", response_model=list["UserLookup"])
+@router.get("/lookup", response_model=list[UserLookup])
 async def lookup_users(
     q: str | None = None,
     include_inactive: bool = False,
@@ -146,7 +147,6 @@ async def lookup_users(
         q: Optional text search (name or email)
         include_inactive: Include inactive users (default False)
     """
-    from app.schemas.user import UserLookup
     from app.models.user import AccessScope
     from sqlalchemy import or_
     

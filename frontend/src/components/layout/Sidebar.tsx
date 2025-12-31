@@ -37,7 +37,7 @@ export function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
-    const { canManageUsers } = usePermissions();
+    const { canManageAccess } = usePermissions();
     const [pendingCount, setPendingCount] = useState(0);
     const [orphanCount, setOrphanCount] = useState(0);
 
@@ -75,9 +75,9 @@ export function Sidebar() {
         badge: pendingCount > 0 ? pendingCount : undefined
     };
 
-    const adminItems = canManageUsers
+    const adminItems = canManageAccess
         ? [
-            { name: 'User Management', href: '/users', icon: UsersIcon },
+            { name: 'Access Management', href: '/users', icon: UsersIcon },
         ]
         : [];
 
@@ -85,7 +85,7 @@ export function Sidebar() {
         if (item.href === '/governance') {
             // Only show orphan count badge for users who can manage orphaned items
             // Regular employees can't resolve orphaned items so badge would be misleading
-            const showBadge = canManageUsers && orphanCount > 0;
+            const showBadge = canManageAccess && orphanCount > 0;
             return { ...item, badge: showBadge ? orphanCount : undefined };
         }
         return item;
