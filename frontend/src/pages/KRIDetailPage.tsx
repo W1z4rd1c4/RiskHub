@@ -8,7 +8,7 @@ import { PermissionGate } from '@/components/PermissionGate';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import { Button } from '@/components/ui/button';
-import { HistoryTimeline, HistoryTrendChart } from '@/components/history';
+import { HistoryTimeline, HistoryTrendChart, HistoryComparisonPanel } from '@/components/history';
 import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
 import type { HistoryTimelineItem, HistoryTrendPoint } from '@/types/history';
 
@@ -411,6 +411,28 @@ export function KRIDetailPage() {
                             loading={isLoadingHistory}
                             emptyMessage="No history recorded yet. Click 'Record Value' to start tracking."
                         />
+                    </motion.div>
+
+                    {/* Compare Periods */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="glass-card"
+                    >
+                        <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-accent" /> Compare Periods
+                        </h3>
+                        {history.length >= 2 ? (
+                            <HistoryComparisonPanel
+                                entries={history}
+                                formatValue={formatNumber}
+                            />
+                        ) : (
+                            <div className="text-center py-8 text-slate-500 text-sm">
+                                Need at least 2 history entries to compare periods.
+                            </div>
+                        )}
                     </motion.div>
                 </div>
             )}
