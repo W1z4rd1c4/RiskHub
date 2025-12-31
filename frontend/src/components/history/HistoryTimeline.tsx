@@ -3,7 +3,7 @@
  * Renders a visual rail with status-colored dots and event details.
  */
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Edit3 } from 'lucide-react';
 import type { HistoryTimelineItem, HistoryStatus } from '@/types/history';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -12,6 +12,8 @@ interface HistoryTimelineProps {
     loading?: boolean;
     emptyMessage?: string;
     className?: string;
+    onItemAction?: (item: HistoryTimelineItem) => void;
+    actionLabel?: string;
 }
 
 const statusColors: Record<HistoryStatus, string> = {
@@ -39,7 +41,9 @@ export function HistoryTimeline({
     items,
     loading = false,
     emptyMessage = 'No history available',
-    className
+    className,
+    onItemAction,
+    actionLabel = 'Request Correction'
 }: HistoryTimelineProps) {
     if (loading) {
         return (
@@ -121,6 +125,20 @@ export function HistoryTimeline({
                                             </span>
                                         ))}
                                     </div>
+                                )}
+
+                                {/* Action button */}
+                                {onItemAction && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onItemAction(item);
+                                        }}
+                                        className="mt-3 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg transition-colors flex items-center gap-1.5"
+                                    >
+                                        <Edit3 className="h-3 w-3" />
+                                        {actionLabel}
+                                    </button>
                                 )}
                             </div>
                         </div>

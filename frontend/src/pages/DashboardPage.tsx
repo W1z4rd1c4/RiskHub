@@ -18,7 +18,9 @@ import type {
     DashboardSummary,
     DepartmentMetrics,
     RiskDistribution,
-    ControlTrend
+    ControlTrend,
+    RiskTrendPoint,
+    KRIBreachTrendPoint
 } from '@/types/dashboard';
 
 import { FilterBar } from '@/components/dashboard/FilterBar';
@@ -28,6 +30,9 @@ import { ControlTrendChart } from '@/components/dashboard/ControlTrendChart';
 import { DepartmentTable } from '@/components/dashboard/DepartmentTable';
 import { CategoryBreakdownCharts } from '@/components/dashboard/CategoryBreakdownCharts';
 import { KRIBreachWidget } from '@/components/dashboard/KRIBreachWidget';
+import { KRIOverdueWidget } from '@/components/dashboard/KRIOverdueWidget';
+import { RiskTrendChart } from '@/components/dashboard/RiskTrendChart';
+import { KRIBreachHistoryChart } from '@/components/dashboard/KRIBreachHistoryChart';
 
 const container = {
     hidden: { opacity: 0 },
@@ -51,6 +56,8 @@ export function DashboardPage() {
     const [deptMetrics, setDeptMetrics] = useState<DepartmentMetrics[]>([]);
     const [distribution, setDistribution] = useState<RiskDistribution | null>(null);
     const [trends, setTrends] = useState<ControlTrend[]>([]);
+    const [riskTrends, setRiskTrends] = useState<RiskTrendPoint[]>([]);
+    const [breachTrends, setBreachTrends] = useState<KRIBreachTrendPoint[]>([]);
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -61,17 +68,21 @@ export function DashboardPage() {
     const fetchData = useCallback(async () => {
         try {
             setError(null);
-            const [summaryData, deptData, distData, trendData] = await Promise.all([
+            const [summaryData, deptData, distData, trendData, riskTrendData, breachTrendData] = await Promise.all([
                 dashboardApi.fetchDashboardSummary(filters),
                 dashboardApi.fetchDepartmentMetrics(filters),
                 dashboardApi.fetchRiskDistribution(filters),
-                dashboardApi.fetchControlTrends(filters)
+                dashboardApi.fetchControlTrends(filters),
+                dashboardApi.fetchRiskTrends(filters),
+                dashboardApi.fetchKriBreachTrends(filters)
             ]);
 
             setSummary(summaryData);
             setDeptMetrics(deptData);
             setDistribution(distData);
             setTrends(trendData);
+            setRiskTrends(riskTrendData);
+            setBreachTrends(breachTrendData);
         } catch (err) {
             console.error('Dashboard fetch error:', err);
             setError('Failed to load dashboard data. Please check your connection.');
@@ -261,6 +272,14 @@ export function DashboardPage() {
                 >
                     <KRIBreachWidget />
                 </motion.div>
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.7 }}
+                    className="h-full"
+                >
+                    <KRIOverdueWidget />
+                </motion.div>
             </div>
 
             <div className="grid gap-8 lg:grid-cols-2">
@@ -285,19 +304,56 @@ export function DashboardPage() {
                 <div className="hidden lg:block"></div>
             </div>
 
+            {/* Historical Trends Row */}
+            <div className="space-y-6">
+                <div className="flex items-center gap-3 px-2">
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] whitespace-nowrap">Time Series Analysis</h3>
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+                </div>
+
+                <div className="grid gap-8 lg:grid-cols-2">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.75 }}
+                        className="glass-card group overflow-hidden"
+                    >
+                        <h3 className="text-xs font-black text-white mb-8 flex items-center gap-2 uppercase tracking-widest">
+                            <TrendingUp className="h-4 w-4 text-accent" />
+                            Risk Creation Trends
+                        </h3>
+                        <RiskTrendChart data={riskTrends} />
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.8 }}
+                        className="glass-card group overflow-hidden"
+                    >
+                        <h3 className="text-xs font-black text-white mb-8 flex items-center gap-2 uppercase tracking-widest">
+                            <AlertTriangle className="h-4 w-4 text-orange-400" />
+                            KRI Breach History
+                        </h3>
+                        <KRIBreachHistoryChart data={breachTrends} />
+                    </motion.div>
+                </div>
+            </div>
+
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8 }}
+                transition={{ delay: 0.85 }}
                 className="glass-card !p-0 overflow-hidden"
             >
-                <div className="p-6 border-b border-white/5">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Building2 className="h-5 w-5 text-emerald-400" />
+                <div className="p-6 border-b border-white/5 bg-white/[0.01]">
+                    <h3 className="text-xs font-black text-white flex items-center gap-2 uppercase tracking-widest">
+                        <Building2 className="h-4 w-4 text-emerald-400" />
                         Departmental Visibility
                     </h3>
                 </div>
-                <DepartmentTable metrics={deptMetrics} />
+                <DepartmentTable metrics={deptMetrics.filter(d => d.risk_count > 0 || d.control_count > 0)} />
             </motion.div>
 
             {/* Risk Drill-down Modal */}
