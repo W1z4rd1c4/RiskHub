@@ -21,6 +21,9 @@ export interface TokenResponse {
         department_id?: number;
         department_name?: string;
         permissions: string[];
+        effective_permissions: string[];
+        access_scope: 'global' | 'department' | 'manager';
+        scope_label: string;
     };
 }
 

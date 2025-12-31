@@ -12,9 +12,8 @@ export function usePermissions() {
     // Admin/CRO roles have special privileges
     const isAdminOrCro = user?.role === 'admin' || user?.role === 'cro';
 
-    // Privileged users can manage access (those with global access scope)
-    // For now, we check admin/cro roles as a proxy for privileged status
-    const isPrivileged = isAdminOrCro || user?.role === 'risk_manager';
+    // Privileged users have global access scope (can manage access)
+    const hasGlobalScope = user?.access_scope === 'global';
 
     return {
         hasPermission,
@@ -36,10 +35,10 @@ export function usePermissions() {
         // Approvals permission for workflow management
         canResolveApprovals: hasPermission('approvals', 'write'),
         // Access management permissions
-        canManageAccess: isPrivileged,  // Privileged users can view/edit access
-        canManagePrivileged: isAdminOrCro,  // Only admin/CRO can toggle privileged status
+        canManageAccess: hasGlobalScope,  // Users with global scope can view/edit access
+        canManagePrivileged: isAdminOrCro,  // Only admin/CRO can toggle privileged status/roles
         isAdmin: isAdminOrCro,
-        isPrivileged,
+        isPrivileged: hasGlobalScope,
         user,
     };
 }

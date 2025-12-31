@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Trash2, Calendar, Activity, Plus, User } from 'lucide-react';
 import type { KeyRiskIndicator, KRIUpdate, KRICreate } from '@/types/kri';
 import { userApi } from '@/services/userApi';
-import type { UserRead } from '@/types/user';
 
 interface KRIModalProps {
     risk_id: number;
@@ -29,7 +28,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
         reporting_owner_id: undefined,
     });
 
-    const [users, setUsers] = useState<UserRead[]>([]);
+    const [users, setUsers] = useState<{ id: number; name: string; email: string }[]>([]);
 
     useEffect(() => {
         if (kri) {
@@ -55,11 +54,11 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
         }
     }, [kri, isOpen]);
 
-    // Load users for reporting owner dropdown
+    // Load users for reporting owner dropdown (scoped visibility)
     useEffect(() => {
         const loadUsers = async () => {
             try {
-                const userList = await userApi.listUsers(0, 200);
+                const userList = await userApi.listVisibleUsers();
                 setUsers(userList);
             } catch (err) {
                 console.error('Error loading users:', err);

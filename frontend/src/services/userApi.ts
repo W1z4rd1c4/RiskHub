@@ -30,6 +30,14 @@ export const userApi = {
         return apiClient.get<UserRead[]>(`/users/${userId}/subordinates`);
     },
 
+    /**
+     * Scoped user lookup for pickers/dropdowns.
+     * Returns users visible to the current user based on their access scope.
+     */
+    async listVisibleUsers(params?: { q?: string; include_inactive?: boolean }) {
+        return apiClient.get<{ id: number; name: string; email: string; role_name?: string; department_id?: number; department_name?: string; manager_id?: number }[]>('/users/lookup', { params });
+    },
+
     async listRoles() {
         return apiClient.get<Role[]>('/users/roles');
     }

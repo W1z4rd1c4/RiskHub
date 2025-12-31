@@ -10,6 +10,9 @@ interface User {
     department_id?: number;
     department_name?: string;
     permissions: string[];
+    effective_permissions: string[];
+    access_scope: 'global' | 'department' | 'manager';
+    scope_label: string;
 }
 
 interface AuthContextType {
@@ -86,8 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [token]);
 
     const hasPermission = (resource: string, action: string): boolean => {
-        if (!user?.permissions) return false;
-        return user.permissions.some((perm) => {
+        // Use effective_permissions if available, fallback to permissions
+        const perms = user?.effective_permissions ?? user?.permissions ?? [];
+        return perms.some((perm) => {
             const [permResource, permAction] = perm.split(':');
             return (permResource === '*' || permResource === resource) &&
                 (permAction === '*' || permAction === action);
