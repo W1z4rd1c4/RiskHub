@@ -10,7 +10,6 @@ import {
     Info,
     User,
     Star,
-    Zap,
     Activity,
     Plus
 } from 'lucide-react';
@@ -29,7 +28,6 @@ const steps = [
     { id: 'identity', title: 'Identity', icon: Info },
     { id: 'ownership', title: 'Details & Owner', icon: User },
     { id: 'scoring', title: 'Risk Assessment', icon: Activity },
-    { id: 'kri', title: 'KRI & Status', icon: Zap },
 ];
 
 export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
@@ -644,6 +642,10 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                         impact={formData.gross_impact || 1}
                                         type="gross"
                                         size="small"
+                                        onSelect={(p, i) => {
+                                            handleInputChange('gross_probability', p);
+                                            handleInputChange('gross_impact', i);
+                                        }}
                                     />
                                 </section>
 
@@ -681,81 +683,16 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                         impact={formData.net_impact || 1}
                                         type="net"
                                         size="small"
+                                        onSelect={(p, i) => {
+                                            handleInputChange('net_probability', p);
+                                            handleInputChange('net_impact', i);
+                                        }}
                                     />
                                 </section>
                             </div>
                         </div>
                     )}
 
-                    {/* Step 4: KRI & Status */}
-                    {currentStep === 3 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Current Status</label>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {Object.values(RiskStatus).map(s => (
-                                        <button
-                                            key={s}
-                                            type="button"
-                                            onClick={() => handleInputChange('status', s)}
-                                            className={`py-3 rounded-xl border-2 font-bold uppercase tracking-widest text-[10px] transition-all ${formData.status === s ? 'bg-accent/10 border-accent text-accent' : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'
-                                                }`}
-                                        >
-                                            {s}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="pt-6 border-t border-white/5">
-                                <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-4">Key Risk Indicator (KRI)</h4>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">KRI Definition</label>
-                                        <input
-                                            type="text"
-                                            value={formData.kri_indicator || ''}
-                                            onChange={(e) => handleInputChange('kri_indicator', e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                            placeholder="e.g. Number of security incidents per month"
-                                        />
-                                    </div>
-                                    <div className="grid md:grid-cols-3 gap-4">
-                                        <div>
-                                            <label className="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-2">Green Threshold</label>
-                                            <input
-                                                type="text"
-                                                value={formData.kri_threshold_green || ''}
-                                                onChange={(e) => handleInputChange('kri_threshold_green', e.target.value)}
-                                                className="w-full bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-4 py-3 text-emerald-400 text-xs outline-none focus:border-emerald-500/50"
-                                                placeholder="e.g. < 2"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-amber-500 uppercase tracking-widest mb-2">Yellow Threshold</label>
-                                            <input
-                                                type="text"
-                                                value={formData.kri_threshold_yellow || ''}
-                                                onChange={(e) => handleInputChange('kri_threshold_yellow', e.target.value)}
-                                                className="w-full bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3 text-amber-400 text-xs outline-none focus:border-amber-500/50"
-                                                placeholder="e.g. 2 - 5"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2">Red Threshold</label>
-                                            <input
-                                                type="text"
-                                                value={formData.kri_threshold_red || ''}
-                                                onChange={(e) => handleInputChange('kri_threshold_red', e.target.value)}
-                                                className="w-full bg-rose-500/5 border border-rose-500/20 rounded-xl px-4 py-3 text-rose-400 text-xs outline-none focus:border-rose-500/50"
-                                                placeholder="e.g. > 5"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 {/* Footer Controls */}

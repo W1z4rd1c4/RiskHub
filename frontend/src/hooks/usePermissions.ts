@@ -9,6 +9,13 @@ import { useAuth } from '@/contexts/AuthContext';
 export function usePermissions() {
     const { user, hasPermission } = useAuth();
 
+    // Admin/CRO roles have special privileges
+    const isAdminOrCro = user?.role === 'admin' || user?.role === 'cro';
+
+    // Privileged users can manage access (those with global access scope)
+    // For now, we check admin/cro roles as a proxy for privileged status
+    const isPrivileged = isAdminOrCro || user?.role === 'risk_manager';
+
     return {
         hasPermission,
         // User management permissions
@@ -28,7 +35,11 @@ export function usePermissions() {
         canDeleteKRIs: hasPermission('risks', 'delete'),
         // Approvals permission for workflow management
         canResolveApprovals: hasPermission('approvals', 'write'),
-        isAdmin: user?.role === 'admin' || user?.role === 'cro',
+        // Access management permissions
+        canManageAccess: isPrivileged,  // Privileged users can view/edit access
+        canManagePrivileged: isAdminOrCro,  // Only admin/CRO can toggle privileged status
+        isAdmin: isAdminOrCro,
+        isPrivileged,
         user,
     };
 }

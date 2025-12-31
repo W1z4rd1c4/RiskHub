@@ -17,9 +17,9 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 151. Audit Resolution
-**Current Plan:** 151-07 (Completed)
-**Next Plan:** Ready for next phase or deployment
+**Phase:** 85. Workflow & Users
+**Current Plan:** 85-03 (Completed)
+**Next Plan:** Phase 85 Complete - Pending Human Verification
 
 ## Progress Summary
 
@@ -32,11 +32,17 @@
 | 10 Historization | ⏳ In progress (4/5) | 2025-12-31 |
 | 11 Historical Visualization | ⏳ Not started | - |
 | 12-15 Deferred | ⏸ Deferred | - |
+| 85 Workflow & Users | ✅ Complete (3/3) | 2025-12-31 |
 | 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
 | 99 Data Migration & Standalone AD | ✅ Complete (7/7) | 2025-12-28 |
 | 100 Marketing Presentation | ✅ Complete (3/3) | 2025-12-29 |
 
 ## Session Context
+
+### Phase 85 Progress
+- ✅ **85-01**: User access map (roles x tabs, backend + frontend gating)
+- ✅ **85-02**: Backend access management model + APIs (access scope, access endpoints)
+- ✅ **85-03**: Frontend access management UI (types, API client, PermissionMatrix, AccessEditModal, UsersPage upgrade)
 
 ### Phase 99 Progress
 - ✅ **99-01**: Migrated 83 risks from Registr_Rizik_2022.xlsx
@@ -56,6 +62,7 @@
 | Approval Workflow | Delete + Edit approvals for non-privileged | 2025-12-27 |
 | Scheduler | APScheduler (in-process) | 2025-12-28 |
 | AD Emulator | Standalone app (port 8001/5174) | 2025-12-28 |
+| Privileged Model | Access scope enum (global/department/manager) | 2025-12-31 |
 
 ## Open Concerns
 
@@ -80,15 +87,10 @@
 ## Continuity
 
 ### Last Action
-- Executed Phase 151-07: Removed 100-item caps from grouped views, added AuditTrailPage pagination
-- Ad-hoc Fixes:
-  - Fixed CORS options to allow port 5174
-  - Fixed Demo Login IDs to match database seeded users
-  - Updated Dashboard "Active Depts" to filter out empty departments
-  - Fixed Governance badge to only show for privileged users
+- Executed Phase 85-03: Implemented frontend access management UI with types, API client, PermissionMatrix, AccessEditModal, and upgraded UsersPage.
 
 ### Next Step
-- Phase 151 audit resolution complete. Ready for final verification or Phase 10 (Historization) continuation.
+- Manual verification of access UI as admin/CRO and non-privileged user.
 
 ---
 *Updated: 2025-12-31*
