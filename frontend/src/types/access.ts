@@ -1,0 +1,54 @@
+/**
+ * Access management types matching backend schemas.
+ */
+
+export type AccessScopeEnum = 'global' | 'department' | 'manager';
+
+export interface PermissionRead {
+    resource: string;
+    action: string;
+    description: string | null;
+}
+
+export interface RoleWithPermissions {
+    id: number;
+    name: string;
+    display_name: string;
+    description: string | null;
+    permissions: PermissionRead[];
+}
+
+export interface AccessUserRead {
+    id: number;
+    email: string;
+    name: string;
+    is_active: boolean;
+    role_id: number;
+    role: {
+        id: number;
+        name: string;
+        display_name: string;
+        description: string | null;
+    };
+    department_id: number | null;
+    department_name: string | null;
+    manager_id: number | null;
+    manager_name: string | null;
+    access_scope: AccessScopeEnum;
+    scope_label: string;
+    effective_permissions: string[];
+}
+
+export interface AccessUserUpdate {
+    role_id?: number;
+    department_id?: number | null;
+    manager_id?: number | null;
+    access_scope?: AccessScopeEnum;
+}
+
+export interface AccessUserFilters {
+    department_id?: number;
+    role_id?: number;
+    access_scope?: AccessScopeEnum;
+    is_privileged?: boolean;
+}
