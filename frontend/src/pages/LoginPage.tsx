@@ -5,16 +5,18 @@ import { Shield, Building2, User, ChevronRight, Loader2 } from 'lucide-react';
 const DEMO_ACCOUNTS = {
     privileged: [
         { id: 1, name: 'System Admin', role: 'Administrator', email: 'admin@riskhub.local', color: 'rose' },
-        { id: 2, name: 'Jan Novák', role: 'Chief Risk Officer', email: 'cro@riskhub.local', color: 'purple' },
-        { id: 8, name: 'Anna Kowalski', role: 'Chief Risk Officer', email: 'anna@riskhub.local', color: 'violet' },
+        { id: 2, name: 'Anna Kowalski', role: 'Chief Risk Officer', email: 'cro@riskhub.local', color: 'purple' },
+        { id: 3, name: 'Petra Svobodová', role: 'Risk Manager', email: 'risk.manager@riskhub.local', color: 'violet' },
     ],
     department_heads: [
-        { id: 17, name: 'Jordan Johnson', role: 'Department Head', email: 'it.head@riskhub.test', dept: 'IT', color: 'sky' },
+        { id: 4, name: 'Eva Králová', role: 'Department Head', email: 'ops.head@riskhub.local', dept: 'Operations', color: 'amber' },
+        { id: 5, name: 'Martin Procházka', role: 'Department Head', email: 'fin.head@riskhub.local', dept: 'Finance', color: 'emerald' },
+        { id: 6, name: 'Tomáš Novotný', role: 'Department Head', email: 'it.head@riskhub.local', dept: 'IT', color: 'sky' },
     ],
     employees: [
-        { id: 37, name: 'Harper Martinez', role: 'Control Owner', email: 'hmartinez@riskhub.local', dept: 'OPS', color: 'amber' },
-        { id: 38, name: 'Charlotte Thomas', role: 'Control Owner', email: 'cthomas@riskhub.local', dept: 'FIN', color: 'emerald' },
-        { id: 39, name: 'Amelia Martinez', role: 'Control Owner', email: 'amelia@riskhub.local', dept: 'IT', color: 'sky' },
+        { id: 7, name: 'Jana Horáková', role: 'Control Owner', email: 'ops.analyst@riskhub.local', dept: 'Operations', color: 'amber' },
+        { id: 8, name: 'Lukáš Dvořák', role: 'Control Owner', email: 'fin.analyst@riskhub.local', dept: 'Finance', color: 'emerald' },
+        { id: 9, name: 'Barbora Němcová', role: 'Control Owner', email: 'it.analyst@riskhub.local', dept: 'IT', color: 'sky' },
     ],
 };
 
