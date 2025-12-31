@@ -2,9 +2,18 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from unittest.mock import AsyncMock
 
 from app.models import User, Department, Role
 from app.models.directory_user import DirectoryUser
+
+
+@pytest.fixture
+def mock_ad_get_users(monkeypatch):
+    """Mock the AD Emulator client's get_users method."""
+    mock = AsyncMock()
+    monkeypatch.setattr("app.services.directory_sync_service.ADEmulatorClient.get_users", mock)
+    return mock
 
 
 @pytest.mark.asyncio
@@ -12,26 +21,28 @@ async def test_directory_sync_preview_counts(
     auth_client: AsyncClient,
     db_session: AsyncSession,
     test_role_employee: Role,
+    mock_ad_get_users: AsyncMock,
 ):
     """Preview sync should report creates for new directory users."""
-    dir_users = [
-        DirectoryUser(
-            external_id="dir-100",
-            email="alice@example.com",
-            display_name="Alice Novak",
-            department="Finance",
-            account_enabled=True,
-        ),
-        DirectoryUser(
-            external_id="dir-101",
-            email="bob@example.com",
-            display_name="Bob Novak",
-            department="IT",
-            account_enabled=True,
-        ),
+    # Setup mock return data matching the test intent
+    mock_ad_get_users.return_value = [
+        {
+            "external_id": "dir-100",
+            "email": "alice@example.com",
+            "display_name": "Alice Novak",
+            "department": "Finance",
+            "account_enabled": True,
+            "user_principal_name": "alice@example.com",
+        },
+        {
+            "external_id": "dir-101",
+            "email": "bob@example.com",
+            "display_name": "Bob Novak",
+            "department": "IT",
+            "account_enabled": True,
+             "user_principal_name": "bob@example.com",
+        },
     ]
-    db_session.add_all(dir_users)
-    await db_session.commit()
 
     response = await auth_client.post("/api/v1/directory/sync/preview")
     assert response.status_code == 200
@@ -49,25 +60,29 @@ async def test_directory_sync_apply_creates_users_and_manager(
     auth_client: AsyncClient,
     db_session: AsyncSession,
     test_role_employee: Role,
+    mock_ad_get_users: AsyncMock,
 ):
     """Apply sync should create users, departments, and manager relationships."""
-    manager = DirectoryUser(
-        external_id="dir-boss",
-        email="boss@example.com",
-        display_name="Boss Manager",
-        department="Operations",
-        account_enabled=True,
-    )
-    worker = DirectoryUser(
-        external_id="dir-worker",
-        email="worker@example.com",
-        display_name="Worker One",
-        department="Operations",
-        manager_external_id="dir-boss",
-        account_enabled=True,
-    )
-    db_session.add_all([manager, worker])
-    await db_session.commit()
+    # Setup mock return data
+    mock_ad_get_users.return_value = [
+        {
+            "external_id": "dir-boss",
+            "email": "boss@example.com",
+            "display_name": "Boss Manager",
+            "department": "Operations",
+            "account_enabled": True,
+            "user_principal_name": "boss@example.com",
+        },
+        {
+            "external_id": "dir-worker",
+            "email": "worker@example.com",
+            "display_name": "Worker One",
+            "department": "Operations",
+            "manager_external_id": "dir-boss",
+            "account_enabled": True,
+             "user_principal_name": "worker@example.com",
+        }
+    ]
 
     response = await auth_client.post("/api/v1/directory/sync/apply")
     assert response.status_code == 200
@@ -88,19 +103,23 @@ async def test_directory_sync_updates_existing_user_preserves_role(
     auth_client: AsyncClient,
     db_session: AsyncSession,
     test_user: User,
+    test_role_employee: Role,
+    mock_ad_get_users: AsyncMock,
 ):
     """Existing user updates should not overwrite role_id."""
     original_role_id = test_user.role_id
-
-    dir_user = DirectoryUser(
-        external_id="dir-admin",
-        email=test_user.email,
-        display_name="Updated Admin",
-        department="Security",
-        account_enabled=True,
-    )
-    db_session.add(dir_user)
-    await db_session.commit()
+    
+    # Setup mock return data
+    mock_ad_get_users.return_value = [
+        {
+            "external_id": "dir-admin",
+            "email": test_user.email,
+            "display_name": "Updated Admin",
+            "department": "Security",
+            "account_enabled": True,
+            "user_principal_name": test_user.email,
+        }
+    ]
 
     response = await auth_client.post("/api/v1/directory/sync/apply")
     assert response.status_code == 200
@@ -119,6 +138,7 @@ async def test_directory_sync_deactivates_user(
     db_session: AsyncSession,
     test_role_employee: Role,
     test_department: Department,
+    mock_ad_get_users: AsyncMock,
 ):
     """Directory users with account_enabled=false should deactivate users."""
     user = User(
@@ -132,15 +152,17 @@ async def test_directory_sync_deactivates_user(
     await db_session.commit()
     await db_session.refresh(user)
 
-    dir_user = DirectoryUser(
-        external_id="dir-disabled",
-        email="disabled@example.com",
-        display_name="Disabled User",
-        department=test_department.name,
-        account_enabled=False,
-    )
-    db_session.add(dir_user)
-    await db_session.commit()
+    # Setup mock return data
+    mock_ad_get_users.return_value = [
+        {
+            "external_id": "dir-disabled",
+            "email": "disabled@example.com",
+            "display_name": "Disabled User",
+            "department": test_department.name,
+            "account_enabled": False,
+            "user_principal_name": "disabled@example.com",
+        }
+    ]
 
     response = await auth_client.post("/api/v1/directory/sync/apply")
     assert response.status_code == 200
@@ -274,5 +296,3 @@ async def test_webhook_accepts_valid_signature(
     assert response.json()["status"] == "processed"
     
     get_settings.cache_clear()
-
-
