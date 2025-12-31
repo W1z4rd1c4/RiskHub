@@ -13,11 +13,13 @@ import {
     History,
     LogOut,
     Users as UsersIcon,
-    ClipboardCheck
+    ClipboardCheck,
+    Scale
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { approvalsApi } from '@/services/approvalsApi';
+import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 const navigation = [
@@ -26,6 +28,7 @@ const navigation = [
     { name: 'Risks', href: '/risks', icon: ShieldAlert },
     { name: 'Risk Appetite', href: '/kris', icon: Target },
     { name: 'Departments', href: '/departments', icon: Building2 },
+    { name: 'Governance', href: '/governance', icon: Scale },
     { name: 'Audit Trail', href: '/audit-trail', icon: History },
     { name: 'Settings', href: '/settings', icon: Settings },
 ];
@@ -36,22 +39,27 @@ export function Sidebar() {
     const { user, logout } = useAuth();
     const { canManageUsers } = usePermissions();
     const [pendingCount, setPendingCount] = useState(0);
+    const [orphanCount, setOrphanCount] = useState(0);
 
     useEffect(() => {
-        const fetchCount = async () => {
+        const fetchData = async () => {
             try {
-                const { count } = await approvalsApi.getPendingCount();
-                setPendingCount(count);
+                const [approvalsRes, orphansRes] = await Promise.all([
+                    approvalsApi.getPendingCount(),
+                    orphanedItemsApi.getOrphanStats()
+                ]);
+                setPendingCount(approvalsRes.count);
+                setOrphanCount(orphansRes.total_count);
             } catch (error) {
-                console.error('Failed to fetch pending count:', error);
+                console.error('Failed to fetch counts:', error);
             }
         };
 
         // Fetch immediately on mount
-        fetchCount();
+        fetchData();
 
         // Then poll every 60 seconds
-        const interval = setInterval(fetchCount, 60000);
+        const interval = setInterval(fetchData, 60000);
         return () => clearInterval(interval);
     }, []); // Only fetch once on mount + polling
 
@@ -67,15 +75,31 @@ export function Sidebar() {
         badge: pendingCount > 0 ? pendingCount : undefined
     };
 
+    const adminItems = canManageUsers
+        ? [
+            { name: 'User Management', href: '/users', icon: UsersIcon },
+        ]
+        : [];
+
+    const navigationWithBadges = navigation.map(item => {
+        if (item.href === '/governance') {
+            // Only show orphan count badge for users who can manage orphaned items
+            // Regular employees can't resolve orphaned items so badge would be misleading
+            const showBadge = canManageUsers && orphanCount > 0;
+            return { ...item, badge: showBadge ? orphanCount : undefined };
+        }
+        return item;
+    });
+
     const filteredNavigation = [
-        navigation[0], // Dashboard
+        navigationWithBadges[0], // Dashboard
         workflowItem,
-        ...navigation.slice(1),
-        ...(canManageUsers ? [{ name: 'User Management', href: '/users', icon: UsersIcon }] : [])
+        ...navigationWithBadges.slice(1),
+        ...adminItems,
     ];
 
     return (
-        <aside className="hidden lg:flex w-72 flex-col p-6 h-screen">
+        <aside className="fixed inset-y-0 left-0 z-50 hidden lg:flex w-72 flex-col p-6">
             <div className="glass-card h-full flex flex-col p-4">
                 <div className="flex items-center justify-between px-2 mb-10">
                     <div className="flex items-center gap-3">

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
     ClipboardList,
@@ -44,6 +45,7 @@ const item = {
 };
 
 export function DashboardPage() {
+    const navigate = useNavigate();
     const { filters } = useDashboardFilters();
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [deptMetrics, setDeptMetrics] = useState<DepartmentMetrics[]>([]);
@@ -121,14 +123,17 @@ export function DashboardPage() {
             color: 'text-accent',
             bg: 'bg-accent/10',
             trend: 'Live',
+            path: '/controls',
         },
         {
             title: 'Active Depts',
-            value: deptMetrics.length,
+            // Only count departments with at least one risk or control
+            value: deptMetrics.filter(d => d.risk_count > 0 || d.control_count > 0).length,
             icon: Building2,
             color: 'text-purple-400',
             bg: 'bg-purple-400/10',
             trend: 'Stable',
+            path: '/departments',
         },
         {
             title: 'Critical Risks',
@@ -137,6 +142,7 @@ export function DashboardPage() {
             color: 'text-rose-400',
             bg: 'bg-rose-400/10',
             trend: 'Urgent',
+            path: '/risks?critical=true',
         },
         {
             title: 'Avg Risk Score',
@@ -145,6 +151,7 @@ export function DashboardPage() {
             color: 'text-emerald-400',
             bg: 'bg-emerald-400/10',
             trend: 'Calculated',
+            path: '/risks',
         },
     ];
 
@@ -179,7 +186,12 @@ export function DashboardPage() {
                 className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
             >
                 {stats.map((stat) => (
-                    <motion.div key={stat.title} variants={item} className="glass-card group flex flex-col justify-between">
+                    <motion.div
+                        key={stat.title}
+                        variants={item}
+                        className="glass-card group flex flex-col justify-between cursor-pointer hover:ring-2 hover:ring-accent/50 transition-all"
+                        onClick={() => navigate(stat.path)}
+                    >
                         <div className="flex justify-between items-start mb-6">
                             <div className={`${stat.bg} p-3 rounded-xl`}>
                                 <stat.icon className={`h-6 w-6 ${stat.color}`} />
