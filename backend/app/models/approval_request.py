@@ -9,6 +9,7 @@ from app.db.base import Base
 class ApprovalStatus(str, PyEnum):
     """Status of an approval request."""
     PENDING = "pending"
+    PENDING_PRIVILEGED = "pending_privileged"  # Primary approved, waiting for privileged
     APPROVED = "approved"
     REJECTED = "rejected"
     CANCELLED = "cancelled"
@@ -73,12 +74,21 @@ class ApprovalRequest(Base):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     resolution_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     
+    # Tiered approval fields (for owner-based approval workflow)
+    primary_approver_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    primary_approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    requires_privileged_approval: Mapped[bool] = mapped_column(default=False, nullable=False)
+    privileged_approver_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    privileged_approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
     
     # Relationships
     requested_by: Mapped["User"] = relationship("User", foreign_keys=[requested_by_id])
     resolved_by: Mapped["User"] = relationship("User", foreign_keys=[resolved_by_id])
+    primary_approver: Mapped["User"] = relationship("User", foreign_keys=[primary_approver_id])
+    privileged_approver: Mapped["User"] = relationship("User", foreign_keys=[privileged_approver_id])
     
     # Indexes for efficient queries
     __table_args__ = (
