@@ -92,21 +92,4 @@
   .custom-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-white/20 rounded-full hover:bg-white/30 transition-colors;
   }
-
-  /* Meeting Mode: Presentation-friendly styling for Risk Committee meetings */
-  .meeting-mode {
-    font-size: 1.1em;
-  }
-
-  .meeting-mode .glass-card {
-    padding: 2rem;
-  }
-
-  .meeting-mode h3 {
-    font-size: 1.2em;
-  }
-
-  .meeting-mode .text-4xl {
-    font-size: 3rem;
-  }
 }
