@@ -30,6 +30,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 13: Vendor Risk Management** — Third-party risk assessments (deferred)
 - [ ] **Phase 14: Advanced Audit Workflows** — Audit automation (deferred)
 - [ ] **Phase 15: Polish & Deploy** — i18n, Docker, and documentation (deferred)
+- [ ] **Phase 85: Workflow & Users** — Access mapping and user management enhancements
 - [ ] **Phase 90: AD Emulator** — Active Directory emulator server + user sync + change management UI
 - [x] **Phase 100: Marketing Presentation** — Single HTML presentation for the board (Czech)
 - [ ] **Phase 150: Audit (RiskHub-only)** — Systematic code and logic audit for RiskHub (exclude AD Emulator)
@@ -64,7 +65,7 @@ Plans:
 **Goal**: Build Risk Register UI with gross/net risk visualization and Control-Risk navigation
 **Depends on**: Phase 2
 **Research**: Unlikely (OS 18 Řízení rizik provides clear structure)
-**Plans**: 2 plans
+**Plans**: 3 plans
 
 Plans:
 - [x] 02.1-01: Risk Register list/detail views with risk matrix visualization
@@ -268,6 +269,18 @@ Plans:
 - [ ] 15-05: System Documentation (Admin & User Guides)
 - [ ] 15-06: Verification & Deployment Checklist
 
+### Phase 85: Workflow & Users
+**Goal**: Map current access by role and deliver enhanced user management workflows (role rights, manager visibility, department remediation).
+**Depends on**: Phase 7 (User Management), Phase 8 (Permission Filtering)
+**Research**: Unlikely
+**Plans**: 2 plans
+
+Plans:
+- [x] 85-01: User access map (roles x tabs, backend + frontend gating)
+- [x] 85-02: Backend access management model + APIs (access scope, access endpoints)
+- [x] 85-03: Access management UI (permissions visibility, guarded edits)
+- [x] 85-04: KRI workflow improvements (weekly reminders, CRO due-soon visibility, all-edit approvals)
+
 ### Phase 90: AD Integration (Real-Time Sync & Governance)
 **Goal**: Implement real-time sync from AD Emulator to RiskHub via webhooks, with Governance UI for managing orphaned risks/controls
 **Depends on**: Phase 99 (Data Migration & Standalone AD Emulator)
@@ -330,7 +343,7 @@ Plans:
 **Goal**: Resolve Phase 150 audit findings across RiskHub backend and frontend.
 **Depends on**: Phase 150
 **Research**: None
-**Plans**: 7 plans
+**Plans**: 11 plans
 
 Plans:
 - [x] 151-01: Backend department/KRI list consistency
@@ -340,6 +353,10 @@ Plans:
 - [x] 151-05: Frontend user/approvals permission gating + role defaults
 - [x] 151-06: Execution enum alignment + risk list fixes
 - [x] 151-07: Frontend pagination and grouped view completeness
+- [x] 151-08: KRI historization corrections (calendar periods + approvals + notifications)
+- [ ] 151-09: KRI overdue visibility + history correction UI
+- [ ] 151-10: Access guardrails + scoped user lookup
+- [ ] 151-11: Frontend access gating + scoped user pickers
 
 ## Progress
 
@@ -370,4 +387,4 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 90. AD Integration | 10/10 | Complete | 2025-12-29 |
 | 99. Data Migration & Standalone AD | 7/7 | Complete | 2025-12-28 |
 | 150. Audit (RiskHub-only) | 2/3 | In progress | - |
-| 151. Audit Resolution | 7/7 | Complete | 2025-12-31 |
+| 151. Audit Resolution | 8/11 | In progress | - |

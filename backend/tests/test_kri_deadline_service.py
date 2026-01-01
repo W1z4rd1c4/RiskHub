@@ -1,12 +1,11 @@
 """Tests for KRI deadline checking service."""
 import pytest
 import pytest_asyncio
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, UTC, timedelta, date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.kri_deadline_service import KRIDeadlineService
-from app.services.notification_service import NotificationService
 from app.models.notification import Notification, NotificationType
 from app.models.key_risk_indicator import KeyRiskIndicator
 
@@ -70,7 +69,7 @@ async def test_kri_breached_creates_notification(
     test_kri_breached,
     test_user_cro,  # Owner of the test_risk
 ):
-    """Test that a breached KRI triggers KRI_OVERDUE notification."""
+    """Test that a breached KRI triggers KRI_BREACH_DETECTED notification."""
     result = await KRIDeadlineService.check_kri_deadlines(db_session)
     
     assert result["breached"] >= 1
@@ -80,7 +79,7 @@ async def test_kri_breached_creates_notification(
     stmt = select(Notification).where(
         Notification.resource_type == "kri",
         Notification.resource_id == test_kri_breached.id,
-        Notification.type == NotificationType.KRI_OVERDUE,
+        Notification.type == NotificationType.KRI_BREACH_DETECTED,
     )
     notifications = (await db_session.execute(stmt)).scalars().all()
     assert len(notifications) >= 1
@@ -199,38 +198,48 @@ async def test_deadline_service_returns_due_soon_count(
 
 
 @pytest.mark.asyncio
-async def test_frequency_conversion(db_session: AsyncSession):
-    """Test the frequency-to-days helper."""
-    from app.services.kri_deadline_service import KRIDeadlineService
+async def test_due_soon_notification_type(
+    monkeypatch,
+    db_session: AsyncSession,
+    test_risk,
+    test_user_cro,
+):
+    """Test due soon reminders use KRI_DUE_SOON notification type."""
+    import app.services.kri_deadline_service as deadline_service
     
-    assert KRIDeadlineService._frequency_to_days("daily") == 1
-    assert KRIDeadlineService._frequency_to_days("weekly") == 7
-    assert KRIDeadlineService._frequency_to_days("monthly") == 30
-    assert KRIDeadlineService._frequency_to_days("quarterly") == 90
-    assert KRIDeadlineService._frequency_to_days("annually") == 365
-
-
-@pytest.mark.asyncio
-async def test_period_calculation(db_session: AsyncSession, test_risk):
-    """Test the period start/end calculation."""
+    fixed_today = date(2025, 1, 24)  # 7 days before Jan 31
+    
+    class FixedDate(date):
+        @classmethod
+        def today(cls):
+            return fixed_today
+    
+    monkeypatch.setattr(deadline_service, "date", FixedDate)
+    
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
-        metric_name="Test Period KRI",
+        metric_name="Due Soon Check",
         current_value=50.0,
         lower_limit=0.0,
         upper_limit=100.0,
         unit="%",
-        frequency="quarterly",
-        created_at=datetime.now(UTC) - timedelta(days=10),
+        frequency="monthly",
+        reporting_owner_id=test_user_cro.id,
+        last_period_end=date(2024, 12, 31),
     )
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
     
-    period_start, period_end = KRIDeadlineService._current_period(kri)
+    await KRIDeadlineService.check_kri_deadlines(db_session)
     
-    assert period_start == kri.created_at.date()
-    assert (period_end - period_start).days == 89  # Quarterly = 90 days
+    stmt = select(Notification).where(
+        Notification.resource_type == "kri",
+        Notification.resource_id == kri.id,
+        Notification.type == NotificationType.KRI_DUE_SOON,
+    )
+    notifications = (await db_session.execute(stmt)).scalars().all()
+    assert len(notifications) >= 1
 
 
 @pytest.mark.asyncio
@@ -249,4 +258,5 @@ async def test_deadline_service_constants():
     """Test deadline service constants are set correctly."""
     assert KRIDeadlineService.REPORTING_GRACE_DAYS == 15
     assert KRIDeadlineService.ADVANCE_REMINDER_DAYS == 7
-    assert KRIDeadlineService.OVERDUE_REMINDER_WEEKS == 7
+    assert KRIDeadlineService.OVERDUE_REMINDER_WEEKS == 1  # Weekly reminders
+

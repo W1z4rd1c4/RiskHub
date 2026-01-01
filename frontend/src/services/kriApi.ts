@@ -9,6 +9,7 @@ import type {
     KRIRecordValue,
     KRIHistoryEdit,
     OverdueKRI,
+    DueSoonKRI,
 } from '../types/kri';
 
 export const kriApi = {
@@ -58,5 +59,9 @@ export const kriApi = {
 
     async getOverdue(params?: { department_id?: number }): Promise<OverdueKRI[]> {
         return apiClient.get<OverdueKRI[]>('/kris/overdue', { params });
+    },
+
+    async getDueSoon(params?: { department_id?: number }): Promise<DueSoonKRI[]> {
+        return apiClient.get<DueSoonKRI[]>('/kris/due-soon', { params });
     },
 };
