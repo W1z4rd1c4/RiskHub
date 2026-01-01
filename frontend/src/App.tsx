@@ -23,6 +23,8 @@ import {
   UserNewPage,
   UserDetailPage,
   ApprovalsPage,
+  GovernancePage,
+  ActivityLogPage,
 } from '@/pages';
 import { KRINewPage } from '@/pages/KRIForms';
 import { NotificationsPage } from '@/pages/NotificationsPage';
@@ -70,9 +72,11 @@ function App() {
             <Route path="departments" element={<DepartmentsPage />} />
             <Route path="departments/:id" element={<DepartmentDetailPage />} />
             <Route path="audit-trail" element={<AuditTrailPage />} />
+            <Route path="activity-log" element={<ActivityLogPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="users/new" element={<UserNewPage />} />
             <Route path="users/:id" element={<UserDetailPage />} />
+            <Route path="governance" element={<GovernancePage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
 
