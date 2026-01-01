@@ -22,6 +22,8 @@ from app.schemas.approval_request import (
 from app.api import deps
 from app.core.permissions import can_resolve_approvals, check_department_access
 from app.services.notification_service import NotificationService
+from app.core.activity_logger import log_activity
+from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter()
 
