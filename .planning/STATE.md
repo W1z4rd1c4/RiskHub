@@ -17,9 +17,9 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 11. Historical Visualization
-**Current Plan:** 11-03 (Completed)
-**Next Plan:** 11-04 (Correction UI) or Phase Complete
+**Phase:** 151. Audit Resolution
+**Current Plan:** 151-08 (Completed)
+**Next Plan:** 151-09 (Overdue visibility + correction UI)
 
 ## Progress Summary
 
@@ -30,14 +30,27 @@
 | 8 Permission Filtering | ✅ Complete (8/8) | 2025-12-28 |
 | 9 Notification System | ✅ Complete (5/5) | 2025-12-28 |
 | 10 Historization | ⏳ In progress (4/5) | 2025-12-31 |
-| 11 Historical Visualization | ⏳ In progress (3/4) | 2025-12-31 |
+| 11 Historical Visualization | ✅ Complete (5/5) | 2025-12-31 |
 | 12-15 Deferred | ⏸ Deferred | - |
-| 85 Workflow & Users | ✅ Complete (3/3) | 2025-12-31 |
+| 85 Workflow & Users | ✅ Complete (4/4) | 2026-01-01 |
 | 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
 | 99 Data Migration & Standalone AD | ✅ Complete (7/7) | 2025-12-28 |
 | 100 Marketing Presentation | ✅ Complete (3/3) | 2025-12-29 |
+| 151 Audit Resolution | ⏳ In progress (8/11) | - |
 
 ## Session Context
+
+### Phase 11 Progress
+- ✅ **11-01**: History components (HistoryTimeline, HistoryTrendChart, HistoryChangeCard)
+- ✅ **11-02**: KRI detail page integration with history visualization
+- ✅ **11-03**: HistoryComparisonPanel for side-by-side KRI value comparison
+- ✅ **11-04**: Dashboard widgets (RiskTrendChart, KRIBreachHistoryChart)
+- ✅ **11-05**: Audit trail PDF/Excel exports with RBAC + filters
+
+### Recent Enhancements (2025-12-31)
+- **Linked Risk Card Redesign**: Expanded KRI detail page risk card to full-width with process, description, department, and owner details
+- **Department Breaching KRI Badge**: Added amber "BREACHED" count badge to department cards for KRIs outside limits
+- **Audit Trail Exports**: PDF/Excel downloads from Audit Trail page with result filtering
 
 ### Phase 85 Progress
 - ✅ **85-01**: User access map (roles x tabs, backend + frontend gating)
@@ -63,6 +76,7 @@
 | Scheduler | APScheduler (in-process) | 2025-12-28 |
 | AD Emulator | Standalone app (port 8001/5174) | 2025-12-28 |
 | Privileged Model | Access scope enum (global/department/manager) | 2025-12-31 |
+| KRI Reporting Periods | Calendar-aligned periods (daily/weekly/monthly/quarterly/annual) | 2025-12-31 |
 
 ## Open Concerns
 
@@ -87,10 +101,10 @@
 ## Continuity
 
 ### Last Action
-- Executed Phase 11-03: Built HistoryComparisonPanel for side-by-side KRI value comparison with deltas and breach status changes.
+- Completed Phase 151-08: KRI historization corrections (calendar periods, approvals, notifications)
 
 ### Next Step
-- Execute Phase 11-04 (correction UI) or mark Phase 11 complete.
+- Execute Phase 151-09: Frontend overdue visibility + history correction UI
 
 ---
 *Updated: 2025-12-31*

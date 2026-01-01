@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -22,7 +22,7 @@ import {
 import { riskApi } from '@/services/riskApi';
 import { kriApi } from '@/services/kriApi';
 import type { Risk, RiskControlLink, ControlEffectiveness } from '@/types/risk';
-import type { KeyRiskIndicator, KRICreate, KRIUpdate, KRIHistoryEntry, OverdueKRI } from '@/types/kri';
+import type { KeyRiskIndicator, KRICreate, KRIUpdate, OverdueKRI } from '@/types/kri';
 import type { HistoryTimelineItem } from '@/types/history';
 import { PermissionGate } from '@/components/PermissionGate';
 import { RiskScoreMatrix } from '@/components/RiskScoreMatrix';

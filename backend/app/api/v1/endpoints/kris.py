@@ -151,6 +151,38 @@ async def list_overdue_kris(
     return overdue
 
 
+@router.get("/due-soon", response_model=list[dict])
+async def list_due_soon_kris(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """
+    List all KRIs that are due soon (within 7 days before period end).
+    
+    Returns KRIs with due_date, days_until_due, and reporting_owner info.
+    Useful for CRO dashboard to see upcoming deadlines.
+    """
+    from app.services.kri_history_service import KRIHistoryService
+    
+    due_soon = await KRIHistoryService.get_due_soon_kris(db)
+    
+    # Filter by department access
+    dept_ids = get_user_department_ids(current_user)
+    if dept_ids is not None:
+        # Need to check each KRI's risk department
+        filtered = []
+        for item in due_soon:
+            risk_result = await db.execute(
+                select(Risk).where(Risk.id == item["risk_id"])
+            )
+            risk = risk_result.scalar_one_or_none()
+            if risk and risk.department_id in dept_ids:
+                filtered.append(item)
+        return filtered
+    
+    return due_soon
+
+
 @router.get("/{kri_id}", response_model=KRIResponse)
 async def get_kri(
     kri_id: int,
@@ -216,10 +248,10 @@ async def update_kri(
     current_user: User = Depends(require_permission("risks", "write")),
 ):
     """
-    Update a KRI. Non-privileged users editing KRIs linked to critical risks
+    Update a KRI. Non-privileged users editing any KRI
     will trigger an approval request instead of immediate update.
     """
-    from app.core.permissions import can_resolve_approvals, is_critical_risk
+    from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
     
     result = await db.execute(
@@ -259,51 +291,66 @@ async def update_kri(
     if existing_delete.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Cannot update KRI while deletion is pending approval")
     
-    # Check if KRI is linked to critical risk (non-privileged users only)
+    # ALL KRI edits by non-privileged users require approval
     if not can_resolve_approvals(current_user):
-        if kri.risk and is_critical_risk(kri.risk):
-            # Check for existing pending edit request
-            existing = await db.execute(
-                select(ApprovalRequest).where(
-                    ApprovalRequest.resource_type == ApprovalResourceType.KRI,
-                    ApprovalRequest.resource_id == kri.id,
-                    ApprovalRequest.action_type == ApprovalActionType.EDIT,
-                    ApprovalRequest.status == ApprovalStatus.PENDING
-                )
+        # Check for existing pending edit request
+        existing = await db.execute(
+            select(ApprovalRequest).where(
+                ApprovalRequest.resource_type == ApprovalResourceType.KRI,
+                ApprovalRequest.resource_id == kri.id,
+                ApprovalRequest.action_type == ApprovalActionType.EDIT,
+                ApprovalRequest.status == ApprovalStatus.PENDING
             )
-            if existing.scalar_one_or_none():
-                raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
-            
-            pending_changes = {k: {"old": getattr(kri, k, None), "new": v} for k, v in update_data.items()}
-            name_snippet = kri.name[:50] if kri.name else f"KRI-{kri.id}"
-            
-            approval = ApprovalRequest(
-                resource_type=ApprovalResourceType.KRI,
-                resource_id=kri.id,
-                resource_name=name_snippet,
-                requested_by_id=current_user.id,
-                reason=f"Edit to KRI linked to critical risk {kri.risk.risk_id_code}",
-                action_type=ApprovalActionType.EDIT,
-                pending_changes=pending_changes,
-                status=ApprovalStatus.PENDING,
-            )
-            db.add(approval)
-            await db.commit()
-            
-            from fastapi.responses import JSONResponse
-            return JSONResponse(
-                status_code=202,
-                content={
-                    "message": "Change requires approval",
-                    "approval_id": approval.id,
-                    "action_type": "edit",
-                    "pending_fields": list(pending_changes.keys()),
-                    "pending_changes": pending_changes
-                }
-            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
+        
+        pending_changes = {k: {"old": getattr(kri, k, None), "new": v} for k, v in update_data.items()}
+        name_snippet = kri.metric_name[:50] if kri.metric_name else f"KRI-{kri.id}"
+        
+        approval = ApprovalRequest(
+            resource_type=ApprovalResourceType.KRI,
+            resource_id=kri.id,
+            resource_name=name_snippet,
+            requested_by_id=current_user.id,
+            reason=f"Edit to KRI '{name_snippet}' requires approval",
+            action_type=ApprovalActionType.EDIT,
+            pending_changes=pending_changes,
+            status=ApprovalStatus.PENDING,
+        )
+        db.add(approval)
+        await db.commit()
+        
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=202,
+            content={
+                "message": "Change requires approval",
+                "approval_id": approval.id,
+                "action_type": "edit",
+                "pending_fields": list(pending_changes.keys()),
+                "pending_changes": pending_changes
+            }
+        )
+
+    
+    value_update = update_data.pop("current_value", None)
     
     for field, value in update_data.items():
         setattr(kri, field, value)
+    
+    if value_update is not None:
+        from app.services.kri_history_service import KRIHistoryService
+        try:
+            await KRIHistoryService.record_value(
+                db=db,
+                kri=kri,
+                value=value_update,
+                recorded_by_id=current_user.id,
+                is_privileged=can_resolve_approvals(current_user),
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
     
     await db.commit()
     await db.refresh(kri)
@@ -359,7 +406,7 @@ async def delete_kri(
         raise HTTPException(status_code=400, detail="Deletion request already pending")
     
     # Create approval request - ITEM STAYS VISIBLE
-    name_snippet = kri.name[:50] if kri.name else f"KRI-{kri.id}"
+    name_snippet = kri.metric_name[:50] if kri.metric_name else f"KRI-{kri.id}"
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.KRI,
         resource_id=kri.id,
@@ -427,6 +474,54 @@ async def record_kri_value(
         )
         await db.commit()
         await db.refresh(kri)
+        
+        # Breach Detection
+        breach_detected = False
+        breach_msg = ""
+        if data.value < kri.lower_limit:
+            breach_detected = True
+            breach_msg = f"Value {data.value} is below lower limit {kri.lower_limit}"
+        elif data.value > kri.upper_limit:
+            breach_detected = True
+            breach_msg = f"Value {data.value} exceeds upper limit {kri.upper_limit}"
+            
+        # Send Notifications (Breach)
+        if breach_detected:
+            from app.models.notification import NotificationType
+            from app.services.notification_service import NotificationService
+            
+            # Notify KRI Owner
+            if kri.reporting_owner_id:
+                try:
+                    await NotificationService.create_notification(
+                        db=db,
+                        user_id=kri.reporting_owner_id,
+                        notification_type=NotificationType.KRI_BREACH_DETECTED,
+                        title="KRI Breach Detected",
+                        message=f"KRI '{kri.metric_name}' breached limits! {breach_msg}",
+                        resource_type="kri",
+                        resource_id=kri.id,
+                    )
+                except Exception as e:
+                    pass
+            
+            # Notify Risk Owner (if different)
+            if kri.risk and kri.risk.owner_id and kri.risk.owner_id != kri.reporting_owner_id:
+                try:
+                    await NotificationService.create_notification(
+                        db=db,
+                        user_id=kri.risk.owner_id,
+                        notification_type=NotificationType.KRI_BREACH_DETECTED,
+                        title="Risk KRI Breach",
+                        message=f"KRI for your risk '{kri.risk.risk_id_code}' breached limits! {breach_msg}",
+                        resource_type="kri",
+                        resource_id=kri.id,
+                    )
+                except Exception as e:
+                    pass
+            
+            await db.commit()
+        
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     

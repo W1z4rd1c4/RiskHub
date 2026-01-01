@@ -9,6 +9,7 @@ from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.notification import Notification, NotificationType
 from app.models.user import User
 from app.models.role import RoleType
+from app.services.kri_history_service import KRIHistoryService
 from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
@@ -30,38 +31,12 @@ class KRIDeadlineService:
     ADVANCE_REMINDER_DAYS = 7
     
     # Overdue reminder interval (weeks)
-    OVERDUE_REMINDER_WEEKS = 7
-    
-    @staticmethod
-    def _frequency_to_days(frequency: str) -> int:
-        """Convert KRI frequency to number of days in a period."""
-        from app.models.key_risk_indicator import KRIFrequency
-        mapping = {
-            KRIFrequency.daily.value: 1,
-            KRIFrequency.weekly.value: 7,
-            KRIFrequency.monthly.value: 30,
-            KRIFrequency.quarterly.value: 90,
-            KRIFrequency.annually.value: 365,
-        }
-        return mapping.get(frequency, 90)
-    
-    @staticmethod
-    def _current_period(kri: KeyRiskIndicator) -> tuple[date, date]:
-        """Calculate current period for a KRI."""
-        frequency_days = KRIDeadlineService._frequency_to_days(kri.frequency)
-        
-        if kri.last_period_end:
-            period_start = kri.last_period_end + timedelta(days=1)
-        else:
-            period_start = kri.created_at.date() if kri.created_at else date.today()
-        
-        period_end = period_start + timedelta(days=frequency_days - 1)
-        return period_start, period_end
+    OVERDUE_REMINDER_WEEKS = 1
     
     @staticmethod
     def _due_date(period_end: date) -> date:
         """Calculate due date for a period (period_end + grace days)."""
-        return period_end + timedelta(days=KRIDeadlineService.REPORTING_GRACE_DAYS)
+        return KRIHistoryService.due_date(period_end)
     
     @staticmethod
     def _reporting_owner_id(kri: KeyRiskIndicator) -> int | None:
@@ -114,7 +89,14 @@ class KRIDeadlineService:
         
         for kri in kris:
             try:
-                _, period_end = KRIDeadlineService._current_period(kri)
+                _, current_period_end = KRIHistoryService.period_bounds_for_date(today, kri.frequency)
+                _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, kri.frequency)
+                
+                if kri.last_period_end and kri.last_period_end >= latest_closed_end:
+                    period_end = current_period_end
+                else:
+                    period_end = latest_closed_end
+                
                 due = KRIDeadlineService._due_date(period_end)
                 reporting_owner = KRIDeadlineService._reporting_owner_id(kri)
                 
@@ -128,12 +110,12 @@ class KRIDeadlineService:
                     advance_date = period_end - timedelta(days=KRIDeadlineService.ADVANCE_REMINDER_DAYS)
                     if today == advance_date:
                         if reporting_owner and not await KRIDeadlineService._check_duplicate_notification(
-                            db, kri.id, NotificationType.KRI_NEAR_BREACH, lookback_days=7
+                            db, kri.id, NotificationType.KRI_DUE_SOON, lookback_days=7
                         ):
                             await NotificationService.create_notification(
                                 db=db,
                                 user_id=reporting_owner,
-                                notification_type=NotificationType.KRI_NEAR_BREACH,
+                                notification_type=NotificationType.KRI_DUE_SOON,
                                 title=f"KRI Reporting Due Soon: {kri.metric_name[:50]}",
                                 message=f"KRI '{kri.metric_name}' reporting period ends on {period_end.isoformat()}. Please submit your value within {KRIDeadlineService.REPORTING_GRACE_DAYS} days after that.",
                                 resource_type="kri",
@@ -145,12 +127,12 @@ class KRIDeadlineService:
                     # 2. Deadline notification (on due date)
                     elif today == due:
                         if reporting_owner and not await KRIDeadlineService._check_duplicate_notification(
-                            db, kri.id, NotificationType.KRI_OVERDUE, lookback_days=7
+                            db, kri.id, NotificationType.KRI_DUE_TOMORROW, lookback_days=7
                         ):
                             await NotificationService.create_notification(
                                 db=db,
                                 user_id=reporting_owner,
-                                notification_type=NotificationType.KRI_OVERDUE,
+                                notification_type=NotificationType.KRI_DUE_TOMORROW,
                                 title=f"KRI Reporting Deadline: {kri.metric_name[:50]}",
                                 message=f"Today is the deadline for reporting KRI '{kri.metric_name}' for period ending {period_end.isoformat()}. Please submit your value now.",
                                 resource_type="kri",
@@ -164,10 +146,10 @@ class KRIDeadlineService:
                         days_overdue = (today - due).days
                         overdue_weeks = days_overdue // 7
                         
-                        # Send reminder every 7 weeks (49 days)
+                        # Send reminder every week (7 days)
                         if overdue_weeks > 0 and overdue_weeks % KRIDeadlineService.OVERDUE_REMINDER_WEEKS == 0:
                             if reporting_owner and not await KRIDeadlineService._check_duplicate_notification(
-                                db, kri.id, NotificationType.KRI_OVERDUE, lookback_days=49
+                                db, kri.id, NotificationType.KRI_OVERDUE, lookback_days=7
                             ):
                                 await NotificationService.create_notification(
                                     db=db,
@@ -187,14 +169,14 @@ class KRIDeadlineService:
                 if breach_status in ("above", "below"):
                     # KRI is breached - notify
                     if not await KRIDeadlineService._check_duplicate_notification(
-                        db, kri.id, NotificationType.KRI_OVERDUE, lookback_days=7
+                        db, kri.id, NotificationType.KRI_BREACH_DETECTED, lookback_days=7
                     ):
                         owner_id = kri.risk.owner_id if kri.risk else None
                         if owner_id:
                             await NotificationService.create_notification(
                                 db=db,
                                 user_id=owner_id,
-                                notification_type=NotificationType.KRI_OVERDUE,
+                                notification_type=NotificationType.KRI_BREACH_DETECTED,
                                 title=f"KRI Breached: {kri.metric_name[:50]}",
                                 message=f"KRI '{kri.metric_name}' is {breach_status} limit. Current: {kri.current_value}, Limits: [{kri.lower_limit}, {kri.upper_limit}]",
                                 resource_type="kri",
@@ -208,7 +190,7 @@ class KRIDeadlineService:
                                 await NotificationService.create_notification(
                                     db=db,
                                     user_id=rm.id,
-                                    notification_type=NotificationType.KRI_OVERDUE,
+                                    notification_type=NotificationType.KRI_BREACH_DETECTED,
                                     title=f"KRI Breached: {kri.metric_name[:50]}",
                                     message=f"KRI '{kri.metric_name}' is {breach_status} limit. Current: {kri.current_value}, Limits: [{kri.lower_limit}, {kri.upper_limit}]",
                                     resource_type="kri",
@@ -296,4 +278,3 @@ class KRIDeadlineService:
         all_users = result.scalars().all()
         
         return [u for u in all_users if u.role and u.role.name in approver_roles]
-
