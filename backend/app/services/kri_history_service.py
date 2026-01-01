@@ -26,6 +26,59 @@ class KRIHistoryService:
     """Service for managing KRI value recording with period boundaries."""
     
     @staticmethod
+    def _end_of_month(year: int, month: int) -> date:
+        """Get the last day of a given month."""
+        if month == 12:
+            next_month = date(year + 1, 1, 1)
+        else:
+            next_month = date(year, month + 1, 1)
+        return next_month - timedelta(days=1)
+    
+    @staticmethod
+    def period_bounds_for_date(target_date: date, frequency: str) -> Tuple[date, date]:
+        """Return calendar-aligned period start/end for a date and frequency."""
+        if frequency == KRIFrequency.daily.value:
+            return target_date, target_date
+        if frequency == KRIFrequency.weekly.value:
+            period_start = target_date - timedelta(days=target_date.isoweekday() - 1)
+            period_end = period_start + timedelta(days=6)
+            return period_start, period_end
+        if frequency == KRIFrequency.monthly.value:
+            period_start = date(target_date.year, target_date.month, 1)
+            period_end = KRIHistoryService._end_of_month(target_date.year, target_date.month)
+            return period_start, period_end
+        if frequency == KRIFrequency.quarterly.value:
+            quarter_index = (target_date.month - 1) // 3
+            start_month = (quarter_index * 3) + 1
+            period_start = date(target_date.year, start_month, 1)
+            period_end = KRIHistoryService._end_of_month(target_date.year, start_month + 2)
+            return period_start, period_end
+        if frequency == KRIFrequency.annually.value:
+            return date(target_date.year, 1, 1), date(target_date.year, 12, 31)
+        
+        # Default to quarterly for unknown values
+        quarter_index = (target_date.month - 1) // 3
+        start_month = (quarter_index * 3) + 1
+        period_start = date(target_date.year, start_month, 1)
+        period_end = KRIHistoryService._end_of_month(target_date.year, start_month + 2)
+        return period_start, period_end
+    
+    @staticmethod
+    def latest_closed_period_for_date(target_date: date, frequency: str) -> Tuple[date, date]:
+        """Return the most recent closed period (end <= target_date)."""
+        period_start, period_end = KRIHistoryService.period_bounds_for_date(target_date, frequency)
+        if period_end <= target_date:
+            return period_start, period_end
+        previous_date = period_start - timedelta(days=1)
+        return KRIHistoryService.period_bounds_for_date(previous_date, frequency)
+    
+    @staticmethod
+    def is_period_end_boundary(period_end: date, frequency: str) -> bool:
+        """Validate that the given date is a calendar-aligned period end."""
+        _, expected_end = KRIHistoryService.period_bounds_for_date(period_end, frequency)
+        return expected_end == period_end
+    
+    @staticmethod
     def frequency_to_days(frequency: str) -> int:
         """Convert KRI frequency to number of days in a period."""
         mapping = {
@@ -38,24 +91,14 @@ class KRIHistoryService:
         return mapping.get(frequency, 90)  # Default to quarterly
     
     @staticmethod
-    def current_period(kri: KeyRiskIndicator) -> Tuple[date, date]:
+    def current_period(kri: KeyRiskIndicator, as_of: Optional[date] = None) -> Tuple[date, date]:
         """
         Calculate the current reporting period for a KRI.
         
-        Returns (period_start, period_end) based on last_period_end + frequency.
-        If no previous period, uses created_at as the starting point.
+        Returns (period_start, period_end) aligned to calendar periods.
         """
-        frequency_days = KRIHistoryService.frequency_to_days(kri.frequency)
-        
-        if kri.last_period_end:
-            # Next period starts the day after last period ended
-            period_start = kri.last_period_end + timedelta(days=1)
-        else:
-            # First period starts from creation date
-            period_start = kri.created_at.date() if kri.created_at else date.today()
-        
-        period_end = period_start + timedelta(days=frequency_days - 1)
-        return period_start, period_end
+        target_date = as_of or date.today()
+        return KRIHistoryService.period_bounds_for_date(target_date, kri.frequency)
     
     @staticmethod
     def due_date(period_end: date) -> date:
@@ -114,25 +157,22 @@ class KRIHistoryService:
             ValueError: If non-privileged user tries to record outside window
         """
         now = datetime.now(UTC)
+        today = date.today()
         
-        # Determine period
-        current_start, current_end = KRIHistoryService.current_period(kri)
+        # Determine period (default to latest closed period)
+        latest_start, latest_end = KRIHistoryService.latest_closed_period_for_date(today, kri.frequency)
         
         if period_end is None:
-            # Default to current period
-            period_end = current_end
-            period_start = current_start
+            period_end = latest_end
+            period_start = latest_start
         else:
-            # Backdating - only allowed for privileged users
-            if not is_privileged:
-                if period_end != current_end:
-                    raise ValueError("Non-privileged users cannot backdate outside current period")
-                if not KRIHistoryService.is_within_reporting_window(period_end):
-                    raise ValueError(f"Reporting window closed. Due date was {KRIHistoryService.due_date(period_end)}")
-            
-            # Calculate period_start from period_end
-            frequency_days = KRIHistoryService.frequency_to_days(kri.frequency)
-            period_start = period_end - timedelta(days=frequency_days - 1)
+            if period_end > today:
+                raise ValueError("Cannot record a future period")
+            if not KRIHistoryService.is_period_end_boundary(period_end, kri.frequency):
+                raise ValueError("period_end must align to a calendar period boundary")
+            period_start, _ = KRIHistoryService.period_bounds_for_date(period_end, kri.frequency)
+            if not is_privileged and period_end < latest_end:
+                raise ValueError("Non-privileged users cannot backdate to older periods")
         
         # Non-privileged users must be within window even for current period
         if not is_privileged and not KRIHistoryService.is_within_reporting_window(period_end):
@@ -167,11 +207,13 @@ class KRIHistoryService:
         db.add(history_entry)
         
         # Update KRI current value and period tracking
-        kri.current_value = value
-        kri.last_period_end = period_end
-        # Convert to timezone-naive for database compatibility
-        reported_time = recorded_at or now
-        kri.last_reported_at = reported_time.replace(tzinfo=None) if reported_time.tzinfo else reported_time
+        should_update_current = kri.last_period_end is None or period_end >= kri.last_period_end
+        if should_update_current:
+            kri.current_value = value
+            kri.last_period_end = period_end
+            # Convert to timezone-naive for database compatibility
+            reported_time = recorded_at or now
+            kri.last_reported_at = reported_time.replace(tzinfo=None) if reported_time.tzinfo else reported_time
         
         await db.flush()
         logger.info(f"Recorded KRI {kri.id} value {value} for period {period_start} to {period_end}")
@@ -203,7 +245,11 @@ class KRIHistoryService:
         """
         from sqlalchemy import func
         
-        query = select(KRIValueHistory).where(KRIValueHistory.kri_id == kri_id)
+        query = (
+            select(KRIValueHistory)
+            .where(KRIValueHistory.kri_id == kri_id)
+            .options(selectinload(KRIValueHistory.recorded_by))
+        )
         
         if from_date:
             query = query.where(KRIValueHistory.period_end >= from_date)
@@ -248,7 +294,7 @@ class KRIHistoryService:
         
         overdue = []
         for kri in kris:
-            _, period_end = KRIHistoryService.current_period(kri)
+            _, period_end = KRIHistoryService.latest_closed_period_for_date(today, kri.frequency)
             due = KRIHistoryService.due_date(period_end)
             
             if today > due:
@@ -277,6 +323,65 @@ class KRIHistoryService:
         # Sort by days overdue descending
         overdue.sort(key=lambda x: x["days_overdue"], reverse=True)
         return overdue
+    
+    @staticmethod
+    async def get_due_soon_kris(
+        db: AsyncSession,
+    ) -> list[dict]:
+        """
+        Get all KRIs that are due soon (within 7 days before period end).
+        
+        Returns list of dicts with KRI info, period_end, due_date, and days_until_due.
+        """
+        today = date.today()
+        advance_days = 7  # 7 days before period end
+        
+        # Fetch all KRIs with their risk relationships
+        stmt = (
+            select(KeyRiskIndicator)
+            .options(
+                selectinload(KeyRiskIndicator.risk),
+                selectinload(KeyRiskIndicator.reporting_owner),
+            )
+        )
+        result = await db.execute(stmt)
+        kris = result.scalars().all()
+        
+        due_soon = []
+        for kri in kris:
+            # Get current period (not closed period)
+            _, period_end = KRIHistoryService.period_bounds_for_date(today, kri.frequency)
+            
+            # Check if already reported for this period
+            if kri.last_period_end and kri.last_period_end >= period_end:
+                continue  # Already reported
+            
+            # Check if within 7 days before period end
+            advance_date = period_end - timedelta(days=advance_days)
+            if today >= advance_date and today < period_end:
+                days_until_due = (period_end - today).days
+                due = KRIHistoryService.due_date(period_end)
+                reporting_owner = KRIHistoryService.reporting_owner_id(kri)
+                
+                due_soon.append({
+                    "kri_id": kri.id,
+                    "metric_name": kri.metric_name,
+                    "frequency": kri.frequency,
+                    "period_end": period_end.isoformat(),
+                    "due_date": due.isoformat(),
+                    "days_until_due": days_until_due,
+                    "reporting_owner_id": reporting_owner,
+                    "reporting_owner_name": (
+                        kri.reporting_owner.name if kri.reporting_owner 
+                        else (kri.risk.owner.name if kri.risk and hasattr(kri.risk, 'owner') and kri.risk.owner else None)
+                    ),
+                    "risk_id": kri.risk_id,
+                })
+        
+        # Sort by days until due ascending (most urgent first)
+        due_soon.sort(key=lambda x: x["days_until_due"])
+        return due_soon
+
     
     @staticmethod
     async def apply_history_correction(
@@ -326,7 +431,7 @@ class KRIHistoryService:
         latest_result = await db.execute(
             select(KRIValueHistory)
             .where(KRIValueHistory.kri_id == entry.kri_id)
-            .order_by(KRIValueHistory.recorded_at.desc())
+            .order_by(KRIValueHistory.period_end.desc(), KRIValueHistory.recorded_at.desc())
             .limit(1)
         )
         latest_entry = latest_result.scalar_one_or_none()
@@ -334,6 +439,8 @@ class KRIHistoryService:
         if latest_entry and latest_entry.id == entry.id:
             # Update KRI current value
             entry.kri.current_value = new_value
+            if entry.kri.last_period_end is None or entry.period_end >= entry.kri.last_period_end:
+                entry.kri.last_period_end = entry.period_end
             logger.info(f"Updated KRI {entry.kri_id} current_value to {new_value} from history correction")
         
         await db.flush()
