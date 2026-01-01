@@ -14,7 +14,8 @@ import {
     LogOut,
     Users as UsersIcon,
     ClipboardCheck,
-    Scale
+    Scale,
+    Activity
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -37,7 +38,7 @@ export function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
-    const { canManageAccess } = usePermissions();
+    const { canManageAccess, canViewActivityLog } = usePermissions();
     const [pendingCount, setPendingCount] = useState(0);
     const [orphanCount, setOrphanCount] = useState(0);
 
@@ -91,10 +92,18 @@ export function Sidebar() {
         return item;
     });
 
+    const activityLogItem = {
+        name: 'Activity Log',
+        href: '/activity-log',
+        icon: Activity,
+    };
+
     const filteredNavigation = [
         navigationWithBadges[0], // Dashboard
         workflowItem,
-        ...navigationWithBadges.slice(1),
+        ...navigationWithBadges.slice(1, 7), // Controls, Risks, Risk Appetite, Departments, Governance, Audit Trail
+        ...(canViewActivityLog ? [activityLogItem] : []),
+        navigationWithBadges[7], // Settings
         ...adminItems,
     ];
 

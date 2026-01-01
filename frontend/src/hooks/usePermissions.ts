@@ -39,6 +39,7 @@ export function usePermissions() {
         // Access management permissions
         canManageAccess: hasGlobalScope,  // Users with global scope can view/edit access
         canManagePrivileged: isAdminOrCro,  // Only admin/CRO can toggle privileged status/roles
+        canViewActivityLog: hasPermission('activity_log', 'read'),
         isAdmin: isAdminOrCro,
         isPrivileged: hasGlobalScope,
         user,
