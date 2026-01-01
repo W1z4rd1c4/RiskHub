@@ -31,6 +31,8 @@ async def list_controls(
     department_id: Optional[int] = None,
     status: Optional[ControlStatusEnum] = None,
     search: Optional[str] = None,
+    process: Optional[str] = Query(None),
+    category: Optional[str] = Query(None),
 ):
     """
     List controls with pagination and filters.
@@ -62,6 +64,16 @@ async def list_controls(
                 Control.description.ilike(search_pattern),
             )
         )
+
+    # Advanced filters (Process/Category via Risk links)
+    if process or category:
+        from app.models import Risk, ControlRiskLink
+        base_query = base_query.join(Control.risk_links).join(ControlRiskLink.risk)
+        if process:
+            base_query = base_query.where(Risk.process == process)
+        if category:
+            base_query = base_query.where(Risk.category == category)
+        base_query = base_query.distinct()
     
     # Get total count before pagination
     count_query = select(func.count()).select_from(base_query.subquery())
@@ -69,7 +81,10 @@ async def list_controls(
     total = total_result.scalar() or 0
     
     # Apply pagination and ordering with eager loading
-    query = base_query.options(selectinload(Control.department)).offset(skip).limit(limit).order_by(Control.name)
+    query = base_query.options(
+        selectinload(Control.department),
+        selectinload(Control.control_owner)
+    ).offset(skip).limit(limit).order_by(Control.name)
     
     result = await db.execute(query)
     controls = result.scalars().all()
@@ -85,6 +100,7 @@ async def list_controls(
             risk_level=c.risk_level,
             status=ControlStatusEnum(c.status),
             control_form=ControlFormEnum(c.control_form),
+            control_owner_name=c.control_owner.name if c.control_owner else None,
         )
         for c in controls
     ]
@@ -218,9 +234,12 @@ async def update_control(
     
     # Check for approval requirements (non-privileged users only)
     if not can_resolve_approvals(current_user):
+        from app.core.approval_helpers import get_primary_approver_for_control, check_control_requires_privileged_approval
+        
         requires_approval = False
         approval_reason = ""
         pending_changes = {}
+        is_priority_linked = False
         
         # Check 1: Is control linked to critical risk?
         linked_risks_result = await db.execute(
@@ -229,6 +248,7 @@ async def update_control(
         for risk in linked_risks_result.scalars():
             if is_critical_risk(risk):
                 requires_approval = True
+                is_priority_linked = True
                 approval_reason = f"Edit to control linked to critical risk {risk.risk_id_code}"
                 pending_changes = {k: {"old": getattr(control, k, None), "new": v.value if hasattr(v, 'value') else v} 
                                    for k, v in update_data.items()}
@@ -243,6 +263,15 @@ async def update_control(
                 approval_reason = f"Change to sensitive fields: {', '.join(changed.keys())}"
                 pending_changes = changed
         
+        # Check 3: Owner edits always require approval (even non-critical controls)
+        if not requires_approval and is_owner:
+            requires_approval = True
+            approval_reason = f"Control owner edit requires Risk Owner approval"
+            pending_changes = {k: {"old": getattr(control, k, None), "new": v.value if hasattr(v, 'value') else v} 
+                               for k, v in update_data.items()}
+            # Check if any linked risk is priority
+            is_priority_linked = await check_control_requires_privileged_approval(db, control.id)
+        
         if requires_approval:
             # Check for existing pending edit request
             existing = await db.execute(
@@ -250,11 +279,14 @@ async def update_control(
                     ApprovalRequest.resource_type == ApprovalResourceType.CONTROL,
                     ApprovalRequest.resource_id == control.id,
                     ApprovalRequest.action_type == ApprovalActionType.EDIT,
-                    ApprovalRequest.status == ApprovalStatus.PENDING
+                    ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
                 )
             )
             if existing.scalar_one_or_none():
                 raise HTTPException(status_code=400, detail="Edit request already pending for this control")
+            
+            # Get primary approver (Risk Owner of highest-priority linked risk)
+            primary_approver_id = await get_primary_approver_for_control(db, control.id)
             
             name_snippet = control.name[:50] if control.name else ""
             approval = ApprovalRequest(
@@ -266,6 +298,8 @@ async def update_control(
                 action_type=ApprovalActionType.EDIT,
                 pending_changes=pending_changes,
                 status=ApprovalStatus.PENDING,
+                primary_approver_id=primary_approver_id,
+                requires_privileged_approval=is_priority_linked,
             )
             db.add(approval)
             await db.commit()
@@ -278,7 +312,9 @@ async def update_control(
                     "approval_id": approval.id,
                     "action_type": "edit",
                     "pending_fields": list(pending_changes.keys()),
-                    "pending_changes": pending_changes
+                    "pending_changes": pending_changes,
+                    "primary_approver_id": primary_approver_id,
+                    "requires_privileged_approval": is_priority_linked
                 }
             )
     
