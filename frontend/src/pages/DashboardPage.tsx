@@ -35,7 +35,6 @@ import { KRIBreachWidget } from '@/components/dashboard/KRIBreachWidget';
 import { KRIStatusWidget } from '@/components/dashboard/KRIStatusWidget';
 import { RiskTrendChart } from '@/components/dashboard/RiskTrendChart';
 import { KRIBreachHistoryChart } from '@/components/dashboard/KRIBreachHistoryChart';
-import { MeetingModeToggle } from '@/components/dashboard/MeetingModeToggle';
 import { RiskCommitteeSection } from '@/components/dashboard/RiskCommitteeSection';
 
 const container = {
@@ -72,7 +71,6 @@ export function DashboardPage() {
 
     // Risk Committee view state
     const [activeView, setActiveView] = useState<'overview' | 'committee'>('overview');
-    const [meetingMode, setMeetingMode] = useState(false);
 
     const isPrivileged = user?.access_scope === 'global';
 
@@ -178,19 +176,13 @@ export function DashboardPage() {
     ];
 
     return (
-        <div className={`space-y-10 ${meetingMode ? 'meeting-mode' : ''}`}>
+        <div className="space-y-10">
             <div className="flex justify-between items-end">
                 <div>
                     <h2 className="text-3xl font-black text-white mb-2">Operational Insight</h2>
                     <p className="text-slate-500 font-medium">Overview of risk posture and control performance across the organization.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    {isPrivileged && (
-                        <MeetingModeToggle
-                            isActive={meetingMode}
-                            onToggle={() => setMeetingMode(!meetingMode)}
-                        />
-                    )}
                     <button
                         onClick={() => reportApi.downloadSummaryPdf({ departmentId: filters.departmentId })}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
