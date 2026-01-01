@@ -17,9 +17,9 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 151. Audit Resolution
-**Current Plan:** 151-13 (Completed)
-**Next Plan:** 151-14
+**Phase:** 85. Workflow & Users
+**Current Plan:** 85-05 (Completed)
+**Next Plan:** 85-06
 
 ## Progress Summary
 
@@ -32,7 +32,7 @@
 | 10 Historization | ⏳ In progress (4/5) | 2025-12-31 |
 | 11 Historical Visualization | ✅ Complete (5/5) | 2025-12-31 |
 | 12-15 Deferred | ⏸ Deferred | - |
-| 85 Workflow & Users | ✅ Complete (4/4) | 2026-01-01 |
+| 85 Workflow & Users | ⏳ In progress (5/6) | - |
 | 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
 | 99 Data Migration & Standalone AD | ✅ Complete (7/7) | 2025-12-28 |
 | 100 Marketing Presentation | ✅ Complete (3/3) | 2025-12-29 |

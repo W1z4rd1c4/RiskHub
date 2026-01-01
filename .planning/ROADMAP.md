@@ -273,13 +273,15 @@ Plans:
 **Goal**: Map current access by role and deliver enhanced user management workflows (role rights, manager visibility, department remediation).
 **Depends on**: Phase 7 (User Management), Phase 8 (Permission Filtering)
 **Research**: Unlikely
-**Plans**: 2 plans
+**Plans**: 6 plans
 
 Plans:
 - [x] 85-01: User access map (roles x tabs, backend + frontend gating)
 - [x] 85-02: Backend access management model + APIs (access scope, access endpoints)
 - [x] 85-03: Access management UI (permissions visibility, guarded edits)
 - [x] 85-04: KRI workflow improvements (weekly reminders, CRO due-soon visibility, all-edit approvals)
+- [ ] 85-05: Owner-based KRI permissions (kri:record permission, tiered approval with Risk Owner)
+- [ ] 85-06: Control owner edit permissions (Control Owner edits → Risk Owner approval)
 
 ### Phase 90: AD Integration (Real-Time Sync & Governance)
 **Goal**: Implement real-time sync from AD Emulator to RiskHub via webhooks, with Governance UI for managing orphaned risks/controls
@@ -343,7 +345,7 @@ Plans:
 **Goal**: Resolve Phase 150 audit findings across RiskHub backend and frontend.
 **Depends on**: Phase 150
 **Research**: None
-**Plans**: 11 plans
+**Plans**: 13 plans
 
 Plans:
 - [x] 151-01: Backend department/KRI list consistency
@@ -354,9 +356,9 @@ Plans:
 - [x] 151-06: Execution enum alignment + risk list fixes
 - [x] 151-07: Frontend pagination and grouped view completeness
 - [x] 151-08: KRI historization corrections (calendar periods + approvals + notifications)
-- [ ] 151-09: KRI overdue visibility + history correction UI
-- [ ] 151-10: Access guardrails + scoped user lookup
-- [ ] 151-11: Frontend access gating + scoped user pickers
+- [x] 151-11: Frontend access gating + scoped user pickers
+- [x] 151-12: KRI value submission approval (open-period recording)
+- [ ] 151-13: KRI value correction UI + overdue badges
 
 ## Progress
 

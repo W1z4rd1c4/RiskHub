@@ -5,6 +5,7 @@ import { ArrowLeft, Edit2, Trash2, Target, AlertTriangle, CheckCircle, ExternalL
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
 import { PermissionGate } from '@/components/PermissionGate';
+import { usePermissions } from '@/hooks/usePermissions';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import { KRIHistoryEditModal } from '@/components/kri/KRIHistoryEditModal';
@@ -32,6 +33,9 @@ export function KRIDetailPage() {
     const [historyTotal, setHistoryTotal] = useState(0);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<KRIHistoryEntry | null>(null);
+
+    // Permissions
+    const { canRecordKRI } = usePermissions();
 
     useEffect(() => {
         if (id) fetchKRI(parseInt(id));
@@ -214,19 +218,21 @@ export function KRIDetailPage() {
                     </div>
                 </div>
 
-                <PermissionGate resource="risks" action="write">
-                    <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                    {canRecordKRI && (
                         <Button onClick={() => setIsValueModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500">
                             <Plus className="h-4 w-4 mr-1" /> Record Value
                         </Button>
+                    )}
+                    <PermissionGate resource="risks" action="write">
                         <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
                             <Edit2 className="h-4 w-4 mr-1" /> Edit
                         </Button>
                         <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
                             <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? 'Deleting...' : 'Delete'}
                         </Button>
-                    </div>
-                </PermissionGate>
+                    </PermissionGate>
+                </div>
             </motion.div>
 
             {/* Tabs */}
