@@ -16,6 +16,8 @@ from app.schemas.risk import ControlRiskLinkCreate, ControlRiskLinkRead
 from app.api import deps
 from app.core.permissions import get_user_department_ids, check_department_access
 from app.core.security import require_permission, check_permission
+from app.core.activity_logger import log_activity
+from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter()
 
@@ -167,6 +169,18 @@ async def create_control(
     db.add(control)
     await db.commit()
     await db.refresh(control)
+    
+    # Log activity
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.CONTROL,
+        entity_id=control.id,
+        entity_name=f"{control.name}",
+        action=ActivityAction.CREATE,
+        actor=current_user,
+        department_id=control.department_id,
+    )
+    await db.commit()
     
     # Reload with relationships
     result = await db.execute(
@@ -328,6 +342,19 @@ async def update_control(
     await db.commit()
     await db.refresh(control)
     
+    # Log activity
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.CONTROL,
+        entity_id=control.id,
+        entity_name=f"{control.name}",
+        action=ActivityAction.UPDATE,
+        actor=current_user,
+        department_id=control.department_id,
+        changes={k: {"old": getattr(control, k, None), "new": v} for k, v in update_data.items()},
+    )
+    await db.commit()
+    
     # Reload with relationships
     result = await db.execute(
         select(Control)
@@ -372,6 +399,19 @@ async def delete_control(
         control.status = ControlStatusEnum.archived.value
         control.updated_by_id = current_user.id
         await db.commit()
+        
+        # Log activity
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.CONTROL,
+            entity_id=control.id,
+            entity_name=f"{control.name}",
+            action=ActivityAction.ARCHIVE,
+            actor=current_user,
+            department_id=control.department_id,
+        )
+        await db.commit()
+        
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     
     # Check for existing pending request
