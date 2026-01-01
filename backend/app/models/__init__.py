@@ -11,6 +11,7 @@ from app.models.notification import Notification, NotificationType
 from app.models.directory_user import DirectoryUser
 from app.models.directory_sync_log import DirectorySyncLog, DirectorySyncStatus
 from app.models.orphaned_item import OrphanedItem
+from app.models.activity_log import ActivityLog, ActivityAction, ActivityEntityType
 
 __all__ = [
     "Role", "Permission", "RolePermission", 
@@ -26,6 +27,7 @@ __all__ = [
     "DirectoryUser",
     "DirectorySyncLog", "DirectorySyncStatus",
     "OrphanedItem",
+    "ActivityLog", "ActivityAction", "ActivityEntityType",
 ]
 
 

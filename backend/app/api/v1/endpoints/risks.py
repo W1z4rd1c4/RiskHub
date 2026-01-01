@@ -15,6 +15,8 @@ from app.schemas.risk import (
 from app.api import deps
 from app.core.permissions import get_user_department_ids, check_department_access
 from app.core.security import require_permission, check_permission
+from app.core.activity_logger import log_activity
+from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter()
 
@@ -227,6 +229,18 @@ async def create_risk(
     await db.commit()
     await db.refresh(risk)
     
+    # Log activity
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.RISK,
+        entity_id=risk.id,
+        entity_name=f"{risk.risk_id_code}: {risk.description[:50]}",
+        action=ActivityAction.CREATE,
+        actor=current_user,
+        department_id=risk.department_id,
+    )
+    await db.commit()
+    
     # Reload with relationships
     result = await db.execute(
         select(Risk)
@@ -363,6 +377,19 @@ async def update_risk(
     await db.commit()
     await db.refresh(risk)
     
+    # Log activity
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.RISK,
+        entity_id=risk.id,
+        entity_name=f"{risk.risk_id_code}: {risk.description[:50]}",
+        action=ActivityAction.UPDATE,
+        actor=current_user,
+        department_id=risk.department_id,
+        changes={k: {"old": getattr(risk, k, None), "new": v} for k, v in update_data.items()},
+    )
+    await db.commit()
+    
     # Reload with relationships
     result = await db.execute(
         select(Risk)
@@ -407,6 +434,19 @@ async def delete_risk(
     if can_resolve_approvals(current_user):
         risk.status = RiskStatusEnum.archived.value
         await db.commit()
+        
+        # Log activity
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.RISK,
+            entity_id=risk.id,
+            entity_name=f"{risk.risk_id_code}",
+            action=ActivityAction.ARCHIVE,
+            actor=current_user,
+            department_id=risk.department_id,
+        )
+        await db.commit()
+        
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     
     # Check for existing pending request
