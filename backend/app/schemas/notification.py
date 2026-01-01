@@ -12,6 +12,7 @@ class NotificationTypeEnum(str, Enum):
     kri_due_tomorrow = "kri_due_tomorrow"
     kri_overdue = "kri_overdue"
     kri_near_breach = "kri_near_breach"
+    kri_breach_detected = "kri_breach_detected"
 
 
 class NotificationBase(BaseModel):
