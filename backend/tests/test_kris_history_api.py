@@ -4,6 +4,7 @@ import pytest_asyncio
 from datetime import datetime, UTC, timedelta, date
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
@@ -102,6 +103,27 @@ async def test_record_value_updates_kri(
     assert test_kri_for_api.current_value == 88.5
 
 
+@pytest.mark.asyncio
+async def test_update_kri_creates_history_entry(
+    auth_client: AsyncClient,
+    test_kri_for_api,
+    db_session: AsyncSession,
+):
+    """Test PUT /kris/{id} with current_value creates a history entry."""
+    response = await auth_client.put(
+        f"/api/v1/kris/{test_kri_for_api.id}",
+        json={"current_value": 77.5}
+    )
+    
+    assert response.status_code == 200
+    
+    result = await db_session.execute(
+        select(KRIValueHistory).where(KRIValueHistory.kri_id == test_kri_for_api.id)
+    )
+    entries = result.scalars().all()
+    assert len(entries) >= 1
+
+
 # History Endpoint Tests
 
 @pytest.mark.asyncio
@@ -194,3 +216,71 @@ async def test_get_history_requires_auth(
     
     # Should be 401 or 403 without auth
     assert response.status_code in [401, 403]
+
+
+# Due Soon Endpoint Tests
+
+@pytest.mark.asyncio
+async def test_get_due_soon_returns_list(auth_client: AsyncClient):
+    """Test GET /kris/due-soon returns a list."""
+    response = await auth_client.get("/api/v1/kris/due-soon")
+    
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_due_soon_response_format(auth_client: AsyncClient):
+    """Test GET /kris/due-soon response has correct format."""
+    response = await auth_client.get("/api/v1/kris/due-soon")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # If there are items, verify format
+    if len(data) > 0:
+        item = data[0]
+        assert "kri_id" in item
+        assert "metric_name" in item
+        assert "frequency" in item
+        assert "period_end" in item
+        assert "due_date" in item
+        assert "days_until_due" in item
+        assert "risk_id" in item
+
+
+@pytest.mark.asyncio
+async def test_due_soon_excludes_already_reported(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+):
+    """Test GET /kris/due-soon excludes KRIs already reported for current period."""
+    from app.services.kri_history_service import KRIHistoryService
+    
+    today = date.today()
+    _, current_period_end = KRIHistoryService.period_bounds_for_date(today, "monthly")
+    
+    # Create a KRI that's already reported for current period
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Already Reported KRI",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+        last_period_end=current_period_end,  # Already reported for this period
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    
+    response = await auth_client.get("/api/v1/kris/due-soon")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # The already-reported KRI should NOT be in the due-soon list
+    kri_ids = [item["kri_id"] for item in data]
+    assert kri.id not in kri_ids
+

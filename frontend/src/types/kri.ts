@@ -101,3 +101,17 @@ export interface OverdueKRI {
     reporting_owner_name?: string;
     risk_id: number;
 }
+
+// Due soon KRI for CRO dashboard (upcoming deadlines)
+export interface DueSoonKRI {
+    kri_id: number;
+    metric_name: string;
+    frequency: string;
+    period_end: string;
+    due_date: string;
+    days_until_due: number;
+    reporting_owner_id?: number;
+    reporting_owner_name?: string;
+    risk_id: number;
+}
+

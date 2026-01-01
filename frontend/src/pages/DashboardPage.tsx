@@ -30,7 +30,7 @@ import { ControlTrendChart } from '@/components/dashboard/ControlTrendChart';
 import { DepartmentTable } from '@/components/dashboard/DepartmentTable';
 import { CategoryBreakdownCharts } from '@/components/dashboard/CategoryBreakdownCharts';
 import { KRIBreachWidget } from '@/components/dashboard/KRIBreachWidget';
-import { KRIOverdueWidget } from '@/components/dashboard/KRIOverdueWidget';
+import { KRIStatusWidget } from '@/components/dashboard/KRIStatusWidget';
 import { RiskTrendChart } from '@/components/dashboard/RiskTrendChart';
 import { KRIBreachHistoryChart } from '@/components/dashboard/KRIBreachHistoryChart';
 
@@ -278,7 +278,7 @@ export function DashboardPage() {
                     transition={{ delay: 0.7 }}
                     className="h-full"
                 >
-                    <KRIOverdueWidget />
+                    <KRIStatusWidget />
                 </motion.div>
             </div>
 
