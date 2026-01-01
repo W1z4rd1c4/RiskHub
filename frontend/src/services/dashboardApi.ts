@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { DashboardSummary, DepartmentMetrics, RiskDistribution, ControlTrend, DashboardFilters } from '../types/dashboard';
+import type { DashboardSummary, DepartmentMetrics, RiskDistribution, ControlTrend, DashboardFilters, RiskTrendPoint, KRIBreachTrendPoint } from '../types/dashboard';
 
 function buildQueryParams(filters?: DashboardFilters): Record<string, any> {
     if (!filters) return {};
@@ -49,4 +49,23 @@ export const dashboardApi = {
         const params = buildQueryParams(filters);
         return apiClient.get<ControlTrend[]>('/dashboard/control-trends', { params });
     },
+
+    async fetchRiskTrends(filters?: DashboardFilters): Promise<RiskTrendPoint[]> {
+        const params = buildQueryParams(filters);
+        return apiClient.get<RiskTrendPoint[]>('/dashboard/risk-trends', { params });
+    },
+
+    async fetchKriBreachTrends(filters?: DashboardFilters): Promise<KRIBreachTrendPoint[]> {
+        const params = buildQueryParams(filters);
+        return apiClient.get<KRIBreachTrendPoint[]>('/dashboard/kri-breach-trends', { params });
+    },
+
+    async fetchQuarterlyComparison(): Promise<any> {
+        return apiClient.get<any>('/dashboard/quarterly-comparison');
+    },
+
+    async fetchCommitteeSummary(): Promise<any> {
+        return apiClient.get<any>('/dashboard/committee-summary');
+    },
 };
+
