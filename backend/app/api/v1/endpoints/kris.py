@@ -17,6 +17,8 @@ from app.schemas.kri import (
 from app.api import deps
 from app.core.permissions import get_user_department_ids, check_department_access
 from app.core.security import require_permission
+from app.core.activity_logger import log_activity
+from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter(prefix="/kris", tags=["Key Risk Indicators"])
 
@@ -237,6 +239,18 @@ async def create_kri(
     await db.commit()
     await db.refresh(kri)
     
+    # Log activity
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.KRI,
+        entity_id=kri.id,
+        entity_name=f"{kri.metric_name}",
+        action=ActivityAction.CREATE,
+        actor=current_user,
+        department_id=risk.department_id,
+    )
+    await db.commit()
+    
     return KRIResponse.model_validate(kri)
 
 
@@ -355,6 +369,19 @@ async def update_kri(
     await db.commit()
     await db.refresh(kri)
     
+    # Log activity
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.KRI,
+        entity_id=kri.id,
+        entity_name=f"{kri.metric_name}",
+        action=ActivityAction.UPDATE,
+        actor=current_user,
+        department_id=kri.risk.department_id,
+        changes=update_data,
+    )
+    await db.commit()
+    
     return KRIResponse.model_validate(kri)
 
 
@@ -390,6 +417,18 @@ async def delete_kri(
     
     # Privileged users can delete immediately
     if can_resolve_approvals(current_user):
+        # Log activity before deletion
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.KRI,
+            entity_id=kri.id,
+            entity_name=f"{kri.metric_name}",
+            action=ActivityAction.DELETE,
+            actor=current_user,
+            department_id=kri.risk.department_id,
+        )
+        await db.commit()
+        
         await db.delete(kri)
         await db.commit()
         return Response(status_code=204)
