@@ -11,6 +11,8 @@ from app.schemas.user import UserLookup
 from app.core.security import get_password_hash
 from app.core.permissions import can_manage_users
 from app.api import deps
+from app.core.activity_logger import log_activity
+from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter()
 
