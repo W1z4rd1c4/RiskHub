@@ -4,7 +4,7 @@ Dashboard API endpoints for executive and department-level metrics.
 from typing import Optional, Literal
 import logging
 from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -17,7 +17,11 @@ from app.schemas.dashboard import (
     RiskDistributionResponse,
     RiskDistributionItem,
     ControlFrequencyTrend,
+    RiskTrendPoint,
+    KRIBreachTrendPoint,
 )
+from app.models.kri_history import KRIValueHistory
+from app.models.key_risk_indicator import KeyRiskIndicator
 from app.api import deps
 from app.core.permissions import get_user_department_ids
 
@@ -185,11 +189,23 @@ async def get_department_metrics(
     dept_ids = get_user_department_ids(current_user)
 
     # Get departments (filtered if department_id provided)
-    dept_query = select(Department)
+    # Only include "active" departments: system departments or those with active users
+    active_dept_ids = select(User.department_id).where(
+        and_(User.department_id.isnot(None), User.is_active == True)
+    ).distinct()
+
+    dept_query = select(Department).where(
+        or_(
+            Department.is_system == True,
+            Department.id.in_(active_dept_ids)
+        )
+    )
+
     if dept_ids is not None:
         dept_query = dept_query.where(Department.id.in_(dept_ids))
     elif department_id:
         dept_query = dept_query.where(Department.id == department_id)
+    
     dept_result = await db.execute(dept_query)
     departments = dept_result.scalars().all()
     
@@ -228,6 +244,35 @@ async def get_department_metrics(
         high_risk_result = await db.execute(high_risk_query)
         high_risk_count = high_risk_result.scalar() or 0
         
+        # Audited control count (controls with at least one execution)
+        audited_control_query = select(func.count(Control.id.distinct())).join(ControlExecution).where(
+            Control.department_id == dept.id
+        )
+        if not include_archived:
+            audited_control_query = audited_control_query.where(Control.status != ControlStatus.archived.value)
+        audited_control_result = await db.execute(audited_control_query)
+        audited_control_count = audited_control_result.scalar() or 0
+
+        # Breaching KRI count (KRIs linked to department's risks, outside limits)
+        breaching_kri_query = select(func.count(KeyRiskIndicator.id.distinct())).join(Risk).where(
+            Risk.department_id == dept.id,
+            Risk.status != RiskStatus.archived.value,
+            or_(
+                KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
+                KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit
+            )
+        )
+        breaching_kri_result = await db.execute(breaching_kri_query)
+        breaching_kri_count = breaching_kri_result.scalar() or 0
+        
+        # Total KRI count (KRIs linked to department's risks)
+        total_kri_query = select(func.count(KeyRiskIndicator.id.distinct())).join(Risk).where(
+            Risk.department_id == dept.id,
+            Risk.status != RiskStatus.archived.value
+        )
+        total_kri_result = await db.execute(total_kri_query)
+        total_kri_count = total_kri_result.scalar() or 0
+        
         # Compliance rate
         compliance_rate = (active_control_count / control_count) if control_count > 0 else 0.0
         
@@ -237,6 +282,9 @@ async def get_department_metrics(
             control_count=control_count,
             risk_count=risk_count,
             high_risk_count=high_risk_count,
+            audited_control_count=audited_control_count,
+            breaching_kri_count=breaching_kri_count,
+            total_kri_count=total_kri_count,
             compliance_rate=round(compliance_rate, 2),
         ))
     
@@ -432,3 +480,319 @@ async def get_risks_by_cell(
         }
         for row in rows
     ]
+
+
+@router.get("/risk-trends", response_model=list[RiskTrendPoint])
+async def get_risk_trends(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+    department_id: Optional[int] = Query(None, description="Filter by department"),
+    include_archived: bool = Query(False, description="Include archived risks"),
+):
+    """Get risk creation trends by month (last 12 months)."""
+    try:
+        dept_ids = get_user_department_ids(current_user)
+
+        # Early return for users with no department access
+        if dept_ids is not None and len(dept_ids) == 0:
+            return []
+
+        # Build conditions
+        conditions = []
+        if not include_archived:
+            conditions.append(Risk.status != RiskStatus.archived.value)
+        if dept_ids is not None:
+            conditions.append(Risk.department_id.in_(dept_ids))
+        elif department_id:
+            conditions.append(Risk.department_id == department_id)
+
+        # Query risk counts grouped by month
+        period_label = func.to_char(Risk.created_at, 'YYYY-MM').label('period')
+        query = select(
+            period_label,
+            func.count(Risk.id).label('total_new'),
+            func.sum(
+                func.case((Risk.net_score >= 15, 1), else_=0)
+            ).label('critical_new')
+        )
+        
+        if conditions:
+            query = query.where(and_(*conditions))
+        
+        query = query.group_by(period_label).order_by(period_label.desc()).limit(12)
+        
+        result = await db.execute(query)
+        rows = result.all()
+        
+        # Reverse to show oldest first
+        trends = [
+            RiskTrendPoint(
+                period=row.period,
+                total_new=row.total_new or 0,
+                critical_new=int(row.critical_new or 0)
+            )
+            for row in rows
+            if row.period
+        ]
+        return list(reversed(trends))
+    except Exception as e:
+        logger.exception("Error fetching risk trends: %s", str(e))
+        return []
+
+
+@router.get("/kri-breach-trends", response_model=list[KRIBreachTrendPoint])
+async def get_kri_breach_trends(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+    department_id: Optional[int] = Query(None, description="Filter by department"),
+):
+    """Get KRI breach trends by month (last 12 months)."""
+    try:
+        dept_ids = get_user_department_ids(current_user)
+
+        # Early return for users with no department access
+        if dept_ids is not None and len(dept_ids) == 0:
+            return []
+
+        # Build conditions: join KRIValueHistory -> KRI -> Risk; filter active risks
+        conditions = [
+            KRIValueHistory.period_end.isnot(None),
+            Risk.status != RiskStatus.archived.value,
+        ]
+        if dept_ids is not None:
+            conditions.append(Risk.department_id.in_(dept_ids))
+        elif department_id:
+            conditions.append(Risk.department_id == department_id)
+
+        # Query breach counts grouped by month
+        period_label = func.to_char(KRIValueHistory.period_end, 'YYYY-MM').label('period')
+        query = select(
+            period_label,
+            func.count(KRIValueHistory.id).label('total_entries'),
+            func.sum(
+                func.case((KRIValueHistory.breach_status != 'within', 1), else_=0)
+            ).label('breached_entries')
+        ).select_from(
+            KRIValueHistory
+        ).join(
+            KeyRiskIndicator, KRIValueHistory.kri_id == KeyRiskIndicator.id
+        ).join(
+            Risk, KeyRiskIndicator.risk_id == Risk.id
+        ).where(
+            and_(*conditions)
+        ).group_by(
+            period_label
+        ).order_by(
+            period_label.desc()
+        ).limit(12)
+        
+        result = await db.execute(query)
+        rows = result.all()
+        
+        trends = [
+            KRIBreachTrendPoint(
+                period=row.period,
+                total_entries=row.total_entries or 0,
+                breached_entries=int(row.breached_entries or 0)
+            )
+            for row in rows
+            if row.period
+        ]
+        return list(reversed(trends))
+    except Exception as e:
+        logger.exception("Error fetching KRI breach trends: %s", str(e))
+        return []
+
+
+@router.get("/quarterly-comparison")
+async def get_quarterly_comparison(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """
+    Get quarter-over-quarter comparison metrics for Risk Committee view.
+    
+    Returns:
+        - this_quarter: metrics for current quarter
+        - last_quarter: metrics for previous quarter
+        - changes: percentage/absolute changes
+    """
+    from datetime import datetime, timedelta
+    from dateutil.relativedelta import relativedelta
+    from app.models.approval_request import ApprovalRequest, ApprovalStatus
+    
+    now = datetime.now()
+    
+    # Calculate quarter boundaries
+    current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
+    last_quarter_start = current_quarter_start - relativedelta(months=3)
+    last_quarter_end = current_quarter_start - timedelta(days=1)
+    
+    async def get_quarter_metrics(start: datetime, end: datetime) -> dict:
+        """Get metrics for a quarter period."""
+        # Risks created in period
+        risk_count = await db.scalar(
+            select(func.count(Risk.id)).where(
+                Risk.created_at >= start,
+                Risk.created_at <= end,
+                Risk.status != RiskStatus.archived.value
+            )
+        )
+        
+        # Risks closed in period
+        closed_count = await db.scalar(
+            select(func.count(Risk.id)).where(
+                Risk.updated_at >= start,
+                Risk.updated_at <= end,
+                Risk.status == RiskStatus.closed.value
+            )
+        )
+        
+        # Active risks at end of period
+        active_risks = await db.scalar(
+            select(func.count(Risk.id)).where(
+                Risk.created_at <= end,
+                Risk.status.in_([RiskStatus.active.value, RiskStatus.monitoring.value])
+            )
+        )
+        
+        # Priority risks
+        priority_count = await db.scalar(
+            select(func.count(Risk.id)).where(
+                Risk.is_priority == True,
+                Risk.status != RiskStatus.archived.value
+            )
+        )
+        
+        # KRI breaches
+        kri_breaches = await db.scalar(
+            select(func.count(KeyRiskIndicator.id)).where(
+                KeyRiskIndicator.is_breached == True
+            )
+        )
+        
+        # Pending approvals
+        pending_approvals = await db.scalar(
+            select(func.count(ApprovalRequest.id)).where(
+                ApprovalRequest.status.in_([ApprovalStatus.PENDING.value, ApprovalStatus.PENDING_PRIVILEGED.value])
+            )
+        )
+        
+        return {
+            "new_risks": risk_count or 0,
+            "closed_risks": closed_count or 0,
+            "active_risks": active_risks or 0,
+            "priority_risks": priority_count or 0,
+            "kri_breaches": kri_breaches or 0,
+            "pending_approvals": pending_approvals or 0,
+        }
+    
+    this_quarter = await get_quarter_metrics(current_quarter_start, now)
+    last_quarter = await get_quarter_metrics(last_quarter_start, last_quarter_end)
+    
+    # Calculate changes
+    changes = {}
+    for key in this_quarter:
+        old_val = last_quarter[key]
+        new_val = this_quarter[key]
+        if old_val == 0:
+            pct_change = 100 if new_val > 0 else 0
+        else:
+            pct_change = round(((new_val - old_val) / old_val) * 100, 1)
+        changes[key] = {
+            "absolute": new_val - old_val,
+            "percentage": pct_change,
+            "direction": "up" if new_val > old_val else ("down" if new_val < old_val else "same"),
+        }
+    
+    return {
+        "this_quarter": this_quarter,
+        "last_quarter": last_quarter,
+        "changes": changes,
+        "period": {
+            "this_start": current_quarter_start.isoformat(),
+            "this_end": now.isoformat(),
+            "last_start": last_quarter_start.isoformat(),
+            "last_end": last_quarter_end.isoformat(),
+        }
+    }
+
+
+@router.get("/committee-summary")
+async def get_committee_summary(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """
+    Get executive summary for Risk Committee meetings.
+    
+    Returns high-level overview with key decision points.
+    """
+    from datetime import datetime, timedelta
+    from app.models.activity_log import ActivityLog
+    
+    # Top 5 critical risks (by net_score, priority first)
+    critical_risks = await db.execute(
+        select(Risk)
+        .where(Risk.status == RiskStatus.active.value)
+        .order_by(Risk.is_priority.desc(), Risk.net_score.desc())
+        .limit(5)
+    )
+    
+    # Recent significant changes (last 30 days)
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    recent_activity = await db.execute(
+        select(ActivityLog)
+        .where(ActivityLog.created_at >= thirty_days_ago)
+        .where(ActivityLog.action.in_(["create", "delete", "archive", "approve", "reject"]))
+        .order_by(ActivityLog.created_at.desc())
+        .limit(10)
+    )
+    
+    # Departments with highest risk exposure
+    dept_exposure = await db.execute(
+        select(
+            Department.id,
+            Department.name,
+            func.sum(Risk.net_score).label("total_exposure"),
+            func.count(Risk.id).label("risk_count"),
+        )
+        .join(Risk, Risk.department_id == Department.id)
+        .where(Risk.status == RiskStatus.active.value)
+        .group_by(Department.id)
+        .order_by(func.sum(Risk.net_score).desc())
+        .limit(5)
+    )
+    
+    return {
+        "critical_risks": [
+            {
+                "id": r.id,
+                "risk_id_code": r.risk_id_code,
+                "description": r.description[:100] if r.description else "",
+                "net_score": r.net_score,
+                "is_priority": r.is_priority,
+            }
+            for r in critical_risks.scalars()
+        ],
+        "recent_activity": [
+            {
+                "id": a.id,
+                "action": a.action,
+                "entity_type": a.entity_type,
+                "entity_name": a.entity_name,
+                "description": a.description,
+                "created_at": a.created_at.isoformat(),
+            }
+            for a in recent_activity.scalars()
+        ],
+        "department_exposure": [
+            {
+                "id": d.id,
+                "name": d.name,
+                "total_exposure": d.total_exposure,
+                "risk_count": d.risk_count,
+            }
+            for d in dept_exposure
+        ],
+    }
