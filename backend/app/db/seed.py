@@ -40,17 +40,18 @@ PERMISSIONS = [
     {"resource": "users", "action": "write", "description": "Manage users"},
     {"resource": "approvals", "action": "write", "description": "Resolve approval requests"},
     {"resource": "kri", "action": "record", "description": "Submit KRI values"},
+    {"resource": "activity_log", "action": "read", "description": "View activity log"},
 ]
 
 # Role-permission mappings
 ROLE_PERMISSIONS = {
     "admin": ["*:*"],
     "cro": ["*:*"],
-    "risk_manager": ["controls:*", "risks:*", "departments:read", "reports:*", "users:read", "approvals:write"],
+    "risk_manager": ["controls:*", "risks:*", "departments:read", "reports:*", "users:read", "approvals:write", "activity_log:read"],
     "actuarial": ["controls:read", "controls:write", "risks:read", "reports:read"],
     "compliance": ["controls:read", "controls:write", "risks:read", "reports:read"],
     "internal_audit": ["controls:read", "risks:read", "departments:read", "reports:read"],
-    "department_head": ["controls:read", "controls:write", "risks:read", "departments:read", "reports:read", "kri:record"],
+    "department_head": ["controls:read", "controls:write", "risks:read", "departments:read", "reports:read", "kri:record", "activity_log:read"],
     "control_owner": ["controls:read", "controls:write", "risks:read", "kri:record"],
     "viewer": ["controls:read", "risks:read", "departments:read", "reports:read"],
 }
