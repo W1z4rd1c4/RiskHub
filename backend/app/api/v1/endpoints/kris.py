@@ -436,17 +436,25 @@ async def record_kri_value(
     kri_id: int,
     data: KRIRecordValue,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("risks", "write")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """
     Record a new value for a KRI.
     
-    Creates a history entry and updates the current value.
-    Non-privileged users can only record for the current period within the grace window.
-    Privileged users can backdate by specifying period_end.
+    Access: Users with kri:record OR risks:write permission.
+    - Privileged users (CRO/Admin/Risk Manager): apply immediately.
+    - KRI owner or Risk owner: creates tiered approval (Risk Owner → Privileged if priority).
+    - Other users with kri:record: creates approval with Risk Owner as primary approver.
     """
-    from app.core.permissions import can_resolve_approvals
+    from datetime import datetime, UTC
+    from app.core.permissions import can_resolve_approvals, has_permission
     from app.services.kri_history_service import KRIHistoryService
+    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
+    from app.services.notification_service import NotificationService
+    
+    # Check permission: kri:record OR risks:write
+    if not (has_permission(current_user, "kri", "record") or has_permission(current_user, "risks", "write")):
+        raise HTTPException(status_code=403, detail="Permission denied: requires kri:record or risks:write")
     
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -462,6 +470,90 @@ async def record_kri_value(
     # Verify department access
     check_department_access(kri.risk.department_id, current_user)
     
+    # Privileged users can record directly
+    if can_resolve_approvals(current_user):
+        # Skip approval, apply immediately (handled below)
+        pass
+    else:
+        # Non-privileged users create a tiered approval request
+        today = date.today()
+        _, current_period_end = KRIHistoryService.period_bounds_for_date(today, kri.frequency)
+        
+        # Non-privileged users cannot specify custom period_end
+        if data.period_end and data.period_end != current_period_end:
+            raise HTTPException(status_code=400, detail="Non-privileged users cannot specify custom period_end")
+        
+        # Check for existing pending request for this KRI
+        existing = await db.execute(
+            select(ApprovalRequest).where(
+                ApprovalRequest.resource_type == ApprovalResourceType.KRI,
+                ApprovalRequest.resource_id == kri.id,
+                ApprovalRequest.action_type == ApprovalActionType.EDIT,
+                ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="A value submission request is already pending for this KRI")
+        
+        # Determine primary approver: Risk Owner (or fallback to department head logic)
+        primary_approver_id = kri.risk.owner_id if kri.risk else None
+        
+        # For priority risks, require privileged approval after Risk Owner approves
+        requires_privileged = bool(kri.risk and kri.risk.is_priority)
+        
+        recorded_at = datetime.now(UTC).isoformat()
+        pending_changes = {
+            "current_value": {"old": kri.current_value, "new": data.value},
+            "period_end": current_period_end.isoformat(),
+            "recorded_at": recorded_at,
+        }
+        
+        approval = ApprovalRequest(
+            resource_type=ApprovalResourceType.KRI,
+            resource_id=kri.id,
+            resource_name=f"{kri.metric_name[:30]} (value submission)",
+            requested_by_id=current_user.id,
+            reason=f"KRI value submission: {data.value}",
+            action_type=ApprovalActionType.EDIT,
+            pending_changes=pending_changes,
+            status=ApprovalStatus.PENDING,
+            primary_approver_id=primary_approver_id,
+            requires_privileged_approval=requires_privileged,
+        )
+        db.add(approval)
+        await db.commit()
+        
+        # Notify Risk Owner (primary approver)
+        if primary_approver_id:
+            try:
+                from app.models.notification import NotificationType
+                await NotificationService.create_notification(
+                    db=db,
+                    user_id=primary_approver_id,
+                    notification_type=NotificationType.APPROVAL_PENDING,
+                    title="KRI Value Submission",
+                    message=f"KRI '{kri.metric_name}' value submitted for your approval",
+                    resource_type="approval",
+                    resource_id=approval.id,
+                )
+                await db.commit()
+            except Exception:
+                pass  # Notification failure should not fail the request
+        
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=202,
+            content={
+                "message": "Value submission requires approval" + (" (priority risk - privileged approval also required)" if requires_privileged else ""),
+                "approval_id": approval.id,
+                "action_type": "edit",
+                "primary_approver_id": primary_approver_id,
+                "requires_privileged_approval": requires_privileged,
+                "pending_changes": pending_changes,
+            }
+        )
+    
+    # Privileged users can record directly
     try:
         history_entry = await KRIHistoryService.record_value(
             db=db,
@@ -470,7 +562,7 @@ async def record_kri_value(
             recorded_by_id=current_user.id,
             recorded_at=data.recorded_at,
             period_end=data.period_end,
-            is_privileged=can_resolve_approvals(current_user),
+            is_privileged=True,
         )
         await db.commit()
         await db.refresh(kri)
