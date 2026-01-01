@@ -214,16 +214,21 @@ async def approve_request(
     current_user: User = Depends(deps.get_current_user),
 ):
     """
-    Approve a pending request and execute the deletion.
-    Only Risk Manager, CRO, or Admin can approve.
-    Requires mandatory resolution_notes.
-    """
-    if not can_resolve_approvals(current_user):
-        raise HTTPException(status_code=403, detail="Only Risk Manager, CRO, or Admin can approve requests")
+    Approve a pending request and execute the action.
     
+    Tiered approval flow:
+    - Privileged users (CRO/Admin/Risk Manager): can approve any PENDING or PENDING_PRIVILEGED request.
+    - Primary approver (Risk Owner): can approve PENDING requests they own.
+      If requires_privileged_approval, moves to PENDING_PRIVILEGED instead of applying.
+    """
     result = await db.execute(
         select(ApprovalRequest)
-        .options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
+        .options(
+            selectinload(ApprovalRequest.requested_by),
+            selectinload(ApprovalRequest.resolved_by),
+            selectinload(ApprovalRequest.primary_approver),
+            selectinload(ApprovalRequest.privileged_approver),
+        )
         .where(ApprovalRequest.id == approval_id)
     )
     approval = result.scalar_one_or_none()
@@ -231,59 +236,167 @@ async def approve_request(
     if not approval:
         raise HTTPException(status_code=404, detail="Approval request not found")
     
-    if approval.status != ApprovalStatus.PENDING:
+    is_privileged = can_resolve_approvals(current_user)
+    is_primary_approver = approval.primary_approver_id == current_user.id
+    
+    # Check if user can approve this request
+    if approval.status == ApprovalStatus.PENDING:
+        # PENDING: primary approver or privileged user can approve
+        if not is_primary_approver and not is_privileged:
+            raise HTTPException(status_code=403, detail="Only the primary approver or a privileged user can approve this request")
+    elif approval.status == ApprovalStatus.PENDING_PRIVILEGED:
+        # PENDING_PRIVILEGED: only privileged user can approve
+        if not is_privileged:
+            raise HTTPException(status_code=403, detail="This request requires privileged user approval (CRO/Admin/Risk Manager)")
+    else:
         raise HTTPException(status_code=400, detail=f"Cannot approve request with status: {approval.status.value}")
     
-    # Update approval status
-    approval.status = ApprovalStatus.APPROVED
-    approval.resolved_by_id = current_user.id
-    approval.resolved_at = datetime.now(UTC)
-    approval.resolution_notes = resolve_data.resolution_notes
+    # Determine if we should apply changes or move to next approval stage
+    should_apply_changes = False
     
-    # AUTO-EXECUTE based on action type
-    if approval.action_type == ApprovalActionType.DELETE:
-        # DELETE: Archive/delete the resource
-        if approval.resource_type == ApprovalResourceType.RISK:
-            risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
-            risk = risk_result.scalar_one_or_none()
-            if risk:
-                risk.status = RiskStatusEnum.archived.value
-        elif approval.resource_type == ApprovalResourceType.CONTROL:
-            control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
-            control = control_result.scalar_one_or_none()
-            if control:
-                control.status = ControlStatus.archived.value
-        elif approval.resource_type == ApprovalResourceType.KRI:
-            kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
-            kri = kri_result.scalar_one_or_none()
-            if kri:
-                await db.delete(kri)
+    if approval.status == ApprovalStatus.PENDING:
+        if is_privileged:
+            # Privileged user bypasses tiered approval
+            approval.status = ApprovalStatus.APPROVED
+            approval.resolved_by_id = current_user.id
+            approval.resolved_at = datetime.now(UTC)
+            approval.resolution_notes = resolve_data.resolution_notes
+            should_apply_changes = True
+        elif is_primary_approver:
+            # Primary approver approving
+            approval.primary_approved_at = datetime.now(UTC)
+            if approval.requires_privileged_approval:
+                # Move to PENDING_PRIVILEGED
+                approval.status = ApprovalStatus.PENDING_PRIVILEGED
+                approval.resolution_notes = f"Primary approval by Risk Owner: {resolve_data.resolution_notes}"
+            else:
+                # No privileged approval needed, finalize
+                approval.status = ApprovalStatus.APPROVED
+                approval.resolved_by_id = current_user.id
+                approval.resolved_at = datetime.now(UTC)
+                approval.resolution_notes = resolve_data.resolution_notes
+                should_apply_changes = True
+    elif approval.status == ApprovalStatus.PENDING_PRIVILEGED:
+        # Privileged user finalizing
+        approval.status = ApprovalStatus.APPROVED
+        approval.privileged_approver_id = current_user.id
+        approval.privileged_approved_at = datetime.now(UTC)
+        approval.resolved_by_id = current_user.id
+        approval.resolved_at = datetime.now(UTC)
+        approval.resolution_notes = (approval.resolution_notes or "") + f"\nPrivileged approval: {resolve_data.resolution_notes}"
+        should_apply_changes = True
     
-    elif approval.action_type == ApprovalActionType.EDIT:
-        # EDIT: Apply pending changes to the resource
-        if approval.pending_changes:
-            changes = approval.pending_changes
+    # AUTO-EXECUTE based on action type (only if should apply changes)
+    if should_apply_changes:
+        if approval.action_type == ApprovalActionType.DELETE:
+            # DELETE: Archive/delete the resource
             if approval.resource_type == ApprovalResourceType.RISK:
                 risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
                 risk = risk_result.scalar_one_or_none()
                 if risk:
-                    for field, vals in changes.items():
-                        if hasattr(risk, field):
-                            setattr(risk, field, vals.get("new"))
+                    risk.status = RiskStatusEnum.archived.value
             elif approval.resource_type == ApprovalResourceType.CONTROL:
                 control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
                 control = control_result.scalar_one_or_none()
                 if control:
-                    for field, vals in changes.items():
-                        if hasattr(control, field):
-                            setattr(control, field, vals.get("new"))
+                    control.status = ControlStatus.archived.value
             elif approval.resource_type == ApprovalResourceType.KRI:
                 kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
                 kri = kri_result.scalar_one_or_none()
                 if kri:
-                    for field, vals in changes.items():
-                        if hasattr(kri, field):
-                            setattr(kri, field, vals.get("new"))
+                    await db.delete(kri)
+        
+        elif approval.action_type == ApprovalActionType.EDIT:
+            # EDIT: Apply pending changes to the resource
+            if approval.pending_changes:
+                changes = approval.pending_changes
+                if approval.resource_type == ApprovalResourceType.RISK:
+                    risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
+                    risk = risk_result.scalar_one_or_none()
+                    if risk:
+                        for field, vals in changes.items():
+                            if hasattr(risk, field):
+                                setattr(risk, field, vals.get("new"))
+                elif approval.resource_type == ApprovalResourceType.CONTROL:
+                    control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
+                    control = control_result.scalar_one_or_none()
+                    if control:
+                        for field, vals in changes.items():
+                            if hasattr(control, field):
+                                setattr(control, field, vals.get("new"))
+                elif approval.resource_type == ApprovalResourceType.KRI:
+                    kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
+                    kri = kri_result.scalar_one_or_none()
+                    if kri:
+                        if "history_entry_id" in changes:
+                            from app.services.kri_history_service import KRIHistoryService
+                            entry_id = changes.get("history_entry_id")
+                            new_value = changes.get("new_value")
+                            if entry_id is None or new_value is None:
+                                raise HTTPException(status_code=400, detail="Invalid KRI history correction payload")
+                            try:
+                                await KRIHistoryService.apply_history_correction(
+                                    db=db,
+                                    entry_id=entry_id,
+                                    new_value=new_value,
+                                    corrected_by_id=current_user.id,
+                                )
+                            except ValueError as e:
+                                raise HTTPException(status_code=400, detail=str(e))
+                        elif "period_end" in changes and "current_value" in changes:
+                            # Handle value submission approval with period_end
+                            from datetime import date as date_type
+                            from app.services.kri_history_service import KRIHistoryService
+                            
+                            value_change = changes.get("current_value")
+                            period_end_str = changes.get("period_end")
+                            recorded_at_str = changes.get("recorded_at")
+                            
+                            if value_change is None or period_end_str is None:
+                                raise HTTPException(status_code=400, detail="Invalid KRI value submission payload")
+                            
+                            # Parse period_end and recorded_at
+                            period_end = date_type.fromisoformat(period_end_str)
+                            recorded_at = datetime.fromisoformat(recorded_at_str) if recorded_at_str else None
+                            
+                            try:
+                                await KRIHistoryService.record_value(
+                                    db=db,
+                                    kri=kri,
+                                    value=value_change.get("new"),
+                                    recorded_by_id=current_user.id,
+                                    recorded_at=recorded_at,
+                                    period_end=period_end,
+                                    is_privileged=True,
+                                    allow_open_period=True,  # Allow open period for approved submissions
+                                )
+                            except ValueError as e:
+                                raise HTTPException(status_code=400, detail=str(e))
+                        else:
+                            value_change = changes.get("current_value")
+                            for field, vals in changes.items():
+                                if field == "current_value":
+                                    continue
+                                if hasattr(kri, field):
+                                    setattr(kri, field, vals.get("new"))
+                            if value_change is not None:
+                                from app.services.kri_history_service import KRIHistoryService
+                                try:
+                                    await KRIHistoryService.record_value(
+                                        db=db,
+                                        kri=kri,
+                                        value=value_change.get("new"),
+                                        recorded_by_id=current_user.id,
+                                        is_privileged=True,
+                                    )
+                                except ValueError as e:
+                                    raise HTTPException(status_code=400, detail=str(e))
+    else:
+        # PENDING_PRIVILEGED: Notify privileged users
+        try:
+            await NotificationService.notify_approvers(db, approval)
+        except Exception:
+            pass
     
     await db.commit()
     
@@ -409,24 +522,69 @@ async def get_pending_count(
 ):
     """
     Get count of pending approvals for badge display.
-    - Privileged users: count of all pending requests (to review)
+    - Privileged users: count of all pending requests (PENDING + PENDING_PRIVILEGED)
+    - Primary approvers (Risk Owners): count of requests they need to approve
     - Others: count of their own pending requests
     """
     if can_resolve_approvals(current_user):
-        # Count all pending for approvers
+        # Count all pending/pending_privileged for approvers
         result = await db.execute(
             select(func.count()).select_from(ApprovalRequest).where(
-                ApprovalRequest.status == ApprovalStatus.PENDING
+                ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
             )
         )
     else:
-        # Count own pending for regular users
+        # Count own pending + requests where user is primary approver
         result = await db.execute(
             select(func.count()).select_from(ApprovalRequest).where(
-                ApprovalRequest.status == ApprovalStatus.PENDING,
-                ApprovalRequest.requested_by_id == current_user.id
+                or_(
+                    # Own pending requests
+                    (ApprovalRequest.status == ApprovalStatus.PENDING) & 
+                    (ApprovalRequest.requested_by_id == current_user.id),
+                    # Requests where user is primary approver
+                    (ApprovalRequest.status == ApprovalStatus.PENDING) &
+                    (ApprovalRequest.primary_approver_id == current_user.id)
+                )
             )
         )
     
     count = result.scalar() or 0
     return {"count": count}
+
+
+@router.get("/my-approvals", response_model=ApprovalRequestListResponse)
+async def list_my_approval_requests(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+):
+    """
+    List approval requests where current user is the primary approver (Risk Owner).
+    Returns all PENDING requests that need this user's approval.
+    """
+    base_query = select(ApprovalRequest).where(
+        ApprovalRequest.primary_approver_id == current_user.id,
+        ApprovalRequest.status == ApprovalStatus.PENDING
+    )
+    
+    # Count total
+    count_query = select(func.count()).select_from(base_query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    
+    # Fetch with pagination
+    query = base_query.options(
+        selectinload(ApprovalRequest.requested_by),
+        selectinload(ApprovalRequest.resolved_by)
+    ).offset(skip).limit(limit).order_by(ApprovalRequest.created_at.desc())
+    
+    result = await db.execute(query)
+    approvals = result.scalars().all()
+    
+    return ApprovalRequestListResponse(
+        items=[_build_approval_read(a) for a in approvals],
+        total=total,
+        skip=skip,
+        limit=limit
+    )

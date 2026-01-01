@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import async_session_maker
 from app.models import Role, Permission, RolePermission, User, Department
+from app.models.user import AccessScope
 from app.models import Control, ControlExecution, Risk, ControlRiskLink
 
 
@@ -38,6 +39,7 @@ PERMISSIONS = [
     {"resource": "users", "action": "read", "description": "View users"},
     {"resource": "users", "action": "write", "description": "Manage users"},
     {"resource": "approvals", "action": "write", "description": "Resolve approval requests"},
+    {"resource": "kri", "action": "record", "description": "Submit KRI values"},
 ]
 
 # Role-permission mappings
@@ -48,8 +50,8 @@ ROLE_PERMISSIONS = {
     "actuarial": ["controls:read", "controls:write", "risks:read", "reports:read"],
     "compliance": ["controls:read", "controls:write", "risks:read", "reports:read"],
     "internal_audit": ["controls:read", "risks:read", "departments:read", "reports:read"],
-    "department_head": ["controls:read", "controls:write", "risks:read", "departments:read", "reports:read"],
-    "control_owner": ["controls:read", "controls:write", "risks:read"],
+    "department_head": ["controls:read", "controls:write", "risks:read", "departments:read", "reports:read", "kri:record"],
+    "control_owner": ["controls:read", "controls:write", "risks:read", "kri:record"],
     "viewer": ["controls:read", "risks:read", "departments:read", "reports:read"],
 }
 
@@ -68,17 +70,17 @@ DEPARTMENTS = [
 # ID 7-9: Employees (limited access under department heads)
 TEST_USERS = [
     # Privileged accounts
-    {"email": "admin@riskhub.local", "name": "System Admin", "role": "admin", "department": None},
-    {"email": "cro@riskhub.local", "name": "Anna Kowalski", "role": "cro", "department": "RISK"},
-    {"email": "risk.manager@riskhub.local", "name": "Petra Svobodová", "role": "risk_manager", "department": "RISK"},
+    {"email": "admin@riskhub.local", "name": "System Admin", "role": "admin", "department": None, "access_scope": "global"},
+    {"email": "cro@riskhub.local", "name": "Anna Kowalski", "role": "cro", "department": "RISK", "access_scope": "global"},
+    {"email": "risk.manager@riskhub.local", "name": "Petra Svobodová", "role": "risk_manager", "department": "RISK", "access_scope": "global"},
     # Department heads
-    {"email": "ops.head@riskhub.local", "name": "Eva Králová", "role": "department_head", "department": "OPS"},
-    {"email": "fin.head@riskhub.local", "name": "Martin Procházka", "role": "department_head", "department": "FIN"},
-    {"email": "it.head@riskhub.local", "name": "Tomáš Novotný", "role": "department_head", "department": "IT"},
+    {"email": "ops.head@riskhub.local", "name": "Eva Králová", "role": "department_head", "department": "OPS", "access_scope": "department"},
+    {"email": "fin.head@riskhub.local", "name": "Martin Procházka", "role": "department_head", "department": "FIN", "access_scope": "department"},
+    {"email": "it.head@riskhub.local", "name": "Tomáš Novotný", "role": "department_head", "department": "IT", "access_scope": "department"},
     # Employees (control owners under department heads)
-    {"email": "ops.analyst@riskhub.local", "name": "Jana Horáková", "role": "control_owner", "department": "OPS"},
-    {"email": "fin.analyst@riskhub.local", "name": "Lukáš Dvořák", "role": "control_owner", "department": "FIN"},
-    {"email": "it.analyst@riskhub.local", "name": "Barbora Němcová", "role": "control_owner", "department": "IT"},
+    {"email": "ops.analyst@riskhub.local", "name": "Jana Horáková", "role": "control_owner", "department": "OPS", "access_scope": "department"},
+    {"email": "fin.analyst@riskhub.local", "name": "Lukáš Dvořák", "role": "control_owner", "department": "FIN", "access_scope": "department"},
+    {"email": "it.analyst@riskhub.local", "name": "Barbora Němcová", "role": "control_owner", "department": "IT", "access_scope": "department"},
 ]
 
 # Sample controls based on DEFINICIA KONTROL
@@ -356,6 +358,7 @@ async def seed_database():
                 role_id=role.id,
                 department_id=dept.id if dept else None,
                 is_active=True,
+                access_scope=AccessScope(user_data.get("access_scope", AccessScope.DEPARTMENT)),
             )
             db.add(user)
             users[user_data["email"]] = user
@@ -449,4 +452,3 @@ async def seed_controls_and_risks(db: AsyncSession):
 
 if __name__ == "__main__":
     asyncio.run(seed_database())
-
