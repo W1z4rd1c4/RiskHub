@@ -280,8 +280,8 @@ Plans:
 - [x] 85-02: Backend access management model + APIs (access scope, access endpoints)
 - [x] 85-03: Access management UI (permissions visibility, guarded edits)
 - [x] 85-04: KRI workflow improvements (weekly reminders, CRO due-soon visibility, all-edit approvals)
-- [ ] 85-05: Owner-based KRI permissions (kri:record permission, tiered approval with Risk Owner)
-- [ ] 85-06: Control owner edit permissions (Control Owner edits → Risk Owner approval)
+- [x] 85-05: Owner-based KRI permissions (kri:record permission, tiered approval with Risk Owner)
+- [x] 85-06: Control owner edit permissions (Control Owner edits → Risk Owner approval)
 
 ### Phase 90: AD Integration (Real-Time Sync & Governance)
 **Goal**: Implement real-time sync from AD Emulator to RiskHub via webhooks, with Governance UI for managing orphaned risks/controls

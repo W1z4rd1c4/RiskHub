@@ -25,6 +25,7 @@ import { ControlEffectiveness } from '@/types/risk';
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
+import { useAuth } from '@/contexts/AuthContext';
 
 type TabView = 'overview' | 'history';
 
@@ -44,6 +45,7 @@ const item = {
 export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user, hasPermission } = useAuth();
     const [control, setControl] = useState<Control | null>(null);
     const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -166,14 +168,16 @@ export function ControlDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <PermissionGate resource="controls" action="write">
+                    {/* Edit button: show for controls:write OR control owner */}
+                    {(hasPermission('controls', 'write') || control.control_owner_id === user?.id) && (
                         <button
                             onClick={() => navigate(`/controls/${control.id}/edit`)}
                             className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-all hover:shadow-[0_0_20px_rgba(30,132,255,0.1)]"
+                            title={control.control_owner_id === user?.id && !hasPermission('controls', 'write') ? 'Edit as Control Owner (requires approval)' : 'Edit Control'}
                         >
                             <Edit className="h-5 w-5" />
                         </button>
-                    </PermissionGate>
+                    )}
                     <PermissionGate resource="controls" action="delete">
                         <button
                             onClick={() => setIsArchiveDialogOpen(true)}

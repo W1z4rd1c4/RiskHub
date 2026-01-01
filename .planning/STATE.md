@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 85. Workflow & Users
-**Current Plan:** 85-05 (Completed)
-**Next Plan:** 85-06
+**Current Plan:** 85-06 (Completed)
+**Next Plan:** None (Phase 85 Complete)
 
 ## Progress Summary
 
@@ -32,7 +32,7 @@
 | 10 Historization | ⏳ In progress (4/5) | 2025-12-31 |
 | 11 Historical Visualization | ✅ Complete (5/5) | 2025-12-31 |
 | 12-15 Deferred | ⏸ Deferred | - |
-| 85 Workflow & Users | ⏳ In progress (5/6) | - |
+| 85 Workflow & Users | ✅ Complete (6/6) | 2026-01-01 |
 | 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
 | 99 Data Migration & Standalone AD | ✅ Complete (7/7) | 2025-12-28 |
 | 100 Marketing Presentation | ✅ Complete (3/3) | 2025-12-29 |
@@ -56,6 +56,9 @@
 - ✅ **85-01**: User access map (roles x tabs, backend + frontend gating)
 - ✅ **85-02**: Backend access management model + APIs (access scope, access endpoints)
 - ✅ **85-03**: Frontend access management UI (types, API client, PermissionMatrix, AccessEditModal, UsersPage upgrade)
+- ✅ **85-04**: KRI workflow improvements (weekly reminders, CRO due-soon visibility, all-edit approvals)
+- ✅ **85-05**: Owner-based KRI permissions (tiered approval with Risk Owner)
+- ✅ **85-06**: Control owner edit permissions (Control Owner edits → Risk Owner approval)
 
 ### Phase 99 Progress
 - ✅ **99-01**: Migrated 83 risks from placeholder-risk-register.xlsx
