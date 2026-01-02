@@ -22,6 +22,7 @@ from app.schemas.control import ControlSummary
 from app.schemas.kri import KRIResponse
 from app.api import deps
 from app.core.permissions import get_user_department_ids, check_department_access
+from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 
 
 router = APIRouter()
@@ -109,7 +110,24 @@ async def list_departments(
     )
     kri_counts = dict(kri_counts_result.all())
     
-    # 6. Total net scores per department
+    # 6. Breaching KRI counts (linked to non-archived risks, outside limits)
+    breaching_kri_counts_result = await db.execute(
+        select(Risk.department_id, func.count(KeyRiskIndicator.id))
+        .join(Risk)
+        .where(
+            and_(
+                Risk.status != RiskStatus.archived.value,
+                or_(
+                    KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
+                    KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit
+                )
+            )
+        )
+        .group_by(Risk.department_id)
+    )
+    breaching_kri_counts = dict(breaching_kri_counts_result.all())
+    
+    # 7. Total net scores per department
     net_score_totals_result = await db.execute(
         select(Risk.department_id, func.sum(Risk.net_score))
         .where(Risk.status != RiskStatus.archived.value)
@@ -127,6 +145,7 @@ async def list_departments(
             risk_count=risk_counts.get(dept.id, 0),
             control_count=control_counts.get(dept.id, 0),
             high_risk_count=high_risk_counts.get(dept.id, 0),
+            breaching_kri_count=breaching_kri_counts.get(dept.id, 0),
             kri_count=kri_counts.get(dept.id, 0),
             total_net_score=int(net_score_totals.get(dept.id, 0) or 0),
         ))
@@ -328,7 +347,7 @@ async def list_department_risks(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     status: Optional[str] = None,
 ):
     """List risks for a specific department with KRI metadata."""
@@ -391,7 +410,7 @@ async def list_department_controls(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     status: Optional[str] = None,
 ):
     """List controls for a specific department."""
@@ -445,7 +464,7 @@ async def list_department_kris(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
+    limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
 ):
     """List KRIs for a specific department."""
     

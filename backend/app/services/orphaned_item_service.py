@@ -165,7 +165,6 @@ class OrphanedItemService:
                 orphaned_at=datetime.now(UTC)
             )
             db.add(orphan)
-            db.add(orphan)
             new_orphans_count += 1
             processed_risk_ids.add(risk.id)
             
