@@ -4,7 +4,7 @@ Dashboard API endpoints for executive and department-level metrics.
 from typing import Optional, Literal
 import logging
 from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -617,105 +617,219 @@ async def get_quarterly_comparison(
         - last_quarter: metrics for previous quarter
         - changes: percentage/absolute changes
     """
-    from datetime import datetime, timedelta
-    from dateutil.relativedelta import relativedelta
-    from app.models.approval_request import ApprovalRequest, ApprovalStatus
-    
-    now = datetime.now()
-    
-    # Calculate quarter boundaries
-    current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
-    last_quarter_start = current_quarter_start - relativedelta(months=3)
-    last_quarter_end = current_quarter_start - timedelta(days=1)
-    
-    async def get_quarter_metrics(start: datetime, end: datetime) -> dict:
-        """Get metrics for a quarter period."""
-        # Risks created in period
-        risk_count = await db.scalar(
-            select(func.count(Risk.id)).where(
-                Risk.created_at >= start,
-                Risk.created_at <= end,
-                Risk.status != RiskStatus.archived.value
-            )
-        )
+    try:
+        from datetime import datetime, timedelta
+        from dateutil.relativedelta import relativedelta
+        from app.models.approval_request import ApprovalRequest, ApprovalStatus
         
-        # Risks closed in period
-        closed_count = await db.scalar(
-            select(func.count(Risk.id)).where(
-                Risk.updated_at >= start,
-                Risk.updated_at <= end,
-                Risk.status == RiskStatus.closed.value
-            )
-        )
+        now = datetime.now()
         
-        # Active risks at end of period
-        active_risks = await db.scalar(
-            select(func.count(Risk.id)).where(
-                Risk.created_at <= end,
-                Risk.status.in_([RiskStatus.active.value, RiskStatus.monitoring.value])
-            )
-        )
+        # Calculate quarter boundaries
+        current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
+        last_quarter_start = current_quarter_start - relativedelta(months=3)
+        last_quarter_end = current_quarter_start - timedelta(days=1)
         
-        # Priority risks
-        priority_count = await db.scalar(
-            select(func.count(Risk.id)).where(
-                Risk.is_priority == True,
-                Risk.status != RiskStatus.archived.value
+        async def get_quarter_metrics(start: datetime, end: datetime) -> dict:
+            """Get metrics for a quarter period."""
+            from app.models.orphaned_item import OrphanedItem
+            from app.models.activity_log import ActivityLog
+            
+            # Risks created in period
+            risk_count = await db.scalar(
+                select(func.count(Risk.id)).where(
+                    Risk.created_at >= start,
+                    Risk.created_at <= end,
+                    Risk.status != RiskStatus.archived.value
+                )
             )
-        )
+            
+            # Risks closed in period
+            closed_count = await db.scalar(
+                select(func.count(Risk.id)).where(
+                    Risk.updated_at >= start,
+                    Risk.updated_at <= end,
+                    Risk.status == RiskStatus.closed.value
+                )
+            )
+            
+            # Active risks at end of period
+            active_risks = await db.scalar(
+                select(func.count(Risk.id)).where(
+                    Risk.created_at <= end,
+                    Risk.status.in_([RiskStatus.active.value, RiskStatus.monitoring.value])
+                )
+            )
+            
+            # Priority risks
+            priority_count = await db.scalar(
+                select(func.count(Risk.id)).where(
+                    Risk.is_priority == True,
+                    Risk.status != RiskStatus.archived.value
+                )
+            )
+            
+            # KRI breaches (value outside limits)
+            kri_breaches = await db.scalar(
+                select(func.count(KeyRiskIndicator.id)).where(
+                    or_(
+                        KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
+                        KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit
+                    )
+                )
+            )
+            
+            # Pending approvals
+            pending_approvals = await db.scalar(
+                select(func.count(ApprovalRequest.id)).where(
+                    cast(ApprovalRequest.status, String).in_(["pending", "pending_privileged"])
+                )
+            )
+            
+            # --- NEW METRICS: Audit & Control Effectiveness ---
+            
+            # Audit activity: control executions in period
+            audit_activity = await db.scalar(
+                select(func.count(ControlExecution.id)).where(
+                    ControlExecution.executed_at >= start,
+                    ControlExecution.executed_at <= end
+                )
+            )
+            
+            # Failed audits: executions with result='failed' in period
+            from app.models.control_execution import ExecutionResult
+            failed_audits = await db.scalar(
+                select(func.count(ControlExecution.id)).where(
+                    ControlExecution.executed_at >= start,
+                    ControlExecution.executed_at <= end,
+                    ControlExecution.result == ExecutionResult.failed.value
+                )
+            )
+            
+            # Control coverage: % of active risks with at least 1 linked control
+            from app.models.risk import ControlRiskLink
+            total_active_risks = await db.scalar(
+                select(func.count(Risk.id)).where(
+                    Risk.status == RiskStatus.active.value
+                )
+            ) or 1  # Avoid division by zero
+            risks_with_controls = await db.scalar(
+                select(func.count(Risk.id.distinct())).select_from(Risk).join(
+                    ControlRiskLink, ControlRiskLink.risk_id == Risk.id
+                ).where(
+                    Risk.status == RiskStatus.active.value
+                )
+            )
+            control_coverage = round((risks_with_controls or 0) / total_active_risks * 100)
+            
+            # Unaudited controls: active controls with 0 executions in period
+            controls_with_executions = select(ControlExecution.control_id.distinct()).where(
+                ControlExecution.executed_at >= start,
+                ControlExecution.executed_at <= end
+            )
+            unaudited_controls = await db.scalar(
+                select(func.count(Control.id)).where(
+                    Control.status == ControlStatus.active.value,
+                    Control.id.notin_(controls_with_executions)
+                )
+            )
+            
+            # --- NEW METRICS: Governance Health ---
+            
+            # Orphaned items (unresolved)
+            orphaned_items = await db.scalar(
+                select(func.count(OrphanedItem.id)).where(
+                    OrphanedItem.resolved_at.is_(None)
+                )
+            )
+            
+            # KRI health: % of KRIs within limits
+            total_kris = await db.scalar(select(func.count(KeyRiskIndicator.id))) or 1
+            kris_within = await db.scalar(
+                select(func.count(KeyRiskIndicator.id)).where(
+                    KeyRiskIndicator.current_value >= KeyRiskIndicator.lower_limit,
+                    KeyRiskIndicator.current_value <= KeyRiskIndicator.upper_limit
+                )
+            )
+            kri_health = round((kris_within or 0) / total_kris * 100)
+            
+            # Overdue KRIs: KRIs past due date (last_period_end + 15 days < now)
+            overdue_kris = await db.scalar(
+                select(func.count(KeyRiskIndicator.id)).where(
+                    KeyRiskIndicator.last_period_end.isnot(None),
+                    func.date(KeyRiskIndicator.last_period_end) + 15 < func.current_date()
+                )
+            )
+            
+            # Activity volume: activity log entries in period
+            activity_volume = await db.scalar(
+                select(func.count(ActivityLog.id)).where(
+                    ActivityLog.created_at >= start,
+                    ActivityLog.created_at <= end
+                )
+            )
+            
+            # Risks without KRI: active risks with no linked KRI
+            risks_with_kri = select(KeyRiskIndicator.risk_id.distinct())
+            risks_without_kri = await db.scalar(
+                select(func.count(Risk.id)).where(
+                    Risk.status == RiskStatus.active.value,
+                    Risk.id.notin_(risks_with_kri)
+                )
+            )
+            
+            return {
+                # Row 1: Risk Posture
+                "new_risks": risk_count or 0,
+                "closed_risks": closed_count or 0,
+                "active_risks": active_risks or 0,
+                "priority_risks": priority_count or 0,
+                "kri_breaches": kri_breaches or 0,
+                "pending_approvals": pending_approvals or 0,
+                # Row 2: Audit & Control Effectiveness
+                "audit_activity": audit_activity or 0,
+                "failed_audits": failed_audits or 0,
+                "control_coverage": control_coverage,
+                "unaudited_controls": unaudited_controls or 0,
+                # Row 3: Governance Health
+                "orphaned_items": orphaned_items or 0,
+                "kri_health": kri_health,
+                "overdue_kris": overdue_kris or 0,
+                "activity_volume": activity_volume or 0,
+                "risks_without_kri": risks_without_kri or 0,
+            }
         
-        # KRI breaches
-        kri_breaches = await db.scalar(
-            select(func.count(KeyRiskIndicator.id)).where(
-                KeyRiskIndicator.is_breached == True
-            )
-        )
+        this_quarter = await get_quarter_metrics(current_quarter_start, now)
+        last_quarter = await get_quarter_metrics(last_quarter_start, last_quarter_end)
         
-        # Pending approvals
-        pending_approvals = await db.scalar(
-            select(func.count(ApprovalRequest.id)).where(
-                ApprovalRequest.status.in_([ApprovalStatus.PENDING.value, ApprovalStatus.PENDING_PRIVILEGED.value])
-            )
-        )
+        # Calculate changes
+        changes = {}
+        for key in this_quarter:
+            old_val = last_quarter[key]
+            new_val = this_quarter[key]
+            if old_val == 0:
+                pct_change = 100 if new_val > 0 else 0
+            else:
+                pct_change = round(((new_val - old_val) / old_val) * 100, 1)
+            changes[key] = {
+                "absolute": new_val - old_val,
+                "percentage": pct_change,
+                "direction": "up" if new_val > old_val else ("down" if new_val < old_val else "same"),
+            }
         
         return {
-            "new_risks": risk_count or 0,
-            "closed_risks": closed_count or 0,
-            "active_risks": active_risks or 0,
-            "priority_risks": priority_count or 0,
-            "kri_breaches": kri_breaches or 0,
-            "pending_approvals": pending_approvals or 0,
+            "this_quarter": this_quarter,
+            "last_quarter": last_quarter,
+            "changes": changes,
+            "period": {
+                "this_start": current_quarter_start.isoformat(),
+                "this_end": now.isoformat(),
+                "last_start": last_quarter_start.isoformat(),
+                "last_end": last_quarter_end.isoformat(),
+            }
         }
-    
-    this_quarter = await get_quarter_metrics(current_quarter_start, now)
-    last_quarter = await get_quarter_metrics(last_quarter_start, last_quarter_end)
-    
-    # Calculate changes
-    changes = {}
-    for key in this_quarter:
-        old_val = last_quarter[key]
-        new_val = this_quarter[key]
-        if old_val == 0:
-            pct_change = 100 if new_val > 0 else 0
-        else:
-            pct_change = round(((new_val - old_val) / old_val) * 100, 1)
-        changes[key] = {
-            "absolute": new_val - old_val,
-            "percentage": pct_change,
-            "direction": "up" if new_val > old_val else ("down" if new_val < old_val else "same"),
-        }
-    
-    return {
-        "this_quarter": this_quarter,
-        "last_quarter": last_quarter,
-        "changes": changes,
-        "period": {
-            "this_start": current_quarter_start.isoformat(),
-            "this_end": now.isoformat(),
-            "last_start": last_quarter_start.isoformat(),
-            "last_end": last_quarter_end.isoformat(),
-        }
-    }
+    except Exception as e:
+        logger.exception("Error in quarterly-comparison endpoint: %s", str(e))
+        raise
 
 
 @router.get("/committee-summary")
@@ -732,8 +846,14 @@ async def get_committee_summary(
     from app.models.activity_log import ActivityLog
     
     # Top 5 critical risks (by net_score, priority first)
+    # Eager load owner and department
+    from sqlalchemy.orm import joinedload
     critical_risks = await db.execute(
         select(Risk)
+        .options(
+            joinedload(Risk.owner),
+            joinedload(Risk.department)
+        )
         .where(Risk.status == RiskStatus.active.value)
         .order_by(Risk.is_priority.desc(), Risk.net_score.desc())
         .limit(5)
@@ -769,9 +889,12 @@ async def get_committee_summary(
             {
                 "id": r.id,
                 "risk_id_code": r.risk_id_code,
+                "process": r.process,  # Risk Name
                 "description": r.description[:100] if r.description else "",
                 "net_score": r.net_score,
                 "is_priority": r.is_priority,
+                "owner_name": r.owner.name if r.owner else "Unassigned",
+                "department_name": r.department.name if r.department else "Unassigned",
             }
             for r in critical_risks.scalars()
         ],
