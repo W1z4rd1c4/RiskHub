@@ -81,12 +81,19 @@ async def create_approval_request(
         check_department_access(resource.department_id, current_user)
         resource_name = f"{resource.control_id_code}: {resource.name[:50] if resource.name else ''}"
     elif request_data.resource_type == ApprovalResourceTypeEnum.kri:
-        result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == request_data.resource_id))
+        # Load KRI with linked Risk for department access check
+        result = await db.execute(
+            select(KeyRiskIndicator)
+            .options(selectinload(KeyRiskIndicator.risk))
+            .where(KeyRiskIndicator.id == request_data.resource_id)
+        )
         resource = result.scalar_one_or_none()
         if not resource:
             raise HTTPException(status_code=404, detail="KRI not found")
-        # KRIs are linked to risks, verify access via risk's department
-        # Note: KRIs may not have direct department_id, check via linked risk if needed
+        # Verify access via linked risk's department
+        if not resource.risk:
+            raise HTTPException(status_code=404, detail="KRI has no linked risk")
+        check_department_access(resource.risk.department_id, current_user)
         resource_name = resource.name[:50] if resource.name else f"KRI-{resource.id}"
     
     # Check for existing pending request
