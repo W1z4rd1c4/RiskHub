@@ -9,6 +9,8 @@ export interface DepartmentSummary {
     control_count: number;
     kri_count: number;
     high_risk_count: number;
+    breaching_kri_count: number;
+    total_net_score: number;
 }
 
 export interface RiskDistribution {
@@ -76,8 +78,10 @@ export const departmentApi = {
             skip?: number;
             limit?: number;
             status?: string;
+            min_net_score?: number;
         }
     ) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return apiClient.get<any>(`/departments/${id}/risks`, { params });
     },
 
@@ -92,6 +96,7 @@ export const departmentApi = {
             status?: string;
         }
     ) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return apiClient.get<any>(`/departments/${id}/controls`, { params });
     },
 
@@ -105,6 +110,7 @@ export const departmentApi = {
             limit?: number;
         }
     ) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return apiClient.get<any>(`/departments/${id}/kris`, { params });
     },
 };
