@@ -134,6 +134,8 @@ async def list_roles(
 async def lookup_users(
     q: str | None = None,
     include_inactive: bool = False,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -148,6 +150,8 @@ async def lookup_users(
     Args:
         q: Optional text search (name or email)
         include_inactive: Include inactive users (default False)
+        skip: Number of records to skip (default 0)
+        limit: Maximum number of records to return (default 100)
     """
     from app.models.user import AccessScope
     from sqlalchemy import or_
@@ -191,7 +195,7 @@ async def lookup_users(
             )
         )
     
-    result = await db.execute(query.limit(100))
+    result = await db.execute(query.offset(skip).limit(limit))
     users = result.scalars().all()
     
     return [

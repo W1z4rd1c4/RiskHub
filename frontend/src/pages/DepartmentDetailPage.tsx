@@ -20,7 +20,15 @@ import { SortableTable, type Column } from '@/components/tables';
 import type { RiskSummary } from '@/types/risk';
 import type { ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator } from '@/types/kri';
-import type { UserRead } from '@/types/user';
+
+// Simplified user type for scoped lookup
+interface DeptUser {
+    id: number;
+    name: string;
+    email: string;
+    role_name?: string;
+    department_id?: number;
+}
 
 type TabView = 'risks' | 'controls' | 'kris' | 'activity' | 'users';
 
@@ -31,7 +39,7 @@ export function DepartmentDetailPage() {
     const [risks, setRisks] = useState<RiskSummary[]>([]);
     const [controls, setControls] = useState<ControlSummary[]>([]);
     const [kris, setKris] = useState<KeyRiskIndicator[]>([]);
-    const [users, setUsers] = useState<UserRead[]>([]);
+    const [users, setUsers] = useState<DeptUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<TabView>('risks');
@@ -43,18 +51,38 @@ export function DepartmentDetailPage() {
         try {
             setIsLoading(true);
             setError(null);
+
+            const deptId = parseInt(id);
+            const pageSize = 500; // Larger batches for efficiency
+
+            // Helper to fetch all pages
+            const fetchAllPages = async <T,>(
+                fetcher: (skip: number, limit: number) => Promise<T[]>
+            ): Promise<T[]> => {
+                const allItems: T[] = [];
+                let skip = 0;
+                while (true) {
+                    const batch = await fetcher(skip, pageSize);
+                    allItems.push(...batch);
+                    if (batch.length < pageSize) break;
+                    skip += pageSize;
+                }
+                return allItems;
+            };
+
             const [deptData, risksData, controlsData, krisData, usersData] = await Promise.all([
-                departmentApi.getDepartment(parseInt(id)),
-                departmentApi.getDepartmentRisks(parseInt(id), { limit: 100 }),
-                departmentApi.getDepartmentControls(parseInt(id), { limit: 100 }),
-                departmentApi.getDepartmentKRIs(parseInt(id), { limit: 100 }),
-                userApi.listUsers(0, 100, parseInt(id)),
+                departmentApi.getDepartment(deptId),
+                fetchAllPages<RiskSummary>((skip, limit) => departmentApi.getDepartmentRisks(deptId, { skip, limit })),
+                fetchAllPages<ControlSummary>((skip, limit) => departmentApi.getDepartmentControls(deptId, { skip, limit })),
+                fetchAllPages<KeyRiskIndicator>((skip, limit) => departmentApi.getDepartmentKRIs(deptId, { skip, limit })),
+                fetchAllPages<DeptUser>((skip, limit) => userApi.listVisibleUsers({ skip, limit })),
             ]);
             setDepartment(deptData);
             setRisks(risksData);
             setControls(controlsData);
             setKris(krisData);
-            setUsers(usersData);
+            // Filter users by department client-side (listVisibleUsers returns scoped data)
+            setUsers(usersData.filter(u => u.department_id === deptId));
         } catch (err) {
             setError('Failed to load department details');
             console.error('Error fetching department:', err);
@@ -203,32 +231,27 @@ export function DepartmentDetailPage() {
         },
     ];
 
-    const userColumns: Column<UserRead>[] = [
+    const userColumns: Column<DeptUser>[] = [
         { key: 'name', label: 'Name', sortable: true, render: (u) => <span className="text-white font-medium">{u.name}</span> },
         { key: 'email', label: 'Email', sortable: true },
         {
-            key: 'role',
+            key: 'role_name',
             label: 'Role',
             sortable: true,
-            render: (u) => <span className="px-2 py-0.5 rounded-md bg-white/10 text-slate-300 text-[10px] uppercase font-bold">{u.role.display_name}</span>
-        },
-        {
-            key: 'is_active',
-            label: 'Status',
-            render: (u) => (
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${u.is_active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                    {u.is_active ? 'Active' : 'Inactive'}
-                </span>
-            )
+            render: (u) => <span className="px-2 py-0.5 rounded-md bg-white/10 text-slate-300 text-[10px] uppercase font-bold">{u.role_name || 'Unknown'}</span>
         },
     ];
 
     const getResultIcon = (result: string) => {
         switch (result) {
-            case 'pass':
+            case 'passed':
                 return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-            case 'fail':
+            case 'failed':
                 return <XCircle className="h-4 w-4 text-rose-400" />;
+            case 'warning':
+                return <AlertCircle className="h-4 w-4 text-amber-400" />;
+            case 'not_applicable':
+                return <MinusCircle className="h-4 w-4 text-slate-400" />;
             default:
                 return <MinusCircle className="h-4 w-4 text-slate-400" />;
         }
@@ -434,11 +457,12 @@ export function DepartmentDetailPage() {
                                             </p>
                                         </div>
                                     </div>
-                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${execution.result === 'pass' ? 'bg-emerald-500/20 text-emerald-400' :
-                                        execution.result === 'fail' ? 'bg-rose-500/20 text-rose-400' :
-                                            'bg-slate-500/20 text-slate-400'
+                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${execution.result === 'passed' ? 'bg-emerald-500/20 text-emerald-400' :
+                                        execution.result === 'failed' ? 'bg-rose-500/20 text-rose-400' :
+                                            execution.result === 'warning' ? 'bg-amber-500/20 text-amber-400' :
+                                                'bg-slate-500/20 text-slate-400'
                                         }`}>
-                                        {execution.result}
+                                        {execution.result === 'not_applicable' ? 'N/A' : execution.result}
                                     </span>
                                 </div>
                             ))}
