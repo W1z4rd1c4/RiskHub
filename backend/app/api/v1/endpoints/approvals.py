@@ -94,7 +94,7 @@ async def create_approval_request(
         if not resource.risk:
             raise HTTPException(status_code=404, detail="KRI has no linked risk")
         check_department_access(resource.risk.department_id, current_user)
-        resource_name = resource.name[:50] if resource.name else f"KRI-{resource.id}"
+        resource_name = (resource.metric_name or f"KRI-{resource.id}")[:50]
     
     # Check for existing pending request
     existing = await db.execute(

@@ -134,8 +134,9 @@ async def list_roles(
 async def lookup_users(
     q: str | None = None,
     include_inactive: bool = False,
+    department_id: int | None = None,
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(50, ge=1, le=200),
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -150,11 +151,16 @@ async def lookup_users(
     Args:
         q: Optional text search (name or email)
         include_inactive: Include inactive users (default False)
+        department_id: Optional filter by department (scoped to caller's access)
         skip: Number of records to skip (default 0)
-        limit: Maximum number of records to return (default 100)
+        limit: Maximum number of records to return (default 50, max 200)
     """
     from app.models.user import AccessScope
     from sqlalchemy import or_
+    from app.core.pagination import MAX_LOOKUP_SIZE
+    
+    # Enforce max lookup size
+    limit = min(limit, MAX_LOOKUP_SIZE)
     
     query = select(User).options(
         selectinload(User.role),
@@ -164,16 +170,26 @@ async def lookup_users(
     # Apply scope filtering based on current user's access
     if current_user.access_scope == AccessScope.GLOBAL:
         # Global users see everyone
-        pass
+        # Apply optional department_id filter (allowed for any dept)
+        if department_id is not None:
+            query = query.where(User.department_id == department_id)
     elif current_user.access_scope == AccessScope.DEPARTMENT:
         # Department scope: same department users
-        if current_user.department_id:
+        if department_id is not None:
+            # Only allow filtering to caller's own department
+            if department_id != current_user.department_id:
+                return []  # Avoid leaking existence via 403
+            query = query.where(User.department_id == department_id)
+        elif current_user.department_id:
             query = query.where(User.department_id == current_user.department_id)
         else:
             # No department, only see self
             query = query.where(User.id == current_user.id)
     else:
         # Manager scope: self + direct reports
+        # department_id filter not applicable for managers
+        if department_id is not None and department_id != current_user.department_id:
+            return []
         query = query.where(
             or_(
                 User.id == current_user.id,
@@ -195,7 +211,8 @@ async def lookup_users(
             )
         )
     
-    result = await db.execute(query.offset(skip).limit(limit))
+    # Deterministic ordering for stable paging
+    result = await db.execute(query.order_by(User.id).offset(skip).limit(limit))
     users = result.scalars().all()
     
     return [

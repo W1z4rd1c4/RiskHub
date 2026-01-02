@@ -82,3 +82,94 @@ async def test_list_roles(auth_client: AsyncClient):
     role_names = [r["name"] for r in data]
     assert "admin" in role_names
 
+
+@pytest.mark.asyncio
+async def test_lookup_paging_determinism(auth_client: AsyncClient, db_session: AsyncSession, test_role):
+    """Test that user lookup paging is deterministic (no overlap between pages)."""
+    from app.models import Department
+    
+    # Create a department for test users
+    dept = Department(name="Paging Test Dept", code="PAGE-TEST")
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+    
+    # Create 5 users
+    users = []
+    for i in range(5):
+        u = User(
+            name=f"Paging User {i}",
+            email=f"paging-user-{i}@example.com",
+            role_id=test_role.id,
+            department_id=dept.id,
+            is_active=True,
+        )
+        db_session.add(u)
+        users.append(u)
+    await db_session.commit()
+    
+    # Request page 1 (limit=2, skip=0)
+    resp1 = await auth_client.get("/api/v1/users/lookup?limit=2&skip=0")
+    assert resp1.status_code == 200
+    ids1 = {u["id"] for u in resp1.json()}
+    
+    # Request page 2 (limit=2, skip=2)
+    resp2 = await auth_client.get("/api/v1/users/lookup?limit=2&skip=2")
+    assert resp2.status_code == 200
+    ids2 = {u["id"] for u in resp2.json()}
+    
+    # No overlap between pages
+    assert ids1.isdisjoint(ids2), "Paging should be deterministic with no overlap"
+
+
+@pytest.mark.asyncio
+async def test_lookup_department_scoping(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_role_employee,
+):
+    """Test that department-scoped users cannot see users from other departments."""
+    from app.models import Department
+    from app.models.user import AccessScope
+    
+    # Create two departments
+    dept_a = Department(name="Scope Dept A", code="SCOPE-A")
+    dept_b = Department(name="Scope Dept B", code="SCOPE-B")
+    db_session.add_all([dept_a, dept_b])
+    await db_session.commit()
+    await db_session.refresh(dept_a)
+    await db_session.refresh(dept_b)
+    
+    # Create user in dept A with DEPARTMENT scope
+    user_a = User(
+        name="Scope User A",
+        email="scope-user-a@example.com",
+        role_id=test_role_employee.id,
+        department_id=dept_a.id,
+        access_scope=AccessScope.DEPARTMENT,
+        is_active=True,
+    )
+    db_session.add(user_a)
+    await db_session.commit()
+    await db_session.refresh(user_a)
+    
+    # Request lookup with dept B filter → should return empty
+    response = await client.get(
+        f"/api/v1/users/lookup?department_id={dept_b.id}",
+        headers={"X-Mock-User-Id": str(user_a.id)},
+    )
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_lookup_limit_enforcement(auth_client: AsyncClient):
+    """Test that lookup limit is capped at MAX_LOOKUP_SIZE (200) via Query validation."""
+    # Request with limit above max → FastAPI Query rejects with 422
+    response = await auth_client.get("/api/v1/users/lookup?limit=9999")
+    assert response.status_code == 422  # Validation error
+    
+    # Request at max limit → should succeed
+    response = await auth_client.get("/api/v1/users/lookup?limit=200")
+    assert response.status_code == 200
+    assert len(response.json()) <= 200
