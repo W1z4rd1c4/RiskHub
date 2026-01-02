@@ -104,10 +104,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 150-08: Fixed KRI approval naming (metric_name), added deterministic user lookup paging with department scoping, removed duplicate orphan db.add(), added regression tests.
+- Completed Phase 150-09: Server-side pagination for Department Detail tabs, added `min_net_score` backend filter for High risks, created department tests.
 
 ### Next Step
-- Continue with 150-09-PLAN.md or verify remaining audit findings.
+- Continue with remaining audit findings or Phase 151.
 
 ---
 *Updated: 2026-01-02*
