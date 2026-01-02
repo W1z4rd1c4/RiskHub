@@ -8,9 +8,12 @@ interface CommitteeSummary {
     critical_risks: Array<{
         id: number;
         risk_id_code: string;
+        process: string;
         description: string;
         net_score: number;
         is_priority: boolean;
+        owner_name: string;
+        department_name: string;
     }>;
     recent_activity: Array<{
         id: number;
@@ -135,8 +138,8 @@ export function RiskCommitteeSection() {
                                 >
                                     <div className="flex items-start justify-between gap-2 mb-2">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs font-bold text-white">
-                                                {risk.risk_id_code}
+                                            <span className="text-sm font-bold text-white">
+                                                {risk.process}
                                             </span>
                                             {risk.is_priority && (
                                                 <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
@@ -145,6 +148,11 @@ export function RiskCommitteeSection() {
                                         <span className={`text-sm font-black ${getRiskScoreColor(risk.net_score)}`}>
                                             {risk.net_score}
                                         </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 mb-2 text-[10px] text-slate-500 font-medium uppercase tracking-wider">
+                                        <span>{risk.owner_name}</span>
+                                        <span className="w-1 h-1 rounded-full bg-slate-600" />
+                                        <span>{risk.department_name}</span>
                                     </div>
                                     <p className="text-xs text-slate-400 line-clamp-2">
                                         {risk.description}
