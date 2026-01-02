@@ -349,6 +349,7 @@ async def list_department_risks(
     skip: int = Query(0, ge=0),
     limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     status: Optional[str] = None,
+    min_net_score: Optional[int] = Query(None, ge=0, le=25, description="Filter risks with net_score >= this value"),
 ):
     """List risks for a specific department with KRI metadata."""
     # Verify department exists
@@ -375,6 +376,10 @@ async def list_department_risks(
         query = query.where(Risk.status == status)
     else:
         query = query.where(Risk.status != RiskStatus.archived.value)
+    
+    # Apply min_net_score filter for high-risk filtering
+    if min_net_score is not None:
+        query = query.where(Risk.net_score >= min_net_score)
     
     query = query.offset(skip).limit(limit).order_by(Risk.risk_id_code)
     
