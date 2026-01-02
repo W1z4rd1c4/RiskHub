@@ -104,10 +104,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 150-06: Department detail pagination and execution result enum alignment.
+- Completed Phase 150-08: Fixed KRI approval naming (metric_name), added deterministic user lookup paging with department scoping, removed duplicate orphan db.add(), added regression tests.
 
 ### Next Step
-- Verify final audit findings and proceed to Phase 151 (Audit Resolution) if remaining items.
+- Continue with 150-09-PLAN.md or verify remaining audit findings.
 
 ---
 *Updated: 2026-01-02*
