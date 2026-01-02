@@ -11,21 +11,45 @@ interface QuarterlyData {
 }
 
 const METRIC_LABELS: Record<string, string> = {
+    // Row 1: Risk Posture
     new_risks: 'New Risks',
     closed_risks: 'Closed Risks',
     active_risks: 'Active Risks',
     priority_risks: 'Priority Risks',
     kri_breaches: 'KRI Breaches',
     pending_approvals: 'Pending Approvals',
+    // Row 2: Audit & Control Effectiveness
+    audit_activity: 'Audit Activity',
+    failed_audits: 'Failed Audits',
+    control_coverage: 'Control Coverage %',
+    unaudited_controls: 'Unaudited Controls',
+    // Row 3: Governance Health
+    orphaned_items: 'Orphaned Items',
+    kri_health: 'KRI Health %',
+    overdue_kris: 'Overdue KRIs',
+    activity_volume: 'Activity Volume',
+    risks_without_kri: 'Risks Without KRI',
 };
 
 const METRIC_COLORS: Record<string, { positive: string; negative: string }> = {
-    new_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' }, // More new risks = concerning
-    closed_risks: { positive: 'text-emerald-400', negative: 'text-rose-400' }, // More closed = good
-    active_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' }, // More active = concerning
-    priority_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' }, // More priority = concerning
-    kri_breaches: { positive: 'text-rose-400', negative: 'text-emerald-400' }, // More breaches = concerning
-    pending_approvals: { positive: 'text-amber-400', negative: 'text-emerald-400' }, // More pending = attention needed
+    // Row 1: Risk Posture
+    new_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
+    closed_risks: { positive: 'text-emerald-400', negative: 'text-rose-400' },
+    active_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
+    priority_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
+    kri_breaches: { positive: 'text-rose-400', negative: 'text-emerald-400' },
+    pending_approvals: { positive: 'text-amber-400', negative: 'text-emerald-400' },
+    // Row 2: Audit & Control Effectiveness
+    audit_activity: { positive: 'text-emerald-400', negative: 'text-rose-400' },
+    failed_audits: { positive: 'text-rose-400', negative: 'text-emerald-400' },
+    control_coverage: { positive: 'text-emerald-400', negative: 'text-rose-400' },
+    unaudited_controls: { positive: 'text-rose-400', negative: 'text-emerald-400' },
+    // Row 3: Governance Health
+    orphaned_items: { positive: 'text-rose-400', negative: 'text-emerald-400' },
+    kri_health: { positive: 'text-emerald-400', negative: 'text-rose-400' },
+    overdue_kris: { positive: 'text-rose-400', negative: 'text-emerald-400' },
+    activity_volume: { positive: 'text-slate-400', negative: 'text-slate-400' },
+    risks_without_kri: { positive: 'text-rose-400', negative: 'text-emerald-400' },
 };
 
 function getChangeColor(key: string, direction: string): string {
@@ -62,7 +86,7 @@ export function QuarterlyComparisonWidget() {
                     <Calendar className="h-5 w-5 text-accent" />
                     <h3 className="text-lg font-bold text-white">Quarterly Comparison</h3>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {Array(6).fill(0).map((_, i) => (
                         <div key={i} className="animate-pulse bg-white/5 rounded-xl h-24" />
                     ))}
@@ -101,7 +125,7 @@ export function QuarterlyComparisonWidget() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {metrics.map((key) => {
                     const thisVal = data.this_quarter[key];
                     const lastVal = data.last_quarter[key];
