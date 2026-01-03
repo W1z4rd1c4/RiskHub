@@ -37,7 +37,7 @@ class RiskBase(BaseModel):
     risk_id_code: Optional[str] = Field(None, max_length=50, description="Risk ID (auto-generated if not provided)")
     process: str = Field(..., max_length=255, description="Main process")
     subprocess: Optional[str] = Field(None, max_length=255, description="Subprocess/area")
-    risk_type: RiskTypeEnum = Field(RiskTypeEnum.operational, description="Strategic/Operational")
+    risk_type: str = Field("operational", description="Risk type code (validated against risk_types config)")
     category: Optional[str] = Field(None, max_length=100, description="Risk category")
     description: str = Field(..., description="Risk description")
     department_id: Optional[int] = Field(None, description="Owner department")
@@ -73,7 +73,7 @@ class RiskUpdate(BaseModel):
     risk_id_code: Optional[str] = Field(None, max_length=50)
     process: Optional[str] = Field(None, max_length=255)
     subprocess: Optional[str] = Field(None, max_length=255)
-    risk_type: Optional[RiskTypeEnum] = None
+    risk_type: Optional[str] = None
     category: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = None
     department_id: Optional[int] = None
@@ -125,7 +125,7 @@ class RiskSummary(BaseModel):
     id: int
     risk_id_code: str
     process: str
-    risk_type: RiskTypeEnum
+    risk_type: str
     category: Optional[str] = None
     description: str
     gross_score: int
