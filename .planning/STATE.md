@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 72 Risk Hub Resolution
-**Current Plan:** 72-02 (Completed)
-**Next Plan:** 72-03 (TBD)
+**Current Plan:** 72-04 (Completed)
+**Next Plan:** 72-05 (TBD)
 
 ## Progress Summary
 
@@ -32,6 +32,11 @@
 | 10 Historization | ⏳ In progress (4/5) | 2025-12-31 |
 | 11 Historical Visualization | ✅ Complete (5/5) | 2025-12-31 |
 | 12 Compliance Governance | ✅ Complete (Plan 01-03) | 2026-01-01 |
+| 13 Issue & Remediation | ⏳ Planned | - |
+| 14 Risk Assessments | ⏳ Planned | - |
+| 15 Security Hardening | ⏳ Planned | - |
+| 16 Enterprise Testing | ⏳ Planned | - |
+| 17-19 Deferred | ⏳ Deferred | - |
 | 85 Workflow & Users | ✅ Complete (6/6) | 2026-01-01 |
 | 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
 | 99 Data Migration & Standalone AD | ✅ Complete (7/7) | 2025-12-28 |
@@ -39,7 +44,7 @@
 | 151 Audit Resolution | ⏳ In progress (10/13) | - |
 | 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
-| 72 Risk Hub Resolution | ⏳ In progress (2/5) | - |
+| 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
 
 ## Session Context
 
@@ -61,7 +66,22 @@
 - ✅ **85-03**: Frontend access management UI (types, API client, PermissionMatrix, AccessEditModal, UsersPage upgrade)
 - ✅ **85-04**: KRI workflow improvements (weekly reminders, CRO due-soon visibility, all-edit approvals)
 - ✅ **85-05**: Owner-based KRI permissions (tiered approval with Risk Owner)
+- ✅ **85-05**: Owner-based KRI permissions (tiered approval with Risk Owner)
 - ✅ **85-06**: Control owner edit permissions (Control Owner edits → Risk Owner approval)
+
+### Phase 72 Progress
+- ✅ **72-01**: Backend risk type integration + risk count accuracy
+- ✅ **72-02**: Global config thresholds + notification settings integration
+- ✅ **72-03**: Cross-department Owner Access + Notification Fan-out
+  - Implicit access for KRI Reporting Owners (Record values, View Risk)
+  - Implicit access for Control Owners (Update Control, Log Execution, View Risk)
+  - Notification dispatch to Primary Approvers + CRO/Risk Managers for Control edits
+- ✅ **72-04**: Risk Hub CRUD hardening + public-config gating
+  - Fixed department update to return `is_active` (not `is_hidden`)
+  - Added system department deletion guard
+  - Validated permission IDs on role create/update
+  - Enforced department code uniqueness
+  - Restricted public-config to safe allowlist
 
 ### Phase 99 Progress
 - ✅ **99-01**: Migrated 83 risks from placeholder-risk-register.xlsx
@@ -107,10 +127,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 72-02: Wired global configuration into risk thresholds and notification timing.
+- Completed Phase 72-04: Hardened Risk Hub CRUD endpoints with validation guards (permission IDs, system departments, code uniqueness) and restricted public-config to allowlist.
 
 ### Next Step
-- Execute Phase 72-03 (TBD).
+- Execute Phase 72-05 (Frontend alignment with Risk Hub config).
 
 ---
 *Updated: 2026-01-03*

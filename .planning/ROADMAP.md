@@ -25,12 +25,18 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 8: Permission-Based Filtering** — Data filtering and approval workflows
 - [ ] **Phase 9: Notification System** — KRI deadlines and approval notifications
 - [ ] **Phase 10: Historization** — Historical tracking and audit trails
-- [ ] **Phase 11: Historical Visualization** — Charts and trend analysis
-- [ ] **Phase 12: Compliance Governance** — Risk Committee dashboard (deferred)
-- [ ] **Phase 13: Vendor Risk Management** — Third-party risk assessments (deferred)
-- [ ] **Phase 14: Advanced Audit Workflows** — Audit automation (deferred)
-- [ ] **Phase 15: Polish & Deploy** — i18n, Docker, and documentation (deferred)
+- [x] **Phase 11: Historical Visualization** — Charts and trend analysis
+- [ ] **Phase 12: Compliance Governance** — Risk Committee dashboard & Activity Logs
+- [ ] **Phase 13: Issue & Remediation Management** — Findings and Action Plans (NEW)
+- [ ] **Phase 14: Risk Assessments** — Campaigns and questionnaires (NEW)
+- [ ] **Phase 15: Security Hardening** — Session management and rate limiting (NEW)
+- [ ] **Phase 16: Enterprise Testing & Quality** — Regression suites and load testing (NEW)
+- [ ] **Phase 17: Vendor Risk Management** — Third-party risk assessments (deferred)
+- [ ] **Phase 18: Advanced Audit Workflows** — Audit automation (deferred)
+- [ ] **Phase 19: Polish & Deploy** — i18n, Docker, and documentation (deferred)
 - [ ] **Phase 70: Risk Hub** — Admin Console for system configuration, dynamic risk types, approval rules (Plans 1-7 verified)
+- [ ] **Phase 71: Risk Hub Review** — Audit Risk Hub implementation for logical/technical errors and bugs
+- [ ] **Phase 72: Risk Hub Resolution** — Fix Phase 71 findings across backend and frontend
 - [ ] **Phase 85: Workflow & Users** — Access mapping and user management enhancements
 - [ ] **Phase 90: AD Emulator** — Active Directory emulator server + user sync + change management UI
 - [x] **Phase 100: Marketing Presentation** — Single HTML presentation for the board (Czech)
@@ -220,11 +226,11 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 11-01: Frontend history components (timeline, change cards, trend charts)
-- [ ] 11-02: Add history tabs to detail pages (risks, controls, KRIs)
-- [ ] 11-03: Historical comparison view (side-by-side diff between dates)
-- [ ] 11-04: Dashboard historical widgets (risk trends, breach history)
-- [ ] 11-05: Audit report generation (PDF/Excel export of audit trail)
+- [x] 11-01: Frontend history components (timeline, change cards, trend charts)
+- [x] 11-02: Add history tabs to detail pages (risks, controls, KRIs)
+- [x] 11-03: Historical comparison view (side-by-side diff between dates)
+- [x] 11-04: Dashboard historical widgets (risk trends, breach history)
+- [x] 11-05: Audit report generation (PDF/Excel export of audit trail)
 
 ### Phase 12: Compliance Governance
 **Goal**: Implement Activity Log for system-wide change tracking and Risk Committee dashboard enhancements
@@ -234,43 +240,115 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 12-01: Activity Log Backend (model, API, entity integration)
-- [ ] 12-02: Activity Log Frontend (new tab with filters and search)
-- [ ] 12-03: Dashboard Risk Committee (executive summary, meeting mode)
+- [x] 12-01: Activity Log Backend (model, API, tampering protection)
+- [x] 12-02: Activity Log Frontend (new tab with filters and search)
+- [x] 12-03: Dashboard Risk Committee (executive summary, meeting mode)
+- [ ] 12-05: Backend Structured Logging (structlog, context injection)
+- [ ] 12-06: Audit Log Separation & Rotation (file handlers, splitting streams)
+- [ ] 12-07: SIEM Documentation & Verification (Option A: Forwarding guide)
 
-### Phase 13: Vendor Risk Management (DEFERRED)
-**Goal**: Third-party risk assessments, scoring, and supply chain visualization
+### Phase 13: Issue & Remediation Management (NEW)
+**Goal**: Manage findings, remediation plans, and exception tracking for failed controls or high risks.
 **Depends on**: Phase 12
-**Status**: Deferred for future release
-**Plans**: 2 plans
+**Status**: Planned
+**Plans**: 3 plans
 
 Plans:
-- [ ] 13-01: Vendor database and hierarchical tiering system
-- [ ] 13-02: Assessment workflows and remediation tracking
+- [ ] 13-01: Findings & Issues backend (model, API, linkage to Controls/Risks)
+- [ ] 13-02: Remediation Plan workflow (assignments, due dates, progress tracking)
+- [ ] 13-03: Findings Dashboard & Reporting (open issues, aging analysis)
 
-### Phase 14: Advanced Audit Workflows (DEFERRED)
-**Goal**: Streamline internal audit with sampling and automated evidence collection
+### Phase 14: Risk Assessments (NEW)
+**Goal**: Launch risk assessment campaigns and surveys to business owners.
 **Depends on**: Phase 13
+**Status**: Planned
+**Plans**: 3 plans
+
+Plans:
+- [ ] 14-01: Assessment Template Builder (questions, scoring logic)
+- [ ] 14-02: Campaign Management (launch assessments, track completions)
+- [ ] 14-03: Assessment Response UI & Scoring Engine
+
+### Phase 15: Security Hardening (NEW)
+**Goal**: Enterprise-grade security features including session management and advanced logging.
+**Depends on**: Phase 14
+**Status**: Planned
+**Plans**: 4 plans
+
+Plans:
+- [ ] 15-01: Session Management (Refresh tokens, sliding sessions, force logout)
+- [ ] 15-02: Rate Limiting & Brute Force Protection (Redis/Memcached backing)
+- [ ] 15-03: Secrets Management (Move from env/config to Vault/Key Vault integration)
+- [ ] 15-04: Security headers & CSP hardening
+
+### Phase 16: Enterprise Testing & Quality (NEW)
+**Goal**: Massive regression suite and systematic code quality audit.
+**Depends on**: Phase 15
+**Status**: Planned
+**Plans**: 3 plans
+
+Plans:
+- [ ] 16-01: End-to-End Regression Suite (Playwright/Cypress full coverage)
+- [ ] 16-02: Performance & Load Testing (Locust/k6)
+- [ ] 16-03: Automated Security Scanning (SAST/DAST integration)
+
+### Phase 17: Vendor Risk Management (DEFERRED)
+**Goal**: Third-party risk assessments, scoring, and supply chain visualization
+**Depends on**: Phase 16
 **Status**: Deferred for future release
 **Plans**: 2 plans
 
 Plans:
-- [ ] 14-01: Audit planning wizard and automated sampling engine
-- [ ] 14-02: Evidence collection pipeline and exception triage
+- [ ] 17-01: Vendor database and hierarchical tiering system
+- [ ] 17-02: Assessment workflows and remediation tracking
 
-### Phase 15: Polish & Deploy (DEFERRED)
+### Phase 18: Advanced Audit Workflows (DEFERRED)
+**Goal**: Streamline internal audit with sampling and automated evidence collection
+**Depends on**: Phase 17
+**Status**: Deferred for future release
+**Plans**: 2 plans
+
+Plans:
+- [ ] 18-01: Audit planning wizard and automated sampling engine
+- [ ] 18-02: Evidence collection pipeline and exception triage
+
+### Phase 19: Polish & Deploy (DEFERRED)
 **Goal**: Internationalization, containerization, and documentation
-**Depends on**: Phase 14
+**Depends on**: Phase 18
 **Status**: Deferred for future release
 **Plans**: 6 plans
 
 Plans:
-- [ ] 15-01: i18n Infrastructure (React & FastAPI setup)
-- [ ] 15-02: UI Localization (Full EN/CZ translation & switcher)
-- [ ] 15-03: Docker Scaffolding (Multi-stage builds & Compose)
-- [ ] 15-04: Production Hardening (CORS, Security, Logging)
-- [ ] 15-05: System Documentation (Admin & User Guides)
-- [ ] 15-06: Verification & Deployment Checklist
+- [ ] 19-01: i18n Infrastructure (React & FastAPI setup)
+- [ ] 19-02: UI Localization (Full EN/CZ translation & switcher)
+- [ ] 19-03: Docker Scaffolding (Multi-stage builds & Compose)
+- [ ] 19-04: Production Hardening (CORS, Security, Logging)
+- [ ] 19-05: System Documentation (Admin & User Guides)
+- [ ] 19-06: Verification & Deployment Checklist
+
+### Phase 71: Risk Hub Review
+**Goal**: Audit Risk Hub implementation for logical/technical errors and bugs
+**Depends on**: Phase 70
+**Research**: None
+**Plans**: 3 plans
+
+Plans:
+- [x] 71-01: Risk Hub config models and usage audit
+- [x] 71-02: Risk Hub access and CRUD audit
+- [x] 71-03: Risk Hub frontend audit
+
+### Phase 72: Risk Hub Resolution
+**Goal**: Implement fixes for all Phase 71 findings across backend and frontend
+**Depends on**: Phase 71
+**Research**: None
+**Plans**: 5 plans
+
+Plans:
+- [x] 72-01: Backend risk type integration + risk count accuracy
+- [x] 72-02: Global config thresholds + notification settings integration
+- [x] 72-03: Cross-department Owner Access + Notification Fan-out
+- [x] 72-04: Risk Hub CRUD hardening + public-config gating + tests
+- [ ] 72-05: Frontend alignment with Risk Hub config (risk types, thresholds, approvals)
 
 ### Phase 85: Workflow & Users
 **Goal**: Map current access by role and deliver enhanced user management workflows (role rights, manager visibility, department remediation).
@@ -366,7 +444,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 90
+Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17 → 18 → 19 → 90
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -386,9 +464,13 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 8. Permission Filtering | 8/8 | Complete | 2025-12-28 |
 | 9. Notification System | 5/5 | Complete | 2025-12-28 |
 | 10. Historization | 3/5 | In progress | - |
-| 11. Historical Visualization | 0/5 | Not started | - |
-| 12-15. Deferred | 0/10 | Deferred | - |
-| 12-15. Deferred | 0/10 | Deferred | - |
+| 11. Historical Visualization | 5/5 | Complete | 2025-12-31 |
+| 12 Compliance Governance | 3/4 | In progress | - |
+| 13 Issue & Remediation | 0/3 | Planned | - |
+| 14 Risk Assessments | 0/3 | Planned | - |
+| 15 Security Hardening | 0/4 | Planned | - |
+| 16 Enterprise Testing | 0/3 | Planned | - |
+| 17-19. Deferred | 0/10 | Deferred | - |
 | 90. AD Integration | 10/10 | Complete | 2025-12-29 |
 | 99. Data Migration & Standalone AD | 7/7 | Complete | 2025-12-28 |
 | 150. Audit (RiskHub-only) | 2/3 | In progress | - |
