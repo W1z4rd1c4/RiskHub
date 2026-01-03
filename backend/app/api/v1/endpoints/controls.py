@@ -338,12 +338,13 @@ async def update_control(
             db.add(approval)
             await db.commit()
             
-            # Notify Primary Approver
-            if primary_approver_id:
-                try:
-                    from app.services.notification_service import NotificationService
-                    from app.models.notification import NotificationType
-                    
+            # Notify Approvers
+            try:
+                from app.services.notification_service import NotificationService
+                from app.models.notification import NotificationType
+                
+                # 1. Notify Primary Approver (Risk Owner)
+                if primary_approver_id:
                     await NotificationService.create_notification(
                         db=db,
                         user_id=primary_approver_id,
@@ -353,9 +354,13 @@ async def update_control(
                         resource_type="approval",
                         resource_id=approval.id,
                     )
-                    await db.commit()
-                except Exception:
-                    pass  # Notification failure should not fail the request
+                
+                # 2. Notify other privileged approvers (CROs, Risk Managers)
+                await NotificationService.notify_approvers(db, approval)
+                
+                await db.commit()
+            except Exception:
+                pass  # Notification failure should not fail the request
             
             from fastapi.responses import JSONResponse
             return JSONResponse(
@@ -481,11 +486,12 @@ async def delete_control(
     from app.core.approval_helpers import get_primary_approver_for_control
     primary_approver_id = await get_primary_approver_for_control(db, control.id)
     
-    if primary_approver_id:
-        try:
-            from app.services.notification_service import NotificationService
-            from app.models.notification import NotificationType
-            
+    try:
+        from app.services.notification_service import NotificationService
+        from app.models.notification import NotificationType
+        
+        # 1. Notify Primary Approver
+        if primary_approver_id:
             await NotificationService.create_notification(
                 db=db,
                 user_id=primary_approver_id,
@@ -495,9 +501,13 @@ async def delete_control(
                 resource_type="approval",
                 resource_id=approval.id,
             )
-            await db.commit()
-        except Exception:
-            pass
+        
+        # 2. Notify other privileged approvers (CROs, Risk Managers)
+        await NotificationService.notify_approvers(db, approval)
+        
+        await db.commit()
+    except Exception:
+        pass
 
     from fastapi.responses import JSONResponse
     return JSONResponse(
