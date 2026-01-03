@@ -90,6 +90,45 @@ async def list_access_users(
     return [_build_access_user_read(user) for user in users]
 
 
+@router.get("/users/my-department", response_model=list[AccessUserRead])
+async def list_department_access_users(
+    current_user: User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    List users in current user's department with their access info.
+    Available to department heads and privileged users.
+    Returns only users in the caller's department.
+    """
+    from app.models.role import RoleType
+    
+    # Allow department heads and privileged users
+    is_dept_head = current_user.role and current_user.role.name == RoleType.DEPARTMENT_HEAD
+    is_priv = is_privileged_user(current_user)
+    
+    if not is_dept_head and not is_priv:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only department heads or privileged users can view department access"
+        )
+    
+    if not current_user.department_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You are not assigned to a department"
+        )
+
+    query = select(User).options(
+        selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
+        selectinload(User.department),
+        selectinload(User.manager),
+    ).where(User.department_id == current_user.department_id).where(User.is_active == True)
+
+    result = await db.execute(query)
+    users = result.scalars().all()
+    return [_build_access_user_read(user) for user in users]
+
+
 @router.get("/roles", response_model=list[RoleWithPermissions])
 async def list_access_roles(
     current_user: User = Depends(deps.get_current_user),
@@ -99,9 +138,11 @@ async def list_access_roles(
     _require_privileged(current_user)
 
     result = await db.execute(
-        select(Role).options(
+        select(Role)
+        .options(
             selectinload(Role.permissions).selectinload(RolePermission.permission)
         )
+        .where(Role.is_active == True)
     )
     roles = result.scalars().all()
     return [_build_role_with_permissions(role) for role in roles]
