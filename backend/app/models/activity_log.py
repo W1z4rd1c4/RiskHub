@@ -30,6 +30,8 @@ class ActivityEntityType(str, PyEnum):
     CONTROL_EXECUTION = "control_execution"
     KRI_VALUE = "kri_value"
     CONTROL_RISK_LINK = "control_risk_link"
+    ROLE = "role"
+    CONFIG = "config"
 
 
 class ActivityLog(Base):

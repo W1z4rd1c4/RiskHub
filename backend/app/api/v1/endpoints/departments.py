@@ -60,6 +60,9 @@ async def list_departments(
     if dept_ids is not None:
         query = query.filter(Department.id.in_(dept_ids))
     
+    # Filter inactive departments generally
+    query = query.where(Department.is_active == True)
+    
     result = await db.execute(query)
     departments = result.scalars().all()
     dept_map = {d.id: d for d in departments}
