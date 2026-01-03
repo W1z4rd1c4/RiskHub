@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 72 Risk Hub Resolution
-**Current Plan:** 72-01 (Completed)
-**Next Plan:** 72-02 (Frontend risk type integration)
+**Current Plan:** 72-02 (Completed)
+**Next Plan:** 72-03 (TBD)
 
 ## Progress Summary
 
@@ -39,7 +39,7 @@
 | 151 Audit Resolution | ⏳ In progress (10/13) | - |
 | 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
-| 72 Risk Hub Resolution | ⏳ In progress (1/5) | - |
+| 72 Risk Hub Resolution | ⏳ In progress (2/5) | - |
 
 ## Session Context
 
@@ -107,10 +107,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 72-01: Integrated dynamic risk types into backend risk workflows with accurate counts.
+- Completed Phase 72-02: Wired global configuration into risk thresholds and notification timing.
 
 ### Next Step
-- Execute Phase 72-02: Frontend risk type integration.
+- Execute Phase 72-03 (TBD).
 
 ---
 *Updated: 2026-01-03*

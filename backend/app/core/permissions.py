@@ -2,7 +2,7 @@
 from typing import Optional
 from fastapi import HTTPException, status
 from app.models import User
-from app.models.role import RoleType
+from app.models.user import AccessScope
 
 
 def check_department_access(
@@ -40,10 +40,8 @@ def check_department_access(
 
 
 def is_privileged_user(user: User) -> bool:
-    """Check if user has privileged role (full system access)."""
-    if not user.role:
-        return False  # Guard against null role
-    return user.role.name in RoleType.privileged_roles()
+    """Check if user has global access scope (full system access)."""
+    return bool(getattr(user, "access_scope", None) == AccessScope.GLOBAL)
 
 
 def can_see_all_departments(user: User) -> bool:
@@ -69,22 +67,24 @@ def get_user_department_ids(user: User) -> Optional[list[int]]:
     """
     if can_see_all_departments(user):
         return None  # None means "all departments" (privileged)
-    
+
+    scope = getattr(user, "access_scope", AccessScope.DEPARTMENT)
+    if scope == AccessScope.MANAGER:
+        if user.department_id:
+            return [user.department_id]
+        if user.manager and user.manager.department_id:
+            return [user.manager.department_id]
+        return []  # Empty list means no access
+
     if user.department_id:
         return [user.department_id]
-    
-    # Inherit from manager if available
-    if user.manager and user.manager.department_id:
-        return [user.manager.department_id]
-    
+
     return []  # Empty list means no access
 
 
 def can_manage_users(user: User) -> bool:
     """Check if user can create/edit/delete users."""
-    if not user.role:
-        return False
-    return user.role.name in {RoleType.ADMIN, RoleType.CRO}
+    return is_privileged_user(user) and has_permission(user, "users", "write")
 
 
 def has_permission(user: User, resource: str, action: str) -> bool:
@@ -110,21 +110,37 @@ def has_permission(user: User, resource: str, action: str) -> bool:
     return False
 
 
+def get_effective_permissions(user: User) -> list[str]:
+    """Return sorted list of effective permissions (resource:action)."""
+    if not user.role or not user.role.permissions:
+        return []
+    perms = {f"{rp.permission.resource}:{rp.permission.action}" for rp in user.role.permissions}
+    return sorted(perms)
+
+
+def get_scope_label(user: User) -> str:
+    """Return derived scope label: all, dept, none."""
+    dept_ids = get_user_department_ids(user)
+    if dept_ids is None:
+        return "all"
+    if not dept_ids:
+        return "none"
+    return "dept"
+
+
 def can_resolve_approvals(user: User) -> bool:
     """
     Check if user can approve/reject approval requests.
     
-    Only Risk Manager, CRO, and Admin roles can approve or reject
+    Only privileged users with approvals:write can approve or reject
     deletion requests.
     """
-    if not user.role:
-        return False
-    return user.role.name in {RoleType.RISK_MANAGER, RoleType.CRO, RoleType.ADMIN}
+    return is_privileged_user(user) and has_permission(user, "approvals", "write")
 
 
 # ============== Critical Risk and Sensitive Field Detection ==============
 
-CRITICAL_RISK_THRESHOLD = 15  # net_score >= this = critical
+from app.models.global_config import ConfigDefaults, get_config_int
 
 
 def is_critical_risk(risk) -> bool:
@@ -133,11 +149,34 @@ def is_critical_risk(risk) -> bool:
     
     A risk is critical if:
     - is_priority = True, OR
-    - net_score >= CRITICAL_RISK_THRESHOLD (15)
+    - net_score >= threshold from config (default: 15)
+    
+    Note: Uses ConfigDefaults for sync contexts. For dynamic config,
+    use is_critical_risk_async() with a db session.
     """
     if risk.is_priority:
         return True
-    if risk.net_score >= CRITICAL_RISK_THRESHOLD:
+    threshold = ConfigDefaults.HIGH_RISK_MIN_NET_SCORE
+    if risk.net_score >= threshold:
+        return True
+    return False
+
+
+async def is_critical_risk_async(risk, db) -> bool:
+    """
+    Async version that fetches threshold from global_config.
+    
+    Use this in async contexts where you have a db session and
+    want to respect CRO-configured thresholds.
+    """
+    if risk.is_priority:
+        return True
+    threshold = await get_config_int(
+        db, 
+        "high_risk_min_net_score", 
+        ConfigDefaults.HIGH_RISK_MIN_NET_SCORE
+    )
+    if risk.net_score >= threshold:
         return True
     return False
 
@@ -185,5 +224,4 @@ def has_sensitive_field_changes(
                 changed[field] = {"old": old_val, "new": new_val}
     
     return bool(changed), changed
-
 
