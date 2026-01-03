@@ -225,3 +225,74 @@ def has_sensitive_field_changes(
     
     return bool(changed), changed
 
+
+# ============== KRI Reporting Owner Access ==============
+
+async def is_kri_reporting_owner(db, user_id: int, kri_id: int) -> bool:
+    """
+    Check if user is the reporting owner of a specific KRI.
+    
+    Used for granting cross-department access to assigned reporting owners.
+    """
+    from sqlalchemy import select
+    from app.models import KeyRiskIndicator
+    
+    result = await db.execute(
+        select(KeyRiskIndicator.reporting_owner_id)
+        .where(KeyRiskIndicator.id == kri_id)
+    )
+    reporting_owner_id = result.scalar_one_or_none()
+    return reporting_owner_id == user_id
+
+
+async def is_risk_kri_reporting_owner(db, user_id: int, risk_id: int) -> bool:
+    """
+    Check if user is the reporting owner of any KRI linked to a specific Risk.
+    
+    Used for granting cross-department READ access to risks via KRI ownership.
+    """
+    from sqlalchemy import select
+    from app.models import KeyRiskIndicator
+    
+    result = await db.execute(
+        select(KeyRiskIndicator.id)
+        .where(
+            KeyRiskIndicator.risk_id == risk_id,
+            KeyRiskIndicator.reporting_owner_id == user_id
+        )
+        .limit(1)
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def get_kri_ids_where_reporting_owner(db, user_id: int) -> list[int]:
+    """
+    Get list of KRI IDs where user is the reporting owner.
+    
+    Used for including cross-department KRIs in list queries.
+    """
+    from sqlalchemy import select
+    from app.models import KeyRiskIndicator
+    
+    result = await db.execute(
+        select(KeyRiskIndicator.id)
+        .where(KeyRiskIndicator.reporting_owner_id == user_id)
+    )
+    return [row[0] for row in result.all()]
+
+
+async def get_risk_ids_where_kri_reporting_owner(db, user_id: int) -> list[int]:
+    """
+    Get list of Risk IDs where user is reporting owner of any linked KRI.
+    
+    Used for including cross-department risks in list queries.
+    """
+    from sqlalchemy import select
+    from app.models import KeyRiskIndicator
+    
+    result = await db.execute(
+        select(KeyRiskIndicator.risk_id)
+        .where(KeyRiskIndicator.reporting_owner_id == user_id)
+        .distinct()
+    )
+    return [row[0] for row in result.all()]
