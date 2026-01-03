@@ -55,6 +55,16 @@ export interface LogConfig {
     log_retention_count: number;
 }
 
+export interface DocumentationEntry {
+    id: string;
+    title: string;
+    content: string;
+}
+
+export interface DocumentationResponse {
+    documents: DocumentationEntry[];
+}
+
 export interface ActiveSession {
     user_id: number;
     user_name: string;
@@ -97,6 +107,10 @@ export const adminApi = {
 
     updateLogConfig: (config: LogConfig) =>
         apiClient.post<LogConfig>('/admin/logs/config', config),
+
+    // Documentation
+    getDocs: () =>
+        apiClient.get<DocumentationResponse>('/admin/docs'),
 
     // Active Sessions
     getActiveSessions: () =>
