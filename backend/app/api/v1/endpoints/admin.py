@@ -660,20 +660,35 @@ async def get_admin_documentation(
     # documentation files are in backend/docs/
     # admin.py is in backend/app/api/v1/endpoints/
     docs_dir = Path(__file__).parent.parent.parent.parent.parent / "docs"
-    siem_doc_path = docs_dir / "SIEM_INTEGRATION.md"
+    
+    # Mapping of filenames to pretty titles
+    titles = {
+        "SIEM_INTEGRATION.md": "SIEM Integration Guide",
+        "ARCHITECTURE.md": "System Architecture Guide",
+        "CONCERNS.md": "Maintenance & Technical Debt",
+        "CONVENTIONS.md": "Developer Code Conventions",
+        "INTEGRATIONS.md": "Platform Integrations",
+        "STACK.md": "Technology Stack Overview",
+        "STRUCTURE.md": "Directory Structure Reference",
+        "TESTING.md": "Testing Strategy & Commands",
+    }
     
     documents = []
     
-    if siem_doc_path.exists():
-        with open(siem_doc_path, "r", encoding="utf-8") as f:
-            content = f.read()
+    if docs_dir.exists():
+        for doc_file in docs_dir.glob("*.md"):
+            filename = doc_file.name
+            with open(doc_file, "r", encoding="utf-8") as f:
+                content = f.read()
+                
             documents.append(DocumentationEntry(
-                id="siem",
-                title="SIEM Integration Guide",
+                id=doc_file.stem.lower(),
+                title=titles.get(filename, filename.replace("_", " ").replace(".md", "").title()),
                 content=content
             ))
             
-    # Add other documents here as needed
+    # Sort documents by title for consistent UI
+    documents.sort(key=lambda x: x.title)
             
     return DocumentationResponse(documents=documents)
 
