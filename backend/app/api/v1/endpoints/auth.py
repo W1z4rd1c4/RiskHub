@@ -9,6 +9,7 @@ from app.schemas.auth import LoginRequest, TokenResponse
 from app.schemas.user import UserRead, UserBrief
 from app.models import User, Role, RolePermission
 from app.core.security import verify_password, create_access_token
+from app.core.permissions import get_effective_permissions, get_scope_label
 from app.api import deps
 
 router = APIRouter()
@@ -40,9 +41,32 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
     
     if not user or not user.hashed_password:
+        from app.core.activity_logger import log_activity
+        from app.models.activity_log import ActivityAction, ActivityEntityType
+        await log_activity(
+            db=db,
+            actor=None,
+            action=ActivityAction.LOGIN,
+            entity_type=ActivityEntityType.USER,
+            entity_name=credentials.email,
+            description=f"Failed login attempt: user not found or no password"
+        )
+        await db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     if not verify_password(credentials.password, user.hashed_password):
+        from app.core.activity_logger import log_activity
+        from app.models.activity_log import ActivityAction, ActivityEntityType
+        await log_activity(
+            db=db,
+            actor=user,
+            action=ActivityAction.LOGIN,
+            entity_type=ActivityEntityType.USER,
+            entity_id=user.id,
+            entity_name=user.name,
+            description=f"Failed login attempt (wrong password): {user.email}"
+        )
+        await db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     if not user.is_active:
@@ -51,6 +75,8 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     # Create JWT token
     access_token = create_access_token(data={"sub": user.email, "user_id": user.id})
     
+    effective_permissions = get_effective_permissions(user)
+    scope_label = get_scope_label(user)
     # Build user response
     user_data = {
         "id": user.id,
@@ -60,9 +86,27 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
         "role_display_name": user.role.display_name,
         "department_id": user.department_id,
         "department_name": user.department.name if user.department else None,
-        "permissions": [f"{rp.permission.resource}:{rp.permission.action}" 
-                       for rp in user.role.permissions]
+        "permissions": effective_permissions,
+        "effective_permissions": effective_permissions,
+        "access_scope": user.access_scope,
+        "scope_label": scope_label,
     }
+    
+    from app.core.activity_logger import log_activity
+    from app.models.activity_log import ActivityAction, ActivityEntityType
+
+    # Log successful login
+    await log_activity(
+        db=db,
+        actor=user,
+        action=ActivityAction.LOGIN,
+        entity_type=ActivityEntityType.USER,
+        entity_id=user.id,
+        entity_name=user.name,
+        description=f"User logged in: {user.email}"
+    )
+    
+    await db.commit()
     
     return TokenResponse(access_token=access_token, user=user_data)
 
@@ -81,13 +125,17 @@ async def get_current_user_info(current_user: User = Depends(deps.get_current_us
     # Ensure relationships are loaded if they weren't (though deps usually loads them)
     # The permissions are needed for the response
     
+    effective_permissions = get_effective_permissions(current_user)
     return UserBrief(
         id=current_user.id,
         email=current_user.email,
         name=current_user.name,
         role=current_user.role.name,
         role_display_name=current_user.role.display_name,
-        permissions=[f"{rp.permission.resource}:{rp.permission.action}" for rp in current_user.role.permissions],
+        permissions=effective_permissions,
+        effective_permissions=effective_permissions,
+        access_scope=current_user.access_scope,
+        scope_label=get_scope_label(current_user),
         department_id=current_user.department_id,
         department_name=current_user.department.name if current_user.department else None
     )
@@ -147,6 +195,8 @@ async def demo_login(user_id: int, db: AsyncSession = Depends(get_db)):
     # Create JWT token
     access_token = create_access_token(data={"sub": user.email, "user_id": user.id})
     
+    effective_permissions = get_effective_permissions(user)
+    scope_label = get_scope_label(user)
     # Build user response
     user_data = {
         "id": user.id,
@@ -156,9 +206,26 @@ async def demo_login(user_id: int, db: AsyncSession = Depends(get_db)):
         "role_display_name": user.role.display_name,
         "department_id": user.department_id,
         "department_name": user.department.name if user.department else None,
-        "permissions": [f"{rp.permission.resource}:{rp.permission.action}" 
-                       for rp in user.role.permissions]
+        "permissions": effective_permissions,
+        "effective_permissions": effective_permissions,
+        "access_scope": user.access_scope,
+        "scope_label": scope_label,
     }
+
+    from app.core.activity_logger import log_activity
+    from app.models.activity_log import ActivityAction, ActivityEntityType
+
+    # Log successful demo login
+    await log_activity(
+        db=db,
+        actor=user,
+        action=ActivityAction.LOGIN,
+        entity_type=ActivityEntityType.USER,
+        entity_id=user.id,
+        entity_name=user.name,
+        description=f"User logged in (demo): {user.email}"
+    )
+    
+    await db.commit()
     
     return TokenResponse(access_token=access_token, user=user_data)
-
