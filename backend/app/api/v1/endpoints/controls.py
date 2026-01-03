@@ -39,14 +39,27 @@ async def list_controls(
     """
     List controls with pagination and filters.
     Department heads without admin/cro/risk_manager role see only their department's controls.
+    Also includes controls where user is the control owner.
     Returns paginated response with total count.
     """
+    from app.core.permissions import get_control_ids_where_owner
+    
     base_query = select(Control)
     
     # Department filtering based on role
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:  # If not empty, user is restricted to specific departments
-        base_query = base_query.where(Control.department_id.in_(dept_ids))
+        # Include controls from user's departments OR where user is control owner
+        control_owner_ids = await get_control_ids_where_owner(db, current_user.id)
+        if control_owner_ids:
+            base_query = base_query.where(
+                or_(
+                    Control.department_id.in_(dept_ids),
+                    Control.id.in_(control_owner_ids)
+                )
+            )
+        else:
+            base_query = base_query.where(Control.department_id.in_(dept_ids))
     elif department_id:  # Privileged user can filter by specific department
         base_query = base_query.where(Control.department_id == department_id)
     
@@ -117,6 +130,8 @@ async def get_control(
     current_user: User = Depends(deps.get_current_user),
 ):
     """Get a single control with all relationships."""
+    from app.core.permissions import is_control_owner
+    
     result = await db.execute(
         select(Control)
         .options(
@@ -130,7 +145,11 @@ async def get_control(
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
-    # Verify department access
+    # Allow access if user is control owner (cross-department)
+    if await is_control_owner(db, current_user.id, control_id):
+        return control
+    
+    # Otherwise verify department access
     check_department_access(control.department_id, current_user)
     
     return control
@@ -206,7 +225,7 @@ async def update_control(
     Non-privileged users editing controls linked to critical risks or changing
     sensitive fields (owner, department) will trigger an approval request.
     """
-    from app.core.permissions import can_resolve_approvals, is_critical_risk, has_sensitive_field_changes
+    from app.core.permissions import can_resolve_approvals, is_critical_risk, has_sensitive_field_changes, is_control_owner
     from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType, ControlRiskLink
     import json
     
@@ -218,18 +237,19 @@ async def update_control(
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
-    # Verify department access
-    check_department_access(control.department_id, current_user)
-    
     # Check permission: either controls:write or is control owner
     has_write = check_permission(current_user, "controls", "write")
-    is_owner = control.control_owner_id == current_user.id
+    is_owner = await is_control_owner(db, current_user.id, control_id)
     
     if not has_write and not is_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Permission denied: controls:write or control owner required"
         )
+    
+    # Verify department access (skipped for control owners)
+    if not is_owner:
+        check_department_access(control.department_id, current_user)
     
     # Update fields
     update_data = control_data.model_dump(exclude_unset=True)
@@ -471,7 +491,9 @@ async def log_execution(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    """Log a control execution."""
+    """Log a control execution. Control owners can log from any department."""
+    from app.core.permissions import is_control_owner
+    
     # Verify control exists
     result = await db.execute(
         select(Control).where(Control.id == control_id)
@@ -481,8 +503,11 @@ async def log_execution(
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
-    # Verify department access
-    check_department_access(control.department_id, current_user)
+    # Allow access if user is control owner (cross-department)
+    is_owner = await is_control_owner(db, current_user.id, control_id)
+    if not is_owner:
+        # Verify department access
+        check_department_access(control.department_id, current_user)
     
     executed_at = datetime.now(UTC)
     next_scheduled = calculate_next_scheduled(control.frequency, executed_at)
@@ -519,7 +544,9 @@ async def list_executions(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
-    """List execution history for a control."""
+    """List execution history for a control. Control owners can view from any department."""
+    from app.core.permissions import is_control_owner
+    
     # Verify control exists
     result = await db.execute(
         select(Control).where(Control.id == control_id)
@@ -528,8 +555,11 @@ async def list_executions(
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
-    # Verify department access
-    check_department_access(control.department_id, current_user)
+    # Allow access if user is control owner (cross-department)
+    is_owner = await is_control_owner(db, current_user.id, control_id)
+    if not is_owner:
+        # Verify department access
+        check_department_access(control.department_id, current_user)
     
     result = await db.execute(
         select(ControlExecution)

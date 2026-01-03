@@ -296,3 +296,78 @@ async def get_risk_ids_where_kri_reporting_owner(db, user_id: int) -> list[int]:
         .distinct()
     )
     return [row[0] for row in result.all()]
+
+
+# ============== Control Owner Access ==============
+
+async def is_control_owner(db, user_id: int, control_id: int) -> bool:
+    """
+    Check if user is the owner of a specific Control.
+    
+    Used for granting cross-department access to assigned control owners.
+    """
+    from sqlalchemy import select
+    from app.models import Control
+    
+    result = await db.execute(
+        select(Control.control_owner_id)
+        .where(Control.id == control_id)
+    )
+    control_owner_id = result.scalar_one_or_none()
+    return control_owner_id == user_id
+
+
+async def is_risk_control_owner(db, user_id: int, risk_id: int) -> bool:
+    """
+    Check if user is the owner of any Control linked to a specific Risk.
+    
+    Used for granting cross-department READ access to risks via control ownership.
+    """
+    from sqlalchemy import select
+    from app.models import Control, ControlRiskLink
+    
+    result = await db.execute(
+        select(Control.id)
+        .join(ControlRiskLink, Control.id == ControlRiskLink.control_id)
+        .where(
+            ControlRiskLink.risk_id == risk_id,
+            Control.control_owner_id == user_id
+        )
+        .limit(1)
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def get_control_ids_where_owner(db, user_id: int) -> list[int]:
+    """
+    Get list of Control IDs where user is the control owner.
+    
+    Used for including cross-department controls in list queries.
+    """
+    from sqlalchemy import select
+    from app.models import Control
+    
+    result = await db.execute(
+        select(Control.id)
+        .where(Control.control_owner_id == user_id)
+    )
+    return [row[0] for row in result.all()]
+
+
+async def get_risk_ids_where_control_owner(db, user_id: int) -> list[int]:
+    """
+    Get list of Risk IDs where user is owner of any linked Control.
+    
+    Used for including cross-department risks in list queries.
+    """
+    from sqlalchemy import select
+    from app.models import Control, ControlRiskLink
+    
+    result = await db.execute(
+        select(ControlRiskLink.risk_id)
+        .join(Control, Control.id == ControlRiskLink.control_id)
+        .where(Control.control_owner_id == user_id)
+        .distinct()
+    )
+    return [row[0] for row in result.all()]
+
