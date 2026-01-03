@@ -59,7 +59,33 @@ async def get_current_user(
     
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Update last_active_at (debounced 1 min to reduce DB writes)
+    from datetime import datetime, UTC, timedelta
+    now = datetime.now(UTC)
+    # Handle naive datetime from database (SQLite test) by treating as UTC
+    last_active = user.last_active_at
+    if last_active and last_active.tzinfo is None:
+        last_active = last_active.replace(tzinfo=UTC)
+    should_update = not last_active or (now - last_active) > timedelta(minutes=1)
     
+    if should_update:
+        # We need to ensure we don't break the transaction for the caller
+        # But dependencies share the session.
+        # Committing here commits strict/readonly transactions?
+        # Safe strategy: Update logic, let caller or auto-cleanup handle commit?
+        # No, for GET requests nobody commits.
+        # We MUST commit here to save the timestamp.
+        user.last_active_at = now
+        db.add(user)
+        try:
+            await db.commit()
+            await db.refresh(user)
+        except Exception as e:
+            # If commit fails (e.g. concurrent update), just ignore. 
+            # Presence tracking is best-effort.
+            pass
+
     return user
 
 
