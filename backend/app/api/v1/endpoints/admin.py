@@ -663,14 +663,14 @@ async def get_admin_documentation(
     
     # Mapping of filenames to pretty titles
     titles = {
-        "SIEM_INTEGRATION.md": "SIEM Integration Guide",
-        "ARCHITECTURE.md": "System Architecture Guide",
-        "CONCERNS.md": "Maintenance & Technical Debt",
-        "CONVENTIONS.md": "Developer Code Conventions",
-        "INTEGRATIONS.md": "Platform Integrations",
-        "STACK.md": "Technology Stack Overview",
-        "STRUCTURE.md": "Directory Structure Reference",
-        "TESTING.md": "Testing Strategy & Commands",
+        "SIEM_INTEGRATION.md": "SIEM Integration: The Blueprint",
+        "ARCHITECTURE.md": "System Architecture: A Narrative Guide",
+        "CONCERNS.md": "Maintenance Perspectives",
+        "CONVENTIONS.md": "The Artisan's Code (Conventions)",
+        "INTEGRATIONS.md": "The RiskHub Ecosystem",
+        "STACK.md": "The RiskHub Tech Stack",
+        "STRUCTURE.md": "A Tour of the Repository",
+        "TESTING.md": "The RiskHub Testing Story",
     }
     
     documents = []
