@@ -1,35 +1,33 @@
-# Technology Stack Overview
+# The RiskHub Technology Stack: Choosing the Right Tools
 
-## Core Technologies
-- Languages: Python (backend), TypeScript (frontend)
-- Backend Framework: FastAPI (async)
-- Frontend Framework: React + Vite
-- Database: PostgreSQL (docker-compose uses 16)
-- ORM: SQLAlchemy 2 (async)
-- AD Emulator: Separate FastAPI + React app for directory sync testing
+Every piece of software is built upon a foundation of choices. For RiskHub, our choices were guided by two principles: **Developer Speed** and **Enterprise Reliability**.
 
-## Frontend (RiskHub UI)
-- React 19.2, React Router 7.11
-- Vite 7.2, TypeScript 5.9
-- Styling: Tailwind CSS 3.4 + tailwindcss-animate
-- UI Utilities: Radix UI, class-variance-authority, clsx, tailwind-merge
-- Data/Charts: Axios, Recharts, date-fns
-- Motion/Icons: Framer Motion, lucide-react
+## The Core Languages
+At the heart of our stack are two modern titans: **Python** and **TypeScript**. 
 
-## Backend (RiskHub API)
-- FastAPI 0.109+, Pydantic 2, Uvicorn
-- SQLAlchemy async + asyncpg, Alembic migrations
-- Auth: python-jose (JWT), passlib + bcrypt
-- Scheduling: APScheduler
-- Reporting: reportlab (PDF), openpyxl (Excel)
-- Testing: pytest, pytest-asyncio, httpx, pytest-cov
+We chose **Python** for the backend because it is the language of data and simplicity. It allows us to build complex risk-calculation logic in a way that remains readable and maintainable.
 
-## AD Emulator
-- Backend: FastAPI + SQLAlchemy async + Alembic
-- Frontend: React 19.2 + Vite 7.2 + Tailwind CSS 4.1
-- Purpose: stand-in directory service for RiskHub sync flows
+On the frontend, we use **TypeScript**. Unlike standard JavaScript, TypeScript ensures that our components agree on what data they are sending and receiving. It catches bugs before they even reach your browser, acting as a built-in safety inspector.
 
-## Tooling
-- Lint/Typecheck: ESLint 9, TypeScript 5.9
-- Testing: Vitest + Testing Library, Playwright
-- Build: Vite, PostCSS + Autoprefixer
+## The Frameworks: FastAPI and React
+We didn't just pick any frameworks; we picked the ones that felt like the future.
+
+### FastAPI (The Backend)
+FastAPI is "Async-first." This means the engine doesn't have to stop and wait for one task (like saving a large file) to finish before starting another. It can handle hundreds of concurrent administrators without breaking a sweat. It also generates its own technical documentation (Swagger), ensuring that as we build, the blueprint stays accurate.
+
+### React (The Frontend)
+React is the world standard for building interactive interfaces. By using **Vite** as our build tool, we ensure that the application loads in milliseconds. We've paired it with **Tailwind CSS**, a "Utility-first" styling engine that allows us to craft the premium, glass-morphism aesthetic you see today without bloated stylesheets.
+
+## The Memory: PostgreSQL and SQLAlchemy
+For our database, we chose **PostgreSQL**—the gold standard for open-source relational data. It is ACID-compliant, which is a fancy way of saying your data is safe even if the power cuts out mid-save.
+
+To talk to the database, we use **SQLAlchemy 2.0**. It allows our Python code to treat database rows like Python objects, making the code cleaner and the relationship between data easier to visualize.
+
+## The Supporting Cast
+- **Lucide Icons**: For that crisp, modern visual language.
+- **Recharts**: To turn thousands of data points into beautiful, actionable risk charts.
+- **ReportLab**: The artisan tool we use to "draw" the PDF reports you export.
+- **Pytest**: Our automated testing suite that runs hundreds of "mock usage" scenarios every time we change a line of code.
+
+---
+*By standing on the shoulders of these giants, RiskHub delivers a world-class experience that is easy to maintain and impossible to outgrow.*
