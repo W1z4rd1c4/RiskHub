@@ -20,3 +20,8 @@ export { UserDetailPage } from './UserDetailPage';
 export { DirectoryEmulatorPage } from './DirectoryEmulatorPage';
 export { default as GovernancePage } from './GovernancePage';
 export { ActivityLogPage } from './ActivityLogPage';
+// Risk Hub & Admin Console
+export { RiskHubPage } from './RiskHubPage';
+export { AdminConsolePage } from './AdminConsolePage';
+export { DocumentationPage } from './DocumentationPage';
+
