@@ -33,12 +33,24 @@ async def list_kris(
     size: int = Query(20, ge=1, le=1000),
 ):
     """List all KRIs with optional filters."""
+    from app.core.permissions import get_kri_ids_where_reporting_owner
+    
     # Apply department filtering via Risk join
     query = select(KeyRiskIndicator).join(Risk)
     
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:
-        query = query.filter(Risk.department_id.in_(dept_ids))
+        # Include KRIs from user's departments OR where user is reporting owner
+        reporting_owner_kri_ids = await get_kri_ids_where_reporting_owner(db, current_user.id)
+        if reporting_owner_kri_ids:
+            query = query.filter(
+                or_(
+                    Risk.department_id.in_(dept_ids),
+                    KeyRiskIndicator.id.in_(reporting_owner_kri_ids)
+                )
+            )
+        else:
+            query = query.filter(Risk.department_id.in_(dept_ids))
     
     if risk_id:
         query = query.where(KeyRiskIndicator.risk_id == risk_id)
@@ -192,6 +204,8 @@ async def get_kri(
     current_user: User = Depends(deps.get_current_user),
 ):
     """Get a single KRI by ID."""
+    from app.core.permissions import is_kri_reporting_owner
+    
     result = await db.execute(
         select(KeyRiskIndicator)
         .join(Risk)
@@ -203,7 +217,11 @@ async def get_kri(
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
     
-    # Verify department access
+    # Allow access if user is reporting owner (cross-department)
+    if await is_kri_reporting_owner(db, current_user.id, kri_id):
+        return KRIResponse.model_validate(kri)
+    
+    # Otherwise verify department access
     check_department_access(kri.risk.department_id, current_user)
     
     return KRIResponse.model_validate(kri)
@@ -480,20 +498,16 @@ async def record_kri_value(
     """
     Record a new value for a KRI.
     
-    Access: Users with kri:record OR risks:write permission.
+    Access: Users with kri:record OR risks:write permission, OR the KRI reporting owner.
     - Privileged users (CRO/Admin/Risk Manager): apply immediately.
     - KRI owner or Risk owner: creates tiered approval (Risk Owner → Privileged if priority).
     - Other users with kri:record: creates approval with Risk Owner as primary approver.
     """
     from datetime import datetime, UTC
-    from app.core.permissions import can_resolve_approvals, has_permission
+    from app.core.permissions import can_resolve_approvals, has_permission, is_kri_reporting_owner
     from app.services.kri_history_service import KRIHistoryService
     from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
     from app.services.notification_service import NotificationService
-    
-    # Check permission: kri:record OR risks:write
-    if not (has_permission(current_user, "kri", "record") or has_permission(current_user, "risks", "write")):
-        raise HTTPException(status_code=403, detail="Permission denied: requires kri:record or risks:write")
     
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -506,8 +520,16 @@ async def record_kri_value(
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
     
-    # Verify department access
-    check_department_access(kri.risk.department_id, current_user)
+    # Check if user is reporting owner (cross-department access)
+    is_reporting_owner = await is_kri_reporting_owner(db, current_user.id, kri_id)
+    
+    # Check permission: kri:record OR risks:write OR is reporting owner
+    if not (is_reporting_owner or has_permission(current_user, "kri", "record") or has_permission(current_user, "risks", "write")):
+        raise HTTPException(status_code=403, detail="Permission denied: requires kri:record, risks:write, or be reporting owner")
+    
+    # Verify department access (skipped for reporting owners)
+    if not is_reporting_owner:
+        check_department_access(kri.risk.department_id, current_user)
     
     # Privileged users can record directly
     if can_resolve_approvals(current_user):
