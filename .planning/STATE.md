@@ -17,9 +17,9 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 72 Risk Hub Resolution
-**Current Plan:** 72-04 (Completed)
-**Next Plan:** 72-05 (TBD)
+**Phase:** 12 Compliance Governance
+**Current Plan:** 12-05 (Completed)
+**Next Plan:** 12-06 (TBD)
 
 ## Progress Summary
 
@@ -31,7 +31,7 @@
 | 9 Notification System | ✅ Complete (5/5) | 2025-12-28 |
 | 10 Historization | ⏳ In progress (4/5) | 2025-12-31 |
 | 11 Historical Visualization | ✅ Complete (5/5) | 2025-12-31 |
-| 12 Compliance Governance | ✅ Complete (Plan 01-03) | 2026-01-01 |
+| 12 Compliance Governance | ⏳ In progress (4/7) | - |
 | 13 Issue & Remediation | ⏳ Planned | - |
 | 14 Risk Assessments | ⏳ Planned | - |
 | 15 Security Hardening | ⏳ Planned | - |
@@ -69,19 +69,21 @@
 - ✅ **85-05**: Owner-based KRI permissions (tiered approval with Risk Owner)
 - ✅ **85-06**: Control owner edit permissions (Control Owner edits → Risk Owner approval)
 
+### Phase 12 Progress
+- ✅ **12-01**: Activity Log Backend (model, API, tampering protection)
+- ✅ **12-02**: Activity Log Frontend (new tab with filters and search)
+- ✅ **12-03**: Dashboard Risk Committee (executive summary, meeting mode)
+- ✅ **12-05**: Backend Structured Logging
+  - Configured structlog with JSON rendering for SIEM compatibility
+  - Created LoggingContextMiddleware for request_id/user_id/client_ip injection
+  - Added audit event emission to ActivityLog for double-write pattern
+  - Implemented /admin/logs/recent endpoint for Admin Console
+
 ### Phase 72 Progress
 - ✅ **72-01**: Backend risk type integration + risk count accuracy
 - ✅ **72-02**: Global config thresholds + notification settings integration
 - ✅ **72-03**: Cross-department Owner Access + Notification Fan-out
-  - Implicit access for KRI Reporting Owners (Record values, View Risk)
-  - Implicit access for Control Owners (Update Control, Log Execution, View Risk)
-  - Notification dispatch to Primary Approvers + CRO/Risk Managers for Control edits
 - ✅ **72-04**: Risk Hub CRUD hardening + public-config gating
-  - Fixed department update to return `is_active` (not `is_hidden`)
-  - Added system department deletion guard
-  - Validated permission IDs on role create/update
-  - Enforced department code uniqueness
-  - Restricted public-config to safe allowlist
 
 ### Phase 99 Progress
 - ✅ **99-01**: Migrated 83 risks from Registr_Rizik_2022.xlsx
@@ -127,10 +129,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 72-04: Hardened Risk Hub CRUD endpoints with validation guards (permission IDs, system departments, code uniqueness) and restricted public-config to allowlist.
+- Completed Phase 12-05: Implemented structured JSON logging with structlog, context middleware, audit event emission, and admin logs API.
 
 ### Next Step
-- Execute Phase 72-05 (Frontend alignment with Risk Hub config).
+- Execute Phase 12-06 (Audit Log Separation & Rotation).
 
 ---
-*Updated: 2026-01-03*
+*Updated: 2026-01-04*
