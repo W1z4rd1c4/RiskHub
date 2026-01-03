@@ -2,6 +2,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import ActivityLog, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.core.logging import get_logger
+
+# Structured logger for audit events (SIEM-compatible)
+audit_logger = get_logger("audit")
 
 
 async def log_activity(
@@ -48,6 +52,22 @@ async def log_activity(
         description=description,
     )
     db.add(entry)
+    
+    # Emit structured log for SIEM integration
+    audit_logger.info(
+        "audit_event",
+        feature="audit",
+        event_type=action.value,
+        entity_type=entity_type.value,
+        entity_id=entity_id,
+        entity_name=entity_name,
+        actor_id=actor.id,
+        actor_name=actor.name,
+        department_id=department_id,
+        changes=changes,
+        description=description,
+    )
+    
     # Note: commit handled by caller's transaction
     return entry
 

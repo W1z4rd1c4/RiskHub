@@ -435,3 +435,111 @@ async def revoke_user_session(
     
     return {"status": "success", "message": f"Session revoked for {user.email}"}
 
+
+# ============================================================================
+# Structured Log Access Endpoints (SIEM Integration)
+# ============================================================================
+
+class RecentLogEntry(BaseModel):
+    """Parsed JSON log entry."""
+    timestamp: str | None = None
+    level: str | None = None
+    event: str | None = None
+    logger_name: str | None = None
+    request_id: str | None = None
+    user_id: int | None = None
+    client_ip: str | None = None
+    feature: str | None = None
+    extra: dict = {}
+
+
+class RecentLogsResponse(BaseModel):
+    """Response for recent logs endpoint."""
+    entries: list[RecentLogEntry]
+    total_lines: int
+    file_path: str
+
+
+@router.get("/logs/recent", response_model=RecentLogsResponse)
+async def get_recent_logs(
+    current_user: User = Depends(get_current_user),
+    lines: int = 100,
+    level: str | None = None,
+) -> RecentLogsResponse:
+    """
+    Get recent application logs from the JSON log file.
+    Admin only.
+    
+    Args:
+        lines: Number of recent lines to return (max 500)
+        level: Optional filter by log level (DEBUG, INFO, WARNING, ERROR)
+    """
+    require_admin(current_user)
+    
+    import json
+    from pathlib import Path
+    from collections import deque
+    
+    # Limit lines to prevent huge responses
+    lines = min(lines, 500)
+    
+    # Log file path (same as configured in logging.py)
+    log_file = Path(__file__).parent.parent.parent.parent / "logs" / "app.json.log"
+    
+    if not log_file.exists():
+        return RecentLogsResponse(
+            entries=[],
+            total_lines=0,
+            file_path=str(log_file)
+        )
+    
+    # Read last N lines efficiently using deque
+    recent_lines: deque[str] = deque(maxlen=lines * 2)  # Get extra for filtering
+    total_lines = 0
+    
+    with open(log_file, "r", encoding="utf-8") as f:
+        for line in f:
+            total_lines += 1
+            recent_lines.append(line.strip())
+    
+    # Parse JSON lines and filter
+    entries: list[RecentLogEntry] = []
+    level_filter = level.upper() if level else None
+    
+    for line in recent_lines:
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+            
+            # Filter by level if specified
+            log_level = data.get("level", "").upper()
+            if level_filter and log_level != level_filter:
+                continue
+            
+            # Extract known fields, put rest in extra
+            known_fields = {"timestamp", "level", "event", "logger", "request_id", 
+                          "user_id", "client_ip", "feature"}
+            extra = {k: v for k, v in data.items() if k not in known_fields}
+            
+            entries.append(RecentLogEntry(
+                timestamp=data.get("timestamp"),
+                level=log_level,
+                event=data.get("event"),
+                logger_name=data.get("logger"),
+                request_id=data.get("request_id"),
+                user_id=data.get("user_id"),
+                client_ip=data.get("client_ip"),
+                feature=data.get("feature"),
+                extra=extra,
+            ))
+        except json.JSONDecodeError:
+            # Skip malformed lines
+            continue
+    
+    # Return only requested number of entries (after filtering)
+    return RecentLogsResponse(
+        entries=entries[-lines:],
+        total_lines=total_lines,
+        file_path=str(log_file)
+    )
