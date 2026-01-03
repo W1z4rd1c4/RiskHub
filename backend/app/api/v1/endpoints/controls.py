@@ -338,6 +338,25 @@ async def update_control(
             db.add(approval)
             await db.commit()
             
+            # Notify Primary Approver
+            if primary_approver_id:
+                try:
+                    from app.services.notification_service import NotificationService
+                    from app.models.notification import NotificationType
+                    
+                    await NotificationService.create_notification(
+                        db=db,
+                        user_id=primary_approver_id,
+                        notification_type=NotificationType.APPROVAL_PENDING,
+                        title="Control Edit Request",
+                        message=f"Control '{name_snippet}' has been edited and requires your approval.",
+                        resource_type="approval",
+                        resource_id=approval.id,
+                    )
+                    await db.commit()
+                except Exception:
+                    pass  # Notification failure should not fail the request
+            
             from fastapi.responses import JSONResponse
             return JSONResponse(
                 status_code=status.HTTP_202_ACCEPTED,
@@ -458,6 +477,28 @@ async def delete_control(
     db.add(approval)
     await db.commit()
     
+    # Needs logic to find primary approver for delete requests as well
+    from app.core.approval_helpers import get_primary_approver_for_control
+    primary_approver_id = await get_primary_approver_for_control(db, control.id)
+    
+    if primary_approver_id:
+        try:
+            from app.services.notification_service import NotificationService
+            from app.models.notification import NotificationType
+            
+            await NotificationService.create_notification(
+                db=db,
+                user_id=primary_approver_id,
+                notification_type=NotificationType.APPROVAL_PENDING,
+                title="Control Deletion Request",
+                message=f"Request to delete control '{name_snippet}' requires your approval.",
+                resource_type="approval",
+                resource_id=approval.id,
+            )
+            await db.commit()
+        except Exception:
+            pass
+
     from fastapi.responses import JSONResponse
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
