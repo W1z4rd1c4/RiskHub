@@ -37,6 +37,7 @@
 | 99 Data Migration & Standalone AD | ✅ Complete (7/7) | 2025-12-28 |
 | 100 Marketing Presentation | ✅ Complete (3/3) | 2025-12-29 |
 | 151 Audit Resolution | ⏳ In progress (10/13) | - |
+| 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
 
 ## Session Context
 
@@ -104,7 +105,7 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 150-09: Server-side pagination for Department Detail tabs, added `min_net_score` backend filter for High risks, created department tests.
+- Completed Phase 70-07: Fixed visibility of deleted roles/departments and added missing activity log types.
 
 ### Next Step
 - Continue with remaining audit findings or Phase 151.
