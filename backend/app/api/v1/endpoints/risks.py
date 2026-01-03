@@ -6,10 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models import User, Risk, ControlRiskLink, KeyRiskIndicator
+from app.models import User, Risk, ControlRiskLink, KeyRiskIndicator, RiskTypeConfig
 from app.schemas.risk import (
     RiskCreate, RiskUpdate, RiskRead, RiskSummary, RiskListResponse,
-    RiskTypeEnum, RiskStatusEnum,
+    RiskStatusEnum,
     ControlRiskLinkFromRisk, ControlRiskLinkRead, ControlEffectivenessEnum,
 )
 from app.api import deps
@@ -19,6 +19,21 @@ from app.core.activity_logger import log_activity
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter()
+
+
+async def validate_risk_type(db: AsyncSession, risk_type_code: str) -> None:
+    """Validate that the risk_type code exists in the active risk_types config."""
+    result = await db.execute(
+        select(RiskTypeConfig).where(
+            RiskTypeConfig.code == risk_type_code,
+            RiskTypeConfig.is_active == True
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown risk type '{risk_type_code}'. Available types can be viewed in Risk Hub configuration."
+        )
 
 
 # ============== CRUD Operations ==============
@@ -31,7 +46,7 @@ async def list_risks(
     limit: int = Query(50, ge=1, le=100),
     department_id: Optional[int] = None,
     status: Optional[RiskStatusEnum] = None,
-    risk_type: Optional[RiskTypeEnum] = None,
+    risk_type: Optional[str] = None,
     is_priority: Optional[bool] = None,
     search: Optional[str] = None,
     include_archived: bool = Query(False, description="Include archived risks in results"),
@@ -61,7 +76,7 @@ async def list_risks(
     
     # Risk type filter
     if risk_type:
-        base_query = base_query.where(Risk.risk_type == risk_type.value)
+        base_query = base_query.where(Risk.risk_type == risk_type)
     
     # Priority filter
     if is_priority is not None:
@@ -165,6 +180,9 @@ async def create_risk(
     # Verify department access
     check_department_access(risk_data.department_id, current_user)
     
+    # Validate risk type against dynamic configuration
+    await validate_risk_type(db, risk_data.risk_type)
+    
     # Auto-generate risk_id_code if not provided
     risk_id_code = risk_data.risk_id_code
     if not risk_id_code:
@@ -210,7 +228,7 @@ async def create_risk(
         risk_id_code=risk_id_code,
         process=risk_data.process,
         subprocess=risk_data.subprocess,
-        risk_type=risk_data.risk_type.value,
+        risk_type=risk_data.risk_type,
         category=risk_data.category,
         description=risk_data.description,
         department_id=risk_data.department_id,
@@ -293,6 +311,10 @@ async def update_risk(
     
     # Update fields
     update_data = risk_data.model_dump(exclude_unset=True)
+    
+    # Validate risk type if being updated
+    if "risk_type" in update_data:
+        await validate_risk_type(db, update_data["risk_type"])
     
     # Prevent un-archiving via update
     if risk.status == RiskStatusEnum.archived.value:
