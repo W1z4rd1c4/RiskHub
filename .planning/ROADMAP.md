@@ -245,7 +245,7 @@ Plans:
 - [x] 12-03: Dashboard Risk Committee (executive summary, meeting mode)
 - [x] 12-05: Backend Structured Logging (structlog, context injection)
 - [x] 12-06: Audit Log Separation & Rotation (file handlers, splitting streams)
-- [ ] 12-07: SIEM Documentation & Verification (Option A: Forwarding guide)
+- [x] 12-07: SIEM Documentation & Verification (Option A: Forwarding guide)
 
 ### Phase 13: Issue & Remediation Management (NEW)
 **Goal**: Manage findings, remediation plans, and exception tracking for failed controls or high risks.
@@ -467,7 +467,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 9. Notification System | 5/5 | Complete | 2025-12-28 |
 | 10. Historization | 3/5 | In progress | - |
 | 11. Historical Visualization | 5/5 | Complete | 2025-12-31 |
-| 12 Compliance Governance | 5/7 | In progress | - |
+| 12 Compliance Governance | 6/6 | Complete | 2026-01-04 |
 | 13 Issue & Remediation | 0/3 | Planned | - |
 | 14 Risk Assessments | 0/3 | Planned | - |
 | 15 Security Hardening | 0/4 | Planned | - |
