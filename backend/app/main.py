@@ -5,6 +5,11 @@ from app.core.config import get_settings
 from app.api.v1.router import api_router
 from app.core.scheduler import start_scheduler, stop_scheduler
 
+# Initialize structured logging BEFORE app creation
+from app.core.logging import configure_logging, get_logger
+configure_logging()
+logger = get_logger("main")
+
 settings = get_settings()
 
 # Production security checks
@@ -15,17 +20,18 @@ if not settings.debug and settings.secret_key == INSECURE_SECRET:
         "Set DEBUG=true for development or provide a secure SECRET_KEY."
     )
 if settings.debug and settings.secret_key == INSECURE_SECRET:
-    import logging
-    logging.warning("WARNING: Using placeholder SECRET_KEY in debug mode - DO NOT USE IN PRODUCTION")
+    logger.warning("placeholder_secret_key", message="Using placeholder SECRET_KEY in debug mode - DO NOT USE IN PRODUCTION")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifecycle management."""
     # Startup
+    logger.info("startup", message="RiskHub application starting")
     start_scheduler()
     yield
     # Shutdown
+    logger.info("shutdown", message="RiskHub application shutting down")
     stop_scheduler()
 
 
@@ -46,6 +52,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Logging context middleware (adds request_id, user_id, client_ip to logs)
+from app.middleware.logging_context import LoggingContextMiddleware
+app.add_middleware(LoggingContextMiddleware)
 
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")

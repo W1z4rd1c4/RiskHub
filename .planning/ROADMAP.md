@@ -243,7 +243,7 @@ Plans:
 - [x] 12-01: Activity Log Backend (model, API, tampering protection)
 - [x] 12-02: Activity Log Frontend (new tab with filters and search)
 - [x] 12-03: Dashboard Risk Committee (executive summary, meeting mode)
-- [ ] 12-05: Backend Structured Logging (structlog, context injection)
+- [x] 12-05: Backend Structured Logging (structlog, context injection)
 - [ ] 12-06: Audit Log Separation & Rotation (file handlers, splitting streams)
 - [ ] 12-07: SIEM Documentation & Verification (Option A: Forwarding guide)
 
@@ -341,7 +341,7 @@ Plans:
 **Goal**: Implement fixes for all Phase 71 findings across backend and frontend
 **Depends on**: Phase 71
 **Research**: None
-**Plans**: 5 plans
+**Plans**: 7 plans
 
 Plans:
 - [x] 72-01: Backend risk type integration + risk count accuracy
@@ -349,6 +349,8 @@ Plans:
 - [x] 72-03: Cross-department Owner Access + Notification Fan-out
 - [x] 72-04: Risk Hub CRUD hardening + public-config gating + tests
 - [ ] 72-05: Frontend alignment with Risk Hub config (risk types, thresholds, approvals)
+- [ ] 72-06: Persist approval scenario key + config-driven approver notifications
+- [ ] 72-07: Public endpoints + thresholds propagation + frontend display cleanup
 
 ### Phase 85: Workflow & Users
 **Goal**: Map current access by role and deliver enhanced user management workflows (role rights, manager visibility, department remediation).
@@ -465,7 +467,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 9. Notification System | 5/5 | Complete | 2025-12-28 |
 | 10. Historization | 3/5 | In progress | - |
 | 11. Historical Visualization | 5/5 | Complete | 2025-12-31 |
-| 12 Compliance Governance | 3/4 | In progress | - |
+| 12 Compliance Governance | 4/7 | In progress | - |
 | 13 Issue & Remediation | 0/3 | Planned | - |
 | 14 Risk Assessments | 0/3 | Planned | - |
 | 15 Security Hardening | 0/4 | Planned | - |
