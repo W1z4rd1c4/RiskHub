@@ -658,7 +658,8 @@ async def get_admin_documentation(
     from pathlib import Path
     
     # documentation files are in backend/docs/
-    docs_dir = Path(__file__).parent.parent.parent.parent / "docs"
+    # admin.py is in backend/app/api/v1/endpoints/
+    docs_dir = Path(__file__).parent.parent.parent.parent.parent / "docs"
     siem_doc_path = docs_dir / "SIEM_INTEGRATION.md"
     
     documents = []
