@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 12 Compliance Governance
-**Current Plan:** 12-05 (Completed)
-**Next Plan:** 12-06 (TBD)
+**Current Plan:** 12-06 (Completed)
+**Next Plan:** 12-07 (TBD)
 
 ## Progress Summary
 
@@ -31,7 +31,7 @@
 | 9 Notification System | ✅ Complete (5/5) | 2025-12-28 |
 | 10 Historization | ⏳ In progress (4/5) | 2025-12-31 |
 | 11 Historical Visualization | ✅ Complete (5/5) | 2025-12-31 |
-| 12 Compliance Governance | ⏳ In progress (4/7) | - |
+| 12 Compliance Governance | ⏳ In progress (5/7) | - |
 | 13 Issue & Remediation | ⏳ Planned | - |
 | 14 Risk Assessments | ⏳ Planned | - |
 | 15 Security Hardening | ⏳ Planned | - |
@@ -78,6 +78,10 @@
   - Created LoggingContextMiddleware for request_id/user_id/client_ip injection
   - Added audit event emission to ActivityLog for double-write pattern
   - Implemented /admin/logs/recent endpoint for Admin Console
+- ✅ **12-06**: Audit Log Separation & Rotation
+  - Implemented dual file handlers (app vs audit) with strict filtering
+  - Added admin-configurable log rotation settings (size/count) via Risk Hub
+  - Created /admin/logs/audit and /admin/logs/config endpoints
 
 ### Phase 72 Progress
 - ✅ **72-01**: Backend risk type integration + risk count accuracy
@@ -129,10 +133,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 12-05: Implemented structured JSON logging with structlog, context middleware, audit event emission, and admin logs API.
+- Completed Phase 12-06: Implemented audit log separation, configurable log rotation, and admin/audit log API endpoints.
 
 ### Next Step
-- Execute Phase 12-06 (Audit Log Separation & Rotation).
+- Execute Phase 12-07 (SIEM Documentation & Verification).
 
 ---
 *Updated: 2026-01-04*

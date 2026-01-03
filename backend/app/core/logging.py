@@ -7,7 +7,9 @@ This module configures structlog to output JSON-formatted logs with:
 - Request context (request_id, user_id, client_ip)
 - Compatibility with standard Python logging (uvicorn, sqlalchemy)
 
-Log files are written to logs/app.json.log for SIEM agent consumption.
+Log files:
+- logs/app.json.log: General application logs
+- logs/audit.json.log: Audit/security events only (for SIEM)
 """
 import logging
 import logging.handlers
@@ -25,6 +27,10 @@ request_id_ctx: ContextVar[str | None] = ContextVar("request_id", default=None)
 user_id_ctx: ContextVar[int | None] = ContextVar("user_id", default=None)
 client_ip_ctx: ContextVar[str | None] = ContextVar("client_ip", default=None)
 
+# Default log rotation settings (can be overridden from Risk Hub config)
+DEFAULT_LOG_ROTATION_SIZE_MB = 10
+DEFAULT_LOG_RETENTION_COUNT = 10
+
 
 def add_context_vars(
     logger: logging.Logger, method_name: str, event_dict: dict[str, Any]
@@ -39,29 +45,69 @@ def add_context_vars(
     return event_dict
 
 
+class AuditFilter(logging.Filter):
+    """Filter to include ONLY audit logger events."""
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.name == "audit" or record.name.startswith("audit.")
+
+
+class NonAuditFilter(logging.Filter):
+    """Filter to EXCLUDE audit logger events (for app log)."""
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.name != "audit" and not record.name.startswith("audit.")
+
+
+def get_log_settings() -> tuple[int, int]:
+    """
+    Get log rotation settings from Risk Hub config or defaults.
+    
+    Returns:
+        Tuple of (rotation_size_bytes, retention_count)
+    """
+    # Try to read from config cache synchronously
+    try:
+        from app.models.global_config import get_config_sync
+        size_mb = get_config_sync("log_rotation_size_mb", DEFAULT_LOG_ROTATION_SIZE_MB)
+        count = get_config_sync("log_retention_count", DEFAULT_LOG_RETENTION_COUNT)
+        return (int(size_mb) * 1024 * 1024, int(count))
+    except Exception:
+        # Fallback to defaults if config not available
+        return (DEFAULT_LOG_ROTATION_SIZE_MB * 1024 * 1024, DEFAULT_LOG_RETENTION_COUNT)
+
+
 def configure_logging(
     log_level: str = "INFO",
-    log_file: str | None = None,
     json_console: bool = True,
+    rotation_size_mb: int | None = None,
+    retention_count: int | None = None,
 ) -> structlog.BoundLogger:
     """
-    Configure structlog with JSON rendering and file output.
+    Configure structlog with JSON rendering and dual file output.
     
     Args:
         log_level: Minimum log level (DEBUG, INFO, WARNING, ERROR)
-        log_file: Path to JSON log file (default: logs/app.json.log)
         json_console: Whether to render JSON to console (True for prod)
+        rotation_size_mb: Max size per log file in MB (default from config)
+        retention_count: Number of backup files to keep (default from config)
     
     Returns:
         Configured structlog logger
     """
     # Ensure logs directory exists
-    if log_file is None:
-        log_dir = Path(__file__).parent.parent.parent / "logs"
-        log_dir.mkdir(exist_ok=True)
-        log_file = str(log_dir / "app.json.log")
+    log_dir = Path(__file__).parent.parent.parent / "logs"
+    log_dir.mkdir(exist_ok=True)
+    
+    app_log_file = str(log_dir / "app.json.log")
+    audit_log_file = str(log_dir / "audit.json.log")
+    
+    # Get rotation settings
+    if rotation_size_mb is None or retention_count is None:
+        default_size, default_count = get_log_settings()
+        rotation_size_bytes = (rotation_size_mb * 1024 * 1024) if rotation_size_mb else default_size
+        backup_count = retention_count if retention_count else default_count
     else:
-        Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+        rotation_size_bytes = rotation_size_mb * 1024 * 1024
+        backup_count = retention_count
     
     # Shared processors for both structlog and stdlib logging
     shared_processors: list[structlog.types.Processor] = [
@@ -83,7 +129,7 @@ def configure_logging(
         cache_logger_on_first_use=True,
     )
     
-    # Configure standard library logging (for uvicorn, sqlalchemy, etc.)
+    # JSON formatter for file handlers
     json_formatter = structlog.stdlib.ProcessorFormatter(
         foreign_pre_chain=shared_processors,
         processors=[
@@ -92,6 +138,7 @@ def configure_logging(
         ],
     )
     
+    # Console formatter (JSON or pretty based on env)
     console_formatter = structlog.stdlib.ProcessorFormatter(
         foreign_pre_chain=shared_processors,
         processors=[
@@ -100,30 +147,43 @@ def configure_logging(
         ],
     )
     
-    # File handler with rotation
-    file_handler = logging.handlers.RotatingFileHandler(
-        log_file,
-        maxBytes=10 * 1024 * 1024,  # 10MB
-        backupCount=5,
+    # App file handler - general logs (excludes audit)
+    app_handler = logging.handlers.RotatingFileHandler(
+        app_log_file,
+        maxBytes=rotation_size_bytes,
+        backupCount=backup_count,
         encoding="utf-8",
     )
-    file_handler.setFormatter(json_formatter)
-    file_handler.setLevel(logging.DEBUG)  # Capture all levels to file
+    app_handler.setFormatter(json_formatter)
+    app_handler.setLevel(logging.DEBUG)
+    app_handler.addFilter(NonAuditFilter())  # Exclude audit events
     
-    # Console handler
+    # Audit file handler - security/audit events only
+    audit_handler = logging.handlers.RotatingFileHandler(
+        audit_log_file,
+        maxBytes=rotation_size_bytes,
+        backupCount=backup_count,
+        encoding="utf-8",
+    )
+    audit_handler.setFormatter(json_formatter)
+    audit_handler.setLevel(logging.DEBUG)
+    audit_handler.addFilter(AuditFilter())  # Only audit events
+    
+    # Console handler (all logs)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(console_formatter)
     console_handler.setLevel(getattr(logging, log_level.upper()))
     
     # Configure root logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)  # Set low to let handlers filter
+    root_logger.setLevel(logging.DEBUG)
     
     # Remove existing handlers to avoid duplicates on reload
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
     
-    root_logger.addHandler(file_handler)
+    root_logger.addHandler(app_handler)
+    root_logger.addHandler(audit_handler)
     root_logger.addHandler(console_handler)
     
     # Adjust uvicorn loggers to use same format
@@ -146,3 +206,8 @@ logger = configure_logging(
 def get_logger(name: str = "riskhub") -> structlog.BoundLogger:
     """Get a named structlog logger."""
     return structlog.get_logger(name)
+
+
+def get_audit_logger() -> structlog.BoundLogger:
+    """Get the dedicated audit logger for security events."""
+    return structlog.get_logger("audit")
