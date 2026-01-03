@@ -2,10 +2,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import ActivityLog, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.core.logging import get_logger
+from app.core.logging import get_audit_logger
 
-# Structured logger for audit events (SIEM-compatible)
-audit_logger = get_logger("audit")
+# Structured logger for audit events (SIEM-compatible) - routes to audit.json.log
+audit_logger = get_audit_logger()
 
 
 async def log_activity(

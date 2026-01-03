@@ -543,3 +543,164 @@ async def get_recent_logs(
         total_lines=total_lines,
         file_path=str(log_file)
     )
+
+
+@router.get("/logs/audit", response_model=RecentLogsResponse)
+async def get_audit_logs(
+    current_user: User = Depends(get_current_user),
+    lines: int = 100,
+    event_type: str | None = None,
+) -> RecentLogsResponse:
+    """
+    Get recent AUDIT logs from the audit log file.
+    Admin only.
+    
+    Args:
+        lines: Number of recent lines to return (max 1000)
+        event_type: Optional filter by event name (action)
+    """
+    require_admin(current_user)
+    
+    import json
+    from pathlib import Path
+    from collections import deque
+    
+    # Limit lines (audit logs might be important so allow more than debug logs)
+    lines = min(lines, 1000)
+    
+    # Audit log file path
+    log_file = Path(__file__).parent.parent.parent.parent / "logs" / "audit.json.log"
+    
+    if not log_file.exists():
+        return RecentLogsResponse(
+            entries=[],
+            total_lines=0,
+            file_path=str(log_file)
+        )
+    
+    # Read last N lines efficiently
+    recent_lines: deque[str] = deque(maxlen=lines * 2)
+    total_lines = 0
+    
+    with open(log_file, "r", encoding="utf-8") as f:
+        for line in f:
+            total_lines += 1
+            recent_lines.append(line.strip())
+    
+    # Parse JSON lines and filter
+    entries: list[RecentLogEntry] = []
+    
+    for line in recent_lines:
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+            
+            # Filter by event type if specified
+            # event is usually the action name in audit logs
+            if event_type and data.get("event") != event_type:
+                continue
+            
+            # Extract fields
+            known_fields = {"timestamp", "level", "event", "logger", "request_id", 
+                          "user_id", "client_ip", "feature"}
+            extra = {k: v for k, v in data.items() if k not in known_fields}
+            
+            entries.append(RecentLogEntry(
+                timestamp=data.get("timestamp"),
+                level=data.get("level", "").upper(),
+                event=data.get("event"),
+                logger_name=data.get("logger"),
+                request_id=data.get("request_id"),
+                user_id=data.get("user_id"),
+                client_ip=data.get("client_ip"),
+                feature=data.get("feature"),
+                extra=extra,
+            ))
+        except json.JSONDecodeError:
+            continue
+    
+    return RecentLogsResponse(
+        entries=entries[-lines:],
+        total_lines=total_lines,
+        file_path=str(log_file)
+    )
+
+
+class LogConfig(BaseModel):
+    """Log configuration settings."""
+    log_rotation_size_mb: int
+    log_retention_count: int
+
+
+@router.get("/logs/config", response_model=LogConfig)
+async def get_log_config(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> LogConfig:
+    """Get current log rotation settings."""
+    require_admin(current_user)
+    from app.models.global_config import get_config_int
+    
+    # Default values must match logging.py
+    size = await get_config_int(db, "log_rotation_size_mb", 10)
+    count = await get_config_int(db, "log_retention_count", 10)
+    
+    return LogConfig(
+        log_rotation_size_mb=size,
+        log_retention_count=count
+    )
+
+
+@router.post("/logs/config", response_model=LogConfig)
+async def update_log_config(
+    config: LogConfig,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> LogConfig:
+    """
+    Update log rotation settings.
+    Changes require backend restart to take full effect on file handlers.
+    """
+    require_admin(current_user)
+    from app.models.global_config import GlobalConfig
+    from sqlalchemy import select
+    
+    # Helper to upsert config
+    async def upsert_config(key: str, value: int, display: str, desc: str):
+        result = await db.execute(select(GlobalConfig).where(GlobalConfig.key == key))
+        cfg = result.scalar_one_or_none()
+        
+        if cfg:
+            cfg.value = str(value)
+        else:
+            cfg = GlobalConfig(
+                key=key,
+                value=str(value),
+                value_type="int",
+                category="system",
+                display_name=display,
+                description=desc,
+                min_value=1,
+                max_value=500,
+                is_editable=True
+            )
+            db.add(cfg)
+    
+    await upsert_config(
+        "log_rotation_size_mb", 
+        config.log_rotation_size_mb,
+        "Log Rotation Size (MB)",
+        "Maximum size of each log file before rotation in megabytes"
+    )
+    
+    await upsert_config(
+        "log_retention_count", 
+        config.log_retention_count,
+        "Log Retention Count", 
+        "Number of backup log files to keep after rotation"
+    )
+    
+    await db.commit()
+    
+    return config
