@@ -654,6 +654,15 @@ async def update_approval_scenario(
 # Public Config Endpoint (for all authenticated users)
 # ============================================================================
 
+# Allowlist of config keys safe for all authenticated users
+PUBLIC_CONFIG_ALLOWLIST = {
+    "kri_reminder_days_before",
+    "kri_overdue_grace_days",
+    "session_timeout_minutes",
+    "password_expiry_days",
+}
+
+
 @router.get("/public-config/{key}")
 async def get_public_config(
     key: str,
@@ -662,8 +671,20 @@ async def get_public_config(
 ) -> dict:
     """
     Get a single config value.
-    Any authenticated user can read config values.
+    Any authenticated user can read allowlisted config values only.
+    CRO users can read any config value.
     """
+    # CRO can read any key; non-CRO limited to allowlist
+    from app.models.role import Role
+    
+    is_cro = current_user.role and current_user.role.name.lower() == "cro"
+    
+    if not is_cro and key not in PUBLIC_CONFIG_ALLOWLIST:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Config key '{key}' is not publicly accessible"
+        )
+    
     result = await db.execute(
         select(GlobalConfig).where(GlobalConfig.key == key)
     )
@@ -815,12 +836,19 @@ async def create_role(
     db.add(role)
     await db.flush()  # Get the role ID
     
-    # Add permissions
+    # Add permissions (with validation)
     if data.permission_ids:
         perms_result = await db.execute(
             select(Permission).where(Permission.id.in_(data.permission_ids))
         )
         permissions = perms_result.scalars().all()
+        found_ids = {p.id for p in permissions}
+        missing_ids = set(data.permission_ids) - found_ids
+        if missing_ids:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown permission IDs: {sorted(missing_ids)}"
+            )
         for perm in permissions:
             role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
             db.add(role_perm)
@@ -895,12 +923,19 @@ async def update_role(
             RolePermission.__table__.delete().where(RolePermission.role_id == role.id)
         )
         
-        # Add new permissions
+        # Add new permissions (with validation)
         if data.permission_ids:
             perms_result = await db.execute(
                 select(Permission).where(Permission.id.in_(data.permission_ids))
             )
             permissions = perms_result.scalars().all()
+            found_ids = {p.id for p in permissions}
+            missing_ids = set(data.permission_ids) - found_ids
+            if missing_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unknown permission IDs: {sorted(missing_ids)}"
+                )
             for perm in permissions:
                 role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
                 db.add(role_perm)
@@ -1143,6 +1178,17 @@ async def create_department(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail=f"Department name '{data.name}' already exists")
     
+    # Check for duplicate code
+    effective_code = data.code if data.code else data.name.lower().replace(" ", "_")[:20]
+    existing_code = await db.execute(
+        select(Department).where(Department.code == effective_code)
+    )
+    if existing_code.scalar_one_or_none():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Department code '{effective_code}' already exists"
+        )
+    
     dept = Department(
         name=data.name,
         code=data.code if data.code else data.name.lower().replace(" ", "_")[:20],
@@ -1206,8 +1252,32 @@ async def update_department(
         raise HTTPException(status_code=404, detail="Department not found")
     
     if data.name is not None:
+        # Check for duplicate name (excluding current)
+        existing = await db.execute(
+            select(Department).where(
+                Department.name == data.name,
+                Department.id != dept.id
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Department name '{data.name}' already exists"
+            )
         dept.name = data.name
     if data.code is not None:
+        # Check for duplicate code (excluding current)
+        existing_code = await db.execute(
+            select(Department).where(
+                Department.code == data.code,
+                Department.id != dept.id
+            )
+        )
+        if existing_code.scalar_one_or_none():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Department code '{data.code}' already exists"
+            )
         dept.code = data.code
     if data.manager_id is not None:
         dept.manager_id = data.manager_id
@@ -1249,7 +1319,7 @@ async def update_department(
         code=dept.code if hasattr(dept, 'code') else None,
         manager_id=dept.manager_id,
         manager_name=dept.manager.name if dept.manager else None,
-        is_active=not dept.is_hidden,
+        is_active=dept.is_active,
         user_count=len([u for u in dept.users if u.is_active]),
         risk_count=risk_count,
         control_count=control_count
@@ -1275,6 +1345,13 @@ async def delete_department(
     
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
+    
+    # System departments cannot be deleted
+    if hasattr(dept, 'is_system') and dept.is_system:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete system departments"
+        )
     
     if not dept.is_active:
         raise HTTPException(status_code=400, detail="Department is already deleted")
