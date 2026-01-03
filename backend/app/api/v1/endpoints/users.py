@@ -126,7 +126,7 @@ async def list_roles(
     current_user: User = Depends(deps.get_current_user),
 ):
     """List all available roles. Requires authentication."""
-    result = await db.execute(select(Role))
+    result = await db.execute(select(Role).where(Role.is_active == True))
     return result.scalars().all()
 
 

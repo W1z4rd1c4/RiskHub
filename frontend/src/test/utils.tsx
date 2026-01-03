@@ -5,7 +5,7 @@ import React, { ReactElement } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { FilterProvider } from '@/contexts/FilterContext';
+import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 
 /**
  * All providers wrapper for tests.
@@ -14,9 +14,9 @@ function AllProviders({ children }: { children: React.ReactNode }) {
     return (
         <BrowserRouter>
             <AuthProvider>
-                <FilterProvider>
+                <DashboardFilterProvider>
                     {children}
-                </FilterProvider>
+                </DashboardFilterProvider>
             </AuthProvider>
         </BrowserRouter>
     );

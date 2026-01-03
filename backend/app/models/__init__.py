@@ -1,4 +1,4 @@
-from app.models.role import Role, Permission, RolePermission
+from app.models.role import Role, Permission, RolePermission, RoleType
 from app.models.user import User
 from app.models.department import Department
 from app.models.control import Control, ControlForm, ControlFrequency, ControlStatus
@@ -12,9 +12,13 @@ from app.models.directory_user import DirectoryUser
 from app.models.directory_sync_log import DirectorySyncLog, DirectorySyncStatus
 from app.models.orphaned_item import OrphanedItem
 from app.models.activity_log import ActivityLog, ActivityAction, ActivityEntityType
+# Risk Hub models
+from app.models.risk_type import RiskTypeConfig
+from app.models.global_config import GlobalConfig
+from app.models.approval_scenario import ApprovalScenario
 
 __all__ = [
-    "Role", "Permission", "RolePermission", 
+    "Role", "Permission", "RolePermission", "RoleType",
     "User", 
     "Department",
     "Control", "ControlForm", "ControlFrequency", "ControlStatus",
@@ -28,7 +32,8 @@ __all__ = [
     "DirectorySyncLog", "DirectorySyncStatus",
     "OrphanedItem",
     "ActivityLog", "ActivityAction", "ActivityEntityType",
+    # Risk Hub models
+    "RiskTypeConfig",
+    "GlobalConfig",
+    "ApprovalScenario",
 ]
-
-
-

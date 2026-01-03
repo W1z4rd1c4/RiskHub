@@ -15,6 +15,9 @@ export interface DepartmentMetrics {
     control_count: number;
     risk_count: number;
     high_risk_count: number;
+    audited_control_count: number;
+    breaching_kri_count: number;
+    total_kri_count: number;
     compliance_rate: number;
 }
 
@@ -31,6 +34,18 @@ export interface RiskDistribution {
 export interface ControlTrend {
     period: string; // e.g., "2025-W24"
     execution_count: number;
+}
+
+export interface RiskTrendPoint {
+    period: string; // e.g., "2025-01"
+    total_new: number;
+    critical_new: number;
+}
+
+export interface KRIBreachTrendPoint {
+    period: string; // e.g., "2025-01"
+    total_entries: number;
+    breached_entries: number;
 }
 
 export type RiskLevel = 'all' | 'critical' | 'high' | 'medium' | 'low';

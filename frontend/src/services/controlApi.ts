@@ -17,6 +17,8 @@ export const controlApi = {
         department_id?: number;
         status?: string;
         search?: string;
+        process?: string;
+        category?: string;
     }): Promise<ControlListResponse> {
         return apiClient.get<ControlListResponse>('/controls', { params });
     },

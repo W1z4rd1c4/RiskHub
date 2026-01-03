@@ -1,31 +1,58 @@
 import { motion } from 'framer-motion';
+import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 
 interface RiskScoreMatrixProps {
     probability: number;  // 1-5
     impact: number;       // 1-5
     type: 'gross' | 'net';
     size?: 'small' | 'medium' | 'large';
+    onSelect?: (probability: number, impact: number) => void;
+    // Optional threshold overrides (uses Risk Hub config if not provided)
+    thresholds?: {
+        critical?: number;
+        high?: number;
+        medium?: number;
+    };
 }
 
 /**
  * Visual 5×5 risk matrix showing probability vs impact.
  * Highlights the cell corresponding to the risk position.
+ * Uses configurable thresholds from Risk Hub.
  */
 export function RiskScoreMatrix({
     probability,
     impact,
     type,
-    size = 'medium'
+    size = 'medium',
+    onSelect,
+    thresholds: overrideThresholds
 }: RiskScoreMatrixProps) {
     const score = probability * impact;
+
+    // Get thresholds from Risk Hub config (with optional overrides)
+    const { thresholds: configThresholds } = useRiskThresholds();
+    const thresholds = {
+        critical: overrideThresholds?.critical ?? configThresholds.critical,
+        high: overrideThresholds?.high ?? configThresholds.high,
+        medium: overrideThresholds?.medium ?? configThresholds.medium,
+    };
 
     // Cell colors based on score (probability × impact at that position)
     const getCellColor = (p: number, i: number) => {
         const cellScore = p * i;
-        if (cellScore >= 16) return 'bg-rose-500/40 hover:bg-rose-500/60';
-        if (cellScore >= 10) return 'bg-orange-500/40 hover:bg-orange-500/60';
-        if (cellScore >= 5) return 'bg-amber-500/40 hover:bg-amber-500/60';
+        if (cellScore >= thresholds.critical) return 'bg-rose-500/40 hover:bg-rose-500/60';
+        if (cellScore >= thresholds.high) return 'bg-orange-500/40 hover:bg-orange-500/60';
+        if (cellScore >= thresholds.medium) return 'bg-amber-500/40 hover:bg-amber-500/60';
         return 'bg-emerald-500/40 hover:bg-emerald-500/60';
+    };
+
+    // Get score badge color
+    const getScoreColorClass = (s: number) => {
+        if (s >= thresholds.critical) return 'bg-rose-500/20 text-rose-400';
+        if (s >= thresholds.high) return 'bg-orange-500/20 text-orange-400';
+        if (s >= thresholds.medium) return 'bg-amber-500/20 text-amber-400';
+        return 'bg-emerald-500/20 text-emerald-400';
     };
 
     // Highlighted cell border
@@ -69,12 +96,14 @@ export function RiskScoreMatrix({
                                     className={`
                                         ${cellClass} ${getCellColor(p, i)}
                                         rounded-sm flex items-center justify-center font-bold
-                                        transition-all duration-200 cursor-default m-0.5
+                                        transition-all duration-200 m-0.5
+                                        ${onSelect ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'}
                                         ${isSelected(p, i)
                                             ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 scale-110 z-10'
                                             : 'opacity-60'
                                         }
                                     `}
+                                    onClick={() => onSelect?.(p, i)}
                                     title={`P:${p} × I:${i} = ${p * i}`}
                                 >
                                     {isSelected(p, i) && (
@@ -93,11 +122,7 @@ export function RiskScoreMatrix({
             </span>
 
             {/* Score display */}
-            <div className={`mt-3 px-4 py-1.5 rounded-full font-black text-sm ${score >= 16 ? 'bg-rose-500/20 text-rose-400' :
-                    score >= 10 ? 'bg-orange-500/20 text-orange-400' :
-                        score >= 5 ? 'bg-amber-500/20 text-amber-400' :
-                            'bg-emerald-500/20 text-emerald-400'
-                }`}>
+            <div className={`mt-3 px-4 py-1.5 rounded-full font-black text-sm ${getScoreColorClass(score)}`}>
                 Score: {score}
             </div>
         </div>

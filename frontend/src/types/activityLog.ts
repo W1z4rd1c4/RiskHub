@@ -45,6 +45,8 @@ export const ACTION_LABELS: Record<string, string> = {
     status_change: 'Status Changed',
     link: 'Linked',
     unlink: 'Unlinked',
+    login: 'Logged In',
+    failed_login: 'Login Failed',
 };
 
 export const ACTION_COLORS: Record<string, string> = {
@@ -57,4 +59,6 @@ export const ACTION_COLORS: Record<string, string> = {
     status_change: 'text-amber-400 bg-amber-400/10',
     link: 'text-purple-400 bg-purple-400/10',
     unlink: 'text-orange-400 bg-orange-400/10',
+    login: 'text-emerald-400 bg-emerald-400/10',
+    failed_login: 'text-rose-400 bg-rose-400/10',
 };

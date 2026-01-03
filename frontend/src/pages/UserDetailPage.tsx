@@ -27,6 +27,7 @@ export function UserDetailPage() {
     const navigate = useNavigate();
     const { canManageUsers } = usePermissions();
     const [user, setUser] = useState<UserRead | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [departments, setDepartments] = useState<any[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -87,6 +88,7 @@ export function UserDetailPage() {
             // Refresh local data
             await fetchData();
             setTimeout(() => setSuccess(false), 3000);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Failed to update user profile.');
         } finally {

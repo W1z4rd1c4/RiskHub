@@ -1,45 +1,35 @@
-# Stack
+# Technology Stack
 
-## Primary Languages
-- **Backend**: Python 3.13+ (FastAPI stack)
-- **Frontend**: TypeScript/React 19
+## Core Technologies
+- Languages: Python (backend), TypeScript (frontend)
+- Backend Framework: FastAPI (async)
+- Frontend Framework: React + Vite
+- Database: PostgreSQL (docker-compose uses 16)
+- ORM: SQLAlchemy 2 (async)
+- AD Emulator: Separate FastAPI + React app for directory sync testing
 
-## Frameworks & Core Libraries
+## Frontend (RiskHub UI)
+- React 19.2, React Router 7.11
+- Vite 7.2, TypeScript 5.9
+- Styling: Tailwind CSS 3.4 + tailwindcss-animate
+- UI Utilities: Radix UI, class-variance-authority, clsx, tailwind-merge
+- Data/Charts: Axios, Recharts, date-fns
+- Motion/Icons: Framer Motion, lucide-react
 
-### Backend
-| Package | Version | Purpose |
-|---------|---------|---------|
-| FastAPI | ≥0.109.0 | Web framework |
-| Uvicorn | ≥0.27.0 | ASGI server |
-| SQLAlchemy | ≥2.0.25 | Async ORM |
-| asyncpg | ≥0.29.0 | PostgreSQL driver |
-| Alembic | ≥1.13.0 | Migrations |
-| Pydantic | ≥2.5.0 | Data validation |
-| python-jose | ≥3.3.0 | JWT handling |
-| passlib + bcrypt | ≥1.7.4 | Password hashing |
+## Backend (RiskHub API)
+- FastAPI 0.109+, Pydantic 2, Uvicorn
+- SQLAlchemy async + asyncpg, Alembic migrations
+- Auth: python-jose (JWT), passlib + bcrypt
+- Scheduling: APScheduler
+- Reporting: reportlab (PDF), openpyxl (Excel)
+- Testing: pytest, pytest-asyncio, httpx, pytest-cov
 
-### Frontend
-| Package | Version | Purpose |
-|---------|---------|---------|
-| React | ^19.2.0 | UI framework |
-| React Router | ^7.11.0 | Client routing |
-| Vite | ^7.2.4 | Build tool |
-| Tailwind CSS | ^3.4.19 | Styling |
-| Framer Motion | ^12.23.26 | Animations |
-| Recharts | ^3.6.0 | Data visualization |
-| Radix UI | various | Accessible components |
+## AD Emulator
+- Backend: FastAPI + SQLAlchemy async + Alembic
+- Frontend: React 19.2 + Vite 7.2 + Tailwind CSS 4.1
+- Purpose: stand-in directory service for RiskHub sync flows
 
-## Build Tools & Tooling
-- **Frontend**: Vite, TypeScript ~5.9.3, ESLint ^9.39.1, Vitest ^4.0.16
-- **Backend**: pytest ≥8.0.0, pytest-asyncio ≥0.23.0
-
-## Package Managers
-- **Frontend**: npm (`frontend/package-lock.json`)
-- **Backend**: pip (`backend/requirements.txt`)
-
-## Runtime Versions
-- **PostgreSQL**: 16 (from `docker-compose.yml`)
-- **Node/Python**: Not pinned (no `.nvmrc`, `.python-version`)
-
----
-*Last updated: 2025-12-28*
+## Tooling
+- Lint/Typecheck: ESLint 9, TypeScript 5.9
+- Testing: Vitest + Testing Library, Playwright
+- Build: Vite, PostCSS + Autoprefixer

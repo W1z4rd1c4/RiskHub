@@ -7,7 +7,7 @@ import { ViewSwitcher, SortableTable, Pagination, CategoryDrillDown } from '@/co
 import type { Column, ViewMode } from '@/components/tables';
 import type { KeyRiskIndicator } from '@/types/kri';
 
-type StatusFilter = 'all' | 'within' | 'breach';
+type StatusFilter = 'all' | 'within' | 'breach' | 'overdue';
 
 export function KRIsPage() {
     const navigate = useNavigate();
@@ -67,9 +67,16 @@ export function KRIsPage() {
     // Filter KRIs
     const filteredKRIs = kris.filter(kri => {
         const matchesSearch = !search || kri.metric_name.toLowerCase().includes(search.toLowerCase());
+
+        // Calculate overdue status (last_period_end + 15 days < now)
+        const isOverdue = kri.last_period_end
+            ? new Date(kri.last_period_end).getTime() + (15 * 24 * 60 * 60 * 1000) < Date.now()
+            : false;
+
         const matchesStatus = statusFilter === 'all' ||
             (statusFilter === 'within' && kri.breach_status === 'within') ||
-            (statusFilter === 'breach' && kri.breach_status !== 'within');
+            (statusFilter === 'breach' && kri.breach_status !== 'within') ||
+            (statusFilter === 'overdue' && isOverdue);
         return matchesSearch && matchesStatus;
     });
 
@@ -205,7 +212,7 @@ export function KRIsPage() {
                 </div>
                 <div className="flex gap-2 flex-wrap items-center">
                     {/* Button-style status filters */}
-                    {(['all', 'within', 'breach'] as StatusFilter[]).map((opt) => (
+                    {(['all', 'within', 'breach', 'overdue'] as StatusFilter[]).map((opt) => (
                         <button
                             key={opt}
                             onClick={() => { setStatusFilter(opt); setCurrentPage(1); }}
@@ -214,7 +221,7 @@ export function KRIsPage() {
                                 : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                                 }`}
                         >
-                            {opt === 'all' ? 'All' : opt === 'within' ? 'Within' : 'Breach'}
+                            {opt === 'all' ? 'All' : opt === 'within' ? 'Within' : opt === 'breach' ? 'Breach' : 'Overdue'}
                         </button>
                     ))}
                     <button

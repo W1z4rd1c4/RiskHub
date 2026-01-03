@@ -23,7 +23,7 @@ async def list_activity_logs(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     # Filters
-    entity_type: Optional[str] = Query(None, description="Filter by entity type"),
+    entity_type: Optional[list[str]] = Query(None, description="Filter by entity type (supports multiple)"),
     entity_id: Optional[int] = Query(None, description="Filter by specific entity"),
     actor_id: Optional[int] = Query(None, description="Filter by actor (user)"),
     department_id: Optional[int] = Query(None, description="Filter by department"),
@@ -51,7 +51,7 @@ async def list_activity_logs(
     
     # Apply filters
     if entity_type:
-        query = query.where(ActivityLog.entity_type == entity_type)
+        query = query.where(ActivityLog.entity_type.in_(entity_type))
     if entity_id:
         query = query.where(ActivityLog.entity_id == entity_id)
     if actor_id:

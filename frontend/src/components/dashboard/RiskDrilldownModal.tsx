@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertTriangle, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -80,16 +81,18 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact }: Ris
         onClose();
     };
 
-    return (
+    if (typeof document === 'undefined') return null;
+
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
-                <>
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+                        className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
                         onClick={onClose}
                     />
 
@@ -98,7 +101,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact }: Ris
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg z-50"
+                        className="relative w-full max-w-lg z-10"
                     >
                         <div className="glass-card !p-0 overflow-hidden shadow-2xl">
                             {/* Header */}
@@ -125,7 +128,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact }: Ris
                             </div>
 
                             {/* Content */}
-                            <div className="p-6 max-h-[400px] overflow-y-auto">
+                            <div className="p-6 max-h-[400px] overflow-y-auto custom-scrollbar">
                                 {isLoading && (
                                     <div className="flex items-center justify-center py-8">
                                         <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -192,8 +195,9 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact }: Ris
                             </div>
                         </div>
                     </motion.div>
-                </>
+                </div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }
