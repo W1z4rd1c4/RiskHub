@@ -31,6 +31,8 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
     control_execution: 'Control Execution',
     kri_value: 'KRI Value',
     control_risk_link: 'Control-Risk Link',
+    role: 'Role',
+    config: 'Configuration',
 };
 
 export const ACTION_LABELS: Record<string, string> = {

@@ -30,6 +30,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 13: Vendor Risk Management** — Third-party risk assessments (deferred)
 - [ ] **Phase 14: Advanced Audit Workflows** — Audit automation (deferred)
 - [ ] **Phase 15: Polish & Deploy** — i18n, Docker, and documentation (deferred)
+- [ ] **Phase 70: Risk Hub** — Admin Console for system configuration, dynamic risk types, approval rules (Plans 1-7 verified)
 - [ ] **Phase 85: Workflow & Users** — Access mapping and user management enhancements
 - [ ] **Phase 90: AD Emulator** — Active Directory emulator server + user sync + change management UI
 - [x] **Phase 100: Marketing Presentation** — Single HTML presentation for the board (Czech)
@@ -225,15 +226,17 @@ Plans:
 - [ ] 11-04: Dashboard historical widgets (risk trends, breach history)
 - [ ] 11-05: Audit report generation (PDF/Excel export of audit trail)
 
-### Phase 12: Compliance Governance (DEFERRED)
-**Goal**: Implement Risk Committee dashboard for quarterly reviews
+### Phase 12: Compliance Governance
+**Goal**: Implement Activity Log for system-wide change tracking and Risk Committee dashboard enhancements
 **Depends on**: Phase 11
-**Source**: OS 18 Gap Analysis
-**Status**: Deferred for future release
-**Plans**: 1 plan
+**Source**: OS 18 Gap Analysis + User Requirements
+**Status**: Planning
+**Plans**: 3 plans
 
 Plans:
-- [ ] 12-01: Risk Committee Dashboard & Quarterly Review Interface
+- [ ] 12-01: Activity Log Backend (model, API, entity integration)
+- [ ] 12-02: Activity Log Frontend (new tab with filters and search)
+- [ ] 12-03: Dashboard Risk Committee (executive summary, meeting mode)
 
 ### Phase 13: Vendor Risk Management (DEFERRED)
 **Goal**: Third-party risk assessments, scoring, and supply chain visualization
