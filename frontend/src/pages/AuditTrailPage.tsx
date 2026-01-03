@@ -16,6 +16,7 @@ import {
     Target
 } from 'lucide-react';
 import { executionApi } from '@/services/executionApi';
+import { reportApi } from '@/services/reportApi';
 import type { ControlExecution, ExecutionResult } from '@/services/executionApi';
 import { Pagination } from '@/components/tables';
 
@@ -87,13 +88,19 @@ export function AuditTrailPage() {
 
                 <div className="flex items-center gap-3">
                     <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
-                        <button className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all bg-white/5 rounded-lg border border-white/5 flex items-center gap-2 opacity-50 cursor-not-allowed">
+                        <button
+                            onClick={() => reportApi.downloadAuditTrailPdf({ result: resultFilter || undefined }).catch(console.error)}
+                            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all bg-white/5 rounded-lg border border-white/5 flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20"
+                        >
                             <FileText className="h-3.5 w-3.5" />
-                            PDF <span className="text-[8px] opacity-40">(CS)</span>
+                            PDF
                         </button>
-                        <button className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white transition-all flex items-center gap-2 opacity-50 cursor-not-allowed">
+                        <button
+                            onClick={() => reportApi.downloadAuditTrailExcel({ result: resultFilter || undefined }).catch(console.error)}
+                            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all flex items-center gap-2 hover:bg-accent/10 rounded-lg"
+                        >
                             <Sheet className="h-3.5 w-3.5" />
-                            Excel <span className="text-[8px] opacity-40">(CS)</span>
+                            Excel
                         </button>
                     </div>
                 </div>

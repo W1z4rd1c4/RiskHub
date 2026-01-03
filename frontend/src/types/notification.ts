@@ -8,7 +8,8 @@ export type NotificationType =
     | 'kri_due_soon'
     | 'kri_due_tomorrow'
     | 'kri_overdue'
-    | 'kri_near_breach';
+    | 'kri_near_breach'
+    | 'kri_breach_detected';
 
 export interface Notification {
     id: number;

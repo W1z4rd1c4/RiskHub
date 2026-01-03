@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { apiClient } from './apiClient';
 import type { DashboardSummary, DepartmentMetrics, RiskDistribution, ControlTrend, DashboardFilters, RiskTrendPoint, KRIBreachTrendPoint } from '../types/dashboard';
 

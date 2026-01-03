@@ -1,11 +1,16 @@
 from datetime import datetime
+from enum import StrEnum
 from sqlalchemy import String, Boolean, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
-class RoleType:
-    """Standard role names for non-life insurance company."""
+class RoleType(StrEnum):
+    """Standard role names for non-life insurance company.
+    
+    Using StrEnum for type safety - values work directly in string comparisons
+    without needing .value (e.g., user.role.name == RoleType.CRO works)
+    """
     # C-Suite
     CEO = "ceo"
     CFO = "cfo"
@@ -28,10 +33,30 @@ class RoleType:
     VIEWER = "viewer"
     
     @classmethod
-    def privileged_roles(cls):
-        """Roles with full system access."""
+    def privileged_roles(cls) -> set["RoleType"]:
+        """Roles with business data access (risks, controls, KRIs).
+        
+        Note: ADMIN is intentionally excluded - they have platform access only.
+        Use system_admin_roles() for IT/platform administration checks.
+        """
         return {cls.CEO, cls.CFO, cls.CRO, cls.RISK_MANAGER, 
-                cls.COMPLIANCE, cls.LEGAL, cls.INTERNAL_AUDIT, cls.ACTUARIAL, cls.ADMIN}
+                cls.COMPLIANCE, cls.LEGAL, cls.INTERNAL_AUDIT, cls.ACTUARIAL}
+    
+    @classmethod
+    def system_admin_roles(cls) -> set["RoleType"]:
+        """Roles with platform administration access (users, logs, health).
+        
+        These roles manage the platform but NOT business data.
+        """
+        return {cls.ADMIN}
+    
+    @classmethod
+    def cro_only_roles(cls) -> set["RoleType"]:
+        """Roles with Risk Hub access (business configuration).
+        
+        Only CRO can configure risk types, thresholds, and approval rules.
+        """
+        return {cls.CRO}
 
 
 class Role(Base):
@@ -43,9 +68,13 @@ class Role(Base):
     display_name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(String(255), nullable=True)
     
+    # Management flags for CRO role administration
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    
     # Relationships
     users: Mapped[list["User"]] = relationship("User", back_populates="role")
-    permissions: Mapped[list["RolePermission"]] = relationship("RolePermission", back_populates="role")
+    permissions: Mapped[list["RolePermission"]] = relationship("RolePermission", back_populates="role", cascade="all, delete-orphan")
 
 
 class Permission(Base):

@@ -35,6 +35,7 @@ export default function ApprovalsPage() {
     const fetchApprovals = async () => {
         try {
             setLoading(true);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const params: any = { limit: 100 }; // Fetch mostly everything for now
 
             if (filter === 'pending') {

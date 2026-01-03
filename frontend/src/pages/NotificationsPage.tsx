@@ -21,6 +21,8 @@ function getNotificationIcon(type: NotificationType, size: 'sm' | 'md' = 'md') {
             return <AlertCircle className={`${sizeClass} text-rose-400`} />;
         case 'kri_near_breach':
             return <AlertTriangle className={`${sizeClass} text-orange-400`} />;
+        case 'kri_breach_detected':
+            return <AlertCircle className={`${sizeClass} text-rose-500`} />;
         default:
             return <Bell className={`${sizeClass} text-slate-400`} />;
     }
@@ -155,8 +157,8 @@ export function NotificationsPage() {
                 <button
                     onClick={() => { setActiveTab('all'); setPage(0); }}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'all'
-                            ? 'bg-accent text-white'
-                            : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                        ? 'bg-accent text-white'
+                        : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                         }`}
                 >
                     All
@@ -164,8 +166,8 @@ export function NotificationsPage() {
                 <button
                     onClick={() => { setActiveTab('unread'); setPage(0); }}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'unread'
-                            ? 'bg-accent text-white'
-                            : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                        ? 'bg-accent text-white'
+                        : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                         }`}
                 >
                     Unread

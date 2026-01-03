@@ -1,62 +1,34 @@
-# Architecture
+# System Architecture
 
-## System Design Pattern
-**Layered Architecture** with clear separation:
-- FastAPI backend (API router → dependencies/auth → ORM models → DB)
-- React SPA frontend with router + contexts for state
+## High-Level Design
+RiskHub is a React SPA that talks to a FastAPI REST API backed by PostgreSQL. A separate AD Emulator service (FastAPI + React) simulates an external directory for sync testing.
 
-## Architecture Diagram
-```
-[React UI]
-  ├─ pages/components
-  ├─ contexts (Auth, DashboardFilter)
-  └─ services (apiClient + resource APIs)
-        |
-        |  HTTP JSON + JWT
-        v
-[FastAPI app]
-  ├─ /api/v1/router → endpoints/*
-  ├─ deps (auth, permissions)
-  ├─ db.session (AsyncSession)
-  └─ models (SQLAlchemy ORM)
-        |
-        v
-[PostgreSQL Database]
-```
+### RiskHub Frontend
+- Single-page app with React Router routes in `frontend/src/App.tsx`.
+- Auth state and permission checks via React contexts.
+- API access through a shared `apiClient` wrapper that attaches Bearer tokens.
+
+### RiskHub Backend
+- FastAPI app with versioned routers under `backend/app/api/v1`.
+- Async SQLAlchemy for DB access; models/schemas/services separated by layer.
+- Background scheduler (APScheduler) for periodic KRI deadline checks.
+- Report export service generates PDF/Excel for controls, risks, audit trail.
+
+### AD Emulator
+- Standalone FastAPI API with its own Postgres database.
+- Simple React UI for directory browsing/testing.
+- RiskHub integrates via HTTP client to sync directory users.
 
 ## Data Flow
-1. HTTP request → FastAPI endpoint
-2. Dependency injection (`get_db`, `get_current_user`)
-3. SQLAlchemy ORM operations
-4. Response mapped to Pydantic schema
-5. JSON back to client
+1. User interacts with SPA -> `apiClient` sends HTTP requests with JWT.
+2. FastAPI validates via Pydantic schemas and `Depends` auth/permission checks.
+3. Service layer performs business logic and DB writes via async sessions.
+4. Responses serialized to JSON for the SPA.
+5. Scheduler jobs run in-process to create notifications.
+6. Directory sync calls AD Emulator API and applies diffs to local users/departments.
 
-## Key Abstractions
-
-### Backend
-| Layer | Location | Purpose |
-|-------|----------|---------|
-| Models | `backend/app/models/` | SQLAlchemy ORM entities |
-| Schemas | `backend/app/schemas/` | Pydantic request/response DTOs |
-| Endpoints | `backend/app/api/v1/endpoints/` | REST resources by domain |
-| Dependencies | `backend/app/api/deps.py` | Auth + DB injection |
-| Security | `backend/app/core/security.py` | JWT + permissions |
-| Services | `backend/app/services/` | Business logic (reports) |
-
-### Frontend
-| Layer | Location | Purpose |
-|-------|----------|---------|
-| Pages | `frontend/src/pages/` | Route-level screens |
-| Components | `frontend/src/components/` | Reusable UI |
-| Contexts | `frontend/src/contexts/` | Auth + filter state |
-| Services | `frontend/src/services/` | API client wrappers |
-| Types | `frontend/src/types/` | TypeScript definitions |
-| Hooks | `frontend/src/hooks/` | Custom hooks |
-
-## Frontend/Backend Communication
-- **Protocol**: REST JSON over HTTP
-- **Auth**: `Authorization: Bearer <token>`
-- **Base URL**: `VITE_API_URL` → `/api/v1`
-
----
-*Last updated: 2025-12-28*
+## Design Patterns
+- FastAPI dependency injection (`Depends`) for auth, permissions, and DB sessions.
+- Layered organization: endpoints -> services -> models/schemas.
+- React contexts for auth + dashboard filter state.
+- Domain-oriented component folders for dashboard, controls, risks, governance, history.

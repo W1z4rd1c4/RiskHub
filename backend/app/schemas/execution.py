@@ -31,5 +31,7 @@ class ControlExecution(ControlExecutionBase):
     # Nested relations (simplified for list)
     executed_by_name: Optional[str] = None
     control_name: Optional[str] = None
+    control_owner_name: Optional[str] = None
+    linked_risks: Optional[list[str]] = None
 
     model_config = {"from_attributes": True}

@@ -13,7 +13,8 @@ import {
     Crown,
     ChevronDown,
     ChevronRight,
-    Key
+    Key,
+    Server
 } from 'lucide-react';
 import { accessApi } from '@/services/accessApi';
 import { userApi } from '@/services/userApi';
@@ -28,6 +29,7 @@ import { AccessEditModal } from '@/components/access/AccessEditModal';
 // Scope badge colors
 const scopeColors: Record<string, string> = {
     global: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+    platform: 'bg-slate-500/20 text-slate-400 border-slate-500/30', // Admin platform scope
     department: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     manager: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
 };
@@ -64,12 +66,18 @@ export function UsersPage() {
     const [selectedUser, setSelectedUser] = useState<AccessUserRead | null>(null);
     const [isAccessMode, setIsAccessMode] = useState(false);
 
-    const { canManageUsers, canManageAccess } = usePermissions();
+    const { canManageUsers, canManageAccess, user: currentUser } = usePermissions();
     const navigate = useNavigate();
 
+    // Department heads get access view but scoped to their department
+    const isDepartmentHead = currentUser?.role === 'department_head';
+
     useEffect(() => {
-        fetchUsers();
-    }, [canManageAccess]);
+        // Wait for user to be loaded before fetching
+        if (currentUser) {
+            fetchUsers();
+        }
+    }, [canManageAccess, isDepartmentHead, currentUser]);
 
     const fetchUsers = async () => {
         try {
@@ -79,6 +87,11 @@ export function UsersPage() {
                 const data = await accessApi.listAccessUsers();
                 setUsers(data);
                 setIsAccessMode(true);
+            } else if (isDepartmentHead) {
+                // Department heads get their department's access data
+                const data = await accessApi.listDepartmentAccessUsers();
+                setUsers(data);
+                setIsAccessMode(true); // Enable access mode to show permissions
             } else {
                 // Non-privileged get scoped user lookup (read-only)
                 const data = await userApi.listVisibleUsers();
@@ -91,6 +104,7 @@ export function UsersPage() {
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
                     access_scope: 'manager', // Placeholder
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 })) as any[]);
                 setIsAccessMode(false);
             }
@@ -159,7 +173,7 @@ export function UsersPage() {
         ? users.filter(u => u.is_active).length
         : fallbackUsers.filter(u => u.is_active).length;
     const privilegedCount = isAccessMode
-        ? users.filter(u => u.access_scope === 'global').length
+        ? users.filter(u => u.access_scope === 'global' && u.role.name !== 'admin').length
         : 0;
 
     // Clear permission filters
@@ -190,7 +204,7 @@ export function UsersPage() {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="glass-card p-4 flex items-center gap-4">
                     <div className="bg-purple-500/20 p-3 rounded-xl">
                         <Users className="h-6 w-6 text-purple-400" />
@@ -216,6 +230,15 @@ export function UsersPage() {
                     <div>
                         <p className="text-sm text-slate-400">Privileged</p>
                         <p className="text-2xl font-bold text-white">{privilegedCount}</p>
+                    </div>
+                </div>
+                <div className="glass-card p-4 flex items-center gap-4">
+                    <div className="bg-slate-500/20 p-3 rounded-xl">
+                        <Server className="h-6 w-6 text-slate-400" />
+                    </div>
+                    <div>
+                        <p className="text-sm text-slate-400">Sys Admins</p>
+                        <p className="text-2xl font-bold text-white">{isAccessMode ? users.filter(u => u.role.name === 'admin').length : 0}</p>
                     </div>
                 </div>
             </div>
@@ -371,26 +394,72 @@ export function UsersPage() {
                                             <td className="py-4 px-4">
                                                 <span className={cn(
                                                     "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border",
-                                                    scopeColors[user.access_scope] || scopeColors.manager
-                                                )}>
-                                                    {user.access_scope === 'global' && <Crown className="h-3 w-3 mr-1" />}
-                                                    {user.scope_label}
+                                                    user.role.name === 'admin'
+                                                        ? scopeColors.platform
+                                                        : (scopeColors[user.access_scope] || scopeColors.manager)
+                                                )}
+                                                >
+                                                    {user.role.name === 'admin' ? (
+                                                        <Server className="h-3 w-3 mr-1" />
+                                                    ) : user.access_scope === 'global' ? (
+                                                        <Crown className="h-3 w-3 mr-1" />
+                                                    ) : null}
+                                                    {user.role.name === 'admin' ? 'Platform' : user.scope_label}
                                                 </span>
                                             </td>
                                             <td className="py-4 px-4">
-                                                <div className="flex items-center gap-2">
-                                                    <PermissionChips permissions={user.effective_permissions} maxVisible={4} />
-                                                    <button
-                                                        onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
-                                                        className="p-1 text-slate-500 hover:text-white rounded transition-colors"
-                                                        title="Show all permissions"
-                                                    >
-                                                        {expandedUserId === user.id
-                                                            ? <ChevronDown className="h-4 w-4" />
-                                                            : <ChevronRight className="h-4 w-4" />
-                                                        }
-                                                    </button>
-                                                </div>
+                                                {user.role.name === 'admin' ? (
+                                                    /* Admin: Show platform capabilities */
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">users</span>
+                                                        <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">health</span>
+                                                        <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">logs</span>
+                                                        <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">sessions</span>
+                                                        <button
+                                                            onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
+                                                            className="p-1 text-slate-500 hover:text-white rounded transition-colors"
+                                                            title="Show all capabilities"
+                                                        >
+                                                            {expandedUserId === user.id
+                                                                ? <ChevronDown className="h-4 w-4" />
+                                                                : <ChevronRight className="h-4 w-4" />
+                                                            }
+                                                        </button>
+                                                    </div>
+                                                ) : user.role.name === 'cro' ? (
+                                                    /* CRO: Show Risk Hub capabilities */
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">risk-types</span>
+                                                        <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">config</span>
+                                                        <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">approvals</span>
+                                                        <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded text-xs border border-purple-500/30">all-data</span>
+                                                        <button
+                                                            onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
+                                                            className="p-1 text-slate-500 hover:text-white rounded transition-colors"
+                                                            title="Show all capabilities"
+                                                        >
+                                                            {expandedUserId === user.id
+                                                                ? <ChevronDown className="h-4 w-4" />
+                                                                : <ChevronRight className="h-4 w-4" />
+                                                            }
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    /* Regular users: Show business permissions */
+                                                    <div className="flex items-center gap-2">
+                                                        <PermissionChips permissions={user.effective_permissions} maxVisible={4} />
+                                                        <button
+                                                            onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
+                                                            className="p-1 text-slate-500 hover:text-white rounded transition-colors"
+                                                            title="Show all permissions"
+                                                        >
+                                                            {expandedUserId === user.id
+                                                                ? <ChevronDown className="h-4 w-4" />
+                                                                : <ChevronRight className="h-4 w-4" />
+                                                            }
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="py-4 px-4">
                                                 <span className={cn(
@@ -430,14 +499,77 @@ export function UsersPage() {
                                                 </div>
                                             </td>
                                         </tr>
-                                        {/* Expanded permissions row */}
+                                        {/* Expanded permissions/capabilities row */}
                                         {expandedUserId === user.id && (
                                             <tr key={`${user.id}-expanded`}>
                                                 <td colSpan={6} className="bg-white/5 px-8 py-4">
-                                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
-                                                        Effective Permissions
-                                                    </div>
-                                                    <PermissionMatrix permissions={user.effective_permissions} />
+                                                    {user.role.name === 'admin' ? (
+                                                        /* Admin: Show platform capabilities */
+                                                        <>
+                                                            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                                                Platform Administration Capabilities
+                                                            </div>
+                                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                                <div className="bg-white/5 p-3 rounded-lg">
+                                                                    <div className="text-slate-400 text-xs mb-1">User Management</div>
+                                                                    <div className="text-white text-sm">Add, edit, deactivate users</div>
+                                                                </div>
+                                                                <div className="bg-white/5 p-3 rounded-lg">
+                                                                    <div className="text-slate-400 text-xs mb-1">System Health</div>
+                                                                    <div className="text-white text-sm">Monitor database, memory</div>
+                                                                </div>
+                                                                <div className="bg-white/5 p-3 rounded-lg">
+                                                                    <div className="text-slate-400 text-xs mb-1">Technical Logs</div>
+                                                                    <div className="text-white text-sm">View activity and security logs</div>
+                                                                </div>
+                                                                <div className="bg-white/5 p-3 rounded-lg">
+                                                                    <div className="text-slate-400 text-xs mb-1">Session Management</div>
+                                                                    <div className="text-white text-sm">View and revoke user sessions</div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="mt-3 text-xs text-amber-400/70">
+                                                                <Server className="h-3 w-3 inline mr-1" />
+                                                                Platform Admin has no access to business data (risks, controls, KRIs)
+                                                            </div>
+                                                        </>
+                                                    ) : user.role.name === 'cro' ? (
+                                                        /* CRO: Show Risk Hub capabilities */
+                                                        <>
+                                                            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                                                Risk Hub Capabilities
+                                                            </div>
+                                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                                <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                                                                    <div className="text-amber-400 text-xs mb-1">Risk Types</div>
+                                                                    <div className="text-white text-sm">Create, edit, delete risk categories</div>
+                                                                </div>
+                                                                <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                                                                    <div className="text-amber-400 text-xs mb-1">Global Config</div>
+                                                                    <div className="text-white text-sm">Set thresholds and system settings</div>
+                                                                </div>
+                                                                <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
+                                                                    <div className="text-amber-400 text-xs mb-1">Approval Rules</div>
+                                                                    <div className="text-white text-sm">Configure approval scenarios</div>
+                                                                </div>
+                                                                <div className="bg-purple-500/10 p-3 rounded-lg border border-purple-500/20">
+                                                                    <div className="text-purple-400 text-xs mb-1">All Business Data</div>
+                                                                    <div className="text-white text-sm">Full access to risks, controls, KRIs</div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="mt-3 text-xs text-amber-400/70">
+                                                                <Crown className="h-3 w-3 inline mr-1" />
+                                                                Chief Risk Officer has full business configuration access via Risk Hub
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        /* Regular users: Show business permissions matrix */
+                                                        <>
+                                                            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                                                Effective Permissions
+                                                            </div>
+                                                            <PermissionMatrix permissions={user.effective_permissions} />
+                                                        </>
+                                                    )}
                                                 </td>
                                             </tr>
                                         )}

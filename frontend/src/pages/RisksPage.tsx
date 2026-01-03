@@ -15,10 +15,11 @@ import {
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
 import { approvalsApi } from '@/services/approvalsApi';
-import type { RiskSummary, RiskType, RiskStatus } from '@/types/risk';
+import type { RiskSummary, RiskStatus } from '@/types/risk';
 import { PermissionGate } from '@/components/PermissionGate';
 import { SortableTable, CategoryDrillDown, MiniHeatmap, ViewSwitcher, Pagination } from '@/components/tables';
 import type { Column, ViewMode } from '@/components/tables';
+import { useRiskTypes, useRiskThresholds } from '@/hooks/useRiskHubConfig';
 
 export function RisksPage() {
     const navigate = useNavigate();
@@ -29,13 +30,17 @@ export function RisksPage() {
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('');
-    const [typeFilter, setTypeFilter] = useState<RiskType | ''>('');
+    const [typeFilter, setTypeFilter] = useState<string>('');
     const [priorityFilter, setPriorityFilter] = useState<boolean | undefined>(undefined);
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [isExporting, setIsExporting] = useState(false);
     const [hasBreachFilter, setHasBreachFilter] = useState<boolean | undefined>(undefined);
     const [criticalFilter, setCriticalFilter] = useState<boolean>(false);
+
+    // Risk Hub configuration
+    const { riskTypes } = useRiskTypes();
+    const { getScoreColor } = useRiskThresholds();
 
     const [pendingApprovalIds, setPendingApprovalIds] = useState<Set<number>>(new Set());
     const [searchParams, setSearchParams] = useSearchParams();
@@ -84,7 +89,7 @@ export function RisksPage() {
                     limit,
                     search: search || undefined,
                     status: (statusFilter as RiskStatus) || undefined,
-                    risk_type: (typeFilter as RiskType) || undefined,
+                    risk_type: typeFilter || undefined,
                     is_priority: priorityFilter,
                     has_breach: hasBreachFilter,
                     min_net_score: criticalFilter ? 15 : undefined,
@@ -112,7 +117,7 @@ export function RisksPage() {
                         limit: pageSize,
                         search: search || undefined,
                         status: (statusFilter as RiskStatus) || undefined,
-                        risk_type: (typeFilter as RiskType) || undefined,
+                        risk_type: typeFilter || undefined,
                         is_priority: priorityFilter,
                         has_breach: hasBreachFilter,
                         min_net_score: criticalFilter ? 15 : undefined,
@@ -168,13 +173,6 @@ export function RisksPage() {
         }
     };
 
-    const getScoreColor = (score: number) => {
-        if (score >= 16) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
-        if (score >= 10) return 'text-orange-400 bg-orange-400/10 border-orange-400/20';
-        if (score >= 5) return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-        return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-    };
-
     const getStatusColor = (status: RiskStatus) => {
         switch (status) {
             case 'active': return 'text-emerald-400 bg-emerald-400/10';
@@ -185,10 +183,12 @@ export function RisksPage() {
         }
     };
 
-    const getTypeColor = (type: RiskType) => {
-        return type === 'strategic'
-            ? 'text-purple-400 bg-purple-400/10'
-            : 'text-blue-400 bg-blue-400/10';
+    const getTypeColor = (typeCode: string) => {
+        // For system types, use predefined colors
+        if (typeCode === 'strategic') return 'text-purple-400 bg-purple-400/10';
+        if (typeCode === 'operational') return 'text-blue-400 bg-blue-400/10';
+        // For custom types, use a generic accent style
+        return 'text-accent bg-accent/10';
     };
 
     // Column definitions for SortableTable
@@ -416,12 +416,15 @@ export function RisksPage() {
                     </select>
                     <select
                         value={typeFilter}
-                        onChange={(e) => setTypeFilter(e.target.value as RiskType | '')}
+                        onChange={(e) => setTypeFilter(e.target.value)}
                         className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-300 outline-none focus:border-accent/50 appearance-none min-w-[130px]"
                     >
                         <option value="" className="bg-slate-900">All Types</option>
-                        <option value="strategic" className="bg-slate-900">Strategic</option>
-                        <option value="operational" className="bg-slate-900">Operational</option>
+                        {riskTypes.map(rt => (
+                            <option key={rt.code} value={rt.code} className="bg-slate-900">
+                                {rt.display_name}
+                            </option>
+                        ))}
                     </select>
                     <button
                         onClick={() => setPriorityFilter(priorityFilter === true ? undefined : true)}

@@ -28,7 +28,9 @@ class DepartmentSummary(BaseModel):
     risk_count: int
     control_count: int
     high_risk_count: int
+    breaching_kri_count: int = 0
     kri_count: int = 0
+    total_net_score: int = 0
     
     model_config = {"from_attributes": True}
 

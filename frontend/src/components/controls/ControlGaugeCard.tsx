@@ -1,0 +1,134 @@
+import { motion } from 'framer-motion';
+import { Info, AlertTriangle, ShieldCheck } from 'lucide-react';
+import type { RiskControlLink } from '@/types/risk';
+
+interface ControlGaugeCardProps {
+    link: RiskControlLink;
+    onClick?: () => void;
+}
+
+export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
+    const {
+        effectiveness,
+        control,
+        notes
+    } = link;
+
+    const controlName = control?.name || 'Unknown Control';
+    const frequency = control?.frequency || '—';
+    const riskLevel = control?.risk_level || 0;
+    const maxRiskLevel = 5;
+
+    const getStatusColor = () => {
+        switch (effectiveness) {
+            case 'high': return 'text-emerald-400';
+            case 'medium': return 'text-amber-400';
+            case 'low': return 'text-rose-400';
+            default: return 'text-slate-400';
+        }
+    };
+
+    const getBarColor = () => {
+        switch (effectiveness) {
+            case 'high': return 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]';
+            case 'medium': return 'bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)]';
+            case 'low': return 'bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.4)]';
+            default: return 'bg-slate-500 shadow-[0_0_15px_rgba(71,85,105,0.4)]';
+        }
+    };
+
+    const getStatusIcon = () => {
+        switch (effectiveness) {
+            case 'high': return <ShieldCheck className="h-4 w-4" />;
+            case 'medium': return <Info className="h-4 w-4" />;
+            case 'low': return <AlertTriangle className="h-4 w-4" />;
+            default: return <Info className="h-4 w-4" />;
+        }
+    };
+
+    const getEffectivenessLabel = () => {
+        switch (effectiveness) {
+            case 'high': return 'Optimal';
+            case 'medium': return 'Effective';
+            case 'low': return 'Ineffective';
+            default: return (effectiveness as string).toUpperCase();
+        }
+    };
+
+    // Calculate percentage for gauge (1-5 scale)
+    const calculatePercent = (val: number) => {
+        return Math.max(0, Math.min(100, (val / maxRiskLevel) * 100));
+    };
+
+    const valuePct = calculatePercent(riskLevel);
+
+    return (
+        <motion.div
+            whileHover={{ y: -4, scale: 1.01 }}
+            onClick={onClick}
+            className="glass-card p-5 cursor-pointer group flex flex-col h-full"
+        >
+            <div className="flex justify-between items-start mb-4 gap-4">
+                <div className="flex-1 min-w-0">
+                    <h4 className="text-white font-bold text-sm leading-tight mb-1 group-hover:text-accent transition-colors truncate" title={controlName}>
+                        {controlName}
+                    </h4>
+                    <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                        Control Detail
+                    </span>
+                </div>
+                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 border border-white/20 font-bold text-[10px] uppercase tracking-wide shrink-0 ${getStatusColor()}`}>
+                    {getStatusIcon()}
+                    {getEffectivenessLabel()}
+                </div>
+            </div>
+
+            <div className="space-y-4 mt-auto">
+                <div className="flex items-end justify-between">
+                    <div>
+                        <div className="text-2xl font-black text-white flex items-baseline gap-2">
+                            {riskLevel}
+                            <span className="text-xs text-slate-300 font-bold">/ {maxRiskLevel}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
+                            Frequency: {frequency}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Gauge Visualization */}
+                <div className="relative h-8 flex items-center">
+                    {/* Background track */}
+                    <div className="absolute inset-x-0 h-2 bg-white/5 rounded-full overflow-hidden" />
+
+                    {/* Progress track (styled like KRI gauge) */}
+                    <div
+                        className={`absolute h-2 rounded-full opacity-20 ${getBarColor().split(' ')[0]}`}
+                        style={{ left: '0%', width: `${valuePct}%` }}
+                    />
+
+                    {/* Current Value Pointer */}
+                    <motion.div
+                        initial={{ left: 0 }}
+                        animate={{ left: `${valuePct}%` }}
+                        transition={{ type: "spring", stiffness: 100 }}
+                        className={`absolute w-3 h-3 rounded-full border-2 border-slate-900 z-10 -ml-1.5 ${getBarColor()}`}
+                    />
+                </div>
+
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter text-slate-400">
+                    <span>1 LEVEL MIN</span>
+                    <span>5 LEVEL MAX</span>
+                </div>
+
+                {notes && (
+                    <div className="pt-2 border-t border-white/5">
+                        <p className="text-[10px] text-slate-300 font-medium italic line-clamp-2">
+                            "{notes}"
+                        </p>
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    );
+}

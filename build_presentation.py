@@ -14,64 +14,76 @@ IMAGES = {
 
 SCREENSHOTS_ORDER = [
     ("dashboard_operational_insight.png", "Manažerský Přehled (Operational Insight)", 
-     "Centrální mozek aplikace RiskHub. Poskytuje okamžitý vhled do celkového stavu rizikového profilu organizace. "
-     "Klíčové metriky zahrnují počet aktivních kontrol, kritická rizika a průměrné skóre rizikovosti. "
-     "Grafická část zobrazuje distribuci kontrol podle stavu (aktivní/neaktivní), formy (manuální/automatické) a frekvence provádění."),
+     "Centrální analytický uzel systému RiskHub. Tento modul v reálném čase agreguje data z celého rizikového landscape organizace. "
+     "Manažerské pohledy poskytují okamžitou vizualizaci klíčových metrik (KRI), stavu kontrolního prostředí a celkové rizikové expozice. "
+     "Díky reaktivním komponentám a asynchronnímu zpracování na backendu má management k dispozici vždy aktuální data pro informované rozhodování, "
+     "včetně prediktivních trendů vývoje rizik a efektivity mitigujících opatření."),
     
     ("risk_register.png", "Centrální Registr Rizik", 
-     "Kompletní evidence všech identifikovaných rizik v organizaci. Systém podporuje kategorizaci dle procesů a oblastí. "
-     "Každé riziko je ohodnoceno pomocí Gross (hrubého) a Net (čistého) skóre, což umožňuje sledovat efektivitu zmírňujících opatření. "
-     "Umožňuje přehledné filtrování a vyhledávání v celém rizikovém portfoliu."),
+     "Robustní úložiště pro systematickou evidenci a kategorizaci veškerých rizik. Systém umožňuje detailní mapování rizik na "
+     "organizační strukturu, procesní model a strategické cíle společnosti. Každý záznam obsahuje kompletní historii hodnocení, "
+     "vazby na zmírňující kontroly a automaticky generované Net Scoring skóre. Filtrační mechanismy umožňují bleskovou navigaci "
+     "tisíci záznamů a identifikaci nejkritičtějších oblastí organizace."),
 
-    ("risk_assessment_details.png", "Detailní Posouzení Rizika", 
-     "Interaktivní modul pro kvantifikaci a vizualizaci rizik. Obsahuje heatmapu rizikovosti, kde lze přehledně sledovat posun mezi "
-     "inherentním a reziduálním rizikem. Umožňuje přesné nastavení pravděpodobnosti a dopadu pro objektivní scoring."),
+    ("risk_assessment_details.png", "Kvantitativní Posouzení Rizika", 
+     "Interaktivní modul pro precizní scoring pravděpodobnosti a dopadu. Využívá pokročilou heatmapu, která vizualizuje posun mezi "
+     "inherentním a reziduálním rizikem po aplikaci kontrolních mechanismů. Systém automaticky přepočítává rizikové skóre "
+     "na základě definovaných matic a umožňuje ukládat historické verze posouzení pro sledování vývoje rizika v čase (Time-travel Audit)."),
 
-    ("control_definition.png", "Definice Kontrolního Mechanismu", 
-     "Tento 5-krokový průvodce (Wizard) zajišťuje standardizaci při zavádění nových kontrol. "
-     "Uživatel definuje identitu kontroly, vlastníka, způsob exekuce, vazbu na rizika a metodu ověřování. "
-     "Tato struktura zaručuje, že žádná kontrola nebude zavedena bez jasného účelu a odpovědnosti."),
+    ("control_definition.png", "Inteligentní Definice Kontrol", 
+     "Standardizovaný 5-krokový průvodce (Wizard) pro návrh a zavádění nových kontrolních mechanismů. "
+     "Tato metodika vynucuje definici jasného vlastníka (Owner), frekvence provádění, způsobu exekuce (Automated/Manual) "
+     "a přímou vazbu na zmírňovaná rizika. Zajišťuje, že každá investice do bezpečnosti má měřitelný účel a jasnou odpovědnost."),
 
-    ("control_details_execution.png", "Detail a Exekuce Kontroly", 
-     "Komplexní pohled na konkrétní kontrolu včetně její historie a frekvence. "
-     "Zahrnuje přehled zmírňovaných rizik a auditní stopu posledních exekucí se stavem (Passed/Failed). "
-     "Umožňuje přímé logování výkonu kontroly pro potřeby auditu."),
+    ("control_details_execution.png", "Monitoring Exekuce Kontrol", 
+     "Detailní náhled na operativní výkonnost konkrétní kontroly. Modul integruje historické záznamy o výkonu (Evidence Logs), "
+     "statistiku úspěšnosti (Passed vs. Failed) a přehled všech incidentů, které tato kontrola pomohla zachytit. "
+     "Poskytuje nezpochybnitelný důkaz (Audit Proof) o funkčnosti kontrolního landscape pro regulátory a auditory."),
 
-    ("risk_appetite_kri.png", "Klíčové Indikátory Rizik (KRI)", 
-     "Systém včasného varování. Pro každé riziko lze definovat metriky (KRI), které v reálném čase sledují vývoj kritických parametrů. "
-     "Vizuální indikátory okamžitě upozorní na překročení definovaných limitů (Tolerance vs. Breach)."),
+    ("risk_appetite_kri.png", "Monitoring Klíčových Indikátorů (KRI)", 
+     "Systém včasného varování (Early Warning System). Umožňuje definovat metriky, které automaticky indikují zvýšení rizikového napětí. "
+     "Pro každý indikátor lze nastavit hranice tolerance a kritické limity (Breach Levels). Při jejich překročení systém okamžitě iniciuje "
+     "eskalační proces a notifikuje odpovědné manažery, čímž minimalizuje reakční dobu na vznikající hrozby."),
 
-    ("risk_appetite_list.png", "Seznam a Monitoring Indikátorů", 
-     "Přehled všech KRI v rámci organizace s aktuálními hodnotami a stavy. "
-     "Umožňuje rychlou filtraci a identifikaci oblastí, které vyžadují pozornost managementu z důvodu porušení rizikového apetitu."),
+    ("risk_appetite_list.png", "Strategický Přehled KRI", 
+     "Agregovaný pohled na všechny rizikové indikátory v rámci organizace. Umožňuje managementu sledovat, zda se společnost "
+     "pohybuje v mezích definovaného rizikového apetitu. Barevná vizualizace stavů poskytuje okamžitý 'High-Level' vhled do oblastí, "
+     "které vyžadují okamžitý zásah nebo revizi strategie řízení rizik."),
 
-    ("risk_appetite_details.png", "Detail Rizikového Apetitu", 
-     "Propojení strategických cílů s operativní realitou. Zde se definují limity pro jednotlivé metriky "
-     "a zobrazují se všechny mitigující kontroly, které mají za úkol udržet riziko v požadovaných mezích."),
+    ("risk_appetite_details.png", "Propojení Strategie a Operativy", 
+     "Detailní pohled na rizikový apetit pro konkrétní domény. Zde se definují strategické limity a k nim se přiřazují "
+     "všechny relevantní kontrolní mechanismy a KRI. Toto propojení zajišťuje, že každá strategická hranice je hlídána "
+     "konkrétními operativními nástroji, čímž vzniká uzavřený kruh řízení (Closed-loop Governance)."),
 
-    ("governance_oversight.png", "Governance Oversight - Osiřelé Položky", 
-     "Modul pro správu kontinuity. Automaticky detekuje rizika, kontroly a KRI, které ztratily svého vlastníka "
-     "(např. po odchodu zaměstnance). Zajišťuje, že v systému nezůstávají nekontrolované oblasti."),
+    ("governance_oversight.png", "Governance: Detekce Osiřelých Dat", 
+     "Automatizovaný strážce integrity. Modul kontinuálně skenuje systém a identifikuje rizika, kontroly nebo KRI, které "
+     "v důsledku organizačních změn nebo odchodů zaměstnanců ztratily svého odpovědného vlastníka. "
+     "Vynucuje rychlé znovupřiřazení a zajišťuje, že žádná riziková oblast nezůstane bez dohledu."),
 
-    ("governance_uncategorised.png", "Governance - Správa Nekategorizovaných Dat", 
-     "Udržuje integritu datového modelu. Identifikuje položky bez jasného zařazení do organizační struktury "
-     "nebo procesního modelu a vynucuje jejich správu administrativním zásahem."),
+    ("governance_uncategorised.png", "Taxonomie a Integrita Dat", 
+     "Nástroj pro správu datové konzistence. Identifikuje entity, které nejsou správně zařazeny do procesního nebo "
+     "organizačního modelu společnosti. Zajišťuje, že rizikový landscape je vždy strukturovaný a reportovatelné, "
+     "což je klíčové pro správné fungování automatických agregací a dashboardů."),
 
-    ("workflow_pending_queue.png", "Schvalovací Workflow", 
-     "Zajišťuje integritu kritických operací. Smazání nebo významná změna rizika/kontroly vyžaduje schválení nadřízeným "
-     "nebo oddělením Risk Managementu. Všechny požadavky jsou transparentně evidovány ve frontě."),
+    ("workflow_pending_queue.png", "Governance: Schvalovací Workflow", 
+     "Bezpečnostní pojistka systému. Kritické operace jako smazání rizika nebo změna nastavení kontroly vyžadují "
+     "vícestupňové schválení (4-eyes principle). Všechny požadavky jsou transparentně řazeny do front a doprovázeny "
+     "odůvodněním, což eliminuje riziko neautorizovaných změn a zajišťuje integritu datového modelu."),
 
-    ("audit_trail.png", "Globální Auditní Stopa", 
-     "Nezpochybnitelný záznam o všech událostech v systému. Sleduje kdo, kdy a co provedl. "
-     "Nezbytný nástroj pro interní audit a externí regulátory pro prokázání souladu se zákonnými požadavky."),
+    ("audit_trail.png", "Forenzní Auditní Stopa", 
+     "Kompletní, časově neměnný záznam veškeré aktivity v systému. Každá změna, každé přihlášení a každý feedback "
+     "u kontroly je zaznamenán s časovým razítkem a identitou uživatele. Tento modul je klíčovým pilířem pro prokázání "
+     "compliance a poskytuje auditorům kompletní dataset pro retrospektivní analýzu událostí."),
 
-    ("user_management.png", "Správa Uživatelů a Rolí (RBAC)", 
-     "Pokročilé řízení přístupů. Role-Based Access Control zajišťuje, že uživatelé vidí a spravují pouze "
-     "data relevantní pro jejich roli a oddělení. Plně integrované s Active Directory."),
+    ("user_management.png", "Identita a Přístupy (RBAC)", 
+     "Správa uživatelů postavená na principu nejmenšího oprávnění (Least Privilege). Role-Based Access Control "
+     "umožňuje precizní nastavení oprávnění pro prohlížení, editaci nebo schvalování dat. Plná integrace s Active Directory "
+     "zajišťuje automatickou synchronizaci uživatelů a centrální správu identit v souladu s podnikovými standardy."),
 
-    ("departments_overview.png", "Přehled Organizační Struktury", 
-     "Analytický pohled na rizikovost po jednotlivých odděleních. Umožňuje srovnání výkonnosti control-landscape "
-     "napříč společností a identifikaci slabých míst v organizaci."),
+    ("departments_overview.png", "Strukturální Analýza Rizik", 
+     "Pohled na rizikovost skrze organizační hierarchii. Umožňuje srovnání rizikové zralosti jednotlivých oddělení "
+     "a identifikaci útvarů s nejvyšším přebytkovým rizikem. Slouží k efektivní alokaci zdrojů na posilování "
+     "bezpečnosti tam, kde je to z pohledu celé organizace nejvíce potřeba."),
 ]
 
 def get_b64(path):
@@ -92,42 +104,58 @@ for filename, title, desc in SCREENSHOTS_ORDER:
     path = os.path.join(SCREENSHOTS_DIR, filename)
     b64 = get_b64(path)
     screenshots_html += f"""
-    <div class="page-break-inside-avoid mb-16 space-y-4">
-        <div class="gallery-item-static shadow-2xl border border-white/10 rounded-2xl overflow-hidden bg-slate-900/50">
-            <img src="{b64}" alt="{title}" class="w-full h-auto">
+    <div class="page-break-inside-avoid mb-24 grid grid-cols-12 gap-12 items-start">
+        <!-- Browser Frame UI -->
+        <div class="col-span-7 w-full">
+            <div class="browser-frame shadow-sm border border-slate-200">
+                <div class="browser-header">
+                    <div class="flex gap-1.5">
+                        <div class="dot bg-red-400"></div>
+                        <div class="dot bg-amber-400"></div>
+                        <div class="dot bg-emerald-400"></div>
+                    </div>
+                    <div class="url-bar">riskhub.slavia.local/{filename.split('.')[0]}</div>
+                </div>
+                <div class="relative">
+                    <img src="{b64}" alt="{title}" class="w-full h-auto object-cover border-t border-slate-100">
+                </div>
+            </div>
         </div>
-        <div class="px-2">
-            <h3 class="text-2xl font-display font-bold text-white mb-2">{title}</h3>
-            <p class="text-slate-400 leading-relaxed text-sm md:text-base">{desc}</p>
+        
+        <!-- Enriched Description -->
+        <div class="col-span-5 space-y-6">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slavia-red/5 border border-slavia-red/10 text-[10px] font-bold text-slavia-red uppercase tracking-widest">
+                Feature Focus
+            </div>
+            <h3 class="text-3xl font-bold text-slate-900 leading-tight">{title}</h3>
+            <div class="space-y-4">
+                <p class="text-slate-600 leading-relaxed text-sm md:text-base italic border-l-4 border-slavia-red/20 pl-4">
+                    {desc.split('. ')[0]}.
+                </p>
+                <p class="text-slate-500 leading-relaxed text-sm md:text-base">
+                    {'. '.join(desc.split('. ')[1:])}
+                </p>
+            </div>
         </div>
     </div>
     """
 
 HTML_CONTENT = f"""<!DOCTYPE html>
-<html lang="cs" class="scroll-smooth">
+<html lang="cs">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RiskHub - Slavia Pojišťovna Edition (PDF Export Ready)</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <title>RiskHub - Slavia Pojišťovna (Board Presentation)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {{
             theme: {{
                 extend: {{
                     colors: {{
-                        slavia: {{
-                            red: '#e11d2b',
-                            dark: '#0f172a',
-                            blue: '#1e3a8a',
-                        }}
+                        slavia: {{ red: '#e11d2b', slate: '#334155' }}
                     }},
-                    fontFamily: {{
-                        sans: ['Inter', 'sans-serif'],
-                        display: ['Outfit', 'sans-serif'],
-                    }}
+                    fontFamily: {{ sans: ['Inter', 'sans-serif'] }}
                 }}
             }}
         }}
@@ -135,237 +163,137 @@ HTML_CONTENT = f"""<!DOCTYPE html>
     <style>
         @media print {{
             .no-print {{ display: none !important; }}
-            .page-break-before {{ page-break-before: always; }}
-            .page-break-inside-avoid {{ page-break-inside: avoid; }}
-            body {{ background-color: white !important; color: black !important; }}
-            .glass {{ background: white !important; border: 1px solid #ddd !important; color: black !important; }}
-            .text-slate-400 {{ color: #444 !important; }}
-            .text-white {{ color: black !important; }}
-            .mesh-bg {{ display: none !important; }}
-            .bg-slavia-red {{ background-color: #e11d2b !important; print-color-adjust: exact; }}
-            .text-slavia-red {{ color: #e11d2b !important; }}
-            header {{ min-height: 0 !important; padding-top: 2rem !important; }}
-            .hero-image-container {{ transform: none !important; }}
-            .gallery-item-static {{ border: 1px solid #eee !important; }}
+            .page-break-before {{ page-break-before: always; break-before: page; }}
+            .page-break-inside-avoid {{ page-break-inside: avoid; break-inside: avoid; }}
         }}
         body {{
-            background-color: #020617;
-            color: #f8fafc;
+            background-color: #ffffff;
+            color: #1e293b;
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
         }}
-        .glass {{
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+        .browser-frame {{
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f8fafc;
         }}
-        .text-gradient-red {{
-            background: linear-gradient(to right, #fff, #e11d2b);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .browser-header {{
+            background: #f1f5f9;
+            padding: 8px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }}
-        .mesh-bg {{
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
-            background: 
-                radial-gradient(circle at 15% 15%, rgba(225, 29, 43, 0.08) 0%, transparent 40%),
-                radial-gradient(circle at 85% 85%, rgba(30, 58, 138, 0.08) 0%, transparent 40%);
+        .dot {{ width: 8px; height: 8px; rounded-full; background: #cbd5e1; border-radius: 50%; }}
+        .url-bar {{
+            flex-grow: 1;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 10px;
+            padding: 2px 8px;
+            color: #64748b;
+            margin: 0 40px;
+            text-align: center;
         }}
     </style>
 </head>
-<body class="antialiased selection:bg-slavia-red selection:text-white">
-    <div class="mesh-bg"></div>
-
-    <!-- Nav -->
-    <nav class="fixed top-0 w-full z-50 glass px-8 py-4 flex justify-between items-center no-print">
-        <div class="font-display font-bold text-2xl tracking-tight text-white flex items-center gap-2">
-            <div class="w-3 h-3 rounded-full bg-slavia-red"></div>
-            RiskHub <span class="opacity-50 font-normal text-sm ml-2 font-sans tracking-normal">Board Presentation</span>
-        </div>
-        <div class="hidden md:flex gap-8 text-sm font-medium text-slate-400">
-            <a href="#gallery" class="hover:text-white transition">Funkce</a>
-            <a href="#arch" class="hover:text-white transition">Technologie</a>
-            <a href="#history" class="hover:text-white transition">Vývoj</a>
-        </div>
-        <button onclick="window.print()" class="bg-slavia-red hover:bg-red-700 text-white px-5 py-2 rounded-lg font-medium text-sm transition">
-            Export do PDF
-        </button>
-    </nav>
-
+<body class="p-0 m-0">
     <!-- Hero -->
-    <header class="min-h-screen flex items-center justify-center relative px-6 pt-24 pb-12 overflow-hidden">
-        <div class="max-w-7xl w-full grid lg:grid-cols-2 gap-12 items-center">
-            <div class="space-y-8 z-10">
-                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/50 border border-slate-700/50 text-[10px] font-mono text-slavia-red uppercase tracking-widest">
-                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                    Production Ready v1.0
-                </div>
-                <h1 class="text-5xl lg:text-7xl font-display font-bold leading-[1.1]">
-                    Bezpečnost <br>
-                    <span class="text-gradient-red">Bez Kompromisů.</span>
-                </h1>
-                <p class="text-lg text-slate-400 max-w-lg leading-relaxed">
-                    Nová generace řízení rizik pro <strong>Slavia Pojišťovnu</strong>. Transparentní governance, 
-                    integrovaná automatizace a profesionální nástroje pro risk management.
+    <header class="py-20 px-12 border-b-4 border-slavia-red">
+        <div class="max-w-6xl mx-auto grid grid-cols-12 gap-12 items-center">
+            <div class="col-span-12 md:col-span-7 space-y-6">
+                <div class="text-slavia-red font-bold tracking-widest uppercase text-sm">RiskHub Platform v1.0</div>
+                <h1 class="text-6xl font-extrabold text-slate-900 leading-tight">Bezpečnost a Kontrola.</h1>
+                <p class="text-xl text-slate-600">
+                    Komplexní systém řízení rizik navržený specificky pro potřeby <strong>Slavia Pojišťovny</strong>. 
+                    Transparentní governance, automatizované monitorování a integrovaný risk-management.
                 </p>
-                
-                <!-- Author Badge -->
-                <div class="pt-8 border-t border-slate-800/50 flex flex-wrap gap-8 items-center">
+                <div class="pt-8 grid grid-cols-2 gap-8 text-sm border-t border-slate-100">
                     <div>
-                        <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Architekt</p>
-                        <p class="font-display font-bold text-white text-lg">Stefan Lesnak</p>
+                        <div class="text-slate-400 font-bold uppercase mb-1">Architekt</div>
+                        <div class="text-slate-900 font-semibold">Stefan Lesnak</div>
                     </div>
                     <div>
-                        <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Developer</p>
-                        <p class="font-display font-bold text-slavia-red text-lg">Antigravity & Codex</p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Metodika</p>
-                        <p class="font-display font-bold text-white text-lg">Systematic Vibe Coding</p>
+                        <div class="text-slate-400 font-bold uppercase mb-1">Status</div>
+                        <div class="text-slavia-red font-semibold">Production Ready</div>
                     </div>
                 </div>
             </div>
-            
-            <div class="hero-image-container relative">
-                <img src="{hero_src}" alt="RiskHub Shield" 
-                     class="w-full rounded-2xl shadow-2xl border border-slate-800">
+            <div class="col-span-12 md:col-span-5">
+                <img src="{hero_src}" class="w-full rounded-lg shadow-lg border border-slate-200">
             </div>
         </div>
     </header>
 
-    <!-- Architecture Section -->
-    <section id="arch" class="py-32 px-6 bg-slate-900/30 border-y border-white/5 page-break-before">
-        <div class="max-w-7xl mx-auto space-y-16">
-            <div class="grid lg:grid-cols-2 gap-16 items-center">
-                <div class="space-y-8">
-                    <div>
-                        <span class="text-blue-500 font-mono text-sm tracking-widest uppercase">Under the Hood</span>
-                        <h2 class="text-4xl font-display font-bold mt-2">Robustní Architektura</h2>
-                    </div>
-                    
-                    <div class="space-y-6">
-                        <div class="glass p-6 rounded-xl">
-                            <h3 class="text-xl font-bold mb-3 flex items-center gap-2">
-                                <span class="text-yellow-400">⚡</span> High-Performance Stack
-                            </h3>
-                            <p class="text-slate-400 text-sm leading-relaxed">
-                                Systém je postaven na moderním asynchronním <strong>FastAPI (Python 3.13)</strong>, 
-                                které zajišťuje bleskovou odezvu i při vysokém počtu paralelních požadavků. 
-                                Datová vrstva využívá <strong>PostgreSQL</strong> pro maximální integritu a bezpečnost dat.
-                            </p>
-                        </div>
-
-                        <div class="glass p-6 rounded-xl">
-                            <h3 class="text-xl font-bold mb-3 flex items-center gap-2">
-                                <span class="text-cyan-400">⚛️</span> Reactive Frontend
-                            </h3>
-                            <p class="text-slate-400 text-sm leading-relaxed">
-                                Uživatelské rozhraní v <strong>React 19</strong> (TypeScript) přináší zážitek úrovně desktopové aplikace. 
-                                Díky Vite je zajištěna nízká latence načítání a plynulé animace (Framer Motion).
-                            </p>
-                        </div>
+    <!-- Architecture -->
+    <section class="py-20 px-12 bg-slate-50 page-break-before">
+        <div class="max-w-6xl mx-auto space-y-12">
+            <div class="grid grid-cols-12 gap-12 items-center">
+                <div class="col-span-12 md:col-span-5 space-y-4">
+                    <h2 class="text-3xl font-bold text-slate-900">Technologický Stack</h2>
+                    <p class="text-slate-600">
+                        Robustní backend na <strong>Python/FastAPI</strong> a moderní <strong>React</strong> frontend zajišťují 
+                        maximální stabilitu, rychlost a škálovatelnost systému.
+                    </p>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2 text-slate-700 font-medium">✓ PostgreSQ v16 Core</div>
+                        <div class="flex items-center gap-2 text-slate-700 font-medium">✓ Async Processing</div>
+                        <div class="flex items-center gap-2 text-slate-700 font-medium">✓ RBAC Security</div>
                     </div>
                 </div>
-                <div class="relative">
-                    <img src="{arch_src}" alt="Architecture Visual" class="rounded-2xl border border-white/10 shadow-2xl">
+                <div class="col-span-12 md:col-span-7">
+                    <img src="{arch_src}" class="w-full rounded-lg border border-slate-200 shadow-sm">
                 </div>
             </div>
 
-            <!-- AD Emulator Content -->
-            <div class="glass p-8 md:p-12 rounded-3xl border-l-4 border-slavia-red">
-                <h3 class="text-2xl font-display font-bold mb-6">Prozatímní Komponenta: AD Emulator</h3>
-                <div class="grid md:grid-cols-2 gap-12 text-slate-300">
-                    <div class="space-y-4">
-                        <p>
-                            Součástí implementace je <strong>AD Emulator</strong> – vyhrazená mikroslužba simulující prostředí 
-                            Active Directory. Toto řešení slouží jako <strong>provizorní, ale plně funkční náhrada</strong> 
-                            produkčního adresáře.
-                        </p>
-                    </div>
-                    <div class="space-y-4">
-                        <p>
-                            Umožňuje nám to plně implementovat a verifikovat veškerou Governance logiku, 
-                            automatickou synchronizaci uživatelů a přiřazování rolí bez závislosti na 
-                            interní IT infrastruktuře ve fázi vývoje a pilotního provozu.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Timeline & Execution -->
-    <section id="history" class="py-32 px-6 page-break-before">
-        <div class="max-w-4xl mx-auto space-y-16">
-            <div class="text-center space-y-4">
-                <h2 class="text-4xl font-display font-bold">Vývojový Průběh</h2>
-                <p class="text-slate-400">Projektové milníky a rychlost dodávky.</p>
-            </div>
-
-            <div class="glass p-10 rounded-3xl space-y-10">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center py-4 border-b border-white/5">
-                    <div>
-                        <div class="text-4xl font-black text-white">15+</div>
-                        <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Dokončených Fází</div>
-                    </div>
-                    <div>
-                        <div class="text-4xl font-black text-slavia-red">3 Dny</div>
-                        <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Čas Exekuce</div>
-                    </div>
-                    <div>
-                        <div class="text-4xl font-black text-white">1</div>
-                        <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Architekt</div>
-                    </div>
-                </div>
-                
-                <div class="space-y-12">
-                    <div class="flex gap-6 group">
-                        <div class="text-green-500 font-mono text-sm pt-1">23.12.</div>
-                        <div class="flex-1 pb-8 border-l border-white/10 pl-8 relative">
-                            <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                            <h4 class="font-bold text-white text-xl">Den 1: Architektura & Foundation</h4>
-                            <p class="text-slate-400 text-sm mt-3 leading-relaxed">
-                                Inicializace projektu, technologický stack, databázové modely.
-                                Základy Risk Registru a Control Catalog.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-6 group">
-                        <div class="text-green-500 font-mono text-sm pt-1">24.12.</div>
-                        <div class="flex-1 pb-8 border-l border-white/10 pl-8 relative">
-                            <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
-                            <h4 class="font-bold text-white text-xl">Den 2: Core Features & UI</h4>
-                            <p class="text-slate-400 text-sm mt-3 leading-relaxed">
-                                Dashboard, KRI monitoring, RBAC. Schvalovací workflow.
-                                Premium frontend design s glassmorphism efekty.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-6 group">
-                        <div class="text-slavia-red font-mono text-sm pt-1">25-26.12.</div>
-                        <div class="flex-1 pb-4 border-l border-white/10 pl-8 relative">
-                            <div class="absolute -left-[5px] top-2 w-[10px] h-[10px] rounded-full bg-slavia-red shadow-[0_0_10px_rgba(225,29,43,0.5)] animate-pulse"></div>
-                            <h4 class="font-bold text-white text-xl">Den 3: Integrace & Polish</h4>
-                            <p class="text-slate-400 text-sm mt-3 leading-relaxed">
-                                AD Emulator, Governance modul, notifikace.
-                                Finální testování a příprava prezentace.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Detailed Features Gallery -->
-    <section id="gallery" class="py-24 px-6 md:px-12 bg-slate-900/10 page-break-before">
-        <div class="max-w-7xl mx-auto space-y-24">
-            <div class="text-center space-y-4 mb-20">
-                <h2 class="text-4xl md:text-6xl font-display font-bold">Příloha: Screenshoty Aplikace</h2>
-                <p class="text-slate-400 max-w-2xl mx-auto text-lg">
-                    Vizuální průvodce jednotlivými moduly a funkcemi systému RiskHub.
+            <div class="p-8 bg-white border border-slate-200 rounded-xl page-break-inside-avoid">
+                <h3 class="text-xl font-bold text-slavia-red mb-4">AD Emulator: Integrace bez závislostí</h3>
+                <p class="text-slate-600 leading-relaxed">
+                    Součástí dodávky je simulátor Active Directory prostředí. Tato komponenta umožnila plnou implementaci 
+                    a otestování uživatelské synchronizace a schvalovacích procesů nezávisle na firemní infrastruktuře.
                 </p>
             </div>
+        </div>
+    </section>
+
+    <!-- Project Timeline -->
+    <section class="py-20 px-12 page-break-before">
+        <div class="max-w-3xl mx-auto space-y-12">
+            <div class="text-center space-y-2">
+                <h2 class="text-3xl font-bold">Vývojový Průběh</h2>
+                <div class="text-slavia-red font-mono font-bold">Agilní Exekuce: 3 Pracovní Dny</div>
+            </div>
             
+            <div class="space-y-8">
+                <div class="relative pl-12 border-l-2 border-slate-100 py-2">
+                    <div class="absolute -left-[9px] top-6 w-4 h-4 rounded-full bg-slavia-red"></div>
+                    <div class="text-slate-400 font-mono text-xs">23. 12. 2025</div>
+                    <h4 class="text-lg font-bold text-slate-900">Fáze 1: Architektura a Jádro systému</h4>
+                    <p class="text-slate-600 text-sm mt-1">Nastavení technologií, databázových modelů a základních registrů rizik a kontrol.</p>
+                </div>
+                <div class="relative pl-12 border-l-2 border-slate-100 py-2">
+                    <div class="absolute -left-[9px] top-6 w-4 h-4 rounded-full bg-slavia-red"></div>
+                    <div class="text-slate-400 font-mono text-xs">24. 12. 2025</div>
+                    <h4 class="text-lg font-bold text-slate-900">Fáze 2: UI Dashboard a Business Logika</h4>
+                    <p class="text-slate-600 text-sm mt-1">Vývoj interaktivních přehledů, KRI monitoringu a kompletního uživatelského rozhraní.</p>
+                </div>
+                <div class="relative pl-12 border-l-2 border-slate-100 py-2">
+                    <div class="absolute -left-[9px] top-6 w-4 h-4 rounded-full bg-slavia-red"></div>
+                    <div class="text-slate-400 font-mono text-xs">25. - 26. 12. 2025</div>
+                    <h4 class="text-lg font-bold text-slate-900">Fáze 3: Integrace a Finální Polish</h4>
+                    <p class="text-slate-600 text-sm mt-1">Implementace AD Emulátoru, Governance modulu a příprava na produkční nasazení.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Gallery -->
+    <section class="py-20 px-12 bg-slate-50 border-t border-slate-200 page-break-before">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-4xl font-extrabold text-slate-900 mb-20 text-center">Detailní Screenshoty Aplikace</h2>
             <div class="space-y-32">
                 {screenshots_html}
             </div>
@@ -373,40 +301,25 @@ HTML_CONTENT = f"""<!DOCTYPE html>
     </section>
 
     <!-- Footer -->
-    <footer class="py-20 text-center border-t border-white/5 bg-slate-900/40">
-        <div class="max-w-4xl mx-auto space-y-12">
-            <div class="font-display font-bold text-3xl tracking-tight text-white flex items-center justify-center gap-3">
-                <div class="w-4 h-4 rounded-full bg-slavia-red"></div>
-                RiskHub Enterprise
-            </div>
-            
-            <div class="text-slate-500 text-sm space-y-2">
-                <p>&copy; 2025 Slavia Pojišťovna | Autorský projekt</p>
-                <p>Navrženo pro standardy Silicon Valley. Implementováno pomocí AI Agentů.</p>
-            </div>
-        </div>
+    <footer class="py-20 text-center text-slate-400 text-sm border-t border-slate-100">
+        <p>&copy; 2025 Slavia Pojišťovna | Autorský projekt</p>
+        <p>Jednoduchost. Rychlost. Bezpečnost.</p>
     </footer>
 
-    <!-- Interactive Layer (hidden in Print) -->
-    <div id="imgModal" class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 no-print opacity-0 pointer-events-none transition-opacity duration-300">
-        <img id="modalImg" src="" class="max-w-full max-h-[90vh] rounded-lg shadow-2xl border border-white/10">
-        <button onclick="closeModal()" class="absolute top-6 right-6 text-white/50 hover:text-white transition">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
+    <!-- Simple Modal -->
+    <div id="imgModal" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8 hidden no-print" onclick="this.classList.add('hidden')">
+        <img id="modalImg" class="max-w-full max-h-full rounded shadow-2xl">
     </div>
-
     <script>
         function openModal(src) {{
             document.getElementById('modalImg').src = src;
-            document.getElementById('imgModal').classList.remove('opacity-0', 'pointer-events-none');
-        }}
-        function closeModal() {{
-            document.getElementById('imgModal').classList.add('opacity-0', 'pointer-events-none');
+            document.getElementById('imgModal').classList.remove('hidden');
         }}
     </script>
 </body>
 </html>
 """
+
 
 # Write File
 output_path = "presentation.html"

@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (isMounted) {
                     setUser(userData);
                 }
-            } catch (err) {
+            } catch {
                 // Token invalid, clear it
                 if (isMounted) {
                     logout();

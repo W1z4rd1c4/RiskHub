@@ -58,7 +58,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                 if (response?.items) {
                     setRisks(response.items);
                 }
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('Error loading risks:', err);
                 setError('Failed to load risks.');
             } finally {
@@ -81,6 +81,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
         loadUsers();
     }, []);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleInputChange = (field: keyof KRICreate, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         setError(null); // Clear error on change
@@ -129,9 +130,10 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
             }
 
             navigate('/kris');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error saving KRI:', err);
-            setError(err.message || 'Failed to save KRI.');
+            const message = err instanceof Error ? err.message : 'Failed to save KRI.';
+            setError(message);
         } finally {
             setIsSubmitting(false);
         }
