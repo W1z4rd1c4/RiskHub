@@ -633,6 +633,50 @@ class LogConfig(BaseModel):
     log_retention_count: int
 
 
+class DocumentationEntry(BaseModel):
+    """Platform documentation entry."""
+    id: str
+    title: str
+    content: str
+
+
+class DocumentationResponse(BaseModel):
+    """List of documentation entries."""
+    documents: list[DocumentationEntry]
+
+
+@router.get("/docs", response_model=DocumentationResponse)
+async def get_admin_documentation(
+    current_user: User = Depends(get_current_user)
+) -> DocumentationResponse:
+    """
+    Get platform documentation for administrators.
+    Admin only.
+    """
+    require_admin(current_user)
+    
+    from pathlib import Path
+    
+    # documentation files are in backend/docs/
+    docs_dir = Path(__file__).parent.parent.parent.parent / "docs"
+    siem_doc_path = docs_dir / "SIEM_INTEGRATION.md"
+    
+    documents = []
+    
+    if siem_doc_path.exists():
+        with open(siem_doc_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            documents.append(DocumentationEntry(
+                id="siem",
+                title="SIEM Integration Guide",
+                content=content
+            ))
+            
+    # Add other documents here as needed
+            
+    return DocumentationResponse(documents=documents)
+
+
 @router.get("/logs/config", response_model=LogConfig)
 async def get_log_config(
     db: AsyncSession = Depends(get_db),

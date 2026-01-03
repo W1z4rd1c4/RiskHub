@@ -15,7 +15,10 @@ import {
     Users as UsersIcon,
     ClipboardCheck,
     Scale,
-    Activity
+    Activity,
+    Command,
+    Server,
+    BookOpen
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -76,11 +79,11 @@ export function Sidebar() {
         badge: pendingCount > 0 ? pendingCount : undefined
     };
 
-    const adminItems = canManageAccess
-        ? [
-            { name: 'Access Management', href: '/users', icon: UsersIcon },
-        ]
-        : [];
+    // Access Management visible to admins, privileged users, and department heads
+    const canViewUsers = canManageAccess || user?.role === 'department_head';
+    const userManagementItem = canViewUsers
+        ? { name: 'Access Management', href: '/users', icon: UsersIcon }
+        : null;
 
     const navigationWithBadges = navigation.map(item => {
         if (item.href === '/governance') {
@@ -98,14 +101,48 @@ export function Sidebar() {
         icon: Activity,
     };
 
-    const filteredNavigation = [
-        navigationWithBadges[0], // Dashboard
-        workflowItem,
-        ...navigationWithBadges.slice(1, 7), // Controls, Risks, Risk Appetite, Departments, Governance, Audit Trail
-        ...(canViewActivityLog ? [activityLogItem] : []),
-        navigationWithBadges[7], // Settings
-        ...adminItems,
-    ];
+    // Risk Hub visible only to CRO
+    const riskHubItem = user?.role === 'cro' ? {
+        name: 'Risk Hub',
+        href: '/risk-hub',
+        icon: Command,
+    } : null;
+
+    // Admin Console visible only to Admin
+    const adminConsoleItem = user?.role === 'admin' ? {
+        name: 'Admin Console',
+        href: '/admin',
+        icon: Server,
+    } : null;
+
+    const documentationItem = user?.role === 'admin' ? {
+        name: 'Documentation',
+        href: '/admin/docs',
+        icon: BookOpen,
+    } : null;
+
+    // Admin only sees: Settings, Access Management, Admin Console
+    // Everyone else sees the full business navigation
+    const isAdmin = user?.role === 'admin';
+
+    const filteredNavigation = isAdmin
+        ? [
+            // Admin-only navigation (no business data)
+            navigationWithBadges[7], // Settings
+            ...(userManagementItem ? [userManagementItem] : []),
+            ...(adminConsoleItem ? [adminConsoleItem] : []),
+            ...(documentationItem ? [documentationItem] : []),
+        ]
+        : [
+            // Business user navigation
+            navigationWithBadges[0], // Dashboard
+            workflowItem,
+            ...navigationWithBadges.slice(1, 7), // Controls, Risks, Risk Appetite, Departments, Governance, Audit Trail
+            ...(canViewActivityLog ? [activityLogItem] : []),
+            navigationWithBadges[7], // Settings
+            ...(userManagementItem ? [userManagementItem] : []),
+            ...(riskHubItem ? [riskHubItem] : []),
+        ];
 
     return (
         <aside className="fixed inset-y-0 left-0 z-50 hidden lg:flex w-72 flex-col p-6">
@@ -140,11 +177,14 @@ export function Sidebar() {
                                     <item.icon className={cn('h-5 w-5', isActive ? 'text-white' : 'text-slate-500 group-hover:text-white')} />
                                     {item.name}
                                 </div>
+                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                 {(item as any).badge && (
                                     <span className="bg-accent text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                         {(item as any).badge}
                                     </span>
                                 )}
+                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                                 {isActive && !(item as any).badge && <ChevronRight className="h-4 w-4" />}
                             </Link>
                         );
