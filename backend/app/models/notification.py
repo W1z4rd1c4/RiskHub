@@ -14,6 +14,7 @@ class NotificationType(str, PyEnum):
     KRI_DUE_TOMORROW = "kri_due_tomorrow"
     KRI_OVERDUE = "kri_overdue"
     KRI_NEAR_BREACH = "kri_near_breach"
+    KRI_BREACH_DETECTED = "kri_breach_detected"
 
 
 class Notification(Base):

@@ -4,6 +4,7 @@
  * Admin/CRO can additionally edit access_scope.
  */
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Shield, Building2, User, Loader2, Check, Crown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { accessApi } from '@/services/accessApi';
@@ -114,15 +115,18 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
 
     if (!user) return null;
 
-    return (
+    if (typeof document === 'undefined') return null;
+
+    return createPortal(
         <AnimatePresence mode="wait">
             {isOpen && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                        className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
                         onClick={onClose}
                     />
 
@@ -173,8 +177,8 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                                     key={role.id}
                                                     onClick={() => setSelectedRoleId(role.id)}
                                                     className={`p-3 rounded-xl border text-left transition-all ${selectedRoleId === role.id
-                                                            ? 'bg-purple-500/10 border-purple-500'
-                                                            : 'bg-white/5 border-white/5 hover:bg-white/10'
+                                                        ? 'bg-purple-500/10 border-purple-500'
+                                                        : 'bg-white/5 border-white/5 hover:bg-white/10'
                                                         }`}
                                                 >
                                                     <p className={`text-sm font-bold ${selectedRoleId === role.id ? 'text-purple-400' : 'text-white'}`}>
@@ -235,8 +239,8 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                                         key={option.value}
                                                         onClick={() => setSelectedScope(option.value)}
                                                         className={`w-full p-3 rounded-xl border text-left transition-all flex items-center gap-3 ${selectedScope === option.value
-                                                                ? 'bg-amber-500/10 border-amber-500'
-                                                                : 'bg-white/5 border-white/5 hover:bg-white/10'
+                                                            ? 'bg-amber-500/10 border-amber-500'
+                                                            : 'bg-white/5 border-white/5 hover:bg-white/10'
                                                             }`}
                                                     >
                                                         <div className={`w-6 h-6 rounded flex items-center justify-center ${selectedScope === option.value ? 'bg-amber-500 text-white' : 'bg-white/10 text-slate-600'
@@ -301,6 +305,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                     </motion.div>
                 </div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }

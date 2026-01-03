@@ -129,6 +129,7 @@ class ControlSummary(BaseModel):
     risk_level: int
     status: ControlStatusEnum
     control_form: ControlFormEnum
+    control_owner_name: Optional[str] = None
     
     model_config = {"from_attributes": True}
 

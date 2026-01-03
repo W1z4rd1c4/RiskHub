@@ -1,5 +1,6 @@
 """Activity log model for tracking all system changes."""
 from enum import Enum as PyEnum
+from typing import Optional
 from datetime import datetime, UTC
 from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -17,6 +18,8 @@ class ActivityAction(str, PyEnum):
     STATUS_CHANGE = "status_change"
     LINK = "link"
     UNLINK = "unlink"
+    LOGIN = "login"
+    FAILED_LOGIN = "failed_login"
 
 
 class ActivityEntityType(str, PyEnum):
@@ -54,7 +57,7 @@ class ActivityLog(Base):
     action: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     
     # Who performed the action
-    actor_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    actor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     actor_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Snapshot
     
     # Department scoping (for access control filtering)
@@ -75,7 +78,7 @@ class ActivityLog(Base):
     )
     
     # Relationships
-    actor: Mapped["User"] = relationship("User", foreign_keys=[actor_id])
+    actor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[actor_id])
     department: Mapped["Department"] = relationship("Department", foreign_keys=[department_id])
     
     # Composite indexes for common queries

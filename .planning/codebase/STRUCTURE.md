@@ -1,84 +1,49 @@
-# Structure
+# Directory Structure
 
-## Backend (`backend/app/`)
+## Repository Layout
 ```
-backend/app/
-├── main.py                 # FastAPI app setup, CORS, /api/v1 mount
-├── api/
-│   ├── deps.py             # Auth + DB dependency helpers
-│   └── v1/
-│       ├── router.py       # Registers endpoint modules
-│       └── endpoints/
-│           ├── approvals.py
-│           ├── auth.py
-│           ├── controls.py
-│           ├── dashboard.py
-│           ├── departments.py
-│           ├── executions.py
-│           ├── health.py
-│           ├── kris.py
-│           ├── reports.py
-│           ├── risks.py
-│           └── users.py
-├── core/
-│   ├── config.py           # Settings via BaseSettings
-│   ├── security.py         # JWT, password hashing, permissions
-│   └── permissions.py      # Role/department access helpers
-├── db/
-│   ├── base.py             # SQLAlchemy DeclarativeBase
-│   ├── session.py          # Async engine/session factory
-│   └── seed.py             # Seed data
-├── models/
-│   ├── approval_request.py
-│   ├── control.py
-│   ├── control_execution.py
-│   ├── department.py
-│   ├── key_risk_indicator.py
-│   ├── risk.py
-│   ├── role.py
-│   └── user.py
-├── schemas/
-│   ├── approval_request.py
-│   ├── auth.py
-│   ├── control.py
-│   ├── dashboard.py
-│   ├── department.py
-│   ├── execution.py
-│   ├── kri.py
-│   ├── risk.py
-│   └── user.py
-└── services/
-    └── report_service.py   # PDF/Excel generation
+/
+├── backend/                # RiskHub FastAPI API
+│   ├── alembic/            # Migrations
+│   ├── app/
+│   │   ├── api/v1/endpoints/  # REST endpoints
+│   │   ├── core/              # Config, auth, scheduler
+│   │   ├── db/                # Async DB session/base
+│   │   ├── integrations/      # AD Emulator client
+│   │   ├── models/            # SQLAlchemy models
+│   │   ├── schemas/           # Pydantic schemas
+│   │   ├── services/          # Domain services
+│   │   └── main.py            # App entry
+│   ├── scripts/            # Seed/migration utilities
+│   ├── tests/              # Pytest suite
+│   └── requirements.txt
+├── frontend/               # RiskHub React SPA
+│   ├── src/
+│   │   ├── components/     # UI and domain components
+│   │   ├── contexts/       # Auth, dashboard filters
+│   │   ├── hooks/          # Custom hooks
+│   │   ├── pages/          # Route-level pages
+│   │   ├── services/       # API client modules
+│   │   ├── types/          # Shared TS types
+│   │   ├── App.tsx         # Routes/layout
+│   │   └── main.tsx        # Entry
+│   ├── tests/              # Playwright E2E
+│   └── package.json
+├── AD Emulator/            # Directory emulator (separate app)
+│   ├── backend/
+│   │   ├── app/             # FastAPI API
+│   │   ├── alembic/         # Migrations
+│   │   └── requirements.txt
+│   └── frontend/
+│       ├── src/             # React UI
+│       └── package.json
+├── .planning/              # Plans, state, codebase map
+├── docker-compose.yml      # Postgres service
+├── scripts/                # Misc tooling
+└── generate_pdf.py         # One-off reporting script
 ```
 
-## Frontend (`frontend/src/`)
-```
-frontend/src/
-├── App.tsx                 # Router + protected layout
-├── main.tsx                # App bootstrap
-├── pages/                  # Route-level screens
-├── components/             # Shared UI + feature components
-├── contexts/               # Auth + dashboard filter state
-├── services/               # apiClient + resource APIs
-├── types/                  # Domain types mirroring backend schemas
-├── hooks/                  # Custom hooks (permissions)
-└── lib/                    # Utilities
-```
-
-## Module Organization
-
-### Models
-- snake_case file names per entity
-- `__init__.py` exports common ORM types for easy imports
-
-### Schemas
-- Mirror model naming
-- Include Create/Update/Read variants
-- Enums for domain states (e.g., `RiskTypeEnum`)
-
-### Endpoints
-- Resource-based modules with router instances
-- RESTful naming (`list_*`, `get_*`, `create_*`, `update_*`, `delete_*`)
-
----
-*Last updated: 2025-12-28*
+## Notable Files
+- `docker-compose.yml` runs PostgreSQL for RiskHub.
+- `generate_pdf.py` and `generate_pdf.js` are standalone export utilities.
+- `verify_sync_integration.py` and `backend/scripts/` contain data migration checks.

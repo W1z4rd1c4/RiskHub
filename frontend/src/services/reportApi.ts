@@ -5,6 +5,13 @@ interface ReportFilters {
     status?: string | null;
 }
 
+interface AuditTrailFilters extends ReportFilters {
+    result?: string | null;
+    controlId?: number | null;
+    fromDate?: string | null;
+    toDate?: string | null;
+}
+
 function buildQueryString(filters: ReportFilters): string {
     const params = new URLSearchParams();
     if (filters.departmentId) {
@@ -12,6 +19,27 @@ function buildQueryString(filters: ReportFilters): string {
     }
     if (filters.status) {
         params.append('status', filters.status);
+    }
+    const query = params.toString();
+    return query ? `?${query}` : '';
+}
+
+function buildAuditQueryString(filters: AuditTrailFilters): string {
+    const params = new URLSearchParams();
+    if (filters.departmentId) {
+        params.append('department_id', filters.departmentId.toString());
+    }
+    if (filters.result) {
+        params.append('result', filters.result);
+    }
+    if (filters.controlId) {
+        params.append('control_id', filters.controlId.toString());
+    }
+    if (filters.fromDate) {
+        params.append('from_date', filters.fromDate);
+    }
+    if (filters.toDate) {
+        params.append('to_date', filters.toDate);
     }
     const query = params.toString();
     return query ? `?${query}` : '';
@@ -96,5 +124,22 @@ export const reportApi = {
     async downloadSummaryPdf(filters: ReportFilters = {}): Promise<void> {
         const url = `/reports/summary/pdf${buildQueryString(filters)}`;
         await downloadFile(url, 'placeholder-pdf-015.pdf');
+    },
+
+    /**
+     * Download audit trail report as PDF.
+     */
+    async downloadAuditTrailPdf(filters: AuditTrailFilters = {}): Promise<void> {
+        const url = `/reports/audit-trail/pdf${buildAuditQueryString(filters)}`;
+        await downloadFile(url, 'placeholder-pdf-008.pdf');
+    },
+
+    /**
+     * Download audit trail report as Excel.
+     */
+    async downloadAuditTrailExcel(filters: AuditTrailFilters = {}): Promise<void> {
+        const url = `/reports/audit-trail/excel${buildAuditQueryString(filters)}`;
+        await downloadFile(url, 'placeholder-xlsx-001.xlsx');
     }
 };
+

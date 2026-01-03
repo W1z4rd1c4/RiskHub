@@ -19,6 +19,7 @@ export function UserNewPage() {
     const navigate = useNavigate();
     const { canManageUsers } = usePermissions();
     const [isLoading, setIsLoading] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [departments, setDepartments] = useState<any[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [formData, setFormData] = useState<UserCreate>({
@@ -96,6 +97,7 @@ export function UserNewPage() {
         try {
             await userApi.createUser(formData);
             navigate('/users');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             setError(err.response?.data?.detail || 'Failed to create user. Please check your data.');
         } finally {

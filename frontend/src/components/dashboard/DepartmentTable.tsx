@@ -8,8 +8,18 @@ interface DepartmentTableProps {
     metrics: DepartmentMetrics[];
 }
 
-type SortKey = 'department_name' | 'control_count' | 'risk_count' | 'high_risk_count' | 'compliance_rate';
+type SortKey = 'department_name' | 'control_count' | 'risk_count' | 'high_risk_count' | 'audited_control_count' | 'breaching_kri_count';
 type SortDirection = 'asc' | 'desc';
+
+// Moved outside component to avoid re-creation during render
+function SortIcon({ columnKey, sortKey, sortDirection }: { columnKey: SortKey; sortKey: SortKey; sortDirection: SortDirection }) {
+    if (sortKey !== columnKey) {
+        return <div className="w-3 h-3" />;
+    }
+    return sortDirection === 'asc'
+        ? <ChevronUp className="w-3 h-3 text-accent" />
+        : <ChevronDown className="w-3 h-3 text-accent" />;
+}
 
 export function DepartmentTable({ metrics }: DepartmentTableProps) {
     const navigate = useNavigate();
@@ -40,15 +50,6 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
         return 0;
     });
 
-    const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
-        if (sortKey !== columnKey) {
-            return <div className="w-3 h-3" />;
-        }
-        return sortDirection === 'asc'
-            ? <ChevronUp className="w-3 h-3 text-accent" />
-            : <ChevronDown className="w-3 h-3 text-accent" />;
-    };
-
     return (
         <div className="w-full overflow-hidden">
             <table className="w-full text-left">
@@ -60,7 +61,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                         >
                             <div className="flex items-center gap-1">
                                 Department
-                                <SortIcon columnKey="department_name" />
+                                <SortIcon columnKey="department_name" sortKey={sortKey} sortDirection={sortDirection} />
                             </div>
                         </th>
                         <th
@@ -69,7 +70,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                         >
                             <div className="flex items-center justify-center gap-1">
                                 Controls
-                                <SortIcon columnKey="control_count" />
+                                <SortIcon columnKey="control_count" sortKey={sortKey} sortDirection={sortDirection} />
                             </div>
                         </th>
                         <th
@@ -78,16 +79,25 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                         >
                             <div className="flex items-center justify-center gap-1">
                                 Risks
-                                <SortIcon columnKey="risk_count" />
+                                <SortIcon columnKey="risk_count" sortKey={sortKey} sortDirection={sortDirection} />
                             </div>
                         </th>
                         <th
                             className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center cursor-pointer hover:text-white transition-colors"
-                            onClick={() => handleSort('compliance_rate')}
+                            onClick={() => handleSort('audited_control_count')}
                         >
                             <div className="flex items-center justify-center gap-1">
-                                Compliance
-                                <SortIcon columnKey="compliance_rate" />
+                                Audited
+                                <SortIcon columnKey="audited_control_count" sortKey={sortKey} sortDirection={sortDirection} />
+                            </div>
+                        </th>
+                        <th
+                            className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center cursor-pointer hover:text-white transition-colors"
+                            onClick={() => handleSort('breaching_kri_count')}
+                        >
+                            <div className="flex items-center justify-center gap-1">
+                                KRI Breaches
+                                <SortIcon columnKey="breaching_kri_count" sortKey={sortKey} sortDirection={sortDirection} />
                             </div>
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">
@@ -104,7 +114,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                 className={`group transition-colors ${isSelected
                                     ? 'bg-accent/10 border-l-2 border-l-accent'
                                     : 'hover:bg-white/[0.02]'
-                                    } ${dept.compliance_rate < 0.5 ? 'border-l-2 border-l-rose-500/50' : dept.compliance_rate < 0.8 ? 'border-l-2 border-l-amber-500/50' : ''}`}
+                                    } ${dept.breaching_kri_count > 0 ? 'border-l-2 border-l-rose-500/50' : ''}`}
                             >
                                 <td className="px-6 py-4">
                                     <button
@@ -135,19 +145,23 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                         )}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-col items-center gap-2">
-                                        <div className="w-24 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full transition-all duration-1000 ${dept.compliance_rate >= 0.9 ? 'bg-emerald-500' :
-                                                    dept.compliance_rate >= 0.7 ? 'bg-amber-500' :
-                                                        'bg-rose-500'
-                                                    }`}
-                                                style={{ width: `${dept.compliance_rate * 100}%` }}
-                                            />
-                                        </div>
-                                        <span className="text-[10px] font-black text-slate-400">
-                                            {(dept.compliance_rate * 100).toFixed(0)}%
+                                <td className="px-6 py-4 text-center">
+                                    <div className="flex flex-col items-center">
+                                        <span className={`text-sm font-mono ${dept.audited_control_count > 0 ? 'text-emerald-400 font-bold' : 'text-slate-500'}`}>
+                                            {dept.audited_control_count}/{dept.control_count}
+                                        </span>
+                                        <span className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter mt-0.5">
+                                            Audited
+                                        </span>
+                                    </div>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                    <div className="flex flex-col items-center">
+                                        <span className={`text-sm font-mono ${dept.breaching_kri_count > 0 ? 'text-rose-400 font-bold' : 'text-slate-500'}`}>
+                                            {dept.breaching_kri_count}/{dept.total_kri_count}
+                                        </span>
+                                        <span className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter mt-0.5">
+                                            Breached
                                         </span>
                                     </div>
                                 </td>
@@ -217,7 +231,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                     })}
                     {metrics.length === 0 && (
                         <tr>
-                            <td colSpan={5} className="px-6 py-12 text-center">
+                            <td colSpan={6} className="px-6 py-12 text-center">
                                 <span className="text-slate-500 font-medium">No department data available</span>
                             </td>
                         </tr>

@@ -76,9 +76,9 @@ export interface ControlSummary {
     control_form: ControlForm;
 }
 
-export interface ControlCreate extends Omit<Control, 'id' | 'created_at' | 'updated_at' | 'control_owner' | 'department'> { }
+export type ControlCreate = Omit<Control, 'id' | 'created_at' | 'updated_at' | 'control_owner' | 'department'>;
 
-export interface ControlUpdate extends Partial<ControlCreate> { }
+export type ControlUpdate = Partial<ControlCreate>;
 
 export interface ControlExecution {
     id: number;

@@ -24,6 +24,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 
 export function ActivityLogPage() {
     // State
+    const [activeTab, setActiveTab] = useState('kri');
     const [entries, setEntries] = useState<ActivityLogEntry[]>([]);
     const [total, setTotal] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
@@ -33,13 +34,11 @@ export function ActivityLogPage() {
     // Filters
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [entityType, setEntityType] = useState('');
     const [action, setAction] = useState('');
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
 
     // Filter options
-    const [entityTypes, setEntityTypes] = useState<string[]>([]);
     const [actions, setActions] = useState<string[]>([]);
 
     // Search debounce
@@ -52,11 +51,7 @@ export function ActivityLogPage() {
     useEffect(() => {
         const loadOptions = async () => {
             try {
-                const [types, acts] = await Promise.all([
-                    activityLogApi.getEntityTypes(),
-                    activityLogApi.getActions()
-                ]);
-                setEntityTypes(types);
+                const acts = await activityLogApi.getActions();
                 setActions(acts);
             } catch (err) {
                 console.error('Failed to load filter options:', err);
@@ -68,11 +63,31 @@ export function ActivityLogPage() {
     const fetchEntries = useCallback(async () => {
         setIsLoading(true);
         try {
+            let entityTypes: string[] | undefined;
+
+            // Map tabs to entity types
+            switch (activeTab) {
+                case 'kri':
+                    entityTypes = ['kri', 'kri_value'];
+                    break;
+                case 'risk':
+                    entityTypes = ['risk'];
+                    break;
+                case 'control':
+                    entityTypes = ['control', 'control_execution', 'control_risk_link'];
+                    break;
+                case 'user':
+                    entityTypes = ['user', 'role', 'department', 'approval', 'config'];
+                    break;
+                default:
+                    entityTypes = undefined;
+            }
+
             const filters: ActivityLogFilters = {
                 skip: page * limit,
                 limit,
                 search: debouncedSearch || undefined,
-                entity_type: entityType || undefined,
+                entity_type: entityTypes,
                 action: action || undefined,
                 date_from: dateFrom || undefined,
                 date_to: dateTo || undefined,
@@ -85,7 +100,7 @@ export function ActivityLogPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit, debouncedSearch, entityType, action, dateFrom, dateTo]);
+    }, [page, limit, debouncedSearch, activeTab, action, dateFrom, dateTo]);
 
     useEffect(() => {
         fetchEntries();
@@ -105,6 +120,13 @@ export function ActivityLogPage() {
             default: return <Activity className="h-3 w-3" />;
         }
     };
+
+    const tabs = [
+        { id: 'kri', label: 'KRI' },
+        { id: 'risk', label: 'Risk' },
+        { id: 'control', label: 'Controls' },
+        { id: 'user', label: 'Users' },
+    ];
 
     return (
         <div className="flex flex-col gap-6">
@@ -127,6 +149,22 @@ export function ActivityLogPage() {
                 </button>
             </div>
 
+            {/* Tabs */}
+            <div className="flex items-center gap-1">
+                {tabs.map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => { setActiveTab(tab.id); setPage(0); }}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${activeTab === tab.id
+                                ? 'bg-accent text-white shadow-lg shadow-accent/25'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                            }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
             {/* Filters Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 glass-card rounded-3xl border border-white/5">
                 <div className="relative">
@@ -141,16 +179,6 @@ export function ActivityLogPage() {
                 </div>
 
                 <div className="flex gap-2">
-                    <select
-                        value={entityType}
-                        onChange={(e) => setEntityType(e.target.value)}
-                        className="w-full bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-all appearance-none cursor-pointer"
-                    >
-                        <option value="">All Entity Types</option>
-                        {entityTypes.map(type => (
-                            <option key={type} value={type}>{ENTITY_TYPE_LABELS[type] || type}</option>
-                        ))}
-                    </select>
                     <select
                         value={action}
                         onChange={(e) => setAction(e.target.value)}
