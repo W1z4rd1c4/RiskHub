@@ -56,23 +56,26 @@ async def list_risks(
     """
     List risks with pagination and filters.
     Department heads without admin/cro/risk_manager role see only their department's risks.
-    Also includes risks where user is reporting owner of any linked KRI.
+    Also includes risks where user is reporting owner of any linked KRI or control owner.
     Returns paginated response with total count.
     """
-    from app.core.permissions import get_risk_ids_where_kri_reporting_owner
+    from app.core.permissions import get_risk_ids_where_kri_reporting_owner, get_risk_ids_where_control_owner
     
     base_query = select(Risk)
     
     # Department filtering based on role
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:  # If not empty, user is restricted to specific departments
-        # Include risks from user's departments OR where user is KRI reporting owner
+        # Include risks from user's departments OR where user is KRI reporting owner OR control owner
         reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, current_user.id)
-        if reporting_owner_risk_ids:
+        control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
+        cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
+        
+        if cross_dept_risk_ids:
             base_query = base_query.where(
                 or_(
                     Risk.department_id.in_(dept_ids),
-                    Risk.id.in_(reporting_owner_risk_ids)
+                    Risk.id.in_(cross_dept_risk_ids)
                 )
             )
         else:
@@ -163,7 +166,7 @@ async def get_risk(
     current_user: User = Depends(deps.get_current_user),
 ):
     """Get a single risk with all relationships."""
-    from app.core.permissions import is_risk_kri_reporting_owner
+    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
     
     result = await db.execute(
         select(Risk)
@@ -181,6 +184,10 @@ async def get_risk(
     
     # Allow access if user is reporting owner of any linked KRI (cross-department)
     if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
+        return risk
+    
+    # Allow access if user is control owner of any linked control (cross-department)
+    if await is_risk_control_owner(db, current_user.id, risk_id):
         return risk
     
     # Otherwise verify department access
