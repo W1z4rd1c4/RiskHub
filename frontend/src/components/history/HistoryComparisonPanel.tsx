@@ -141,65 +141,82 @@ export function HistoryComparisonPanel({
     }
 
     return (
-        <div className={cn('space-y-6', className)}>
-            {/* Selector row */}
-            <div className="flex items-center gap-4 flex-wrap">
-                {/* Left selector (previous/baseline) */}
-                <div className="flex-1 min-w-[200px]">
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                        From (Baseline)
-                    </label>
-                    <select
-                        value={leftId ?? ''}
-                        onChange={(e) => setLeftId(e.target.value ? parseInt(e.target.value) : null)}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-accent/50 focus:ring-1 focus:ring-accent/30 outline-none"
-                    >
-                        {sortedEntries.map(entry => (
-                            <option key={entry.id} value={entry.id} className="bg-slate-900">
-                                {formatOptionLabel(entry)}
-                            </option>
-                        ))}
-                    </select>
+        <div className={cn('space-y-8', className)}>
+            {/* Header / Selector row */}
+            <div className="flex items-center justify-between gap-6 flex-wrap">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-accent/10 rounded-lg">
+                        <ArrowRight className="h-4 w-4 text-accent rotate-45" />
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-bold text-white uppercase tracking-wider">Compare Records</h4>
+                        <p className="text-[10px] text-slate-500 font-medium">Analyze changes between two reporting periods</p>
+                    </div>
                 </div>
 
-                <div className="flex items-center justify-center pt-6">
-                    <ArrowRight className="h-5 w-5 text-slate-600" />
-                </div>
+                <div className="flex items-center gap-3 bg-white/5 p-1.5 rounded-xl border border-white/10 ml-auto">
+                    {/* Left selector (previous/baseline) */}
+                    <div className="relative group">
+                        <select
+                            value={leftId ?? ''}
+                            onChange={(e) => setLeftId(e.target.value ? parseInt(e.target.value) : null)}
+                            className="bg-transparent pl-3 pr-8 py-1.5 text-xs font-bold text-slate-400 hover:text-white transition-colors outline-none cursor-pointer appearance-none rounded-lg hover:bg-white/5"
+                        >
+                            {sortedEntries.map(entry => (
+                                <option key={entry.id} value={entry.id} className="bg-[#0f172a] text-white">
+                                    {formatOptionLabel(entry)}
+                                </option>
+                            ))}
+                        </select>
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600 group-hover:text-slate-400 transition-colors">
+                            <ArrowRight className="h-3 w-3 rotate-90 scale-75" />
+                        </div>
+                    </div>
 
-                {/* Right selector (current/target) */}
-                <div className="flex-1 min-w-[200px]">
-                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                        To (Current)
-                    </label>
-                    <select
-                        value={rightId ?? ''}
-                        onChange={(e) => setRightId(e.target.value ? parseInt(e.target.value) : null)}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white focus:border-accent/50 focus:ring-1 focus:ring-accent/30 outline-none"
-                    >
-                        {sortedEntries.map(entry => (
-                            <option key={entry.id} value={entry.id} className="bg-slate-900">
-                                {formatOptionLabel(entry)}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="w-px h-4 bg-white/10" />
+
+                    {/* Right selector (current/target) */}
+                    <div className="relative group">
+                        <select
+                            value={rightId ?? ''}
+                            onChange={(e) => setRightId(e.target.value ? parseInt(e.target.value) : null)}
+                            className="bg-transparent pl-3 pr-8 py-1.5 text-xs font-black text-accent hover:text-accent/80 transition-colors outline-none cursor-pointer appearance-none rounded-lg hover:bg-white/5"
+                        >
+                            {sortedEntries.map(entry => (
+                                <option key={entry.id} value={entry.id} className="bg-[#0f172a] text-white">
+                                    {formatOptionLabel(entry)}
+                                </option>
+                            ))}
+                        </select>
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-accent/50 group-hover:text-accent transition-colors">
+                            <ArrowRight className="h-3 w-3 rotate-90 scale-75" />
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {/* Warning if same selection */}
             {isSameSelection && (
-                <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400 text-sm">
+                <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/[0.03] border border-amber-500/10 rounded-xl text-amber-500/80 text-xs font-medium backdrop-blur-sm animate-pulse">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <span>Please select two different periods to compare.</span>
+                    <span>Difference calculation requires two distinct periods.</span>
                 </div>
             )}
 
             {/* Comparison card */}
             {!isSameSelection && comparisonFields.length > 0 && (
-                <HistoryChangeCard
-                    title="Period Comparison"
-                    fields={comparisonFields}
-                />
+                <div className="relative">
+                    {/* Decorative line connecting selectors to card */}
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-px h-8 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
+
+                    <HistoryChangeCard
+                        title="Delta Analysis"
+                        fields={comparisonFields}
+                        className="shadow-2xl shadow-accent/5"
+                    />
+                </div>
             )}
         </div>
     );
 }
+

@@ -14,6 +14,7 @@ from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.models import User, Department, Role, Risk
+from app.models.user import AccessScope
 from app.models.risk import RiskStatus
 from app.core.security import get_current_user
 
@@ -110,6 +111,7 @@ async def test_user(db_session: AsyncSession, test_department: Department, test_
         department_id=test_department.id,
         role_id=test_role.id,
         is_active=True,
+        access_scope=AccessScope.GLOBAL,
     )
     db_session.add(user)
     await db_session.commit()
@@ -165,6 +167,7 @@ async def test_user_employee(db_session: AsyncSession, test_department: Departme
         department_id=test_department.id,
         role_id=test_role_employee.id,
         is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
     )
     db_session.add(user)
     await db_session.commit()
@@ -210,6 +213,7 @@ async def test_user_risk_manager(db_session: AsyncSession, test_department: Depa
         department_id=test_department.id,
         role_id=test_role_risk_manager.id,
         is_active=True,
+        access_scope=AccessScope.GLOBAL,
     )
     db_session.add(user)
     await db_session.commit()
@@ -255,6 +259,7 @@ async def test_user_cro(db_session: AsyncSession, test_department: Department, t
         department_id=test_department.id,
         role_id=test_role_cro.id,
         is_active=True,
+        access_scope=AccessScope.GLOBAL,
     )
     db_session.add(user)
     await db_session.commit()

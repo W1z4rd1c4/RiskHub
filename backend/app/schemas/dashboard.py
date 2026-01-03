@@ -26,6 +26,9 @@ class DepartmentMetrics(BaseModel):
     control_count: int = 0
     risk_count: int = 0
     high_risk_count: int = 0  # risk_level >= 4
+    audited_control_count: int = 0
+    breaching_kri_count: int = 0
+    total_kri_count: int = 0
     compliance_rate: float = 0.0  # active controls / total controls
 
     model_config = {"from_attributes": True}
@@ -51,3 +54,22 @@ class ControlFrequencyTrend(BaseModel):
     execution_count: int = 0
 
     model_config = {"from_attributes": True}
+
+
+class RiskTrendPoint(BaseModel):
+    """Time series point for risk creation trends."""
+    period: str  # e.g., "2025-01"
+    total_new: int = 0
+    critical_new: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class KRIBreachTrendPoint(BaseModel):
+    """Time series point for KRI breach trends."""
+    period: str  # e.g., "2025-01"
+    total_entries: int = 0
+    breached_entries: int = 0
+
+    model_config = {"from_attributes": True}
+

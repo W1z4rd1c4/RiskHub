@@ -48,6 +48,7 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
             actor=None,
             action=ActivityAction.LOGIN,
             entity_type=ActivityEntityType.USER,
+            entity_id=0,
             entity_name=credentials.email,
             description=f"Failed login attempt: user not found or no password"
         )

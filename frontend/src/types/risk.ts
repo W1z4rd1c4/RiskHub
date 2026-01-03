@@ -85,6 +85,7 @@ export interface RiskSummary {
     department_name?: string;
     kri_count?: number;
     has_breach?: boolean;
+    control_count?: number;
 }
 
 export interface RiskCreate {
@@ -104,7 +105,7 @@ export interface RiskCreate {
     is_priority?: boolean;
 }
 
-export interface RiskUpdate extends Partial<RiskCreate> { }
+export type RiskUpdate = Partial<RiskCreate>;
 
 export interface RiskControlLink {
     id: number;

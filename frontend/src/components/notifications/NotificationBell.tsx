@@ -20,6 +20,8 @@ function getNotificationIcon(type: NotificationType) {
             return <AlertCircle className="h-4 w-4 text-rose-400" />;
         case 'kri_near_breach':
             return <AlertTriangle className="h-4 w-4 text-orange-400" />;
+        case 'kri_breach_detected':
+            return <AlertCircle className="h-4 w-4 text-rose-500" />;
         default:
             return <Bell className="h-4 w-4 text-slate-400" />;
     }
@@ -173,7 +175,7 @@ export function NotificationBell() {
 
             {/* Dropdown Panel */}
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-80 rounded-xl overflow-hidden shadow-2xl z-50 backdrop-blur-xl bg-slate-900/95 border border-white/10">
+                <div className="absolute left-0 mt-2 w-80 rounded-xl overflow-hidden shadow-2xl z-50 backdrop-blur-xl bg-slate-900/95 border border-white/10">
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
                         <h3 className="text-sm font-semibold text-white">Notifications</h3>

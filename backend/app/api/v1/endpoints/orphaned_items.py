@@ -115,6 +115,7 @@ async def resolve_orphan(
             new_owner_id=body.new_owner_id,
             resolved_by_id=current_user.id,
             department_id=body.department_id,
+            target_risk_id=body.target_risk_id,
         )
         
         return {

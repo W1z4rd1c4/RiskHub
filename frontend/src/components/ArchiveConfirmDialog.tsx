@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 
@@ -36,8 +37,9 @@ export function ArchiveConfirmDialog({
             await onConfirm(reason.trim());
             setReason('');
             onClose();
-        } catch (err: any) {
-            setError(err.message || `Failed to archive ${resourceType}.`);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : `Failed to archive ${resourceType}.`;
+            setError(message);
         } finally {
             setIsSubmitting(false);
         }
@@ -50,11 +52,20 @@ export function ArchiveConfirmDialog({
         onClose();
     };
 
+    if (typeof document === 'undefined') return null;
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-            <AnimatePresence>
+    return createPortal(
+        <AnimatePresence>
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                {/* Backdrop */}
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={handleClose}
+                    className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+                />
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -142,7 +153,8 @@ export function ArchiveConfirmDialog({
                         </button>
                     </div>
                 </motion.div>
-            </AnimatePresence>
-        </div>
+            </div>
+        </AnimatePresence>,
+        document.body
     );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Users, ShieldAlert, AlertCircle, RefreshCw } from 'lucide-react';
+import { Building2, Users, ShieldAlert, AlertCircle, RefreshCw, ClipboardList, Activity, TrendingUp } from 'lucide-react';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
 
 export function DepartmentsPage() {
@@ -94,23 +94,46 @@ export function DepartmentsPage() {
                                         <p className="text-xs text-slate-500 font-mono">{dept.code}</p>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-6">
-                                    <div className="flex items-center gap-2 text-slate-500">
-                                        <Users className="h-4 w-4" />
-                                        <span className="text-xs font-bold">{dept.user_count}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-slate-500">
-                                        <ShieldAlert className="h-4 w-4" />
-                                        <span className="text-xs font-bold">{dept.risk_count}</span>
-                                    </div>
-                                    {dept.high_risk_count > 0 && (
-                                        <div className="px-2 py-1 rounded-full bg-rose-500/20 text-rose-400 text-[10px] font-black">
-                                            {dept.high_risk_count} HIGH
+                                <div className="flex items-center gap-2">
+                                    {dept.breaching_kri_count > 0 && (
+                                        <div className="px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-black">
+                                            {dept.breaching_kri_count} BREACHED
                                         </div>
                                     )}
+                                    {dept.high_risk_count > 0 && (
+                                        <div className="px-2 py-1 rounded-full bg-rose-500/20 text-rose-400 text-[10px] font-black">
+                                            {dept.high_risk_count} CRITICAL
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Metrics Grid */}
+                            <div className="grid grid-cols-5 gap-2 text-center">
+                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
+                                    <Users className="h-4 w-4 text-blue-400" />
+                                    <span className="text-lg font-black text-white">{dept.user_count}</span>
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase">People</span>
+                                </div>
+                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
+                                    <ShieldAlert className="h-4 w-4 text-orange-400" />
+                                    <span className="text-lg font-black text-white">{dept.risk_count}</span>
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase">Risks</span>
+                                </div>
+                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
+                                    <ClipboardList className="h-4 w-4 text-purple-400" />
+                                    <span className="text-lg font-black text-white">{dept.control_count}</span>
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase">Controls</span>
+                                </div>
+                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
+                                    <Activity className="h-4 w-4 text-emerald-400" />
+                                    <span className="text-lg font-black text-white">{dept.kri_count}</span>
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase">KRIs</span>
+                                </div>
+                                <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
+                                    <TrendingUp className="h-4 w-4 text-rose-400" />
+                                    <span className="text-lg font-black text-white">{dept.total_net_score}</span>
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase">Risk Σ</span>
                                 </div>
                             </div>
                         </button>

@@ -2,7 +2,7 @@ import { apiClient as api } from './apiClient';
 import type { ActivityLogListResponse } from '@/types/activityLog';
 
 export interface ActivityLogFilters {
-    entity_type?: string;
+    entity_type?: string | string[];
     entity_id?: number;
     actor_id?: number;
     department_id?: number;
@@ -16,6 +16,7 @@ export interface ActivityLogFilters {
 
 export const activityLogApi = {
     async list(filters: ActivityLogFilters = {}): Promise<ActivityLogListResponse> {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return api.get('/activity-log', { params: filters as any });
     },
 

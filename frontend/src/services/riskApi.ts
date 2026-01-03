@@ -4,7 +4,6 @@ import type {
     RiskCreate,
     RiskUpdate,
     RiskControlLink,
-    RiskType,
     RiskStatus,
     ControlEffectiveness,
     RiskListResponse
@@ -16,7 +15,7 @@ export const riskApi = {
         limit?: number;
         department_id?: number;
         status?: RiskStatus;
-        risk_type?: RiskType;
+        risk_type?: string; // Dynamic from Risk Hub config
         is_priority?: boolean;
         search?: string;
         has_breach?: boolean;

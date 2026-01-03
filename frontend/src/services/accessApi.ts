@@ -29,6 +29,14 @@ export const accessApi = {
     },
 
     /**
+     * List users in current user's department with access info.
+     * Available to department heads and privileged users.
+     */
+    async listDepartmentAccessUsers(): Promise<AccessUserRead[]> {
+        return apiClient.get<AccessUserRead[]>('/access/users/my-department');
+    },
+
+    /**
      * List roles with their permissions.
      * Requires privileged access.
      */

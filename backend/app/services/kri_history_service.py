@@ -137,6 +137,7 @@ class KRIHistoryService:
         recorded_at: Optional[datetime] = None,
         period_end: Optional[date] = None,
         is_privileged: bool = False,
+        allow_open_period: bool = False,
     ) -> KRIValueHistory:
         """
         Record a new KRI value and create a history entry.
@@ -149,6 +150,8 @@ class KRIHistoryService:
             recorded_at: Timestamp of recording (defaults to now)
             period_end: Period end date (for backdating by privileged users)
             is_privileged: Whether user can backdate outside current window
+            allow_open_period: Whether to allow recording for current open period
+                              (used when applying approved submissions)
             
         Returns:
             Created KRIValueHistory entry
@@ -161,18 +164,26 @@ class KRIHistoryService:
         
         # Determine period (default to latest closed period)
         latest_start, latest_end = KRIHistoryService.latest_closed_period_for_date(today, kri.frequency)
+        # Get current (possibly open) period for allow_open_period check
+        current_start, current_end = KRIHistoryService.period_bounds_for_date(today, kri.frequency)
         
         if period_end is None:
             period_end = latest_end
             period_start = latest_start
         else:
+            # Check if period_end is in the future
             if period_end > today:
-                raise ValueError("Cannot record a future period")
-            if not KRIHistoryService.is_period_end_boundary(period_end, kri.frequency):
-                raise ValueError("period_end must align to a calendar period boundary")
-            period_start, _ = KRIHistoryService.period_bounds_for_date(period_end, kri.frequency)
-            if not is_privileged and period_end < latest_end:
-                raise ValueError("Non-privileged users cannot backdate to older periods")
+                # Allow only if it's exactly the current open period end AND allow_open_period is enabled
+                if allow_open_period and is_privileged and period_end == current_end:
+                    period_start = current_start
+                else:
+                    raise ValueError("Cannot record a future period")
+            else:
+                if not KRIHistoryService.is_period_end_boundary(period_end, kri.frequency):
+                    raise ValueError("period_end must align to a calendar period boundary")
+                period_start, _ = KRIHistoryService.period_bounds_for_date(period_end, kri.frequency)
+                if not is_privileged and period_end < latest_end:
+                    raise ValueError("Non-privileged users cannot backdate to older periods")
         
         # Non-privileged users must be within window even for current period
         if not is_privileged and not KRIHistoryService.is_within_reporting_window(period_end):

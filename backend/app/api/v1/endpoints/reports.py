@@ -15,7 +15,8 @@ from io import BytesIO
 from app.db.session import get_db
 from app.api.deps import get_current_user
 from app.models.control import Control
-from app.models.risk import Risk
+from app.models.control_execution import ControlExecution
+from app.models.risk import Risk, ControlRiskLink
 from app.models import User
 from app.core.permissions import get_user_department_ids
 from app.core.security import require_permission
@@ -24,7 +25,9 @@ from app.services.report_service import (
     generate_controls_excel,
     generate_risks_pdf,
     generate_risks_excel,
-    generate_dashboard_summary_pdf
+    generate_dashboard_summary_pdf,
+    generate_audit_trail_pdf,
+    generate_audit_trail_excel
 )
 
 router = APIRouter()
@@ -310,3 +313,130 @@ async def download_summary_pdf(
             "Content-Disposition": f'attachment; filename="{get_filename("dashboard-summary", "pdf")}"'
         }
     )
+
+
+@router.get("/audit-trail/pdf")
+async def download_audit_trail_pdf(
+    department_id: Optional[int] = Query(None, description="Filter by department"),
+    result: Optional[str] = Query(None, description="Filter by result (passed/failed/warning)"),
+    control_id: Optional[int] = Query(None, description="Filter by control"),
+    from_date: Optional[datetime] = Query(None, description="Filter from date"),
+    to_date: Optional[datetime] = Query(None, description="Filter to date"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("reports", "read"))
+):
+    """Download audit trail (control executions) as PDF. Scoped to user's accessible departments."""
+    dept_ids = get_user_department_ids(current_user)
+    validate_department_access(department_id, dept_ids)
+    
+    # Build query with eager loading
+    query = (
+        select(ControlExecution)
+        .join(Control, ControlExecution.control_id == Control.id)
+        .options(
+            selectinload(ControlExecution.control).selectinload(Control.department),
+            selectinload(ControlExecution.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
+            selectinload(ControlExecution.executed_by)
+        )
+    )
+    
+    # Department scoping
+    if dept_ids is not None:
+        if not dept_ids:
+            return StreamingResponse(
+                BytesIO(generate_audit_trail_pdf([])),
+                media_type="application/pdf",
+                headers={"Content-Disposition": f'attachment; filename="{get_filename("audit-trail", "pdf")}"'}
+            )
+        query = query.where(Control.department_id.in_(dept_ids))
+    
+    # Filters
+    if department_id:
+        query = query.where(Control.department_id == department_id)
+    if result:
+        query = query.where(ControlExecution.result == result)
+    if control_id:
+        query = query.where(ControlExecution.control_id == control_id)
+    if from_date:
+        query = query.where(ControlExecution.executed_at >= from_date)
+    if to_date:
+        query = query.where(ControlExecution.executed_at <= to_date)
+    
+    query = query.order_by(ControlExecution.executed_at.desc())
+    
+    result_set = await db.execute(query)
+    executions = result_set.scalars().all()
+    
+    pdf_bytes = generate_audit_trail_pdf(list(executions))
+    
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{get_filename("audit-trail", "pdf")}"'
+        }
+    )
+
+
+@router.get("/audit-trail/excel")
+async def download_audit_trail_excel(
+    department_id: Optional[int] = Query(None, description="Filter by department"),
+    result: Optional[str] = Query(None, description="Filter by result (passed/failed/warning)"),
+    control_id: Optional[int] = Query(None, description="Filter by control"),
+    from_date: Optional[datetime] = Query(None, description="Filter from date"),
+    to_date: Optional[datetime] = Query(None, description="Filter to date"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("reports", "read"))
+):
+    """Download audit trail (control executions) as Excel. Scoped to user's accessible departments."""
+    dept_ids = get_user_department_ids(current_user)
+    validate_department_access(department_id, dept_ids)
+    
+    # Build query with eager loading
+    query = (
+        select(ControlExecution)
+        .join(Control, ControlExecution.control_id == Control.id)
+        .options(
+            selectinload(ControlExecution.control).selectinload(Control.department),
+            selectinload(ControlExecution.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
+            selectinload(ControlExecution.executed_by)
+        )
+    )
+    
+    # Department scoping
+    if dept_ids is not None:
+        if not dept_ids:
+            return StreamingResponse(
+                BytesIO(generate_audit_trail_excel([])),
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f'attachment; filename="{get_filename("audit-trail", "xlsx")}"'}
+            )
+        query = query.where(Control.department_id.in_(dept_ids))
+    
+    # Filters
+    if department_id:
+        query = query.where(Control.department_id == department_id)
+    if result:
+        query = query.where(ControlExecution.result == result)
+    if control_id:
+        query = query.where(ControlExecution.control_id == control_id)
+    if from_date:
+        query = query.where(ControlExecution.executed_at >= from_date)
+    if to_date:
+        query = query.where(ControlExecution.executed_at <= to_date)
+    
+    query = query.order_by(ControlExecution.executed_at.desc())
+    
+    result_set = await db.execute(query)
+    executions = result_set.scalars().all()
+    
+    excel_bytes = generate_audit_trail_excel(list(executions))
+    
+    return StreamingResponse(
+        BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{get_filename("audit-trail", "xlsx")}"'
+        }
+    )
+

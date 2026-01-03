@@ -455,10 +455,12 @@ export function RiskDetailPage() {
                                         return (
                                             <KRIGaugeCard
                                                 key={kri.id}
+                                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                 kri={kri as any}
                                                 isOverdue={!!overdueInfo}
                                                 daysOverdue={overdueInfo?.days_overdue}
                                                 onClick={() => {
+                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                     setSelectedKRI(kri as any);
                                                     setIsKRIModalOpen(true);
                                                 }}
@@ -553,7 +555,7 @@ export function RiskDetailPage() {
                         <ControlCreateDialog
                             isOpen={isCreateDialogOpen}
                             onClose={() => setIsCreateDialogOpen(false)}
-                            onSuccess={(_controlId) => {
+                            onSuccess={() => {
                                 setIsCreateDialogOpen(false);
                                 fetchData();
                             }}

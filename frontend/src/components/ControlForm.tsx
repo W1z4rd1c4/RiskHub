@@ -13,10 +13,12 @@ import {
     ShieldCheck,
     Link as LinkIcon,
     Target,
-    Search
+    Search,
+    Plus
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
 import { lookupApi } from '@/services/lookupApi';
+import type { UserLookupItem } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
 import type { Control, ControlCreate, ControlUpdate } from '@/types/control';
 import { ControlForm as ControlFormType, ControlFrequency, ControlStatus } from '@/types/control';
@@ -24,6 +26,8 @@ import type { RiskSummary, ControlEffectiveness } from '@/types/risk';
 interface ControlFormProps {
     initialData?: Control;
     isEdit?: boolean;
+    onSuccess?: (controlId: number) => void;
+    onCancel?: () => void;
 }
 
 const steps = [
@@ -34,26 +38,20 @@ const steps = [
     { id: 'link_risk', title: 'Link Risk', icon: LinkIcon }
 ];
 
-interface UserOption {
-    id: number;
-    name: string;
-    email: string;
-}
-
 interface DepartmentOption {
     id: number;
     name: string;
     code: string;
 }
 
-export function ControlForm({ initialData, isEdit = false }: ControlFormProps) {
+export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }: ControlFormProps) {
     const navigate = useNavigate();
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Lookup data
-    const [users, setUsers] = useState<UserOption[]>([]);
+    const [users, setUsers] = useState<UserLookupItem[]>([]);
     const [departments, setDepartments] = useState<DepartmentOption[]>([]);
     const [isLoadingLookups, setIsLoadingLookups] = useState(true);
 
@@ -61,6 +59,10 @@ export function ControlForm({ initialData, isEdit = false }: ControlFormProps) {
     const [risks, setRisks] = useState<RiskSummary[]>([]);
     const [riskSearch, setRiskSearch] = useState('');
     const [isLoadingRisks, setIsLoadingRisks] = useState(false);
+
+    // Owner search/filter
+    const [ownerSearch, setOwnerSearch] = useState('');
+    const [roleFilter, setRoleFilter] = useState<string>('');
 
     // Risk Selection State
     const [selectedRiskId, setSelectedRiskId] = useState<number | undefined>(undefined);
@@ -135,8 +137,20 @@ export function ControlForm({ initialData, isEdit = false }: ControlFormProps) {
     }, [risks]);
 
 
-    const handleInputChange = (field: keyof Control, value: any) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+    const handleInputChange = (field: keyof Control, value: unknown) => {
+        setFormData(prev => {
+            const newData = { ...prev, [field]: value };
+
+            // Auto-fill department when owner is selected
+            if (field === 'control_owner_id' && value) {
+                const selectedUser = users.find(u => u.id === value);
+                if (selectedUser?.department_id) {
+                    newData.department_id = selectedUser.department_id;
+                }
+            }
+
+            return newData;
+        });
         setError(null); // Clear error on change
     };
 
@@ -198,6 +212,20 @@ export function ControlForm({ initialData, isEdit = false }: ControlFormProps) {
         return matchesSearch && matchesDept && matchesProcess && matchesCategory;
     });
 
+    // Filtered users based on search, role, AND department
+    const filteredUsers = users.filter(user => {
+        const matchesSearch = !ownerSearch ||
+            user.name?.toLowerCase().includes(ownerSearch.toLowerCase()) ||
+            user.email?.toLowerCase().includes(ownerSearch.toLowerCase());
+        const matchesRole = !roleFilter || user.role_name === roleFilter;
+        // If department is selected, filter to that department's users
+        const matchesDepartment = !formData.department_id || user.department_id === formData.department_id;
+        return matchesSearch && matchesRole && matchesDepartment;
+    });
+
+    // Get unique roles for filter - role is an object with name property
+    const uniqueRoles: string[] = [...new Set(users.map(u => u.role_name).filter((r): r is string => !!r))];
+
     const selectedRisk = risks.find(r => r.id === selectedRiskId);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -231,15 +259,18 @@ export function ControlForm({ initialData, isEdit = false }: ControlFormProps) {
                     });
                 } catch (linkErr) {
                     console.error('Control created but failed to link risk:', linkErr);
-                    // We don't block navigation, but maybe we should warn? 
-                    // For now, let's proceed.
                 }
             }
 
-            navigate('/controls');
-        } catch (err: any) {
+            if (onSuccess && controlId) {
+                onSuccess(controlId);
+            } else {
+                navigate('/controls');
+            }
+        } catch (err: unknown) {
             console.error('Error saving control:', err);
-            setError(err.message || 'Failed to save control. Please check your input.');
+            const message = err instanceof Error ? err.message : 'Failed to save control. Please check your input.';
+            setError(message);
         } finally {
             setIsSubmitting(false);
         }
@@ -296,7 +327,7 @@ export function ControlForm({ initialData, isEdit = false }: ControlFormProps) {
                                 }`}>
                                 {currentStep > idx ? <CheckCircle2 className="h-5 w-5" /> : <step.icon className="h-5 w-5" />}
                             </div>
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${currentStep === idx ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`}>
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${currentStep === idx ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>
                                 {step.title}
                             </span>
                         </div>
@@ -322,7 +353,7 @@ export function ControlForm({ initialData, isEdit = false }: ControlFormProps) {
                                     required
                                     value={formData.name}
                                     onChange={(e) => handleInputChange('name', e.target.value)}
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-700"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-400"
                                     placeholder="e.g. Daily Transaction Reconciliation"
                                 />
                             </div>
@@ -333,7 +364,7 @@ export function ControlForm({ initialData, isEdit = false }: ControlFormProps) {
                                     rows={4}
                                     value={formData.description}
                                     onChange={(e) => handleInputChange('description', e.target.value)}
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-700 resize-none"
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-400 resize-none"
                                     placeholder="Describe the purpose and steps of this control..."
                                 />
                             </div>
@@ -346,47 +377,134 @@ export function ControlForm({ initialData, isEdit = false }: ControlFormProps) {
                                 <div className="text-slate-500 text-sm">Loading...</div>
                             ) : (
                                 <>
-                                    <div className="grid md:grid-cols-2 gap-6">
+                                    <div className="grid md:grid-cols-2 gap-8">
+                                        {/* Department Selection */}
                                         <div>
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Control Owner</label>
-                                            <select
-                                                value={formData.control_owner_id || ''}
-                                                onChange={(e) => handleInputChange('control_owner_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
-                                            >
-                                                <option value="" className="bg-slate-900">-- Select Owner --</option>
-                                                {users.map(user => (
-                                                    <option key={user.id} value={user.id} className="bg-slate-900">
-                                                        {user.name} ({user.email})
-                                                    </option>
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Department</label>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                <select
+                                                    value={formData.department_id || ''}
+                                                    onChange={(e) => handleInputChange('department_id', e.target.value ? parseInt(e.target.value) : undefined)}
+                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
+                                                >
+                                                    <option value="" className="bg-slate-900">-- Select Department --</option>
+                                                    {departments.map(dept => (
+                                                        <option key={dept.id} value={dept.id} className="bg-slate-900">
+                                                            {dept.name} ({dept.code})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <div className="mt-4">
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Owner Position</label>
+                                                    <input
+                                                        type="text"
+                                                        value={formData.process_owner_position || ''}
+                                                        onChange={(e) => handleInputChange('process_owner_position', e.target.value)}
+                                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600"
+                                                        placeholder="e.g. Chief Accountant"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Control Owner Selection */}
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Control Owner</label>
+
+                                            {/* Role filter chips */}
+                                            <div className="flex flex-wrap gap-1.5 mb-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setRoleFilter('')}
+                                                    className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${!roleFilter
+                                                        ? 'bg-accent text-white shadow-[0_0_10px_rgba(30,132,255,0.3)]'
+                                                        : 'bg-white/5 text-slate-500 hover:bg-white/10'
+                                                        }`}
+                                                >
+                                                    All
+                                                </button>
+                                                {uniqueRoles.map(role => (
+                                                    <button
+                                                        key={role}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setRoleFilter(role);
+                                                            // Find all users with this role (not filtered by department)
+                                                            const usersWithRole = users.filter(u => u.role_name === role);
+                                                            // Auto-select if only one user, else clear owner
+                                                            if (usersWithRole.length === 1) {
+                                                                handleInputChange('control_owner_id', usersWithRole[0].id);
+                                                                // Department will auto-fill via handleInputChange
+                                                            } else {
+                                                                handleInputChange('control_owner_id', undefined);
+                                                                handleInputChange('department_id', undefined);
+                                                            }
+                                                        }}
+                                                        className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${roleFilter === role
+                                                            ? 'bg-accent text-white shadow-[0_0_10px_rgba(30,132,255,0.3)]'
+                                                            : 'bg-white/5 text-slate-500 hover:bg-white/10'
+                                                            }`}
+                                                    >
+                                                        {role}
+                                                    </button>
                                                 ))}
-                                            </select>
+                                            </div>
+
+                                            {formData.control_owner_id ? (
+                                                <div className="flex items-center justify-between bg-accent/10 border border-accent/20 rounded-xl px-4 py-3 animate-in zoom-in-95 duration-200">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center">
+                                                            <User className="h-4 w-4 text-accent" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-bold text-white">
+                                                                {users.find(u => u.id === formData.control_owner_id)?.name}
+                                                            </p>
+                                                            <p className="text-[10px] text-slate-400">
+                                                                {users.find(u => u.id === formData.control_owner_id)?.email}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleInputChange('control_owner_id', undefined)}
+                                                        className="p-1 hover:bg-white/5 rounded-lg text-slate-500 hover:text-white transition-colors"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Search owners..."
+                                                        value={ownerSearch}
+                                                        onChange={(e) => setOwnerSearch(e.target.value)}
+                                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600"
+                                                    />
+                                                    <div className="max-h-[160px] overflow-y-auto rounded-xl border border-white/5 divide-y divide-white/5 custom-scrollbar bg-white/[0.02]">
+                                                        {filteredUsers.length === 0 ? (
+                                                            <div className="p-4 text-center text-xs text-slate-500 italic">No owners found matching criteria</div>
+                                                        ) : (
+                                                            filteredUsers.map(user => (
+                                                                <button
+                                                                    key={user.id}
+                                                                    type="button"
+                                                                    onClick={() => handleInputChange('control_owner_id', user.id)}
+                                                                    className="w-full px-4 py-2.5 text-left hover:bg-white/5 transition-all flex items-center justify-between group"
+                                                                >
+                                                                    <div>
+                                                                        <p className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">{user.name}</p>
+                                                                        <p className="text-[10px] text-slate-600 group-hover:text-slate-400 transition-colors uppercase tracking-widest">{user.role_name}</p>
+                                                                    </div>
+                                                                    <Plus className="h-3 w-3 text-slate-700 group-hover:text-accent transition-colors" />
+                                                                </button>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                        <div>
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Owner Position</label>
-                                            <input
-                                                type="text"
-                                                value={formData.process_owner_position || ''}
-                                                onChange={(e) => handleInputChange('process_owner_position', e.target.value)}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                                placeholder="e.g. Chief Accountant"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Department</label>
-                                        <select
-                                            value={formData.department_id || ''}
-                                            onChange={(e) => handleInputChange('department_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
-                                        >
-                                            <option value="" className="bg-slate-900">-- Select Department --</option>
-                                            {departments.map(dept => (
-                                                <option key={dept.id} value={dept.id} className="bg-slate-900">
-                                                    {dept.name} ({dept.code})
-                                                </option>
-                                            ))}
-                                        </select>
                                     </div>
                                 </>
                             )}
@@ -586,7 +704,7 @@ export function ControlForm({ initialData, isEdit = false }: ControlFormProps) {
                                                 placeholder="Search by risk ID, name..."
                                                 value={riskSearch}
                                                 onChange={(e) => setRiskSearch(e.target.value)}
-                                                className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
+                                                className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-400"
                                             />
                                         </div>
 
@@ -645,8 +763,18 @@ export function ControlForm({ initialData, isEdit = false }: ControlFormProps) {
                 <div className="mt-12 flex justify-between items-center pt-8 border-t border-white/5">
                     <button
                         type="button"
-                        onClick={() => currentStep === 0 ? navigate('/controls') : prevStep()}
-                        className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest"
+                        onClick={() => {
+                            if (currentStep === 0) {
+                                if (onCancel) {
+                                    onCancel();
+                                } else {
+                                    navigate('/controls');
+                                }
+                            } else {
+                                prevStep();
+                            }
+                        }}
+                        className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-white transition-colors uppercase tracking-widest"
                     >
                         {currentStep === 0 ? <X className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                         {currentStep === 0 ? 'Cancel' : 'Back'}

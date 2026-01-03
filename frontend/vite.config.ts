@@ -10,6 +10,9 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 1500, // Raise limit to 1500 kB
+  },
   server: {
     proxy: {
       '/api': {
