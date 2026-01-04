@@ -24,6 +24,7 @@ export interface KeyRiskIndicator {
     // Grouping metadata
     risk_category?: string;
     risk_process?: string;
+    risk_name?: string;
     risk_description?: string;
     risk_type?: string;
     risk_id_code?: string;

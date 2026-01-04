@@ -53,6 +53,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
 
     const filteredRisks = allRisks.filter(risk => {
         const matchesSearch = !riskSearchQuery ||
+            risk.name?.toLowerCase().includes(riskSearchQuery.toLowerCase()) ||
             risk.risk_id_code?.toLowerCase().includes(riskSearchQuery.toLowerCase()) ||
             risk.process?.toLowerCase().includes(riskSearchQuery.toLowerCase()) ||
             risk.category?.toLowerCase().includes(riskSearchQuery.toLowerCase()) ||
@@ -316,9 +317,9 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                                                 <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 ${selectedRiskId === risk.id ? 'bg-accent text-white' : 'bg-white/5 text-slate-600'}`}>
                                                                     <Target className="h-3.5 w-3.5" />
                                                                 </div>
-                                                                <div className="flex-1 min-w-0 flex items-center gap-2">
-                                                                    <p className="text-sm font-bold text-slate-200 whitespace-nowrap">{risk.process}</p>
-                                                                    <p className="text-xs text-slate-500 truncate">{risk.description}</p>
+                                                                <div className="flex-1 min-w-0 flex flex-col">
+                                                                    <p className="text-sm font-bold text-slate-200 leading-tight mb-1">{risk.name}</p>
+                                                                    <p className="text-[10px] text-slate-500 line-clamp-1 italic">{risk.description}</p>
                                                                 </div>
                                                                 {selectedRiskId === risk.id && <Check className="h-4 w-4 text-accent" />}
                                                             </button>

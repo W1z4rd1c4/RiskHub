@@ -1,9 +1,10 @@
 /**
  * Test utilities and custom render wrapper.
  */
-import React, { ReactElement } from 'react';
+import React, { ReactElement, useState } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 
@@ -11,14 +12,22 @@ import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
  * All providers wrapper for tests.
  */
 function AllProviders({ children }: { children: React.ReactNode }) {
+    const [queryClient] = useState(() => new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+        },
+    }));
+
     return (
-        <BrowserRouter>
-            <AuthProvider>
-                <DashboardFilterProvider>
-                    {children}
-                </DashboardFilterProvider>
-            </AuthProvider>
-        </BrowserRouter>
+        <QueryClientProvider client={queryClient}>
+            <BrowserRouter>
+                <AuthProvider>
+                    <DashboardFilterProvider>
+                        {children}
+                    </DashboardFilterProvider>
+                </AuthProvider>
+            </BrowserRouter>
+        </QueryClientProvider>
     );
 }
 

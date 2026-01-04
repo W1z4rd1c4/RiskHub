@@ -3,7 +3,7 @@ import { ShieldCheck, Check, X, ChevronDown } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import type { ApprovalScenario, ApprovalScenarioUpdate } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 // Special dynamic role entry for risk owner (not a system role in roles table)
 const SPECIAL_ROLE_OPTIONS = [
@@ -25,10 +25,18 @@ interface EditScenarioModalProps {
 }
 
 function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoading, onSave }: EditScenarioModalProps) {
-    const [requiresApproval, setRequiresApproval] = useState(scenario?.requires_approval ?? true);
-    const [selectedRoles, setSelectedRoles] = useState<string[]>(scenario?.approver_roles ?? []);
+    const [requiresApproval, setRequiresApproval] = useState(true);
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
     const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && scenario) {
+            setRequiresApproval(scenario.requires_approval);
+            setSelectedRoles(scenario.approver_roles);
+            setShowRoleDropdown(false);
+        }
+    }, [isOpen, scenario]);
 
     const handleToggleRole = (role: string) => {
         setSelectedRoles(prev =>

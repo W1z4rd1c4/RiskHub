@@ -910,6 +910,13 @@ async def update_role(
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
     
+    # Core system roles are immutable
+    if role.name in {"cro", "admin", "viewer"}:
+        raise HTTPException(
+            status_code=400,
+            detail=f"The {role.display_name} role is a core system role and cannot be modified."
+        )
+    
     # Update basic fields
     if data.display_name is not None:
         role.display_name = data.display_name
@@ -994,8 +1001,13 @@ async def delete_role(
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
     
-    if role.is_system:
-        raise HTTPException(status_code=400, detail="Cannot delete system roles")
+    # Protected roles cannot be deleted
+    protected_roles = {"admin", "cro", "viewer", "internal_audit"}
+    if role.is_system or role.name in protected_roles:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot delete protected system role: {role.display_name}"
+        )
     
     if not role.is_active:
         raise HTTPException(status_code=400, detail="Role is already deleted")

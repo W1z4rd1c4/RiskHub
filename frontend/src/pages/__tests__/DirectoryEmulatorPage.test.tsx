@@ -21,9 +21,9 @@ describe('DirectoryEmulatorPage', () => {
     it('renders and shows preview results', async () => {
         render(<DirectoryEmulatorPage />);
 
-        expect(await screen.findByText('Directory Emulator')).toBeInTheDocument();
+        expect(await screen.findByText('Directory Integration')).toBeInTheDocument();
 
-        const previewButton = screen.getByRole('button', { name: /preview sync/i });
+        const previewButton = screen.getByRole('button', { name: /preview changes/i });
         const user = userEvent.setup();
         await user.click(previewButton);
 

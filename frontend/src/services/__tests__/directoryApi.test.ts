@@ -10,12 +10,12 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 describe('directoryApi', () => {
-    it('fetches directory users list', async () => {
-        const users = await directoryApi.listDirectoryUsers();
+    it('fetches directory sync history', async () => {
+        const logs = await directoryApi.listDirectorySyncHistory();
 
-        expect(Array.isArray(users)).toBe(true);
-        expect(users.length).toBeGreaterThan(0);
-        expect(users[0]).toHaveProperty('external_id');
+        expect(Array.isArray(logs)).toBe(true);
+        expect(logs.length).toBeGreaterThan(0);
+        expect(logs[0]).toHaveProperty('status');
     });
 
     it('previews directory sync', async () => {

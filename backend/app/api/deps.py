@@ -14,6 +14,7 @@ security = HTTPBearer(auto_error=False)
 
 
 from app.core.config import get_settings, Settings
+from app.core.permissions import can_view_risk_committee
 
 async def get_current_user(
     db: AsyncSession = Depends(get_db),
@@ -87,6 +88,19 @@ async def get_current_user(
             pass
 
     return user
+
+
+async def get_current_committee_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    Committee dashboard access:
+    - Privileged users (global) OR
+    - Department Heads (department-scoped)
+    """
+    if not can_view_risk_committee(current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+    return current_user
 
 
 async def get_current_user_optional(
