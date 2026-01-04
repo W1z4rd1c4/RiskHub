@@ -77,6 +77,35 @@ async def test_department(db_session: AsyncSession) -> Department:
 
 
 @pytest_asyncio.fixture
+async def seed_risk_types(db_session: AsyncSession):
+    """Seed default risk types for API validation."""
+    from app.models.risk_type import RiskTypeConfig
+    
+    risk_types = [
+        RiskTypeConfig(
+            code="operational",
+            display_name="Operational",
+            description="Operational risk",
+            color="#3b82f6",
+            is_system=True,
+            sort_order=1,
+        ),
+        RiskTypeConfig(
+            code="strategic",
+            display_name="Strategic",
+            description="Strategic risk",
+            color="#8b5cf6",
+            is_system=True,
+            sort_order=2,
+        ),
+    ]
+    for rt in risk_types:
+        db_session.add(rt)
+    await db_session.commit()
+    return risk_types
+
+
+@pytest_asyncio.fixture
 async def test_role(db_session: AsyncSession) -> Role:
     """Create a test role with admin permissions."""
     from app.models import Permission, RolePermission

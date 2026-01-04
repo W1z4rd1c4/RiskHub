@@ -252,6 +252,7 @@ async def create_risk(
     
     risk = Risk(
         risk_id_code=risk_id_code,
+        name=risk_data.name,
         process=risk_data.process,
         subprocess=risk_data.subprocess,
         risk_type=risk_data.risk_type,
