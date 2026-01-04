@@ -7,6 +7,7 @@ export interface KeyRiskIndicator {
     id: number;
     risk_id: number;
     metric_name: string;
+    description: string;
     current_value: number;
     lower_limit: number;
     upper_limit: number;
@@ -24,12 +25,17 @@ export interface KeyRiskIndicator {
     risk_category?: string;
     risk_process?: string;
     risk_description?: string;
+    risk_type?: string;
+    risk_id_code?: string;
+    risk_owner_name?: string;
+    risk_department_name?: string;
     department_name?: string;
 }
 
 export interface KRICreate {
     risk_id: number;
     metric_name: string;
+    description: string;
     current_value: number;
     lower_limit: number;
     upper_limit: number;
@@ -40,6 +46,7 @@ export interface KRICreate {
 
 export interface KRIUpdate {
     metric_name?: string;
+    description?: string;
     current_value?: number;
     lower_limit?: number;
     upper_limit?: number;
