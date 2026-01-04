@@ -2,7 +2,7 @@
 from enum import Enum as PyEnum
 from typing import Optional
 from datetime import datetime, UTC
-from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, JSON, Index
+from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, JSON, Index, Enum as SAEnum, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -49,12 +49,20 @@ class ActivityLog(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     
     # What entity was affected
-    entity_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    entity_type: Mapped[str] = mapped_column(
+        SAEnum(ActivityEntityType, name="activity_entity_type", native_enum=False, validate_strings=True),
+        nullable=False,
+        index=True,
+    )
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     entity_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Snapshot for display
     
     # What action was performed
-    action: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(
+        SAEnum(ActivityAction, name="activity_action", native_enum=False, validate_strings=True),
+        nullable=False,
+        index=True,
+    )
     
     # Who performed the action
     actor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
@@ -87,6 +95,16 @@ class ActivityLog(Base):
         Index("ix_activity_actor_date", "actor_id", "created_at"),
         Index("ix_activity_dept_date", "department_id", "created_at"),
     )
+
+
+@event.listens_for(ActivityLog, "before_update", propagate=True)
+def _prevent_activity_log_update(mapper, connection, target) -> None:
+    raise ValueError("ActivityLog is append-only")
+
+
+@event.listens_for(ActivityLog, "before_delete", propagate=True)
+def _prevent_activity_log_delete(mapper, connection, target) -> None:
+    raise ValueError("ActivityLog is append-only")
 
 
 # Type hints

@@ -17,7 +17,7 @@ from app.schemas.kri import (
 from app.api import deps
 from app.core.permissions import get_user_department_ids, check_department_access
 from app.core.security import require_permission
-from app.core.activity_logger import log_activity
+from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter(prefix="/kris", tags=["Key Risk Indicators"])
@@ -262,10 +262,9 @@ async def create_kri(
     
     kri = KeyRiskIndicator(**data.model_dump())
     db.add(kri)
-    await db.commit()
-    await db.refresh(kri)
+    await db.flush()
     
-    # Log activity
+    # Log activity within the same transaction
     await log_activity(
         db,
         entity_type=ActivityEntityType.KRI,
@@ -276,6 +275,7 @@ async def create_kri(
         department_id=risk.department_id,
     )
     await db.commit()
+    await db.refresh(kri)
     
     return KRIResponse.model_validate(kri)
 
@@ -359,6 +359,17 @@ async def update_kri(
             status=ApprovalStatus.PENDING,
         )
         db.add(approval)
+        await db.flush()
+        
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.APPROVAL,
+            entity_id=approval.id,
+            entity_name=approval.resource_name,
+            action=ActivityAction.CREATE,
+            actor=current_user,
+            department_id=kri.risk.department_id,
+        )
         await db.commit()
         
         from fastapi.responses import JSONResponse
@@ -375,6 +386,10 @@ async def update_kri(
 
     
     value_update = update_data.pop("current_value", None)
+    extra_changes = {}
+    if value_update is not None:
+        extra_changes["current_value"] = {"old": kri.current_value, "new": value_update}
+    changes = build_change_set(kri, update_data, extra_changes=extra_changes)
     
     for field, value in update_data.items():
         setattr(kri, field, value)
@@ -392,10 +407,7 @@ async def update_kri(
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
     
-    await db.commit()
-    await db.refresh(kri)
-    
-    # Log activity
+    # Log activity within the same transaction
     await log_activity(
         db,
         entity_type=ActivityEntityType.KRI,
@@ -404,9 +416,10 @@ async def update_kri(
         action=ActivityAction.UPDATE,
         actor=current_user,
         department_id=kri.risk.department_id,
-        changes=update_data,
+        changes=changes,
     )
     await db.commit()
+    await db.refresh(kri)
     
     return KRIResponse.model_validate(kri)
 
@@ -453,8 +466,6 @@ async def delete_kri(
             actor=current_user,
             department_id=kri.risk.department_id,
         )
-        await db.commit()
-        
         await db.delete(kri)
         await db.commit()
         return Response(status_code=204)
@@ -481,6 +492,17 @@ async def delete_kri(
         status=ApprovalStatus.PENDING,
     )
     db.add(approval)
+    await db.flush()
+    
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.APPROVAL,
+        entity_id=approval.id,
+        entity_name=approval.resource_name,
+        action=ActivityAction.CREATE,
+        actor=current_user,
+        department_id=kri.risk.department_id,
+    )
     await db.commit()
     
     from fastapi.responses import JSONResponse
@@ -590,6 +612,17 @@ async def record_kri_value(
             requires_privileged_approval=requires_privileged,
         )
         db.add(approval)
+        await db.flush()
+        
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.APPROVAL,
+            entity_id=approval.id,
+            entity_name=approval.resource_name,
+            action=ActivityAction.CREATE,
+            actor=current_user,
+            department_id=kri.risk.department_id,
+        )
         await db.commit()
         
         # Notify Risk Owner (primary approver)
@@ -829,6 +862,17 @@ async def correct_history_entry(
             status=ApprovalStatus.PENDING,
         )
         db.add(approval)
+        await db.flush()
+        
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.APPROVAL,
+            entity_id=approval.id,
+            entity_name=approval.resource_name,
+            action=ActivityAction.CREATE,
+            actor=current_user,
+            department_id=kri.risk.department_id,
+        )
         await db.commit()
         
         from fastapi.responses import JSONResponse

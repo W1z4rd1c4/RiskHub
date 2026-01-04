@@ -15,7 +15,7 @@ from app.schemas.risk import (
 from app.api import deps
 from app.core.permissions import get_user_department_ids, check_department_access
 from app.core.security import require_permission, check_permission
-from app.core.activity_logger import log_activity
+from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter()
@@ -272,10 +272,9 @@ async def create_risk(
     )
     
     db.add(risk)
-    await db.commit()
-    await db.refresh(risk)
+    await db.flush()
     
-    # Log activity
+    # Log activity within the same transaction
     await log_activity(
         db,
         entity_type=ActivityEntityType.RISK,
@@ -286,6 +285,7 @@ async def create_risk(
         department_id=risk.department_id,
     )
     await db.commit()
+    await db.refresh(risk)
     
     # Reload with relationships
     result = await db.execute(
@@ -400,6 +400,17 @@ async def update_risk(
                 status=ApprovalStatus.PENDING,
             )
             db.add(approval)
+            await db.flush()
+            
+            await log_activity(
+                db,
+                entity_type=ActivityEntityType.APPROVAL,
+                entity_id=approval.id,
+                entity_name=approval.resource_name,
+                action=ActivityAction.CREATE,
+                actor=current_user,
+                department_id=risk.department_id,
+            )
             await db.commit()
             
             # Return 202 with approval info
@@ -415,8 +426,26 @@ async def update_risk(
                 }
             )
 
+    new_gross_probability = update_data.get("gross_probability", risk.gross_probability)
+    new_gross_impact = update_data.get("gross_impact", risk.gross_impact)
+    new_net_probability = update_data.get("net_probability", risk.net_probability)
+    new_net_impact = update_data.get("net_impact", risk.net_impact)
+    extra_changes = {}
+    if "gross_probability" in update_data or "gross_impact" in update_data:
+        extra_changes["gross_score"] = {
+            "old": risk.gross_score,
+            "new": new_gross_probability * new_gross_impact,
+        }
+    if "net_probability" in update_data or "net_impact" in update_data:
+        extra_changes["net_score"] = {
+            "old": risk.net_score,
+            "new": new_net_probability * new_net_impact,
+        }
+    
+    changes = build_change_set(risk, update_data, extra_changes=extra_changes)
+    
     for field, value in update_data.items():
-        if hasattr(value, 'value'):  # Handle enums
+        if hasattr(value, "value"):  # Handle enums
             value = value.value
         setattr(risk, field, value)
     
@@ -424,10 +453,7 @@ async def update_risk(
     risk.gross_score = risk.gross_probability * risk.gross_impact
     risk.net_score = risk.net_probability * risk.net_impact
     
-    await db.commit()
-    await db.refresh(risk)
-    
-    # Log activity
+    # Log activity within the same transaction
     await log_activity(
         db,
         entity_type=ActivityEntityType.RISK,
@@ -436,9 +462,10 @@ async def update_risk(
         action=ActivityAction.UPDATE,
         actor=current_user,
         department_id=risk.department_id,
-        changes={k: {"old": getattr(risk, k, None), "new": v} for k, v in update_data.items()},
+        changes=changes,
     )
     await db.commit()
+    await db.refresh(risk)
     
     # Reload with relationships
     result = await db.execute(
@@ -483,9 +510,8 @@ async def delete_risk(
     # Privileged users can delete immediately
     if can_resolve_approvals(current_user):
         risk.status = RiskStatusEnum.archived.value
-        await db.commit()
         
-        # Log activity
+        # Log activity within the same transaction
         await log_activity(
             db,
             entity_type=ActivityEntityType.RISK,
@@ -521,6 +547,17 @@ async def delete_risk(
         status=ApprovalStatus.PENDING,
     )
     db.add(approval)
+    await db.flush()
+    
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.APPROVAL,
+        entity_id=approval.id,
+        entity_name=approval.resource_name,
+        action=ActivityAction.CREATE,
+        actor=current_user,
+        department_id=risk.department_id,
+    )
     await db.commit()
     
     from fastapi.responses import JSONResponse
