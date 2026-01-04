@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 200 Entity Naming Enforcement
-**Current Plan:** 200-01 (Completed)
-**Next Plan:** 200-02 (Backend API & Logic Updates)
+**Current Plan:** 200-02 (Completed)
+**Next Plan:** 200-03 (Frontend Risk List & Table Updates)
 
 ## Progress Summary
 
@@ -45,7 +45,7 @@
 | 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
-| 200 Entity Naming Enforcement | ⏳ In progress (1/10) | - |
+| 200 Entity Naming Enforcement | ⏳ In progress (2/10) | - |
 
 ## Session Context
 
@@ -141,10 +141,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 200-01: Added mandatory `name` field to Risk model and `description` field to KRI model with database migration and backfill.
+- Completed Phase 200-02: Updated Pydantic schemas for Risk.name and KRI.description. Updated test files with new required fields.
 
 ### Next Step
-- Execute Phase 200-02 (Backend API & Logic Updates for Risk Name).
+- Execute Phase 200-03 (Frontend Risk List & Table Updates).
 
 ---
 *Updated: 2026-01-04*

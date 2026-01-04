@@ -283,6 +283,7 @@ async def test_risk(db_session: AsyncSession, test_department: Department, test_
     """Create a test risk."""
     risk = Risk(
         risk_id_code="R-TEST-001",
+        name="Test Risk",
         process="Test Process",
         description="Test Risk Description",
         category="Test Category",
