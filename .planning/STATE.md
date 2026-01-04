@@ -17,9 +17,9 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 12 Compliance Governance
-**Current Plan:** 12-07 (Completed)
-**Next Plan:** 13-01 (TBD)
+**Phase:** 200 Entity Naming Enforcement
+**Current Plan:** 200-01 (Completed)
+**Next Plan:** 200-02 (Backend API & Logic Updates)
 
 ## Progress Summary
 
@@ -45,6 +45,7 @@
 | 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
+| 200 Entity Naming Enforcement | ⏳ In progress (1/10) | - |
 
 ## Session Context
 
@@ -88,6 +89,13 @@
 - ✅ **72-02**: Global config thresholds + notification settings integration
 - ✅ **72-03**: Cross-department Owner Access + Notification Fan-out
 - ✅ **72-04**: Risk Hub CRUD hardening + public-config gating
+- ✅ **72-05**: Frontend alignment with Risk Hub config (risk types, thresholds, approvals)
+- ⏳ **72-06**: Approval scenario foundation (scenario_key + schema + seeds)
+- ⏳ **72-07**: Scenario-driven approval creation + notifications
+- ⏳ **72-08**: Scenario role enforcement on approve/reject (tiered)
+- ⏳ **72-09**: Backend threshold propagation cleanup (reports + approvals)
+- ⏳ **72-10**: Public endpoints for thresholds + risk types (non-CRO)
+- ⏳ **72-11**: Frontend public-config consumption + dynamic type display
 
 ### Phase 99 Progress
 - ✅ **99-01**: Migrated 83 risks from Registr_Rizik_2022.xlsx
@@ -133,10 +141,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 12: Implemented structured logging, SIEM integration guide, and Admin Console audit log visualization.
+- Completed Phase 200-01: Added mandatory `name` field to Risk model and `description` field to KRI model with database migration and backfill.
 
 ### Next Step
-- Execute Phase 13 (Issue & Remediation Management).
+- Execute Phase 200-02 (Backend API & Logic Updates for Risk Name).
 
 ---
 *Updated: 2026-01-04*

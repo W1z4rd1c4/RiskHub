@@ -41,6 +41,9 @@ class Risk(Base):
     # Risk ID code (e.g., "Mkt-R01", "UP_NZ_CAT_07_01")
     risk_id_code: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     
+    # Risk name (mandatory, human-readable identifier)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    
     # Main process (e.g., "Marketing", "Vývoj produktů")
     process: Mapped[str] = mapped_column(String(255), index=True)
     
