@@ -56,6 +56,7 @@ class KRIResponse(KRIBase):
     risk_category: Optional[str] = None
     risk_process: Optional[str] = None
     risk_description: Optional[str] = None
+    risk_name: Optional[str] = None
     risk_type: Optional[str] = None
     risk_id_code: Optional[str] = None
     risk_owner_name: Optional[str] = None

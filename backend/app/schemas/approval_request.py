@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class ApprovalStatusEnum(str, Enum):
     """Approval request status values."""
     pending = "pending"
+    pending_privileged = "pending_privileged"
     approved = "approved"
     rejected = "rejected"
     cancelled = "cancelled"
@@ -77,4 +78,3 @@ class ApprovalRequestListResponse(BaseModel):
     total: int
     skip: int
     limit: int
-

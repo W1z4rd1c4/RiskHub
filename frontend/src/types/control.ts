@@ -76,6 +76,7 @@ export interface ControlSummary {
     control_form: ControlForm;
     risk_type?: string;
     risk_id_code?: string;
+    risk_name?: string;
     risk_description?: string;
     risk_owner_name?: string;
     risk_department_name?: string;

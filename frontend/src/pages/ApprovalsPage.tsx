@@ -84,9 +84,10 @@ export default function ApprovalsPage() {
             // Refresh
             fetchApprovals();
             closeDialog();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to resolve request:', error);
-            alert('Failed to process request.');
+            const message = error.response?.data?.detail || error.message || 'Failed to process request.';
+            alert(message);
         } finally {
             setIsSubmitting(false);
         }
@@ -121,6 +122,7 @@ export default function ApprovalsPage() {
     const getStatusBadge = (status: ApprovalStatus) => {
         switch (status) {
             case 'pending': return 'text-amber-400 border-amber-400/20 bg-amber-400/5';
+            case 'pending_privileged': return 'text-violet-400 border-violet-400/20 bg-violet-400/5';
             case 'approved': return 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5';
             case 'rejected': return 'text-rose-400 border-rose-400/20 bg-rose-400/5';
             case 'cancelled': return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
@@ -262,7 +264,7 @@ export default function ApprovalsPage() {
                                             </button>
                                         )}
 
-                                        {canResolve && approval.status === 'pending' && (
+                                        {canResolve && (approval.status === 'pending' || approval.status === 'pending_privileged') && (
                                             <>
                                                 <button
                                                     onClick={() => { setSelectedApproval(approval); setDialogMode('approve'); }}

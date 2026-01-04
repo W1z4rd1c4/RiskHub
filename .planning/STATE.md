@@ -39,7 +39,7 @@
 | 17-19 Deferred | ⏳ Deferred | - |
 | 85 Workflow & Users | ✅ Complete (6/6) | 2026-01-01 |
 | 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
-| 99 Data Migration & Standalone AD | ✅ Complete (7/7) | 2025-12-28 |
+| 99 Data Migration & Standalone AD | ✅ Complete (8/8) | 2026-01-04 |
 | 100 Marketing Presentation | ✅ Complete (3/3) | 2025-12-29 |
 | 151 Audit Resolution | ⏳ In progress (10/13) | - |
 | 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
@@ -84,6 +84,9 @@
   - Added admin-configurable log rotation settings (size/count) via Risk Hub
   - Created /admin/logs/audit and /admin/logs/config endpoints
 
+### Phase 12.1 Progress
+- ✅ **12.1-06**: Risk Committee access control remediation (dept head access scoped; admin console-only)
+
 ### Phase 72 Progress
 - ✅ **72-01**: Backend risk type integration + risk count accuracy
 - ✅ **72-02**: Global config thresholds + notification settings integration
@@ -101,9 +104,10 @@
 - ✅ **99-01**: Migrated 83 risks from placeholder-risk-register.xlsx
 - ✅ **99-02**: Migrated 21 controls with 62 risk links
 - ✅ **99-03**: Migrated 67 KRIs with risk matching
-- ⏳ **99-04**: AD Emulator standalone backend (PLANNED)
-- ⏳ **99-05**: AD Emulator standalone frontend (PLANNED)
-- ⏳ **99-06**: RiskHub integration with external AD Emulator (PLANNED)
+- ✅ **99-04**: AD Emulator standalone backend (Done)
+- ✅ **99-05**: AD Emulator standalone frontend (Done)
+- ✅ **99-06**: RiskHub integration with external AD Emulator (Done)
+- ✅ **99-08**: Risk naming improvement from descriptions (Done)
 
 ### Key Decisions
 

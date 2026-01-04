@@ -1,6 +1,7 @@
 """
 Tests for Dashboard API endpoints.
 """
+from datetime import datetime, timedelta
 import pytest
 from httpx import AsyncClient
 from app.models import Role, Department
@@ -185,3 +186,203 @@ async def test_control_trends(auth_client: AsyncClient):
     for item in data:
         assert "period" in item
         assert "execution_count" in item
+
+
+@pytest.mark.asyncio
+async def test_committee_endpoints_denied_for_employee(client_employee: AsyncClient):
+    """Employees must not access Risk Committee endpoints."""
+    resp_summary = await client_employee.get("/api/v1/dashboard/committee-summary")
+    assert resp_summary.status_code == 403
+
+    resp_quarterly = await client_employee.get("/api/v1/dashboard/quarterly-comparison")
+    assert resp_quarterly.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_committee_endpoints_denied_for_admin(auth_client: AsyncClient):
+    """Admin is console-only and must not access Risk Committee endpoints."""
+    resp_summary = await auth_client.get("/api/v1/dashboard/committee-summary")
+    assert resp_summary.status_code == 403
+
+    resp_quarterly = await auth_client.get("/api/v1/dashboard/quarterly-comparison")
+    assert resp_quarterly.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_committee_summary_scoped_for_department_head(client: AsyncClient, db_session):
+    """Department Heads can access committee summary, but only for their department."""
+    from app.models import User, Risk, ActivityLog
+    from app.models.risk import RiskStatus
+
+    dept_a = Department(name="Dept A", code="D-A")
+    dept_b = Department(name="Dept B", code="D-B")
+    db_session.add_all([dept_a, dept_b])
+    await db_session.commit()
+    await db_session.refresh(dept_a)
+    await db_session.refresh(dept_b)
+
+    role = Role(name="department_head", display_name="Department Head", description="Dept head")
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    dept_head = User(
+        name="Dept Head",
+        email="dept.head@example.com",
+        role_id=role.id,
+        department_id=dept_a.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(dept_head)
+    await db_session.commit()
+    await db_session.refresh(dept_head)
+
+    risk_a = Risk(
+        risk_id_code="A-001",
+        name="Risk A",
+        process="Proc",
+        category="Cat",
+        description="Desc",
+        department_id=dept_a.id,
+        risk_type="operational",
+        gross_probability=1,
+        gross_impact=1,
+        net_probability=1,
+        net_impact=1,
+        status=RiskStatus.active.value,
+        created_at=datetime.now() - timedelta(days=1),
+    )
+    risk_b = Risk(
+        risk_id_code="B-001",
+        name="Risk B",
+        process="Proc",
+        category="Cat",
+        description="Desc",
+        department_id=dept_b.id,
+        risk_type="operational",
+        gross_probability=1,
+        gross_impact=1,
+        net_probability=1,
+        net_impact=1,
+        status=RiskStatus.active.value,
+        created_at=datetime.now() - timedelta(days=1),
+    )
+    db_session.add_all([risk_a, risk_b])
+    await db_session.commit()
+
+    # Activity logs in both departments; dept head should only see Dept A logs.
+    log_a = ActivityLog(
+        entity_type="risk",
+        entity_id=1,
+        entity_name="Risk A",
+        action="create",
+        actor_id=dept_head.id,
+        actor_name=dept_head.name,
+        department_id=dept_a.id,
+        changes=None,
+        description="Created risk A",
+        created_at=datetime.now() - timedelta(days=2),
+    )
+    log_b = ActivityLog(
+        entity_type="risk",
+        entity_id=2,
+        entity_name="Risk B",
+        action="create",
+        actor_id=dept_head.id,
+        actor_name=dept_head.name,
+        department_id=dept_b.id,
+        changes=None,
+        description="Created risk B",
+        created_at=datetime.now() - timedelta(days=2),
+    )
+    db_session.add_all([log_a, log_b])
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/v1/dashboard/committee-summary",
+        headers={"X-Mock-User-Id": str(dept_head.id)},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+
+    assert payload["department_exposure"]
+    assert all(d["id"] == dept_a.id for d in payload["department_exposure"])
+
+    assert payload["critical_risks"]
+    assert all(r["department_name"] == dept_a.name for r in payload["critical_risks"])
+
+    assert payload["recent_activity"]
+    assert all(a["description"] == "Created risk A" for a in payload["recent_activity"])
+
+
+@pytest.mark.asyncio
+async def test_quarterly_comparison_scoped_for_department_head(client: AsyncClient, db_session):
+    """Department Heads can access quarterly metrics, scoped to their department."""
+    from app.models import User, Risk
+    from app.models.risk import RiskStatus
+
+    dept_a = Department(name="Dept A2", code="D-A2")
+    dept_b = Department(name="Dept B2", code="D-B2")
+    db_session.add_all([dept_a, dept_b])
+    await db_session.commit()
+    await db_session.refresh(dept_a)
+    await db_session.refresh(dept_b)
+
+    role = Role(name="department_head", display_name="Department Head", description="Dept head")
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    dept_head = User(
+        name="Dept Head 2",
+        email="dept.head2@example.com",
+        role_id=role.id,
+        department_id=dept_a.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(dept_head)
+    await db_session.commit()
+    await db_session.refresh(dept_head)
+
+    risk_a = Risk(
+        risk_id_code="A2-001",
+        name="Risk A2",
+        process="Proc",
+        category="Cat",
+        description="Desc",
+        department_id=dept_a.id,
+        risk_type="operational",
+        gross_probability=1,
+        gross_impact=1,
+        net_probability=1,
+        net_impact=1,
+        status=RiskStatus.active.value,
+        created_at=datetime.now() - timedelta(days=1),
+    )
+    risk_b = Risk(
+        risk_id_code="B2-001",
+        name="Risk B2",
+        process="Proc",
+        category="Cat",
+        description="Desc",
+        department_id=dept_b.id,
+        risk_type="operational",
+        gross_probability=1,
+        gross_impact=1,
+        net_probability=1,
+        net_impact=1,
+        status=RiskStatus.active.value,
+        created_at=datetime.now() - timedelta(days=1),
+    )
+    db_session.add_all([risk_a, risk_b])
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/v1/dashboard/quarterly-comparison",
+        headers={"X-Mock-User-Id": str(dept_head.id)},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["this_quarter"]["new_risks"] == 1

@@ -248,6 +248,24 @@ Plans:
 - [x] 12-06: Audit Log Separation & Rotation (file handlers, splitting streams)
 - [x] 12-07: SIEM Documentation & Verification (Option A: Forwarding guide)
 
+### Phase 12.1: Phase 12 Review / Audit (INSERTED)
+**Goal**: Review Phase 12 implementation for scope alignment, authorization gaps, data leakage risks, and operational readiness.
+**Depends on**: Phase 12
+**Status**: In progress
+**Plans**: 10 plans
+
+Plans:
+- [x] 12.1-01: Scope & Evidence Audit
+- [x] 12.1-02: Activity Log Backend Audit
+- [x] 12.1-03: Activity Log Frontend Audit
+- [x] 12.1-04: Risk Committee Dashboard Audit
+- [x] 12.1-05: SIEM & Logging Audit
+- [x] 12.1-06: Access Control Remediation (Risk Committee)
+- [ ] 12.1-07: Activity Log Backend Remediation
+- [ ] 12.1-08: Activity Log Frontend Remediation
+- [ ] 12.1-09: Risk Committee Metrics Remediation
+- [ ] 12.1-10: SIEM & Logging Remediation
+
 ### Phase 13: Issue & Remediation Management (NEW)
 **Goal**: Manage findings, remediation plans, and exception tracking for failed controls or high risks.
 **Depends on**: Phase 12
@@ -404,6 +422,7 @@ Plans:
 - [x] 99-04: AD Emulator standalone backend (separate FastAPI app in /AD Emulator)
 - [x] 99-05: AD Emulator standalone frontend (separate React app with premium design)
 - [x] 99-06: RiskHub integration with external AD Emulator (HTTP sync)
+- [x] 99-08: Risk naming improvement from descriptions
 
 ### Phase 100: Marketing Presentation
 **Goal**: Create a stunning single-file HTML presentation in Czech for the board to implement the application.
@@ -479,7 +498,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 16 Enterprise Testing | 0/3 | Planned | - |
 | 17-19. Deferred | 0/10 | Deferred | - |
 | 90. AD Integration | 10/10 | Complete | 2025-12-29 |
-| 99. Data Migration & Standalone AD | 7/7 | Complete | 2025-12-28 |
+| 99. Data Migration & Standalone AD | 8/8 | Complete | 2026-01-04 |
 | 150. Audit (RiskHub-only) | 2/3 | In progress | - |
 | 151. Audit Resolution | 8/11 | In progress | - |
 
