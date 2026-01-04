@@ -32,8 +32,8 @@ class ControlExecution(Base):
     executed_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     executed_by: Mapped["User"] = relationship("User", back_populates="executed_controls")
     
-    # When the control was executed
-    executed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    # When the control was executed (indexed for efficient range queries in committee metrics)
+    executed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
     
     # Result of the execution
     result: Mapped[str] = mapped_column(String(20), default=ExecutionResult.passed.value)
