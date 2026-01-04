@@ -628,8 +628,10 @@ async def get_quarterly_comparison(
 
         from datetime import timezone
         
-        # Use UTC-aware datetimes for consistency
-        now = datetime.now(timezone.utc)
+        # Use UTC time but store as naive datetime (PostgreSQL columns are TIMESTAMP WITHOUT TIME ZONE)
+        # We work internally with UTC-aware datetimes but convert to naive for queries
+        now_utc = datetime.now(timezone.utc)
+        now = now_utc.replace(tzinfo=None)  # Naive UTC for DB queries
 
         dept_ids = get_user_department_ids(current_user)
         
@@ -637,7 +639,8 @@ async def get_quarterly_comparison(
         # - this_quarter: [current_quarter_start, now)
         # - last_quarter: [last_quarter_start, current_quarter_start)
         # This ensures no events are missed at boundary edges
-        current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1, tzinfo=timezone.utc)
+        # Use naive datetimes for PostgreSQL compatibility
+        current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
         last_quarter_start = current_quarter_start - relativedelta(months=3)
         # last_quarter_end is now current_quarter_start (exclusive upper bound)
         last_quarter_end = current_quarter_start
