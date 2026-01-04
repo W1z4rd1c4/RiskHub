@@ -264,13 +264,18 @@ export function RiskDetailPage() {
                         <ArrowLeft className="h-3 w-3" /> Back to Register
                     </button>
                     <div className="flex items-center gap-4">
-                        <h2 className="text-4xl font-black text-white tracking-tighter">{risk.process}</h2>
+                        <h2 className="text-4xl font-black text-white tracking-tighter">{risk.name}</h2>
                         {risk.is_priority && (
                             <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
                         )}
                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusColor(risk.status)}`}>
                             {risk.status}
                         </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-slate-500 text-sm font-medium">
+                        <span className="text-accent font-mono">{risk.risk_id_code}</span>
+                        <span className="text-slate-600">•</span>
+                        <span>{risk.process}</span>
                     </div>
                     <p className="text-slate-500 font-medium max-w-2xl">{risk.description}</p>
                 </div>
