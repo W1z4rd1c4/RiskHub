@@ -626,14 +626,21 @@ async def get_quarterly_comparison(
         from app.models.approval_request import ApprovalResourceType
         from app.models.orphaned_item import OrphanedItem
 
-        now = datetime.now()
+        from datetime import timezone
+        
+        # Use UTC-aware datetimes for consistency
+        now = datetime.now(timezone.utc)
 
         dept_ids = get_user_department_ids(current_user)
         
-        # Calculate quarter boundaries
-        current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
+        # Calculate quarter boundaries using end-exclusive semantics:
+        # - this_quarter: [current_quarter_start, now)
+        # - last_quarter: [last_quarter_start, current_quarter_start)
+        # This ensures no events are missed at boundary edges
+        current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1, tzinfo=timezone.utc)
         last_quarter_start = current_quarter_start - relativedelta(months=3)
-        last_quarter_end = current_quarter_start - timedelta(days=1)
+        # last_quarter_end is now current_quarter_start (exclusive upper bound)
+        last_quarter_end = current_quarter_start
         
         async def get_quarter_metrics(start: datetime, end: datetime) -> dict:
             """Get metrics for a quarter period."""
@@ -641,10 +648,10 @@ async def get_quarterly_comparison(
             from app.models.approval_request import ApprovalRequest
             from app.models.approval_request import ApprovalStatus
             
-            # Risks created in period
+            # Risks created in period (end-exclusive: [start, end))
             risk_conditions = [
                 Risk.created_at >= start,
-                Risk.created_at <= end,
+                Risk.created_at < end,
                 Risk.status != RiskStatus.archived.value,
             ]
             if dept_ids is not None:
@@ -653,10 +660,10 @@ async def get_quarterly_comparison(
                 select(func.count(Risk.id)).where(*risk_conditions)
             )
             
-            # Risks closed in period
+            # Risks closed in period (end-exclusive: [start, end))
             closed_conditions = [
                 Risk.updated_at >= start,
-                Risk.updated_at <= end,
+                Risk.updated_at < end,
                 Risk.status == RiskStatus.closed.value,
             ]
             if dept_ids is not None:
@@ -665,9 +672,9 @@ async def get_quarterly_comparison(
                 select(func.count(Risk.id)).where(*closed_conditions)
             )
             
-            # Active risks at end of period
+            # Active risks at end of period (created before end)
             active_conditions = [
-                Risk.created_at <= end,
+                Risk.created_at < end,
                 Risk.status.in_([RiskStatus.active.value, RiskStatus.monitoring.value]),
             ]
             if dept_ids is not None:
@@ -702,10 +709,11 @@ async def get_quarterly_comparison(
                 kri_breach_query
             )
             
-            # Pending approvals
+            # Pending approvals - use enum values to prevent string-literal drift
             # ApprovalRequest has no department_id; scope via the underlying resource.
+            pending_status_values = [ApprovalStatus.PENDING.value, ApprovalStatus.PENDING_PRIVILEGED.value]
             pending_approval_conditions = [
-                cast(ApprovalRequest.status, String).in_(["pending", "pending_privileged"])
+                cast(ApprovalRequest.status, String).in_(pending_status_values)
             ]
             if dept_ids is None:
                 pending_approvals = await db.scalar(select(func.count(ApprovalRequest.id)).where(*pending_approval_conditions))
@@ -730,10 +738,10 @@ async def get_quarterly_comparison(
             
             # --- NEW METRICS: Audit & Control Effectiveness ---
             
-            # Audit activity: control executions in period
+            # Audit activity: control executions in period (end-exclusive: [start, end))
             audit_activity_query = select(func.count(ControlExecution.id)).where(
                 ControlExecution.executed_at >= start,
-                ControlExecution.executed_at <= end,
+                ControlExecution.executed_at < end,
             )
             if dept_ids is not None:
                 audit_activity_query = audit_activity_query.join(Control, ControlExecution.control_id == Control.id).where(
@@ -743,11 +751,11 @@ async def get_quarterly_comparison(
                 audit_activity_query
             )
             
-            # Failed audits: executions with result='failed' in period
+            # Failed audits: executions with result='failed' in period (end-exclusive: [start, end))
             from app.models.control_execution import ExecutionResult
             failed_audits_query = select(func.count(ControlExecution.id)).where(
                 ControlExecution.executed_at >= start,
-                ControlExecution.executed_at <= end,
+                ControlExecution.executed_at < end,
                 ControlExecution.result == ExecutionResult.failed.value,
             )
             if dept_ids is not None:
@@ -781,10 +789,10 @@ async def get_quarterly_comparison(
             )
             control_coverage = round((risks_with_controls or 0) / total_active_risks * 100)
             
-            # Unaudited controls: active controls with 0 executions in period
+            # Unaudited controls: active controls with 0 executions in period (end-exclusive: [start, end))
             controls_with_executions = select(ControlExecution.control_id.distinct()).where(
                 ControlExecution.executed_at >= start,
-                ControlExecution.executed_at <= end
+                ControlExecution.executed_at < end
             )
             unaudited_controls_query = select(func.count(Control.id)).where(
                 Control.status == ControlStatus.active.value,
@@ -846,10 +854,10 @@ async def get_quarterly_comparison(
                 overdue_kris_query
             )
             
-            # Activity volume: activity log entries in period
+            # Activity volume: activity log entries in period (end-exclusive: [start, end))
             activity_volume_query = select(func.count(ActivityLog.id)).where(
                 ActivityLog.created_at >= start,
-                ActivityLog.created_at <= end,
+                ActivityLog.created_at < end,
             )
             if dept_ids is not None:
                 activity_volume_query = activity_volume_query.where(ActivityLog.department_id.in_(dept_ids))
@@ -870,43 +878,91 @@ async def get_quarterly_comparison(
             )
             
             return {
-                # Row 1: Risk Posture
+                # Row 1: Risk Posture (period-based)
                 "new_risks": risk_count or 0,
                 "closed_risks": closed_count or 0,
-                "active_risks": active_risks or 0,
-                "priority_risks": priority_count or 0,
-                "kri_breaches": kri_breaches or 0,
-                "pending_approvals": pending_approvals or 0,
-                # Row 2: Audit & Control Effectiveness
+                # Row 2: Audit & Control Effectiveness (period-based)
                 "audit_activity": audit_activity or 0,
                 "failed_audits": failed_audits or 0,
-                "control_coverage": control_coverage,
                 "unaudited_controls": unaudited_controls or 0,
-                # Row 3: Governance Health
-                "orphaned_items": orphaned_items or 0,
-                "kri_health": kri_health,
-                "overdue_kris": overdue_kris or 0,
+                # Row 3: Activity (period-based)
                 "activity_volume": activity_volume or 0,
-                "risks_without_kri": risks_without_kri or 0,
             }
         
-        this_quarter = await get_quarter_metrics(current_quarter_start, now)
-        last_quarter = await get_quarter_metrics(last_quarter_start, last_quarter_end)
+        async def get_snapshot_metrics() -> dict:
+            """Get current snapshot metrics (point-in-time state)."""
+            from app.core.snapshot_service import capture_snapshot_metrics
+            return await capture_snapshot_metrics(db, dept_ids)
+        
+        async def get_historical_snapshot(quarter_label: str) -> Optional[dict]:
+            """Get historical snapshot metrics for a past quarter."""
+            from app.core.snapshot_service import get_quarter_snapshot
+            snapshot = await get_quarter_snapshot(db, quarter_label)
+            if snapshot:
+                return snapshot.metrics
+            return None
+        
+        # Get period-based metrics for both quarters
+        this_quarter_period = await get_quarter_metrics(current_quarter_start, now)
+        last_quarter_period = await get_quarter_metrics(last_quarter_start, last_quarter_end)
+        
+        # Get snapshot metrics
+        from app.core.snapshot_service import get_quarter_label
+        last_quarter_label = get_quarter_label(last_quarter_start)
+        current_quarter_label = get_quarter_label(now)
+        
+        # Current quarter snapshot = live data
+        current_snapshot = await get_snapshot_metrics()
+        
+        # Last quarter snapshot = from stored snapshot (if available)
+        last_quarter_snapshot = await get_historical_snapshot(last_quarter_label)
+        snapshot_available = last_quarter_snapshot is not None
+        
+        # If no historical snapshot exists, use current values as fallback (with warning)
+        if last_quarter_snapshot is None:
+            last_quarter_snapshot = current_snapshot  # Same values = no change shown
+        
+        # Combine period and snapshot metrics for this quarter
+        this_quarter = {
+            **this_quarter_period,
+            **current_snapshot,
+        }
+        
+        # Combine period and snapshot metrics for last quarter
+        last_quarter = {
+            **last_quarter_period,
+            **last_quarter_snapshot,
+        }
         
         # Calculate changes
         changes = {}
+        # Define which metrics are snapshot-based (comparison only valid if snapshot exists)
+        snapshot_metrics = {"priority_risks", "kri_breaches", "pending_approvals", 
+                          "control_coverage", "orphaned_items", "kri_health", 
+                          "overdue_kris", "risks_without_kri", "active_risks"}
+        
         for key in this_quarter:
-            old_val = last_quarter[key]
+            old_val = last_quarter.get(key, 0)
             new_val = this_quarter[key]
-            if old_val == 0:
-                pct_change = 100 if new_val > 0 else 0
+            
+            # For snapshot metrics without historical data, don't show misleading changes
+            if key in snapshot_metrics and not snapshot_available:
+                changes[key] = {
+                    "absolute": 0,
+                    "percentage": 0,
+                    "direction": "unknown",
+                    "note": "No historical snapshot available",
+                }
             else:
-                pct_change = round(((new_val - old_val) / old_val) * 100, 1)
-            changes[key] = {
-                "absolute": new_val - old_val,
-                "percentage": pct_change,
-                "direction": "up" if new_val > old_val else ("down" if new_val < old_val else "same"),
-            }
+                if old_val == 0:
+                    pct_change = 100 if new_val > 0 else 0
+                else:
+                    pct_change = round(((new_val - old_val) / old_val) * 100, 1)
+                changes[key] = {
+                    "absolute": new_val - old_val,
+                    "percentage": pct_change,
+                    "direction": "up" if new_val > old_val else ("down" if new_val < old_val else "same"),
+                }
         
         return {
             "this_quarter": this_quarter,
@@ -917,7 +973,15 @@ async def get_quarterly_comparison(
                 "this_end": now.isoformat(),
                 "last_start": last_quarter_start.isoformat(),
                 "last_end": last_quarter_end.isoformat(),
-            }
+            },
+            "snapshot_info": {
+                "current_quarter": current_quarter_label,
+                "last_quarter": last_quarter_label,
+                "last_quarter_snapshot_available": snapshot_available,
+                "period_metrics": ["new_risks", "closed_risks", "audit_activity", 
+                                   "failed_audits", "unaudited_controls", "activity_volume"],
+                "snapshot_metrics": list(snapshot_metrics),
+            },
         }
     except Exception as e:
         logger.exception("Error in quarterly-comparison endpoint: %s", str(e))
