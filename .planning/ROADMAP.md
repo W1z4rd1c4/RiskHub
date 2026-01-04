@@ -495,7 +495,7 @@ Plans:
 - [x] 200-03: Frontend Risk List & Table Updates
 - [x] 200-04: Frontend Risk Wizard & Form Updates
 - [x] 200-05: Frontend Risk Details & Linkage Components
-- [ ] 200-06: KRI Naming Consistency (UI/UX)
+- [x] 200-06: KRI Naming Consistency (UI/UX)
 - [ ] 200-07: Control Naming Consistency (UI/UX)
 - [ ] 200-08: Export & Reporting Updates
 - [ ] 200-09: Verification & Regression Testing
