@@ -90,24 +90,30 @@ class LoggingContextMiddleware(BaseHTTPMiddleware):
 
 def _extract_user_id_from_token(token: str) -> int | None:
     """
-    Extract user_id from JWT token without full validation.
+    Extract user_id from JWT token with signature verification.
     
-    This is a lightweight extraction for logging purposes only.
-    Full validation happens in the auth dependency.
+    This validates the JWT before trusting the user_id for logging context.
+    Invalid/expired tokens return None (no attribution).
     """
     try:
-        from jose import jwt
+        from jose import jwt, JWTError
         from app.core.config import get_settings
         
         settings = get_settings()
-        # Decode without verifying signature for speed
-        # (full verification happens in auth dependency)
+        # Verify signature to prevent spoofed attribution
         payload = jwt.decode(
             token,
             settings.secret_key,
             algorithms=["HS256"],
-            options={"verify_signature": False}
+            options={"verify_exp": True, "verify_signature": True}
         )
-        return int(payload.get("sub", 0)) or None
+        # Token encodes user_id as dedicated claim, sub is email
+        user_id = payload.get("user_id")
+        if user_id is not None:
+            return int(user_id)
+        return None
+    except (JWTError, ValueError, TypeError):
+        # Invalid/expired token - no user attribution
+        return None
     except Exception:
         return None

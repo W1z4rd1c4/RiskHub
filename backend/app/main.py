@@ -28,11 +28,53 @@ async def lifespan(app: FastAPI):
     """Application lifecycle management."""
     # Startup
     logger.info("startup", message="RiskHub application starting")
+    
+    # Apply log rotation settings from Risk Hub config
+    await _apply_log_rotation_config()
+    
     start_scheduler()
     yield
     # Shutdown
     logger.info("shutdown", message="RiskHub application shutting down")
     stop_scheduler()
+
+
+async def _apply_log_rotation_config():
+    """Apply log rotation settings from Risk Hub config database."""
+    try:
+        from app.db.session import async_session_maker
+        from app.models.global_config import GlobalConfig
+        from sqlalchemy import select
+        
+        async with async_session_maker() as db:
+            # Fetch rotation settings
+            size_result = await db.execute(
+                select(GlobalConfig).where(GlobalConfig.key == "log_rotation_size_mb")
+            )
+            size_config = size_result.scalar_one_or_none()
+            
+            count_result = await db.execute(
+                select(GlobalConfig).where(GlobalConfig.key == "log_retention_count")
+            )
+            count_config = count_result.scalar_one_or_none()
+            
+            rotation_size_mb = int(size_config.value) if size_config else None
+            retention_count = int(count_config.value) if count_config else None
+            
+            if rotation_size_mb or retention_count:
+                configure_logging(
+                    rotation_size_mb=rotation_size_mb,
+                    retention_count=retention_count
+                )
+                logger.info(
+                    "log_config_applied",
+                    message=f"Log rotation config applied from Risk Hub: {rotation_size_mb}MB x {retention_count} files"
+                )
+    except Exception as e:
+        logger.warning(
+            "log_config_error",
+            message=f"Could not apply log rotation config from database: {e}"
+        )
 
 
 app = FastAPI(

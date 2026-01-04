@@ -78,7 +78,7 @@ def _build_approval_read(approval: ApprovalRequest) -> dict:
         "resource_name": approval.resource_name,
         "action_type": approval.action_type.value if approval.action_type else "delete",
         "pending_changes": pending_changes,
-        "status": approval.status.value,
+        "status": approval.status.value.lower(),
         "reason": approval.reason,
         "requested_by_id": approval.requested_by_id,
         "requested_by_name": approval.requested_by.name if approval.requested_by else None,
@@ -226,7 +226,7 @@ async def list_approval_requests(
                 ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
             )
         else:
-            base_query = base_query.where(ApprovalRequest.status == ApprovalStatus(status_filter.value))
+            base_query = base_query.where(ApprovalRequest.status == ApprovalStatus(status_filter.value.upper()))
     if resource_type:
         base_query = base_query.where(ApprovalRequest.resource_type == ApprovalResourceType(resource_type.value))
     
@@ -341,12 +341,12 @@ async def approve_request(
             # Privileged user bypasses tiered approval
             approval.status = ApprovalStatus.APPROVED
             approval.resolved_by_id = current_user.id
-            approval.resolved_at = datetime.now(UTC)
+            approval.resolved_at = datetime.utcnow()
             approval.resolution_notes = resolve_data.resolution_notes
             should_apply_changes = True
         elif is_primary_approver:
             # Primary approver approving
-            approval.primary_approved_at = datetime.now(UTC)
+            approval.primary_approved_at = datetime.utcnow()
             if approval.requires_privileged_approval:
                 # Move to PENDING_PRIVILEGED
                 approval.status = ApprovalStatus.PENDING_PRIVILEGED
@@ -355,16 +355,16 @@ async def approve_request(
                 # No privileged approval needed, finalize
                 approval.status = ApprovalStatus.APPROVED
                 approval.resolved_by_id = current_user.id
-                approval.resolved_at = datetime.now(UTC)
+                approval.resolved_at = datetime.utcnow()
                 approval.resolution_notes = resolve_data.resolution_notes
                 should_apply_changes = True
     elif approval.status == ApprovalStatus.PENDING_PRIVILEGED:
         # Privileged user finalizing
         approval.status = ApprovalStatus.APPROVED
         approval.privileged_approver_id = current_user.id
-        approval.privileged_approved_at = datetime.now(UTC)
+        approval.privileged_approved_at = datetime.utcnow()
         approval.resolved_by_id = current_user.id
-        approval.resolved_at = datetime.now(UTC)
+        approval.resolved_at = datetime.utcnow()
         approval.resolution_notes = (approval.resolution_notes or "") + f"\nPrivileged approval: {resolve_data.resolution_notes}"
         should_apply_changes = True
     
@@ -567,7 +567,8 @@ async def reject_request(
     if not approval:
         raise HTTPException(status_code=404, detail="Approval request not found")
     
-    if approval.status != ApprovalStatus.PENDING:
+    # Allow rejecting any pending status (PENDING or PENDING_PRIVILEGED)
+    if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
         raise HTTPException(status_code=400, detail=f"Cannot reject request with status: {approval.status.value}")
     
     previous_status = approval.status
@@ -575,7 +576,7 @@ async def reject_request(
     # Update approval status
     approval.status = ApprovalStatus.REJECTED
     approval.resolved_by_id = current_user.id
-    approval.resolved_at = datetime.now(UTC)
+    approval.resolved_at = datetime.utcnow()
     approval.resolution_notes = resolve_data.resolution_notes
     
     department_id = await _get_approval_department_id(db, approval)
@@ -639,7 +640,7 @@ async def cancel_request(
     
     # Update status
     approval.status = ApprovalStatus.CANCELLED
-    approval.resolved_at = datetime.now(UTC)
+    approval.resolved_at = datetime.utcnow()
     
     await db.commit()
     
