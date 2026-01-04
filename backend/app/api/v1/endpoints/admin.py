@@ -176,7 +176,7 @@ class TechnicalLogEntry(BaseModel):
     user_name: str | None
     user_email: str | None
     entity_type: str | None
-    details: str | None
+    description: str | None  # Changed from details to match ActivityLog model
 
 
 class ActiveSessionResponse(BaseModel):
@@ -328,7 +328,7 @@ async def get_technical_logs(
             user_name=log.actor.name if log.actor else None,
             user_email=log.actor.email if log.actor else None,
             entity_type=log.entity_type,
-            details=log.details
+            description=log.description
         )
         for log in logs
     ]
@@ -426,12 +426,14 @@ async def revoke_user_session(
     
     await log_activity(
         db=db,
-        user_id=current_user.id,
+        actor=current_user,
         action=ActivityAction.UPDATE,
         entity_type=ActivityEntityType.USER,
         entity_id=user_id,
-        details=f"Session revoked for user {user.email} by admin"
+        entity_name=user.name,
+        description=f"Session revoked for user {user.email} by admin"
     )
+    await db.commit()
     
     return {"status": "success", "message": f"Session revoked for {user.email}"}
 
@@ -477,14 +479,13 @@ async def get_recent_logs(
     require_admin(current_user)
     
     import json
-    from pathlib import Path
-    from collections import deque
+    from app.core.logging import get_log_directory, tail_log_file
     
     # Limit lines to prevent huge responses
     lines = min(lines, 500)
     
-    # Log file path (same as configured in logging.py)
-    log_file = Path(__file__).parent.parent.parent.parent / "logs" / "app.json.log"
+    # Use centralized log directory helper
+    log_file = get_log_directory() / "app.json.log"
     
     if not log_file.exists():
         return RecentLogsResponse(
@@ -493,14 +494,8 @@ async def get_recent_logs(
             file_path=str(log_file)
         )
     
-    # Read last N lines efficiently using deque
-    recent_lines: deque[str] = deque(maxlen=lines * 2)  # Get extra for filtering
-    total_lines = 0
-    
-    with open(log_file, "r", encoding="utf-8") as f:
-        for line in f:
-            total_lines += 1
-            recent_lines.append(line.strip())
+    # Use efficient tail reader (read extra for filtering)
+    recent_lines, total_estimate = tail_log_file(log_file, lines * 2)
     
     # Parse JSON lines and filter
     entries: list[RecentLogEntry] = []
@@ -540,7 +535,7 @@ async def get_recent_logs(
     # Return only requested number of entries (after filtering)
     return RecentLogsResponse(
         entries=entries[-lines:],
-        total_lines=total_lines,
+        total_lines=total_estimate,
         file_path=str(log_file)
     )
 
@@ -562,14 +557,13 @@ async def get_audit_logs(
     require_admin(current_user)
     
     import json
-    from pathlib import Path
-    from collections import deque
+    from app.core.logging import get_log_directory, tail_log_file
     
     # Limit lines (audit logs might be important so allow more than debug logs)
     lines = min(lines, 1000)
     
-    # Audit log file path
-    log_file = Path(__file__).parent.parent.parent.parent / "logs" / "audit.json.log"
+    # Use centralized log directory helper
+    log_file = get_log_directory() / "audit.json.log"
     
     if not log_file.exists():
         return RecentLogsResponse(
@@ -578,14 +572,8 @@ async def get_audit_logs(
             file_path=str(log_file)
         )
     
-    # Read last N lines efficiently
-    recent_lines: deque[str] = deque(maxlen=lines * 2)
-    total_lines = 0
-    
-    with open(log_file, "r", encoding="utf-8") as f:
-        for line in f:
-            total_lines += 1
-            recent_lines.append(line.strip())
+    # Use efficient tail reader (read extra for filtering)
+    recent_lines, total_estimate = tail_log_file(log_file, lines * 2)
     
     # Parse JSON lines and filter
     entries: list[RecentLogEntry] = []
@@ -597,7 +585,6 @@ async def get_audit_logs(
             data = json.loads(line)
             
             # Filter by event type if specified
-            # event is usually the action name in audit logs
             if event_type and data.get("event") != event_type:
                 continue
             
@@ -622,7 +609,7 @@ async def get_audit_logs(
     
     return RecentLogsResponse(
         entries=entries[-lines:],
-        total_lines=total_lines,
+        total_lines=total_estimate,
         file_path=str(log_file)
     )
 

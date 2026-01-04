@@ -46,11 +46,11 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
         await log_activity(
             db=db,
             actor=None,
-            action=ActivityAction.LOGIN,
+            action=ActivityAction.FAILED_LOGIN,
             entity_type=ActivityEntityType.USER,
             entity_id=0,
             entity_name=credentials.email,
-            description=f"Failed login attempt: user not found or no password"
+            description="Failed login attempt: invalid credentials"
         )
         await db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -60,12 +60,12 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
         from app.models.activity_log import ActivityAction, ActivityEntityType
         await log_activity(
             db=db,
-            actor=user,
-            action=ActivityAction.LOGIN,
+            actor=None,  # Don't attribute to user to avoid confirming existence
+            action=ActivityAction.FAILED_LOGIN,
             entity_type=ActivityEntityType.USER,
-            entity_id=user.id,
-            entity_name=user.name,
-            description=f"Failed login attempt (wrong password): {user.email}"
+            entity_id=0,  # Don't expose real user ID
+            entity_name=credentials.email,
+            description="Failed login attempt: invalid credentials"
         )
         await db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
