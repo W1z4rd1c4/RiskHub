@@ -104,6 +104,7 @@ async def list_risks(
         base_query = base_query.where(
             or_(
                 Risk.risk_id_code.ilike(search_pattern),
+                Risk.name.ilike(search_pattern),
                 Risk.description.ilike(search_pattern),
                 Risk.process.ilike(search_pattern),
             )
