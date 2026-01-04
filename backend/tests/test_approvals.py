@@ -252,6 +252,7 @@ async def test_create_approval_cross_department_forbidden(
     # Create risk in Department B
     risk_in_b = Risk(
         risk_id_code="RISK-CROSS-DEPT",
+        name="Cross-Department Risk",
         process="Cross-department test",
         description="Risk in department B",
         category="Test",
@@ -298,6 +299,7 @@ async def test_approve_kri_history_correction_applies_change(
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
         metric_name="Approval KRI",
+        description="KRI used to test approval history correction",
         current_value=45.0,
         lower_limit=0.0,
         upper_limit=100.0,
@@ -373,6 +375,7 @@ async def test_approve_kri_value_submission_with_period_end(
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
         metric_name="Value Submission KRI",
+        description="KRI used to test value submission approvals",
         current_value=30.0,
         lower_limit=0.0,
         upper_limit=100.0,
@@ -490,6 +493,7 @@ async def test_kri_approval_cross_department_denied(
     # Create risk in Department B
     risk_in_b = Risk(
         risk_id_code="RISK-KRI-TEST",
+        name="Risk for KRI Approval",
         process="KRI Test Process",
         description="Risk for KRI approval test",
         category="Test",
@@ -510,6 +514,7 @@ async def test_kri_approval_cross_department_denied(
     kri = KeyRiskIndicator(
         risk_id=risk_in_b.id,
         metric_name="Cross-Department KRI Metric",
+        description="KRI metric for cross-department approval test",
         current_value=50.0,
         lower_limit=0.0,
         upper_limit=100.0,
