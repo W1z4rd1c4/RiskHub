@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 200 Entity Naming Enforcement
-**Current Plan:** 200-06 (Completed)
-**Next Plan:** 200-07 (Control Naming Consistency)
+**Current Plan:** 200-07 (Completed)
+**Next Plan:** 200-08 (Export/PDF Updates)
 
 ## Progress Summary
 
@@ -45,7 +45,7 @@
 | 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
-| 200 Entity Naming Enforcement | ⏳ In progress (6/10) | - |
+| 200 Entity Naming Enforcement | ⏳ In progress (7/10) | - |
 
 ## Session Context
 
@@ -141,10 +141,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 200-06: Added description to KRI types, form, and detail page with validation.
+- Completed Phase 200-07: Reviewed Control components and updated linked risks to show Risk Name prominently.
 
 ### Next Step
-- Execute Phase 200-07 (Control Naming Consistency).
+- Execute Phase 200-08 (Export/PDF Updates).
 
 ---
 *Updated: 2026-01-04*

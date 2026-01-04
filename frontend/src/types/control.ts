@@ -74,6 +74,11 @@ export interface ControlSummary {
     risk_level: number;
     status: ControlStatus;
     control_form: ControlForm;
+    risk_type?: string;
+    risk_id_code?: string;
+    risk_description?: string;
+    risk_owner_name?: string;
+    risk_department_name?: string;
 }
 
 export type ControlCreate = Omit<Control, 'id' | 'created_at' | 'updated_at' | 'control_owner' | 'department'>;
@@ -125,7 +130,9 @@ export interface ControlRiskLink {
     };
     risk?: {
         id: number;
+        name: string;
         risk_id_code: string;
+        process: string;
         description: string;
     };
 }
