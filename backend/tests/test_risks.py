@@ -8,7 +8,7 @@ from app.models import Department, User
 
 
 @pytest.mark.asyncio
-async def test_create_risk(auth_client: AsyncClient, test_user: User, test_department: Department):
+async def test_create_risk(auth_client: AsyncClient, test_user: User, test_department: Department, seed_risk_types):
     """Test creating a new risk."""
     response = await auth_client.post(
         "/api/v1/risks",
@@ -37,7 +37,7 @@ async def test_create_risk(auth_client: AsyncClient, test_user: User, test_depar
 
 
 @pytest.mark.asyncio
-async def test_list_risks(auth_client: AsyncClient, test_user: User, test_department: Department):
+async def test_list_risks(auth_client: AsyncClient, test_user: User, test_department: Department, seed_risk_types):
     """Test listing risks with pagination."""
     # Create a risk first
     await auth_client.post(
@@ -69,7 +69,7 @@ async def test_list_risks(auth_client: AsyncClient, test_user: User, test_depart
 
 
 @pytest.mark.asyncio
-async def test_get_risk(auth_client: AsyncClient, test_user: User, test_department: Department):
+async def test_get_risk(auth_client: AsyncClient, test_user: User, test_department: Department, seed_risk_types):
     """Test retrieving a single risk."""
     # Create a risk first
     create_response = await auth_client.post(
@@ -102,7 +102,7 @@ async def test_get_risk(auth_client: AsyncClient, test_user: User, test_departme
 
 
 @pytest.mark.asyncio
-async def test_update_risk(auth_client: AsyncClient, test_user: User, test_department: Department):
+async def test_update_risk(auth_client: AsyncClient, test_user: User, test_department: Department, seed_risk_types):
     """Test updating a risk."""
     # Create a risk first
     create_response = await auth_client.post(
@@ -142,7 +142,7 @@ async def test_update_risk(auth_client: AsyncClient, test_user: User, test_depar
 
 
 @pytest.mark.asyncio
-async def test_filter_risks_by_status(auth_client: AsyncClient, test_user: User, test_department: Department):
+async def test_filter_risks_by_status(auth_client: AsyncClient, test_user: User, test_department: Department, seed_risk_types):
     """Test filtering risks by status."""
     # Create an active risk
     await auth_client.post(
