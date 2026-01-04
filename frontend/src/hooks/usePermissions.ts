@@ -39,7 +39,9 @@ export function usePermissions() {
         // Access management permissions
         canManageAccess: hasGlobalScope,  // Users with global scope can view/edit access
         canManagePrivileged: isAdminOrCro,  // Only admin/CRO can toggle privileged status/roles
-        canViewActivityLog: hasPermission('activity_log', 'read'),
+        // Activity Log: Admin is console-only and should not access business views
+        // Even though admin has *:* permissions, we explicitly block them from Activity Log
+        canViewActivityLog: user?.role !== 'admin' && hasPermission('activity_log', 'read'),
         isAdmin: isAdminOrCro,
         isPrivileged: hasGlobalScope,
         user,
