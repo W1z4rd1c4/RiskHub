@@ -323,12 +323,16 @@ export function ControlDetailPage() {
                                 linkedRisks.map((link) => (
                                     <div key={link.id} className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer">
                                         <div className="flex justify-between items-start mb-2">
-                                            <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.description}</span>
+                                            <div>
+                                                <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || 'Unnamed Risk'}</span>
+                                                {link.risk?.process && <span className="text-[10px] text-slate-500 block mt-0.5">{link.risk.process}</span>}
+                                            </div>
                                             <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${link.effectiveness === 'high' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
                                                 }`}>
                                                 {link.effectiveness}
                                             </span>
                                         </div>
+                                        {link.risk?.description && <p className="mt-1 text-[10px] text-slate-400 line-clamp-2">{link.risk.description}</p>}
                                         {link.notes && <p className="mt-2 text-[10px] text-slate-500 font-medium italic">"{link.notes}"</p>}
                                     </div>
                                 ))
