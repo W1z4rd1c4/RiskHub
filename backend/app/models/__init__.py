@@ -16,6 +16,7 @@ from app.models.activity_log import ActivityLog, ActivityAction, ActivityEntityT
 from app.models.risk_type import RiskTypeConfig
 from app.models.global_config import GlobalConfig
 from app.models.approval_scenario import ApprovalScenario
+from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
 
 __all__ = [
     "Role", "Permission", "RolePermission", "RoleType",
@@ -36,4 +37,6 @@ __all__ = [
     "RiskTypeConfig",
     "GlobalConfig",
     "ApprovalScenario",
+    "QuarterlyMetricSnapshot", "SnapshotType",
 ]
+

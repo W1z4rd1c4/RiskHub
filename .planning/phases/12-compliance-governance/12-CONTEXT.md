@@ -11,7 +11,10 @@ Two components to enhance governance and compliance visibility in RiskHub.
 Enhance the existing Dashboard tab with Risk Committee functionality:
 
 - **Executive Summary** — High-level risk posture changes since last quarter with drill-downs
-- **Quarterly Report Package** — Prepared materials for committee review
+- **Quarterly Report Package** — Browser print/PDF export from Committee view (via `window.print()`)
+  - Committee Summary + Quarterly Comparison sections rendered in a print-friendly layout
+  - No server-side PDF generation required
+  - Admins can capture quarterly metric snapshots via Admin Console for accurate historical comparisons
 - **Meeting Mode** — Projector-friendly presentation layout for live review sessions
 
 ---
