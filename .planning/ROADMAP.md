@@ -492,7 +492,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 Plans:
 - [x] 200-01: Database Schema & Migration (Risk Name)
 - [x] 200-02: Backend API & Logic Updates (Risk Name)
-- [ ] 200-03: Frontend Risk List & Table Updates
+- [x] 200-03: Frontend Risk List & Table Updates
 - [ ] 200-04: Frontend Risk Wizard & Form Updates
 - [ ] 200-05: Frontend Risk Details & Linkage Components
 - [ ] 200-06: KRI Naming Consistency (UI/UX)

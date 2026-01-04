@@ -194,21 +194,24 @@ export function RisksPage() {
     // Column definitions for SortableTable
     const columns: Column<RiskSummary>[] = useMemo(() => [
         {
-            key: 'process',
-            label: 'Risk',
+            key: 'name',
+            label: 'Name',
             sortable: true,
             render: (risk) => (
-                <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white">{risk.process}</span>
-                    {risk.is_priority && (
-                        <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                    )}
-                    {pendingApprovalIds.has(risk.id) && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20" title="Changes Pending Approval">
-                            <Lock className="h-2.5 w-2.5" />
-                            Pending
-                        </div>
-                    )}
+                <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-white">{risk.name}</span>
+                        {risk.is_priority && (
+                            <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                        )}
+                        {pendingApprovalIds.has(risk.id) && (
+                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20" title="Changes Pending Approval">
+                                <Lock className="h-2.5 w-2.5" />
+                                Pending
+                            </div>
+                        )}
+                    </div>
+                    <span className="text-[10px] text-slate-500">{risk.process}</span>
                 </div>
             ),
         },
@@ -346,6 +349,7 @@ export function RisksPage() {
             case 'category': return 'category';
             case 'department': return 'department_name';
             case 'process': return 'process';
+            case 'risk_type': return 'risk_type';
             default: return null;
         }
     };
@@ -389,7 +393,7 @@ export function RisksPage() {
             </div>
 
             {/* View Switcher */}
-            <ViewSwitcher value={viewMode} onChange={setViewMode} />
+            <ViewSwitcher value={viewMode} onChange={setViewMode} exclude={['risk']} />
 
             {/* Filters */}
             <div className="glass-card flex flex-col md:flex-row gap-4">
@@ -397,7 +401,7 @@ export function RisksPage() {
                     <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
                     <input
                         type="text"
-                        placeholder="Search by process or category..."
+                        placeholder="Search by name, process or category..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
@@ -555,9 +559,12 @@ export function RisksPage() {
                             className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
                         >
                             <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-bold text-white">{risk.process}</span>
-                                    {risk.is_priority && <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />}
+                                <div className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-bold text-white">{risk.name}</span>
+                                        {risk.is_priority && <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />}
+                                    </div>
+                                    <span className="text-[10px] text-slate-500">{risk.process}</span>
                                 </div>
                                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getStatusColor(risk.status)}`}>
                                     {risk.status}
