@@ -14,6 +14,7 @@ async def test_create_risk(auth_client: AsyncClient, test_user: User, test_depar
         "/api/v1/risks",
         json={
             "risk_id_code": "R-101",
+            "name": "Test Risk R-101",
             "process": "Test Process",
             "description": "A test risk for verification",
             "department_id": test_department.id,
@@ -43,6 +44,7 @@ async def test_list_risks(auth_client: AsyncClient, test_user: User, test_depart
         "/api/v1/risks",
         json={
             "risk_id_code": "R-102",
+            "name": "List Test Risk R-102",
             "process": "List Test Risk",
             "description": "Risk for list test",
             "department_id": test_department.id,
@@ -74,6 +76,7 @@ async def test_get_risk(auth_client: AsyncClient, test_user: User, test_departme
         "/api/v1/risks",
         json={
             "risk_id_code": "R-103",
+            "name": "Get Test Risk R-103",
             "process": "Get Test Risk",
             "description": "Risk for get test",
             "department_id": test_department.id,
@@ -106,6 +109,7 @@ async def test_update_risk(auth_client: AsyncClient, test_user: User, test_depar
         "/api/v1/risks",
         json={
             "risk_id_code": "R-104",
+            "name": "Update Test Risk R-104",
             "process": "Update Test Risk",
             "description": "Risk for update test",
             "department_id": test_department.id,
@@ -145,6 +149,7 @@ async def test_filter_risks_by_status(auth_client: AsyncClient, test_user: User,
         "/api/v1/risks",
         json={
             "risk_id_code": "R-105",
+            "name": "Active Risk R-105",
             "process": "Active Risk",
             "description": "An active risk",
             "department_id": test_department.id,

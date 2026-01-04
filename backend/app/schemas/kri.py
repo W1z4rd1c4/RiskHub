@@ -19,6 +19,7 @@ class KRIFrequencyEnum(str, Enum):
 class KRIBase(BaseModel):
     """Base schema for KRI."""
     metric_name: str = Field(..., min_length=1, max_length=500)
+    description: str = Field(..., description="KRI description")
     current_value: float
     lower_limit: float
     upper_limit: float
@@ -35,6 +36,7 @@ class KRICreate(KRIBase):
 class KRIUpdate(BaseModel):
     """Schema for updating a KRI."""
     metric_name: Optional[str] = Field(None, min_length=1, max_length=500)
+    description: Optional[str] = Field(None, description="KRI description")
     current_value: Optional[float] = None
     lower_limit: Optional[float] = None
     upper_limit: Optional[float] = None
@@ -48,10 +50,16 @@ class KRIResponse(KRIBase):
     id: int
     risk_id: int
     
+    # Description is inherited from KRIBase, explicitly included in response
+    
     # Optional metadata for grouping
     risk_category: Optional[str] = None
     risk_process: Optional[str] = None
     risk_description: Optional[str] = None
+    risk_type: Optional[str] = None
+    risk_id_code: Optional[str] = None
+    risk_owner_name: Optional[str] = None
+    risk_department_name: Optional[str] = None
     department_name: Optional[str] = None
     
     # Reporting ownership display
