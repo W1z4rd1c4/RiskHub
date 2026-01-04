@@ -42,6 +42,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 100: Marketing Presentation** — Single HTML presentation for the board (Czech)
 - [ ] **Phase 150: Audit (RiskHub-only)** — Systematic code and logic audit for RiskHub (exclude AD Emulator)
 - [ ] **Phase 151: Audit Resolution** — Remediate Phase 150 audit findings across backend and frontend
+- [ ] **Phase 200: Entity Naming Enforcement** — Mandatory naming for KRI, Risk, and Control entities (10 plans)
 
 ## Phase Details
 
@@ -341,16 +342,20 @@ Plans:
 **Goal**: Implement fixes for all Phase 71 findings across backend and frontend
 **Depends on**: Phase 71
 **Research**: None
-**Plans**: 7 plans
+**Plans**: 11 plans
 
 Plans:
 - [x] 72-01: Backend risk type integration + risk count accuracy
 - [x] 72-02: Global config thresholds + notification settings integration
 - [x] 72-03: Cross-department Owner Access + Notification Fan-out
 - [x] 72-04: Risk Hub CRUD hardening + public-config gating + tests
-- [ ] 72-05: Frontend alignment with Risk Hub config (risk types, thresholds, approvals)
-- [ ] 72-06: Persist approval scenario key + config-driven approver notifications
-- [ ] 72-07: Public endpoints + thresholds propagation + frontend display cleanup
+- [x] 72-05: Frontend alignment with Risk Hub config (risk types, thresholds, approvals)
+- [ ] 72-06: Approval scenario foundation (scenario_key + schema + seeds)
+- [ ] 72-07: Scenario-driven approval creation + notifications
+- [ ] 72-08: Scenario role enforcement on approve/reject (tiered)
+- [ ] 72-09: Backend threshold propagation cleanup (reports + approvals)
+- [ ] 72-10: Public endpoints for thresholds + risk types (non-CRO)
+- [ ] 72-11: Frontend public-config consumption + dynamic type display
 
 ### Phase 85: Workflow & Users
 **Goal**: Map current access by role and deliver enhanced user management workflows (role rights, manager visibility, department remediation).
@@ -477,3 +482,21 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 99. Data Migration & Standalone AD | 7/7 | Complete | 2025-12-28 |
 | 150. Audit (RiskHub-only) | 2/3 | In progress | - |
 | 151. Audit Resolution | 8/11 | In progress | - |
+
+### Phase 200: Entity Naming Enforcement
+**Goal**: Enforce mandatory "Name" field for all entities (Risk, Control, KRI) and update all UI components to display it prominently.
+**Depends on**: None
+**Research**: None
+**Plans**: 10 plans
+
+Plans:
+- [x] 200-01: Database Schema & Migration (Risk Name)
+- [ ] 200-02: Backend API & Logic Updates (Risk Name)
+- [ ] 200-03: Frontend Risk List & Table Updates
+- [ ] 200-04: Frontend Risk Wizard & Form Updates
+- [ ] 200-05: Frontend Risk Details & Linkage Components
+- [ ] 200-06: KRI Naming Consistency (UI/UX)
+- [ ] 200-07: Control Naming Consistency (UI/UX)
+- [ ] 200-08: Export & Reporting Updates
+- [ ] 200-09: Verification & Regression Testing
+- [ ] 200-10: Final Cleanup & Documentation
