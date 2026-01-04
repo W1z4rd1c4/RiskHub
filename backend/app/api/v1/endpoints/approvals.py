@@ -5,7 +5,7 @@ from datetime import datetime, UTC
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from sqlalchemy import select, func, or_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
@@ -29,6 +29,25 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+async def _notify_requester_resolved_background(
+    engine: AsyncEngine,
+    approval_id: int,
+    approved: bool,
+) -> None:
+    """Background task: notify requester using a fresh DB session."""
+    session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with session_maker() as session:
+        result = await session.execute(select(ApprovalRequest).where(ApprovalRequest.id == approval_id))
+        approval = result.scalar_one_or_none()
+        if not approval:
+            return
+        try:
+            await NotificationService.notify_requester_resolved(session, approval, approved=approved)
+            await session.commit()
+        except Exception:
+            await session.rollback()
 
 
 async def _get_approval_department_id(db: AsyncSession, approval: ApprovalRequest) -> int | None:
@@ -510,8 +529,14 @@ async def approve_request(
     
 
     
-    # NOTE: Requester notifications are intentionally disabled until a safe
-    # background-session strategy is implemented.
+    # Notify requester in the background (fresh DB session)
+    if approval.status == ApprovalStatus.APPROVED and isinstance(db.bind, AsyncEngine):
+        background_tasks.add_task(
+            _notify_requester_resolved_background,
+            db.bind,
+            approval.id,
+            True,
+        )
     
     return _build_approval_read(approval)
 
@@ -520,6 +545,7 @@ async def approve_request(
 async def reject_request(
     approval_id: int,
     resolve_data: ApprovalRequestResolve,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
@@ -573,12 +599,14 @@ async def reject_request(
     )
     approval = result.scalar_one()
     
-    # Notify requester about rejection
-    try:
-        await NotificationService.notify_requester_resolved(db, approval, approved=False)
-        await db.commit()
-    except Exception:
-        pass  # Notification failure should not fail the rejection
+    # Notify requester in the background (fresh DB session)
+    if isinstance(db.bind, AsyncEngine):
+        background_tasks.add_task(
+            _notify_requester_resolved_background,
+            db.bind,
+            approval.id,
+            False,
+        )
     
     return _build_approval_read(approval)
 
