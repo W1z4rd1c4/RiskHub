@@ -1,4 +1,5 @@
 """Service for logging activities across the system."""
+from enum import Enum as PyEnum
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import ActivityLog, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -6,6 +7,76 @@ from app.core.logging import get_audit_logger
 
 # Structured logger for audit events (SIEM-compatible) - routes to audit.json.log
 audit_logger = get_audit_logger()
+
+EXCLUDED_CHANGE_FIELDS = {"password", "hashed_password"}
+MAX_DESCRIPTION_LENGTH = 2048
+MAX_CHANGE_KEYS = 50
+MAX_CHANGE_VALUE_LENGTH = 500
+
+
+def _normalize_change_value(value: object) -> object:
+    """Normalize enums for JSON-friendly change logging."""
+    if isinstance(value, PyEnum):
+        return value.value
+    return value
+
+
+def _truncate_text(value: str | None, max_len: int) -> str | None:
+    if value is None:
+        return None
+    if len(value) <= max_len:
+        return value
+    if max_len <= 3:
+        return value[:max_len]
+    return value[: max_len - 3] + "..."
+
+
+def _truncate_change_value(value: object) -> object:
+    if isinstance(value, str):
+        return _truncate_text(value, MAX_CHANGE_VALUE_LENGTH)
+    return value
+
+
+def _truncate_changes(changes: dict | None) -> dict | None:
+    if not changes or not isinstance(changes, dict):
+        return changes
+    truncated: dict[str, object] = {}
+    for field, value in list(changes.items())[:MAX_CHANGE_KEYS]:
+        if isinstance(value, dict) and ("old" in value or "new" in value):
+            truncated[field] = {
+                "old": _truncate_change_value(value.get("old")),
+                "new": _truncate_change_value(value.get("new")),
+            }
+        else:
+            truncated[field] = _truncate_change_value(value)
+    return truncated or None
+
+
+def build_change_set(model: object, updates: dict, *, extra_changes: dict | None = None) -> dict | None:
+    """
+    Build a {field: {old, new}} change set from a model and update payload.
+    Expects model to still hold OLD values (call before mutating).
+    """
+    changes: dict[str, dict[str, object]] = {}
+    for field, new_value in updates.items():
+        if field in EXCLUDED_CHANGE_FIELDS:
+            continue
+        old_value = getattr(model, field, None)
+        old_value = _normalize_change_value(old_value)
+        new_value = _normalize_change_value(new_value)
+        if old_value != new_value:
+            changes[field] = {"old": old_value, "new": new_value}
+
+    if extra_changes:
+        for field, values in extra_changes.items():
+            if field in EXCLUDED_CHANGE_FIELDS:
+                continue
+            old_value = _normalize_change_value(values.get("old"))
+            new_value = _normalize_change_value(values.get("new"))
+            if old_value != new_value:
+                changes[field] = {"old": old_value, "new": new_value}
+
+    return changes or None
 
 
 async def log_activity(
@@ -39,6 +110,8 @@ async def log_activity(
     """
     if description is None:
         description = _generate_description(entity_type, entity_name, action, changes)
+    description = _truncate_text(description, MAX_DESCRIPTION_LENGTH) or ""
+    changes = _truncate_changes(changes)
     
     entry = ActivityLog(
         entity_type=entity_type.value,

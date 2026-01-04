@@ -11,7 +11,7 @@ class ActivityLogRead(BaseModel):
     entity_id: int
     entity_name: str
     action: str
-    actor_id: int
+    actor_id: Optional[int] = None
     actor_name: str
     department_id: Optional[int] = None
     changes: Optional[dict] = None

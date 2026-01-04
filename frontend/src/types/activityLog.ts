@@ -4,7 +4,7 @@ export interface ActivityLogEntry {
     entity_id: number;
     entity_name: string;
     action: string;
-    actor_id: number;
+    actor_id: number | null;
     actor_name: string;
     department_id: number | null;
     changes: Record<string, { old: unknown; new: unknown }> | null;
