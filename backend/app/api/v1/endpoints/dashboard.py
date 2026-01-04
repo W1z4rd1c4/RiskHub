@@ -608,6 +608,8 @@ async def get_kri_breach_trends(
 async def get_quarterly_comparison(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_committee_user),
+    current_quarter: Optional[str] = Query(None, description="Current quarter in format 'YYYY-QN' (e.g., '2026-Q1'). Defaults to current quarter."),
+    compare_quarter: Optional[str] = Query(None, description="Comparison quarter in format 'YYYY-QN' (e.g., '2025-Q4'). Defaults to previous quarter."),
 ):
     """
     Get quarter-over-quarter comparison metrics for Risk Committee view.
@@ -616,6 +618,10 @@ async def get_quarterly_comparison(
         - this_quarter: metrics for current quarter
         - last_quarter: metrics for previous quarter
         - changes: percentage/absolute changes
+        
+    Optional query params:
+        - current_quarter: Quarter to analyze (e.g., '2026-Q1')
+        - compare_quarter: Quarter to compare against (e.g., '2025-Q4')
     """
     try:
         from datetime import datetime, timedelta
@@ -627,6 +633,17 @@ async def get_quarterly_comparison(
         from app.models.orphaned_item import OrphanedItem
 
         from datetime import timezone
+        import re
+        
+        def parse_quarter(quarter_str: str) -> datetime:
+            """Parse a quarter string like '2026-Q1' into a datetime for the quarter start."""
+            match = re.match(r'^(\d{4})-Q([1-4])$', quarter_str)
+            if not match:
+                raise ValueError(f"Invalid quarter format: {quarter_str}. Expected 'YYYY-QN' (e.g., '2026-Q1')")
+            year = int(match.group(1))
+            quarter = int(match.group(2))
+            month = (quarter - 1) * 3 + 1
+            return datetime(year, month, 1)
         
         # Use UTC time but store as naive datetime (PostgreSQL columns are TIMESTAMP WITHOUT TIME ZONE)
         # We work internally with UTC-aware datetimes but convert to naive for queries
@@ -636,14 +653,29 @@ async def get_quarterly_comparison(
         dept_ids = get_user_department_ids(current_user)
         
         # Calculate quarter boundaries using end-exclusive semantics:
-        # - this_quarter: [current_quarter_start, now)
-        # - last_quarter: [last_quarter_start, current_quarter_start)
+        # - this_quarter: [current_quarter_start, current_quarter_end)
+        # - last_quarter: [last_quarter_start, last_quarter_end)
         # This ensures no events are missed at boundary edges
         # Use naive datetimes for PostgreSQL compatibility
-        current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
-        last_quarter_start = current_quarter_start - relativedelta(months=3)
-        # last_quarter_end is now current_quarter_start (exclusive upper bound)
-        last_quarter_end = current_quarter_start
+        
+        if current_quarter:
+            current_quarter_start = parse_quarter(current_quarter)
+            current_quarter_end = current_quarter_start + relativedelta(months=3)
+            # If current quarter is the actual current quarter, use now as end
+            actual_current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
+            if current_quarter_start == actual_current_quarter_start:
+                current_quarter_end = now  # Use current time for in-progress quarter
+        else:
+            current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
+            current_quarter_end = now  # Use current time for in-progress quarter
+        
+        if compare_quarter:
+            last_quarter_start = parse_quarter(compare_quarter)
+            last_quarter_end = last_quarter_start + relativedelta(months=3)
+        else:
+            last_quarter_start = current_quarter_start - relativedelta(months=3)
+            # last_quarter_end is now current_quarter_start (exclusive upper bound)
+            last_quarter_end = current_quarter_start
         
         async def get_quarter_metrics(start: datetime, end: datetime) -> dict:
             """Get metrics for a quarter period."""

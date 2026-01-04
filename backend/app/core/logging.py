@@ -211,3 +211,90 @@ def get_logger(name: str = "riskhub") -> structlog.BoundLogger:
 def get_audit_logger() -> structlog.BoundLogger:
     """Get the dedicated audit logger for security events."""
     return structlog.get_logger("audit")
+
+
+def get_log_directory() -> Path:
+    """
+    Get the log directory path used by configure_logging().
+    
+    This is the single source of truth for log file locations.
+    Returns:
+        Path to the logs directory (backend/logs/)
+    """
+    return Path(__file__).parent.parent.parent / "logs"
+
+
+def tail_log_file(log_path: Path, line_count: int = 100) -> tuple[list[str], int]:
+    """
+    Efficiently read the last N lines from a log file.
+    
+    Uses reverse reading to avoid scanning the entire file.
+    
+    Args:
+        log_path: Path to the log file
+        line_count: Number of lines to retrieve
+    
+    Returns:
+        Tuple of (list of lines, total line count estimate)
+    """
+    if not log_path.exists():
+        return [], 0
+    
+    lines: list[str] = []
+    file_size = log_path.stat().st_size
+    
+    if file_size == 0:
+        return [], 0
+    
+    # Read in chunks from the end
+    chunk_size = 8192
+    buffer = ""
+    
+    with open(log_path, "rb") as f:
+        # Start from end
+        remaining = file_size
+        
+        while remaining > 0 and len(lines) < line_count:
+            # Read chunk
+            read_size = min(chunk_size, remaining)
+            remaining -= read_size
+            f.seek(remaining)
+            chunk = f.read(read_size).decode("utf-8", errors="replace")
+            
+            buffer = chunk + buffer
+            
+            # Extract complete lines
+            while "\n" in buffer and len(lines) < line_count:
+                last_newline = buffer.rfind("\n")
+                if last_newline == len(buffer) - 1:
+                    # Line ends with newline, find the previous one
+                    prev_newline = buffer.rfind("\n", 0, last_newline)
+                    if prev_newline >= 0:
+                        line = buffer[prev_newline + 1:last_newline]
+                        buffer = buffer[:prev_newline + 1]
+                        if line.strip():
+                            lines.append(line)
+                    else:
+                        # Only one line in buffer, need more data
+                        break
+                else:
+                    # Buffer doesn't end with newline, split at last
+                    line = buffer[last_newline + 1:]
+                    buffer = buffer[:last_newline + 1]
+                    if line.strip():
+                        lines.append(line)
+    
+    # Add any remaining content
+    if buffer.strip() and len(lines) < line_count:
+        for line in buffer.strip().split("\n"):
+            if line.strip() and len(lines) < line_count:
+                lines.append(line)
+    
+    # Reverse to get chronological order (oldest first)
+    lines.reverse()
+    
+    # Estimate total lines (rough approximation)
+    avg_line_size = file_size / max(len(lines), 1) if lines else 100
+    total_estimate = int(file_size / avg_line_size) if avg_line_size > 0 else 0
+    
+    return lines[-line_count:], total_estimate
