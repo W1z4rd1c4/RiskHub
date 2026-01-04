@@ -1,4 +1,4 @@
-export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+export type ApprovalStatus = 'pending' | 'pending_privileged' | 'approved' | 'rejected' | 'cancelled';
 export type ApprovalResourceType = 'risk' | 'control' | 'kri';
 export type ApprovalActionType = 'delete' | 'edit';
 

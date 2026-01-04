@@ -8,6 +8,7 @@ interface CommitteeSummary {
     critical_risks: Array<{
         id: number;
         risk_id_code: string;
+        name: string;
         process: string;
         description: string;
         net_score: number;
@@ -137,24 +138,32 @@ export function RiskCommitteeSection() {
                                     className="bg-white/5 rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors"
                                 >
                                     <div className="flex items-start justify-between gap-2 mb-2">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-bold text-white">
-                                                {risk.process}
-                                            </span>
-                                            {risk.is_priority && (
-                                                <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
-                                            )}
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-bold text-white leading-tight">
+                                                    {risk.name}
+                                                </span>
+                                                {risk.is_priority && (
+                                                    <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                                                <span>{risk.process}</span>
+                                            </div>
                                         </div>
-                                        <span className={`text-sm font-black ${getRiskScoreColor(risk.net_score)}`}>
+                                        <span className={`text-sm font-black shrink-0 ${getRiskScoreColor(risk.net_score)}`}>
                                             {risk.net_score}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-3 mb-2 text-[10px] text-slate-500 font-medium uppercase tracking-wider">
-                                        <span>{risk.owner_name}</span>
-                                        <span className="w-1 h-1 rounded-full bg-slate-600" />
+                                    <div className="flex items-center gap-3 mb-3 text-[10px] text-slate-400 font-medium bg-white/5 w-fit px-2 py-1 rounded-lg border border-white/5">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-accent/50" />
+                                            <span>{risk.owner_name}</span>
+                                        </div>
+                                        <span className="w-px h-2 bg-white/10" />
                                         <span>{risk.department_name}</span>
                                     </div>
-                                    <p className="text-xs text-slate-400 line-clamp-2">
+                                    <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">
                                         {risk.description}
                                     </p>
                                 </div>

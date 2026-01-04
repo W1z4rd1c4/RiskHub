@@ -130,6 +130,12 @@ class ControlSummary(BaseModel):
     status: ControlStatusEnum
     control_form: ControlFormEnum
     control_owner_name: Optional[str] = None
+    risk_type: Optional[str] = None
+    risk_id_code: Optional[str] = None
+    risk_description: Optional[str] = None
+    risk_name: Optional[str] = None
+    risk_owner_name: Optional[str] = None
+    risk_department_name: Optional[str] = None
     
     model_config = {"from_attributes": True}
 

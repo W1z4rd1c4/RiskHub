@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Shield, Plus, Edit, Trash2, RotateCcw, AlertCircle, Users } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
@@ -15,27 +15,29 @@ interface RoleModalProps {
 }
 
 function RoleModal({ isOpen, onClose, role, allPermissions, permissionsLoading, onSave }: RoleModalProps) {
-    const [name, setName] = useState(role?.name || '');
-    const [displayName, setDisplayName] = useState(role?.display_name || '');
-    const [description, setDescription] = useState(role?.description || '');
-    // For editing, we need permission IDs, but role has names "resource:action".
-    // We'll trust the user to re-select or we'd need to map back.
-    // Ideally list_roles returns IDs too, but for now we'll just matching by string in frontend or simplistic approach.
-    // ACTUALLY: The endpoint returns strings only. 
-    // To properly check boxes, we need to map "resource:action" back to ID.
-    // Or we update list_roles to return IDs. 
-    // Let's assume we map simply: permission string "resource:action" <-> permission ID.
-
-    // Compute initial selected IDs based on allPermissions and role.permissions strings
-    const initialSelectedIds = role
-        ? allPermissions
-            .filter(p => role.permissions.includes(`${p.resource}:${p.action}`))
-            .map(p => p.id)
-        : [];
-
-    const [selectedPermissionIds, setSelectedPermissionIds] = useState<number[]>(initialSelectedIds);
+    const [name, setName] = useState('');
+    const [displayName, setDisplayName] = useState('');
+    const [description, setDescription] = useState('');
+    const [selectedPermissionIds, setSelectedPermissionIds] = useState<number[]>([]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            setName(role?.name || '');
+            setDisplayName(role?.display_name || '');
+            setDescription(role?.description || '');
+            setError(null);
+
+            // Compute initial selected IDs based on allPermissions and role.permissions strings
+            const initialSelectedIds = role
+                ? allPermissions
+                    .filter(p => role.permissions.includes(`${p.resource}:${p.action}`))
+                    .map(p => p.id)
+                : [];
+            setSelectedPermissionIds(initialSelectedIds);
+        }
+    }, [isOpen, role, allPermissions]);
 
     // Group permissions by resource
     const permissionsByResource = allPermissions.reduce((acc, perm) => {
@@ -315,19 +317,22 @@ export function RolesPanel() {
                                 </td>
                                 <td className="py-3 px-4">
                                     <div className="flex flex-wrap gap-1 max-w-md">
-                                        {role.permissions.length > 0 ? (
-                                            role.permissions.slice(0, 5).map(p => (
+                                        {role.name === 'admin' ? (
+                                            <span className="px-1.5 py-0.5 bg-blue-500/20 rounded text-xs text-blue-400 border border-blue-500/20 font-bold">
+                                                Admin Permissions
+                                            </span>
+                                        ) : role.permissions.includes("*:*") ? (
+                                            <span className="px-1.5 py-0.5 bg-accent/20 rounded text-xs text-accent border border-accent/20 font-bold">
+                                                Full Access
+                                            </span>
+                                        ) : role.permissions.length > 0 ? (
+                                            role.permissions.map(p => (
                                                 <span key={p} className="px-1.5 py-0.5 bg-white/10 rounded text-xs text-slate-300 border border-white/5">
                                                     {p}
                                                 </span>
                                             ))
                                         ) : (
                                             <span className="text-xs text-slate-500 italic">No permissions</span>
-                                        )}
-                                        {role.permissions.length > 5 && (
-                                            <span className="px-1.5 py-0.5 text-xs text-slate-500">
-                                                +{role.permissions.length - 5} more
-                                            </span>
                                         )}
                                     </div>
                                 </td>
@@ -356,13 +361,19 @@ export function RolesPanel() {
                                     <div className="flex items-center justify-end gap-2">
                                         <button
                                             onClick={() => { setEditingRole(role); setModalOpen(true); }}
-                                            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors"
-                                            title="Edit"
+                                            className={cn(
+                                                "p-1.5 rounded transition-colors",
+                                                ['cro', 'admin', 'viewer'].includes(role.name)
+                                                    ? "text-slate-600 cursor-not-allowed"
+                                                    : "text-slate-400 hover:text-white hover:bg-white/10"
+                                            )}
+                                            disabled={['cro', 'admin', 'viewer'].includes(role.name)}
+                                            title={['cro', 'admin', 'viewer'].includes(role.name) ? `${role.display_name} role cannot be edited` : "Edit"}
                                         >
                                             <Edit className="h-4 w-4" />
                                         </button>
 
-                                        {!role.is_system && role.is_active && (
+                                        {!role.is_system && role.is_active && !['admin', 'cro', 'viewer', 'internal_audit'].includes(role.name) && (
                                             <button
                                                 onClick={() => setDeleteConfirm(role)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"

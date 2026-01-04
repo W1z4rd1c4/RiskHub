@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Palette, Plus, Edit, Trash2, RotateCcw, AlertCircle } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
@@ -13,13 +13,24 @@ interface RiskTypeModalProps {
 }
 
 function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps) {
-    const [code, setCode] = useState(riskType?.code || '');
-    const [displayName, setDisplayName] = useState(riskType?.display_name || '');
-    const [description, setDescription] = useState(riskType?.description || '');
-    const [color, setColor] = useState(riskType?.color || '#64748b');
-    const [sortOrder, setSortOrder] = useState(riskType?.sort_order || 0);
+    const [code, setCode] = useState('');
+    const [displayName, setDisplayName] = useState('');
+    const [description, setDescription] = useState('');
+    const [color, setColor] = useState('#64748b');
+    const [sortOrder, setSortOrder] = useState(0);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            setCode(riskType?.code || '');
+            setDisplayName(riskType?.display_name || '');
+            setDescription(riskType?.description || '');
+            setColor(riskType?.color || '#64748b');
+            setSortOrder(riskType?.sort_order || 0);
+            setError(null);
+        }
+    }, [isOpen, riskType]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

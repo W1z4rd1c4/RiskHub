@@ -607,7 +607,7 @@ async def get_kri_breach_trends(
 @router.get("/quarterly-comparison")
 async def get_quarterly_comparison(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(deps.get_current_committee_user),
 ):
     """
     Get quarter-over-quarter comparison metrics for Risk Committee view.
@@ -622,7 +622,13 @@ async def get_quarterly_comparison(
         from dateutil.relativedelta import relativedelta
         from app.models.approval_request import ApprovalRequest, ApprovalStatus
         
+        from app.core.permissions import get_user_department_ids
+        from app.models.approval_request import ApprovalResourceType
+        from app.models.orphaned_item import OrphanedItem
+
         now = datetime.now()
+
+        dept_ids = get_user_department_ids(current_user)
         
         # Calculate quarter boundaries
         current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
@@ -631,93 +637,147 @@ async def get_quarterly_comparison(
         
         async def get_quarter_metrics(start: datetime, end: datetime) -> dict:
             """Get metrics for a quarter period."""
-            from app.models.orphaned_item import OrphanedItem
             from app.models.activity_log import ActivityLog
+            from app.models.approval_request import ApprovalRequest
+            from app.models.approval_request import ApprovalStatus
             
             # Risks created in period
+            risk_conditions = [
+                Risk.created_at >= start,
+                Risk.created_at <= end,
+                Risk.status != RiskStatus.archived.value,
+            ]
+            if dept_ids is not None:
+                risk_conditions.append(Risk.department_id.in_(dept_ids))
             risk_count = await db.scalar(
-                select(func.count(Risk.id)).where(
-                    Risk.created_at >= start,
-                    Risk.created_at <= end,
-                    Risk.status != RiskStatus.archived.value
-                )
+                select(func.count(Risk.id)).where(*risk_conditions)
             )
             
             # Risks closed in period
+            closed_conditions = [
+                Risk.updated_at >= start,
+                Risk.updated_at <= end,
+                Risk.status == RiskStatus.closed.value,
+            ]
+            if dept_ids is not None:
+                closed_conditions.append(Risk.department_id.in_(dept_ids))
             closed_count = await db.scalar(
-                select(func.count(Risk.id)).where(
-                    Risk.updated_at >= start,
-                    Risk.updated_at <= end,
-                    Risk.status == RiskStatus.closed.value
-                )
+                select(func.count(Risk.id)).where(*closed_conditions)
             )
             
             # Active risks at end of period
+            active_conditions = [
+                Risk.created_at <= end,
+                Risk.status.in_([RiskStatus.active.value, RiskStatus.monitoring.value]),
+            ]
+            if dept_ids is not None:
+                active_conditions.append(Risk.department_id.in_(dept_ids))
             active_risks = await db.scalar(
-                select(func.count(Risk.id)).where(
-                    Risk.created_at <= end,
-                    Risk.status.in_([RiskStatus.active.value, RiskStatus.monitoring.value])
-                )
+                select(func.count(Risk.id)).where(*active_conditions)
             )
             
             # Priority risks
+            priority_conditions = [
+                Risk.is_priority == True,
+                Risk.status != RiskStatus.archived.value,
+            ]
+            if dept_ids is not None:
+                priority_conditions.append(Risk.department_id.in_(dept_ids))
             priority_count = await db.scalar(
-                select(func.count(Risk.id)).where(
-                    Risk.is_priority == True,
-                    Risk.status != RiskStatus.archived.value
-                )
+                select(func.count(Risk.id)).where(*priority_conditions)
             )
             
             # KRI breaches (value outside limits)
-            kri_breaches = await db.scalar(
-                select(func.count(KeyRiskIndicator.id)).where(
-                    or_(
-                        KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
-                        KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit
-                    )
+            kri_breach_query = select(func.count(KeyRiskIndicator.id)).where(
+                or_(
+                    KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
+                    KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
                 )
+            )
+            if dept_ids is not None:
+                kri_breach_query = (
+                    kri_breach_query.join(Risk, KeyRiskIndicator.risk_id == Risk.id).where(Risk.department_id.in_(dept_ids))
+                )
+            kri_breaches = await db.scalar(
+                kri_breach_query
             )
             
             # Pending approvals
-            pending_approvals = await db.scalar(
-                select(func.count(ApprovalRequest.id)).where(
-                    cast(ApprovalRequest.status, String).in_(["pending", "pending_privileged"])
+            # ApprovalRequest has no department_id; scope via the underlying resource.
+            pending_approval_conditions = [
+                cast(ApprovalRequest.status, String).in_(["pending", "pending_privileged"])
+            ]
+            if dept_ids is None:
+                pending_approvals = await db.scalar(select(func.count(ApprovalRequest.id)).where(*pending_approval_conditions))
+            else:
+                pending_risks = await db.scalar(
+                    select(func.count(ApprovalRequest.id))
+                    .join(Risk, (ApprovalRequest.resource_type == ApprovalResourceType.RISK) & (ApprovalRequest.resource_id == Risk.id))
+                    .where(*pending_approval_conditions, Risk.department_id.in_(dept_ids))
                 )
-            )
+                pending_controls = await db.scalar(
+                    select(func.count(ApprovalRequest.id))
+                    .join(Control, (ApprovalRequest.resource_type == ApprovalResourceType.CONTROL) & (ApprovalRequest.resource_id == Control.id))
+                    .where(*pending_approval_conditions, Control.department_id.in_(dept_ids))
+                )
+                pending_kris = await db.scalar(
+                    select(func.count(ApprovalRequest.id))
+                    .join(KeyRiskIndicator, (ApprovalRequest.resource_type == ApprovalResourceType.KRI) & (ApprovalRequest.resource_id == KeyRiskIndicator.id))
+                    .join(Risk, KeyRiskIndicator.risk_id == Risk.id)
+                    .where(*pending_approval_conditions, Risk.department_id.in_(dept_ids))
+                )
+                pending_approvals = (pending_risks or 0) + (pending_controls or 0) + (pending_kris or 0)
             
             # --- NEW METRICS: Audit & Control Effectiveness ---
             
             # Audit activity: control executions in period
-            audit_activity = await db.scalar(
-                select(func.count(ControlExecution.id)).where(
-                    ControlExecution.executed_at >= start,
-                    ControlExecution.executed_at <= end
+            audit_activity_query = select(func.count(ControlExecution.id)).where(
+                ControlExecution.executed_at >= start,
+                ControlExecution.executed_at <= end,
+            )
+            if dept_ids is not None:
+                audit_activity_query = audit_activity_query.join(Control, ControlExecution.control_id == Control.id).where(
+                    Control.department_id.in_(dept_ids)
                 )
+            audit_activity = await db.scalar(
+                audit_activity_query
             )
             
             # Failed audits: executions with result='failed' in period
             from app.models.control_execution import ExecutionResult
-            failed_audits = await db.scalar(
-                select(func.count(ControlExecution.id)).where(
-                    ControlExecution.executed_at >= start,
-                    ControlExecution.executed_at <= end,
-                    ControlExecution.result == ExecutionResult.failed.value
+            failed_audits_query = select(func.count(ControlExecution.id)).where(
+                ControlExecution.executed_at >= start,
+                ControlExecution.executed_at <= end,
+                ControlExecution.result == ExecutionResult.failed.value,
+            )
+            if dept_ids is not None:
+                failed_audits_query = failed_audits_query.join(Control, ControlExecution.control_id == Control.id).where(
+                    Control.department_id.in_(dept_ids)
                 )
+            failed_audits = await db.scalar(
+                failed_audits_query
             )
             
             # Control coverage: % of active risks with at least 1 linked control
             from app.models.risk import ControlRiskLink
+            total_active_risk_conditions = [Risk.status == RiskStatus.active.value]
+            if dept_ids is not None:
+                total_active_risk_conditions.append(Risk.department_id.in_(dept_ids))
             total_active_risks = await db.scalar(
                 select(func.count(Risk.id)).where(
-                    Risk.status == RiskStatus.active.value
+                    *total_active_risk_conditions
                 )
             ) or 1  # Avoid division by zero
+            risks_with_controls_query = (
+                select(func.count(Risk.id.distinct()))
+                .select_from(Risk)
+                .join(ControlRiskLink, ControlRiskLink.risk_id == Risk.id)
+                .where(Risk.status == RiskStatus.active.value)
+            )
+            if dept_ids is not None:
+                risks_with_controls_query = risks_with_controls_query.where(Risk.department_id.in_(dept_ids))
             risks_with_controls = await db.scalar(
-                select(func.count(Risk.id.distinct())).select_from(Risk).join(
-                    ControlRiskLink, ControlRiskLink.risk_id == Risk.id
-                ).where(
-                    Risk.status == RiskStatus.active.value
-                )
+                risks_with_controls_query
             )
             control_coverage = round((risks_with_controls or 0) / total_active_risks * 100)
             
@@ -726,55 +786,87 @@ async def get_quarterly_comparison(
                 ControlExecution.executed_at >= start,
                 ControlExecution.executed_at <= end
             )
+            unaudited_controls_query = select(func.count(Control.id)).where(
+                Control.status == ControlStatus.active.value,
+                Control.id.notin_(controls_with_executions),
+            )
+            if dept_ids is not None:
+                unaudited_controls_query = unaudited_controls_query.where(Control.department_id.in_(dept_ids))
             unaudited_controls = await db.scalar(
-                select(func.count(Control.id)).where(
-                    Control.status == ControlStatus.active.value,
-                    Control.id.notin_(controls_with_executions)
-                )
+                unaudited_controls_query
             )
             
             # --- NEW METRICS: Governance Health ---
             
             # Orphaned items (unresolved)
-            orphaned_items = await db.scalar(
-                select(func.count(OrphanedItem.id)).where(
-                    OrphanedItem.resolved_at.is_(None)
+            if dept_ids is None:
+                orphaned_items = await db.scalar(
+                    select(func.count(OrphanedItem.id)).where(OrphanedItem.resolved_at.is_(None))
                 )
-            )
+            else:
+                orphaned_risks = await db.scalar(
+                    select(func.count(OrphanedItem.id))
+                    .join(Risk, (OrphanedItem.item_type == "risk") & (OrphanedItem.item_id == Risk.id))
+                    .where(OrphanedItem.resolved_at.is_(None), Risk.department_id.in_(dept_ids))
+                )
+                orphaned_controls = await db.scalar(
+                    select(func.count(OrphanedItem.id))
+                    .join(Control, (OrphanedItem.item_type == "control") & (OrphanedItem.item_id == Control.id))
+                    .where(OrphanedItem.resolved_at.is_(None), Control.department_id.in_(dept_ids))
+                )
+                orphaned_items = (orphaned_risks or 0) + (orphaned_controls or 0)
             
             # KRI health: % of KRIs within limits
-            total_kris = await db.scalar(select(func.count(KeyRiskIndicator.id))) or 1
-            kris_within = await db.scalar(
-                select(func.count(KeyRiskIndicator.id)).where(
-                    KeyRiskIndicator.current_value >= KeyRiskIndicator.lower_limit,
-                    KeyRiskIndicator.current_value <= KeyRiskIndicator.upper_limit
-                )
+            total_kris_query = select(func.count(KeyRiskIndicator.id))
+            kris_within_query = select(func.count(KeyRiskIndicator.id)).where(
+                KeyRiskIndicator.current_value >= KeyRiskIndicator.lower_limit,
+                KeyRiskIndicator.current_value <= KeyRiskIndicator.upper_limit,
             )
+            if dept_ids is not None:
+                total_kris_query = total_kris_query.join(Risk, KeyRiskIndicator.risk_id == Risk.id).where(
+                    Risk.department_id.in_(dept_ids)
+                )
+                kris_within_query = kris_within_query.join(Risk, KeyRiskIndicator.risk_id == Risk.id).where(
+                    Risk.department_id.in_(dept_ids)
+                )
+            total_kris = await db.scalar(total_kris_query) or 1
+            kris_within = await db.scalar(kris_within_query)
             kri_health = round((kris_within or 0) / total_kris * 100)
             
             # Overdue KRIs: KRIs past due date (last_period_end + 15 days < now)
-            overdue_kris = await db.scalar(
-                select(func.count(KeyRiskIndicator.id)).where(
-                    KeyRiskIndicator.last_period_end.isnot(None),
-                    func.date(KeyRiskIndicator.last_period_end) + 15 < func.current_date()
+            overdue_kris_query = select(func.count(KeyRiskIndicator.id)).where(
+                KeyRiskIndicator.last_period_end.isnot(None),
+                func.date(KeyRiskIndicator.last_period_end) + 15 < func.current_date(),
+            )
+            if dept_ids is not None:
+                overdue_kris_query = overdue_kris_query.join(Risk, KeyRiskIndicator.risk_id == Risk.id).where(
+                    Risk.department_id.in_(dept_ids)
                 )
+            overdue_kris = await db.scalar(
+                overdue_kris_query
             )
             
             # Activity volume: activity log entries in period
+            activity_volume_query = select(func.count(ActivityLog.id)).where(
+                ActivityLog.created_at >= start,
+                ActivityLog.created_at <= end,
+            )
+            if dept_ids is not None:
+                activity_volume_query = activity_volume_query.where(ActivityLog.department_id.in_(dept_ids))
             activity_volume = await db.scalar(
-                select(func.count(ActivityLog.id)).where(
-                    ActivityLog.created_at >= start,
-                    ActivityLog.created_at <= end
-                )
+                activity_volume_query
             )
             
             # Risks without KRI: active risks with no linked KRI
             risks_with_kri = select(KeyRiskIndicator.risk_id.distinct())
+            risks_without_kri_query = select(func.count(Risk.id)).where(
+                Risk.status == RiskStatus.active.value,
+                Risk.id.notin_(risks_with_kri),
+            )
+            if dept_ids is not None:
+                risks_without_kri_query = risks_without_kri_query.where(Risk.department_id.in_(dept_ids))
             risks_without_kri = await db.scalar(
-                select(func.count(Risk.id)).where(
-                    Risk.status == RiskStatus.active.value,
-                    Risk.id.notin_(risks_with_kri)
-                )
+                risks_without_kri_query
             )
             
             return {
@@ -835,7 +927,7 @@ async def get_quarterly_comparison(
 @router.get("/committee-summary")
 async def get_committee_summary(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(deps.get_current_committee_user),
 ):
     """
     Get executive summary for Risk Committee meetings.
@@ -844,33 +936,45 @@ async def get_committee_summary(
     """
     from datetime import datetime, timedelta
     from app.models.activity_log import ActivityLog
+    from app.core.permissions import get_user_department_ids
+
+    dept_ids = get_user_department_ids(current_user)
     
     # Top 5 critical risks (by net_score, priority first)
     # Eager load owner and department
     from sqlalchemy.orm import joinedload
-    critical_risks = await db.execute(
+    critical_risks_query = (
         select(Risk)
-        .options(
-            joinedload(Risk.owner),
-            joinedload(Risk.department)
-        )
+        .options(joinedload(Risk.owner), joinedload(Risk.department))
         .where(Risk.status == RiskStatus.active.value)
-        .order_by(Risk.is_priority.desc(), Risk.net_score.desc())
-        .limit(5)
+    )
+    if dept_ids is not None:
+        if not dept_ids:
+            return {"critical_risks": [], "recent_activity": [], "department_exposure": []}
+        critical_risks_query = critical_risks_query.where(Risk.department_id.in_(dept_ids))
+    critical_risks = await db.execute(
+        critical_risks_query.order_by(Risk.is_priority.desc(), Risk.net_score.desc()).limit(5)
     )
     
     # Recent significant changes (last 30 days)
     thirty_days_ago = datetime.now() - timedelta(days=30)
-    recent_activity = await db.execute(
+    recent_activity_query = (
         select(ActivityLog)
         .where(ActivityLog.created_at >= thirty_days_ago)
         .where(ActivityLog.action.in_(["create", "delete", "archive", "approve", "reject"]))
         .order_by(ActivityLog.created_at.desc())
         .limit(10)
     )
+    if dept_ids is not None:
+        if not dept_ids:
+            return {"critical_risks": [], "recent_activity": [], "department_exposure": []}
+        recent_activity_query = recent_activity_query.where(ActivityLog.department_id.in_(dept_ids))
+    recent_activity = await db.execute(
+        recent_activity_query
+    )
     
     # Departments with highest risk exposure
-    dept_exposure = await db.execute(
+    dept_exposure_query = (
         select(
             Department.id,
             Department.name,
@@ -883,14 +987,22 @@ async def get_committee_summary(
         .order_by(func.sum(Risk.net_score).desc())
         .limit(5)
     )
+    if dept_ids is not None:
+        if not dept_ids:
+            return {"critical_risks": [], "recent_activity": [], "department_exposure": []}
+        dept_exposure_query = dept_exposure_query.where(Department.id.in_(dept_ids))
+    dept_exposure = await db.execute(
+        dept_exposure_query
+    )
     
     return {
         "critical_risks": [
             {
                 "id": r.id,
                 "risk_id_code": r.risk_id_code,
-                "process": r.process,  # Risk Name
-                "description": r.description[:100] if r.description else "",
+                "name": r.name,
+                "process": r.process,
+                "description": r.description[:300] if r.description else "",  # Increased limit for dashboard
                 "net_score": r.net_score,
                 "is_priority": r.is_priority,
                 "owner_name": r.owner.name if r.owner else "Unassigned",

@@ -518,6 +518,7 @@ class OrphanedItemService:
         details = []
         for orphan in orphans:
             item_name = "Unknown"
+            item_description = None
             item_identifier = None
             department_name = None
             
@@ -529,7 +530,8 @@ class OrphanedItemService:
                 )
                 risk = risk_result.scalar_one_or_none()
                 if risk:
-                    item_name = risk.description or f"Risk #{risk.id}"
+                    item_name = risk.name or f"Risk #{risk.id}"
+                    item_description = risk.description
                     item_identifier = risk.risk_id_code
                     if risk.department:
                         department_name = risk.department.name
@@ -543,6 +545,7 @@ class OrphanedItemService:
                 control = control_result.scalar_one_or_none()
                 if control:
                     item_name = control.name or f"Control #{control.id}"
+                    item_description = control.description
                     item_identifier = str(control.id)
                     if control.department:
                         department_name = control.department.name
@@ -555,6 +558,7 @@ class OrphanedItemService:
                 kri = kri_result.scalar_one_or_none()
                 if kri:
                     item_name = kri.metric_name or f"KRI #{kri.id}"
+                    item_description = kri.description
                     item_identifier = str(kri.id)
                     # KRIs link to risks, which have depts
                     risk_res = await db.execute(select(Risk).options(selectinload(Risk.department)).where(Risk.id == kri.risk_id))
@@ -567,6 +571,7 @@ class OrphanedItemService:
                 "item_type": orphan.item_type,
                 "item_id": orphan.item_id,
                 "item_name": item_name,
+                "item_description": item_description,
                 "item_identifier": item_identifier,
                 "department_name": department_name,
                 "previous_owner_name": orphan.previous_owner.name if orphan.previous_owner else "Unknown",
@@ -595,6 +600,7 @@ class OrphanedItemService:
             return None
         
         item_name = "Unknown"
+        item_description = None
         item_identifier = None
         department_name = None
         
@@ -606,7 +612,8 @@ class OrphanedItemService:
             )
             risk = risk_result.scalar_one_or_none()
             if risk:
-                item_name = risk.description or f"Risk #{risk.id}"
+                item_name = risk.name or f"Risk #{risk.id}"
+                item_description = risk.description
                 item_identifier = risk.risk_id_code
                 if risk.department:
                     department_name = risk.department.name
@@ -620,6 +627,7 @@ class OrphanedItemService:
             control = control_result.scalar_one_or_none()
             if control:
                 item_name = control.name or f"Control #{control.id}"
+                item_description = control.description
                 item_identifier = str(control.id)
                 if control.department:
                     department_name = control.department.name
@@ -632,6 +640,7 @@ class OrphanedItemService:
             kri = kri_result.scalar_one_or_none()
             if kri:
                 item_name = kri.metric_name or f"KRI #{kri.id}"
+                item_description = kri.description
                 item_identifier = str(kri.id)
                 risk_res = await db.execute(select(Risk).options(selectinload(Risk.department)).where(Risk.id == kri.risk_id))
                 risk = risk_res.scalar_one_or_none()
@@ -643,6 +652,7 @@ class OrphanedItemService:
             "item_type": orphan.item_type,
             "item_id": orphan.item_id,
             "item_name": item_name,
+            "item_description": item_description,
             "item_identifier": item_identifier,
             "department_name": department_name,
             "previous_owner_name": orphan.previous_owner.name if orphan.previous_owner else "Unknown",

@@ -26,8 +26,9 @@ class OrphanedItemDetail(BaseModel):
     id: int
     item_type: str
     item_id: int
-    item_name: str  # Risk description or Control name
-    item_identifier: Optional[str] = None  # risk_id_code or control code
+    item_name: str  # Risk name, Control name, or KRI name
+    item_description: Optional[str] = None  # Brief description of the item
+    item_identifier: Optional[str] = None  # risk_id_code, control ID, or KRI ID
     department_name: Optional[str] = None
     previous_owner_name: str
     previous_owner_email: str

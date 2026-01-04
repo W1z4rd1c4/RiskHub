@@ -72,7 +72,8 @@ export function DashboardPage() {
     // Risk Committee view state
     const [activeView, setActiveView] = useState<'overview' | 'committee'>('overview');
 
-    const isPrivileged = user?.access_scope === 'global';
+    const isPrivileged = user?.access_scope === 'global' && user?.role !== 'admin';
+    const canViewCommittee = isPrivileged || user?.role === 'department_head';
 
     const fetchData = useCallback(async () => {
         try {
@@ -197,8 +198,8 @@ export function DashboardPage() {
                 </div>
             </div>
 
-            {/* View Tabs - only show to privileged users */}
-            {isPrivileged && (
+            {/* View Tabs */}
+            {canViewCommittee && (
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setActiveView('overview')}
@@ -223,7 +224,7 @@ export function DashboardPage() {
             )}
 
             {/* Render based on active view */}
-            {activeView === 'committee' && isPrivileged ? (
+            {activeView === 'committee' && canViewCommittee ? (
                 <RiskCommitteeSection />
             ) : (
                 <>

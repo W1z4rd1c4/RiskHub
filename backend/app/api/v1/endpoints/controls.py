@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models import User, Control, ControlExecution, ControlRiskLink
+from app.models import User, Control, ControlExecution, ControlRiskLink, Risk
 from app.schemas.control import (
     ControlCreate, ControlUpdate, ControlRead, ControlSummary, ControlListResponse,
     ControlExecutionCreate, ControlExecutionRead,
@@ -82,7 +82,6 @@ async def list_controls(
 
     # Advanced filters (Process/Category via Risk links)
     if process or category:
-        from app.models import Risk, ControlRiskLink
         base_query = base_query.join(Control.risk_links).join(ControlRiskLink.risk)
         if process:
             base_query = base_query.where(Risk.process == process)
@@ -98,15 +97,23 @@ async def list_controls(
     # Apply pagination and ordering with eager loading
     query = base_query.options(
         selectinload(Control.department),
-        selectinload(Control.control_owner)
+        selectinload(Control.control_owner),
+        selectinload(Control.risk_links).selectinload(ControlRiskLink.risk).options(
+            selectinload(Risk.owner),
+            selectinload(Risk.department)
+        )
     ).offset(skip).limit(limit).order_by(Control.name)
     
     result = await db.execute(query)
     controls = result.scalars().all()
     
-    # Map to summary with department_name
-    items = [
-        ControlSummary(
+    # Map to summary with department_name and risk info
+    items = []
+    for c in controls:
+        # Get first linked risk for grouping purposes
+        first_risk = c.risk_links[0].risk if c.risk_links else None
+        
+        items.append(ControlSummary(
             id=c.id,
             name=c.name,
             department_id=c.department_id,
@@ -116,9 +123,13 @@ async def list_controls(
             status=ControlStatusEnum(c.status),
             control_form=ControlFormEnum(c.control_form),
             control_owner_name=c.control_owner.name if c.control_owner else None,
-        )
-        for c in controls
-    ]
+            risk_type=first_risk.risk_type if first_risk else None,
+            risk_id_code=first_risk.risk_id_code if first_risk else None,
+            risk_description=first_risk.description if first_risk else None,
+            risk_name=first_risk.name if first_risk else None,
+            risk_owner_name=first_risk.owner.name if first_risk and first_risk.owner else None,
+            risk_department_name=first_risk.department.name if first_risk and first_risk.department else None,
+        ))
     
     return ControlListResponse(items=items, total=total, skip=skip, limit=limit)
 

@@ -273,8 +273,6 @@ export function RiskDetailPage() {
                         </span>
                     </div>
                     <div className="flex items-center gap-3 text-slate-500 text-sm font-medium">
-                        <span className="text-accent font-mono">{risk.risk_id_code}</span>
-                        <span className="text-slate-600">•</span>
                         <span>{risk.process}</span>
                     </div>
                     <p className="text-slate-500 font-medium max-w-2xl">{risk.description}</p>

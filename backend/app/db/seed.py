@@ -12,15 +12,15 @@ from app.models import Control, ControlExecution, Risk, ControlRiskLink
 
 # SII-compliant roles
 ROLES = [
-    {"name": "admin", "display_name": "Administrator", "description": "System administration, full access"},
-    {"name": "cro", "display_name": "Chief Risk Officer", "description": "Full access, risk oversight, reporting"},
+    {"name": "admin", "display_name": "Administrator", "description": "System administration, platform access only", "is_system": True},
+    {"name": "cro", "display_name": "Chief Risk Officer", "description": "Full access, risk oversight, reporting", "is_system": True},
     {"name": "risk_manager", "display_name": "Risk Manager", "description": "Risk register management, control oversight"},
     {"name": "actuarial", "display_name": "Actuarial Function", "description": "Actuarial controls, reserving oversight"},
     {"name": "compliance", "display_name": "Compliance Officer", "description": "Regulatory compliance, policy controls"},
-    {"name": "internal_audit", "display_name": "Internal Audit", "description": "Read-only audit access, verification rights"},
+    {"name": "internal_audit", "display_name": "Internal Audit", "description": "Read-only audit access, verification rights", "is_system": True},
     {"name": "department_head", "display_name": "Department Head", "description": "Department control catalog ownership"},
     {"name": "control_owner", "display_name": "Control Owner", "description": "Specific control management and execution"},
-    {"name": "viewer", "display_name": "Viewer", "description": "Read-only dashboard access"},
+    {"name": "viewer", "display_name": "Viewer", "description": "Read-only dashboard access", "is_system": True},
 ]
 
 # Base permissions (add risks permissions)
@@ -45,7 +45,7 @@ PERMISSIONS = [
 
 # Role-permission mappings
 ROLE_PERMISSIONS = {
-    "admin": ["*:*"],
+    "admin": ["users:*", "activity_log:read", "departments:read"],
     "cro": ["*:*"],
     "risk_manager": ["controls:*", "risks:*", "departments:read", "reports:*", "users:read", "approvals:write", "activity_log:read"],
     "actuarial": ["controls:read", "controls:write", "risks:read", "reports:read"],
