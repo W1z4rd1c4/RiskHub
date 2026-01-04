@@ -69,9 +69,12 @@ async def list_kris(
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
     
-    # Eagerly load risk and department for grouping metadata
+    # Eagerly load risk, owner and department for grouping metadata
     query = query.options(
-        joinedload(KeyRiskIndicator.risk).joinedload(Risk.department)
+        selectinload(KeyRiskIndicator.risk).options(
+            selectinload(Risk.owner),
+            selectinload(Risk.department)
+        )
     )
     
     # Paginate
@@ -87,6 +90,11 @@ async def list_kris(
             res.risk_category = k.risk.category
             res.risk_process = k.risk.process
             res.risk_description = k.risk.description
+            res.risk_name = k.risk.name
+            res.risk_type = k.risk.risk_type
+            res.risk_id_code = k.risk.risk_id_code
+            res.risk_owner_name = k.risk.owner.name if k.risk.owner else None
+            res.risk_department_name = k.risk.department.name if k.risk.department else None
             if k.risk.department:
                 res.department_name = k.risk.department.name
         items.append(res)

@@ -72,7 +72,8 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                     <thead>
                         <tr className="border-b border-white/5">
                             <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Item</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Description</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Department</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Previous Owner</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Orphaned</th>
@@ -104,6 +105,9 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                         <div>
                                             <p className="text-sm font-bold text-white group-hover:text-accent transition-colors">{item.item_name}</p>
                                         </div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <p className="text-xs text-slate-500 line-clamp-2 max-w-md">{item.item_description || '-'}</p>
                                     </td>
                                     <td className="px-4 py-3">
                                         {item.department_name === 'Uncategorised' ? (

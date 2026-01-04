@@ -22,6 +22,9 @@ interface CategoryDrillDownProps<T> {
     keyExtractor: (item: T) => string | number;
     className?: string;
     categoryIcon?: React.ReactNode;
+    hideTotal?: boolean;
+    hideHighRisk?: boolean;
+    renderBody?: (items: T[]) => React.ReactNode;
 }
 
 interface GroupData<T> {
@@ -41,6 +44,9 @@ export function CategoryDrillDown<T extends Record<string, any>>({
     renderGroupExtra,
     keyExtractor,
     className,
+    hideTotal,
+    hideHighRisk,
+    renderBody,
 }: CategoryDrillDownProps<T>) {
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
@@ -135,19 +141,29 @@ export function CategoryDrillDown<T extends Record<string, any>>({
                             <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-accent group-hover:translate-x-1 transition-all" />
                         </div>
 
+                        {renderBody && (
+                            <div className="mb-4">
+                                {renderBody(group.items)}
+                            </div>
+                        )}
+
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-6">
-                                <div>
-                                    <p className="text-3xl font-black text-white">{group.stats.total}</p>
-                                    <p className="text-xs text-slate-500 uppercase tracking-wider">Items</p>
-                                </div>
+                                {!hideTotal && (
+                                    <div>
+                                        <p className="text-3xl font-black text-white">{group.stats.total}</p>
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider">Items</p>
+                                    </div>
+                                )}
                                 {group.stats.activeCount !== undefined && (
                                     <div>
-                                        <p className="text-xl font-bold text-emerald-400">{group.stats.activeCount}</p>
+                                        <p className={cn(hideTotal ? "text-3xl font-black" : "text-xl font-bold", "text-emerald-400")}>
+                                            {group.stats.activeCount}
+                                        </p>
                                         <p className="text-xs text-slate-500 uppercase tracking-wider">Active</p>
                                     </div>
                                 )}
-                                {group.stats.highRiskCount !== undefined && group.stats.highRiskCount > 0 && (
+                                {!hideHighRisk && group.stats.highRiskCount !== undefined && group.stats.highRiskCount > 0 && (
                                     <div>
                                         <p className="text-xl font-bold text-rose-400">{group.stats.highRiskCount}</p>
                                         <p className="text-xs text-slate-500 uppercase tracking-wider">High Risk</p>

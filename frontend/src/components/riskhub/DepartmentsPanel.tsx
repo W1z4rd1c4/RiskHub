@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Building, Plus, Edit, Trash2, RotateCcw, AlertCircle, Users, Activity, Shield } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
@@ -14,11 +14,20 @@ interface DepartmentModalProps {
 }
 
 function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModalProps) {
-    const [name, setName] = useState(department?.name || '');
-    const [code, setCode] = useState(department?.code || '');
-    const [managerId, setManagerId] = useState<number | undefined>(department?.manager_id || undefined);
+    const [name, setName] = useState('');
+    const [code, setCode] = useState('');
+    const [managerId, setManagerId] = useState<number | undefined>(undefined);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            setName(department?.name || '');
+            setCode(department?.code || '');
+            setManagerId(department?.manager_id || undefined);
+            setError(null);
+        }
+    }, [isOpen, department]);
 
     // Fetch users for manager selection
     const { data: users } = useQuery({

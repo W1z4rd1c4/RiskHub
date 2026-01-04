@@ -3,7 +3,7 @@
  */
 import { cn } from '@/lib/utils';
 
-export type ViewMode = 'all' | 'category' | 'department' | 'process';
+export type ViewMode = 'all' | 'category' | 'department' | 'process' | 'risk_type' | 'risk';
 
 interface ViewOption {
     value: ViewMode;
@@ -15,18 +15,23 @@ const VIEW_OPTIONS: ViewOption[] = [
     { value: 'category', label: 'By Category' },
     { value: 'department', label: 'By Department' },
     { value: 'process', label: 'By Process' },
+    { value: 'risk_type', label: 'By Risk Type' },
+    { value: 'risk', label: 'By Risk' },
 ];
 
 interface ViewSwitcherProps {
     value: ViewMode;
     onChange: (mode: ViewMode) => void;
     className?: string;
+    exclude?: ViewMode[];
 }
 
-export function ViewSwitcher({ value, onChange, className }: ViewSwitcherProps) {
+export function ViewSwitcher({ value, onChange, className, exclude = [] }: ViewSwitcherProps) {
+    const options = VIEW_OPTIONS.filter(opt => !exclude.includes(opt.value));
+
     return (
         <div className={cn('flex gap-1 p-1 glass rounded-xl', className)}>
-            {VIEW_OPTIONS.map((option) => (
+            {options.map((option) => (
                 <button
                     key={option.value}
                     onClick={() => onChange(option.value)}

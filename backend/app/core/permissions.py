@@ -138,6 +138,21 @@ def can_resolve_approvals(user: User) -> bool:
     return is_privileged_user(user) and has_permission(user, "approvals", "write")
 
 
+def can_view_risk_committee(user: User) -> bool:
+    """
+    Risk Committee dashboard visibility.
+
+    - Privileged users (global scope) can view the committee dashboard with global data.
+    - Department Heads can view the committee dashboard, scoped to their department(s).
+    """
+    role_name = getattr(getattr(user, "role", None), "name", None)
+    if role_name == "admin":
+        return False
+    if is_privileged_user(user):
+        return True
+    return role_name == "department_head"
+
+
 # ============== Critical Risk and Sensitive Field Detection ==============
 
 from app.models.global_config import ConfigDefaults, get_config_int
@@ -370,4 +385,3 @@ async def get_risk_ids_where_control_owner(db, user_id: int) -> list[int]:
         .distinct()
     )
     return [row[0] for row in result.all()]
-

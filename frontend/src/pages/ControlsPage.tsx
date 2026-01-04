@@ -10,7 +10,10 @@ import {
     FileText,
 
     Sheet,
-    Lock
+    Lock,
+    User,
+    Shield,
+    Building2
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
 import { reportApi } from '@/services/reportApi';
@@ -224,6 +227,8 @@ export function ControlsPage() {
             case 'category': return 'control_form';
             case 'department': return 'department_name';
             case 'process': return 'frequency';
+            case 'risk_type': return 'risk_type';
+            case 'risk': return 'risk_name';
             default: return null;
         }
     };
@@ -359,6 +364,30 @@ export function ControlsPage() {
                 <CategoryDrillDown
                     data={controls}
                     groupBy={getGroupByField() as keyof ControlSummary}
+                    hideTotal={viewMode === 'risk'}
+                    hideHighRisk={viewMode === 'risk'}
+                    renderBody={(items) => {
+                        if (viewMode !== 'risk' || items.length === 0) return null;
+                        const info = items[0];
+                        return (
+                            <div className="space-y-3 pb-2 border-b border-white/5">
+                                <div className="grid grid-cols-2 gap-y-2">
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`Type: ${info.risk_type || 'N/A'}`}>
+                                        <Shield className="h-3 w-3 text-accent shrink-0" />
+                                        <span className="truncate">{info.risk_type || 'Unknown Type'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`Dept: ${info.risk_department_name || 'N/A'}`}>
+                                        <Building2 className="h-3 w-3 text-accent shrink-0" />
+                                        <span className="truncate">{info.risk_department_name || 'Unassigned'}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`Owner: ${info.risk_owner_name || 'N/A'}`}>
+                                        <User className="h-3 w-3 text-accent shrink-0" />
+                                        <span className="truncate">{info.risk_owner_name || 'No Owner'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }}
                     keyExtractor={(control) => control.id}
                     getStats={(items) => ({
                         total: items.length,

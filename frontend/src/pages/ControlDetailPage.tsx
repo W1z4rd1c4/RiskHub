@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft,
     Edit,
@@ -17,14 +17,17 @@ import {
     Target
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
+import { riskApi } from '@/services/riskApi';
 import type { Control, ControlRiskLink } from '@/types/control';
 import { ControlStatus } from '@/types/control';
 import { PermissionGate } from '@/components/PermissionGate';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { ControlEffectiveness } from '@/types/risk';
+import type { Risk } from '@/types/risk';
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
+import { RiskQuickViewModal } from '@/components/RiskQuickViewModal';
 import { useAuth } from '@/contexts/AuthContext';
 
 type TabView = 'overview' | 'history';
@@ -55,6 +58,9 @@ export function ControlDetailPage() {
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
     const [historyKey, setHistoryKey] = useState(0);
     const [activeTab, setActiveTab] = useState<TabView>('overview');
+    const [selectedRisk, setSelectedRisk] = useState<Risk | null>(null);
+    const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
+    const [isLoadingRisk, setIsLoadingRisk] = useState(false);
 
     const fetchData = useCallback(async () => {
         if (!id) return;
@@ -107,6 +113,20 @@ export function ControlDetailPage() {
         } catch (err) {
             console.error('Unlinking failed:', err);
             alert('Failed to unlink risk.');
+        }
+    };
+
+    const handleRiskClick = async (riskId: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setIsLoadingRisk(true);
+        try {
+            const risk = await riskApi.getRisk(riskId);
+            setSelectedRisk(risk);
+            setIsRiskModalOpen(true);
+        } catch (err) {
+            console.error('Failed to fetch risk details:', err);
+        } finally {
+            setIsLoadingRisk(false);
         }
     };
 
@@ -321,7 +341,11 @@ export function ControlDetailPage() {
                                 </div>
                             ) : (
                                 linkedRisks.map((link) => (
-                                    <div key={link.id} className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer">
+                                    <div
+                                        key={link.id}
+                                        onClick={(e) => handleRiskClick(link.risk_id, e)}
+                                        className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer relative"
+                                    >
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
                                                 <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || 'Unnamed Risk'}</span>
@@ -355,6 +379,16 @@ export function ControlDetailPage() {
                             existingLinks={linkedRisks}
                             onLink={handleLinkRisk}
                             onUnlink={handleUnlinkRisk}
+                        />
+
+                        {/* Risk Quick View Modal */}
+                        <RiskQuickViewModal
+                            risk={selectedRisk}
+                            isOpen={isRiskModalOpen}
+                            onClose={() => {
+                                setIsRiskModalOpen(false);
+                                setSelectedRisk(null);
+                            }}
                         />
                     </motion.div>
                 </>
@@ -402,6 +436,23 @@ export function ControlDetailPage() {
                 resourceType="control"
                 resourceName={control.name}
             />
+
+            {/* Global Loading Overlay for Risk Fetching */}
+            <AnimatePresence>
+                {isLoadingRisk && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/40 backdrop-blur-[2px]"
+                    >
+                        <div className="bg-[#0B1121] border border-white/10 rounded-2xl p-6 shadow-2xl flex flex-col items-center gap-4">
+                            <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+                            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Fetching Risk Details</p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

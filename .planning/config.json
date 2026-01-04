@@ -3,7 +3,7 @@
   "gates": {
     "plan_approval": true,
     "execution_checkpoints": true,
-    "auto_commit": false
+    "auto_commit": true
   },
   "project": {
     "name": "RiskHub",

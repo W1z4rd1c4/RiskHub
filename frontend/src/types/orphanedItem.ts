@@ -3,6 +3,7 @@ export interface OrphanedItem {
     item_type: "risk" | "control" | "kri";
     item_id: number;
     item_name: string;
+    item_description: string | null;
     item_identifier: string;
     department_name: string | null;
     previous_owner_name: string;
