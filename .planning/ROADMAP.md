@@ -493,7 +493,7 @@ Plans:
 - [x] 200-01: Database Schema & Migration (Risk Name)
 - [x] 200-02: Backend API & Logic Updates (Risk Name)
 - [x] 200-03: Frontend Risk List & Table Updates
-- [ ] 200-04: Frontend Risk Wizard & Form Updates
+- [x] 200-04: Frontend Risk Wizard & Form Updates
 - [ ] 200-05: Frontend Risk Details & Linkage Components
 - [ ] 200-06: KRI Naming Consistency (UI/UX)
 - [ ] 200-07: Control Naming Consistency (UI/UX)

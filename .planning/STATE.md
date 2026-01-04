@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 200 Entity Naming Enforcement
-**Current Plan:** 200-03 (Completed)
-**Next Plan:** 200-04 (Frontend Risk Wizard & Form Updates)
+**Current Plan:** 200-04 (Completed)
+**Next Plan:** 200-05 (Frontend Risk Details & Linkage Components)
 
 ## Progress Summary
 
@@ -45,7 +45,7 @@
 | 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
-| 200 Entity Naming Enforcement | ⏳ In progress (3/10) | - |
+| 200 Entity Naming Enforcement | ⏳ In progress (4/10) | - |
 
 ## Session Context
 
@@ -141,10 +141,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 200-03: Updated frontend Risk types, RisksPage table columns to show Name prominently, and backend search filter.
+- Completed Phase 200-04: Added Name field to RiskForm as first field in Identity step with validation.
 
 ### Next Step
-- Execute Phase 200-04 (Frontend Risk Wizard & Form Updates).
+- Execute Phase 200-05 (Frontend Risk Details & Linkage Components).
 
 ---
 *Updated: 2026-01-04*
