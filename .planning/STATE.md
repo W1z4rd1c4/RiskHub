@@ -17,9 +17,9 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 200 Entity Naming Enforcement
-**Current Plan:** 200-07 (Completed)
-**Next Plan:** 200-08 (Export/PDF Updates)
+**Phase:** 12.1 Compliance Governance Review
+**Current Plan:** 12.1-07 (Completed)
+**Next Plan:** 12.1-08 (Activity Log Frontend Remediation)
 
 ## Progress Summary
 
@@ -86,6 +86,7 @@
 
 ### Phase 12.1 Progress
 - ✅ **12.1-06**: Risk Committee access control remediation (dept head access scoped; admin console-only)
+- ✅ **12.1-07**: Activity Log backend remediation (schema contract, diffs, governance logging, integrity, tests)
 
 ### Phase 72 Progress
 - ✅ **72-01**: Backend risk type integration + risk count accuracy
@@ -121,6 +122,8 @@
 | AD Emulator | Standalone app (port 8001/5174) | 2025-12-28 |
 | Privileged Model | Access scope enum (global/department/manager) | 2025-12-31 |
 | KRI Reporting Periods | Calendar-aligned periods (daily/weekly/monthly/quarterly/annual) | 2025-12-31 |
+| Activity Log Search | Default-window ILIKE with changes search (90-day default) | 2026-01-04 |
+| Activity Log Logging | Write in same transaction as business change (fail if logging fails) | 2026-01-04 |
 
 ## Open Concerns
 
@@ -145,10 +148,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 200-07: Reviewed Control components and updated linked risks to show Risk Name prominently.
+- Completed Phase 12.1-07: Activity Log backend remediation (diffs, approvals/users logging, guardrails, tests).
 
 ### Next Step
-- Execute Phase 200-08 (Export/PDF Updates).
+- Execute Phase 12.1-08 (Activity Log Frontend Remediation).
 
 ---
 *Updated: 2026-01-04*

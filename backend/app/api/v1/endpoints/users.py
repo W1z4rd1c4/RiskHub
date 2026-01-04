@@ -11,7 +11,7 @@ from app.schemas.user import UserLookup
 from app.core.security import get_password_hash
 from app.core.permissions import can_manage_users
 from app.api import deps
-from app.core.activity_logger import log_activity
+from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter()
@@ -103,6 +103,18 @@ async def create_user(
     )
     
     db.add(new_user)
+    await db.flush()
+    
+    # Log activity within the same transaction
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.USER,
+        entity_id=new_user.id,
+        entity_name=new_user.name,
+        action=ActivityAction.CREATE,
+        actor=current_user,
+        department_id=new_user.department_id,
+    )
     await db.commit()
     await db.refresh(new_user)
     
@@ -312,15 +324,30 @@ async def update_user(
 
     # Update fields
     update_data = user_data.model_dump(exclude_unset=True)
+    password = update_data.pop("password", None)
     
-    # Handle password hashing
-    if "password" in update_data:
-        password = update_data.pop("password")
+    extra_changes = {}
+    if password is not None:
         user.hashed_password = get_password_hash(password)
-        
+        extra_changes["password_changed"] = {"old": None, "new": True}
+    
+    changes = build_change_set(user, update_data, extra_changes=extra_changes)
+    
     for field, value in update_data.items():
         setattr(user, field, value)
     
+    # Log activity within the same transaction
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.USER,
+        entity_id=user.id,
+        entity_name=user.name,
+        action=ActivityAction.UPDATE,
+        actor=current_user,
+        department_id=user.department_id,
+        changes=changes,
+        description="Password updated" if password is not None and not update_data else None,
+    )
     await db.commit()
     await db.refresh(user)
     
