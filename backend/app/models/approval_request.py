@@ -8,11 +8,11 @@ from app.db.base import Base
 
 class ApprovalStatus(str, PyEnum):
     """Status of an approval request."""
-    PENDING = "pending"
-    PENDING_PRIVILEGED = "pending_privileged"  # Primary approved, waiting for privileged
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    CANCELLED = "cancelled"
+    PENDING = "PENDING"
+    PENDING_PRIVILEGED = "PENDING_PRIVILEGED"  # Primary approved, waiting for privileged
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"
 
 
 class ApprovalResourceType(str, PyEnum):
@@ -84,11 +84,11 @@ class ApprovalRequest(Base):
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
     
-    # Relationships
-    requested_by: Mapped["User"] = relationship("User", foreign_keys=[requested_by_id])
-    resolved_by: Mapped["User"] = relationship("User", foreign_keys=[resolved_by_id])
-    primary_approver: Mapped["User"] = relationship("User", foreign_keys=[primary_approver_id])
-    privileged_approver: Mapped["User"] = relationship("User", foreign_keys=[privileged_approver_id])
+    # Relationships - use selectin loading for async compatibility
+    requested_by: Mapped["User"] = relationship("User", foreign_keys=[requested_by_id], lazy="selectin")
+    resolved_by: Mapped["User"] = relationship("User", foreign_keys=[resolved_by_id], lazy="selectin")
+    primary_approver: Mapped["User"] = relationship("User", foreign_keys=[primary_approver_id], lazy="selectin")
+    privileged_approver: Mapped["User"] = relationship("User", foreign_keys=[privileged_approver_id], lazy="selectin")
     
     # Indexes for efficient queries
     __table_args__ = (

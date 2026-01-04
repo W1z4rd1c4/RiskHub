@@ -262,9 +262,9 @@ Plans:
 - [x] 12.1-05: SIEM & Logging Audit
 - [x] 12.1-06: Access Control Remediation (Risk Committee)
 - [x] 12.1-07: Activity Log Backend Remediation
-- [ ] 12.1-08: Activity Log Frontend Remediation
-- [ ] 12.1-09: Risk Committee Metrics Remediation
-- [ ] 12.1-10: SIEM & Logging Remediation
+- [x] 12.1-08: Activity Log Frontend Remediation
+- [x] 12.1-09: Risk Committee Metrics Remediation
+- [x] 12.1-10: SIEM & Logging Remediation
 
 ### Phase 13: Issue & Remediation Management (NEW)
 **Goal**: Manage findings, remediation plans, and exception tracking for failed controls or high risks.

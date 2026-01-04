@@ -242,6 +242,25 @@ export default function ApprovalsPage() {
                                         </span>
                                         <span>by <span className="text-accent">{approval.requested_by_name}</span></span>
                                     </div>
+
+                                    {/* Resolution info for approved/rejected */}
+                                    {(approval.status === 'approved' || approval.status === 'rejected') && approval.resolved_at && (
+                                        <div className="mt-3 pt-3 border-t border-white/5">
+                                            <div className="flex items-center gap-4 text-xs text-slate-500 mb-1">
+                                                <span className={approval.status === 'approved' ? 'text-emerald-400' : 'text-rose-400'}>
+                                                    {approval.status === 'approved' ? 'Approved' : 'Rejected'} on {new Date(approval.resolved_at).toLocaleDateString()} at {new Date(approval.resolved_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                                {approval.resolved_by_name && (
+                                                    <span>by <span className="text-accent">{approval.resolved_by_name}</span></span>
+                                                )}
+                                            </div>
+                                            {approval.resolution_notes && (
+                                                <p className="text-xs text-slate-400 italic">
+                                                    "{approval.resolution_notes}"
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Status & Actions */}
