@@ -5,7 +5,7 @@ Each KRI must be linked to a Risk.
 from enum import Enum as PyEnum
 from datetime import datetime, date
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import String, Float, ForeignKey, DateTime, Date, func
+from sqlalchemy import String, Text, Float, ForeignKey, DateTime, Date, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -41,6 +41,7 @@ class KeyRiskIndicator(Base):
     
     # Core KRI fields
     metric_name: Mapped[str] = mapped_column(String(500))
+    description: Mapped[str] = mapped_column(Text)
     current_value: Mapped[float] = mapped_column(Float)
     lower_limit: Mapped[float] = mapped_column(Float)
     upper_limit: Mapped[float] = mapped_column(Float)
