@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 12.1 Compliance Governance Review
-**Current Plan:** 12.1-07 (Completed)
-**Next Plan:** 12.1-08 (Activity Log Frontend Remediation)
+**Current Plan:** 12.1-08 (Completed)
+**Next Plan:** 12.1-09 (Next Phase 12.1 plan or Phase 13)
 
 ## Progress Summary
 
@@ -87,6 +87,7 @@
 ### Phase 12.1 Progress
 - ✅ **12.1-06**: Risk Committee access control remediation (dept head access scoped; admin console-only)
 - ✅ **12.1-07**: Activity Log backend remediation (schema contract, diffs, governance logging, integrity, tests)
+- ✅ **12.1-08**: Activity Log frontend remediation (permission gating, admin-console-only, view modes, diff rendering, tests)
 
 ### Phase 72 Progress
 - ✅ **72-01**: Backend risk type integration + risk count accuracy
@@ -124,6 +125,8 @@
 | KRI Reporting Periods | Calendar-aligned periods (daily/weekly/monthly/quarterly/annual) | 2025-12-31 |
 | Activity Log Search | Default-window ILIKE with changes search (90-day default) | 2026-01-04 |
 | Activity Log Logging | Write in same transaction as business change (fail if logging fails) | 2026-01-04 |
+| Admin Activity Log Access | Admin console-only (explicitly blocked from activity_log:read) | 2026-01-04 |
+| Activity Log View Modes | Implemented (Chronological, By Person, By Department, By Risk) | 2026-01-04 |
 
 ## Open Concerns
 
@@ -148,10 +151,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 12.1-07: Activity Log backend remediation (diffs, approvals/users logging, guardrails, tests).
+- Completed Phase 12.1-08: Activity Log frontend remediation (permission gating, view modes, diff rendering, tests).
 
 ### Next Step
-- Execute Phase 12.1-08 (Activity Log Frontend Remediation).
+- Execute Phase 12.1-09 or proceed to Phase 13.
 
 ---
 *Updated: 2026-01-04*

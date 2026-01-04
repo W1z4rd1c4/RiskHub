@@ -15,14 +15,27 @@ import {
     Edit2,
     Link as LinkIcon,
     Unlink,
-    CheckCircle2
+    CheckCircle2,
+    ShieldX,
+    AlertCircle
 } from 'lucide-react';
 import { activityLogApi, type ActivityLogFilters } from '@/services/activityLogApi';
 import type { ActivityLogEntry } from '@/types/activityLog';
 import { ENTITY_TYPE_LABELS, ACTION_LABELS, ACTION_COLORS } from '@/types/activityLog';
 import { formatDistanceToNow, format } from 'date-fns';
+import { usePermissions } from '@/hooks/usePermissions';
+import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
+import { riskApi } from '@/services/riskApi';
+
+type ErrorType = 'access_denied' | 'network_error' | null;
+type ViewMode = 'chronological' | 'by_person' | 'by_department' | 'by_risk';
 
 export function ActivityLogPage() {
+    const { canViewActivityLog } = usePermissions();
+
+    // View mode state
+    const [viewMode, setViewMode] = useState<ViewMode>('chronological');
+
     // State
     const [activeTab, setActiveTab] = useState('kri');
     const [entries, setEntries] = useState<ActivityLogEntry[]>([]);
@@ -30,6 +43,17 @@ export function ActivityLogPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [page, setPage] = useState(0);
     const [limit] = useState(50);
+    const [errorType, setErrorType] = useState<ErrorType>(null);
+
+    // View mode selectors
+    const [selectedActorId, setSelectedActorId] = useState<number | null>(null);
+    const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
+    const [selectedRiskId, setSelectedRiskId] = useState<number | null>(null);
+
+    // Lookup data
+    const [users, setUsers] = useState<UserLookupItem[]>([]);
+    const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
+    const [risks, setRisks] = useState<{ id: number; name: string }[]>([]);
 
     // Filters
     const [search, setSearch] = useState('');
@@ -41,18 +65,43 @@ export function ActivityLogPage() {
     // Filter options
     const [actions, setActions] = useState<string[]>([]);
 
+    // Permission gate - early return if user lacks permission
+    // This prevents any API calls from being made
+    if (!canViewActivityLog) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <div className="p-4 bg-rose-500/10 rounded-2xl">
+                    <ShieldX className="h-12 w-12 text-rose-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white">Access Denied</h2>
+                <p className="text-slate-400 text-center max-w-md">
+                    You don't have permission to view the Activity Log.
+                    Contact your administrator if you believe this is an error.
+                </p>
+            </div>
+        );
+    }
+
     // Search debounce
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedSearch(search), 300);
         return () => clearTimeout(timer);
     }, [search]);
 
-    // Load filter options
+    // Load filter options and lookup data for view modes
     useEffect(() => {
         const loadOptions = async () => {
             try {
-                const acts = await activityLogApi.getActions();
+                const [acts, usersData, deptsData, risksData] = await Promise.all([
+                    activityLogApi.getActions(),
+                    lookupApi.getUsers(),
+                    lookupApi.getDepartments(),
+                    riskApi.getRisks({ limit: 200 }) // Get first 200 risks for picker
+                ]);
                 setActions(acts);
+                setUsers(usersData);
+                setDepartments(deptsData.map((d: { id: number; name: string }) => ({ id: d.id, name: d.name })));
+                setRisks(risksData.items.map((r: { id: number; name: string }) => ({ id: r.id, name: r.name })));
             } catch (err) {
                 console.error('Failed to load filter options:', err);
             }
@@ -62,25 +111,33 @@ export function ActivityLogPage() {
 
     const fetchEntries = useCallback(async () => {
         setIsLoading(true);
+        setErrorType(null);
         try {
             let entityTypes: string[] | undefined;
+            let entityId: number | undefined;
 
-            // Map tabs to entity types
-            switch (activeTab) {
-                case 'kri':
-                    entityTypes = ['kri', 'kri_value'];
-                    break;
-                case 'risk':
-                    entityTypes = ['risk'];
-                    break;
-                case 'control':
-                    entityTypes = ['control', 'control_execution', 'control_risk_link'];
-                    break;
-                case 'user':
-                    entityTypes = ['user', 'role', 'department', 'approval', 'config'];
-                    break;
-                default:
-                    entityTypes = undefined;
+            // Apply view mode overrides first
+            if (viewMode === 'by_risk' && selectedRiskId) {
+                entityTypes = ['risk'];
+                entityId = selectedRiskId;
+            } else {
+                // Map tabs to entity types (chronological and other modes use tab filtering)
+                switch (activeTab) {
+                    case 'kri':
+                        entityTypes = ['kri', 'kri_value'];
+                        break;
+                    case 'risk':
+                        entityTypes = ['risk'];
+                        break;
+                    case 'control':
+                        entityTypes = ['control', 'control_execution', 'control_risk_link'];
+                        break;
+                    case 'user':
+                        entityTypes = ['user', 'role', 'department', 'approval', 'config'];
+                        break;
+                    default:
+                        entityTypes = undefined;
+                }
             }
 
             const filters: ActivityLogFilters = {
@@ -88,19 +145,37 @@ export function ActivityLogPage() {
                 limit,
                 search: debouncedSearch || undefined,
                 entity_type: entityTypes,
+                entity_id: entityId,
+                actor_id: viewMode === 'by_person' && selectedActorId ? selectedActorId : undefined,
+                department_id: viewMode === 'by_department' && selectedDepartmentId ? selectedDepartmentId : undefined,
                 action: action || undefined,
                 date_from: dateFrom || undefined,
-                date_to: dateTo || undefined,
+                // Convert date_to to inclusive end-of-day timestamp
+                // This ensures entries from the selected end date are included
+                date_to: dateTo ? `${dateTo}T23:59:59.999` : undefined,
             };
             const response = await activityLogApi.list(filters);
             setEntries(response.items);
             setTotal(response.total);
         } catch (error) {
             console.error('Failed to fetch activity logs:', error);
+            // Distinguish 403 from other errors
+            if (error instanceof Error && 'response' in error) {
+                const resp = (error as { response?: { status?: number } }).response;
+                if (resp?.status === 403) {
+                    setErrorType('access_denied');
+                } else {
+                    setErrorType('network_error');
+                }
+            } else {
+                setErrorType('network_error');
+            }
+            setEntries([]);
+            setTotal(0);
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit, debouncedSearch, activeTab, action, dateFrom, dateTo]);
+    }, [page, limit, debouncedSearch, activeTab, action, dateFrom, dateTo, viewMode, selectedActorId, selectedDepartmentId, selectedRiskId]);
 
     useEffect(() => {
         fetchEntries();
@@ -119,6 +194,51 @@ export function ActivityLogPage() {
             case 'status_change': return <RefreshCw className="h-3 w-3" />;
             default: return <Activity className="h-3 w-3" />;
         }
+    };
+
+    /**
+     * Formats a value for diff display, handling edge cases:
+     * - null/undefined → "(empty)"
+     * - objects/arrays → truncated JSON
+     * - primitives → string representation
+     * Uses ?? to preserve falsy values like 0, false, ""
+     */
+    const formatDiffValue = (value: unknown): string => {
+        if (value === null || value === undefined) {
+            return '(empty)';
+        }
+        if (typeof value === 'object') {
+            const json = JSON.stringify(value);
+            // Truncate large values
+            return json.length > 80 ? json.slice(0, 77) + '...' : json;
+        }
+        // Preserve falsy values like 0, false, ""
+        return String(value);
+    };
+
+    /**
+     * Safely extracts old/new from a delta value.
+     * Handles various shapes:
+     * - {old, new} → standard diff
+     * - primitive → show as new value only
+     * - null → empty diff
+     */
+    const getDiffPair = (delta: unknown): { old: string; new: string; isLegacy: boolean } => {
+        // Null or primitive: treat as "set to value" (no old)
+        if (delta === null || delta === undefined) {
+            return { old: '(empty)', new: '(empty)', isLegacy: true };
+        }
+        if (typeof delta !== 'object') {
+            // Legacy: bare primitive value
+            return { old: '(empty)', new: formatDiffValue(delta), isLegacy: true };
+        }
+        // Standard {old, new} shape
+        const d = delta as { old?: unknown; new?: unknown };
+        return {
+            old: formatDiffValue(d.old),
+            new: formatDiffValue(d.new),
+            isLegacy: !('old' in d && 'new' in d)
+        };
     };
 
     const tabs = [
@@ -156,13 +276,84 @@ export function ActivityLogPage() {
                         key={tab.id}
                         onClick={() => { setActiveTab(tab.id); setPage(0); }}
                         className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${activeTab === tab.id
-                                ? 'bg-accent text-white shadow-lg shadow-accent/25'
-                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                            ? 'bg-accent text-white shadow-lg shadow-accent/25'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
                         {tab.label}
                     </button>
                 ))}
+            </div>
+
+            {/* View Mode Selector */}
+            <div className="flex flex-wrap items-center gap-4 p-4 glass-card rounded-2xl border border-white/5">
+                <span className="text-sm font-medium text-slate-400">View:</span>
+                <div className="flex items-center gap-1">
+                    {([
+                        { id: 'chronological', label: 'Chronological' },
+                        { id: 'by_person', label: 'By Person' },
+                        { id: 'by_department', label: 'By Department' },
+                        { id: 'by_risk', label: 'By Risk' },
+                    ] as { id: ViewMode; label: string }[]).map(mode => (
+                        <button
+                            key={mode.id}
+                            onClick={() => {
+                                setViewMode(mode.id);
+                                setPage(0);
+                                // Reset selectors when changing mode
+                                if (mode.id !== 'by_person') setSelectedActorId(null);
+                                if (mode.id !== 'by_department') setSelectedDepartmentId(null);
+                                if (mode.id !== 'by_risk') setSelectedRiskId(null);
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${viewMode === mode.id
+                                    ? 'bg-accent/20 text-accent border border-accent/30'
+                                    : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                                }`}
+                        >
+                            {mode.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Conditional pickers based on view mode */}
+                {viewMode === 'by_person' && (
+                    <select
+                        value={selectedActorId ?? ''}
+                        onChange={(e) => { setSelectedActorId(e.target.value ? Number(e.target.value) : null); setPage(0); }}
+                        className="flex-1 min-w-[200px] bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-all appearance-none cursor-pointer"
+                    >
+                        <option value="">Select a person...</option>
+                        {users.map(u => (
+                            <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                        ))}
+                    </select>
+                )}
+
+                {viewMode === 'by_department' && (
+                    <select
+                        value={selectedDepartmentId ?? ''}
+                        onChange={(e) => { setSelectedDepartmentId(e.target.value ? Number(e.target.value) : null); setPage(0); }}
+                        className="flex-1 min-w-[200px] bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-all appearance-none cursor-pointer"
+                    >
+                        <option value="">Select a department...</option>
+                        {departments.map(d => (
+                            <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                    </select>
+                )}
+
+                {viewMode === 'by_risk' && (
+                    <select
+                        value={selectedRiskId ?? ''}
+                        onChange={(e) => { setSelectedRiskId(e.target.value ? Number(e.target.value) : null); setPage(0); }}
+                        className="flex-1 min-w-[200px] bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-all appearance-none cursor-pointer"
+                    >
+                        <option value="">Select a risk...</option>
+                        {risks.map(r => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                    </select>
+                )}
             </div>
 
             {/* Filters Section */}
@@ -218,10 +409,29 @@ export function ActivityLogPage() {
                     Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} className="h-24 w-full bg-white/5 animate-pulse rounded-2xl border border-white/5" />
                     ))
+                ) : errorType === 'access_denied' ? (
+                    <div className="flex flex-col items-center justify-center py-20 bg-rose-500/5 rounded-3xl border border-rose-500/20 text-rose-400">
+                        <ShieldX className="h-12 w-12 mb-4" />
+                        <p className="font-semibold">Access Denied</p>
+                        <p className="text-sm text-slate-500 mt-1">You don't have permission to view activity logs.</p>
+                    </div>
+                ) : errorType === 'network_error' ? (
+                    <div className="flex flex-col items-center justify-center py-20 bg-amber-500/5 rounded-3xl border border-amber-500/20 text-amber-400">
+                        <AlertCircle className="h-12 w-12 mb-4" />
+                        <p className="font-semibold">Failed to Load</p>
+                        <p className="text-sm text-slate-500 mt-1">There was an error loading activity logs. Please try again.</p>
+                        <button
+                            onClick={() => fetchEntries()}
+                            className="mt-4 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 rounded-xl text-sm transition-colors"
+                        >
+                            Retry
+                        </button>
+                    </div>
                 ) : entries.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-3xl border border-white/5 text-slate-400">
                         <Activity className="h-12 w-12 mb-4 opacity-20" />
                         <p>No activity logs found</p>
+                        <p className="text-sm text-slate-500 mt-1">Try adjusting your filters or date range.</p>
                     </div>
                 ) : (
                     <AnimatePresence mode="popLayout">
@@ -243,8 +453,8 @@ export function ActivityLogPage() {
                                         <div className="flex items-center justify-between mb-1">
                                             <div className="flex items-center gap-2 text-sm">
                                                 <span className="font-semibold text-slate-200">{entry.actor_name}</span>
-                                                <span className="text-slate-500">{ACTION_LABELS[entry.action]}</span>
-                                                <span className="font-medium text-accent/80">{ENTITY_TYPE_LABELS[entry.entity_type]}</span>
+                                                <span className="text-slate-500">{ACTION_LABELS[entry.action] ?? entry.action}</span>
+                                                <span className="font-medium text-accent/80">{ENTITY_TYPE_LABELS[entry.entity_type] ?? entry.entity_type}</span>
                                                 <span className="text-slate-200 truncate font-medium">"{entry.entity_name}"</span>
                                             </div>
                                             <div className="flex items-center gap-4 text-xs text-slate-500">
@@ -258,20 +468,23 @@ export function ActivityLogPage() {
 
                                         {entry.changes && Object.keys(entry.changes).length > 0 && (
                                             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                                {Object.entries(entry.changes).map(([field, delta]) => (
-                                                    <div key={field} className="text-[11px] bg-black/30 rounded-lg p-2 border border-white/5">
-                                                        <div className="text-slate-500 uppercase tracking-wider font-bold mb-1">{field.replace('_', ' ')}</div>
-                                                        <div className="flex items-center gap-1.5 overflow-hidden">
-                                                            <span className="text-rose-400/80 truncate line-through max-w-[80px]" title={String(delta.old)}>
-                                                                {String(delta.old || 'none')}
-                                                            </span>
-                                                            <ArrowRight className="h-2.5 w-2.5 text-slate-600 shrink-0" />
-                                                            <span className="text-emerald-400 truncate" title={String(delta.new)}>
-                                                                {String(delta.new || 'none')}
-                                                            </span>
+                                                {Object.entries(entry.changes).map(([field, delta]) => {
+                                                    const { old: oldVal, new: newVal } = getDiffPair(delta);
+                                                    return (
+                                                        <div key={field} className="text-[11px] bg-black/30 rounded-lg p-2 border border-white/5">
+                                                            <div className="text-slate-500 uppercase tracking-wider font-bold mb-1">{field.replace(/_/g, ' ')}</div>
+                                                            <div className="flex items-center gap-1.5 overflow-hidden">
+                                                                <span className="text-rose-400/80 truncate line-through max-w-[80px]" title={oldVal}>
+                                                                    {oldVal}
+                                                                </span>
+                                                                <ArrowRight className="h-2.5 w-2.5 text-slate-600 shrink-0" />
+                                                                <span className="text-emerald-400 truncate" title={newVal}>
+                                                                    {newVal}
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
@@ -283,47 +496,73 @@ export function ActivityLogPage() {
             </div>
 
             {/* Pagination */}
-            {total > limit && (
-                <div className="flex items-center justify-between px-2 text-slate-400">
-                    <div className="text-sm">
-                        Showing {page * limit + 1} to {Math.min((page + 1) * limit, total)} of {total} entries
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => setPage(p => Math.max(0, p - 1))}
-                            disabled={page === 0 || isLoading}
-                            className="p-2 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 rounded-xl transition-all"
-                        >
-                            <ChevronLeft className="h-5 w-5" />
-                        </button>
-                        <div className="flex items-center gap-1">
-                            {Array.from({ length: Math.ceil(total / limit) }).map((_, i) => {
-                                if (i === 0 || i === Math.ceil(total / limit) - 1 || (i >= page - 1 && i <= page + 1)) {
-                                    return (
+            {total > limit && (() => {
+                const totalPages = Math.ceil(total / limit);
+                // Build a bounded page window to avoid O(totalPages) rendering
+                const pageNumbers: (number | 'ellipsis')[] = [];
+                const addPage = (p: number) => {
+                    if (p >= 0 && p < totalPages && !pageNumbers.includes(p)) {
+                        pageNumbers.push(p);
+                    }
+                };
+                // Always show first page
+                addPage(0);
+                // Show current page ± 1
+                addPage(page - 1);
+                addPage(page);
+                addPage(page + 1);
+                // Always show last page
+                addPage(totalPages - 1);
+                // Sort and insert ellipses where gaps exist
+                pageNumbers.sort((a, b) => (a as number) - (b as number));
+                const withEllipses: (number | 'ellipsis')[] = [];
+                for (let i = 0; i < pageNumbers.length; i++) {
+                    if (i > 0 && (pageNumbers[i] as number) - (pageNumbers[i - 1] as number) > 1) {
+                        withEllipses.push('ellipsis');
+                    }
+                    withEllipses.push(pageNumbers[i]);
+                }
+
+                return (
+                    <div className="flex items-center justify-between px-2 text-slate-400">
+                        <div className="text-sm">
+                            Showing {page * limit + 1} to {Math.min((page + 1) * limit, total)} of {total} entries
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setPage(p => Math.max(0, p - 1))}
+                                disabled={page === 0 || isLoading}
+                                className="p-2 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 rounded-xl transition-all"
+                            >
+                                <ChevronLeft className="h-5 w-5" />
+                            </button>
+                            <div className="flex items-center gap-1">
+                                {withEllipses.map((item, idx) =>
+                                    item === 'ellipsis' ? (
+                                        <span key={`ellipsis-${idx}`} className="px-1 text-slate-600">...</span>
+                                    ) : (
                                         <button
-                                            key={i}
-                                            onClick={() => setPage(i)}
-                                            className={`h-9 w-9 text-sm rounded-xl transition-all ${page === i ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'hover:bg-white/10'
+                                            key={item}
+                                            onClick={() => setPage(item)}
+                                            className={`h-9 w-9 text-sm rounded-xl transition-all ${page === item ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'hover:bg-white/10'
                                                 }`}
                                         >
-                                            {i + 1}
+                                            {item + 1}
                                         </button>
-                                    );
-                                }
-                                if (i === page - 2 || i === page + 2) return <span key={i} className="px-1 text-slate-600">...</span>;
-                                return null;
-                            })}
+                                    )
+                                )}
+                            </div>
+                            <button
+                                onClick={() => setPage(p => p + 1)}
+                                disabled={(page + 1) * limit >= total || isLoading}
+                                className="p-2 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 rounded-xl transition-all"
+                            >
+                                <ChevronRight className="h-5 w-5" />
+                            </button>
                         </div>
-                        <button
-                            onClick={() => setPage(p => p + 1)}
-                            disabled={(page + 1) * limit >= total || isLoading}
-                            className="p-2 bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5 rounded-xl transition-all"
-                        >
-                            <ChevronRight className="h-5 w-5" />
-                        </button>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 }
