@@ -1,13 +1,29 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Calendar, AlertTriangle, HelpCircle } from 'lucide-react';
 import { dashboardApi } from '@/services/dashboardApi';
+
+interface MetricChange {
+    absolute: number;
+    percentage: number;
+    direction: 'up' | 'down' | 'same' | 'unknown';
+    note?: string;
+}
+
+interface SnapshotInfo {
+    current_quarter: string;
+    last_quarter: string;
+    last_quarter_snapshot_available: boolean;
+    period_metrics: string[];
+    snapshot_metrics: string[];
+}
 
 interface QuarterlyData {
     this_quarter: Record<string, number>;
     last_quarter: Record<string, number>;
-    changes: Record<string, { absolute: number; percentage: number; direction: string }>;
+    changes: Record<string, MetricChange>;
     period: { this_start: string; this_end: string; last_start: string; last_end: string };
+    snapshot_info?: SnapshotInfo;
 }
 
 const METRIC_LABELS: Record<string, string> = {
@@ -54,7 +70,7 @@ const METRIC_COLORS: Record<string, { positive: string; negative: string }> = {
 
 function getChangeColor(key: string, direction: string): string {
     const colors = METRIC_COLORS[key] || { positive: 'text-slate-400', negative: 'text-slate-400' };
-    if (direction === 'same') return 'text-slate-400';
+    if (direction === 'same' || direction === 'unknown') return 'text-slate-400';
     return direction === 'up' ? colors.positive : colors.negative;
 }
 
@@ -108,6 +124,8 @@ export function QuarterlyComparisonWidget() {
     }
 
     const metrics = Object.keys(METRIC_LABELS);
+    const snapshotAvailable = data.snapshot_info?.last_quarter_snapshot_available ?? true;
+    const snapshotMetrics = new Set(data.snapshot_info?.snapshot_metrics ?? []);
 
     return (
         <motion.div
@@ -115,7 +133,7 @@ export function QuarterlyComparisonWidget() {
             animate={{ opacity: 1, y: 0 }}
             className="glass-card"
         >
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-accent" />
                     <h3 className="text-lg font-bold text-white">Quarterly Comparison</h3>
@@ -125,33 +143,69 @@ export function QuarterlyComparisonWidget() {
                 </div>
             </div>
 
+            {/* Warning banner when historical snapshot is missing */}
+            {!snapshotAvailable && (
+                <div className="mb-4 flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                    <span className="text-xs text-amber-300">
+                        No historical snapshot for {data.snapshot_info?.last_quarter ?? 'last quarter'}.
+                        Snapshot-based metrics show current values only.
+                    </span>
+                </div>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {metrics.map((key) => {
-                    const thisVal = data.this_quarter[key];
-                    const lastVal = data.last_quarter[key];
-                    const change = data.changes[key];
-                    const colorClass = getChangeColor(key, change.direction);
+                    // Defensive: handle missing metrics gracefully
+                    const thisVal = data.this_quarter?.[key] ?? null;
+                    const lastVal = data.last_quarter?.[key] ?? null;
+                    const change = data.changes?.[key];
+
+                    // Skip rendering if metric is completely missing
+                    if (thisVal === null && lastVal === null) {
+                        return null;
+                    }
+
+                    // Handle missing change data
+                    const direction = change?.direction ?? 'same';
+                    const absolute = change?.absolute ?? 0;
+                    const percentage = change?.percentage ?? 0;
+                    const isSnapshotMetric = snapshotMetrics.has(key);
+
+                    const colorClass = getChangeColor(key, direction);
+                    const showUncertainty = isSnapshotMetric && !snapshotAvailable;
 
                     return (
                         <motion.div
                             key={key}
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="bg-white/5 rounded-xl p-4 border border-white/5"
+                            className={`bg-white/5 rounded-xl p-4 border ${showUncertainty ? 'border-amber-500/20' : 'border-white/5'}`}
                         >
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">
-                                {METRIC_LABELS[key]}
-                            </p>
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                    {METRIC_LABELS[key] || key}
+                                </p>
+                                {showUncertainty && (
+                                    <span title="No historical snapshot - comparison unavailable">
+                                        <HelpCircle className="h-3 w-3 text-amber-400" />
+                                    </span>
+                                )}
+                            </div>
                             <div className="flex items-end gap-2 mb-1">
-                                <span className="text-2xl font-black text-white">{thisVal}</span>
-                                <span className="text-xs text-slate-600 pb-1">vs {lastVal}</span>
+                                <span className="text-2xl font-black text-white">{thisVal ?? '—'}</span>
+                                <span className="text-xs text-slate-600 pb-1">vs {lastVal ?? '—'}</span>
                             </div>
                             <div className={`flex items-center gap-1 text-xs font-bold ${colorClass}`}>
-                                {change.direction === 'up' && <TrendingUp className="h-3 w-3" />}
-                                {change.direction === 'down' && <TrendingDown className="h-3 w-3" />}
-                                {change.direction === 'same' && <Minus className="h-3 w-3" />}
+                                {direction === 'up' && <TrendingUp className="h-3 w-3" />}
+                                {direction === 'down' && <TrendingDown className="h-3 w-3" />}
+                                {direction === 'same' && <Minus className="h-3 w-3" />}
+                                {direction === 'unknown' && <HelpCircle className="h-3 w-3" />}
                                 <span>
-                                    {change.absolute > 0 ? '+' : ''}{change.absolute} ({change.percentage}%)
+                                    {direction === 'unknown'
+                                        ? 'N/A'
+                                        : `${absolute > 0 ? '+' : ''}${absolute} (${percentage}%)`
+                                    }
                                 </span>
                             </div>
                         </motion.div>
@@ -161,3 +215,4 @@ export function QuarterlyComparisonWidget() {
         </motion.div>
     );
 }
+

@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 12.1 Compliance Governance Review
-**Current Plan:** 12.1-08 (Completed)
-**Next Plan:** 12.1-09 (Next Phase 12.1 plan or Phase 13)
+**Current Plan:** 12.1-09 (Completed)
+**Next Plan:** 12.1-10 (Next Phase 12.1 plan or Phase 13)
 
 ## Progress Summary
 
@@ -88,6 +88,7 @@
 - ✅ **12.1-06**: Risk Committee access control remediation (dept head access scoped; admin console-only)
 - ✅ **12.1-07**: Activity Log backend remediation (schema contract, diffs, governance logging, integrity, tests)
 - ✅ **12.1-08**: Activity Log frontend remediation (permission gating, admin-console-only, view modes, diff rendering, tests)
+- ✅ **12.1-09**: Risk Committee metrics remediation (quarter boundaries, historical snapshots, frontend hardening)
 
 ### Phase 72 Progress
 - ✅ **72-01**: Backend risk type integration + risk count accuracy
@@ -127,6 +128,7 @@
 | Activity Log Logging | Write in same transaction as business change (fail if logging fails) | 2026-01-04 |
 | Admin Activity Log Access | Admin console-only (explicitly blocked from activity_log:read) | 2026-01-04 |
 | Activity Log View Modes | Implemented (Chronological, By Person, By Department, By Risk) | 2026-01-04 |
+| Quarterly Metric Semantics | Historical snapshots (Option C) for truthful QoQ comparisons | 2026-01-04 |
 
 ## Open Concerns
 
@@ -151,10 +153,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 12.1-08: Activity Log frontend remediation (permission gating, view modes, diff rendering, tests).
+- Completed Phase 12.1-09: Risk Committee metrics remediation (quarter boundaries, historical snapshots, admin capture endpoints, frontend hardening).
 
 ### Next Step
-- Execute Phase 12.1-09 or proceed to Phase 13.
+- Execute Phase 12.1-10 or proceed to Phase 13.
 
 ---
 *Updated: 2026-01-04*
