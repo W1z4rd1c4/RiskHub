@@ -14,9 +14,9 @@ async def test_risk_for_kri(db_session, test_department: Department, test_user):
     """Create a risk for KRI testing."""
     risk = Risk(
         risk_id_code="R-KRI-TEST-001",
+        name="KRI Test Risk",
         process="KRI Test Process",
         description="Risk for KRI permission testing",
-        category="Test Category",
         department_id=test_department.id,
         owner_id=test_user.id,
         risk_type="operational",
@@ -38,6 +38,7 @@ async def test_kri(db_session, test_risk_for_kri: Risk):
     kri = KeyRiskIndicator(
         risk_id=test_risk_for_kri.id,
         metric_name="Test KRI",
+        description="Test KRI description",
         unit="%",
         current_value=50.0,
         lower_limit=0.0,
@@ -57,6 +58,7 @@ async def test_admin_can_create_kri(auth_client: AsyncClient, test_risk_for_kri:
         json={
             "risk_id": test_risk_for_kri.id,
             "metric_name": "New KRI",
+            "description": "New KRI description",
             "unit": "%",
             "current_value": 50.0,
             "lower_limit": 0.0,
@@ -170,6 +172,7 @@ async def test_readonly_cannot_create_kri(client_readonly: AsyncClient, test_ris
         json={
             "risk_id": test_risk_for_kri.id,
             "metric_name": "Should Fail",
+            "description": "Should Fail description",
             "unit": "%",
             "current_value": 50.0,
             "lower_limit": 0.0,
