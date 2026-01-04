@@ -216,6 +216,9 @@ export function KRIDetailPage() {
                             </div>
                         </div>
                     </div>
+                    {kri.description && (
+                        <p className="text-slate-400 text-sm font-medium mt-3 max-w-2xl leading-relaxed">{kri.description}</p>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -358,10 +361,11 @@ export function KRIDetailPage() {
                                 <div className="relative grid gap-12 lg:grid-cols-[1.5fr_1fr]">
                                     <div className="space-y-8">
                                         <div>
-                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-3">Process / Name</span>
+                                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-3">Risk Name</span>
                                             <h4 className="text-xl font-bold text-white group-hover:text-accent transition-colors duration-500 leading-tight">
-                                                {linkedRisk.process}
+                                                {linkedRisk.name}
                                             </h4>
+                                            <p className="text-sm text-slate-500 mt-1">{linkedRisk.process}</p>
                                         </div>
 
                                         <div>
@@ -441,110 +445,119 @@ export function KRIDetailPage() {
                             </div>
                         </div>
                     </motion.div>
-                </div>
-            )}
+                </div >
+            )
+            }
 
-            {activeTab === 'history' && (
-                <div className="space-y-6">
-                    {/* Trend Chart */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="glass-card"
-                    >
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <TrendingUp className="h-4 w-4 text-accent" /> Value Trend
-                        </h3>
-                        <HistoryTrendChart
-                            data={historyChartData}
-                            lowerLimit={kri.lower_limit}
-                            upperLimit={kri.upper_limit}
-                            valueLabel={kri.unit || 'Value'}
-                            formatValue={formatNumber}
-                            emptyMessage="No history recorded yet. Click 'Record Value' to start tracking."
-                        />
-                    </motion.div>
-
-                    {/* Timeline */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="glass-card"
-                    >
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <History className="h-4 w-4 text-accent" /> Record Timeline
-                            {historyTotal > 0 && <span className="text-slate-500 font-normal">({historyTotal} entries)</span>}
-                        </h3>
-                        <HistoryTimeline
-                            items={timelineItems}
-                            loading={isLoadingHistory}
-                            emptyMessage="No history recorded yet. Click 'Record Value' to start tracking."
-                            onItemAction={(item) => {
-                                // Find the corresponding history entry
-                                const entry = history.find(h => h.id === item.id);
-                                if (entry) setSelectedHistoryEntry(entry);
-                            }}
-                            actionLabel="Request Correction"
-                        />
-                    </motion.div>
-
-                    {/* Compare Periods */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="glass-card"
-                    >
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <TrendingUp className="h-4 w-4 text-accent" /> Compare Periods
-                        </h3>
-                        {history.length >= 2 ? (
-                            <HistoryComparisonPanel
-                                entries={history}
+            {
+                activeTab === 'history' && (
+                    <div className="space-y-6">
+                        {/* Trend Chart */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="glass-card"
+                        >
+                            <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4 text-accent" /> Value Trend
+                            </h3>
+                            <HistoryTrendChart
+                                data={historyChartData}
+                                lowerLimit={kri.lower_limit}
+                                upperLimit={kri.upper_limit}
+                                valueLabel={kri.unit || 'Value'}
                                 formatValue={formatNumber}
+                                emptyMessage="No history recorded yet. Click 'Record Value' to start tracking."
                             />
-                        ) : (
-                            <div className="text-center py-8 text-slate-500 text-sm">
-                                Need at least 2 history entries to compare periods.
-                            </div>
-                        )}
-                    </motion.div>
-                </div>
-            )}
+                        </motion.div>
+
+                        {/* Timeline */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="glass-card"
+                        >
+                            <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <History className="h-4 w-4 text-accent" /> Record Timeline
+                                {historyTotal > 0 && <span className="text-slate-500 font-normal">({historyTotal} entries)</span>}
+                            </h3>
+                            <HistoryTimeline
+                                items={timelineItems}
+                                loading={isLoadingHistory}
+                                emptyMessage="No history recorded yet. Click 'Record Value' to start tracking."
+                                onItemAction={(item) => {
+                                    // Find the corresponding history entry
+                                    const entry = history.find(h => h.id === item.id);
+                                    if (entry) setSelectedHistoryEntry(entry);
+                                }}
+                                actionLabel="Request Correction"
+                            />
+                        </motion.div>
+
+                        {/* Compare Periods */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="glass-card"
+                        >
+                            <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4 text-accent" /> Compare Periods
+                            </h3>
+                            {history.length >= 2 ? (
+                                <HistoryComparisonPanel
+                                    entries={history}
+                                    formatValue={formatNumber}
+                                />
+                            ) : (
+                                <div className="text-center py-8 text-slate-500 text-sm">
+                                    Need at least 2 history entries to compare periods.
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+                )
+            }
 
             {/* Edit Modal */}
-            {kri && (
-                <KRIModal
-                    risk_id={kri.risk_id}
-                    kri={kri}
-                    isOpen={isEditModalOpen}
-                    onClose={() => setIsEditModalOpen(false)}
-                    onSave={handleSave}
-                    onDelete={handleDelete}
-                />
-            )}
+            {
+                kri && (
+                    <KRIModal
+                        risk_id={kri.risk_id}
+                        kri={kri}
+                        isOpen={isEditModalOpen}
+                        onClose={() => setIsEditModalOpen(false)}
+                        onSave={handleSave}
+                        onDelete={handleDelete}
+                    />
+                )
+            }
 
             {/* Record Value Modal */}
-            {kri && (
-                <KRIValueModal
-                    kri={kri}
-                    isOpen={isValueModalOpen}
-                    onClose={() => setIsValueModalOpen(false)}
-                    onSuccess={handleRecordSuccess}
-                />
-            )}
+            {
+                kri && (
+                    <KRIValueModal
+                        kri={kri}
+                        isOpen={isValueModalOpen}
+                        onClose={() => setIsValueModalOpen(false)}
+                        onSuccess={handleRecordSuccess}
+                    />
+                )
+            }
 
             {/* History Edit Modal */}
-            {kri && selectedHistoryEntry && (
-                <KRIHistoryEditModal
-                    isOpen={!!selectedHistoryEntry}
-                    onClose={() => setSelectedHistoryEntry(null)}
-                    kriId={kri.id}
-                    entry={selectedHistoryEntry}
-                    onSuccess={() => fetchHistory(kri.id)}
-                />
-            )}
-        </div>
+            {
+                kri && selectedHistoryEntry && (
+                    <KRIHistoryEditModal
+                        isOpen={!!selectedHistoryEntry}
+                        onClose={() => setSelectedHistoryEntry(null)}
+                        kriId={kri.id}
+                        entry={selectedHistoryEntry}
+                        onSuccess={() => fetchHistory(kri.id)}
+                    />
+                )
+            }
+        </div >
     );
 }

@@ -37,6 +37,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
     const [formData, setFormData] = useState<Partial<KRICreate>>({
         risk_id: undefined,
         metric_name: '',
+        description: '',
         current_value: 0,
         lower_limit: 0,
         upper_limit: 100,
@@ -97,7 +98,11 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
 
     const validateStep2 = () => {
         if (!formData.metric_name?.trim()) {
-            setError('Please enter a metric name.');
+            setError('Please enter a KRI name.');
+            return false;
+        }
+        if (!formData.description?.trim()) {
+            setError('Please enter a description.');
             return false;
         }
         return true;
@@ -327,7 +332,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                             <div className="space-y-6">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        Metric Name *
+                                        KRI Name *
                                     </label>
                                     <input
                                         type="text"
@@ -337,6 +342,20 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                         onChange={(e) => handleInputChange('metric_name', e.target.value)}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
                                         placeholder="e.g. Customer complaint rate"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                                        Description *
+                                    </label>
+                                    <textarea
+                                        required
+                                        rows={3}
+                                        value={formData.description}
+                                        onChange={(e) => handleInputChange('description', e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all resize-none"
+                                        placeholder="Describe what this KRI measures and why it matters..."
                                     />
                                 </div>
 
