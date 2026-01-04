@@ -164,6 +164,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
     const filteredRisks = risks.filter(risk => {
         const matchesSearch = !riskSearch ||
             risk.risk_id_code?.toLowerCase().includes(riskSearch.toLowerCase()) ||
+            risk.name?.toLowerCase().includes(riskSearch.toLowerCase()) ||
             risk.process.toLowerCase().includes(riskSearch.toLowerCase()) ||
             risk.category?.toLowerCase().includes(riskSearch.toLowerCase()) ||
             risk.department_name?.toLowerCase().includes(riskSearch.toLowerCase());
@@ -202,8 +203,8 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                 <div className="p-4 bg-accent/10 border border-accent/30 rounded-xl">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <p className="text-sm font-bold text-white">{selectedRisk.process}</p>
-                                            <p className="text-xs text-slate-400 mt-1 line-clamp-2">{selectedRisk.category || 'Uncategorized'}</p>
+                                            <p className="text-sm font-bold text-white">{selectedRisk.name}</p>
+                                            <p className="text-xs text-slate-400 mt-1">{selectedRisk.process} • {selectedRisk.category || 'Uncategorized'}</p>
                                             <p className="text-xs text-slate-300 mt-2 italic">{selectedRisk.description}</p>
                                             {selectedRisk.department_name && (
                                                 <span className="inline-block mt-3 px-2 py-0.5 rounded bg-white/10 text-[10px] uppercase font-bold text-slate-300">
@@ -293,8 +294,8 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                                 >
                                                     {/* Left Bubble */}
                                                     <div className="bg-white/5 rounded-lg p-3 w-[200px] shrink-0 flex flex-col justify-center group-hover:bg-white/10 transition-colors">
-                                                        <p className="text-sm font-bold text-white truncate" title={risk.process}>{risk.process}</p>
-                                                        <p className="text-[10px] text-slate-500 mt-1 truncate" title={risk.category}>{risk.category || 'Uncategorized'}</p>
+                                                        <p className="text-sm font-bold text-white truncate" title={risk.name}>{risk.name}</p>
+                                                        <p className="text-[10px] text-slate-500 mt-1 truncate" title={risk.process}>{risk.process}</p>
                                                     </div>
 
                                                     {/* Right Bubble */}
