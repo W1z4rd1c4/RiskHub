@@ -1,8 +1,8 @@
 """Activity Log API endpoints."""
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, UTC, timedelta
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -38,6 +38,8 @@ async def list_activity_logs(
     Access control:
     - Privileged users see all entries
     - Department heads see only their department's entries
+
+    Note: `search` defaults to the last 90 days unless an explicit date range is provided.
     """
     query = select(ActivityLog)
     
@@ -62,12 +64,15 @@ async def list_activity_logs(
     if action:
         query = query.where(ActivityLog.action == action)
     if search:
+        if not date_from and not date_to:
+            date_from = datetime.now(UTC) - timedelta(days=90)
         pattern = f"%{search}%"
         query = query.where(
             or_(
                 ActivityLog.description.ilike(pattern),
                 ActivityLog.entity_name.ilike(pattern),
                 ActivityLog.actor_name.ilike(pattern),
+                cast(ActivityLog.changes, String).ilike(pattern),
             )
         )
     if date_from:

@@ -31,6 +31,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+async def _get_approval_department_id(db: AsyncSession, approval: ApprovalRequest) -> int | None:
+    if approval.resource_type == ApprovalResourceType.RISK:
+        result = await db.execute(select(Risk.department_id).where(Risk.id == approval.resource_id))
+        return result.scalar_one_or_none()
+    if approval.resource_type == ApprovalResourceType.CONTROL:
+        result = await db.execute(select(Control.department_id).where(Control.id == approval.resource_id))
+        return result.scalar_one_or_none()
+    if approval.resource_type == ApprovalResourceType.KRI:
+        result = await db.execute(
+            select(Risk.department_id)
+            .join(KeyRiskIndicator, KeyRiskIndicator.risk_id == Risk.id)
+            .where(KeyRiskIndicator.id == approval.resource_id)
+        )
+        return result.scalar_one_or_none()
+    return None
+
+
 def _build_approval_read(approval: ApprovalRequest) -> dict:
     """Build ApprovalRequestRead dict from model with user names."""
     pending_changes = approval.pending_changes
@@ -67,6 +84,7 @@ async def create_approval_request(
     """
     # Validate resource exists and get name for snapshot
     resource_name = ""
+    department_id: int | None = None
     if request_data.resource_type == ApprovalResourceTypeEnum.risk:
         result = await db.execute(select(Risk).where(Risk.id == request_data.resource_id))
         resource = result.scalar_one_or_none()
@@ -75,6 +93,7 @@ async def create_approval_request(
         # Verify requester has access to resource's department
         check_department_access(resource.department_id, current_user)
         resource_name = f"{resource.risk_id_code}: {resource.description[:50] if resource.description else ''}"
+        department_id = resource.department_id
     elif request_data.resource_type == ApprovalResourceTypeEnum.control:
         result = await db.execute(select(Control).where(Control.id == request_data.resource_id))
         resource = result.scalar_one_or_none()
@@ -83,6 +102,7 @@ async def create_approval_request(
         # Verify requester has access to resource's department
         check_department_access(resource.department_id, current_user)
         resource_name = f"{resource.control_id_code}: {resource.name[:50] if resource.name else ''}"
+        department_id = resource.department_id
     elif request_data.resource_type == ApprovalResourceTypeEnum.kri:
         # Load KRI with linked Risk for department access check
         result = await db.execute(
@@ -98,6 +118,7 @@ async def create_approval_request(
             raise HTTPException(status_code=404, detail="KRI has no linked risk")
         check_department_access(resource.risk.department_id, current_user)
         resource_name = (resource.metric_name or f"KRI-{resource.id}")[:50]
+        department_id = resource.risk.department_id
     
     # Check for existing pending request
     existing = await db.execute(
@@ -120,6 +141,17 @@ async def create_approval_request(
         status=ApprovalStatus.PENDING,
     )
     db.add(approval)
+    await db.flush()
+    
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.APPROVAL,
+        entity_id=approval.id,
+        entity_name=approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}",
+        action=ActivityAction.CREATE,
+        actor=current_user,
+        department_id=department_id,
+    )
     await db.commit()
     
     # Reload with relationships
@@ -280,6 +312,8 @@ async def approve_request(
     else:
         raise HTTPException(status_code=400, detail=f"Cannot approve request with status: {approval.status.value}")
     
+    previous_status = approval.status
+    
     # Determine if we should apply changes or move to next approval stage
     should_apply_changes = False
     
@@ -432,13 +466,25 @@ async def approve_request(
                                     logger.error(f"Failed to record value during approval: {str(e)}")
                                     raise HTTPException(status_code=400, detail=f"KRI value recording failed: {str(e)}")
             
-            # Commit changes
-            try:
-                logger.info("Flushing and committing changes...")
-                await db.flush() # Check for integrity errors
-                await db.commit()
-                logger.info("Commit successful")
-            except Exception as e:
+        # Commit changes
+        try:
+            logger.info("Flushing and committing changes...")
+            if approval.status == ApprovalStatus.APPROVED:
+                department_id = await _get_approval_department_id(db, approval)
+                await log_activity(
+                    db,
+                    entity_type=ActivityEntityType.APPROVAL,
+                    entity_id=approval.id,
+                    entity_name=approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}",
+                    action=ActivityAction.APPROVE,
+                    actor=current_user,
+                    department_id=department_id,
+                    changes={"status": {"old": previous_status.value, "new": approval.status.value}},
+                )
+            await db.flush() # Check for integrity errors
+            await db.commit()
+            logger.info("Commit successful")
+        except Exception as e:
                 import traceback
                 logger.error(f"Error applying approval {approval_id}: {str(e)}")
                 logger.error(traceback.format_exc())
@@ -464,55 +510,8 @@ async def approve_request(
     
 
     
-    # Notify requester about approval (background task)
-    background_tasks.add_task(
-        NotificationService.notify_requester_resolved,
-        db, # Note: passing db to background task is risky if session closes. 
-            # But here NotificationService creates its own atomic transaction usually?
-            # actually notify_requester_resolved takes 'db'.
-            # If db session closes, this fails.
-            # Ideally we pass ID and let background task get new session.
-            # For now, let's keep it sync but wrapped in robust try/except logic OR 
-            # just accept the risk if session is compatible. 
-            # Given session dependency, better to await it but with timeout? No.
-            # Let's use the SYNC helper if available? No async.
-            # Safe bet: Just log error if it fails, but don't block? It IS blocking.
-            # If we want truly non-blocking, we need new session.
-            # Let's revert to try/except but WITHOUT await? No, it's async func.
-            # We MUST await it or use background task with NEW session.
-            
-            # Since refactoring service to use new session is big, I will just wrap it 
-            # in a way that ensuring it doesn't fail everything.
-            # But the hang is the problem.
-            
-            # Let's try to just REMOVE the await and fire-and-forget? 
-            # Python asyncio doesn't work like that without create_task.
-            
-            # ACTION: Use asyncio.create_task() to make it non-blocking!
-            # But we need to ensure loop doesn't kill it.
-            # background_tasks is proper way.
-            # BUT passing 'db' is wrong.
-            
-            # Hack: Pass it anyway? 
-            # FastAPI docs say: "If you interact with the database... you should create a new session inside the background task".
-            
-            # Okay, I will NOT use background_tasks for now because of session complexity.
-            # Instead, I will assume the hang is due to LOGGING or just slow mail.
-            # I will wrap it in asyncio.wait_for? No.
-            
-            # Let's commented out the notification to see if it fixes the hang.
-            # If it fixes, then we implement proper background notification later.
-            # This is the most diagnostic step.
-    ) 
-    
-    # REVISED PLAN: Comment out notification to DIAGNOSE.
-    # The user is blocked. I need to unblock.
-    pass
-    # try:
-    #     await NotificationService.notify_requester_resolved(db, approval, approved=True)
-    #     await db.commit()
-    # except Exception:
-    #     pass
+    # NOTE: Requester notifications are intentionally disabled until a safe
+    # background-session strategy is implemented.
     
     return _build_approval_read(approval)
 
@@ -545,12 +544,25 @@ async def reject_request(
     if approval.status != ApprovalStatus.PENDING:
         raise HTTPException(status_code=400, detail=f"Cannot reject request with status: {approval.status.value}")
     
+    previous_status = approval.status
+    
     # Update approval status
     approval.status = ApprovalStatus.REJECTED
     approval.resolved_by_id = current_user.id
     approval.resolved_at = datetime.now(UTC)
     approval.resolution_notes = resolve_data.resolution_notes
     
+    department_id = await _get_approval_department_id(db, approval)
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.APPROVAL,
+        entity_id=approval.id,
+        entity_name=approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}",
+        action=ActivityAction.REJECT,
+        actor=current_user,
+        department_id=department_id,
+        changes={"status": {"old": previous_status.value, "new": approval.status.value}},
+    )
     await db.commit()
     
     # Reload with relationships

@@ -261,7 +261,7 @@ Plans:
 - [x] 12.1-04: Risk Committee Dashboard Audit
 - [x] 12.1-05: SIEM & Logging Audit
 - [x] 12.1-06: Access Control Remediation (Risk Committee)
-- [ ] 12.1-07: Activity Log Backend Remediation
+- [x] 12.1-07: Activity Log Backend Remediation
 - [ ] 12.1-08: Activity Log Frontend Remediation
 - [ ] 12.1-09: Risk Committee Metrics Remediation
 - [ ] 12.1-10: SIEM & Logging Remediation
