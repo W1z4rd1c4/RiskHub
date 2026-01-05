@@ -122,14 +122,27 @@ export interface DepartmentHubUpdate {
     manager_id?: number | null;
 }
 
+// Public Risk Type (minimal fields for non-CRO access)
+export interface PublicRiskType {
+    code: string;
+    display_name: string;
+    color: string;
+    icon: string | null;
+    sort_order: number;
+}
+
 // ============================================================================
 // API Client
 // ============================================================================
 
 export const riskHubApi = {
-    // Risk Types
+    // Risk Types (CRO-only)
     getRiskTypes: (includeInactive = false) =>
         apiClient.get<RiskType[]>('/riskhub/risk-types', { params: { include_inactive: includeInactive } }),
+
+    // Public Risk Types (all authenticated users)
+    getPublicRiskTypes: () =>
+        apiClient.get<PublicRiskType[]>('/riskhub/public-risk-types'),
 
     createRiskType: (data: RiskTypeCreate) =>
         apiClient.post<RiskType>('/riskhub/risk-types', data),
