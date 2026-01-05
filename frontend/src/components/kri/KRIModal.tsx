@@ -73,7 +73,8 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
     const handleSave = async () => {
         try {
             setIsSaving(true);
-            const data = isCreate ? { ...formData, risk_id } as KRICreate : formData as KRIUpdate;
+            const { current_value, ...rest } = formData;
+            const data = isCreate ? { ...formData, risk_id } as KRICreate : rest as KRIUpdate;
             await onSave(data);
             onClose();
         } catch (err) {
@@ -84,7 +85,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
     };
 
     const handleDelete = async () => {
-        if (!kri || !onDelete || !window.confirm('Are you sure you want to delete this KRI?')) return;
+        if (!kri || !onDelete || !window.confirm(`Are you sure you want to delete "${kri.metric_name}"?`)) return;
         try {
             setIsDeleting(true);
             await onDelete(kri.id);
@@ -147,12 +148,15 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
 
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Current Value</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                                        {isCreate ? 'Current Value' : 'Current Value (use Record Value)'}
+                                    </label>
                                     <input
                                         type="number"
                                         value={formData.current_value}
                                         onChange={e => setFormData({ ...formData, current_value: parseFloat(e.target.value) })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all font-mono"
+                                        disabled={!isCreate}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all font-mono disabled:opacity-60 disabled:cursor-not-allowed"
                                     />
                                 </div>
                                 <div className="space-y-2">
