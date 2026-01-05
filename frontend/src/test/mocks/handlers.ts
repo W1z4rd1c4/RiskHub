@@ -37,7 +37,106 @@ export const mockAuthUser = {
     role: 'admin',
     role_display_name: 'Administrator',
     permissions: ['*:*'],
+    effective_permissions: ['*:*'],
+    access_scope: 'global',
+    scope_label: 'all',
 };
+
+export const mockRiskHubRiskTypes = [
+    {
+        id: 1,
+        code: 'operational',
+        display_name: 'Operational',
+        description: 'Operational risks',
+        color: '#3b82f6',
+        icon: null,
+        sort_order: 1,
+        is_active: true,
+        is_system: true,
+        risk_count: 0,
+        created_at: '2025-12-25T10:00:00Z',
+        updated_at: '2025-12-25T10:00:00Z',
+    },
+    {
+        id: 2,
+        code: 'strategic',
+        display_name: 'Strategic',
+        description: 'Strategic risks',
+        color: '#8b5cf6',
+        icon: null,
+        sort_order: 2,
+        is_active: true,
+        is_system: true,
+        risk_count: 0,
+        created_at: '2025-12-25T10:00:00Z',
+        updated_at: '2025-12-25T10:00:00Z',
+    },
+];
+
+export const mockRiskHubConfig = {
+    risk_thresholds: [
+        {
+            id: 1,
+            key: 'critical_risk_min_net_score',
+            value: '16',
+            value_type: 'int',
+            category: 'risk_thresholds',
+            display_name: 'Critical Risk Min Net Score',
+            description: null,
+            min_value: 0,
+            max_value: 100,
+            is_editable: true,
+            updated_at: '2025-12-25T10:00:00Z',
+            updated_by_name: 'Test Admin',
+        },
+        {
+            id: 2,
+            key: 'high_risk_min_net_score',
+            value: '10',
+            value_type: 'int',
+            category: 'risk_thresholds',
+            display_name: 'High Risk Min Net Score',
+            description: null,
+            min_value: 0,
+            max_value: 100,
+            is_editable: true,
+            updated_at: '2025-12-25T10:00:00Z',
+            updated_by_name: 'Test Admin',
+        },
+        {
+            id: 3,
+            key: 'medium_risk_min_net_score',
+            value: '5',
+            value_type: 'int',
+            category: 'risk_thresholds',
+            display_name: 'Medium Risk Min Net Score',
+            description: null,
+            min_value: 0,
+            max_value: 100,
+            is_editable: true,
+            updated_at: '2025-12-25T10:00:00Z',
+            updated_by_name: 'Test Admin',
+        },
+    ],
+};
+
+// Public risk types (minimal fields for non-CRO access)
+export const mockPublicRiskTypes = [
+    {
+        code: 'operational',
+        display_name: 'Operational',
+        color: '#3b82f6',
+        icon: null,
+        sort_order: 1,
+    },
+    {
+        code: 'strategic',
+        display_name: 'Strategic',
+        color: '#8b5cf6',
+        icon: null,
+        sort_order: 2,
+    },
+];
 
 export const mockDirectoryUsers = [
     {
@@ -115,6 +214,10 @@ export const handlers = [
     http.get('*/api/v1/auth/me', () => {
         return HttpResponse.json(mockAuthUser);
     }),
+    // Users
+    http.get('*/api/v1/users/lookup', () => {
+        return HttpResponse.json([]);
+    }),
     // Controls
     http.get('*/api/v1/controls', () => {
         return HttpResponse.json(mockControls);
@@ -150,6 +253,28 @@ export const handlers = [
     http.post('*/api/v1/executions', async ({ request }) => {
         const body = await request.json() as Record<string, unknown>;
         return HttpResponse.json({ id: 99, ...body, executed_at: new Date().toISOString() }, { status: 201 });
+    }),
+
+    // Risk Hub (used by hooks; keep tests offline)
+    http.get('*/api/v1/riskhub/risk-types', () => {
+        return HttpResponse.json(mockRiskHubRiskTypes);
+    }),
+    http.get('*/api/v1/riskhub/public-risk-types', () => {
+        return HttpResponse.json(mockPublicRiskTypes);
+    }),
+    http.get('*/api/v1/riskhub/config', () => {
+        return HttpResponse.json(mockRiskHubConfig);
+    }),
+    http.get('*/api/v1/riskhub/public-config/:key', ({ params }) => {
+        const key = params.key as string;
+        const allConfigs = mockRiskHubConfig.risk_thresholds;
+        const config = allConfigs.find(c => c.key === key);
+        if (!config) return new HttpResponse(null, { status: 404 });
+        return HttpResponse.json({
+            key: config.key,
+            value: parseInt(config.value, 10),
+            value_type: config.value_type,
+        });
     }),
 
     // Directory emulator

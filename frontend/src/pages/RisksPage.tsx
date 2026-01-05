@@ -21,6 +21,16 @@ import { SortableTable, CategoryDrillDown, MiniHeatmap, ViewSwitcher, Pagination
 import type { Column, ViewMode } from '@/components/tables';
 import { useRiskTypes, useRiskThresholds } from '@/hooks/useRiskHubConfig';
 
+// Helper to convert hex color to rgba for backgrounds/borders
+function hexToRgba(hex: string, alpha: number): string {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return `rgba(100, 116, 139, ${alpha})`; // slate-500 fallback
+    const r = parseInt(result[1], 16);
+    const g = parseInt(result[2], 16);
+    const b = parseInt(result[3], 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 export function RisksPage() {
     const navigate = useNavigate();
     // State
@@ -29,6 +39,7 @@ export function RisksPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('');
     const [typeFilter, setTypeFilter] = useState<string>('');
     const [priorityFilter, setPriorityFilter] = useState<boolean | undefined>(undefined);
@@ -39,7 +50,7 @@ export function RisksPage() {
     const [criticalFilter, setCriticalFilter] = useState<boolean>(false);
 
     // Risk Hub configuration
-    const { riskTypes } = useRiskTypes();
+    const { riskTypes, getColor, getInitials, getDisplayName } = useRiskTypes();
     const { getScoreColor } = useRiskThresholds();
 
     const [pendingApprovalIds, setPendingApprovalIds] = useState<Set<number>>(new Set());
@@ -60,6 +71,14 @@ export function RisksPage() {
         }
     }, [searchParams]);
 
+    // Handle search debouncing
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [search]);
+
     useEffect(() => {
         const fetchPending = async () => {
             try {
@@ -79,7 +98,13 @@ export function RisksPage() {
 
     const fetchRisks = useCallback(async () => {
         try {
-            setIsLoading(true);
+            // Only show skeleton for initial load OR non-search changes.
+            // For search updates, we fetch in the background to avoid flashing.
+            const shouldShowSkeleton = risks.length === 0;
+
+            if (shouldShowSkeleton) {
+                setIsLoading(true);
+            }
 
             // For paginated "all" view, just fetch the current page
             if (viewMode === 'all') {
@@ -87,7 +112,7 @@ export function RisksPage() {
                 const response = await riskApi.getRisks({
                     skip,
                     limit,
-                    search: search || undefined,
+                    search: debouncedSearch || undefined,
                     status: (statusFilter as RiskStatus) || undefined,
                     risk_type: typeFilter || undefined,
                     is_priority: priorityFilter,
@@ -106,7 +131,7 @@ export function RisksPage() {
                 setTotalCount(response.total);
             } else {
                 // For grouped views, fetch ALL pages for accurate group counts
-                const pageSize = 100;
+                const pageSize = 100; // Backend max limit is 100
                 let allRisks: RiskSummary[] = [];
                 let skip = 0;
                 let total = 0;
@@ -115,7 +140,7 @@ export function RisksPage() {
                     const response = await riskApi.getRisks({
                         skip,
                         limit: pageSize,
-                        search: search || undefined,
+                        search: debouncedSearch || undefined,
                         status: (statusFilter as RiskStatus) || undefined,
                         risk_type: typeFilter || undefined,
                         is_priority: priorityFilter,
@@ -145,7 +170,7 @@ export function RisksPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, search, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter]);
+    }, [currentPage, debouncedSearch, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter]);
 
     useEffect(() => {
         fetchRisks();
@@ -183,13 +208,7 @@ export function RisksPage() {
         }
     };
 
-    const getTypeColor = (typeCode: string) => {
-        // For system types, use predefined colors
-        if (typeCode === 'strategic') return 'text-purple-400 bg-purple-400/10';
-        if (typeCode === 'operational') return 'text-blue-400 bg-blue-400/10';
-        // For custom types, use a generic accent style
-        return 'text-accent bg-accent/10';
-    };
+    // getTypeColor removed - now using config-driven colors from useRiskTypes
 
     // Column definitions for SortableTable
     const columns: Column<RiskSummary>[] = useMemo(() => [
@@ -247,13 +266,24 @@ export function RisksPage() {
             label: 'Type',
             sortable: true,
             className: 'text-center',
-            render: (risk) => (
-                <div className="flex justify-center">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getTypeColor(risk.risk_type)}`}>
-                        {risk.risk_type === 'strategic' ? 'S' : 'O'}
-                    </span>
-                </div>
-            ),
+            render: (risk) => {
+                const typeColor = getColor(risk.risk_type);
+                return (
+                    <div className="flex justify-center">
+                        <span
+                            className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase"
+                            style={{
+                                color: typeColor,
+                                backgroundColor: hexToRgba(typeColor, 0.12),
+                                borderColor: hexToRgba(typeColor, 0.24),
+                            }}
+                            title={getDisplayName(risk.risk_type)}
+                        >
+                            {getInitials(risk.risk_type)}
+                        </span>
+                    </div>
+                );
+            },
         },
         {
             key: 'gross_score',
@@ -393,7 +423,7 @@ export function RisksPage() {
             </div>
 
             {/* View Switcher */}
-            <ViewSwitcher value={viewMode} onChange={setViewMode} exclude={['risk']} />
+            <ViewSwitcher value={viewMode} onChange={(v) => { setViewMode(v); setRisks([]); setCurrentPage(1); }} exclude={['risk']} />
 
             {/* Filters */}
             <div className="glass-card flex flex-col md:flex-row gap-4">
@@ -403,14 +433,14 @@ export function RisksPage() {
                         type="text"
                         placeholder="Search by name, process or category..."
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
                     />
                 </div>
                 <div className="flex gap-3 flex-wrap">
                     <select
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as RiskStatus | '')}
+                        onChange={(e) => { setStatusFilter(e.target.value as RiskStatus | ''); setRisks([]); setCurrentPage(1); }}
                         className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-300 outline-none focus:border-accent/50 appearance-none min-w-[130px]"
                     >
                         <option value="" className="bg-slate-900">All Statuses</option>
@@ -420,7 +450,7 @@ export function RisksPage() {
                     </select>
                     <select
                         value={typeFilter}
-                        onChange={(e) => setTypeFilter(e.target.value)}
+                        onChange={(e) => { setTypeFilter(e.target.value); setRisks([]); setCurrentPage(1); }}
                         className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-300 outline-none focus:border-accent/50 appearance-none min-w-[130px]"
                     >
                         <option value="" className="bg-slate-900">All Types</option>
@@ -431,7 +461,7 @@ export function RisksPage() {
                         ))}
                     </select>
                     <button
-                        onClick={() => setPriorityFilter(priorityFilter === true ? undefined : true)}
+                        onClick={() => { setPriorityFilter(priorityFilter === true ? undefined : true); setRisks([]); setCurrentPage(1); }}
                         className={`px-4 py-2.5 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${priorityFilter === true
                             ? 'bg-amber-400/20 border-amber-400/50 text-amber-400'
                             : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
@@ -440,6 +470,7 @@ export function RisksPage() {
                         <Star className="h-4 w-4" />
                         Priority
                     </button>
+
                     {criticalFilter && (
                         <button
                             onClick={() => {
@@ -469,7 +500,7 @@ export function RisksPage() {
                         </button>
                     )}
                     <button
-                        onClick={() => fetchRisks()}
+                        onClick={() => { fetchRisks(); setRisks([]); }}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     >
                         <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
@@ -528,7 +559,7 @@ export function RisksPage() {
                         totalPages={totalPages}
                         totalItems={totalCount}
                         itemsPerPage={limit}
-                        onPageChange={setCurrentPage}
+                        onPageChange={(p) => { setCurrentPage(p); setRisks([]); }}
                     />
                 </>
             ) : (

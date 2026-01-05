@@ -32,6 +32,17 @@ import { KRIGaugeCard } from '@/components/kri/KRIGaugeCard';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { ControlGaugeCard } from '@/components/controls/ControlGaugeCard';
 import { HistoryTimeline } from '@/components/history';
+import { useRiskTypes } from '@/hooks/useRiskHubConfig';
+
+// Helper to convert hex color to rgba for backgrounds/borders
+function hexToRgba(hex: string, alpha: number): string {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return `rgba(100, 116, 139, ${alpha})`; // slate-500 fallback
+    const r = parseInt(result[1], 16);
+    const g = parseInt(result[2], 16);
+    const b = parseInt(result[3], 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 type TabView = 'overview' | 'history';
 
@@ -51,6 +62,7 @@ const item = {
 export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { getColor, getDisplayName } = useRiskTypes();
     const [risk, setRisk] = useState<Risk | null>(null);
     const [linkedControls, setLinkedControls] = useState<RiskControlLink[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -370,12 +382,20 @@ export function RiskDetailPage() {
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Type</span>
-                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${risk.risk_type === 'strategic'
-                                        ? 'text-purple-400 bg-purple-400/10'
-                                        : 'text-blue-400 bg-blue-400/10'
-                                        }`}>
-                                        {risk.risk_type}
-                                    </span>
+                                    {(() => {
+                                        const typeColor = getColor(risk.risk_type);
+                                        return (
+                                            <span
+                                                className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase"
+                                                style={{
+                                                    color: typeColor,
+                                                    backgroundColor: hexToRgba(typeColor, 0.12),
+                                                }}
+                                            >
+                                                {getDisplayName(risk.risk_type)}
+                                            </span>
+                                        );
+                                    })()}
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Category</span>
