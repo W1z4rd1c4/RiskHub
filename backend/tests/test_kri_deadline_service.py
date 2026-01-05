@@ -16,6 +16,7 @@ async def test_kri_breached(db_session: AsyncSession, test_risk):
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
         metric_name="Breached KRI",
+        description="Test KRI that is breached (above upper limit)",
         current_value=95.0,  # Above upper limit
         lower_limit=0.0,
         upper_limit=80.0,
@@ -35,6 +36,7 @@ async def test_kri_near_breach(db_session: AsyncSession, test_risk):
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
         metric_name="Near Breach KRI",
+        description="Test KRI that is near breach threshold",
         current_value=85.0,  # Above 80% of 100, but not exceeding
         lower_limit=0.0,
         upper_limit=100.0,
@@ -52,6 +54,7 @@ async def test_kri_healthy(db_session: AsyncSession, test_risk):
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
         metric_name="Healthy KRI",
+        description="Test KRI with healthy values within limits",
         current_value=50.0,  # Well within limits
         lower_limit=0.0,
         upper_limit=100.0,
@@ -170,6 +173,7 @@ async def test_kri_due_soon(db_session: AsyncSession, test_risk):
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
         metric_name="Due Soon KRI",
+        description="Test KRI due for reporting soon",
         current_value=50.0,
         lower_limit=0.0,
         upper_limit=100.0,
@@ -219,6 +223,7 @@ async def test_due_soon_notification_type(
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
         metric_name="Due Soon Check",
+        description="Test KRI for due soon notification check",
         current_value=50.0,
         lower_limit=0.0,
         upper_limit=100.0,

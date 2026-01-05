@@ -165,7 +165,7 @@ export function RiskDetailPage() {
     }, [activeTab, risk?.kris]);
 
     const handleDelete = async () => {
-        if (!risk || !window.confirm('Are you sure you want to archive this risk?')) return;
+        if (!risk || !window.confirm(`Are you sure you want to archive "${risk.name}"?`)) return;
         try {
             await riskApi.deleteRisk(risk.id);
             navigate('/risks');

@@ -24,6 +24,7 @@ async def test_list_department_risks_with_min_net_score(
     # Note: net_score is a stored column, not calculated from probability × impact
     risk_low = Risk(
         risk_id_code="RISK-LOW-SCORE",
+        name="Low Score Risk Name",
         process="Low Score Risk",
         description="Risk with low net score",
         category="Test",
@@ -40,6 +41,7 @@ async def test_list_department_risks_with_min_net_score(
     )
     risk_high = Risk(
         risk_id_code="RISK-HIGH-SCORE",
+        name="High Score Risk Name",
         process="High Score Risk",
         description="Risk with high net score",
         category="Test",
@@ -89,6 +91,7 @@ async def test_list_department_risks_without_min_net_score(
     for i, score in enumerate([5, 10, 15]):
         risk = Risk(
             risk_id_code=f"RISK-SCORE-{score}",
+            name=f"Risk Score {score} Name",
             process=f"Risk with score {score}",
             description=f"Test risk {i}",
             category="Test",
@@ -130,6 +133,7 @@ async def test_list_department_risks_pagination(
     for i in range(5):
         risk = Risk(
             risk_id_code=f"RISK-PAGE-{i:02d}",
+            name=f"Page Test Risk {i} Name",
             process=f"Page Test Risk {i}",
             description=f"Risk for pagination test {i}",
             category="Test",
@@ -161,3 +165,52 @@ async def test_list_department_risks_pagination(
     ids1 = {r["id"] for r in page1}
     ids2 = {r["id"] for r in page2}
     assert ids1.isdisjoint(ids2)
+
+
+@pytest.mark.asyncio
+async def test_get_department_active_user_count(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """Test that get_department returns only active user count."""
+    # Create a test department
+    dept = Department(name="User Count Dept", code="USER-COUNT")
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+    
+    # Create 2 active users and 1 inactive user in that department
+    users = [
+        User(
+            email="active1@test.local",
+            name="Active 1",
+            is_active=True,
+            department_id=dept.id,
+            role_id=test_user.role_id,
+        ),
+        User(
+            email="active2@test.local",
+            name="Active 2",
+            is_active=True,
+            department_id=dept.id,
+            role_id=test_user.role_id,
+        ),
+        User(
+            email="inactive1@test.local",
+            name="Inactive 1",
+            is_active=False,
+            department_id=dept.id,
+            role_id=test_user.role_id,
+        ),
+    ]
+    db_session.add_all(users)
+    await db_session.commit()
+    
+    # Request department details
+    response = await auth_client.get(f"/api/v1/departments/{dept.id}")
+    assert response.status_code == 200
+    data = response.json()
+    
+    # user_count should only be 2 (active ones)
+    assert data["user_count"] == 2

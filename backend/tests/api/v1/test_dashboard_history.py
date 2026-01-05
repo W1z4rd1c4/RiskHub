@@ -60,6 +60,7 @@ async def trend_test_data(db: AsyncSession, admin_user: User, test_department: D
     kri = KeyRiskIndicator(
         risk_id=risk1.id,
         metric_name="Test KRI",
+        description="Test KRI for dashboard history trends",
         current_value=100,
         lower_limit=0,
         upper_limit=80,

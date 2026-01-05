@@ -13,6 +13,7 @@ async def test_kri(db_session: AsyncSession, test_risk: Risk, test_user: User) -
     """Create a test KRI."""
     kri = KeyRiskIndicator(
         metric_name="Test Metric",
+        description="Test KRI metric for historization testing",
         risk_id=test_risk.id,
         current_value=50,
         lower_limit=10,
