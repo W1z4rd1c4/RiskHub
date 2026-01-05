@@ -86,8 +86,6 @@ class RiskUpdate(BaseModel):
     net_impact: Optional[int] = Field(None, ge=1, le=5)
     status: Optional[RiskStatusEnum] = None
     is_priority: Optional[bool] = None
-    status: Optional[RiskStatusEnum] = None
-    is_priority: Optional[bool] = None
 
 
 class UserBriefForRisk(BaseModel):
