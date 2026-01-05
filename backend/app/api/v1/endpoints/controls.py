@@ -70,6 +70,17 @@ async def list_controls(
         # Default: exclude archived
         base_query = base_query.where(Control.status != ControlStatusEnum.archived.value)
     
+    # Join for secondary search fields
+    # We join Risk via ControlRiskLink
+    from app.models.department import Department
+    from sqlalchemy.orm import aliased
+    
+    RiskDept = aliased(Department)
+    
+    base_query = base_query.outerjoin(Control.department)
+    base_query = base_query.outerjoin(Control.risk_links).outerjoin(ControlRiskLink.risk)
+    base_query = base_query.outerjoin(RiskDept, Risk.department_id == RiskDept.id)
+
     # Search filter
     if search:
         search_pattern = f"%{search}%"
@@ -77,8 +88,16 @@ async def list_controls(
             or_(
                 Control.name.ilike(search_pattern),
                 Control.description.ilike(search_pattern),
+                Department.name.ilike(search_pattern),
+                Risk.name.ilike(search_pattern),
+                Risk.description.ilike(search_pattern),
+                Risk.risk_id_code.ilike(search_pattern),
+                RiskDept.name.ilike(search_pattern),
             )
         )
+    
+    # Distinct because of risk joins
+    base_query = base_query.distinct()
 
     # Advanced filters (Process/Category via Risk links)
     if process or category:
@@ -236,7 +255,12 @@ async def update_control(
     Non-privileged users editing controls linked to critical risks or changing
     sensitive fields (owner, department) will trigger an approval request.
     """
-    from app.core.permissions import can_resolve_approvals, is_critical_risk, has_sensitive_field_changes, is_control_owner
+    from app.core.permissions import (
+        can_resolve_approvals,
+        has_sensitive_field_changes,
+        is_control_owner,
+        is_high_risk_for_approval_async,
+    )
     from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType, ControlRiskLink
     import json
     
@@ -291,7 +315,7 @@ async def update_control(
             select(Risk).join(ControlRiskLink).where(ControlRiskLink.control_id == control.id)
         )
         for risk in linked_risks_result.scalars():
-            if is_critical_risk(risk):
+            if await is_high_risk_for_approval_async(risk, db):
                 requires_approval = True
                 is_priority_linked = True
                 approval_reason = f"Edit to control linked to critical risk {risk.risk_id_code}"
@@ -572,10 +596,9 @@ async def log_execution(
     control_id: int,
     execution_data: ControlExecutionCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("controls", "execute")),
 ):
-    """Log a control execution. Control owners can log from any department."""
-    from app.core.permissions import is_control_owner
+    """Log a control execution. Requires controls:execute and department access."""
     
     # Verify control exists
     result = await db.execute(
@@ -586,13 +609,10 @@ async def log_execution(
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
-    # Allow access if user is control owner (cross-department)
-    is_owner = await is_control_owner(db, current_user.id, control_id)
-    if not is_owner:
-        # Verify department access
-        check_department_access(control.department_id, current_user)
+    # Verify department access
+    check_department_access(control.department_id, current_user)
     
-    executed_at = datetime.now(UTC)
+    executed_at = datetime.now(UTC).replace(tzinfo=None)
     next_scheduled = calculate_next_scheduled(control.frequency, executed_at)
     
     execution = ControlExecution(
@@ -627,8 +647,7 @@ async def list_executions(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
-    """List execution history for a control. Control owners can view from any department."""
-    from app.core.permissions import is_control_owner
+    """List execution history for a control."""
     
     # Verify control exists
     result = await db.execute(
@@ -638,11 +657,8 @@ async def list_executions(
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
-    # Allow access if user is control owner (cross-department)
-    is_owner = await is_control_owner(db, current_user.id, control_id)
-    if not is_owner:
-        # Verify department access
-        check_department_access(control.department_id, current_user)
+    # Verify department access
+    check_department_access(control.department_id, current_user)
     
     result = await db.execute(
         select(ControlExecution)
