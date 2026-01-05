@@ -103,7 +103,7 @@
 - ✅ **72-09**: Backend threshold propagation cleanup (reports + approvals)
 - ✅ **72-10**: Public endpoints for thresholds + risk types (non-CRO)
 - ✅ **72-11**: Frontend public-config consumption + dynamic type display
-- ⏳ **72-12**: Naming cleanup for approval threshold helpers (`is_critical_risk_*` semantics)
+- ✅ **72-12**: Naming cleanup for approval threshold helpers (`is_critical_risk_*` semantics)
 
 ### Phase 99 Progress
 - ✅ **99-01**: Migrated 83 risks from Registr_Rizik_2022.xlsx
@@ -155,10 +155,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 72-11: Frontend updated to consume public endpoints for thresholds/types, removed S/O hardcoding with config-driven display.
+- Completed Phase 72-12: Renamed `is_critical_risk*` to `is_high_risk_for_approval*` for correct semantics, kept aliases for backward compatibility.
 
 ### Next Step
-- Execute Phase 72-12: Naming cleanup for approval threshold helpers (`is_critical_risk_*` semantics).
+- Phase 72 resolution work is largely complete. Continue with Phase 72-07/08 cleanup or proceed to new work.
 
 ---
 *Updated: 2026-01-05*
