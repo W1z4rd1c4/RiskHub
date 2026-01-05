@@ -56,6 +56,7 @@ async def test_risk_other_dept(db_session: AsyncSession, second_department: Depa
     """Create a risk in a different department."""
     risk = Risk(
         risk_id_code="FIN-R01",
+        name="Finance Risk",
         process="Finance",
         description="Finance risk",
         category="Financial",
