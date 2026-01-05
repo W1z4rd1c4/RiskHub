@@ -193,7 +193,7 @@ class TestLogRotationConfig:
         from app.core.logging import configure_logging
         
         # Call with explicit settings
-        configure_logging(rotation_size_mb=5, retention_count=3)
+        configure_logging(app_rotation_size_mb=5, app_retention_count=3)
         
         # Check root logger handlers
         root_logger = logging.getLogger()
@@ -205,6 +205,12 @@ class TestLogRotationConfig:
         # Should have at least app and audit handlers
         assert len(rotating_handlers) >= 2
         
-        for handler in rotating_handlers:
-            assert handler.maxBytes == 5 * 1024 * 1024  # 5MB
-            assert handler.backupCount == 3
+        # Check app.json.log handler specifically
+        app_handler = next(
+            (h for h in rotating_handlers if "app.json.log" in str(h.baseFilename)),
+            None
+        )
+        assert app_handler is not None, "App log handler should exist"
+        assert app_handler.maxBytes == 5 * 1024 * 1024  # 5MB
+        assert app_handler.backupCount == 3
+

@@ -52,7 +52,7 @@ async def test_audit_log_on_failed_login(client: AsyncClient):
         assert field in log_entry, f"SIEM required field '{field}' missing from audit log"
     
     # Verify content
-    assert log_entry["event"] == "login"
+    assert log_entry["event"] == "failed_login"
     assert "Failed login attempt" in log_entry["description"]
     assert log_entry["feature"] == "audit"
     assert log_entry["logger"] == "audit"

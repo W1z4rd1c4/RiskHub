@@ -2,6 +2,7 @@
 Tests for dashboard historical trend endpoints.
 """
 import pytest
+import pytest_asyncio
 from datetime import datetime, timedelta
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,8 +13,8 @@ from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.kri_history import KRIValueHistory
 
 
-@pytest.fixture
-async def trend_test_data(db: AsyncSession, admin_user: User, test_department: Department):
+@pytest_asyncio.fixture
+async def trend_test_data(db_session: AsyncSession, test_user: User, test_department: Department):
     """Create test data for trend endpoints."""
     # Create risks in different months
     now = datetime.now()
@@ -21,10 +22,11 @@ async def trend_test_data(db: AsyncSession, admin_user: User, test_department: D
     
     # Risk created this month (critical)
     risk1 = Risk(
-        description="Critical Risk This Month",
         risk_id_code="R-001",
+        name="Critical Risk This Month",
+        description="Critical Risk This Month description",
         department_id=test_department.id,
-        owner_id=admin_user.id,
+        owner_id=test_user.id,
         process="Test Process",
         category="Operational",
         risk_type="operational",
@@ -38,10 +40,11 @@ async def trend_test_data(db: AsyncSession, admin_user: User, test_department: D
     
     # Risk created last month (non-critical)
     risk2 = Risk(
-        description="Normal Risk Last Month",
         risk_id_code="R-002",
+        name="Normal Risk Last Month",
+        description="Normal Risk Last Month description",
         department_id=test_department.id,
-        owner_id=admin_user.id,
+        owner_id=test_user.id,
         process="Test Process",
         category="Operational",
         risk_type="operational",
@@ -53,8 +56,8 @@ async def trend_test_data(db: AsyncSession, admin_user: User, test_department: D
         created_at=last_month
     )
     
-    db.add_all([risk1, risk2])
-    await db.flush()
+    db_session.add_all([risk1, risk2])
+    await db_session.flush()
     
     # Create KRI with history entries
     kri = KeyRiskIndicator(
@@ -67,8 +70,8 @@ async def trend_test_data(db: AsyncSession, admin_user: User, test_department: D
         unit="%",
         frequency="monthly",
     )
-    db.add(kri)
-    await db.flush()
+    db_session.add(kri)
+    await db_session.flush()
     
     # History entry this month (breach)
     history1 = KRIValueHistory(
@@ -96,23 +99,19 @@ async def trend_test_data(db: AsyncSession, admin_user: User, test_department: D
         recorded_at=last_month,
     )
     
-    db.add_all([history1, history2])
-    await db.commit()
+    db_session.add_all([history1, history2])
+    await db_session.commit()
     
     return {"risk1": risk1, "risk2": risk2, "kri": kri}
 
 
 @pytest.mark.asyncio
 async def test_get_risk_trends(
-    client: AsyncClient,
-    admin_token: str,
+    auth_client: AsyncClient,
     trend_test_data: dict,
 ):
     """Test GET /dashboard/risk-trends returns monthly risk counts."""
-    response = await client.get(
-        "/api/v1/dashboard/risk-trends",
-        headers={"Authorization": f"Bearer {admin_token}"},
-    )
+    response = await auth_client.get("/api/v1/dashboard/risk-trends")
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -126,15 +125,11 @@ async def test_get_risk_trends(
 
 @pytest.mark.asyncio
 async def test_get_kri_breach_trends(
-    client: AsyncClient,
-    admin_token: str,
+    auth_client: AsyncClient,
     trend_test_data: dict,
 ):
     """Test GET /dashboard/kri-breach-trends returns monthly breach counts."""
-    response = await client.get(
-        "/api/v1/dashboard/kri-breach-trends",
-        headers={"Authorization": f"Bearer {admin_token}"},
-    )
+    response = await auth_client.get("/api/v1/dashboard/kri-breach-trends")
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -148,15 +143,11 @@ async def test_get_kri_breach_trends(
 
 @pytest.mark.asyncio
 async def test_trends_empty_for_no_access_user(
-    client: AsyncClient,
-    employee_token: str,
+    client_employee: AsyncClient,
 ):
     """Test trends return empty for users with no department access."""
     # Employee without department_id set might return empty
-    response = await client.get(
-        "/api/v1/dashboard/risk-trends",
-        headers={"Authorization": f"Bearer {employee_token}"},
-    )
+    response = await client_employee.get("/api/v1/dashboard/risk-trends")
     assert response.status_code == 200
     # Could be empty or have data depending on user setup
     assert isinstance(response.json(), list)
