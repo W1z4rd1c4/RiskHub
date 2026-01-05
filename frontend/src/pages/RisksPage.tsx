@@ -82,7 +82,7 @@ export function RisksPage() {
     useEffect(() => {
         const fetchPending = async () => {
             try {
-                const response = await approvalsApi.list({ status: 'pending', limit: 1000 });
+                const response = await approvalsApi.list({ status: 'pending', limit: 100 });
                 const ids = new Set(
                     response.items
                         .filter(a => a.resource_type === 'risk')
