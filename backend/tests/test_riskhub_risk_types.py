@@ -35,6 +35,7 @@ async def test_create_risk_with_valid_risk_type(
         "/api/v1/risks",
         json={
             "risk_id_code": "COMP-R01",
+            "name": "Compliance Risk Test",
             "process": "Compliance Check",
             "description": "Test compliance risk",
             "department_id": test_department.id,
@@ -67,6 +68,7 @@ async def test_create_risk_with_unknown_risk_type_returns_400(
         "/api/v1/risks",
         json={
             "risk_id_code": "UNKNOWN-R01",
+            "name": "Unknown Type Test Risk",
             "process": "Unknown Type Test",
             "description": "Test with unknown risk type",
             "department_id": test_department.id,
@@ -110,6 +112,7 @@ async def test_create_risk_with_default_operational_type(
         "/api/v1/risks",
         json={
             "risk_id_code": "OPS-R01",
+            "name": "Default Operational Risk",
             "process": "Operations Process",
             "description": "Default operational risk",
             "department_id": test_department.id,
@@ -151,6 +154,7 @@ async def test_update_risk_with_unknown_risk_type_returns_400(
         "/api/v1/risks",
         json={
             "risk_id_code": "UPD-R01",
+            "name": "Update Test Risk",
             "process": "Update Test",
             "description": "Risk for update test",
             "department_id": test_department.id,
@@ -205,6 +209,7 @@ async def test_update_risk_with_valid_risk_type_succeeds(
         "/api/v1/risks",
         json={
             "risk_id_code": "STRAT-R01",
+            "name": "Strategic Update Test Risk",
             "process": "Strategic Update Test",
             "description": "Risk for strategic update",
             "department_id": test_department.id,
@@ -253,6 +258,7 @@ async def test_inactive_risk_type_rejected(
         "/api/v1/risks",
         json={
             "risk_id_code": "DEP-R01",
+            "name": "Deprecated Type Test Risk",
             "process": "Deprecated Type Test",
             "description": "Test with deprecated risk type",
             "department_id": test_department.id,
@@ -300,6 +306,7 @@ async def test_riskhub_risk_type_list_shows_accurate_counts(
     for i in range(3):
         risk = Risk(
             risk_id_code=f"OPS-TEST-{i:02d}",
+            name=f"Operational Risk {i}",
             process=f"Ops Process {i}",
             description=f"Operational risk {i}",
             department_id=test_department.id,
@@ -313,6 +320,7 @@ async def test_riskhub_risk_type_list_shows_accurate_counts(
     for i in range(2):
         risk = Risk(
             risk_id_code=f"STRAT-TEST-{i:02d}",
+            name=f"Strategic Risk {i}",
             process=f"Strategic Process {i}",
             description=f"Strategic risk {i}",
             department_id=test_department.id,
@@ -359,6 +367,7 @@ async def test_riskhub_risk_count_excludes_archived_risks(
     for i in range(2):
         risk = Risk(
             risk_id_code=f"ACTIVE-{i:02d}",
+            name=f"Active Risk {i}",
             process=f"Active Process {i}",
             description=f"Active risk {i}",
             department_id=test_department.id,
@@ -371,6 +380,7 @@ async def test_riskhub_risk_count_excludes_archived_risks(
     # Create 1 archived risk (should not be counted)
     archived_risk = Risk(
         risk_id_code="ARCHIVED-01",
+        name="Archived Risk",
         process="Archived Process",
         description="Archived risk",
         department_id=test_department.id,
