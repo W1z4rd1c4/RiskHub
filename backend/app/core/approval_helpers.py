@@ -61,7 +61,7 @@ async def check_control_requires_privileged_approval(db: AsyncSession, control_i
     """
     Check if a control edit requires privileged approval.
     
-    Returns True if control is linked to any priority risk.
+    Returns True if control is linked to any high-risk (or priority) risk.
     
     Args:
         db: Database session
@@ -70,7 +70,7 @@ async def check_control_requires_privileged_approval(db: AsyncSession, control_i
     Returns:
         True if privileged approval is required
     """
-    from app.core.permissions import is_critical_risk
+    from app.core.permissions import is_high_risk_for_approval_async
     
     # Query linked risks
     linked_risks_result = await db.execute(
@@ -80,7 +80,7 @@ async def check_control_requires_privileged_approval(db: AsyncSession, control_i
     )
     
     for risk in linked_risks_result.scalars():
-        if is_critical_risk(risk):
+        if await is_high_risk_for_approval_async(risk, db):
             return True
     
     return False

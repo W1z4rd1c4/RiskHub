@@ -2,7 +2,7 @@
 Tests for global_config usage in critical paths.
 
 Validates that configuration values from global_config affect:
-- Risk severity thresholds (is_critical_risk)
+- Risk severity thresholds (is_high_risk_for_approval)
 - KRI notification timing (deadline service)
 """
 import pytest
@@ -20,7 +20,12 @@ from app.models.global_config import (
     get_config_value,
     clear_config_cache,
 )
-from app.core.permissions import is_critical_risk, is_critical_risk_async
+from app.core.permissions import (
+    is_high_risk_for_approval,
+    is_high_risk_for_approval_async,
+    is_critical_risk,
+    is_critical_risk_async,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -109,16 +114,23 @@ async def test_get_config_float_validates_type(
 # Risk Threshold Config Tests
 # ============================================================================
 
+def test_ConfigDefaults_thresholds_match_seed_defaults():
+    assert ConfigDefaults.MEDIUM_RISK_MIN_NET_SCORE == 5
+    assert ConfigDefaults.HIGH_RISK_MIN_NET_SCORE == 10
+    assert ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE == 16
+
+
 @pytest.mark.asyncio
-async def test_is_critical_risk_uses_default_threshold(
+async def test_is_high_risk_for_approval_uses_default_threshold(
     db_session: AsyncSession,
     test_department: Department,
     test_user_cro: User,
 ):
-    """Test is_critical_risk uses ConfigDefaults when no DB config exists."""
-    # Create a risk with net_score at boundary (default threshold is 15)
+    """Test is_high_risk_for_approval uses ConfigDefaults when no DB config exists."""
+    # Create a risk with net_score at boundary (default threshold is 10)
     risk = Risk(
         risk_id_code="CRIT-001",
+        name="Critical Threshold Risk",
         process="Threshold Test",
         description="Test risk at boundary",
         department_id=test_department.id,
@@ -127,9 +139,9 @@ async def test_is_critical_risk_uses_default_threshold(
         gross_probability=4,
         gross_impact=4,
         gross_score=16,
-        net_probability=3,
+        net_probability=2,
         net_impact=5,
-        net_score=15,  # Explicitly set - at threshold
+        net_score=10,  # Explicitly set - at threshold
         status="active",
         is_priority=False,
     )
@@ -137,12 +149,13 @@ async def test_is_critical_risk_uses_default_threshold(
     await db_session.commit()
     await db_session.refresh(risk)
     
-    # Default threshold is 15, score is 15 -> critical
-    assert is_critical_risk(risk) is True
+    # Default threshold is 10, score is 10 -> high risk for approval
+    assert is_high_risk_for_approval(risk) is True
     
     # Create risk below threshold
     risk2 = Risk(
         risk_id_code="LOW-001",
+        name="Low Threshold Risk",
         process="Low Risk Test",
         description="Test risk below threshold",
         department_id=test_department.id,
@@ -153,7 +166,7 @@ async def test_is_critical_risk_uses_default_threshold(
         gross_score=9,
         net_probability=2,
         net_impact=3,
-        net_score=6,  # Explicitly set - below threshold
+        net_score=9,  # Explicitly set - below threshold
         status="active",
         is_priority=False,
     )
@@ -161,20 +174,20 @@ async def test_is_critical_risk_uses_default_threshold(
     await db_session.commit()
     await db_session.refresh(risk2)
     
-    assert is_critical_risk(risk2) is False
+    assert is_high_risk_for_approval(risk2) is False
 
 
 @pytest.mark.asyncio
-async def test_is_critical_risk_async_uses_db_config(
+async def test_is_high_risk_for_approval_async_uses_db_config(
     db_session: AsyncSession,
     test_department: Department,
     test_user_cro: User,
 ):
-    """Test is_critical_risk_async respects DB-configured threshold."""
+    """Test is_high_risk_for_approval_async respects DB-configured threshold."""
     # Set a custom threshold in global_config
     config = GlobalConfig(
         key="high_risk_min_net_score",
-        value="10",
+        value="20",
         value_type="int",
         category="risk_thresholds",
         display_name="High Risk Minimum Net Score",
@@ -182,9 +195,10 @@ async def test_is_critical_risk_async_uses_db_config(
     db_session.add(config)
     await db_session.commit()
     
-    # Create a risk with net_score = 12 (above new threshold 10, below default 15)
+    # Create a risk with net_score = 12 (above default 10, below DB-configured 20)
     risk = Risk(
         risk_id_code="MED-001",
+        name="Medium Threshold Risk",
         process="Medium Risk Test",
         description="Test with custom threshold",
         department_id=test_department.id,
@@ -203,11 +217,11 @@ async def test_is_critical_risk_async_uses_db_config(
     await db_session.commit()
     await db_session.refresh(risk)
     
-    # Sync version uses default (15), so not critical
-    assert is_critical_risk(risk) is False
+    # Sync version uses default (10), so high risk
+    assert is_high_risk_for_approval(risk) is True
     
-    # Async version uses DB config (10), so critical
-    assert await is_critical_risk_async(risk, db_session) is True
+    # Async version uses DB config (20), so not high risk
+    assert await is_high_risk_for_approval_async(risk, db_session) is False
 
 
 @pytest.mark.asyncio
@@ -216,9 +230,10 @@ async def test_is_priority_overrides_threshold(
     test_department: Department,
     test_user_cro: User,
 ):
-    """Test that is_priority=True makes risk critical regardless of score."""
+    """Test that is_priority=True makes risk high-risk regardless of score."""
     risk = Risk(
         risk_id_code="PRIO-001",
+        name="Priority Risk",
         process="Priority Test",
         description="Low score but priority",
         department_id=test_department.id,
@@ -237,8 +252,52 @@ async def test_is_priority_overrides_threshold(
     await db_session.commit()
     await db_session.refresh(risk)
     
-    assert is_critical_risk(risk) is True
-    assert await is_critical_risk_async(risk, db_session) is True
+    assert is_high_risk_for_approval(risk) is True
+    assert await is_high_risk_for_approval_async(risk, db_session) is True
+
+
+# ============================================================================
+# Backward Compatibility Alias Tests (Regression Guard)
+# ============================================================================
+
+@pytest.mark.asyncio
+async def test_deprecated_is_critical_risk_alias_matches_new_helper(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user_cro: User,
+):
+    """Test that deprecated is_critical_risk aliases behave identically to new helpers.
+    
+    This is a regression guard - if this test fails, backward compatibility is broken.
+    """
+    risk = Risk(
+        risk_id_code="ALIAS-001",
+        name="Alias Test Risk",
+        process="Alias Test",
+        description="Test backward compatibility",
+        department_id=test_department.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=4,
+        gross_score=12,
+        net_probability=3,
+        net_impact=4,
+        net_score=12,
+        status="active",
+        is_priority=False,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+    
+    # Sync: alias should return same result as new helper
+    assert is_critical_risk(risk) == is_high_risk_for_approval(risk)
+    
+    # Async: alias should return same result as new helper
+    alias_result = await is_critical_risk_async(risk, db_session)
+    new_result = await is_high_risk_for_approval_async(risk, db_session)
+    assert alias_result == new_result
 
 
 # ============================================================================
