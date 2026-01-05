@@ -202,34 +202,6 @@ async def is_high_risk_for_approval_async(risk, db) -> bool:
     return False
 
 
-# ============== Deprecated Aliases (Backward Compatibility) ==============
-# These names are semantically incorrect - they check HIGH_RISK threshold,
-# not CRITICAL_RISK threshold. Use the new names above instead.
-
-def is_critical_risk(risk) -> bool:
-    """
-    DEPRECATED: This name is misleading. Use is_high_risk_for_approval() instead.
-    
-    This function checks the HIGH_RISK_MIN_NET_SCORE threshold, not
-    CRITICAL_RISK_MIN_NET_SCORE. The name "critical" is incorrect.
-    
-    Kept for backward compatibility - calls is_high_risk_for_approval().
-    """
-    return is_high_risk_for_approval(risk)
-
-
-async def is_critical_risk_async(risk, db) -> bool:
-    """
-    DEPRECATED: This name is misleading. Use is_high_risk_for_approval_async() instead.
-    
-    This function checks the high_risk_min_net_score config key, not
-    critical_risk_min_net_score. The name "critical" is incorrect.
-    
-    Kept for backward compatibility - calls is_high_risk_for_approval_async().
-    """
-    return await is_high_risk_for_approval_async(risk, db)
-
-
 SENSITIVE_FIELDS = {
     "risk": {"owner_id", "department_id", "category", "is_priority"},
     "control": {"control_owner_id", "department_id"},

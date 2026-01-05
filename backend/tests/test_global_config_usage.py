@@ -23,8 +23,6 @@ from app.models.global_config import (
 from app.core.permissions import (
     is_high_risk_for_approval,
     is_high_risk_for_approval_async,
-    is_critical_risk,
-    is_critical_risk_async,
 )
 
 
@@ -254,50 +252,6 @@ async def test_is_priority_overrides_threshold(
     
     assert is_high_risk_for_approval(risk) is True
     assert await is_high_risk_for_approval_async(risk, db_session) is True
-
-
-# ============================================================================
-# Backward Compatibility Alias Tests (Regression Guard)
-# ============================================================================
-
-@pytest.mark.asyncio
-async def test_deprecated_is_critical_risk_alias_matches_new_helper(
-    db_session: AsyncSession,
-    test_department: Department,
-    test_user_cro: User,
-):
-    """Test that deprecated is_critical_risk aliases behave identically to new helpers.
-    
-    This is a regression guard - if this test fails, backward compatibility is broken.
-    """
-    risk = Risk(
-        risk_id_code="ALIAS-001",
-        name="Alias Test Risk",
-        process="Alias Test",
-        description="Test backward compatibility",
-        department_id=test_department.id,
-        owner_id=test_user_cro.id,
-        risk_type="operational",
-        gross_probability=3,
-        gross_impact=4,
-        gross_score=12,
-        net_probability=3,
-        net_impact=4,
-        net_score=12,
-        status="active",
-        is_priority=False,
-    )
-    db_session.add(risk)
-    await db_session.commit()
-    await db_session.refresh(risk)
-    
-    # Sync: alias should return same result as new helper
-    assert is_critical_risk(risk) == is_high_risk_for_approval(risk)
-    
-    # Async: alias should return same result as new helper
-    alias_result = await is_critical_risk_async(risk, db_session)
-    new_result = await is_high_risk_for_approval_async(risk, db_session)
-    assert alias_result == new_result
 
 
 # ============================================================================
