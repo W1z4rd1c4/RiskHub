@@ -33,6 +33,7 @@ export function ControlsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
@@ -41,9 +42,24 @@ export function ControlsPage() {
     const [pendingApprovalIds, setPendingApprovalIds] = useState<Set<number>>(new Set());
     const limit = 10;
 
+    // Handle search debouncing
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [search]);
+
+
     const fetchControls = useCallback(async () => {
         try {
-            setIsLoading(true);
+            // Only show skeleton for initial load OR non-search changes.
+            // For search updates, we fetch in the background to avoid flashing.
+            const shouldShowSkeleton = controls.length === 0;
+
+            if (shouldShowSkeleton) {
+                setIsLoading(true);
+            }
 
             // For paginated "all" view, just fetch the current page
             if (viewMode === 'all') {
@@ -51,14 +67,14 @@ export function ControlsPage() {
                 const response = await controlApi.getControls({
                     skip,
                     limit,
-                    search: search || undefined,
+                    search: debouncedSearch || undefined,
                     status: statusFilter || undefined
                 });
                 setControls(response.items);
                 setTotalCount(response.total);
             } else {
                 // For grouped views, fetch ALL pages for accurate group counts
-                const pageSize = 100;
+                const pageSize = 100; // Backend max limit is 100
                 let allControls: ControlSummary[] = [];
                 let skip = 0;
                 let total = 0;
@@ -67,7 +83,7 @@ export function ControlsPage() {
                     const response = await controlApi.getControls({
                         skip,
                         limit: pageSize,
-                        search: search || undefined,
+                        search: debouncedSearch || undefined,
                         status: statusFilter || undefined
                     });
 
@@ -87,7 +103,7 @@ export function ControlsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, search, statusFilter, viewMode]);
+    }, [currentPage, debouncedSearch, statusFilter, viewMode]);
 
     useEffect(() => {
         fetchControls();
@@ -96,9 +112,22 @@ export function ControlsPage() {
     useEffect(() => {
         const fetchPending = async () => {
             try {
-                const response = await approvalsApi.list({ status: 'pending', limit: 1000 });
-                const ids = new Set(
-                    response.items
+                // Fetch all pending approvals (paginate if more than 100)
+                const pageSize = 100;
+                type ApprovalItem = { resource_type: string; resource_id: number };
+                let allItems: ApprovalItem[] = [];
+                let skip = 0;
+                let total = 0;
+
+                do {
+                    const response = await approvalsApi.list({ status: 'pending', limit: pageSize, skip });
+                    total = response.total;
+                    allItems = [...allItems, ...response.items];
+                    skip += pageSize;
+                } while (skip < total);
+
+                const ids = new Set<number>(
+                    allItems
                         .filter(a => a.resource_type === 'control')
                         .map(a => a.resource_id)
                 );
@@ -273,7 +302,7 @@ export function ControlsPage() {
             </div>
 
             {/* View Switcher */}
-            <ViewSwitcher value={viewMode} onChange={setViewMode} />
+            <ViewSwitcher value={viewMode} onChange={(v) => { setViewMode(v); setControls([]); setCurrentPage(1); }} />
 
             {/* Filters Bar */}
             <div className="glass-card flex flex-col md:flex-row gap-4">
@@ -281,16 +310,16 @@ export function ControlsPage() {
                     <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
                     <input
                         type="text"
-                        placeholder="Search by name or description..."
+                        placeholder="Search by name, description, risk or department..."
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
                     />
                 </div>
                 <div className="flex gap-4">
                     <select
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
+                        onChange={(e) => { setStatusFilter(e.target.value); setControls([]); setCurrentPage(1); }}
                         className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-300 outline-none focus:border-accent/50 appearance-none min-w-[140px]"
                     >
                         <option value="" className="bg-slate-900">All Statuses</option>
@@ -299,11 +328,12 @@ export function ControlsPage() {
                         <option value="inactive" className="bg-slate-900">Inactive</option>
                     </select>
                     <button
-                        onClick={() => fetchControls()}
+                        onClick={() => { fetchControls(); setControls([]); }}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     >
                         <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
                     </button>
+
                 </div>
             </div>
 
@@ -357,7 +387,7 @@ export function ControlsPage() {
                         totalPages={totalPages}
                         totalItems={totalCount}
                         itemsPerPage={limit}
-                        onPageChange={setCurrentPage}
+                        onPageChange={(p) => { setCurrentPage(p); setControls([]); }}
                     />
                 </>
             ) : (
