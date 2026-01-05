@@ -17,9 +17,9 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 12.1 Compliance Governance Review (Complete)
-**Current Plan:** 12.1-10 (Completed)
-**Next Plan:** Phase 13 or remaining work on 72/200
+**Phase:** 200 Entity Naming Enforcement
+**Current Plan:** 200-09 (Completed)
+**Next Plan:** 200-10 (Final cleanup) or Phase 13
 
 ## Progress Summary
 
@@ -45,7 +45,7 @@
 | 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
-| 200 Entity Naming Enforcement | ⏳ In progress (7/10) | - |
+| 200 Entity Naming Enforcement | ⏳ In progress (8/10) | - |
 
 ## Session Context
 
@@ -155,10 +155,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 72-12: Renamed `is_critical_risk*` to `is_high_risk_for_approval*` for correct semantics, kept aliases for backward compatibility.
+- Completed Plan 200-09: Verification & Regression Testing for Entity Naming Enforcement. Backend tests: 213 passed. Frontend build successful. Verified Name field present and mandatory across Risks, Controls, and KRIs.
 
 ### Next Step
-- Phase 72 resolution work is largely complete. Continue with Phase 72-07/08 cleanup or proceed to new work.
+- Execute Plan 200-10 (Final cleanup) to complete Phase 200, or proceed to Phase 13 Issue & Remediation.
 
 ---
 *Updated: 2026-01-05*
