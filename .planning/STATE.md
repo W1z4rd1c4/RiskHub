@@ -102,7 +102,7 @@
 - ⏳ **72-08**: Full-modality cleanup (RBAC enforcement, migration convergence, repo hygiene)
 - ✅ **72-09**: Backend threshold propagation cleanup (reports + approvals)
 - ✅ **72-10**: Public endpoints for thresholds + risk types (non-CRO)
-- ⏳ **72-11**: Frontend public-config consumption + dynamic type display
+- ✅ **72-11**: Frontend public-config consumption + dynamic type display
 - ⏳ **72-12**: Naming cleanup for approval threshold helpers (`is_critical_risk_*` semantics)
 
 ### Phase 99 Progress
@@ -155,10 +155,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 72-10: Public endpoints for risk thresholds + risk types (non-CRO access via allowlist and public-risk-types endpoint).
+- Completed Phase 72-11: Frontend updated to consume public endpoints for thresholds/types, removed S/O hardcoding with config-driven display.
 
 ### Next Step
-- Execute Phase 72-11: Frontend public-config consumption + dynamic type display.
+- Execute Phase 72-12: Naming cleanup for approval threshold helpers (`is_critical_risk_*` semantics).
 
 ---
 *Updated: 2026-01-05*
