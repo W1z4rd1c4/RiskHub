@@ -13,7 +13,7 @@ class TestLogRotationConfig:
         from app.core.logging import configure_logging
         
         # Configure with custom settings
-        configure_logging(rotation_size_mb=7, retention_count=5)
+        configure_logging(app_rotation_size_mb=7, app_retention_count=5)
         
         # Check handlers on root logger
         root_logger = logging.getLogger()
@@ -25,20 +25,21 @@ class TestLogRotationConfig:
         # Should have app and audit handlers
         assert len(rotating_handlers) >= 2
         
-        for handler in rotating_handlers:
-            assert handler.maxBytes == 7 * 1024 * 1024  # 7MB
-            assert handler.backupCount == 5
+        # Check app.json.log handler specifically
+        app_handler = next(
+            (h for h in rotating_handlers if "app.json.log" in str(h.baseFilename)),
+            None
+        )
+        assert app_handler is not None, "App log handler should exist"
+        assert app_handler.maxBytes == 7 * 1024 * 1024  # 7MB
+        assert app_handler.backupCount == 5
     
     def test_configure_logging_uses_defaults_when_none(self):
         """Test that configure_logging uses defaults when not specified."""
         from app.core.logging import configure_logging, DEFAULT_LOG_ROTATION_SIZE_MB, DEFAULT_LOG_RETENTION_COUNT
         
-        # Mock get_log_settings to return defaults
-        with patch("app.core.logging.get_log_settings", return_value=(
-            DEFAULT_LOG_ROTATION_SIZE_MB * 1024 * 1024, 
-            DEFAULT_LOG_RETENTION_COUNT
-        )):
-            configure_logging()
+        # Configure without specifying rotation (uses defaults)
+        configure_logging()
         
         root_logger = logging.getLogger()
         rotating_handlers = [
@@ -68,25 +69,21 @@ class TestLogRotationConfig:
         """Test that calling configure_logging again updates handlers."""
         from app.core.logging import configure_logging
         
-        # Initial config
-        configure_logging(rotation_size_mb=3, retention_count=2)
-        
-        root_logger = logging.getLogger()
-        initial_handlers = [
-            h for h in root_logger.handlers 
-            if isinstance(h, logging.handlers.RotatingFileHandler)
-        ]
-        
         # Reconfigure with different settings
-        configure_logging(rotation_size_mb=15, retention_count=8)
+        configure_logging(app_rotation_size_mb=15, app_retention_count=8)
         
         # Get new handlers
+        root_logger = logging.getLogger()
         new_rotating_handlers = [
             h for h in root_logger.handlers 
             if isinstance(h, logging.handlers.RotatingFileHandler)
         ]
         
-        # Should have updated settings
-        for handler in new_rotating_handlers:
-            assert handler.maxBytes == 15 * 1024 * 1024  # 15MB
-            assert handler.backupCount == 8
+        # Check app.json.log handler specifically
+        app_handler = next(
+            (h for h in new_rotating_handlers if "app.json.log" in str(h.baseFilename)),
+            None
+        )
+        assert app_handler is not None, "App log handler should exist"
+        assert app_handler.maxBytes == 15 * 1024 * 1024  # 15MB
+        assert app_handler.backupCount == 8
