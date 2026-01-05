@@ -1,10 +1,11 @@
 // Risk types matching backend schemas from OS 18 Řízení rizik
+// Now supports arbitrary types configured in Risk Hub (not just S/O)
 
-export type RiskType = 'strategic' | 'operational';
-export const RiskType = {
-    STRATEGIC: 'strategic' as RiskType,
-    OPERATIONAL: 'operational' as RiskType,
-};
+export type RiskType = string;
+export const RiskTypeCodes = {
+    STRATEGIC: 'strategic',
+    OPERATIONAL: 'operational',
+} as const;
 
 export type RiskStatus = 'active' | 'monitoring' | 'closed' | 'archived';
 export const RiskStatus = {
