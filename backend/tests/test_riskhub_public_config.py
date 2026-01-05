@@ -104,3 +104,42 @@ async def test_public_config_nonexistent_key(
     response = await client_cro.get("/api/v1/riskhub/public-config/nonexistent_key_12345")
     assert response.status_code == 404
     assert "not found" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_public_config_threshold_keys_accessible(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+):
+    """Test that threshold keys are accessible to non-CRO users."""
+    threshold_keys = [
+        ("medium_risk_min_net_score", "5"),
+        ("high_risk_min_net_score", "10"),
+        ("critical_risk_min_net_score", "16"),
+    ]
+    
+    # Create threshold configs if they don't exist
+    for key, value in threshold_keys:
+        existing = await db_session.execute(
+            select(GlobalConfig).where(GlobalConfig.key == key)
+        )
+        if not existing.scalar_one_or_none():
+            config = GlobalConfig(
+                key=key,
+                value=value,
+                value_type="int",
+                category="risk_thresholds",
+                display_name=key.replace("_", " ").title(),
+                is_editable=True
+            )
+            db_session.add(config)
+    await db_session.commit()
+    
+    # Verify employee can read all threshold keys
+    for key, expected_value in threshold_keys:
+        response = await client_employee.get(f"/api/v1/riskhub/public-config/{key}")
+        assert response.status_code == 200, f"Failed to read {key}"
+        data = response.json()
+        assert data["key"] == key
+        assert data["value"] == int(expected_value)  # Typed value conversion
+
