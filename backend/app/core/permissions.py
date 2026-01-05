@@ -158,16 +158,19 @@ def can_view_risk_committee(user: User) -> bool:
 from app.models.global_config import ConfigDefaults, get_config_int
 
 
-def is_critical_risk(risk) -> bool:
+def is_high_risk_for_approval(risk) -> bool:
     """
-    Check if a risk is critical (requires approval for linked item edits).
+    Check if a risk meets the approval gating threshold.
     
-    A risk is critical if:
+    A risk requires approval for linked item edits if:
     - is_priority = True, OR
-    - net_score >= threshold from config (default: 15)
+    - net_score >= high_risk_min_net_score threshold (default: 10)
     
     Note: Uses ConfigDefaults for sync contexts. For dynamic config,
-    use is_critical_risk_async() with a db session.
+    use is_high_risk_for_approval_async() with a db session.
+    
+    This is the correct name for the threshold check - it uses
+    HIGH_RISK_MIN_NET_SCORE, not CRITICAL_RISK_MIN_NET_SCORE.
     """
     if risk.is_priority:
         return True
@@ -177,12 +180,15 @@ def is_critical_risk(risk) -> bool:
     return False
 
 
-async def is_critical_risk_async(risk, db) -> bool:
+async def is_high_risk_for_approval_async(risk, db) -> bool:
     """
     Async version that fetches threshold from global_config.
     
     Use this in async contexts where you have a db session and
     want to respect CRO-configured thresholds.
+    
+    This is the correct name for the threshold check - it uses
+    high_risk_min_net_score from config, not critical_risk_min_net_score.
     """
     if risk.is_priority:
         return True
@@ -194,6 +200,34 @@ async def is_critical_risk_async(risk, db) -> bool:
     if risk.net_score >= threshold:
         return True
     return False
+
+
+# ============== Deprecated Aliases (Backward Compatibility) ==============
+# These names are semantically incorrect - they check HIGH_RISK threshold,
+# not CRITICAL_RISK threshold. Use the new names above instead.
+
+def is_critical_risk(risk) -> bool:
+    """
+    DEPRECATED: This name is misleading. Use is_high_risk_for_approval() instead.
+    
+    This function checks the HIGH_RISK_MIN_NET_SCORE threshold, not
+    CRITICAL_RISK_MIN_NET_SCORE. The name "critical" is incorrect.
+    
+    Kept for backward compatibility - calls is_high_risk_for_approval().
+    """
+    return is_high_risk_for_approval(risk)
+
+
+async def is_critical_risk_async(risk, db) -> bool:
+    """
+    DEPRECATED: This name is misleading. Use is_high_risk_for_approval_async() instead.
+    
+    This function checks the high_risk_min_net_score config key, not
+    critical_risk_min_net_score. The name "critical" is incorrect.
+    
+    Kept for backward compatibility - calls is_high_risk_for_approval_async().
+    """
+    return await is_high_risk_for_approval_async(risk, db)
 
 
 SENSITIVE_FIELDS = {
