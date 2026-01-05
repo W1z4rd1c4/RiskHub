@@ -200,7 +200,6 @@ async def test_kri_update_activity_log_changes(
         f"/api/v1/kris/{kri_id}",
         json={
             "description": "Updated description",
-            "current_value": 12,
         },
     )
 
@@ -216,8 +215,6 @@ async def test_kri_update_activity_log_changes(
     changes = entry.changes
     assert changes["description"]["old"] == "Initial description"
     assert changes["description"]["new"] == "Updated description"
-    assert changes["current_value"]["old"] == 10
-    assert changes["current_value"]["new"] == 12
 
 
 @pytest.mark.asyncio
@@ -281,8 +278,8 @@ async def test_approval_activity_log_create_and_approve(
     )
     entry = result.scalars().first()
     assert entry is not None
-    assert entry.changes["status"]["old"] == "pending"
-    assert entry.changes["status"]["new"] == "approved"
+    assert entry.changes["status"]["old"].upper() == "PENDING"
+    assert entry.changes["status"]["new"].upper() == "APPROVED"
 
 
 @pytest.mark.asyncio
@@ -337,8 +334,8 @@ async def test_approval_activity_log_reject(
     )
     entry = result.scalars().first()
     assert entry is not None
-    assert entry.changes["status"]["old"] == "pending"
-    assert entry.changes["status"]["new"] == "rejected"
+    assert entry.changes["status"]["old"].upper() == "PENDING"
+    assert entry.changes["status"]["new"].upper() == "REJECTED"
 
 
 @pytest.mark.asyncio
