@@ -82,9 +82,22 @@ export function RisksPage() {
     useEffect(() => {
         const fetchPending = async () => {
             try {
-                const response = await approvalsApi.list({ status: 'pending', limit: 100 });
-                const ids = new Set(
-                    response.items
+                // Fetch all pending approvals (paginate if more than 100)
+                const pageSize = 100;
+                type ApprovalItem = { resource_type: string; resource_id: number };
+                let allItems: ApprovalItem[] = [];
+                let skip = 0;
+                let total = 0;
+
+                do {
+                    const response = await approvalsApi.list({ status: 'pending', limit: pageSize, skip });
+                    total = response.total;
+                    allItems = [...allItems, ...response.items];
+                    skip += pageSize;
+                } while (skip < total);
+
+                const ids = new Set<number>(
+                    allItems
                         .filter(a => a.resource_type === 'risk')
                         .map(a => a.resource_id)
                 );
