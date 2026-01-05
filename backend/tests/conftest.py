@@ -1,6 +1,13 @@
 """
 Pytest configuration and fixtures for backend tests.
 """
+import os
+
+# Ensure app can import in test runs without requiring production secrets.
+# Must run before importing any app modules that call get_settings() at import time.
+os.environ.setdefault("DEBUG", "true")
+os.environ.setdefault("SECRET_KEY", "test-secret-key")
+
 import asyncio
 from typing import AsyncGenerator, Generator
 
@@ -12,6 +19,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.db.session import get_db
+
 from app.main import app
 from app.models import User, Department, Role, Risk
 from app.models.user import AccessScope
@@ -176,6 +184,7 @@ async def test_role_employee(db_session: AsyncSession) -> Role:
         Permission(resource="controls", action="write", description="Request control edits"),
         Permission(resource="controls", action="delete", description="Request control deletions"),
         Permission(resource="reports", action="read", description="Read reports"),
+        Permission(resource="kri", action="submit", description="Submit KRI values"),
     ]
     for p in permissions:
         db_session.add(p)

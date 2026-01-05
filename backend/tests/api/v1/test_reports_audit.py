@@ -29,6 +29,7 @@ async def audit_trail_test_data(db_session: AsyncSession, test_user, test_depart
     
     # Create a risk and link it
     risk = Risk(
+        name="Audit Test Risk",
         description="Test Risk for Audit",
         risk_id_code="R-AUDIT-001",
         department_id=test_department.id,

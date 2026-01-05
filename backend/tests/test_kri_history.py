@@ -22,6 +22,7 @@ async def test_kri_quarterly(db_session: AsyncSession, test_risk):
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
         metric_name="Test Quarterly KRI",
+        description="Test quarterly KRI for unit testing",
         current_value=50.0,
         lower_limit=0.0,
         upper_limit=100.0,
@@ -44,6 +45,7 @@ async def test_kri_with_history(db_session: AsyncSession, test_risk, test_user_c
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
         metric_name="KRI With History",
+        description="KRI with existing history entries for testing",
         current_value=45.0,
         lower_limit=0.0,
         upper_limit=100.0,
@@ -486,6 +488,7 @@ class TestOverdueKris:
         kri = KeyRiskIndicator(
             risk_id=test_risk.id,
             metric_name="Overdue KRI",
+            description="Overdue KRI for testing calendar periods",
             current_value=50.0,
             lower_limit=0.0,
             upper_limit=100.0,
