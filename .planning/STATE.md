@@ -97,12 +97,13 @@
 - ✅ **72-03**: Cross-department Owner Access + Notification Fan-out
 - ✅ **72-04**: Risk Hub CRUD hardening + public-config gating
 - ✅ **72-05**: Frontend alignment with Risk Hub config (risk types, thresholds, approvals)
-- ⏳ **72-06**: Approval scenario foundation (scenario_key + schema + seeds)
-- ⏳ **72-07**: Scenario-driven approval creation + notifications
-- ⏳ **72-08**: Scenario role enforcement on approve/reject (tiered)
-- ⏳ **72-09**: Backend threshold propagation cleanup (reports + approvals)
-- ⏳ **72-10**: Public endpoints for thresholds + risk types (non-CRO)
+- ✅ **72-06**: Granular permissions for KRI submission + execution logging (`kri:submit`, `controls:execute`)
+- ⏳ **72-07**: Full-modality permission independence + documentation reconciliation
+- ⏳ **72-08**: Full-modality cleanup (RBAC enforcement, migration convergence, repo hygiene)
+- ✅ **72-09**: Backend threshold propagation cleanup (reports + approvals)
+- ✅ **72-10**: Public endpoints for thresholds + risk types (non-CRO)
 - ⏳ **72-11**: Frontend public-config consumption + dynamic type display
+- ⏳ **72-12**: Naming cleanup for approval threshold helpers (`is_critical_risk_*` semantics)
 
 ### Phase 99 Progress
 - ✅ **99-01**: Migrated 83 risks from Registr_Rizik_2022.xlsx
@@ -154,10 +155,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Phase 12.1-10: SIEM & Logging remediation (admin endpoints, middleware attribution, rotation config, failed-login auditing, verification tooling).
+- Completed Phase 72-10: Public endpoints for risk thresholds + risk types (non-CRO access via allowlist and public-risk-types endpoint).
 
 ### Next Step
-- Phase 12.1 complete. Proceed to Phase 13 or continue remaining work on Phases 72/200.
+- Execute Phase 72-11: Frontend public-config consumption + dynamic type display.
 
 ---
-*Updated: 2026-01-04*
+*Updated: 2026-01-05*

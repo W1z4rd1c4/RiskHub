@@ -660,6 +660,10 @@ PUBLIC_CONFIG_ALLOWLIST = {
     "kri_overdue_grace_days",
     "session_timeout_minutes",
     "password_expiry_days",
+    # Risk thresholds - needed for UI display (risk cards, reports)
+    "medium_risk_min_net_score",
+    "high_risk_min_net_score",
+    "critical_risk_min_net_score",
 }
 
 
@@ -698,6 +702,48 @@ async def get_public_config(
         "value": config.get_typed_value(),
         "value_type": config.value_type
     }
+
+
+# ============================================================================
+# Public Risk Types Endpoint (for all authenticated users)
+# ============================================================================
+
+class PublicRiskTypeRead(BaseModel):
+    """Minimal risk type schema for public access."""
+    code: str
+    display_name: str
+    color: str
+    icon: str | None
+    sort_order: int
+
+
+@router.get("/public-risk-types", response_model=list[PublicRiskTypeRead])
+async def list_public_risk_types(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> list[PublicRiskTypeRead]:
+    """
+    List active risk types for UI display.
+    Any authenticated user can access this endpoint.
+    Only returns active types with minimal fields (no admin metadata).
+    """
+    result = await db.execute(
+        select(RiskTypeConfig)
+        .where(RiskTypeConfig.is_active == True)
+        .order_by(RiskTypeConfig.sort_order, RiskTypeConfig.display_name)
+    )
+    types = result.scalars().all()
+    
+    return [
+        PublicRiskTypeRead(
+            code=t.code,
+            display_name=t.display_name,
+            color=t.color,
+            icon=t.icon,
+            sort_order=t.sort_order
+        )
+        for t in types
+    ]
 
 
 # ============================================================================
