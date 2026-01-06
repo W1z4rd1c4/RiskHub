@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 17 Production Deployment
-**Current Plan:** 17-02 Production Hardening (Completed)
-**Next Plan:** 17-03 (next in sequence)
+**Current Plan:** 17-03 Automated Security Scanning (Completed)
+**Next Plan:** 17-04 (next in sequence)
 
 ## Progress Summary
 
@@ -36,7 +36,7 @@
 | 14 Risk Assessments | ⏳ Planned | - |
 | 15 Security Hardening | ⏳ Planned | - |
 | 16 Enterprise Testing | ⏳ Planned | - |
-| 17 Production Deployment | ⏳ In progress (2/14) | - |
+| 17 Production Deployment | ⏳ In progress (3/14) | - |
 | 85 Workflow & Users | ✅ Complete (6/6) | 2026-01-01 |
 | 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
 | 99 Data Migration & Standalone AD | ✅ Complete (8/8) | 2026-01-04 |
@@ -155,10 +155,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 17-02: Production Hardening. Created `backend/app/middleware/security.py` with SecurityHeadersMiddleware (CSP, HSTS, X-Frame-Options), RateLimitMiddleware (sliding window per IP/endpoint), and AccountLockoutMiddleware (5 attempts → 15min lockout). Updated `main.py` with middleware, `auth.py` with lockout integration, `nginx.conf` with CSP/HSTS headers.
+- Completed Plan 17-03: Automated Security Scanning. Created `backend/.bandit` (Bandit SAST), `.gitleaks.toml` (secrets detection), `.pre-commit-config.yaml` (hooks), `.github/workflows/security.yml` (CI pipeline with Bandit, pip-audit, npm audit, Trivy, Gitleaks), `scripts/verify_security_headers.py`, `SECURITY.md` documentation. Updated `requirements.txt` with security dev dependencies.
 
 ### Next Step
-- Proceed to Plan 17-03 or next production deployment task.
+- Proceed to Plan 17-04 or next production deployment task.
 
 ---
 *Updated: 2026-01-06*
