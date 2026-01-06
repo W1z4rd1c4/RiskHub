@@ -29,11 +29,10 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 12: Compliance Governance** — Risk Committee dashboard & Activity Logs
 - [ ] **Phase 13: Issue & Remediation Management** — Findings and Action Plans (NEW)
 - [ ] **Phase 14: Risk Assessments** — Campaigns and questionnaires (NEW)
-- [ ] **Phase 15: Security Hardening** — Session management and rate limiting (NEW)
-- [ ] **Phase 16: Enterprise Testing & Quality** — Regression suites and load testing (NEW)
-- [ ] **Phase 17: Vendor Risk Management** — Third-party risk assessments (deferred)
-- [ ] **Phase 18: Advanced Audit Workflows** — Audit automation (deferred)
-- [ ] **Phase 19: Polish & Deploy** — i18n, Docker, and documentation (deferred)
+- [ ] **Phase 15: Settings Page** — Read-only profile, appearance, localization, and documentation (5 plans)
+- [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing, and documentation (14 plans)
+- [ ] **Phase 18: Vendor Risk Management** — Third-party risk assessments (deferred)
+- [ ] **Phase 19: Advanced Audit Workflows** — Audit automation (deferred)
 - [ ] **Phase 70: Risk Hub** — Admin Console for system configuration, dynamic risk types, approval rules (Plans 1-7 verified)
 - [ ] **Phase 71: Risk Hub Review** — Audit Risk Hub implementation for logical/technical errors and bugs
 - [ ] **Phase 72: Risk Hub Resolution** — Fix Phase 71 findings across backend and frontend
@@ -288,62 +287,63 @@ Plans:
 - [ ] 14-02: Campaign Management (launch assessments, track completions)
 - [ ] 14-03: Assessment Response UI & Scoring Engine
 
-### Phase 15: Security Hardening (NEW)
-**Goal**: Enterprise-grade security features including session management and advanced logging.
-**Depends on**: Phase 14
+### Phase 15: Settings Page
+**Goal**: Transform the static Settings page into a functional user hub with read-only profile, appearance customization, localization, and role-based documentation.
+**Depends on**: Phase 7 (User Management)
 **Status**: Planned
-**Plans**: 4 plans
+**Plans**: 5 plans
 
 Plans:
-- [ ] 15-01: Session Management (Refresh tokens, sliding sessions, force logout)
-- [ ] 15-02: Rate Limiting & Brute Force Protection (Redis/Memcached backing)
-- [ ] 15-03: Secrets Management (Move from env/config to Vault/Key Vault integration)
-- [ ] 15-04: Security headers & CSP hardening
+- [x] 15-01: Tab Switching Infrastructure (useState, cn(), tab pattern)
+- [ ] 15-02: Profile Tab (read-only user info, role, permissions display)
+- [ ] 15-03: Appearance Tab (light/dark/system theme toggle with persistence)
+- [ ] 15-04: Localization Tab (language selector placeholder for future i18n)
+- [ ] 15-05: Documentation Tab (role-based help docs, placeholder content for Phase 17)
 
-### Phase 16: Enterprise Testing & Quality (NEW)
-**Goal**: Massive regression suite and systematic code quality audit.
-**Depends on**: Phase 15
+**Deferred to future phase:**
+- Delegation settings (out-of-office approval routing) — see Phase 15.1
+
+### Phase 17: Production Deployment & Enterprise Integration
+**Goal**: Production-ready deployment, Azure AD/Entra SSO, comprehensive documentation, and enterprise testing
+**Depends on**: Can run independently
 **Status**: Planned
-**Plans**: 3 plans
+**Plans**: 14 plans
 
 Plans:
-- [ ] 16-01: End-to-End Regression Suite (Playwright/Cypress full coverage)
-- [ ] 16-02: Performance & Load Testing (Locust/k6)
-- [ ] 16-03: Automated Security Scanning (SAST/DAST integration)
+- [ ] 17-01: Docker Scaffolding (multi-stage builds, Compose, health checks)
+- [ ] 17-02: Production Hardening (CORS, CSP, secrets, rate limiting)
+- [ ] 17-03: Automated Security Scanning (SAST, dependency scanning, secrets detection)
+- [ ] 17-04: End-to-End Regression Suite (Playwright full coverage)
+- [ ] 17-05: Performance & Load Testing (Locust, benchmarks)
+- [ ] 17-06: VM Deployment Scripts (systemd, nginx, install scripts)
+- [ ] 17-07: Azure Deployment (Bicep templates, App Service, CI/CD)
+- [ ] 17-08: Technical Deployment Documentation (IT/DevOps guides)
+- [ ] 17-09: Administrator Guide (CRO/Admin configuration)
+- [ ] 17-10: End-User Guide (Risk manager documentation)
+- [ ] 17-11: Azure AD/Entra SSO (MSAL integration, token validation)
+- [ ] 17-12: AD User Directory Lookup (Graph API, user import)
+- [ ] 17-13: Session Management (refresh tokens, sliding sessions, force logout)
+- [ ] 17-14: AD Deprovisioning Check (deleted user detection, auto-deactivate)
 
-### Phase 17: Vendor Risk Management (DEFERRED)
+### Phase 18: Vendor Risk Management (DEFERRED)
 **Goal**: Third-party risk assessments, scoring, and supply chain visualization
-**Depends on**: Phase 16
-**Status**: Deferred for future release
-**Plans**: 2 plans
-
-Plans:
-- [ ] 17-01: Vendor database and hierarchical tiering system
-- [ ] 17-02: Assessment workflows and remediation tracking
-
-### Phase 18: Advanced Audit Workflows (DEFERRED)
-**Goal**: Streamline internal audit with sampling and automated evidence collection
 **Depends on**: Phase 17
 **Status**: Deferred for future release
 **Plans**: 2 plans
 
 Plans:
-- [ ] 18-01: Audit planning wizard and automated sampling engine
-- [ ] 18-02: Evidence collection pipeline and exception triage
+- [ ] 18-01: Vendor database and hierarchical tiering system
+- [ ] 18-02: Assessment workflows and remediation tracking
 
-### Phase 19: Polish & Deploy (DEFERRED)
-**Goal**: Internationalization, containerization, and documentation
+### Phase 19: Advanced Audit Workflows (DEFERRED)
+**Goal**: Streamline internal audit with sampling and automated evidence collection
 **Depends on**: Phase 18
 **Status**: Deferred for future release
-**Plans**: 6 plans
+**Plans**: 2 plans
 
 Plans:
-- [ ] 19-01: i18n Infrastructure (React & FastAPI setup)
-- [ ] 19-02: UI Localization (Full EN/CZ translation & switcher)
-- [ ] 19-03: Docker Scaffolding (Multi-stage builds & Compose)
-- [ ] 19-04: Production Hardening (CORS, Security, Logging)
-- [ ] 19-05: System Documentation (Admin & User Guides)
-- [ ] 19-06: Verification & Deployment Checklist
+- [ ] 19-01: Audit planning wizard and automated sampling engine
+- [ ] 19-02: Evidence collection pipeline and exception triage
 
 ### Phase 71: Risk Hub Review
 **Goal**: Audit Risk Hub implementation for logical/technical errors and bugs
@@ -360,7 +360,7 @@ Plans:
 **Goal**: Implement fixes for all Phase 71 findings across backend and frontend
 **Depends on**: Phase 71
 **Research**: None
-**Plans**: 11 plans
+**Plans**: 12 plans
 
 Plans:
 - [x] 72-01: Backend risk type integration + risk count accuracy
@@ -368,12 +368,13 @@ Plans:
 - [x] 72-03: Cross-department Owner Access + Notification Fan-out
 - [x] 72-04: Risk Hub CRUD hardening + public-config gating + tests
 - [x] 72-05: Frontend alignment with Risk Hub config (risk types, thresholds, approvals)
-- [ ] 72-06: Approval scenario foundation (scenario_key + schema + seeds)
-- [ ] 72-07: Scenario-driven approval creation + notifications
-- [ ] 72-08: Scenario role enforcement on approve/reject (tiered)
-- [ ] 72-09: Backend threshold propagation cleanup (reports + approvals)
+- [x] 72-06: Granular permissions for KRI submission + execution logging (`kri:submit`, `controls:execute`)
+- [ ] 72-07: Full-modality permission independence + documentation reconciliation
+- [ ] 72-08: Full-modality cleanup (RBAC enforcement, migration convergence, repo hygiene)
+- [x] 72-09: Backend threshold propagation cleanup (reports + approvals)
 - [ ] 72-10: Public endpoints for thresholds + risk types (non-CRO)
 - [ ] 72-11: Frontend public-config consumption + dynamic type display
+- [ ] 72-12: Naming cleanup for approval threshold helpers (`is_critical_risk_*` semantics)
 
 ### Phase 85: Workflow & Users
 **Goal**: Map current access by role and deliver enhanced user management workflows (role rights, manager visibility, department remediation).
@@ -386,7 +387,7 @@ Plans:
 - [x] 85-02: Backend access management model + APIs (access scope, access endpoints)
 - [x] 85-03: Access management UI (permissions visibility, guarded edits)
 - [x] 85-04: KRI workflow improvements (weekly reminders, CRO due-soon visibility, all-edit approvals)
-- [x] 85-05: Owner-based KRI permissions (kri:record permission, tiered approval with Risk Owner)
+- [x] 85-05: Owner-based KRI permissions (kri:submit permission, tiered approval with Risk Owner)
 - [x] 85-06: Control owner edit permissions (Control Owner edits → Risk Owner approval)
 
 ### Phase 90: AD Integration (Real-Time Sync & Governance)
@@ -494,7 +495,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 12 Compliance Governance | 6/6 | Complete | 2026-01-04 |
 | 13 Issue & Remediation | 0/3 | Planned | - |
 | 14 Risk Assessments | 0/3 | Planned | - |
-| 15 Security Hardening | 0/4 | Planned | - |
+| 15 Settings Page | 1/5 | In progress | - |
 | 16 Enterprise Testing | 0/3 | Planned | - |
 | 17-19. Deferred | 0/10 | Deferred | - |
 | 90. AD Integration | 10/10 | Complete | 2025-12-29 |
