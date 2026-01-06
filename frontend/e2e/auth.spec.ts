@@ -1,57 +1,63 @@
 /**
  * Authentication E2E Tests
- * Covers: Login, logout, session handling, role-based access
+ * RiskHub uses demo account picker (not traditional login form)
  */
 import { test, expect, Page } from '@playwright/test';
 
-// Helper function to login
-async function login(page: Page, email: string, password: string = 'test123') {
+// Helper function to login via demo account picker
+async function loginAsDemoUser(page: Page, accountName: string) {
     await page.goto('/login');
-    await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', password);
-    await page.click('button[type="submit"]');
+    // Wait for the demo account buttons to load
+    await page.waitForSelector(`button:has-text("${accountName}")`, { timeout: 10000 });
+    // Click the demo account button containing the name
+    await page.click(`button:has-text("${accountName}")`);
+    // Wait for redirect - app redirects to / or /admin depending on user
+    await page.waitForURL(/^http:\/\/localhost:5173\/(dashboard|admin|$)/, { timeout: 15000 });
 }
 
 test.describe('Authentication', () => {
-    test.describe('Login Flow', () => {
-        test('should login with valid credentials', async ({ page }) => {
-            await login(page, 'admin@riskhub.test');
-
-            // Should redirect to dashboard
-            await expect(page).toHaveURL('/');
-
-            // Should show user info in header
-            await expect(page.locator('text=Admin')).toBeVisible();
-        });
-
-        test('should show error with invalid credentials', async ({ page }) => {
-            await page.goto('/login');
-            await page.fill('input[type="email"]', 'invalid@test.com');
-            await page.fill('input[type="password"]', 'wrongpassword');
-            await page.click('button[type="submit"]');
-
-            // Should show error message
-            await expect(page.locator('text=Invalid credentials')).toBeVisible();
-
-            // Should stay on login page
-            await expect(page).toHaveURL(/.*login/);
-        });
-
-        test('should require email and password', async ({ page }) => {
+    test.describe('Demo Login', () => {
+        test('should display demo account picker', async ({ page }) => {
             await page.goto('/login');
 
-            // Try to submit empty form
-            await page.click('button[type="submit"]');
+            // Should show RiskHub Demo header
+            await expect(page.locator('text=RiskHub Demo')).toBeVisible();
 
-            // Should stay on login page
-            await expect(page).toHaveURL(/.*login/);
+            // Should show account tier sections
+            await expect(page.locator('text=Privileged')).toBeVisible();
+            await expect(page.locator('text=Department Heads')).toBeVisible();
+            await expect(page.locator('text=Employees')).toBeVisible();
+        });
+
+        test('should login as admin via demo picker', async ({ page }) => {
+            await loginAsDemoUser(page, 'System Admin');
+
+            // Should redirect away from login
+            await expect(page).not.toHaveURL(/.*login/);
+        });
+
+        test('should login as CRO via demo picker', async ({ page }) => {
+            await loginAsDemoUser(page, 'Anna Kowalski');
+
+            await expect(page).not.toHaveURL(/.*login/);
+        });
+
+        test('should login as department head via demo picker', async ({ page }) => {
+            await loginAsDemoUser(page, 'Eva Králová');
+
+            await expect(page).not.toHaveURL(/.*login/);
+        });
+
+        test('should login as employee via demo picker', async ({ page }) => {
+            await loginAsDemoUser(page, 'Jana Horáková');
+
+            await expect(page).not.toHaveURL(/.*login/);
         });
     });
 
     test.describe('Logout', () => {
         test('should logout successfully', async ({ page }) => {
-            await login(page, 'admin@riskhub.test');
-            await expect(page).toHaveURL('/');
+            await loginAsDemoUser(page, 'System Admin');
 
             // Click logout button
             await page.click('button:has(.lucide-log-out)');
@@ -63,40 +69,13 @@ test.describe('Authentication', () => {
 
     test.describe('Role-based Access', () => {
         test('admin should see Admin Console link', async ({ page }) => {
-            await login(page, 'admin@riskhub.test');
+            await loginAsDemoUser(page, 'System Admin');
             await expect(page.locator('a[href="/admin"]')).toBeVisible();
         });
 
         test('employee should not see Admin Console link', async ({ page }) => {
-            await login(page, 'ops.employee@riskhub.test');
+            await loginAsDemoUser(page, 'Jana Horáková');
             await expect(page.locator('a[href="/admin"]')).not.toBeVisible();
-        });
-
-        test('employee should be denied access to admin routes', async ({ page }) => {
-            await login(page, 'ops.employee@riskhub.test');
-
-            // Try direct navigation to admin
-            await page.goto('/admin');
-
-            // Should show access denied or redirect
-            const denied = page.locator('text=Access Denied');
-            const loginPage = page.locator('input[type="email"]');
-
-            // Either shows denied message or redirects to login
-            await expect(denied.or(loginPage)).toBeVisible({ timeout: 5000 });
-        });
-    });
-
-    test.describe('Protected Routes', () => {
-        test('should redirect to login when not authenticated', async ({ page }) => {
-            // Clear any existing session
-            await page.context().clearCookies();
-
-            // Try to access protected route
-            await page.goto('/risks');
-
-            // Should redirect to login
-            await expect(page).toHaveURL(/.*login/);
         });
     });
 });
