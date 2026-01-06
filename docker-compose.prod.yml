@@ -1,0 +1,63 @@
+# RiskHub Production Docker Compose Override
+# Run with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  # ==========================================================================
+  # Database - Production overrides
+  # ==========================================================================
+  db:
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-riskhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-riskhub}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups # For database backups
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Backend - Production overrides
+  # ==========================================================================
+  backend:
+    environment:
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+      - DEBUG=false
+      - MOCK_AUTH_ENABLED=false
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["https://riskhub.example.com"]}
+      - AD_EMULATOR_URL=${AD_EMULATOR_URL:-}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+    volumes:
+      - backend_logs:/app/logs
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ==========================================================================
+  # Frontend - Production overrides
+  # ==========================================================================
+  frontend:
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+volumes:
+  postgres_data:
+  backend_logs:
+
+
+networks:
+  riskhub-network:
+    driver: bridge

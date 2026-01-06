@@ -1,4 +1,10 @@
+# RiskHub Development Docker Compose
+# Run with: docker-compose up -d
+
 services:
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
   db:
     image: postgres:16
     container_name: riskhub-db
@@ -11,10 +17,90 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U riskhub"]
+      test: [ "CMD-SHELL", "pg_isready -U riskhub" ]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - riskhub-network
+
+  # ==========================================================================
+  # Backend API (FastAPI)
+  # ==========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: riskhub-backend
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@db:5432/riskhub
+      - DEBUG=true
+      - MOCK_AUTH_ENABLED=true
+      - SECRET_KEY=dev-secret-key-not-for-production-use
+      - CORS_ORIGINS=["http://localhost:80","http://localhost:5173","http://frontend:80"]
+      - AD_EMULATOR_URL=http://ad-emulator:8001/api/v1
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - riskhub-network
+
+  # ==========================================================================
+  # Frontend (React via nginx)
+  # ==========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: riskhub-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/nginx-health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - riskhub-network
+
+  # ==========================================================================
+  # AD Emulator (Optional - for development with AD simulation)
+  # ==========================================================================
+  ad-emulator:
+    build:
+      context: ./AD Emulator/backend
+      dockerfile: Dockerfile
+    container_name: riskhub-ad-emulator
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@db:5432/ad_emulator
+      - DEBUG=true
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - with-ad # Only start with: docker-compose --profile with-ad up
+    networks:
+      - riskhub-network
 
 volumes:
   postgres_data:
+
+
+networks:
+  riskhub-network:
+    driver: bridge
