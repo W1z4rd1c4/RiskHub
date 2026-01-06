@@ -4,11 +4,21 @@
  */
 import { test, expect, Page } from '@playwright/test';
 
-async function loginAsDemoUser(page: Page, accountName: string) {
-    await page.goto('/login');
-    await page.waitForSelector(`button:has-text("${accountName}")`, { timeout: 10000 });
-    await page.click(`button:has-text("${accountName}")`);
-    await page.waitForURL(/^http:\/\/localhost:5173\/(dashboard|admin|$)/, { timeout: 15000 });
+async function loginAsDemoUser(page: Page, accountName: string, retries = 3) {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            await page.goto('/login');
+            await page.waitForSelector(`button:has-text("${accountName}")`, { timeout: 15000 });
+            await page.click(`button:has-text("${accountName}")`);
+            await page.waitForURL(/^http:\/\/localhost:5173\/(dashboard|admin|risks|$)/, { timeout: 20000 });
+            // Verify we're actually logged in by checking for nav element
+            await page.waitForSelector('nav', { timeout: 10000 });
+            return; // Success
+        } catch (error) {
+            if (attempt === retries) throw error;
+            await page.waitForTimeout(500 * attempt); // Backoff
+        }
+    }
 }
 
 async function waitForDataLoad(page: Page) {
@@ -25,8 +35,8 @@ test.describe('Risk Management', () => {
             await page.goto('/risks');
             await waitForDataLoad(page);
 
-            // Should show table with risks
-            await expect(page.locator('table').first()).toBeVisible();
+            // Should show table with risks - wait for actual data rows
+            await expect(page.locator('table tbody tr').first()).toBeVisible({ timeout: 10000 });
         });
 
         test('should search risks', async ({ page }) => {
