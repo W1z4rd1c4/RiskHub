@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { User, Palette, Globe } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { ProfileSettings, AppearanceSettings } from '@/components/settings';
+import { ProfileSettings, AppearanceSettings, LocalizationSettings } from '@/components/settings';
 
 const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
@@ -64,9 +64,7 @@ export function SettingsPage() {
                     <AppearanceSettings />
                 )}
                 {activeTab === 'localization' && (
-                    <div className="text-center text-slate-400 py-8">
-                        Localization settings will be implemented in Plan 15-04
-                    </div>
+                    <LocalizationSettings />
                 )}
             </div>
         </div>
