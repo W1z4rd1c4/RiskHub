@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { User, Palette, Globe } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { ProfileSettings } from '@/components/settings';
+import { ProfileSettings, AppearanceSettings } from '@/components/settings';
 
 const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
@@ -61,9 +61,7 @@ export function SettingsPage() {
                     <ProfileSettings user={user} />
                 )}
                 {activeTab === 'appearance' && (
-                    <div className="text-center text-slate-400 py-8">
-                        Appearance settings will be implemented in Plan 15-03
-                    </div>
+                    <AppearanceSettings />
                 )}
                 {activeTab === 'localization' && (
                     <div className="text-center text-slate-400 py-8">

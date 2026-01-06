@@ -93,3 +93,65 @@
     @apply bg-white/20 rounded-full hover:bg-white/30 transition-colors;
   }
 }
+
+/* Light theme overrides */
+.theme-light {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+
+  --card: 0 0% 98%;
+  --card-foreground: 222 47% 11%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+
+  --primary: 222 47% 11%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 220 14% 96%;
+  --secondary-foreground: 222 47% 11%;
+
+  --muted: 220 14% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
+  --accent: 210 100% 50%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 222 47% 11%;
+}
+
+/* Light theme specific overrides for glassmorphism */
+.theme-light .glass {
+  @apply bg-black/5 border-black/10;
+}
+
+.theme-light .glass-card {
+  @apply bg-black/5 border-black/10 hover:bg-black/10 hover:border-black/20;
+}
+
+.theme-light .mesh-gradient {
+  background-color: hsla(0, 0%, 98%, 1);
+  background-image:
+    radial-gradient(at 0% 0%, hsla(210, 100%, 50%, 0.1) 0px, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(260, 100%, 50%, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.1) 0px, transparent 50%);
+}
+
+/* Light theme text color overrides */
+.theme-light {
+  @apply text-slate-900;
+}
+
+.theme-light h1,
+.theme-light h2,
+.theme-light h3,
+.theme-light h4,
+.theme-light h5,
+.theme-light h6 {
+  @apply text-slate-900;
+}
