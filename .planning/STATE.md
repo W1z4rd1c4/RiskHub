@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 17 Production Deployment
-**Current Plan:** 17-01 Docker Scaffolding (Completed)
-**Next Plan:** 17-02 (next in sequence)
+**Current Plan:** 17-02 Production Hardening (Completed)
+**Next Plan:** 17-03 (next in sequence)
 
 ## Progress Summary
 
@@ -36,7 +36,7 @@
 | 14 Risk Assessments | ⏳ Planned | - |
 | 15 Security Hardening | ⏳ Planned | - |
 | 16 Enterprise Testing | ⏳ Planned | - |
-| 17 Production Deployment | ⏳ In progress (1/14) | - |
+| 17 Production Deployment | ⏳ In progress (2/14) | - |
 | 85 Workflow & Users | ✅ Complete (6/6) | 2026-01-01 |
 | 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
 | 99 Data Migration & Standalone AD | ✅ Complete (8/8) | 2026-01-04 |
@@ -155,10 +155,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 17-01: Docker Scaffolding. Created backend/frontend Dockerfiles with multi-stage builds, nginx.conf for SPA routing, docker-compose.yml for development, docker-compose.prod.yml for production, .env.example with comprehensive docs, enhanced /health endpoint with DB connectivity and uptime.
+- Completed Plan 17-02: Production Hardening. Created `backend/app/middleware/security.py` with SecurityHeadersMiddleware (CSP, HSTS, X-Frame-Options), RateLimitMiddleware (sliding window per IP/endpoint), and AccountLockoutMiddleware (5 attempts → 15min lockout). Updated `main.py` with middleware, `auth.py` with lockout integration, `nginx.conf` with CSP/HSTS headers.
 
 ### Next Step
-- Proceed to Plan 17-02 or next production deployment task.
+- Proceed to Plan 17-03 or next production deployment task.
 
 ---
-*Updated: 2026-01-05*
+*Updated: 2026-01-06*
