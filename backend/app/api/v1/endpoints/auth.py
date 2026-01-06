@@ -11,6 +11,7 @@ from app.models import User, Role, RolePermission
 from app.core.security import verify_password, create_access_token
 from app.core.permissions import get_effective_permissions, get_scope_label
 from app.api import deps
+from app.middleware.security import account_lockout
 
 router = APIRouter()
 
@@ -30,6 +31,15 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     Raises:
         HTTPException: If credentials are invalid or user is inactive
     """
+    # Check if account is locked due to too many failed attempts
+    is_locked, lockout_remaining = account_lockout.is_locked(credentials.email)
+    if is_locked:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Account temporarily locked due to too many failed attempts. Try again in {lockout_remaining} seconds.",
+            headers={"Retry-After": str(lockout_remaining)}
+        )
+    
     # Eager load role and permissions
     permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
     
@@ -41,6 +51,9 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     user = result.scalar_one_or_none()
     
     if not user or not user.hashed_password:
+        # Track failed attempt
+        is_now_locked, info = account_lockout.record_failed_attempt(credentials.email)
+        
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType
         await log_activity(
@@ -50,12 +63,15 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
             entity_type=ActivityEntityType.USER,
             entity_id=0,
             entity_name=credentials.email,
-            description="Failed login attempt: invalid credentials"
+            description=f"Failed login attempt: invalid credentials{' (account now locked)' if is_now_locked else ''}"
         )
         await db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     if not verify_password(credentials.password, user.hashed_password):
+        # Track failed attempt
+        is_now_locked, info = account_lockout.record_failed_attempt(credentials.email)
+        
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType
         await log_activity(
@@ -65,7 +81,7 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
             entity_type=ActivityEntityType.USER,
             entity_id=0,  # Don't expose real user ID
             entity_name=credentials.email,
-            description="Failed login attempt: invalid credentials"
+            description=f"Failed login attempt: invalid credentials{' (account now locked)' if is_now_locked else ''}"
         )
         await db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -96,6 +112,9 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     from app.core.activity_logger import log_activity
     from app.models.activity_log import ActivityAction, ActivityEntityType
 
+    # Clear any failed login attempts on successful authentication
+    account_lockout.record_successful_login(credentials.email)
+    
     # Log successful login
     await log_activity(
         db=db,
