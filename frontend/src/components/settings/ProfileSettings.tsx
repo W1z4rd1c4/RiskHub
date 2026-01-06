@@ -35,6 +35,11 @@ const permissionLabels: Record<string, string> = {
     'activity_log:read': 'View Activity Log',
     'departments:read': 'View Departments',
     'departments:write': 'Manage Departments',
+    'reports:read': 'View Reports',
+    'reports:export': 'Export Reports',
+    'admin:config': 'System Configuration',
+    'admin:logs': 'View System Logs',
+    'admin:sessions': 'Manage Active Sessions',
     'admin:*': 'Full Admin Access',
     '*:*': 'Super Admin (All Permissions)',
 };
@@ -62,6 +67,58 @@ function groupPermissions(permissions: string[]): Record<string, string[]> {
     return grouped;
 }
 
+// Expand *:* wildcard into role-specific meaningful permissions
+function expandWildcardPermissions(permissions: string[], role: string): string[] {
+    // If user doesn't have *:*, return as-is
+    if (!permissions.includes('*:*')) {
+        return permissions;
+    }
+
+    // Remove the wildcard
+    const filtered = permissions.filter(p => p !== '*:*');
+
+    // Admin role = system administration only (not business/GRC)
+    if (role === 'admin') {
+        return [
+            ...filtered,
+            'users:read',
+            'users:write',
+            'departments:read',
+            'departments:write',
+            'activity_log:read',
+            'admin:config',
+            'admin:logs',
+            'admin:sessions',
+        ];
+    }
+
+    // CRO and risk-related roles = full GRC permissions
+    if (['cro', 'ceo', 'cfo', 'coo', 'risk_manager', 'compliance', 'legal', 'internal_audit', 'actuarial'].includes(role)) {
+        return [
+            ...filtered,
+            'risks:read',
+            'risks:write',
+            'risks:delete',
+            'controls:read',
+            'controls:write',
+            'controls:delete',
+            'controls:execute',
+            'kris:read',
+            'kris:write',
+            'kris:delete',
+            'kri:submit',
+            'approvals:read',
+            'approvals:approve',
+            'departments:read',
+            'reports:read',
+            'reports:export',
+        ];
+    }
+
+    // Fallback: show the wildcard as-is
+    return permissions;
+}
+
 // Get icon color based on resource
 function getResourceColor(resource: string): string {
     const colors: Record<string, string> = {
@@ -80,7 +137,9 @@ function getResourceColor(resource: string): string {
 }
 
 export function ProfileSettings({ user }: ProfileSettingsProps) {
-    const groupedPermissions = groupPermissions(user.effective_permissions || user.permissions || []);
+    const rawPermissions = user.effective_permissions || user.permissions || [];
+    const expandedPermissions = expandWildcardPermissions(rawPermissions, user.role);
+    const groupedPermissions = groupPermissions(expandedPermissions);
 
     return (
         <div className="space-y-8">
