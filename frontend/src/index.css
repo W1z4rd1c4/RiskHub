@@ -6,6 +6,7 @@
 
 @layer base {
   :root {
+    /* RiskHub Theme (default) - Dark blue */
     --background: 222 47% 11%;
     --foreground: 213 31% 91%;
 
@@ -93,6 +94,106 @@
     @apply bg-white/20 rounded-full hover:bg-white/30 transition-colors;
   }
 }
+
+/* =================================
+   TRUE DARK THEME (OLED Black)
+   ================================= */
+.theme-dark {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 95%;
+
+  --card: 0 0% 5%;
+  --card-foreground: 0 0% 95%;
+
+  --popover: 0 0% 3%;
+  --popover-foreground: 0 0% 95%;
+
+  --primary: 0 0% 95%;
+  --primary-foreground: 0 0% 0%;
+
+  --secondary: 0 0% 10%;
+  --secondary-foreground: 0 0% 95%;
+
+  --muted: 0 0% 12%;
+  --muted-foreground: 0 0% 60%;
+
+  --accent: 210 100% 50%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 0 0% 15%;
+  --input: 0 0% 15%;
+  --ring: 0 0% 80%;
+}
+
+/* True Dark - Base */
+.theme-dark,
+.theme-dark body {
+  background-color: #000000 !important;
+  color: #f1f1f1 !important;
+}
+
+/* True Dark - Mesh gradient (very subtle) */
+.theme-dark .mesh-gradient {
+  background-color: #000000 !important;
+  background-image:
+    radial-gradient(at 0% 0%, hsla(210, 100%, 50%, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(260, 100%, 50%, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.08) 0px, transparent 50%);
+}
+
+/* True Dark - Glassmorphism */
+.theme-dark .glass {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.theme-dark .glass-card {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.theme-dark .glass-card:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* True Dark - Sidebar */
+.theme-dark aside,
+.theme-dark nav {
+  background-color: rgba(0, 0, 0, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* True Dark - Cards */
+.theme-dark .bg-white\/5 {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+.theme-dark .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+/* True Dark - Borders */
+.theme-dark .border-white\/10 {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.theme-dark .border-white\/20 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* True Dark - Table */
+.theme-dark th {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
+.theme-dark tr:hover {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+}
+
 
 /* =================================
    LIGHT THEME
