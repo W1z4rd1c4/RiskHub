@@ -94,12 +94,14 @@
   }
 }
 
-/* Light theme overrides */
+/* =================================
+   LIGHT THEME
+   ================================= */
 .theme-light {
-  --background: 0 0% 100%;
+  --background: 0 0% 98%;
   --foreground: 222 47% 11%;
 
-  --card: 0 0% 98%;
+  --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
 
   --popover: 0 0% 100%;
@@ -112,7 +114,7 @@
   --secondary-foreground: 222 47% 11%;
 
   --muted: 220 14% 96%;
-  --muted-foreground: 215.4 16.3% 46.9%;
+  --muted-foreground: 215.4 16.3% 40%;
 
   --accent: 210 100% 50%;
   --accent-foreground: 0 0% 100%;
@@ -120,38 +122,152 @@
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 220 13% 91%;
-  --input: 220 13% 91%;
+  --border: 220 13% 85%;
+  --input: 220 13% 85%;
   --ring: 222 47% 11%;
 }
 
-/* Light theme specific overrides for glassmorphism */
-.theme-light .glass {
-  @apply bg-black/5 border-black/10;
+/* Light theme - Base colors */
+.theme-light,
+.theme-light body {
+  color: #1e293b !important;
+  background-color: #f8fafc !important;
 }
 
-.theme-light .glass-card {
-  @apply bg-black/5 border-black/10 hover:bg-black/10 hover:border-black/20;
-}
-
-.theme-light .mesh-gradient {
-  background-color: hsla(0, 0%, 98%, 1);
-  background-image:
-    radial-gradient(at 0% 0%, hsla(210, 100%, 50%, 0.1) 0px, transparent 50%),
-    radial-gradient(at 50% 0%, hsla(260, 100%, 50%, 0.1) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.1) 0px, transparent 50%);
-}
-
-/* Light theme text color overrides */
-.theme-light {
-  @apply text-slate-900;
-}
-
+/* Light theme - Headings */
 .theme-light h1,
 .theme-light h2,
 .theme-light h3,
 .theme-light h4,
 .theme-light h5,
 .theme-light h6 {
-  @apply text-slate-900;
+  color: #0f172a !important;
+}
+
+/* Light theme - Override white text classes */
+.theme-light .text-white {
+  color: #0f172a !important;
+}
+
+.theme-light .text-slate-300 {
+  color: #334155 !important;
+}
+
+.theme-light .text-slate-400 {
+  color: #475569 !important;
+}
+
+.theme-light .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Light theme - Glassmorphism */
+.theme-light .glass {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  backdrop-filter: blur(12px);
+}
+
+.theme-light .glass-card {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+}
+
+.theme-light .glass-card:hover {
+  background-color: rgba(255, 255, 255, 1) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Light theme - Mesh gradient background */
+.theme-light .mesh-gradient {
+  background-color: #f8fafc !important;
+  background-image:
+    radial-gradient(at 0% 0%, hsla(210, 100%, 50%, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(260, 100%, 50%, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(160, 100%, 50%, 0.08) 0px, transparent 50%);
+}
+
+/* Light theme - Form inputs */
+.theme-light input,
+.theme-light select,
+.theme-light textarea {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Light theme - Tables */
+.theme-light table {
+  color: #1e293b;
+}
+
+.theme-light th {
+  color: #475569 !important;
+  background-color: rgba(241, 245, 249, 0.8) !important;
+}
+
+.theme-light tr {
+  border-color: #e2e8f0 !important;
+}
+
+.theme-light tr:hover {
+  background-color: rgba(241, 245, 249, 0.5) !important;
+}
+
+.theme-light td {
+  color: #1e293b !important;
+}
+
+/* Light theme - Sidebar & Navigation */
+.theme-light aside,
+.theme-light nav {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Light theme - White opacity backgrounds */
+.theme-light .bg-white\/5 {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+}
+
+.theme-light .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.theme-light .bg-white\/20 {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Light theme - White opacity borders */
+.theme-light .border-white\/5,
+.theme-light .border-white\/10 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.theme-light .border-white\/20 {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Light theme - Hover states */
+.theme-light .hover\:bg-white\/5:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.theme-light .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Light theme - Scrollbar */
+.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3) !important;
 }

@@ -1,65 +1,35 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
-type Theme = 'dark' | 'light' | 'system';
+type Theme = 'dark' | 'light';
 
 interface ThemeContextType {
     theme: Theme;
     setTheme: (theme: Theme) => void;
-    effectiveTheme: 'dark' | 'light'; // The actual theme being applied
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'riskhub-theme';
 
-function getSystemTheme(): 'dark' | 'light' {
-    if (typeof window === 'undefined') return 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
     const [theme, setThemeState] = useState<Theme>(() => {
         if (typeof window === 'undefined') return 'dark';
         const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored === 'light' || stored === 'dark' || stored === 'system') {
+        if (stored === 'light' || stored === 'dark') {
             return stored;
         }
-        return 'dark'; // Default to dark theme
+        return 'dark'; // Default to RiskHub Theme (dark)
     });
-
-    const [effectiveTheme, setEffectiveTheme] = useState<'dark' | 'light'>(() => {
-        if (theme === 'system') return getSystemTheme();
-        return theme;
-    });
-
-    // Update effective theme when theme changes
-    useEffect(() => {
-        const newEffective = theme === 'system' ? getSystemTheme() : theme;
-        setEffectiveTheme(newEffective);
-    }, [theme]);
-
-    // Listen for system theme changes when in 'system' mode
-    useEffect(() => {
-        if (theme !== 'system') return;
-
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        const handler = (e: MediaQueryListEvent) => {
-            setEffectiveTheme(e.matches ? 'dark' : 'light');
-        };
-
-        mediaQuery.addEventListener('change', handler);
-        return () => mediaQuery.removeEventListener('change', handler);
-    }, [theme]);
 
     // Apply theme class to document
     useEffect(() => {
         const root = document.documentElement;
         root.classList.remove('theme-light', 'theme-dark');
-        if (effectiveTheme === 'light') {
+        if (theme === 'light') {
             root.classList.add('theme-light');
         }
-        // Dark is default, no class needed
-    }, [effectiveTheme]);
+        // Dark is default (RiskHub Theme), no class needed
+    }, [theme]);
 
     const setTheme = (newTheme: Theme) => {
         localStorage.setItem(STORAGE_KEY, newTheme);
@@ -67,7 +37,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <ThemeContext.Provider value={{ theme, setTheme, effectiveTheme }}>
+        <ThemeContext.Provider value={{ theme, setTheme }}>
             {children}
         </ThemeContext.Provider>
     );
