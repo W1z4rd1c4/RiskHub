@@ -1,4 +1,4 @@
-import { Sun, Sparkles, Check } from 'lucide-react';
+import { Sun, Moon, Sparkles, Check } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
 
@@ -11,8 +11,14 @@ const themeOptions = [
     },
     {
         value: 'dark' as const,
+        label: 'Dark',
+        description: 'True dark mode for OLED displays',
+        icon: Moon,
+    },
+    {
+        value: 'riskhub' as const,
         label: 'RiskHub Theme',
-        description: 'Premium dark theme designed for RiskHub',
+        description: 'Premium signature theme',
         icon: Sparkles,
     },
 ];
@@ -29,7 +35,7 @@ export function AppearanceSettings() {
                     Choose how RiskHub looks to you.
                 </p>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                     {themeOptions.map((option) => {
                         const isSelected = theme === option.value;
                         const Icon = option.icon;
