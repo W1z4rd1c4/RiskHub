@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 15 Settings Page
-**Current Plan:** 15-02 Profile Tab (Completed)
-**Next Plan:** 15-03 Appearance Tab
+**Current Plan:** 15-03 Appearance Tab (Completed)
+**Next Plan:** 15-04 Localization Tab
 
 ## Progress Summary
 
@@ -163,10 +163,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 15-02: Profile Tab. Created `ProfileSettings.tsx` component with user identity display (avatar, name, email, department, role, access scope) and permissions grouped by resource with human-readable labels.
+- Completed Plan 15-03: Appearance Tab. Implemented theme switching (Light/Dark/System) with `ThemeContext`, localStorage persistence, light theme CSS, and `AppearanceSettings` component.
 
 ### Next Step
-- Proceed to Plan 15-03: Appearance Tab (theme picker).
+- Proceed to Plan 15-04: Localization Tab (language selector).
 
 ---
 *Updated: 2026-01-06*
