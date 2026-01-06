@@ -298,7 +298,7 @@ Plans:
 - [x] 15-02: Profile Tab (read-only user info, role, permissions display)
 - [x] 15-03: Appearance Tab (light/dark/system theme toggle with persistence)
 - [x] 15-04: Localization Tab (language selector placeholder for future i18n)
-- [ ] 15-05: Documentation Tab (role-based help docs, placeholder content for Phase 17)
+- [x] 15-05: Documentation Tab (role-based help docs, placeholder content for Phase 17)
 
 **Deferred to future phase:**
 - Delegation settings (out-of-office approval routing) — see Phase 15.1
@@ -495,7 +495,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 12 Compliance Governance | 6/6 | Complete | 2026-01-04 |
 | 13 Issue & Remediation | 0/3 | Planned | - |
 | 14 Risk Assessments | 0/3 | Planned | - |
-| 15 Settings Page | 4/4 | Complete | 2026-01-07 |
+| 15 Settings Page | 5/5 | Complete | 2026-01-07 |
 | 16 Enterprise Testing | 0/3 | Planned | - |
 | 17-19. Deferred | 0/10 | Deferred | - |
 | 90. AD Integration | 10/10 | Complete | 2025-12-29 |
