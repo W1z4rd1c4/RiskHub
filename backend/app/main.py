@@ -47,28 +47,43 @@ async def _apply_log_rotation_config():
         from sqlalchemy import select
         
         async with async_session_maker() as db:
-            # Fetch rotation settings
-            size_result = await db.execute(
-                select(GlobalConfig).where(GlobalConfig.key == "log_rotation_size_mb")
+            # Fetch app log settings
+            app_size_result = await db.execute(
+                select(GlobalConfig).where(GlobalConfig.key == "app_log_rotation_size_mb")
             )
-            size_config = size_result.scalar_one_or_none()
+            app_size_config = app_size_result.scalar_one_or_none()
             
-            count_result = await db.execute(
-                select(GlobalConfig).where(GlobalConfig.key == "log_retention_count")
+            app_count_result = await db.execute(
+                select(GlobalConfig).where(GlobalConfig.key == "app_log_retention_count")
             )
-            count_config = count_result.scalar_one_or_none()
+            app_count_config = app_count_result.scalar_one_or_none()
             
-            rotation_size_mb = int(size_config.value) if size_config else None
-            retention_count = int(count_config.value) if count_config else None
+            # Fetch audit log settings
+            audit_size_result = await db.execute(
+                select(GlobalConfig).where(GlobalConfig.key == "audit_log_rotation_size_mb")
+            )
+            audit_size_config = audit_size_result.scalar_one_or_none()
             
-            if rotation_size_mb or retention_count:
+            audit_count_result = await db.execute(
+                select(GlobalConfig).where(GlobalConfig.key == "audit_log_retention_count")
+            )
+            audit_count_config = audit_count_result.scalar_one_or_none()
+            
+            app_rotation_size = int(app_size_config.value) if app_size_config else None
+            app_retention = int(app_count_config.value) if app_count_config else None
+            audit_rotation_size = int(audit_size_config.value) if audit_size_config else None
+            audit_retention = int(audit_count_config.value) if audit_count_config else None
+            
+            if any([app_rotation_size, app_retention, audit_rotation_size, audit_retention]):
                 configure_logging(
-                    rotation_size_mb=rotation_size_mb,
-                    retention_count=retention_count
+                    app_rotation_size_mb=app_rotation_size,
+                    app_retention_count=app_retention,
+                    audit_rotation_size_mb=audit_rotation_size,
+                    audit_retention_count=audit_retention
                 )
                 logger.info(
                     "log_config_applied",
-                    message=f"Log rotation config applied from Risk Hub: {rotation_size_mb}MB x {retention_count} files"
+                    message=f"Log rotation config applied: App={app_rotation_size}MB x {app_retention}, Audit={audit_rotation_size}MB x {audit_retention}"
                 )
     except Exception as e:
         logger.warning(
@@ -98,6 +113,13 @@ app.add_middleware(
 # Logging context middleware (adds request_id, user_id, client_ip to logs)
 from app.middleware.logging_context import LoggingContextMiddleware
 app.add_middleware(LoggingContextMiddleware)
+
+# Security headers middleware (CSP, HSTS, X-Frame-Options, etc.)
+from app.middleware.security import SecurityHeadersMiddleware, RateLimitMiddleware
+app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
+
+# Rate limiting middleware (disabled in debug mode)
+app.add_middleware(RateLimitMiddleware, enabled=not settings.debug)
 
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")
