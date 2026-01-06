@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { User, Palette, Globe } from 'lucide-react';
+import { User, Palette, Globe, BookOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { ProfileSettings, AppearanceSettings, LocalizationSettings } from '@/components/settings';
+import { ProfileSettings, AppearanceSettings, LocalizationSettings, DocumentationSettings } from '@/components/settings';
 
 const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'localization', label: 'Localization', icon: Globe },
+    { id: 'documentation', label: 'Help & Docs', icon: BookOpen },
 ] as const;
 
 type TabId = typeof tabs[number]['id'];
@@ -65,6 +66,9 @@ export function SettingsPage() {
                 )}
                 {activeTab === 'localization' && (
                     <LocalizationSettings />
+                )}
+                {activeTab === 'documentation' && (
+                    <DocumentationSettings />
                 )}
             </div>
         </div>
