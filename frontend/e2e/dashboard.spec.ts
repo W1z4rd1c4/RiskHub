@@ -22,15 +22,14 @@ test.describe('Dashboard', () => {
 
     test.describe('Executive Dashboard', () => {
         test('should load dashboard successfully', async ({ page }) => {
-            await page.goto('/dashboard');
+            // App redirects to / which is the dashboard
             await waitForDataLoad(page);
 
-            // Should show dashboard widgets
+            // Should show dashboard content
             await expect(page.locator('h1, h2').first()).toBeVisible();
         });
 
         test('should display key metrics', async ({ page }) => {
-            await page.goto('/dashboard');
             await waitForDataLoad(page);
 
             // Should show metrics like total risks, controls, KRIs
@@ -40,14 +39,14 @@ test.describe('Dashboard', () => {
     });
 
     test.describe('Navigation', () => {
-        test('should navigate to all main sections', async ({ page }) => {
-            await page.goto('/dashboard');
+        test('should navigate to all main sections from sidebar', async ({ page }) => {
             await waitForDataLoad(page);
 
-            // Check main navigation links exist
-            await expect(page.locator('a[href="/risks"]')).toBeVisible();
-            await expect(page.locator('a[href="/controls"]')).toBeVisible();
-            await expect(page.locator('a[href="/kris"]')).toBeVisible();
+            // Sidebar uses React Router Link - check for nav items by text
+            const sidebar = page.locator('aside');
+            await expect(sidebar.locator('text=Risks')).toBeVisible();
+            await expect(sidebar.locator('text=Controls')).toBeVisible();
+            await expect(sidebar.locator('text=Risk Appetite')).toBeVisible();
         });
     });
 });
