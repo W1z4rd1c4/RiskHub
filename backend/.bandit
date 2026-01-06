@@ -1,0 +1,25 @@
+# Bandit Configuration for RiskHub Backend
+# See: https://bandit.readthedocs.io/en/latest/config.html
+
+[bandit]
+# Skip these test IDs (with justification)
+skips = B101,B104
+
+# B101: Use of assert - OK in tests, but should review in production code
+# B104: Binding to all interfaces - We handle this via Docker networking
+
+# Exclude test files and migrations from scanning
+exclude_dirs = tests,alembic/versions,__pycache__,.pytest_cache
+
+# Targets to scan
+targets = app
+
+# Report format
+format = json
+output = bandit-report.json
+
+# Severity levels to report (all by default)
+# severity = all
+
+# Confidence levels to report (all by default)  
+# confidence = all
