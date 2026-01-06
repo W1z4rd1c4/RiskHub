@@ -4,18 +4,22 @@
 # =============================================================================
 # Stage 1: Build React application
 # =============================================================================
-FROM node:20-alpine as builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install dependencies
-RUN npm ci --silent
+# Install dependencies fresh in container (avoids architecture mismatch)
+# Include devDependencies for build (typescript, vite, etc.)
+RUN npm ci --include=dev
 
-# Copy source code
+# Copy source code (excluding node_modules via .dockerignore)
 COPY . .
+
+# Remove any local node_modules that might have been copied
+RUN rm -rf node_modules/.cache
 
 # Build for production
 RUN npm run build
@@ -23,7 +27,7 @@ RUN npm run build
 # =============================================================================
 # Stage 2: Production nginx server
 # =============================================================================
-FROM nginx:alpine as runtime
+FROM nginx:alpine AS runtime
 
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
