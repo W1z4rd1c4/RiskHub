@@ -18,8 +18,8 @@
 
 **Milestone:** v1.0 MVP
 **Phase:** 15 Settings Page
-**Current Plan:** 15-01 Tab Switching Infrastructure (Completed)
-**Next Plan:** 15-02 Profile Tab
+**Current Plan:** 15-02 Profile Tab (Completed)
+**Next Plan:** 15-03 Appearance Tab
 
 ## Progress Summary
 
@@ -163,10 +163,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 15-01: Tab Switching Infrastructure. Transformed `SettingsPage.tsx` from static mockup to functional tabbed interface with 3 tabs (Profile, Appearance, Localization) following RiskHubPage pattern.
+- Completed Plan 15-02: Profile Tab. Created `ProfileSettings.tsx` component with user identity display (avatar, name, email, department, role, access scope) and permissions grouped by resource with human-readable labels.
 
 ### Next Step
-- Proceed to Plan 15-02: Profile Tab (read-only user info display).
+- Proceed to Plan 15-03: Appearance Tab (theme picker).
 
 ---
 *Updated: 2026-01-06*

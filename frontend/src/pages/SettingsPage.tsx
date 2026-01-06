@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { User, Palette, Globe } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { ProfileSettings } from '@/components/settings';
 
 const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
@@ -12,7 +13,7 @@ const tabs = [
 type TabId = typeof tabs[number]['id'];
 
 export function SettingsPage() {
-    const { user: _user } = useAuth();
+    const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<TabId>('profile');
 
     return (
@@ -56,10 +57,8 @@ export function SettingsPage() {
 
             {/* Tab Content */}
             <div className="glass-card p-6">
-                {activeTab === 'profile' && (
-                    <div className="text-center text-slate-400 py-8">
-                        Profile settings will be implemented in Plan 15-02
-                    </div>
+                {activeTab === 'profile' && user && (
+                    <ProfileSettings user={user} />
                 )}
                 {activeTab === 'appearance' && (
                     <div className="text-center text-slate-400 py-8">
