@@ -259,8 +259,8 @@ async def get_system_stats(
     
     # Active users in last 24h (approximation based on activity logs)
     from app.models.activity_log import ActivityLog
-    # Use naive datetime for SQLite compatibility (tests), PostgreSQL handles both
-    yesterday = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=24)
+    # Timezone-aware datetime works for both PostgreSQL and SQLite via SQLAlchemy
+    yesterday = datetime.now(UTC) - timedelta(hours=24)
     active_users_result = await db.execute(
         select(func.count(func.distinct(ActivityLog.actor_id)))
         .where(ActivityLog.created_at >= yesterday)
@@ -350,8 +350,8 @@ async def get_active_sessions(
     from sqlalchemy.orm import selectinload
     
     # Get users with activity in last 24 hours
-    # Use naive datetime for SQLite compatibility (tests), PostgreSQL handles both
-    yesterday = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=24)
+    # Timezone-aware datetime works for both PostgreSQL and SQLite via SQLAlchemy
+    yesterday = datetime.now(UTC) - timedelta(hours=24)
     
     # Subquery to get latest LOGIN per user
     from app.models.activity_log import ActivityAction
@@ -615,9 +615,13 @@ async def get_audit_logs(
 
 
 class LogConfig(BaseModel):
-    """Log configuration settings."""
-    log_rotation_size_mb: int
-    log_retention_count: int
+    """Log rotation configuration with separate app and audit settings."""
+    # Application log settings
+    app_log_rotation_size_mb: int
+    app_log_retention_count: int
+    # Audit log settings
+    audit_log_rotation_size_mb: int
+    audit_log_retention_count: int
 
 
 class DocumentationEntry(BaseModel):
@@ -633,23 +637,20 @@ class DocumentationResponse(BaseModel):
 
 
 @router.get("/docs", response_model=DocumentationResponse)
-async def get_admin_documentation(
+async def get_documentation(
     current_user: User = Depends(get_current_user)
 ) -> DocumentationResponse:
     """
-    Get platform documentation for administrators.
-    Admin only.
+    Get platform documentation based on user role.
     """
-    require_admin(current_user)
-    
     from pathlib import Path
     
     # documentation files are in backend/docs/
-    # admin.py is in backend/app/api/v1/endpoints/
     docs_dir = Path(__file__).parent.parent.parent.parent.parent / "docs"
     
-    # Mapping of filenames to pretty titles
+    # Basic mapping of filenames to pretty titles
     titles = {
+        # Admin Docs
         "ADMIN_SIEM_GUIDE.md": "SIEM Integration: The Blueprint",
         "ADMIN_ARCHITECTURE.md": "System Architecture: A Narrative Guide",
         "ADMIN_MAINTENANCE.md": "Maintenance Perspectives",
@@ -658,13 +659,39 @@ async def get_admin_documentation(
         "ADMIN_STACK.md": "The RiskHub Tech Stack",
         "ADMIN_STRUCTURE.md": "A Tour of the Repository",
         "ADMIN_TESTING.md": "The RiskHub Testing Story",
+        # User Docs
+        "USER_GETTING_STARTED.md": "Getting Started with RiskHub",
+        "USER_KRIS_GUIDE.md": "Key Risk Indicators Guide",
+        # Manager Docs
+        "MANAGER_RISKS_GUIDE.md": "Managing Risks",
+        "MANAGER_CONTROLS_GUIDE.md": "Managing Controls",
+        # Role Specific
+        "DEPT_HEAD_GUIDE.md": "Department Head Responsibilities",
     }
     
     documents = []
+    role = current_user.role.name.lower()
+    
+    # Define visibility
+    can_see_admin = role in ["admin", "cro"]
+    can_see_manager = role in ["admin", "cro", "risk_manager", "department_head"]
+    can_see_dept_head = role in ["admin", "cro", "department_head"]
     
     if docs_dir.exists():
         for doc_file in docs_dir.glob("*.md"):
             filename = doc_file.name
+            
+            # Filter based on prefix/role
+            if filename.startswith("ADMIN_") and not can_see_admin:
+                continue
+            if filename.startswith("MANAGER_") and not can_see_manager:
+                continue
+            if filename == "DEPT_HEAD_GUIDE.md" and not can_see_dept_head:
+                continue
+            
+            # Everyone sees USER_ docs
+            # Also everyone sees docs that don't match these strict prefixes (unless we want to be strict)
+            
             with open(doc_file, "r", encoding="utf-8") as f:
                 content = f.read()
                 
@@ -685,17 +712,21 @@ async def get_log_config(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> LogConfig:
-    """Get current log rotation settings."""
+    """Get current log rotation settings (separate for app and audit logs)."""
     require_admin(current_user)
     from app.models.global_config import get_config_int
     
-    # Default values must match logging.py
-    size = await get_config_int(db, "log_rotation_size_mb", 10)
-    count = await get_config_int(db, "log_retention_count", 10)
+    # Default values must match logging.py (10MB, 10 files)
+    app_size = await get_config_int(db, "app_log_rotation_size_mb", 10)
+    app_count = await get_config_int(db, "app_log_retention_count", 10)
+    audit_size = await get_config_int(db, "audit_log_rotation_size_mb", 10)
+    audit_count = await get_config_int(db, "audit_log_retention_count", 10)
     
     return LogConfig(
-        log_rotation_size_mb=size,
-        log_retention_count=count
+        app_log_rotation_size_mb=app_size,
+        app_log_retention_count=app_count,
+        audit_log_rotation_size_mb=audit_size,
+        audit_log_retention_count=audit_count
     )
 
 
@@ -706,7 +737,7 @@ async def update_log_config(
     current_user: User = Depends(get_current_user),
 ) -> LogConfig:
     """
-    Update log rotation settings.
+    Update log rotation settings (separate for app and audit logs).
     Changes require backend restart to take full effect on file handlers.
     """
     require_admin(current_user)
@@ -734,18 +765,32 @@ async def update_log_config(
             )
             db.add(cfg)
     
+    # App log settings
     await upsert_config(
-        "log_rotation_size_mb", 
-        config.log_rotation_size_mb,
-        "Log Rotation Size (MB)",
-        "Maximum size of each log file before rotation in megabytes"
+        "app_log_rotation_size_mb", 
+        config.app_log_rotation_size_mb,
+        "App Log Rotation Size (MB)",
+        "Maximum size of each application log file before rotation in megabytes"
+    )
+    await upsert_config(
+        "app_log_retention_count", 
+        config.app_log_retention_count,
+        "App Log Retention Count", 
+        "Number of backup application log files to keep after rotation"
     )
     
+    # Audit log settings
     await upsert_config(
-        "log_retention_count", 
-        config.log_retention_count,
-        "Log Retention Count", 
-        "Number of backup log files to keep after rotation"
+        "audit_log_rotation_size_mb", 
+        config.audit_log_rotation_size_mb,
+        "Audit Log Rotation Size (MB)",
+        "Maximum size of each audit log file before rotation in megabytes"
+    )
+    await upsert_config(
+        "audit_log_retention_count", 
+        config.audit_log_retention_count,
+        "Audit Log Retention Count", 
+        "Number of backup audit log files to keep after rotation"
     )
     
     await db.commit()
