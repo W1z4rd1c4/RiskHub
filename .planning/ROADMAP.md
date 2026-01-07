@@ -310,6 +310,7 @@ Plans:
 **Plans**: 14 plans
 
 Plans:
+- [x] 17-00: Admin Console Robustness Fixes (Active Users Timezone Logic)
 - [ ] 17-01: Docker Scaffolding (multi-stage builds, Compose, health checks)
 - [ ] 17-02: Production Hardening (CORS, CSP, secrets, rate limiting)
 - [ ] 17-03: Automated Security Scanning (SAST, dependency scanning, secrets detection)
