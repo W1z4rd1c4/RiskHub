@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -17,9 +18,11 @@ import { riskApi } from '@/services/riskApi';
 import { approvalsApi } from '@/services/approvalsApi';
 import type { RiskSummary, RiskStatus } from '@/types/risk';
 import { PermissionGate } from '@/components/PermissionGate';
-import { SortableTable, CategoryDrillDown, MiniHeatmap, ViewSwitcher, Pagination } from '@/components/tables';
-import type { Column, ViewMode } from '@/components/tables';
-import { useRiskTypes, useRiskThresholds } from '@/hooks/useRiskHubConfig';
+import { SortableTable } from '@/components/tables/SortableTable';
+import { CategoryDrillDown, MiniHeatmap, ViewSwitcher, Pagination } from '@/components/tables';
+import type { ViewMode } from '@/components/tables'; // Column type is now imported from SortableTable
+import type { Column, SortDirection } from '@/components/tables/SortableTable'; // Import Column and SortDirection from SortableTable
+import { useRiskTypes, useRiskThresholds } from '@/hooks/useRiskHubConfig'; // Original import for useRiskTypes and useRiskThresholds
 
 // Helper to convert hex color to rgba for backgrounds/borders
 function hexToRgba(hex: string, alpha: number): string {
@@ -48,6 +51,8 @@ export function RisksPage() {
     const [isExporting, setIsExporting] = useState(false);
     const [hasBreachFilter, setHasBreachFilter] = useState<boolean | undefined>(undefined);
     const [criticalFilter, setCriticalFilter] = useState<boolean>(false);
+    const [sortField, setSortField] = useState<string | null>(null);
+    const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
     // Risk Hub configuration
     const { riskTypes, getColor, getInitials, getDisplayName } = useRiskTypes();
@@ -131,6 +136,8 @@ export function RisksPage() {
                     is_priority: priorityFilter,
                     has_breach: hasBreachFilter,
                     min_net_score: criticalFilter ? 15 : undefined,
+                    sort_by: sortField || undefined, // Added sort_by
+                    sort_order: sortDirection || undefined, // Added sort_order
                 });
 
                 const risksWithCounts = response.items.map(risk => ({
@@ -159,6 +166,8 @@ export function RisksPage() {
                         is_priority: priorityFilter,
                         has_breach: hasBreachFilter,
                         min_net_score: criticalFilter ? 15 : undefined,
+                        sort_by: sortField || undefined,
+                        sort_order: sortDirection || undefined,
                     });
 
                     total = response.total;
@@ -183,7 +192,7 @@ export function RisksPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, debouncedSearch, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter]);
+    }, [currentPage, debouncedSearch, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter, sortField, sortDirection]);
 
     useEffect(() => {
         fetchRisks();
@@ -305,7 +314,7 @@ export function RisksPage() {
             className: 'text-center',
             render: (risk) => (
                 <div className="flex justify-center">
-                    <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(risk.gross_score)}`}>
+                    <div className={`px - 2.5 py - 1 rounded - full text - [10px] font - black border ${getScoreColor(risk.gross_score)} `}>
                         {risk.gross_score}
                     </div>
                 </div>
@@ -318,7 +327,7 @@ export function RisksPage() {
             className: 'text-center',
             render: (risk) => (
                 <div className="flex justify-center">
-                    <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(risk.net_score)}`}>
+                    <div className={`px - 2.5 py - 1 rounded - full text - [10px] font - black border ${getScoreColor(risk.net_score)} `}>
                         {risk.net_score}
                     </div>
                 </div>
@@ -329,7 +338,7 @@ export function RisksPage() {
             label: 'Status',
             sortable: true,
             render: (risk) => (
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getStatusColor(risk.status)}`}>
+                <span className={`px - 2 py - 0.5 rounded - md text - [10px] font - bold uppercase ${getStatusColor(risk.status)} `}>
                     {risk.status}
                 </span>
             ),
@@ -364,10 +373,10 @@ export function RisksPage() {
 
                 return (
                     <div className="flex justify-center">
-                        <div className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${hasBreach
+                        <div className={`px - 2 py - 0.5 rounded - md text - [10px] font - bold flex items - center gap - 1 ${hasBreach
                             ? 'text-rose-400 bg-rose-400/10'
                             : 'text-emerald-400 bg-emerald-400/10'
-                            }`}>
+                            } `}>
                             {hasBreach && <AlertCircle className="h-3 w-3" />}
                             {count} {count === 1 ? 'KRI' : 'KRIs'}
                         </div>
@@ -384,7 +393,7 @@ export function RisksPage() {
                 </div>
             ),
         },
-    ], []);
+    ], [pendingApprovalIds, getColor, getDisplayName, getInitials, getScoreColor]); // Added dependencies for useMemo
 
     // Get group by field based on view mode
     const getGroupByField = (): keyof RiskSummary | null => {
@@ -475,10 +484,10 @@ export function RisksPage() {
                     </select>
                     <button
                         onClick={() => { setPriorityFilter(priorityFilter === true ? undefined : true); setRisks([]); setCurrentPage(1); }}
-                        className={`px-4 py-2.5 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 ${priorityFilter === true
+                        className={`px - 4 py - 2.5 rounded - xl border text - sm font - bold transition - all flex items - center gap - 2 ${priorityFilter === true
                             ? 'bg-amber-400/20 border-amber-400/50 text-amber-400'
                             : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
-                            }`}
+                            } `}
                     >
                         <Star className="h-4 w-4" />
                         Priority
@@ -516,7 +525,7 @@ export function RisksPage() {
                         onClick={() => { fetchRisks(); setRisks([]); }}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     >
-                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
+                        <RefreshCw className={`h - 5 w - 5 ${isLoading ? 'animate-spin text-accent' : ''} `} />
                     </button>
                 </div>
             </div>
@@ -545,7 +554,7 @@ export function RisksPage() {
                         </thead>
                         <tbody>
                             {[...Array(limit)].map((_, i) => (
-                                <tr key={`skeleton-${i}`} className="border-b border-white/5 animate-pulse">
+                                <tr key={`skeleton - ${i} `} className="border-b border-white/5 animate-pulse">
                                     <td className="px-6 py-4"><div className="h-4 w-24 bg-white/5 rounded" /></td>
                                     <td className="px-6 py-4"><div className="h-5 w-20 bg-white/5 rounded-md" /></td>
                                     <td className="px-6 py-4"><div className="h-6 w-10 bg-white/5 rounded-full mx-auto" /></td>
@@ -564,8 +573,14 @@ export function RisksPage() {
                         data={risks}
                         columns={columns}
                         keyExtractor={(risk) => risk.id}
-                        onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
+                        onRowClick={(risk) => navigate(`/ risks / ${risk.id} `)}
                         emptyMessage="No risks found matching your criteria."
+                        sortKey={sortField}
+                        sortDirection={sortDirection}
+                        onSort={(key, direction) => {
+                            setSortField(key);
+                            setSortDirection(direction);
+                        }}
                     />
                     <Pagination
                         currentPage={currentPage}
@@ -590,7 +605,7 @@ export function RisksPage() {
                             data={items}
                             columns={columns}
                             keyExtractor={(risk) => risk.id}
-                            onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
+                            onRowClick={(risk) => navigate(`/ risks / ${risk.id} `)}
                             emptyMessage="No risks in this category."
                         />
                     )}
@@ -599,7 +614,7 @@ export function RisksPage() {
                     )}
                     renderItem={(risk) => (
                         <div
-                            onClick={() => navigate(`/risks/${risk.id}`)}
+                            onClick={() => navigate(`/ risks / ${risk.id} `)}
                             className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
                         >
                             <div className="flex items-center gap-4">
@@ -610,15 +625,15 @@ export function RisksPage() {
                                     </div>
                                     <span className="text-[10px] text-slate-500">{risk.process}</span>
                                 </div>
-                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getStatusColor(risk.status)}`}>
+                                <span className={`px - 2 py - 0.5 rounded - md text - [10px] font - bold uppercase ${getStatusColor(risk.status)} `}>
                                     {risk.status}
                                 </span>
                             </div>
                             <div className="flex items-center gap-4">
-                                <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(risk.gross_score)}`}>
+                                <div className={`px - 2.5 py - 1 rounded - full text - [10px] font - black border ${getScoreColor(risk.gross_score)} `}>
                                     G: {risk.gross_score}
                                 </div>
-                                <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(risk.net_score)}`}>
+                                <div className={`px - 2.5 py - 1 rounded - full text - [10px] font - black border ${getScoreColor(risk.net_score)} `}>
                                     N: {risk.net_score}
                                 </div>
                                 <ChevronRight className="h-4 w-4 text-slate-500" />

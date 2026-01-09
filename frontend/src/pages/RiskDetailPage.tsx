@@ -545,21 +545,74 @@ export function RiskDetailPage() {
                             </PermissionGate>
                         </div>
 
-                        {linkedControls.length === 0 ? (
-                            <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                                <p className="text-xs text-slate-600 font-medium">No controls linked to this risk.</p>
-                            </div>
-                        ) : (
-                            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                {linkedControls.map((link) => (
-                                    <ControlGaugeCard
-                                        key={link.id}
-                                        link={link}
-                                        onClick={() => link.control && navigate(`/controls/${link.control.id}`)}
-                                    />
-                                ))}
-                            </div>
-                        )}
+                        {(() => {
+                            const activeControls = linkedControls.filter(link =>
+                                link.control?.status !== 'draft' && link.control?.status !== 'archived'
+                            );
+                            const draftControls = linkedControls.filter(link => link.control?.status === 'draft');
+                            const archivedControls = linkedControls.filter(link => link.control?.status === 'archived');
+
+                            return (
+                                <>
+                                    {activeControls.length === 0 && draftControls.length === 0 && archivedControls.length === 0 ? (
+                                        <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl">
+                                            <p className="text-xs text-slate-600 font-medium">No controls linked to this risk.</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {activeControls.length > 0 && (
+                                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                                    {activeControls.map((link) => (
+                                                        <ControlGaugeCard
+                                                            key={link.id}
+                                                            link={link}
+                                                            onClick={() => link.control && navigate(`/controls/${link.control.id}`)}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {draftControls.length > 0 && (
+                                                <div className="mt-8">
+                                                    <h4 className="text-[10px] font-black text-amber-500/70 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-amber-500/50"></span>
+                                                        Draft Controls ({draftControls.length})
+                                                    </h4>
+                                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-60">
+                                                        {draftControls.map((link) => (
+                                                            <ControlGaugeCard
+                                                                key={link.id}
+                                                                link={link}
+                                                                onClick={() => link.control && navigate(`/controls/${link.control.id}`)}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                    <p className="text-[10px] text-slate-600 italic mt-3">Draft controls are not yet active and won't be included in compliance metrics.</p>
+                                                </div>
+                                            )}
+
+                                            {archivedControls.length > 0 && (
+                                                <div className="mt-8">
+                                                    <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                                        <span className="w-2 h-2 rounded-full bg-slate-600"></span>
+                                                        Archived Controls ({archivedControls.length})
+                                                    </h4>
+                                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-40 hover:opacity-100 transition-opacity">
+                                                        {archivedControls.map((link) => (
+                                                            <ControlGaugeCard
+                                                                key={link.id}
+                                                                link={link}
+                                                                onClick={() => link.control && navigate(`/controls/${link.control.id}`)}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </>
+                            );
+                        })()}
 
                         <PermissionGate resource="risks" action="write">
                             <button
