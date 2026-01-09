@@ -123,6 +123,7 @@ export interface RiskControlLink {
         name: string;
         frequency: string;
         risk_level: number;
+        status: string;
     };
     risk?: {
         id: number;

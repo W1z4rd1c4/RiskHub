@@ -20,6 +20,8 @@ export const riskApi = {
         search?: string;
         has_breach?: boolean;
         min_net_score?: number;
+        sort_by?: string;
+        sort_order?: 'asc' | 'desc';
     }): Promise<RiskListResponse> {
         return apiClient.get<RiskListResponse>('/risks', { params });
     },
