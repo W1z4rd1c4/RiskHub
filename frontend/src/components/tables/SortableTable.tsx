@@ -23,6 +23,10 @@ interface SortableTableProps<T> {
     onRowClick?: (item: T) => void;
     className?: string;
     emptyMessage?: string;
+    // Controlled sorting props
+    sortKey?: string | null;
+    sortDirection?: SortDirection;
+    onSort?: (key: string, direction: SortDirection) => void;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -33,33 +37,44 @@ export function SortableTable<T extends Record<string, any>>({
     onRowClick,
     className,
     emptyMessage = 'No data available',
+    sortKey: controlledSortKey,
+    sortDirection: controlledSortDirection,
+    onSort,
 }: SortableTableProps<T>) {
-    const [sortKey, setSortKey] = useState<string | null>(null);
-    const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+    const [internalSortKey, setInternalSortKey] = useState<string | null>(null);
+    const [internalSortDirection, setInternalSortDirection] = useState<SortDirection>(null);
+
+    const isControlled = onSort !== undefined;
+    const currentSortKey = isControlled ? controlledSortKey : internalSortKey;
+    const currentSortDirection = isControlled ? controlledSortDirection : internalSortDirection;
 
     const handleSort = (key: string) => {
-        if (sortKey === key) {
+        let newDirection: SortDirection = 'asc';
+
+        if (currentSortKey === key) {
             // Toggle direction: asc -> desc -> null
-            if (sortDirection === 'asc') {
-                setSortDirection('desc');
-            } else if (sortDirection === 'desc') {
-                setSortDirection(null);
-                setSortKey(null);
-            } else {
-                setSortDirection('asc');
+            if (currentSortDirection === 'asc') {
+                newDirection = 'desc';
+            } else if (currentSortDirection === 'desc') {
+                newDirection = null;
             }
+        }
+
+        if (isControlled && onSort) {
+            onSort(newDirection === null ? key : key, newDirection);
         } else {
-            setSortKey(key);
-            setSortDirection('asc');
+            setInternalSortKey(newDirection === null ? null : key);
+            setInternalSortDirection(newDirection);
         }
     };
 
     const sortedData = useMemo(() => {
-        if (!sortKey || !sortDirection) return data;
+        if (isControlled) return data; // Server-side sorting, data is already sorted
+        if (!internalSortKey || !internalSortDirection) return data;
 
         return [...data].sort((a, b) => {
-            const aVal = a[sortKey];
-            const bVal = b[sortKey];
+            const aVal = a[internalSortKey];
+            const bVal = b[internalSortKey];
 
             if (aVal == null) return 1;
             if (bVal == null) return -1;
@@ -73,18 +88,18 @@ export function SortableTable<T extends Record<string, any>>({
                 comparison = String(aVal).localeCompare(String(bVal));
             }
 
-            return sortDirection === 'desc' ? -comparison : comparison;
+            return internalSortDirection === 'desc' ? -comparison : comparison;
         });
-    }, [data, sortKey, sortDirection]);
+    }, [data, internalSortKey, internalSortDirection, isControlled]);
 
     const getSortIcon = (key: string) => {
-        if (sortKey !== key) {
+        if (currentSortKey !== key) {
             return <ChevronsUpDown className="h-4 w-4 text-slate-500" />;
         }
-        if (sortDirection === 'asc') {
+        if (currentSortDirection === 'asc') {
             return <ChevronUp className="h-4 w-4 text-accent" />;
         }
-        if (sortDirection === 'desc') {
+        if (currentSortDirection === 'desc') {
             return <ChevronDown className="h-4 w-4 text-accent" />;
         }
         return <ChevronsUpDown className="h-4 w-4 text-slate-500" />;

@@ -1,0 +1,28 @@
+# Dependencies - install fresh in container
+node_modules
+
+# Build artifacts
+dist
+build
+
+# Development files
+.git
+.gitignore
+*.md
+.env
+.env.*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test artifacts
+coverage
+test-results
+playwright-report
+
+# Misc
+.DS_Store
+*.log
