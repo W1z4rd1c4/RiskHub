@@ -1,217 +1,121 @@
-# Deep Check Findings - Phase 7 Review
+Thought for 3s
+
+
+
+I'll conduct a deep audit of the business logic. Let me systematically review the key areas:
+
+Searched
+can_resolve_approvals
+26 results
+Searched
+check_department_access
+44 results
+Analyzed
+permissions.py#L1-160
+Analyzed
+permissions.py#L161-280
+Searched
+has_sensitive_field_changes
+5 results
+Searched
+is_priority
+20 results
+Searched
+net_score
+12 results
+Searched
+breach
+102 results
+Analyzed
+approvals.py#L1-731
+Now let me check a few more critical areas - the risk status transitions, control linkage logic, and score calculation:
+
+Searched
+RiskStatus
+45 results
+Analyzed
+risk.py#L1-100
+Searched
+is_owner
+6 results
+Searched
+is_scenario_enabled
+8 results
+Analyzed
+risks.py#L360-400
+Analyzed
+risks.py#L580-620
+I have now completed my deep audit of the business logic. Let me compile my findings:
+
+🔍 DEEP AUDIT FINDINGS - Business Logic
+✅ WORKING CORRECTLY
+Area	Status	Notes
+Department Access Control	✅	
+check_department_access()
+ correctly enforces department-based access. Privileged users (GLOBAL scope) bypass, others restricted to their department(s).
+Permission Checking	✅	
+has_permission()
+ correctly walks role→permissions chain. Wildcards *:* work.
+Privileged User Detection	✅	
+can_resolve_approvals()
+ = GLOBAL scope + approvals:write
+Risk Score Calculation	✅	net_score = net_probability × net_impact calculated on create/update
+Approval Tiered Flow	✅	PENDING → PENDING_PRIVILEGED → APPROVED works correctly
+KRI Breach Detection	✅	current_value < lower_limit or > upper_limit correctly detected
+⚠️ ISSUES FOUND
+1. Scenario Toggle NOT Applied to DELETE Endpoints (Medium)
+The 
+is_scenario_enabled()
+ check was added to edit workflows but DELETE endpoints do NOT check risk_delete, control_delete, kri_delete scenarios.
+
+Impact: CRO cannot disable deletion approvals even if configured in Risk Hub.
+
+Location:
+
+risks.py:delete_risk() - line 590, always requires approval for non-privileged
+controls.py:delete_control() - line 491, always requires approval
+kris.py:delete_kri() - line 462, always requires approval
+2. Sensitive Field Check Bypassed on is_priority=False→True Upgrade (Low)
+In 
+has_sensitive_field_changes()
+ (line 238-243 in permissions.py):
+
+python
+if field == "is_priority":
+    if old_val is True and new_val is False:
+        changed[field] = {"old": old_val, "new": new_val}
+    # false→true is allowed without approval
+Design Decision: Upgrading a risk to priority does NOT require approval. This might be intentional (escalating risk is always allowed) but should be documented.
+
+3. KRI Edit (PUT) Always Requires Approval (Low/Intentional?)
+In kris.py:update_kri() (line 356), ALL edits by non-privileged users require approval with no scenario check. This is more restrictive than risks/controls.
+
+Impact: No CRO toggle to disable KRI metadata edit approvals.
+
+4. Cancel Approval Only Works for PENDING Status (Bug)
+In approvals.py:cancel_request() (line 638):
+
+python
+if approval.status != ApprovalStatus.PENDING:
+    raise HTTPException(...)
+Users cannot cancel their own PENDING_PRIVILEGED request (e.g., after Risk Owner approved, before CRO approves).
+
+5. Risk Owner Edit Permission Without Approval Check (By Design?)
+In 
+risks.py
+ (line 375):
+
+python
+if not has_write and not is_owner:
+    raise HTTPException(...)
+Risk owners CAN edit their own risks without needing risks:write permission. However, unlike Controls, there's no mandatory approval for risk owner edits unless it's a priority risk. Controls have:
+
+python
+# Check 3: Owner edits always require approval
+if not requires_approval and is_owner:
+    requires_approval = True
+Inconsistency: Control owners always need approval. Risk owners do not unless priority/sensitive field.
+
+6. Archived Risk Cannot Be Reactivated (Intentional)
+Line 389-394 in risks.py blocks changing status from archived to any other status. This is intentional but worth noting - archiving is PERMANENT unless via database/admin intervention.
 
-> Generated: 2025-12-26 by 10 parallel code review agents
-
-## Summary
-
-| Severity | Count | Description |
-|----------|-------|-------------|
-| 🔴 Critical | 3 | Security bypasses and blocking bugs |
-| 🟠 High | 8 | Permission/auth issues |
-| 🟡 Medium | 6 | Inconsistencies and edge cases |
-
----
-
-## 🔴 Critical Issues (Must Fix)
-
-### 1. Missing `check_permission` Import (Runtime Error)
-
-**Files**: `risks.py:199`, `controls.py:180`
-
-**Bug**: `check_permission` is used but never imported → `NameError` at runtime
-
-**Fix**: Add `from app.core.security import check_permission, require_permission`
-
----
-
-### 2. Auth Mock Bypass in Security.py
-
-**File**: `backend/app/core/security.py:63-103`
-
-**Bug**: `get_current_user` in security.py allows `X-Mock-User-Id` header to bypass JWT validation, enabling any request to impersonate any user.
-
-**Impact**: Any request can set header to gain full access to any user account.
-
-**Fix**: Remove mock path from production; gate behind `DEBUG` env flag.
-
----
-
-### 3. Empty `dept_ids` Returns All Data (Permission Bypass)
-
-**File**: `backend/app/core/permissions.py:16-30`
-
-**Bug**: If non-privileged user has `department_id=None`, `get_user_department_ids()` returns `[]`. All endpoints treat `if dept_ids:` as false, granting full access.
-
-**Impact**: Users without department assignment see ALL data.
-
-**Fix**: 
-```python
-def get_user_department_ids(user: User) -> list[int] | None:
-    if is_privileged_user(user):
-        return None  # Signal: no filter needed
-    if user.department_id:
-        return [user.department_id]
-    return []  # Empty, but distinct from None
-
-# In endpoints:
-dept_ids = get_user_department_ids(current_user)
-if dept_ids is not None:  # None = privileged, [] = no access
-    if not dept_ids:
-        return []  # No departments = no data
-    query = query.filter(Model.department_id.in_(dept_ids))
-```
-
----
-
-## 🟠 High Issues (Should Fix)
-
-### 4. CRUD Endpoints Lack Department Scoping
-
-**Affected Endpoints**:
-- `kris.py`: get_kri, create_kri, update_kri, delete_kri
-- `controls.py`: get_control, update_control
-- `risks.py`: get_risk, update_risk, delete_risk
-- `departments.py`: get_department, list_department_risks, list_department_controls
-
-**Bug**: List endpoints filter by department, but individual CRUD operations don't verify user has access to that department.
-
-**Impact**: Users can read/modify/delete items from other departments via direct ID access (IDOR).
-
-**Fix**: Add department check to all CRUD endpoints:
-```python
-# Before modifying, verify department access
-dept_ids = get_user_department_ids(current_user)
-if dept_ids and item.department_id not in dept_ids:
-    raise HTTPException(403, "Access denied to this department")
-```
-
----
-
-### 5. `delete_risk` Missing Permission Check
-
-**File**: `risks.py:231`
-
-**Bug**: No `require_permission("risks", "delete")` - any authenticated user can archive risks.
-
-**Fix**: Add `current_user: User = Depends(require_permission("risks", "delete"))`
-
----
-
-### 6. Unprotected Endpoints in `users.py`
-
-| Endpoint | Issue |
-|----------|-------|
-| `get_user_subordinates` | No auth check - leaks org structure |
-| `list_roles` | Public endpoint - role enumeration |
-| `mock_login` | Returns impersonation header |
-
-**Fix**: Add `current_user: User = Depends(deps.get_current_user)` to all
-
----
-
-### 7. Dashboard `/summary` Inconsistent Filtering
-
-**File**: `dashboard.py:41-162`
-
-**Bug**: Several aggregations inside `/summary` don't apply `control_dept_filter`/`risk_dept_filter`:
-- `controls_by_form` (line 91)
-- Several risk aggregations use `department_id` param directly
-
-**Fix**: Apply filter consistently to ALL queries in the endpoint
-
----
-
-### 8. Control/Risk Linking Ignores Department
-
-**File**: `controls.py:350-425`
-
-**Bug**: `link_control_to_risk`/`unlink_control_from_risk` only require `controls:write`, don't check if control/risk belongs to user's department.
-
-**Fix**: Validate both control and risk department before linking
-
----
-
-## 🟡 Medium Issues (Consider Fixing)
-
-### 9. `is_privileged_user` Crashes if `user.role` is None
-
-**File**: `permissions.py:6`
-
-**Fix**: Add null check: `if not user.role: return False`
-
----
-
-### 10. COO Excluded from `privileged_roles`
-
-**File**: `role.py:30` / `seed_roles_permissions.py`
-
-**Issue**: COO is C-Suite but gets limited permissions, not full access.
-
-**Fix**: Either add COO to privileged_roles, or document this is intentional.
-
----
-
-### 11. UserUpdate Schema Incomplete
-
-**File**: `schemas/user.py:36`
-
-**Issue**: Cannot update `email` or `password` via UserUpdate.
-
----
-
-### 12. TokenResponse Uses `dict` Instead of TypedDict
-
-**File**: `schemas/auth.py:11`
-
-**Issue**: `user: dict` weakens type safety.
-
-**Fix**: Use `user: UserBrief`
-
----
-
-### 13. Error Message Leaks Account State
-
-**File**: `deps.py:52`
-
-**Issue**: "User not found or inactive" reveals account state.
-
-**Fix**: Use generic "Unauthorized"
-
----
-
-### 14. Seed Script User Count Non-deterministic
-
-**File**: `seed_users.py`
-
-**Issue**: Random employee count (8-12 per dept) doesn't match "120 users" in docs.
-
----
-
-## ✅ What's Working
-
-- All list endpoints use `deps.get_current_user` ✓
-- `get_user_department_ids` imported and used in list endpoints ✓
-- JWT token validation in deps.py is secure ✓
-- Password hashing with bcrypt is correct ✓
-- No N+1 queries (using `joinedload`) ✓
-- Token expiration enforced ✓
-- Role-permission relationships correct ✓
-
----
-
-## Recommended Priority Order
-
-1. **Immediate** (Blocks functionality):
-   - Fix missing `check_permission` import
-   - Fix empty `dept_ids` returning all data
-
-2. **Before Production** (Security):
-   - Add department checks to all CRUD endpoints
-   - Remove/gate mock auth in security.py
-   - Add perms to delete_risk
-   - Protect users.py endpoints
-
-3. **Polish** (Quality):
-   - Consistent Dashboard filtering
-   - Schema improvements
-   - COO role clarification

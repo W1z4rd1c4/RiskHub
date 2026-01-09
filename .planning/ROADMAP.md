@@ -364,14 +364,19 @@ Plans:
 - [ ] 17-14: AD Deprovisioning Check (deleted user detection, auto-deactivate)
 
 ### Phase 18: Vendor Risk Management (DEFERRED)
-**Goal**: Third-party risk assessments, scoring, and supply chain visualization
+**Goal**: Third-party risk assessments, scoring, supply chain visualization, and specialized DORA compliance tracking.
 **Depends on**: Phase 17
 **Status**: Deferred for future release
+**Vision**:
+1. **Vendor Catalog**: Registry with risk tiers (critical/high/medium/low) and schedules.
+2. **Assessments**: Questionnaires, scoring, and response tracking.
+3. **Supply Chain**: Dependency visualization and fourth-party risk.
+4. **DORA Compliance**: Specialized, exhaustive scope for DORA-relevant vendors (ICT, Cloud).
 **Plans**: 2 plans
 
 Plans:
 - [ ] 18-01: Vendor database and hierarchical tiering system
-- [ ] 18-02: Assessment workflows and remediation tracking
+- [ ] 18-02: Assessment workflows, DORA compliance layer, and tracking
 
 ### Phase 19: Advanced Audit Workflows (DEFERRED)
 **Goal**: Streamline internal audit with sampling and automated evidence collection
