@@ -6,6 +6,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload, joinedload
 
 from app.db.session import get_db
@@ -611,19 +612,26 @@ async def record_kri_value(
             primary_approver_id=primary_approver_id,
             requires_privileged_approval=requires_privileged,
         )
-        db.add(approval)
-        await db.flush()
         
-        await log_activity(
-            db,
-            entity_type=ActivityEntityType.APPROVAL,
-            entity_id=approval.id,
-            entity_name=approval.resource_name,
-            action=ActivityAction.CREATE,
-            actor=current_user,
-            department_id=kri.risk.department_id,
-        )
-        await db.commit()
+        try:
+            db.add(approval)
+            await db.flush()
+            
+            await log_activity(
+                db,
+                entity_type=ActivityEntityType.APPROVAL,
+                entity_id=approval.id,
+                entity_name=approval.resource_name,
+                action=ActivityAction.CREATE,
+                actor=current_user,
+                department_id=kri.risk.department_id,
+            )
+            await db.commit()
+        except IntegrityError as e:
+            await db.rollback()
+            if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
+                raise HTTPException(status_code=409, detail="A value submission request is already pending for this KRI.")
+            raise
         
         # Notify Risk Owner (primary approver)
         if primary_approver_id:
@@ -830,13 +838,13 @@ async def correct_history_entry(
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
     else:
-        # Check for existing pending request
+        # Check for existing pending request (both statuses)
         existing = await db.execute(
             select(ApprovalRequest).where(
                 ApprovalRequest.resource_type == ApprovalResourceType.KRI,
                 ApprovalRequest.resource_id == kri.id,
                 ApprovalRequest.action_type == ApprovalActionType.EDIT,
-                ApprovalRequest.status == ApprovalStatus.PENDING
+                ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
             )
         )
         if existing.scalar_one_or_none():
@@ -861,19 +869,26 @@ async def correct_history_entry(
             pending_changes=pending_changes,
             status=ApprovalStatus.PENDING,
         )
-        db.add(approval)
-        await db.flush()
         
-        await log_activity(
-            db,
-            entity_type=ActivityEntityType.APPROVAL,
-            entity_id=approval.id,
-            entity_name=approval.resource_name,
-            action=ActivityAction.CREATE,
-            actor=current_user,
-            department_id=kri.risk.department_id,
-        )
-        await db.commit()
+        try:
+            db.add(approval)
+            await db.flush()
+            
+            await log_activity(
+                db,
+                entity_type=ActivityEntityType.APPROVAL,
+                entity_id=approval.id,
+                entity_name=approval.resource_name,
+                action=ActivityAction.CREATE,
+                actor=current_user,
+                department_id=kri.risk.department_id,
+            )
+            await db.commit()
+        except IntegrityError as e:
+            await db.rollback()
+            if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
+                raise HTTPException(status_code=409, detail="A correction request is already pending for this KRI.")
+            raise
         
         from fastapi.responses import JSONResponse
         return JSONResponse(
