@@ -1,6 +1,8 @@
 
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Use relative URL for nginx proxy (enables LAN access)
+// In development, VITE_API_URL can override for direct backend connection
+const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 interface RequestOptions extends RequestInit {
     params?: Record<string, string | number | boolean | undefined | string[] | number[]>;
@@ -18,7 +20,9 @@ class ApiClient {
         const { params, ...init } = options;
 
         // Build URL with query params
-        const url = new URL(`${this.baseUrl}${endpoint}`);
+        // Use origin as base when baseUrl is relative (starts with /)
+        const baseOrigin = this.baseUrl.startsWith('/') ? window.location.origin : '';
+        const url = new URL(`${baseOrigin}${this.baseUrl}${endpoint}`);
         if (params) {
             Object.entries(params).forEach(([key, value]) => {
                 if (value !== undefined) {
