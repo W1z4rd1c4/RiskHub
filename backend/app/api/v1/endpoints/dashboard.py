@@ -4,7 +4,7 @@ Dashboard API endpoints for executive and department-level metrics.
 from typing import Optional, Literal
 import logging
 from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy import select, func, and_, or_, cast, String
+from sqlalchemy import select, func, and_, or_, cast, String, case, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -389,9 +389,12 @@ async def get_control_trends(
         if total_count == 0:
             return []
         
+        # Define period expression once to avoid GROUP BY mismatch
+        period_expr = func.to_char(ControlExecution.executed_at, 'IYYY-"W"IW')
+        
         # Query control executions grouped by ISO week
         trends_query = select(
-            func.to_char(ControlExecution.executed_at, 'IYYY-"W"IW').label('period'),
+            period_expr.label('period'),
             func.count(ControlExecution.id).label('execution_count')
         )
         
@@ -400,10 +403,11 @@ async def get_control_trends(
         else:
             trends_query = trends_query.where(conditions[0])
         
+        # Group and order by the period expression
         trends_query = trends_query.group_by(
-            func.to_char(ControlExecution.executed_at, 'IYYY-"W"IW')
+            period_expr
         ).order_by(
-            func.to_char(ControlExecution.executed_at, 'IYYY-"W"IW').desc()
+            desc(period_expr)
         ).limit(8)
         
         result = await db.execute(trends_query)
@@ -507,19 +511,19 @@ async def get_risk_trends(
             conditions.append(Risk.department_id == department_id)
 
         # Query risk counts grouped by month
-        period_label = func.to_char(Risk.created_at, 'YYYY-MM').label('period')
+        period_expr = func.to_char(Risk.created_at, 'YYYY-MM')
         query = select(
-            period_label,
+            period_expr.label('period'),
             func.count(Risk.id).label('total_new'),
             func.sum(
-                func.case((Risk.net_score >= 15, 1), else_=0)
+                case((Risk.net_score >= 15, 1), else_=0)
             ).label('critical_new')
         )
         
         if conditions:
             query = query.where(and_(*conditions))
         
-        query = query.group_by(period_label).order_by(period_label.desc()).limit(12)
+        query = query.group_by(period_expr).order_by(desc(period_expr)).limit(12)
         
         result = await db.execute(query)
         rows = result.all()
@@ -565,12 +569,12 @@ async def get_kri_breach_trends(
             conditions.append(Risk.department_id == department_id)
 
         # Query breach counts grouped by month
-        period_label = func.to_char(KRIValueHistory.period_end, 'YYYY-MM').label('period')
+        period_expr = func.to_char(KRIValueHistory.period_end, 'YYYY-MM')
         query = select(
-            period_label,
+            period_expr.label('period'),
             func.count(KRIValueHistory.id).label('total_entries'),
             func.sum(
-                func.case((KRIValueHistory.breach_status != 'within', 1), else_=0)
+                case((KRIValueHistory.breach_status != 'within', 1), else_=0)
             ).label('breached_entries')
         ).select_from(
             KRIValueHistory
@@ -581,9 +585,9 @@ async def get_kri_breach_trends(
         ).where(
             and_(*conditions)
         ).group_by(
-            period_label
+            period_expr
         ).order_by(
-            period_label.desc()
+            desc(period_expr)
         ).limit(12)
         
         result = await db.execute(query)
