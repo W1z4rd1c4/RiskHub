@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { PermissionChips, PermissionMatrix } from '@/components/access/PermissionMatrix';
 import { AccessEditModal } from '@/components/access/AccessEditModal';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 // Scope badge colors
 const scopeColors: Record<string, string> = {
@@ -65,6 +66,11 @@ export function UsersPage() {
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<AccessUserRead | null>(null);
     const [isAccessMode, setIsAccessMode] = useState(false);
+
+    // Confirm dialog state for user status toggle
+    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+    const [userToToggle, setUserToToggle] = useState<AccessUserRead | UserRead | null>(null);
+    const [isToggling, setIsToggling] = useState(false);
 
     const { canManageUsers, canManageAccess, user: currentUser } = usePermissions();
     const navigate = useNavigate();
@@ -115,14 +121,24 @@ export function UsersPage() {
         }
     };
 
-    const toggleUserStatus = async (user: AccessUserRead | UserRead) => {
-        if (!window.confirm(`Are you sure you want to ${user.is_active ? 'deactivate' : 'reactivate'} ${user.name}?`)) return;
+    const handleToggleClick = (user: AccessUserRead | UserRead) => {
+        setUserToToggle(user);
+        setConfirmDialogOpen(true);
+    };
+
+    const toggleUserStatus = async () => {
+        if (!userToToggle) return;
 
         try {
-            await userApi.updateUser(user.id, { is_active: !user.is_active });
+            setIsToggling(true);
+            await userApi.updateUser(userToToggle.id, { is_active: !userToToggle.is_active });
             fetchUsers();
         } catch (error) {
             console.error('Failed to update user status:', error);
+        } finally {
+            setIsToggling(false);
+            setConfirmDialogOpen(false);
+            setUserToToggle(null);
         }
     };
 
@@ -484,7 +500,7 @@ export function UsersPage() {
                                                     )}
                                                     {canManageUsers && (
                                                         <button
-                                                            onClick={() => toggleUserStatus(user)}
+                                                            onClick={() => handleToggleClick(user)}
                                                             className={cn(
                                                                 "p-2 rounded-lg transition-all",
                                                                 user.is_active
@@ -637,6 +653,18 @@ export function UsersPage() {
                 onClose={() => setEditModalOpen(false)}
                 user={selectedUser}
                 onSaved={handleAccessSaved}
+            />
+
+            {/* User Status Toggle Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={confirmDialogOpen}
+                onClose={() => { setConfirmDialogOpen(false); setUserToToggle(null); }}
+                onConfirm={toggleUserStatus}
+                title={userToToggle?.is_active ? 'Deactivate User' : 'Reactivate User'}
+                message={`Are you sure you want to ${userToToggle?.is_active ? 'deactivate' : 'reactivate'} ${userToToggle?.name}?`}
+                confirmLabel={userToToggle?.is_active ? 'Deactivate' : 'Reactivate'}
+                variant={userToToggle?.is_active ? 'danger' : 'info'}
+                isLoading={isToggling}
             />
         </div>
     );

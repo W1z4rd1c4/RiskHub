@@ -1,7 +1,7 @@
 from typing import Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, or_, func, asc, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -52,7 +52,9 @@ async def list_risks(
     include_archived: bool = Query(False, description="Include archived risks in results"),
     has_breach: Optional[bool] = None,
     min_net_score: Optional[int] = Query(None, ge=0, le=25, description="Filter risks with net_score >= this value (e.g., 15 for critical)"),
-):
+    sort_by: Optional[str] = Query(None, description="Field to sort by"),
+    sort_order: Optional[str] = Query("asc", description="Sort order (asc or desc)"),
+) -> RiskListResponse:
     """
     List risks with pagination and filters.
     Department heads without admin/cro/risk_manager role see only their department's risks.
@@ -60,6 +62,7 @@ async def list_risks(
     Returns paginated response with total count.
     """
     from app.core.permissions import get_risk_ids_where_kri_reporting_owner, get_risk_ids_where_control_owner
+    from app.models.risk_control_link import RiskControlLink
     
     base_query = select(Risk)
     
@@ -132,11 +135,45 @@ async def list_risks(
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
     
-    # Apply pagination and ordering
+    # Determine sort column
+    order_column = Risk.risk_id_code # Default sort
+    
+    if sort_by:
+        if sort_by == 'name':
+            order_column = Risk.name
+        elif sort_by == 'description':
+            order_column = Risk.description
+        elif sort_by == 'status':
+            order_column = Risk.status
+        elif sort_by == 'risk_id_code':
+            order_column = Risk.risk_id_code
+        elif sort_by == 'category':
+            order_column = Risk.category
+        elif sort_by == 'type': # Frontend sends 'type' for risk type
+            order_column = Risk.risk_type
+        elif sort_by == 'risk_type':
+            order_column = Risk.risk_type
+        elif sort_by == 'gross_score':
+            order_column = Risk.gross_score
+        elif sort_by == 'net_score':
+            order_column = Risk.net_score
+        elif sort_by == 'kri_count':
+            order_column = select(func.count(KeyRiskIndicator.id)).where(KeyRiskIndicator.risk_id == Risk.id).scalar_subquery()
+        elif sort_by == 'control_count':
+            order_column = select(func.count(ControlRiskLink.id)).where(ControlRiskLink.risk_id == Risk.id).scalar_subquery()
+            
+    # Apply sort order
+    if sort_order == 'desc':
+        base_query = base_query.order_by(desc(order_column))
+    else:
+        base_query = base_query.order_by(asc(order_column))
+
+    # Apply pagination
     query = base_query.options(
         selectinload(Risk.department),
-        selectinload(Risk.kris)
-    ).offset(skip).limit(limit).order_by(Risk.risk_id_code)
+        selectinload(Risk.kris),
+        selectinload(Risk.control_links)
+    ).offset(skip).limit(limit)
     
     result = await db.execute(query)
     risks = result.scalars().all()
@@ -148,7 +185,9 @@ async def list_risks(
             "department_name": r.department.name if r.department else None,
             "gross_probability": r.gross_probability,
             "gross_impact": r.gross_impact,
+            "gross_impact": r.gross_impact,
             "kri_count": len(r.kris),
+            "control_count": len(r.control_links),
             "has_breach": any(
                 k.current_value < k.lower_limit or k.current_value > k.upper_limit 
                 for k in r.kris
@@ -537,13 +576,14 @@ async def delete_risk(
         raise HTTPException(status_code=400, detail="Deletion request already pending")
     
     # Create approval request - ITEM STAYS VISIBLE
-    desc_snippet = risk.description[:50] if risk.description else ""
+    # Store risk name and description for better workflow display
+    desc_snippet = (risk.description[:100] + "...") if risk.description and len(risk.description) > 100 else (risk.description or "")
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
         resource_id=risk.id,
-        resource_name=f"{risk.risk_id_code}: {desc_snippet}",
+        resource_name=risk.name,  # Use risk name for display
         requested_by_id=current_user.id,
-        reason=reason,
+        reason=f"{reason}\n\nDescription: {desc_snippet}" if desc_snippet else reason,
         status=ApprovalStatus.PENDING,
     )
     db.add(approval)
