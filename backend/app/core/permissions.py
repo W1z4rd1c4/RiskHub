@@ -215,7 +215,7 @@ def has_sensitive_field_changes(
     new_data: dict
 ) -> tuple[bool, dict]:
     """
-    Check if any sensitive fields are being changed.
+    Check if any sensitive fields are being changed, including clearing to None.
     
     Args:
         resource_type: "risk", "control", or "kri"
@@ -228,21 +228,27 @@ def has_sensitive_field_changes(
     """
     sensitive = SENSITIVE_FIELDS.get(resource_type, set())
     changed = {}
+    NOT_PROVIDED = object()  # Sentinel to detect "not in payload"
     
     for field in sensitive:
-        old_val = old_data.get(field)
-        new_val = new_data.get(field)
+        new_val = new_data.get(field, NOT_PROVIDED)
+        if new_val is NOT_PROVIDED:  # Field not in update payload - no change
+            continue
         
-        # Only check if new value is explicitly provided and different
-        if new_val is not None and old_val != new_val:
-            # Special case: is_priority can only go false→true without approval
-            # Changing true→false (downgrading) requires approval
-            if field == "is_priority":
-                if old_val is True and new_val is False:
-                    changed[field] = {"old": old_val, "new": new_val}
-                # false→true is allowed without approval
-            else:
+        old_val = old_data.get(field)
+        if old_val == new_val:  # No actual change
+            continue
+        
+        # is_priority: only true→false requires approval (downgrade)
+        if field == "is_priority":
+            if old_val is True and new_val is False:
                 changed[field] = {"old": old_val, "new": new_val}
+            # false→true or any other transition is allowed without approval
+            continue
+        
+        # All other sensitive fields: ANY change requires approval
+        # Including owner_id: 5→None (clearing owner)
+        changed[field] = {"old": old_val, "new": new_val}
     
     return bool(changed), changed
 
