@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, UTC
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
@@ -295,7 +296,7 @@ async def update_control(
             ApprovalRequest.resource_type == ApprovalResourceType.CONTROL,
             ApprovalRequest.resource_id == control.id,
             ApprovalRequest.action_type == ApprovalActionType.DELETE,
-            ApprovalRequest.status == ApprovalStatus.PENDING
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
         )
     )
     if existing_delete.scalar_one_or_none():
@@ -370,19 +371,29 @@ async def update_control(
                 primary_approver_id=primary_approver_id,
                 requires_privileged_approval=is_priority_linked,
             )
-            db.add(approval)
-            await db.flush()
             
-            await log_activity(
-                db,
-                entity_type=ActivityEntityType.APPROVAL,
-                entity_id=approval.id,
-                entity_name=approval.resource_name,
-                action=ActivityAction.CREATE,
-                actor=current_user,
-                department_id=control.department_id,
-            )
-            await db.commit()
+            try:
+                db.add(approval)
+                await db.flush()
+                
+                await log_activity(
+                    db,
+                    entity_type=ActivityEntityType.APPROVAL,
+                    entity_id=approval.id,
+                    entity_name=approval.resource_name,
+                    action=ActivityAction.CREATE,
+                    actor=current_user,
+                    department_id=control.department_id,
+                )
+                await db.commit()
+            except IntegrityError as e:
+                await db.rollback()
+                if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail="An approval request is already pending for this action."
+                    )
+                raise
             
             # Notify Approvers
             try:
@@ -503,12 +514,12 @@ async def delete_control(
         
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     
-    # Check for existing pending request
+    # Check for existing pending request (both PENDING and PENDING_PRIVILEGED)
     existing = await db.execute(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType.CONTROL,
             ApprovalRequest.resource_id == control.id,
-            ApprovalRequest.status == ApprovalStatus.PENDING
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
         )
     )
     if existing.scalar_one_or_none():
@@ -524,19 +535,29 @@ async def delete_control(
         reason=reason,
         status=ApprovalStatus.PENDING,
     )
-    db.add(approval)
-    await db.flush()
     
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.APPROVAL,
-        entity_id=approval.id,
-        entity_name=approval.resource_name,
-        action=ActivityAction.CREATE,
-        actor=current_user,
-        department_id=control.department_id,
-    )
-    await db.commit()
+    try:
+        db.add(approval)
+        await db.flush()
+        
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.APPROVAL,
+            entity_id=approval.id,
+            entity_name=approval.resource_name,
+            action=ActivityAction.CREATE,
+            actor=current_user,
+            department_id=control.department_id,
+        )
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An approval request is already pending for this action."
+            )
+        raise
     
     # Needs logic to find primary approver for delete requests as well
     from app.core.approval_helpers import get_primary_approver_for_control
