@@ -512,7 +512,7 @@ Plans:
 - [ ] 151-13: KRI value correction UI + overdue badges
 - [x] 151-15: Robust Risk ID generation (atomic retry pattern)
 - [x] 151-16: Approval Request DB-level constraints (partial unique index)
-- [ ] 151-17: Sensitive field detection refinement (None values + owner semantics)
+- [x] 151-17: Sensitive field detection refinement (None values + owner semantics)
 - [ ] 151-18: Production security guardrails & concurrency verification tests
 - [ ] 151-19: Approval workflow edge cases & activity logging
 

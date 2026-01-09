@@ -7,7 +7,11 @@ from sqlalchemy.orm import selectinload
 from app.models import Control, Risk, ControlRiskLink
 
 
-async def get_primary_approver_for_control(db: AsyncSession, control_id: int) -> Optional[int]:
+async def get_primary_approver_for_control(
+    db: AsyncSession, 
+    control_id: int,
+    requester_id: Optional[int] = None,
+) -> Optional[int]:
     """
     Get the primary approver for a Control edit.
     
@@ -17,10 +21,12 @@ async def get_primary_approver_for_control(db: AsyncSession, control_id: int) ->
     2. gross_score descending (secondary sort)
     
     Fallback: department head if no linked risks or no risk owner.
+    Self-approval prevention: if requester_id matches a potential approver, skip them.
     
     Args:
         db: Database session
         control_id: ID of the control being edited
+        requester_id: ID of the user requesting the edit (for self-approval prevention)
         
     Returns:
         User ID of the primary approver, or None if no approver found
@@ -45,13 +51,17 @@ async def get_primary_approver_for_control(db: AsyncSession, control_id: int) ->
     )
     linked_risks = linked_risks_result.scalars().all()
     
-    # Return owner of highest-priority risk
+    # Return owner of highest-priority risk (skip self)
     for risk in linked_risks:
         if risk.owner_id:
+            if requester_id and risk.owner_id == requester_id:
+                continue  # Skip self-approval
             return risk.owner_id
     
-    # Fallback: department head
+    # Fallback: department head (skip self)
     if control.department and control.department.head_id:
+        if requester_id and control.department.head_id == requester_id:
+            return None  # Force escalation to privileged approvers
         return control.department.head_id
     
     return None
@@ -84,3 +94,39 @@ async def check_control_requires_privileged_approval(db: AsyncSession, control_i
             return True
     
     return False
+
+
+async def get_primary_approver_for_risk(
+    db: AsyncSession, 
+    risk_id: int, 
+    requester_id: Optional[int] = None
+) -> Optional[int]:
+    """
+    Get primary approver for a Risk edit, preventing self-approval.
+    
+    Args:
+        db: Database session
+        risk_id: ID of the risk being edited
+        requester_id: ID of the user requesting the edit (for self-approval prevention)
+        
+    Returns:
+        User ID of the primary approver, or None if no approver found
+    """
+    from app.models import Department
+    
+    risk_result = await db.execute(
+        select(Risk).options(selectinload(Risk.department)).where(Risk.id == risk_id)
+    )
+    risk = risk_result.scalar_one_or_none()
+    if not risk:
+        return None
+    
+    # Risk owner is primary approver (unless they're the requester)
+    if risk.owner_id and risk.owner_id != requester_id:
+        return risk.owner_id
+    
+    # Fallback: department head (unless they're the requester)
+    if risk.department and risk.department.head_id and risk.department.head_id != requester_id:
+        return risk.department.head_id
+    
+    return None
