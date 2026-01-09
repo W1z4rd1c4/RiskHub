@@ -35,6 +35,11 @@ class ApprovalRequest(Base):
     When a non-privileged user requests deletion or edits sensitive data,
     an ApprovalRequest is created. Risk Manager must approve before
     the action is executed.
+    
+    IMPORTANT: A partial unique index `ux_approval_pending` exists in the database
+    to prevent duplicate PENDING/PENDING_PRIVILEGED approvals for the same
+    (resource_type, resource_id, action_type). This is enforced at DB level.
+    See migration: h2i3j4k5l6m7_add_partial_unique_index_approval_pending.py
     """
     __tablename__ = "approval_requests"
     
@@ -91,6 +96,8 @@ class ApprovalRequest(Base):
     privileged_approver: Mapped["User"] = relationship("User", foreign_keys=[privileged_approver_id], lazy="selectin")
     
     # Indexes for efficient queries
+    # Note: ux_approval_pending partial unique index is created via migration,
+    # not declaratively (SQLAlchemy doesn't support partial indexes well)
     __table_args__ = (
         Index("ix_approval_resource", "resource_type", "resource_id"),
         Index("ix_approval_status", "status"),
