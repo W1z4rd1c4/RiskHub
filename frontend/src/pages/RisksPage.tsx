@@ -237,6 +237,7 @@ export function RisksPage() {
         {
             key: 'name',
             label: 'Name',
+            className: 'w-[450px] min-w-[300px]',
             sortable: true,
             render: (risk) => (
                 <div className="flex flex-col gap-0.5">
@@ -314,9 +315,9 @@ export function RisksPage() {
             className: 'text-center',
             render: (risk) => (
                 <div className="flex justify-center">
-                    <div className={`px - 2.5 py - 1 rounded - full text - [10px] font - black border ${getScoreColor(risk.gross_score)} `}>
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${getScoreColor(risk.gross_score)}`}>
                         {risk.gross_score}
-                    </div>
+                    </span>
                 </div>
             ),
         },
@@ -327,9 +328,9 @@ export function RisksPage() {
             className: 'text-center',
             render: (risk) => (
                 <div className="flex justify-center">
-                    <div className={`px - 2.5 py - 1 rounded - full text - [10px] font - black border ${getScoreColor(risk.net_score)} `}>
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${getScoreColor(risk.net_score)}`}>
                         {risk.net_score}
-                    </div>
+                    </span>
                 </div>
             ),
         },
@@ -338,7 +339,7 @@ export function RisksPage() {
             label: 'Status',
             sortable: true,
             render: (risk) => (
-                <span className={`px - 2 py - 0.5 rounded - md text - [10px] font - bold uppercase ${getStatusColor(risk.status)} `}>
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getStatusColor(risk.status)}`}>
                     {risk.status}
                 </span>
             ),
@@ -346,6 +347,7 @@ export function RisksPage() {
         {
             key: 'control_count',
             label: 'Controls',
+            sortable: true,
             className: 'text-center',
             render: (risk) => {
                 const count = risk.control_count || 0;
@@ -360,8 +362,9 @@ export function RisksPage() {
             },
         },
         {
-            key: 'id', // Reusing ID key for KRIs column
+            key: 'kri_count',
             label: 'KRIs',
+            sortable: true,
             className: 'text-center',
             render: (risk) => {
                 // For now we assume the count is provided or we can fetch it. 
@@ -373,10 +376,10 @@ export function RisksPage() {
 
                 return (
                     <div className="flex justify-center">
-                        <div className={`px - 2 py - 0.5 rounded - md text - [10px] font - bold flex items - center gap - 1 ${hasBreach
+                        <div className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${hasBreach
                             ? 'text-rose-400 bg-rose-400/10'
                             : 'text-emerald-400 bg-emerald-400/10'
-                            } `}>
+                            }`}>
                             {hasBreach && <AlertCircle className="h-3 w-3" />}
                             {count} {count === 1 ? 'KRI' : 'KRIs'}
                         </div>
