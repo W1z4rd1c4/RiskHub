@@ -159,7 +159,7 @@ export function Sidebar() {
                     <NotificationBell />
                 </div>
 
-                <nav className="flex-1 space-y-2">
+                <nav className="flex-1 space-y-2 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     {filteredNavigation.map((item) => {
                         const isActive = location.pathname === item.href;
                         return (
