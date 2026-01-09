@@ -36,8 +36,8 @@ export const riskApi = {
         return apiClient.patch<Risk>(`/risks/${id}`, data);
     },
 
-    async deleteRisk(id: number): Promise<void> {
-        return apiClient.delete<void>(`/risks/${id}`);
+    async deleteRisk(id: number, reason: string = 'Archived by user'): Promise<void> {
+        return apiClient.delete<void>(`/risks/${id}`, { params: { reason } });
     },
 
     async getLinkedControls(riskId: number): Promise<RiskControlLink[]> {

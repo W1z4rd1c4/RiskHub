@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     Server, Users, Activity, Terminal, RefreshCw,
-    Database, Clock, MemoryStick, AlertTriangle,
+    Database, Clock, MemoryStick,
     UserX, Shield, FileDown, Settings2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -645,11 +645,6 @@ export function AdminConsolePage() {
                 {activeTab === 'sessions' && <SessionsPanel />}
             </div>
 
-            {/* Warning */}
-            <div className="flex items-center justify-center gap-2 text-sm text-amber-400">
-                <AlertTriangle className="h-4 w-4" />
-                <span>Platform administration actions are logged and auditable.</span>
-            </div>
         </div>
     );
 }

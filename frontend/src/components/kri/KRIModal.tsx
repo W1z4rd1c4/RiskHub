@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Trash2, Calendar, Activity, Plus, User } from 'lucide-react';
 import type { KeyRiskIndicator, KRIUpdate, KRICreate } from '@/types/kri';
 import { userApi } from '@/services/userApi';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface KRIModalProps {
     risk_id: number;
@@ -18,6 +19,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
     const isCreate = !kri;
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     const [formData, setFormData] = useState<Partial<KRICreate & KRIUpdate>>({
         metric_name: '',
@@ -85,7 +87,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
     };
 
     const handleDelete = async () => {
-        if (!kri || !onDelete || !window.confirm(`Are you sure you want to delete "${kri.metric_name}"?`)) return;
+        if (!kri || !onDelete) return;
         try {
             setIsDeleting(true);
             await onDelete(kri.id);
@@ -94,12 +96,13 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
             console.error('Delete failed:', err);
         } finally {
             setIsDeleting(false);
+            setIsDeleteDialogOpen(false);
         }
     };
 
     if (typeof document === 'undefined') return null;
 
-    return createPortal(
+    const mainModal = createPortal(
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
@@ -243,7 +246,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                             <div>
                                 {!isCreate && onDelete && (
                                     <button
-                                        onClick={handleDelete}
+                                        onClick={() => setIsDeleteDialogOpen(true)}
                                         disabled={isDeleting}
                                         className="p-3 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
                                         title="Delete KRI"
@@ -273,5 +276,21 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
             )}
         </AnimatePresence>,
         document.body
+    );
+
+    return (
+        <>
+            {mainModal}
+            <ConfirmDialog
+                isOpen={isDeleteDialogOpen}
+                onClose={() => setIsDeleteDialogOpen(false)}
+                onConfirm={handleDelete}
+                title="Delete KRI"
+                message={`Are you sure you want to delete "${kri?.metric_name}"? This action cannot be undone.`}
+                confirmLabel="Delete"
+                variant="danger"
+                isLoading={isDeleting}
+            />
+        </>
     );
 }

@@ -111,3 +111,12 @@ node_modules/
 backend/risk_management.db
 backend/*.db
 *.db-journal
+
+# Archives
+*.zip
+
+# Temporary/Test artifacts
+*.json
+*.txt
+frontend/test-results/
+backend/logs/
