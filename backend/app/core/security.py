@@ -1,4 +1,6 @@
 from typing import Optional
+import os
+import logging
 from datetime import datetime, timedelta, UTC
 from fastapi import Depends, HTTPException, Header, status
 from sqlalchemy import select
@@ -13,6 +15,14 @@ from app.core.config import get_settings
 
 settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+logger = logging.getLogger(__name__)
+
+
+def _is_production_environment() -> bool:
+    """Detect if running in production environment."""
+    env = os.getenv("ENV", "").lower()
+    debug = os.getenv("DEBUG", "false").lower()
+    return env == "production" or debug == "false"
 
 
 # Password hashing utilities
@@ -70,10 +80,18 @@ async def get_current_user(
     In development with MOCK_AUTH_ENABLED=true, uses X-Mock-User-Id header.
     In production, this endpoint is disabled - use deps.get_current_user with JWT.
     """
-    import os
+    mock_auth_enabled = os.getenv("MOCK_AUTH_ENABLED", "false").lower() == "true"
     
-    # Only allow mock auth if explicitly enabled (never in production)
-    if os.getenv("MOCK_AUTH_ENABLED", "false").lower() == "true" and x_mock_user_id:
+    # CRITICAL: Force-disable mock auth in production
+    if mock_auth_enabled and _is_production_environment():
+        logger.critical(
+            "SECURITY VIOLATION: MOCK_AUTH_ENABLED=true in production environment! "
+            "Forcing mock auth OFF. This is a configuration error."
+        )
+        mock_auth_enabled = False
+    
+    # Only allow mock auth if explicitly enabled (and not production)
+    if mock_auth_enabled and x_mock_user_id:
         # Eager load role -> permissions -> permission
         permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
         
