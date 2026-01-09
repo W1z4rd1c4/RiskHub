@@ -272,10 +272,11 @@ async def get_system_stats(
     total_controls = (await db.execute(select(func.count()).select_from(Control))).scalar() or 0
     total_kris = (await db.execute(select(func.count()).select_from(KeyRiskIndicator))).scalar() or 0
     
-    # Pending approvals
+    # Pending approvals - use enum values, not string literals
+    from app.models.approval_request import ApprovalStatus
     pending_count = (await db.execute(
         select(func.count()).select_from(ApprovalRequest)
-        .where(ApprovalRequest.status.in_(["pending", "pending_privileged"]))
+        .where(ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]))
     )).scalar() or 0
     
     return SystemStatsResponse(

@@ -510,6 +510,10 @@ Plans:
 - [x] 151-11: Frontend access gating + scoped user pickers
 - [x] 151-12: KRI value submission approval (open-period recording)
 - [ ] 151-13: KRI value correction UI + overdue badges
+- [ ] 151-15: Robust Risk ID generation (atomic retry pattern)
+- [ ] 151-16: Approval Request DB-level constraints (partial unique index)
+- [ ] 151-17: Sensitive field detection refinement (None values + owner semantics)
+- [ ] 151-18: Production security guardrails & concurrency verification tests
 
 ## Progress
 
