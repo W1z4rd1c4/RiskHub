@@ -185,7 +185,6 @@ async def list_risks(
             "department_name": r.department.name if r.department else None,
             "gross_probability": r.gross_probability,
             "gross_impact": r.gross_impact,
-            "gross_impact": r.gross_impact,
             "kri_count": len(r.kris),
             "control_count": len(r.control_links),
             "has_breach": any(
