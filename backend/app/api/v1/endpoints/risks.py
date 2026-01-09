@@ -62,7 +62,7 @@ async def list_risks(
     Returns paginated response with total count.
     """
     from app.core.permissions import get_risk_ids_where_kri_reporting_owner, get_risk_ids_where_control_owner
-    from app.models.risk_control_link import RiskControlLink
+    from app.models.risk import ControlRiskLink
     
     base_query = select(Risk)
     
