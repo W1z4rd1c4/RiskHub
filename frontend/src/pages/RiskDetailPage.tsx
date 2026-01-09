@@ -33,6 +33,7 @@ import { KRIModal } from '@/components/kri/KRIModal';
 import { ControlGaugeCard } from '@/components/controls/ControlGaugeCard';
 import { HistoryTimeline } from '@/components/history';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 // Helper to convert hex color to rgba for backgrounds/borders
 function hexToRgba(hex: string, alpha: number): string {
@@ -71,6 +72,10 @@ export function RiskDetailPage() {
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [dialogMode, setDialogMode] = useState<'both' | 'search-only' | 'links-only'>('both');
     const [activeTab, setActiveTab] = useState<TabView>('overview');
+
+    // Delete confirmation dialog state
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // KRI Modal State
     const [isKRIModalOpen, setIsKRIModalOpen] = useState(false);
@@ -164,14 +169,18 @@ export function RiskDetailPage() {
         };
     }, [activeTab, risk?.kris]);
 
-    const handleDelete = async () => {
-        if (!risk || !window.confirm(`Are you sure you want to archive "${risk.name}"?`)) return;
+    const handleDelete = async (reason?: string) => {
+        if (!risk) return;
         try {
-            await riskApi.deleteRisk(risk.id);
+            setIsDeleting(true);
+            await riskApi.deleteRisk(risk.id, reason || 'Archived by user');
             navigate('/risks');
         } catch (err) {
             console.error('Error deleting risk:', err);
             alert('Failed to archive risk.');
+        } finally {
+            setIsDeleting(false);
+            setIsDeleteDialogOpen(false);
         }
     };
 
@@ -301,7 +310,7 @@ export function RiskDetailPage() {
                     </PermissionGate>
                     <PermissionGate resource="risks" action="delete">
                         <button
-                            onClick={handleDelete}
+                            onClick={() => setIsDeleteDialogOpen(true)}
                             className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
                         >
                             <Trash2 className="h-5 w-5" />
@@ -636,6 +645,21 @@ export function RiskDetailPage() {
                     onDelete={handleDeleteKRI}
                 />
             )}
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={isDeleteDialogOpen}
+                onClose={() => setIsDeleteDialogOpen(false)}
+                onConfirm={handleDelete}
+                title="Archive Risk"
+                message={`"${risk?.name}"\n\nThis will move the risk to archived status.`}
+                confirmLabel="Archive"
+                variant="danger"
+                isLoading={isDeleting}
+                showInput
+                inputLabel="Reason for archiving"
+                inputPlaceholder="Why is this risk being archived?"
+            />
         </div>
     );
 }

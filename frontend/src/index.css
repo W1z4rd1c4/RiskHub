@@ -372,3 +372,74 @@
 .theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(0, 0, 0, 0.3) !important;
 }
+
+/* =================================
+   CONFIRM DIALOG - THEME AWARE
+   ================================= */
+
+/* Default (RiskHub theme) */
+.confirm-dialog-backdrop {
+  background-color: rgba(0, 0, 0, 0.6);
+}
+
+.confirm-dialog-actions {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* True Dark Theme */
+.theme-dark .confirm-dialog-backdrop {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.theme-dark .confirm-dialog-content {
+  background-color: rgba(10, 10, 10, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.theme-dark .confirm-dialog-actions {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Light Theme */
+.theme-light .confirm-dialog-backdrop {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.theme-light .confirm-dialog-content {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.theme-light .confirm-dialog-content h3 {
+  color: #0f172a !important;
+}
+
+.theme-light .confirm-dialog-content p {
+  color: #475569 !important;
+}
+
+.theme-light .confirm-dialog-actions {
+  background-color: rgba(0, 0, 0, 0.02);
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.theme-light .confirm-dialog-actions button:first-child {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #334155 !important;
+}
+
+.theme-light .confirm-dialog-actions button:first-child:hover {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.theme-light .confirm-dialog-input {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+.theme-light .confirm-dialog-input::placeholder {
+  color: #94a3b8 !important;
+}
