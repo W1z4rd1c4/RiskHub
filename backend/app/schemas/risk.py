@@ -23,6 +23,14 @@ class RiskStatusEnum(str, Enum):
     archived = "archived"
 
 
+class ControlStatusEnum(str, Enum):
+    """Status of the control."""
+    draft = "draft"
+    active = "active"
+    inactive = "inactive"
+    archived = "archived"
+
+
 class ControlEffectivenessEnum(str, Enum):
     """How effectively a control mitigates a risk."""
     high = "high"
@@ -174,6 +182,7 @@ class ControlBriefForLink(BaseModel):
     name: str
     frequency: str
     risk_level: int
+    status: ControlStatusEnum
     
     model_config = {"from_attributes": True}
 
