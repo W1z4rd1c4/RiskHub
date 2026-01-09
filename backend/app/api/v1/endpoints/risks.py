@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_, func, asc, desc
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
@@ -34,6 +35,46 @@ async def validate_risk_type(db: AsyncSession, risk_type_code: str) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown risk type '{risk_type_code}'. Available types can be viewed in Risk Hub configuration."
         )
+
+
+async def generate_risk_id_code(db: AsyncSession, process: str) -> str:
+    """
+    Generate a unique risk_id_code using atomic MAX + 1 pattern.
+    
+    Format: {PROCESS_ABBR}-R{NN} where NN is zero-padded sequence number.
+    Example: CLAI-R01, CLAI-R02, UNDE-R01
+    
+    Args:
+        db: Database session
+        process: The process name to derive prefix from
+        
+    Returns:
+        Unique risk_id_code string
+    """
+    # Generate process abbreviation from first 4 alpha characters
+    process_abbr = ''.join(c for c in process.upper() if c.isalpha())[:4] or "RISK"
+    prefix = f"{process_abbr}-R"
+    pattern = f"{prefix}%"
+    
+    # Find existing codes with this prefix, ordered descending
+    result = await db.execute(
+        select(Risk.risk_id_code)
+        .where(Risk.risk_id_code.like(pattern))
+        .order_by(Risk.risk_id_code.desc())
+        .limit(10)
+    )
+    existing_codes = [row[0] for row in result.all()]
+    
+    # Extract max number from existing codes
+    max_num = 0
+    for code in existing_codes:
+        # Extract number after prefix (e.g., "CLAI-R05" -> 5)
+        suffix = code[len(prefix):]
+        if suffix.isdigit():
+            max_num = max(max_num, int(suffix))
+    
+    # Return next ID
+    return f"{prefix}{max_num + 1:02d}"
 
 
 # ============== CRUD Operations ==============
@@ -248,94 +289,90 @@ async def create_risk(
     # Validate risk type against dynamic configuration
     await validate_risk_type(db, risk_data.risk_type)
     
-    # Auto-generate risk_id_code if not provided
+    # Prepare for atomic retry pattern
     risk_id_code = risk_data.risk_id_code
-    if not risk_id_code:
-        # Generate process abbreviation from first 3-4 letters of process
-        process_abbr = ''.join(c for c in risk_data.process.upper() if c.isalpha())[:4] or "RISK"
-        pattern = f"{process_abbr}-R%"
-        
-        # Lock the latest risk with this prefix to serialize generation (prevents race conditions)
-        # Note: with_for_update() works on Postgres to lock the row. On SQLite it may be ignored or lock table.
+    auto_generated = not risk_id_code
+    
+    MAX_RETRIES = 5
+    last_error = None
+    
+    for attempt in range(MAX_RETRIES):
         try:
-            await db.execute(
-                select(Risk.id)
-                .where(Risk.risk_id_code.like(pattern))
-                .order_by(Risk.created_at.desc())
-                .limit(1)
-                .with_for_update()
+            if auto_generated:
+                risk_id_code = await generate_risk_id_code(db, risk_data.process)
+            
+            # Calculate scores
+            gross_score = risk_data.gross_probability * risk_data.gross_impact
+            net_score = risk_data.net_probability * risk_data.net_impact
+            
+            risk = Risk(
+                risk_id_code=risk_id_code,
+                name=risk_data.name,
+                process=risk_data.process,
+                subprocess=risk_data.subprocess,
+                risk_type=risk_data.risk_type,
+                category=risk_data.category,
+                description=risk_data.description,
+                department_id=risk_data.department_id,
+                owner_id=risk_data.owner_id,
+                gross_probability=risk_data.gross_probability,
+                gross_impact=risk_data.gross_impact,
+                gross_score=gross_score,
+                net_probability=risk_data.net_probability,
+                net_impact=risk_data.net_impact,
+                net_score=net_score,
+                status=risk_data.status.value,
+                is_priority=risk_data.is_priority,
             )
-        except Exception:
-            # Fallback for DBs that don't support row locking or complex queries with locking (e.g. SQLite)
-            pass
-
-        # Find the next available number for this prefix
-        result = await db.execute(
-            select(func.count()).select_from(Risk).where(Risk.risk_id_code.like(pattern))
-        )
-        count = result.scalar() or 0
-        risk_id_code = f"{process_abbr}-R{count + 1:02d}"
-        
-        # Check for uniqueness, increment if collision (safety net)
-        for i in range(100):
-            existing = await db.execute(
-                select(Risk).where(Risk.risk_id_code == risk_id_code)
+            
+            db.add(risk)
+            await db.flush()
+            
+            # Log activity within the same transaction
+            await log_activity(
+                db,
+                entity_type=ActivityEntityType.RISK,
+                entity_id=risk.id,
+                entity_name=f"{risk.risk_id_code}: {risk.description[:50] if risk.description else risk.name}",
+                action=ActivityAction.CREATE,
+                actor=current_user,
+                department_id=risk.department_id,
             )
-            if not existing.scalar_one_or_none():
-                break
-            risk_id_code = f"{process_abbr}-R{count + 2 + i:02d}"
+            await db.commit()
+            await db.refresh(risk)
+            
+            # Reload with relationships
+            result = await db.execute(
+                select(Risk)
+                .options(
+                    selectinload(Risk.department),
+                    selectinload(Risk.owner),
+                    selectinload(Risk.kris),
+                )
+                .where(Risk.id == risk.id)
+            )
+            return result.scalar_one()
+            
+        except IntegrityError as e:
+            await db.rollback()
+            last_error = e
+            
+            # Only retry for auto-generated IDs (user-provided ID collision should fail)
+            if not auto_generated:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Risk ID '{risk_id_code}' already exists"
+                )
+            
+            # Retry with fresh ID for auto-generated
+            if attempt < MAX_RETRIES - 1:
+                continue
     
-    # Calculate scores
-    gross_score = risk_data.gross_probability * risk_data.gross_impact
-    net_score = risk_data.net_probability * risk_data.net_impact
-    
-    risk = Risk(
-        risk_id_code=risk_id_code,
-        name=risk_data.name,
-        process=risk_data.process,
-        subprocess=risk_data.subprocess,
-        risk_type=risk_data.risk_type,
-        category=risk_data.category,
-        description=risk_data.description,
-        department_id=risk_data.department_id,
-        owner_id=risk_data.owner_id,
-        gross_probability=risk_data.gross_probability,
-        gross_impact=risk_data.gross_impact,
-        gross_score=gross_score,
-        net_probability=risk_data.net_probability,
-        net_impact=risk_data.net_impact,
-        net_score=net_score,
-        status=risk_data.status.value,
-        is_priority=risk_data.is_priority,
+    # All retries exhausted
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Could not generate unique Risk ID after retries. Please try again."
     )
-    
-    db.add(risk)
-    await db.flush()
-    
-    # Log activity within the same transaction
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.RISK,
-        entity_id=risk.id,
-        entity_name=f"{risk.risk_id_code}: {risk.description[:50]}",
-        action=ActivityAction.CREATE,
-        actor=current_user,
-        department_id=risk.department_id,
-    )
-    await db.commit()
-    await db.refresh(risk)
-    
-    # Reload with relationships
-    result = await db.execute(
-        select(Risk)
-        .options(
-            selectinload(Risk.department),
-            selectinload(Risk.owner),
-            selectinload(Risk.kris),
-        )
-        .where(Risk.id == risk.id)
-    )
-    return result.scalar_one()
 
 
 @router.patch("/{risk_id}", response_model=RiskRead)
