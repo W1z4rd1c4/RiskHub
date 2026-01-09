@@ -22,6 +22,22 @@ if not settings.debug and settings.secret_key == INSECURE_SECRET:
 if settings.debug and settings.secret_key == INSECURE_SECRET:
     logger.warning("placeholder_secret_key", message="Using placeholder SECRET_KEY in debug mode - DO NOT USE IN PRODUCTION")
 
+# Mock auth production guard
+import os
+if os.getenv("MOCK_AUTH_ENABLED", "false").lower() == "true":
+    if not settings.debug:
+        logger.critical(
+            "mock_auth_production_error",
+            message="FATAL: MOCK_AUTH_ENABLED=true with DEBUG=false is forbidden. "
+                    "Disable mock auth for production deployment."
+        )
+        raise RuntimeError("MOCK_AUTH_ENABLED cannot be true in non-debug mode")
+    else:
+        logger.warning(
+            "mock_auth_warning",
+            message="MOCK_AUTH_ENABLED=true - Development mode only"
+        )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
