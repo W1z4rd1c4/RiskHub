@@ -309,6 +309,43 @@ Plans:
 **Status**: Planned
 **Plans**: 14 plans
 
+**Security Concerns (Penetration Test - 2026-01-08):**
+> [!WARNING]
+> The following issues were identified during live penetration testing and MUST be addressed before production deployment:
+
+| Finding | Severity | Remediation |
+|---------|----------|-------------|
+| **Webhook allows user injection** | Critical | Set `WEBHOOK_SECRET` to a strong random value - endpoint accepts ANY signature when empty |
+| **OpenAPI/Swagger publicly exposed** | Medium | Disable `/docs` and `/openapi.json` in production or require authentication |
+| **Database port 5432 exposed to host** | Medium | Remove `ports: - "5432:5432"` from docker-compose; bind DB to internal Docker network only |
+| **Rate limiting disabled in DEBUG mode** | Medium | Ensure `DEBUG=false` in production to enable brute-force protection |
+| **Mock Auth enabled in docker-compose.yml** | Critical | Set `MOCK_AUTH_ENABLED=false` and `DEBUG=false` for any non-development deployment |
+| **Demo login endpoint** | Medium | Disable `/auth/demo-login/{id}` in production (only works when DEBUG=true) |
+| **Null byte in email causes 500** | Low | Add input validation to reject null bytes in string fields |
+| **Excel exports formula injection** | Low | Sanitize cell values starting with `=`, `+`, `-`, `@` by prefixing with single quote |
+| **Verbose Pydantic errors** | Low | Consider masking field details in production error responses |
+
+**Verified Secure (Elite Attacks Blocked):**
+- All API endpoints require valid JWT (unauthenticated access blocked)
+- SQL injection attempts blocked (parameterized queries via SQLAlchemy)
+- Blind SQL timing attacks blocked (queries return instantly)
+- JWT forgery (`alg: none`) rejected
+- JWT `kid` path traversal rejected
+- JWT secret brute-force failed (not using common secrets)
+- Path traversal blocked
+- Security headers properly configured (CSP, X-Frame-Options, HSTS, XSS protection)
+- HTTP Request Smuggling rejected ("Invalid HTTP request")
+- CRLF header injection handled gracefully
+- Log injection handled (newlines treated as literal strings)
+- NoSQL injection blocked by Pydantic type validation
+- Mass assignment with nested objects ignored
+- Race conditions on approvals properly blocked
+- XSS stored but safely rendered (React escapes, PDF/Excel shows raw text)
+- SSRF via PDF not exploitable (URLs rendered as text)
+- Privilege escalation blocked (users cannot modify own role)
+- IDOR blocked (cross-department access denied)
+- Error messages don't reveal user existence
+
 Plans:
 - [x] 17-00: Admin Console Robustness Fixes (Active Users Timezone Logic)
 - [ ] 17-01: Docker Scaffolding (multi-stage builds, Compose, health checks)
