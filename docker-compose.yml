@@ -1,5 +1,22 @@
 # RiskHub Development Docker Compose
-# Run with: docker-compose up -d
+# ==============================================================================
+#
+# RECOMMENDED WORKFLOWS:
+#
+# 1. Database only (for local backend development):
+#    docker-compose up -d db
+#    cd backend && uvicorn app.main:app --reload
+#
+# 2. Full stack (all services via Docker):
+#    docker-compose up -d
+#
+# 3. Full stack with AD emulator:
+#    docker-compose --profile with-ad up -d
+#
+# 4. LAN access (access from other devices):
+#    LAN_HOST=192.168.x.x docker-compose up -d
+#
+# ==============================================================================
 
 services:
   # ==========================================================================
@@ -37,7 +54,8 @@ services:
       - DEBUG=true
       - MOCK_AUTH_ENABLED=true
       - SECRET_KEY=dev-secret-key-not-for-production-use
-      - CORS_ORIGINS=["http://localhost:80","http://localhost:5173","http://frontend:80"]
+      # LAN_HOST allows access from other devices. Set externally: LAN_HOST=192.168.x.x docker-compose up
+      - CORS_ORIGINS=["http://localhost:80","http://localhost:5173","http://frontend:80","http://${LAN_HOST:-localhost}:80","http://${LAN_HOST:-localhost}:8000"]
       - AD_EMULATOR_URL=http://ad-emulator:8001/api/v1
     ports:
       - "8000:8000"
