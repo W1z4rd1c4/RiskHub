@@ -5,7 +5,7 @@ Each KRI must be linked to a Risk.
 from enum import Enum as PyEnum
 from datetime import datetime, date
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import String, Text, Float, ForeignKey, DateTime, Date, func
+from sqlalchemy import String, Text, Float, ForeignKey, DateTime, Date, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -62,9 +62,21 @@ class KeyRiskIndicator(Base):
     last_updated: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     
+    # Archive fields (soft-delete) - matches Risk/Control pattern
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", index=True)
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    archived_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    
     # Relationships
     risk: Mapped["Risk"] = relationship("Risk", back_populates="kris")
-    reporting_owner: Mapped[Optional["User"]] = relationship("User")
+    reporting_owner: Mapped[Optional["User"]] = relationship(
+        "User", 
+        foreign_keys=[reporting_owner_id],
+    )
+    archived_by: Mapped[Optional["User"]] = relationship(
+        "User",
+        foreign_keys=[archived_by_id],
+    )
     history_entries: Mapped[list["KRIValueHistory"]] = relationship(
         "KRIValueHistory", 
         back_populates="kri", 
