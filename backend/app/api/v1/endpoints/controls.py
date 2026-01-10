@@ -23,7 +23,91 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 router = APIRouter()
 
 
+# ============== Private Helpers ==============
+
+def _build_pending_changes(control: "Control", update_data: dict) -> dict:
+    """
+    Build pending_changes dict for approval requests.
+    Normalizes enum-like values to .value strings.
+    Returns: {field: {"old": old_value, "new": new_value}, ...}
+    """
+    return {
+        k: {
+            "old": getattr(control, k, None),
+            "new": v.value if hasattr(v, "value") else v,
+        }
+        for k, v in update_data.items()
+    }
+
+
+async def _first_high_risk_linked_risk(db: "AsyncSession", control_id: int) -> tuple[bool, "Risk | None"]:
+    """
+    Scan linked risks for the first one that qualifies as high-risk for approvals.
+    
+    Returns:
+        (is_high_risk, risk): Tuple of whether a high-risk link exists and the first such risk (or None).
+    """
+    from app.core.permissions import is_high_risk_for_approval_async
+    
+    result = await db.execute(
+        select(Risk).join(ControlRiskLink).where(ControlRiskLink.control_id == control_id)
+    )
+    for risk in result.scalars():
+        if await is_high_risk_for_approval_async(risk, db):
+            return True, risk
+    return False, None
+
+
+async def _apply_department_scoping(
+    db: "AsyncSession",
+    query,
+    current_user: "User",
+    department_id_filter: int | None,
+):
+    """
+    Apply department-based scoping to a Control query.
+    
+    - Restricted users see only their departments + controls they own
+    - Privileged users can optionally filter by department_id
+    """
+    from app.core.permissions import get_control_ids_where_owner
+    
+    dept_ids = get_user_department_ids(current_user)
+    if dept_ids is not None:  # User is restricted to specific departments
+        control_owner_ids = await get_control_ids_where_owner(db, current_user.id)
+        if control_owner_ids:
+            query = query.where(
+                or_(
+                    Control.department_id.in_(dept_ids),
+                    Control.id.in_(control_owner_ids)
+                )
+            )
+        else:
+            query = query.where(Control.department_id.in_(dept_ids))
+    elif department_id_filter:  # Privileged user can filter by specific department
+        query = query.where(Control.department_id == department_id_filter)
+    
+    return query
+
+
+def _apply_process_category_filters(query, process: str | None, category: str | None):
+    """
+    Apply optional process/category filters via linked Risk.
+    Only applies if at least one filter is provided.
+    """
+    if not process and not category:
+        return query
+    
+    query = query.join(Control.risk_links).join(ControlRiskLink.risk)
+    if process:
+        query = query.where(Risk.process == process)
+    if category:
+        query = query.where(Risk.category == category)
+    return query.distinct()
+
+
 # ============== CRUD Operations ==============
+
 
 @router.get("", response_model=ControlListResponse)
 async def list_controls(
@@ -43,26 +127,10 @@ async def list_controls(
     Also includes controls where user is the control owner.
     Returns paginated response with total count.
     """
-    from app.core.permissions import get_control_ids_where_owner
-    
     base_query = select(Control)
     
-    # Department filtering based on role
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:  # If not empty, user is restricted to specific departments
-        # Include controls from user's departments OR where user is control owner
-        control_owner_ids = await get_control_ids_where_owner(db, current_user.id)
-        if control_owner_ids:
-            base_query = base_query.where(
-                or_(
-                    Control.department_id.in_(dept_ids),
-                    Control.id.in_(control_owner_ids)
-                )
-            )
-        else:
-            base_query = base_query.where(Control.department_id.in_(dept_ids))
-    elif department_id:  # Privileged user can filter by specific department
-        base_query = base_query.where(Control.department_id == department_id)
+    # Apply department-based scoping
+    base_query = await _apply_department_scoping(db, base_query, current_user, department_id)
     
     # Status filter
     if status:
@@ -71,8 +139,7 @@ async def list_controls(
         # Default: exclude archived
         base_query = base_query.where(Control.status != ControlStatusEnum.archived.value)
     
-    # Join for secondary search fields
-    # We join Risk via ControlRiskLink
+    # Join for secondary search fields (Risk via ControlRiskLink)
     from app.models.department import Department
     from sqlalchemy.orm import aliased
     
@@ -100,14 +167,8 @@ async def list_controls(
     # Distinct because of risk joins
     base_query = base_query.distinct()
 
-    # Advanced filters (Process/Category via Risk links)
-    if process or category:
-        base_query = base_query.join(Control.risk_links).join(ControlRiskLink.risk)
-        if process:
-            base_query = base_query.where(Risk.process == process)
-        if category:
-            base_query = base_query.where(Risk.category == category)
-        base_query = base_query.distinct()
+    # Apply optional process/category filters
+    base_query = _apply_process_category_filters(base_query, process, category)
     
     # Get total count before pagination
     count_query = select(func.count()).select_from(base_query.subquery())
@@ -304,7 +365,7 @@ async def update_control(
     
     # Check for approval requirements (non-privileged users only)
     if not can_resolve_approvals(current_user):
-        from app.core.approval_helpers import get_primary_approver_for_control, check_control_requires_privileged_approval
+        from app.core.approval_helpers import get_primary_approver_for_control, check_control_requires_privileged_approval, create_approval_request_with_audit
         
         requires_approval = False
         approval_reason = ""
@@ -312,17 +373,11 @@ async def update_control(
         is_priority_linked = False
         
         # Check 1: Is control linked to critical risk?
-        linked_risks_result = await db.execute(
-            select(Risk).join(ControlRiskLink).where(ControlRiskLink.control_id == control.id)
-        )
-        for risk in linked_risks_result.scalars():
-            if await is_high_risk_for_approval_async(risk, db):
-                requires_approval = True
-                is_priority_linked = True
-                approval_reason = f"Edit to control linked to critical risk {risk.risk_id_code}"
-                pending_changes = {k: {"old": getattr(control, k, None), "new": v.value if hasattr(v, 'value') else v} 
-                                   for k, v in update_data.items()}
-                break
+        is_priority_linked, high_risk = await _first_high_risk_linked_risk(db, control.id)
+        if is_priority_linked and high_risk:
+            requires_approval = True
+            approval_reason = f"Edit to control linked to critical risk {high_risk.risk_id_code}"
+            pending_changes = _build_pending_changes(control, update_data)
         
         # Check 2: Sensitive field changes (even if not linked to critical risk)
         if not requires_approval:
@@ -337,10 +392,10 @@ async def update_control(
         if not requires_approval and is_owner:
             requires_approval = True
             approval_reason = f"Control owner edit requires Risk Owner approval"
-            pending_changes = {k: {"old": getattr(control, k, None), "new": v.value if hasattr(v, 'value') else v} 
-                               for k, v in update_data.items()}
+            pending_changes = _build_pending_changes(control, update_data)
             # Check if any linked risk is priority
             is_priority_linked = await check_control_requires_privileged_approval(db, control.id)
+
         
         if requires_approval:
             # Check for existing pending edit request
@@ -372,28 +427,12 @@ async def update_control(
                 requires_privileged_approval=is_priority_linked,
             )
             
-            try:
-                db.add(approval)
-                await db.flush()
-                
-                await log_activity(
-                    db,
-                    entity_type=ActivityEntityType.APPROVAL,
-                    entity_id=approval.id,
-                    entity_name=approval.resource_name,
-                    action=ActivityAction.CREATE,
-                    actor=current_user,
-                    department_id=control.department_id,
-                )
-                await db.commit()
-            except IntegrityError as e:
-                await db.rollback()
-                if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail="An approval request is already pending for this action."
-                    )
-                raise
+            await create_approval_request_with_audit(
+                db,
+                approval=approval,
+                actor=current_user,
+                department_id=control.department_id,
+            )
             
             # Notify Approvers
             try:
@@ -531,7 +570,7 @@ async def delete_control(
     name_snippet = control.name[:50] if control.name else ""
     
     # Get primary approver (Risk Owner of highest-priority linked risk)
-    from app.core.approval_helpers import get_primary_approver_for_control, check_control_requires_privileged_approval
+    from app.core.approval_helpers import get_primary_approver_for_control, check_control_requires_privileged_approval, create_approval_request_with_audit
     from app.models import ApprovalActionType
     primary_approver_id = await get_primary_approver_for_control(db, control.id)
     if primary_approver_id == current_user.id:
@@ -551,28 +590,12 @@ async def delete_control(
         requires_privileged_approval=requires_privileged,
     )
     
-    try:
-        db.add(approval)
-        await db.flush()
-        
-        await log_activity(
-            db,
-            entity_type=ActivityEntityType.APPROVAL,
-            entity_id=approval.id,
-            entity_name=approval.resource_name,
-            action=ActivityAction.CREATE,
-            actor=current_user,
-            department_id=control.department_id,
-        )
-        await db.commit()
-    except IntegrityError as e:
-        await db.rollback()
-        if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="An approval request is already pending for this action."
-            )
-        raise
+    await create_approval_request_with_audit(
+        db,
+        approval=approval,
+        actor=current_user,
+        department_id=control.department_id,
+    )
     
     # Needs logic to find primary approver for delete requests as well
     from app.core.approval_helpers import get_primary_approver_for_control
