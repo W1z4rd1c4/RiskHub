@@ -439,7 +439,7 @@ async def update_risk(
     if existing_delete.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Cannot update risk while deletion is pending approval")
     
-    # Check for sensitive field changes (non-privileged users only)
+    # Check for sensitive field changes OR priority risk edits (non-privileged users only)
     if not can_resolve_approvals(current_user):
         old_data = {
             "owner_id": risk.owner_id,
@@ -449,7 +449,10 @@ async def update_risk(
         }
         has_sensitive, changed = has_sensitive_field_changes("risk", old_data, update_data)
         
-        if has_sensitive:
+        # NEW: Any edit on a priority risk requires approval
+        is_priority_risk_edit = risk.is_priority and bool(update_data)
+        
+        if has_sensitive or is_priority_risk_edit:
             # Check for existing pending edit request (both statuses)
             existing = await db.execute(
                 select(ApprovalRequest).where(
@@ -462,14 +465,30 @@ async def update_risk(
             if existing.scalar_one_or_none():
                 raise HTTPException(status_code=400, detail="Edit request already pending for this risk")
             
+            # Build pending_changes for all fields being changed (not just sensitive ones)
+            if is_priority_risk_edit and not has_sensitive:
+                # For priority risks, include ALL changes in the approval request
+                changed = {}
+                for field, new_val in update_data.items():
+                    old_val = getattr(risk, field, None)
+                    if hasattr(new_val, "value"):  # Handle enums
+                        new_val = new_val.value
+                    if old_val != new_val:
+                        changed[field] = {"old": old_val, "new": new_val}
+            
             # Create approval request instead of applying changes
             desc_snippet = risk.description[:50] if risk.description else ""
+            reason = (
+                f"Edit to priority risk - fields: {', '.join(changed.keys())}"
+                if is_priority_risk_edit and not has_sensitive
+                else f"Change to sensitive fields: {', '.join(changed.keys())}"
+            )
             approval = ApprovalRequest(
                 resource_type=ApprovalResourceType.RISK,
                 resource_id=risk.id,
                 resource_name=f"{risk.risk_id_code}: {desc_snippet}",
                 requested_by_id=current_user.id,
-                reason=f"Change to sensitive fields: {', '.join(changed.keys())}",
+                reason=reason,
                 action_type=ApprovalActionType.EDIT,
                 pending_changes=changed,
                 status=ApprovalStatus.PENDING,
@@ -503,7 +522,7 @@ async def update_risk(
             return JSONResponse(
                 status_code=status.HTTP_202_ACCEPTED,
                 content={
-                    "message": "Change requires approval",
+                    "message": "Change requires approval" + (" (priority risk)" if is_priority_risk_edit else ""),
                     "approval_id": approval.id,
                     "action_type": "edit",
                     "pending_fields": list(changed.keys()),
