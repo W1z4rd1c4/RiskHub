@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Background
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, async_sessionmaker
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 
 from app.db.session import get_db
 from app.models import (
