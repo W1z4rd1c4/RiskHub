@@ -41,8 +41,9 @@ export const dashboardApi = {
         return apiClient.get<DepartmentMetrics[]>('/dashboard/departments', { params });
     },
 
-    async fetchRiskDistribution(filters?: DashboardFilters): Promise<RiskDistribution> {
+    async fetchRiskDistribution(filters?: DashboardFilters, riskType: 'gross' | 'net' = 'net'): Promise<RiskDistribution> {
         const params = buildQueryParams(filters);
+        params.risk_type = riskType;
         return apiClient.get<RiskDistribution>('/dashboard/risk-distribution', { params });
     },
 

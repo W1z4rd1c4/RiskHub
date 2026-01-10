@@ -299,9 +299,14 @@ async def get_risk_distribution(
     current_user: User = Depends(deps.get_current_user),
     department_id: Optional[int] = Query(None, description="Filter by department"),
     risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(None, description="Filter by risk level"),
+    risk_type: Literal["gross", "net"] = Query("net", description="Type of risk matrix: 'gross' or 'net'"),
     include_archived: bool = Query(False, description="Include archived risks"),
 ):
-    """Get risk distribution for 5x5 risk matrix visualization with optional filters."""
+    """Get risk distribution for 5x5 risk matrix visualization with optional filters.
+    
+    Args:
+        risk_type: 'gross' uses gross_probability/gross_impact; 'net' uses net_probability/net_impact
+    """
     dept_ids = get_user_department_ids(current_user)
 
     # Build conditions
@@ -317,29 +322,37 @@ async def get_risk_distribution(
         if risk_level_cond is not None:
             conditions.append(risk_level_cond)
     
-    # Group risks by net_probability and net_impact
+    # Select probability/impact columns based on risk_type
+    if risk_type == "gross":
+        prob_col = Risk.gross_probability
+        impact_col = Risk.gross_impact
+    else:
+        prob_col = Risk.net_probability
+        impact_col = Risk.net_impact
+    
+    # Group risks by selected probability and impact
     distribution_query = select(
-        Risk.net_probability,
-        Risk.net_impact,
+        prob_col.label('probability'),
+        impact_col.label('impact'),
         func.count(Risk.id).label('count')
     )
     
     if conditions:
         distribution_query = distribution_query.where(and_(*conditions))
     
-    distribution_query = distribution_query.group_by(Risk.net_probability, Risk.net_impact)
+    distribution_query = distribution_query.group_by(prob_col, impact_col)
     
     result = await db.execute(distribution_query)
     rows = result.all()
     
     distribution = [
         RiskDistributionItem(
-            probability=row.net_probability,
-            impact=row.net_impact,
+            probability=row.probability,
+            impact=row.impact,
             count=row.count
         )
         for row in rows
-        if row.net_probability and row.net_impact
+        if row.probability and row.impact
     ]
     
     return RiskDistributionResponse(distribution=distribution)

@@ -19,8 +19,13 @@ import type { UserLookupItem } from '@/services/lookupApi';
 import type { Risk, RiskCreate, RiskUpdate } from '@/types/risk';
 import { RiskStatus } from '@/types/risk';
 import { RiskScoreMatrix } from '@/components/RiskScoreMatrix';
-import { useRiskTypes } from '@/hooks/useRiskHubConfig';
+import { useRiskTypes, useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import {
+    PROBABILITY_DESCRIPTIONS,
+    IMPACT_DESCRIPTIONS,
+    formatFinancialRange
+} from '@/constants/riskScoreDescriptions';
 
 interface RiskFormProps {
     initialData?: Risk;
@@ -41,6 +46,9 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
 
     // Fetch risk types from Risk Hub
     const { riskTypes, isLoading: riskTypesLoading } = useRiskTypes();
+
+    // Fetch total assets for financial loss calculations
+    const { totalAssets } = useTotalAssetsValue();
 
     // Validation errors (inline)
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -635,6 +643,15 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                 onChange={(e) => handleInputChange('gross_probability', parseInt(e.target.value))}
                                                 className="w-full accent-amber-500"
                                             />
+                                            {formData.gross_probability && PROBABILITY_DESCRIPTIONS[formData.gross_probability] && (
+                                                <p className="text-xs text-slate-400 mt-1">
+                                                    <span className="font-semibold text-amber-400">
+                                                        {PROBABILITY_DESCRIPTIONS[formData.gross_probability].label}
+                                                    </span>
+                                                    <span className="mx-1">—</span>
+                                                    {PROBABILITY_DESCRIPTIONS[formData.gross_probability].description}
+                                                </p>
+                                            )}
                                         </div>
                                         <div>
                                             <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
@@ -647,6 +664,18 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                 onChange={(e) => handleInputChange('gross_impact', parseInt(e.target.value))}
                                                 className="w-full accent-amber-500"
                                             />
+                                            {formData.gross_impact && IMPACT_DESCRIPTIONS[formData.gross_impact] && (
+                                                <p className="text-xs text-slate-400 mt-1">
+                                                    <span className="font-semibold text-amber-400">
+                                                        {IMPACT_DESCRIPTIONS[formData.gross_impact].label}
+                                                    </span>
+                                                    <span className="mx-1">—</span>
+                                                    {IMPACT_DESCRIPTIONS[formData.gross_impact].description}.
+                                                    <span className="text-slate-500 ml-1">
+                                                        Loss: {formatFinancialRange(formData.gross_impact, totalAssets)}
+                                                    </span>
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
 
@@ -676,6 +705,15 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                 onChange={(e) => handleInputChange('net_probability', parseInt(e.target.value))}
                                                 className="w-full accent-emerald-500"
                                             />
+                                            {formData.net_probability && PROBABILITY_DESCRIPTIONS[formData.net_probability] && (
+                                                <p className="text-xs text-slate-400 mt-1">
+                                                    <span className="font-semibold text-emerald-400">
+                                                        {PROBABILITY_DESCRIPTIONS[formData.net_probability].label}
+                                                    </span>
+                                                    <span className="mx-1">—</span>
+                                                    {PROBABILITY_DESCRIPTIONS[formData.net_probability].description}
+                                                </p>
+                                            )}
                                         </div>
                                         <div>
                                             <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
@@ -688,6 +726,18 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                 onChange={(e) => handleInputChange('net_impact', parseInt(e.target.value))}
                                                 className="w-full accent-emerald-500"
                                             />
+                                            {formData.net_impact && IMPACT_DESCRIPTIONS[formData.net_impact] && (
+                                                <p className="text-xs text-slate-400 mt-1">
+                                                    <span className="font-semibold text-emerald-400">
+                                                        {IMPACT_DESCRIPTIONS[formData.net_impact].label}
+                                                    </span>
+                                                    <span className="mx-1">—</span>
+                                                    {IMPACT_DESCRIPTIONS[formData.net_impact].description}.
+                                                    <span className="text-slate-500 ml-1">
+                                                        Loss: {formatFinancialRange(formData.net_impact, totalAssets)}
+                                                    </span>
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
 
