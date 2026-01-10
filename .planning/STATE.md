@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 251-06: Simplified `RisksPage.tsx` (647→614 lines) by creating shared `useDebouncedValue` and `usePendingApprovalIds` hooks. Removed duplicate debounce and pending approvals fetch effects. Build passes.
+- Completed Plan 251-07: Simplified `ControlsPage.tsx` (467→444 lines) by reusing shared `useDebouncedValue` and `usePendingApprovalIds` hooks. Extracted grouped-view fetch logic into `fetchAllForGroupedView` helper. Build passes.
 
 ### Next Step
-- Continue Phase 251 Spaghetti Simplification 2 (6/10 plans complete). Execute Plan 251-07.
+- Continue Phase 251 Spaghetti Simplification 2 (7/10 plans complete). Execute Plan 251-08.
 
 
 ---
