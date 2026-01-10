@@ -184,7 +184,7 @@ class TestApprovalWorkflow:
             net_probability=3,
             net_impact=4,
             net_score=12,
-            status=RiskStatus.ACTIVE.value,
+            status=RiskStatus.active.value,
         )
         db_session.add(priority_risk)
         await db_session.commit()
@@ -235,7 +235,7 @@ class TestApprovalWorkflow:
             net_probability=3,
             net_impact=4,
             net_score=12,
-            status=RiskStatus.ACTIVE.value,
+            status=RiskStatus.active.value,
         )
         db_session.add(priority_risk)
         await db_session.commit()
