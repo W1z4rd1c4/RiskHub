@@ -30,14 +30,21 @@ async def list_kris(
     current_user: User = Depends(deps.get_current_user),
     risk_id: Optional[int] = Query(None, description="Filter by risk ID"),
     breach_only: bool = Query(False, description="Only return breached KRIs"),
+    include_archived: bool = Query(False, description="Include archived KRIs (privileged only)"),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=1000),
 ):
     """List all KRIs with optional filters."""
-    from app.core.permissions import get_kri_ids_where_reporting_owner
+    from app.core.permissions import get_kri_ids_where_reporting_owner, can_resolve_approvals
     
     # Apply department filtering via Risk join
     query = select(KeyRiskIndicator).join(Risk)
+    
+    # Exclude archived KRIs by default (only privileged users can include them)
+    if include_archived and can_resolve_approvals(current_user):
+        pass  # Include all
+    else:
+        query = query.where(KeyRiskIndicator.is_archived == False)
     
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:
@@ -211,9 +218,10 @@ async def get_kri(
     kri_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
+    include_archived: bool = Query(False, description="Include archived KRI (privileged only)"),
 ):
     """Get a single KRI by ID."""
-    from app.core.permissions import is_kri_reporting_owner
+    from app.core.permissions import is_kri_reporting_owner, can_resolve_approvals
     
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -225,6 +233,11 @@ async def get_kri(
     
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
+    
+    # Check if archived - only privileged can access
+    if kri.is_archived:
+        if not (include_archived and can_resolve_approvals(current_user)):
+            raise HTTPException(status_code=404, detail="KRI not found")
     
     # Allow access if user is reporting owner (cross-department)
     if await is_kri_reporting_owner(db, current_user.id, kri_id):
@@ -308,6 +321,10 @@ async def update_kri(
     
     # Verify department access
     check_department_access(kri.risk.department_id, current_user)
+    
+    # Block updates on archived KRIs
+    if kri.is_archived:
+        raise HTTPException(status_code=409, detail="Cannot update archived KRI")
     
     update_data = data.model_dump(exclude_unset=True)
     
@@ -462,19 +479,24 @@ async def delete_kri(
     # Verify department access via linked risk
     check_department_access(kri.risk.department_id, current_user)
     
-    # Privileged users can delete immediately
+    # Privileged users can archive immediately (no approval needed)
     if can_resolve_approvals(current_user):
-        # Log activity before deletion
+        from datetime import datetime, UTC
+        # Archive instead of hard delete (preserves audit trail + history)
+        kri.is_archived = True
+        kri.archived_at = datetime.now(UTC)
+        kri.archived_by_id = current_user.id
+        
+        # Log activity as ARCHIVE (not DELETE - record is preserved)
         await log_activity(
             db,
             entity_type=ActivityEntityType.KRI,
             entity_id=kri.id,
             entity_name=f"{kri.metric_name}",
-            action=ActivityAction.DELETE,
+            action=ActivityAction.ARCHIVE,
             actor=current_user,
             department_id=kri.risk.department_id,
         )
-        await db.delete(kri)
         await db.commit()
         return Response(status_code=204)
     
@@ -556,6 +578,10 @@ async def record_kri_value(
     
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
+    
+    # Block submissions on archived KRIs
+    if kri.is_archived:
+        raise HTTPException(status_code=409, detail="Cannot submit values for archived KRI")
     
     # Check if user is reporting owner (cross-department access)
     is_reporting_owner = await is_kri_reporting_owner(db, current_user.id, kri_id)
