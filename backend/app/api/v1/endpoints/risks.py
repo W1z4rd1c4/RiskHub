@@ -652,8 +652,8 @@ async def delete_risk(
         from app.models import Department
         dept_result = await db.execute(select(Department).where(Department.id == risk.department_id))
         dept = dept_result.scalar_one_or_none()
-        if dept and hasattr(dept, 'head_id') and dept.head_id and dept.head_id != current_user.id:
-            primary_approver_id = dept.head_id
+        if dept and dept.manager_id and dept.manager_id != current_user.id:
+            primary_approver_id = dept.manager_id
     
     # Determine if privileged approval is needed (priority risks)
     requires_privileged = bool(risk.is_priority)
