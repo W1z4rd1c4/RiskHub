@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 251-07: Simplified `ControlsPage.tsx` (467→444 lines) by reusing shared `useDebouncedValue` and `usePendingApprovalIds` hooks. Extracted grouped-view fetch logic into `fetchAllForGroupedView` helper. Build passes.
+- Completed Plan 251-08: Simplified `ActivityLogPage.tsx` (560→414 lines) by extracting data fetching into `useActivityLogPageState.ts` hook and filter UI into `ActivityLogFilterBar.tsx` component. Build passes.
 
 ### Next Step
-- Continue Phase 251 Spaghetti Simplification 2 (7/10 plans complete). Execute Plan 251-08.
+- Continue Phase 251 Spaghetti Simplification 2 (8/10 plans complete). Execute Plan 251-09.
 
 
 ---
