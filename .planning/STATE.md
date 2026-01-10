@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 251-04: Simplified user endpoints by creating shared `user_query_options.py` helper, reducing selectinload duplication in `users.py` and `access.py`. Added docstrings to privileged gating helpers. Tests pass.
+- Completed Plan 251-06: Simplified `RisksPage.tsx` (647→614 lines) by creating shared `useDebouncedValue` and `usePendingApprovalIds` hooks. Removed duplicate debounce and pending approvals fetch effects. Build passes.
 
 ### Next Step
-- Continue Phase 251 Spaghetti Simplification 2 (4/10 plans complete). Execute Plan 251-05.
+- Continue Phase 251 Spaghetti Simplification 2 (6/10 plans complete). Execute Plan 251-07.
 
 
 ---
