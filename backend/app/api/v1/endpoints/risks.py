@@ -715,6 +715,8 @@ async def list_risk_controls(
     current_user: User = Depends(deps.get_current_user),
 ):
     """List controls that mitigate this risk."""
+    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
+    
     # Verify risk exists
     result = await db.execute(
         select(Risk).where(Risk.id == risk_id)
@@ -723,8 +725,22 @@ async def list_risk_controls(
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
     
-    # Verify department access
-    check_department_access(risk.department_id, current_user)
+    # Allow access via ownership (same pattern as GET /risks/{id})
+    has_access = False
+    if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
+        has_access = True
+    elif await is_risk_control_owner(db, current_user.id, risk_id):
+        has_access = True
+    else:
+        # Fall back to department check
+        try:
+            check_department_access(risk.department_id, current_user)
+            has_access = True
+        except HTTPException:
+            pass
+    
+    if not has_access:
+        raise HTTPException(status_code=403, detail="Access denied")
     
     result = await db.execute(
         select(ControlRiskLink)
@@ -746,6 +762,7 @@ async def link_risk_to_control(
 ):
     """Link a risk to a control."""
     from app.models import Control
+    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
     
     # Verify risk exists
     result = await db.execute(
@@ -755,8 +772,21 @@ async def link_risk_to_control(
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
     
-    # Verify department access for risk
-    check_department_access(risk.department_id, current_user)
+    # Allow access via ownership (same pattern as GET /risks/{id})
+    has_risk_access = False
+    if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
+        has_risk_access = True
+    elif await is_risk_control_owner(db, current_user.id, risk_id):
+        has_risk_access = True
+    else:
+        try:
+            check_department_access(risk.department_id, current_user)
+            has_risk_access = True
+        except HTTPException:
+            pass
+    
+    if not has_risk_access:
+        raise HTTPException(status_code=403, detail="Access denied to risk")
     
     # Verify control exists
     result = await db.execute(
@@ -809,6 +839,8 @@ async def unlink_risk_from_control(
     current_user: User = Depends(require_permission("risks", "write")),
 ):
     """Remove link between risk and control."""
+    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
+    
     result = await db.execute(
         select(ControlRiskLink)
         .where(ControlRiskLink.risk_id == risk_id)
@@ -819,11 +851,24 @@ async def unlink_risk_from_control(
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
     
-    # Verify department access for both sides
+    # Verify access for risk (ownership or department)
     result = await db.execute(select(Risk).where(Risk.id == risk_id))
     risk = result.scalar_one_or_none()
     if risk:
-        check_department_access(risk.department_id, current_user)
+        has_risk_access = False
+        if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
+            has_risk_access = True
+        elif await is_risk_control_owner(db, current_user.id, risk_id):
+            has_risk_access = True
+        else:
+            try:
+                check_department_access(risk.department_id, current_user)
+                has_risk_access = True
+            except HTTPException:
+                pass
+        
+        if not has_risk_access:
+            raise HTTPException(status_code=403, detail="Access denied to risk")
         
     result = await db.execute(select(Control).where(Control.id == control_id))
     control = result.scalar_one_or_none()
