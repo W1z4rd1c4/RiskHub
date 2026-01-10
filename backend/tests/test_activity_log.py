@@ -281,6 +281,77 @@ async def test_approval_activity_log_create_and_approve(
     assert entry.changes["status"]["old"].upper() == "PENDING"
     assert entry.changes["status"]["new"].upper() == "APPROVED"
 
+    result = await db_session.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.RISK.value,
+            ActivityLog.entity_id == risk_id,
+            ActivityLog.action == ActivityAction.ARCHIVE.value,
+        )
+    )
+    entry = result.scalars().first()
+    assert entry is not None
+    assert f"approval #{approval_id}" in entry.description.lower()
+
+
+@pytest.mark.asyncio
+async def test_approval_execution_logs_entity_update_for_priority_risk_edit(
+    client: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user_employee: User,
+    test_user_cro: User,
+    seed_risk_types,
+):
+    risk_response = await client.post(
+        "/api/v1/risks",
+        headers={"X-Mock-User-Id": str(test_user_cro.id)},
+        json={
+            "risk_id_code": "R-AL-05",
+            "name": "Priority Risk",
+            "process": "Approval Process",
+            "description": "Risk for approval execution log test",
+            "department_id": test_department.id,
+            "owner_id": test_user_cro.id,
+            "risk_type": "operational",
+            "category": "Testing",
+            "gross_probability": 3,
+            "gross_impact": 3,
+            "net_probability": 2,
+            "net_impact": 2,
+            "status": "active",
+            "is_priority": True,
+        },
+    )
+    assert risk_response.status_code == 201, risk_response.text
+    risk_id = risk_response.json()["id"]
+
+    update_response = await client.patch(
+        f"/api/v1/risks/{risk_id}",
+        headers={"X-Mock-User-Id": str(test_user_employee.id)},
+        json={"description": "Updated by employee (requires approval)"},
+    )
+    assert update_response.status_code == 202, update_response.text
+    approval_id = update_response.json()["approval_id"]
+
+    approve_response = await client.post(
+        f"/api/v1/approvals/{approval_id}/approve",
+        headers={"X-Mock-User-Id": str(test_user_cro.id)},
+        json={"resolution_notes": "Approved"},
+    )
+    assert approve_response.status_code == 200, approve_response.text
+
+    result = await db_session.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.RISK.value,
+            ActivityLog.entity_id == risk_id,
+            ActivityLog.action == ActivityAction.UPDATE.value,
+        )
+    )
+    entry = result.scalars().first()
+    assert entry is not None
+    assert entry.changes["description"]["new"] == "Updated by employee (requires approval)"
+    assert f"approval #{approval_id}" in entry.description.lower()
+
 
 @pytest.mark.asyncio
 async def test_approval_activity_log_reject(
