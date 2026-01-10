@@ -636,7 +636,8 @@ async def log_execution(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("controls", "execute")),
 ):
-    """Log a control execution. Requires controls:execute and department access."""
+    """Log a control execution. Requires controls:execute and (department access OR control ownership)."""
+    from app.core.permissions import is_control_owner
     
     # Verify control exists
     result = await db.execute(
@@ -647,8 +648,10 @@ async def log_execution(
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
-    # Verify department access
-    check_department_access(control.department_id, current_user)
+    # Verify access: department OR control owner
+    is_owner = await is_control_owner(db, current_user.id, control_id)
+    if not is_owner:
+        check_department_access(control.department_id, current_user)
     
     executed_at = datetime.now(UTC).replace(tzinfo=None)
     next_scheduled = calculate_next_scheduled(control.frequency, executed_at)
@@ -686,6 +689,7 @@ async def list_executions(
     limit: int = Query(20, ge=1, le=100),
 ):
     """List execution history for a control."""
+    from app.core.permissions import is_control_owner
     
     # Verify control exists
     result = await db.execute(
@@ -695,8 +699,10 @@ async def list_executions(
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
-    # Verify department access
-    check_department_access(control.department_id, current_user)
+    # Verify access: department OR control owner
+    is_owner = await is_control_owner(db, current_user.id, control_id)
+    if not is_owner:
+        check_department_access(control.department_id, current_user)
     
     result = await db.execute(
         select(ControlExecution)
