@@ -51,12 +51,14 @@
 | Docker builds | Slow on Apple Silicon (arm64 compilation) |
 | AD Emulator | Needs separate database initialization |
 
-## Code Quality
+## Code Quality ✅
 
-| File | Issue |
-|------|-------|
-| `DashboardPage.tsx` | Large (~400 lines), could split |
-| Various endpoints | Complex permission logic inline (could move to services) |
+| Item | Status |
+|------|--------|
+| Large page components | Addressed via hooks + local panels (Phase 250) |
+| Complex permission logic | Moved to services (Phase 250) |
+| Duplicate approval code | Consolidated to `approval_helpers.py` (Phase 250) |
+
 
 ## Data Integrity ✅
 
@@ -86,4 +88,14 @@
 
 - ✅ KRI period semantics - non-privileged now submit for closed periods only
 
+## Recent Remediation (Phase 250 - Code Simplification)
+
+- ✅ Extracted data-fetching hooks (`useDepartmentDetail`, `useUsersPageFilters`)
+- ✅ Consolidated approval patterns (`create_approval_request_with_audit` helper)
+- ✅ Simplified service layer (`_already_flagged`, `_create_orphan`, `_get_item_details`)
+- ✅ Extracted schemas from endpoint files to `schemas/riskhub.py`
+- ✅ Created reusable `StepIndicator` component
+- ✅ Removed duplicate code across 10 plans (~300+ lines eliminated)
+
 *Updated: 2026-01-10*
+

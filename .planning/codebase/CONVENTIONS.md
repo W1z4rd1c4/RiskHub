@@ -50,4 +50,17 @@
 - ISO 8601 dates in API, `date-fns` for formatting
 - Consistent error response format: `{ detail: string }`
 
+## Simplification Patterns (Phase 250)
+
+### Frontend
+- **Data-fetching hooks**: Extract multi-endpoint loading logic to `use*.ts` hooks (e.g., `useDepartmentDetail`, `useUsersPageFilters`)
+- **Local panelling**: Extract large tab/panel JSX into local render functions (`renderRisksTab()`, `renderUsersTab()`) rather than separate files when sharing state
+- **Reusable UI**: Extract duplicated wizard components (e.g., `StepIndicator.tsx`) to `components/ui/`
+
+### Backend
+- **Service helpers**: Extract repeated patterns to private `_helper()` functions (e.g., `_already_flagged`, `_create_orphan`, `_get_item_details`)
+- **Sentinel patterns**: Use module-scope sentinel objects (e.g., `_NOT_PROVIDED = object()`) for detecting None vs unset
+- **Inline Pydantic → modules**: Move inline schemas to dedicated `schemas/*.py` files
+
 *Updated: 2026-01-10*
+
