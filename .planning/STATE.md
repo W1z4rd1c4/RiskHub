@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 250-10: Simplified `directory_sync_service.py` (removed 3 duplicates) and `orphaned_item_service.py` (extracted 3 helpers: `_already_flagged`, `_create_orphan`, `_get_item_details`; refactored methods to use them). Tests pass.
+- Completed Plan 251-01: Simplified `controls.py` by extracting 4 helpers (`_build_pending_changes`, `_first_high_risk_linked_risk`, `_apply_department_scoping`, `_apply_process_category_filters`) and consolidating approval boilerplate with `create_approval_request_with_audit()`. Tests pass.
 
 ### Next Step
-- Phase 250 Spaghetti Simplification complete (10/10 plans). Continue with Phase 17 Production Deployment.
+- Continue Phase 251 Spaghetti Simplification 2 (1/10 plans complete). Execute Plan 251-02.
 
 
 ---
