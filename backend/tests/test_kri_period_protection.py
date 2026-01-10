@@ -9,17 +9,35 @@ from app.models.key_risk_indicator import KRIFrequency
 
 class TestKRIPeriodProtection:
     """Verify that KRI period semantics protect against invalid submissions."""
-    
-    def test_future_period_rejected(self):
+    @pytest.mark.asyncio
+    async def test_future_period_rejected(self):
         """Non-privileged users cannot record values for future periods."""
+        from unittest.mock import AsyncMock, MagicMock
+        
         today = date.today()
-        future_date = today + timedelta(days=90)  # Some future date
+        future_date = today + timedelta(days=90)
         
-        # Verify it's actually in the future
-        assert future_date > today
+        # Create mock KRI
+        mock_kri = MagicMock()
+        mock_kri.id = 1
+        mock_kri.frequency = KRIFrequency.quarterly.value
+        mock_kri.current_value = 50.0
+        mock_kri.last_period_end = None
+        mock_kri.lower_limit = 0.0
+        mock_kri.upper_limit = 100.0
+        mock_kri.unit = "%"
         
-        # The service should reject this via ValueError in record_value
-        # when is_privileged=False and period_end > today
+        mock_db = AsyncMock()
+        
+        # Attempting to record for future period should raise ValueError
+        with pytest.raises(ValueError, match="Cannot record a future period"):
+            await KRIHistoryService.record_value(
+                db=mock_db,
+                kri=mock_kri,
+                value=75.0,
+                period_end=future_date,
+                is_privileged=False,
+            )
     
     def test_latest_closed_period_excludes_future(self):
         """latest_closed_period_for_date never returns future dates."""
@@ -37,6 +55,39 @@ class TestKRIPeriodProtection:
             )
             # Latest CLOSED period end should always be <= today
             assert period_end <= today, f"Frequency {frequency}: period_end {period_end} > today {today}"
+    
+    def test_core_bug_fix_latest_closed_vs_current_period(self):
+        """
+        CORE BUG FIX TEST: Verify that latest_closed_period != current_period
+        when we're in the middle of an open period.
+        
+        The original bug was: non-privileged users were submitting for current_period_end
+        (e.g., Mar 31 on Jan 10), which when approved, set last_period_end to Mar 31
+        and masked that Dec 31 was never reported.
+        """
+        # Simulate Jan 10, 2026 - Q1 2026 is open, Q4 2025 is closed
+        jan_10 = date(2026, 1, 10)
+        
+        # Current period (open) - would be Q1 2026
+        _, current_period_end = KRIHistoryService.period_bounds_for_date(
+            jan_10, KRIFrequency.quarterly.value
+        )
+        assert current_period_end == date(2026, 3, 31), "Current period should be Q1 2026"
+        
+        # Latest CLOSED period - should be Q4 2025
+        _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(
+            jan_10, KRIFrequency.quarterly.value
+        )
+        assert latest_closed_end == date(2025, 12, 31), "Latest closed should be Q4 2025"
+        
+        # The key assertion: these MUST be different!
+        # If they're the same, the bug could still exist
+        assert latest_closed_end != current_period_end, (
+            "latest_closed_end must differ from current_period_end when in open period"
+        )
+        assert latest_closed_end < current_period_end, (
+            "latest_closed_end must be before current_period_end"
+        )
     
     def test_period_bounds_are_calendar_aligned(self):
         """Period boundaries are correctly calendar-aligned."""

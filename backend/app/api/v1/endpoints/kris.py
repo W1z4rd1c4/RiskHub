@@ -311,6 +311,13 @@ async def update_kri(
     
     update_data = data.model_dump(exclude_unset=True)
     
+    # Reject current_value updates via PUT - must use POST /kris/{id}/values
+    if "current_value" in update_data:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot update current_value via PUT. Use POST /kris/{id}/values to record new values."
+        )
+    
     # Validate limits if both provided
     new_lower = update_data.get("lower_limit", kri.lower_limit)
     new_upper = update_data.get("upper_limit", kri.upper_limit)
@@ -529,10 +536,9 @@ async def record_kri_value(
     """
     Record a new value for a KRI.
     
-    Access: Users with kri:record OR risks:write permission, OR the KRI reporting owner.
-    - Privileged users (CRO/Admin/Risk Manager): apply immediately.
-    - KRI owner or Risk owner: creates tiered approval (Risk Owner → Privileged if priority).
-    - Other users with kri:record: creates approval with Risk Owner as primary approver.
+    Access: Users with kri:submit permission, OR the KRI reporting owner.
+    - Privileged users (CRO/Risk Manager): apply immediately.
+    - Non-privileged users: creates tiered approval (Risk Owner → Privileged if priority).
     """
     from datetime import datetime, UTC
     from app.core.permissions import can_resolve_approvals, has_permission, is_kri_reporting_owner
@@ -554,9 +560,11 @@ async def record_kri_value(
     # Check if user is reporting owner (cross-department access)
     is_reporting_owner = await is_kri_reporting_owner(db, current_user.id, kri_id)
     
-    # Check permission: kri:record OR risks:write OR is reporting owner
-    if not (is_reporting_owner or has_permission(current_user, "kri", "record") or has_permission(current_user, "risks", "write")):
-        raise HTTPException(status_code=403, detail="Permission denied: requires kri:record, risks:write, or be reporting owner")
+    # Check permission: kri:submit OR is reporting owner
+    # NOTE: kri:submit is independent from risks:write - users with risks:write 
+    # cannot automatically submit KRI values
+    if not (is_reporting_owner or has_permission(current_user, "kri", "submit")):
+        raise HTTPException(status_code=403, detail="Permission denied: requires kri:submit permission or be reporting owner")
     
     # Verify department access (skipped for reporting owners)
     if not is_reporting_owner:
@@ -569,10 +577,12 @@ async def record_kri_value(
     else:
         # Non-privileged users create a tiered approval request
         today = date.today()
-        _, current_period_end = KRIHistoryService.period_bounds_for_date(today, kri.frequency)
+        # FIX: Use latest CLOSED period, not current (possibly future) period
+        # This prevents approvals from advancing last_period_end beyond closed periods
+        _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, kri.frequency)
         
         # Non-privileged users cannot specify custom period_end
-        if data.period_end and data.period_end != current_period_end:
+        if data.period_end and data.period_end != latest_closed_end:
             raise HTTPException(status_code=400, detail="Non-privileged users cannot specify custom period_end")
         
         # Check for existing pending request for this KRI
@@ -596,7 +606,7 @@ async def record_kri_value(
         recorded_at = datetime.now(UTC).isoformat()
         pending_changes = {
             "current_value": {"old": kri.current_value, "new": data.value},
-            "period_end": current_period_end.isoformat(),
+            "period_end": latest_closed_end.isoformat(),
             "recorded_at": recorded_at,
         }
         
