@@ -294,6 +294,13 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
     };
 
     const handleStepClick = (index: number) => {
+        // In edit mode, allow free navigation to any step
+        if (isEdit) {
+            setError(null);
+            setCurrentStep(index);
+            return;
+        }
+
         // Allow going back
         if (index < currentStep) {
             setError(null);
@@ -317,7 +324,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
             <StepIndicator
                 steps={steps}
                 currentStep={currentStep}
-                isStepClickable={(idx) => idx <= currentStep + 1}
+                isStepClickable={(idx) => isEdit || idx <= currentStep + 1}
                 onStepClick={handleStepClick}
             />
 
