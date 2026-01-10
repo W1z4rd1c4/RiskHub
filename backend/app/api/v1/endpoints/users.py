@@ -10,6 +10,7 @@ from app.schemas import RoleRead, UserRead, UserBrief, UserCreate, UserUpdate
 from app.schemas.user import UserLookup
 from app.core.security import get_password_hash
 from app.core.permissions import can_manage_users
+from app.core.user_query_options import user_selectinload_options
 from app.api import deps
 from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -46,11 +47,7 @@ async def list_users(
     if not can_manage_users(current_user):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
     
-    query = select(User).options(
-        selectinload(User.role),
-        selectinload(User.department),
-        selectinload(User.manager)
-    )
+    query = select(User).options(*user_selectinload_options())
     
     if department_id:
         query = query.where(User.department_id == department_id)
@@ -122,11 +119,7 @@ async def create_user(
     # This prevents MissingGreenlet errors in async context
     result = await db.execute(
         select(User)
-        .options(
-            selectinload(User.role),
-            selectinload(User.department),
-            selectinload(User.manager)
-        )
+        .options(*user_selectinload_options())
         .where(User.id == new_user.id)
     )
     return result.scalar_one()
@@ -266,11 +259,7 @@ async def get_user(
     
     result = await db.execute(
         select(User)
-        .options(
-            selectinload(User.role),
-            selectinload(User.department),
-            selectinload(User.manager)
-        )
+        .options(*user_selectinload_options())
         .where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
@@ -354,11 +343,7 @@ async def update_user(
     # Reload with all relationships
     result = await db.execute(
         select(User)
-        .options(
-            selectinload(User.role),
-            selectinload(User.department),
-            selectinload(User.manager)
-        )
+        .options(*user_selectinload_options())
         .where(User.id == user.id)
     )
     return result.scalar_one()
