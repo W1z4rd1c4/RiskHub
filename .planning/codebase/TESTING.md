@@ -67,10 +67,18 @@ npm run test:e2e
 
 # E2E with UI
 npx playwright test --ui
+
+# Build verification (catches TypeScript errors)
+npm run build
 ```
 
 ## CI/CD Integration
 - Pre-commit hooks: gitleaks, bandit, pip-audit
 - GitHub Actions in `.github/workflows/`
+
+## Verification Standards (Phase 250-251)
+- All refactoring plans include `npm run build` verification
+- Existing test suites run after structural changes
+- Manual smoke tests for UI-affecting changes
 
 *Updated: 2026-01-10*
