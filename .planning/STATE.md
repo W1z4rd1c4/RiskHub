@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 251-02: Simplified `departments.py` by extracting 10 helpers (3 scoping/pagination, 7 stats builders), refactoring `list_departments` to orchestration-only, and updating all endpoints with `_assert_department_in_scope` and comprehensive docstrings. Fixed user count to filter only active users. Tests pass.
+- Completed Plan 251-03: Simplified `admin.py` (935→779 lines) by extracting 13 Pydantic schemas to `app/schemas/admin.py`, centralizing admin gating via `require_platform_admin` dependency, and extracting `_parse_log_entry`/`_read_log_file` helpers for the logs domain. Tests pass.
 
 ### Next Step
-- Continue Phase 251 Spaghetti Simplification 2 (2/10 plans complete). Execute Plan 251-03.
+- Continue Phase 251 Spaghetti Simplification 2 (3/10 plans complete). Execute Plan 251-04.
 
 
 ---

@@ -4,42 +4,55 @@ Admin endpoints for data maintenance operations.
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
 import random
 
 from app.db.session import get_db
 from app.models import Risk, Control, KeyRiskIndicator, ControlRiskLink, User
 from app.api.deps import get_current_user
+from app.schemas.admin import (
+    OrphanFixResponse,
+    OrphanStatsResponse,
+    SystemHealthResponse,
+    SystemStatsResponse,
+    TechnicalLogEntry,
+    ActiveSessionResponse,
+    RecentLogEntry,
+    RecentLogsResponse,
+    LogConfig,
+    DocumentationEntry,
+    DocumentationResponse,
+    SnapshotResponse,
+    SnapshotListItem,
+)
 
 router = APIRouter()
 
 
-class OrphanFixResponse(BaseModel):
-    """Response for orphan fix operations."""
-    message: str
-    kris_fixed: int = 0
-    controls_fixed: int = 0
-    links_created: int = 0
+# ============================================================================
+# Admin-Only Dependency
+# ============================================================================
+
+def require_platform_admin(current_user: User = Depends(get_current_user)) -> User:
+    """
+    FastAPI dependency that validates the current user is a platform admin.
+    
+    Raises HTTPException 403 if the user is not an admin.
+    Returns the validated admin user for use in endpoints.
+    """
+    if current_user.role.name.lower() != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
 
 
-class OrphanStatsResponse(BaseModel):
-    """Statistics about orphaned entities."""
-    orphan_kris: int
-    controls_without_links: int
-    total_risks: int
-    total_controls: int
-    total_kris: int
-    total_links: int
-
+# ============================================================================
+# Orphan Entity Endpoints
+# ============================================================================
 
 @router.get("/orphan-stats", response_model=OrphanStatsResponse)
 async def get_orphan_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    admin_user: User = Depends(require_platform_admin)
 ) -> OrphanStatsResponse:
-    # Admin only check
-    if current_user.role.name.lower() != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
     """
     Get statistics about orphaned entities (KRIs without risks, controls without links).
     Admin only.
@@ -78,11 +91,8 @@ async def get_orphan_stats(
 @router.post("/fix-orphans", response_model=OrphanFixResponse)
 async def fix_orphan_mappings(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    admin_user: User = Depends(require_platform_admin)
 ) -> OrphanFixResponse:
-    # Admin only check
-    if current_user.role.name.lower() != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
     """
     Fix orphaned entities by assigning random risks.
     - KRIs without risk_id get a random risk assigned
@@ -148,67 +158,16 @@ async def fix_orphan_mappings(
 # Admin Console Endpoints (Platform Administration)
 # ============================================================================
 
-class SystemHealthResponse(BaseModel):
-    """System health status response."""
-    database_status: str  # "connected" | "error"
-    database_latency_ms: float
-    uptime_seconds: int
-    memory_usage_mb: float
-    last_check: str
-
-
-class SystemStatsResponse(BaseModel):
-    """Platform statistics response."""
-    total_users: int
-    active_users_24h: int
-    total_risks: int
-    total_controls: int
-    total_kris: int
-    pending_approvals: int
-
-
-class TechnicalLogEntry(BaseModel):
-    """Technical/security log entry."""
-    id: int
-    timestamp: str
-    level: str  # "INFO" | "WARNING" | "ERROR"
-    event_type: str
-    user_name: str | None
-    user_email: str | None
-    entity_type: str | None
-    description: str | None  # Changed from details to match ActivityLog model
-
-
-class ActiveSessionResponse(BaseModel):
-    """Active user session."""
-    user_id: int
-    user_name: str
-    user_email: str
-    role: str
-    department: str | None
-    last_activity: str
-    is_active: bool
-    last_login: str | None = None
-
-
-def require_admin(current_user: User) -> User:
-    """Dependency to check admin access."""
-    if current_user.role.name.lower() != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    return current_user
-
 
 @router.get("/health", response_model=SystemHealthResponse)
 async def get_system_health(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    admin_user: User = Depends(require_platform_admin)
 ) -> SystemHealthResponse:
     """
     Get system health status including database connectivity and latency.
     Admin only.
     """
-    require_admin(current_user)
-    
     import time
     import psutil
     from datetime import datetime, UTC
@@ -241,14 +200,12 @@ async def get_system_health(
 @router.get("/stats", response_model=SystemStatsResponse)
 async def get_system_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    admin_user: User = Depends(require_platform_admin)
 ) -> SystemStatsResponse:
     """
     Get platform statistics including user counts and entity totals.
     Admin only.
     """
-    require_admin(current_user)
-    
     from datetime import datetime, timedelta, UTC
     from app.models import ApprovalRequest
     
@@ -292,7 +249,7 @@ async def get_system_stats(
 @router.get("/logs", response_model=list[TechnicalLogEntry])
 async def get_technical_logs(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_platform_admin),
     event_type: str | None = None,
     limit: int = 100
 ) -> list[TechnicalLogEntry]:
@@ -300,8 +257,6 @@ async def get_technical_logs(
     Get technical/security logs from activity log.
     Admin only.
     """
-    require_admin(current_user)
-    
     from app.models.activity_log import ActivityLog
     from sqlalchemy.orm import selectinload
     
@@ -338,14 +293,12 @@ async def get_technical_logs(
 @router.get("/sessions", response_model=list[ActiveSessionResponse])
 async def get_active_sessions(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    admin_user: User = Depends(require_platform_admin)
 ) -> list[ActiveSessionResponse]:
     """
     Get list of users with recent activity (approximation of active sessions).
     Admin only.
     """
-    require_admin(current_user)
-    
     from datetime import datetime, timedelta, UTC
     from app.models.activity_log import ActivityLog
     from sqlalchemy.orm import selectinload
@@ -400,15 +353,13 @@ async def get_active_sessions(
 async def revoke_user_session(
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    admin_user: User = Depends(require_platform_admin)
 ) -> dict:
     """
     Force logout a user by setting them inactive temporarily.
     Admin only.
     """
-    require_admin(current_user)
-    
-    if user_id == current_user.id:
+    if user_id == admin_user.id:
         raise HTTPException(status_code=400, detail="Cannot revoke your own session")
     
     # Get user
@@ -427,7 +378,7 @@ async def revoke_user_session(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=admin_user,
         action=ActivityAction.UPDATE,
         entity_type=ActivityEntityType.USER,
         entity_id=user_id,
@@ -443,29 +394,82 @@ async def revoke_user_session(
 # Structured Log Access Endpoints (SIEM Integration)
 # ============================================================================
 
-class RecentLogEntry(BaseModel):
-    """Parsed JSON log entry."""
-    timestamp: str | None = None
-    level: str | None = None
-    event: str | None = None
-    logger_name: str | None = None
-    request_id: str | None = None
-    user_id: int | None = None
-    client_ip: str | None = None
-    feature: str | None = None
-    extra: dict = {}
+# Known fields in structured log entries
+_LOG_KNOWN_FIELDS = {"timestamp", "level", "event", "logger", "request_id", 
+                     "user_id", "client_ip", "feature"}
 
 
-class RecentLogsResponse(BaseModel):
-    """Response for recent logs endpoint."""
-    entries: list[RecentLogEntry]
-    total_lines: int
-    file_path: str
+def _parse_log_entry(data: dict) -> RecentLogEntry:
+    """Parse a JSON log entry dict into a RecentLogEntry schema."""
+    extra = {k: v for k, v in data.items() if k not in _LOG_KNOWN_FIELDS}
+    return RecentLogEntry(
+        timestamp=data.get("timestamp"),
+        level=data.get("level", "").upper(),
+        event=data.get("event"),
+        logger_name=data.get("logger"),
+        request_id=data.get("request_id"),
+        user_id=data.get("user_id"),
+        client_ip=data.get("client_ip"),
+        feature=data.get("feature"),
+        extra=extra,
+    )
+
+
+def _read_log_file(
+    log_filename: str, 
+    max_lines: int, 
+    filter_key: str | None = None, 
+    filter_value: str | None = None
+) -> RecentLogsResponse:
+    """
+    Read and parse a JSON log file with optional filtering.
+    
+    Args:
+        log_filename: Name of log file in log directory (e.g., "app.json.log")
+        max_lines: Maximum number of entries to return
+        filter_key: Optional key to filter on ("level" or "event")
+        filter_value: Value to match for filter_key
+    """
+    import json
+    from app.core.logging import get_log_directory, tail_log_file
+    
+    log_file = get_log_directory() / log_filename
+    
+    if not log_file.exists():
+        return RecentLogsResponse(entries=[], total_lines=0, file_path=str(log_file))
+    
+    # Read extra lines for filtering
+    recent_lines, total_estimate = tail_log_file(log_file, max_lines * 2)
+    
+    entries: list[RecentLogEntry] = []
+    for line in recent_lines:
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+            
+            # Apply filter if specified
+            if filter_key and filter_value:
+                actual_value = data.get(filter_key, "")
+                if filter_key == "level":
+                    actual_value = actual_value.upper()
+                if actual_value != filter_value:
+                    continue
+            
+            entries.append(_parse_log_entry(data))
+        except json.JSONDecodeError:
+            continue
+    
+    return RecentLogsResponse(
+        entries=entries[-max_lines:],
+        total_lines=total_estimate,
+        file_path=str(log_file)
+    )
 
 
 @router.get("/logs/recent", response_model=RecentLogsResponse)
 async def get_recent_logs(
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_platform_admin),
     lines: int = 100,
     level: str | None = None,
 ) -> RecentLogsResponse:
@@ -477,73 +481,17 @@ async def get_recent_logs(
         lines: Number of recent lines to return (max 500)
         level: Optional filter by log level (DEBUG, INFO, WARNING, ERROR)
     """
-    require_admin(current_user)
-    
-    import json
-    from app.core.logging import get_log_directory, tail_log_file
-    
-    # Limit lines to prevent huge responses
-    lines = min(lines, 500)
-    
-    # Use centralized log directory helper
-    log_file = get_log_directory() / "app.json.log"
-    
-    if not log_file.exists():
-        return RecentLogsResponse(
-            entries=[],
-            total_lines=0,
-            file_path=str(log_file)
-        )
-    
-    # Use efficient tail reader (read extra for filtering)
-    recent_lines, total_estimate = tail_log_file(log_file, lines * 2)
-    
-    # Parse JSON lines and filter
-    entries: list[RecentLogEntry] = []
-    level_filter = level.upper() if level else None
-    
-    for line in recent_lines:
-        if not line:
-            continue
-        try:
-            data = json.loads(line)
-            
-            # Filter by level if specified
-            log_level = data.get("level", "").upper()
-            if level_filter and log_level != level_filter:
-                continue
-            
-            # Extract known fields, put rest in extra
-            known_fields = {"timestamp", "level", "event", "logger", "request_id", 
-                          "user_id", "client_ip", "feature"}
-            extra = {k: v for k, v in data.items() if k not in known_fields}
-            
-            entries.append(RecentLogEntry(
-                timestamp=data.get("timestamp"),
-                level=log_level,
-                event=data.get("event"),
-                logger_name=data.get("logger"),
-                request_id=data.get("request_id"),
-                user_id=data.get("user_id"),
-                client_ip=data.get("client_ip"),
-                feature=data.get("feature"),
-                extra=extra,
-            ))
-        except json.JSONDecodeError:
-            # Skip malformed lines
-            continue
-    
-    # Return only requested number of entries (after filtering)
-    return RecentLogsResponse(
-        entries=entries[-lines:],
-        total_lines=total_estimate,
-        file_path=str(log_file)
+    return _read_log_file(
+        log_filename="app.json.log",
+        max_lines=min(lines, 500),
+        filter_key="level" if level else None,
+        filter_value=level.upper() if level else None,
     )
 
 
 @router.get("/logs/audit", response_model=RecentLogsResponse)
 async def get_audit_logs(
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_platform_admin),
     lines: int = 100,
     event_type: str | None = None,
 ) -> RecentLogsResponse:
@@ -555,86 +503,12 @@ async def get_audit_logs(
         lines: Number of recent lines to return (max 1000)
         event_type: Optional filter by event name (action)
     """
-    require_admin(current_user)
-    
-    import json
-    from app.core.logging import get_log_directory, tail_log_file
-    
-    # Limit lines (audit logs might be important so allow more than debug logs)
-    lines = min(lines, 1000)
-    
-    # Use centralized log directory helper
-    log_file = get_log_directory() / "audit.json.log"
-    
-    if not log_file.exists():
-        return RecentLogsResponse(
-            entries=[],
-            total_lines=0,
-            file_path=str(log_file)
-        )
-    
-    # Use efficient tail reader (read extra for filtering)
-    recent_lines, total_estimate = tail_log_file(log_file, lines * 2)
-    
-    # Parse JSON lines and filter
-    entries: list[RecentLogEntry] = []
-    
-    for line in recent_lines:
-        if not line:
-            continue
-        try:
-            data = json.loads(line)
-            
-            # Filter by event type if specified
-            if event_type and data.get("event") != event_type:
-                continue
-            
-            # Extract fields
-            known_fields = {"timestamp", "level", "event", "logger", "request_id", 
-                          "user_id", "client_ip", "feature"}
-            extra = {k: v for k, v in data.items() if k not in known_fields}
-            
-            entries.append(RecentLogEntry(
-                timestamp=data.get("timestamp"),
-                level=data.get("level", "").upper(),
-                event=data.get("event"),
-                logger_name=data.get("logger"),
-                request_id=data.get("request_id"),
-                user_id=data.get("user_id"),
-                client_ip=data.get("client_ip"),
-                feature=data.get("feature"),
-                extra=extra,
-            ))
-        except json.JSONDecodeError:
-            continue
-    
-    return RecentLogsResponse(
-        entries=entries[-lines:],
-        total_lines=total_estimate,
-        file_path=str(log_file)
+    return _read_log_file(
+        log_filename="audit.json.log",
+        max_lines=min(lines, 1000),
+        filter_key="event" if event_type else None,
+        filter_value=event_type,
     )
-
-
-class LogConfig(BaseModel):
-    """Log rotation configuration with separate app and audit settings."""
-    # Application log settings
-    app_log_rotation_size_mb: int
-    app_log_retention_count: int
-    # Audit log settings
-    audit_log_rotation_size_mb: int
-    audit_log_retention_count: int
-
-
-class DocumentationEntry(BaseModel):
-    """Platform documentation entry."""
-    id: str
-    title: str
-    content: str
-
-
-class DocumentationResponse(BaseModel):
-    """List of documentation entries."""
-    documents: list[DocumentationEntry]
 
 
 @router.get("/docs", response_model=DocumentationResponse)
@@ -711,10 +585,9 @@ async def get_documentation(
 @router.get("/logs/config", response_model=LogConfig)
 async def get_log_config(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_platform_admin),
 ) -> LogConfig:
     """Get current log rotation settings (separate for app and audit logs)."""
-    require_admin(current_user)
     from app.models.global_config import get_config_int
     
     # Default values must match logging.py (10MB, 10 files)
@@ -735,13 +608,12 @@ async def get_log_config(
 async def update_log_config(
     config: LogConfig,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_platform_admin),
 ) -> LogConfig:
     """
     Update log rotation settings (separate for app and audit logs).
     Changes require backend restart to take full effect on file handlers.
     """
-    require_admin(current_user)
     from app.models.global_config import GlobalConfig
     from sqlalchemy import select
     
@@ -803,31 +675,10 @@ async def update_log_config(
 # Quarterly Metric Snapshot Endpoints
 # ============================================================================
 
-class SnapshotResponse(BaseModel):
-    """Response for snapshot capture operations."""
-    quarter: str
-    year: int
-    quarter_number: int
-    captured_at: str
-    metrics: dict
-    message: str
-
-
-class SnapshotListItem(BaseModel):
-    """List item for snapshots."""
-    id: int
-    quarter: str
-    year: int
-    quarter_number: int
-    captured_at: str
-    snapshot_type: str
-    has_metrics: bool
-
-
 @router.post("/snapshots/capture", response_model=SnapshotResponse)
 async def capture_quarterly_snapshot(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_platform_admin),
     notes: str | None = None,
 ) -> SnapshotResponse:
     """
@@ -837,8 +688,6 @@ async def capture_quarterly_snapshot(
     This endpoint should be called at the end of each quarter to capture
     point-in-time state metrics for accurate historical comparisons.
     """
-    require_admin(current_user)
-    
     from app.core.snapshot_service import (
         capture_current_quarter_snapshot,
         get_quarter_label,
@@ -852,8 +701,8 @@ async def capture_quarterly_snapshot(
     snapshot = await capture_current_quarter_snapshot(
         db=db,
         department_ids=None,  # Global snapshot
-        captured_by_user_id=current_user.id,
-        notes=notes or f"Manual capture by {current_user.name}",
+        captured_by_user_id=admin_user.id,
+        notes=notes or f"Manual capture by {admin_user.name}",
     )
     
     await db.commit()
@@ -871,14 +720,12 @@ async def capture_quarterly_snapshot(
 @router.get("/snapshots", response_model=list[SnapshotListItem])
 async def list_quarterly_snapshots(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_platform_admin),
 ) -> list[SnapshotListItem]:
     """
     List all stored quarterly metric snapshots.
     Admin only.
     """
-    require_admin(current_user)
-    
     from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot
     
     result = await db.execute(
@@ -905,7 +752,7 @@ async def list_quarterly_snapshots(
 async def get_quarterly_snapshot(
     quarter: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    admin_user: User = Depends(require_platform_admin),
 ) -> SnapshotResponse:
     """
     Get a specific quarterly metric snapshot.
@@ -914,8 +761,6 @@ async def get_quarterly_snapshot(
     Args:
         quarter: Quarter label like '2026-Q1'
     """
-    require_admin(current_user)
-    
     from app.core.snapshot_service import get_quarter_snapshot as get_snapshot
     
     snapshot = await get_snapshot(db, quarter)
