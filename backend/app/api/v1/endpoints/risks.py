@@ -494,28 +494,13 @@ async def update_risk(
                 status=ApprovalStatus.PENDING,
             )
             
-            try:
-                db.add(approval)
-                await db.flush()
-                
-                await log_activity(
-                    db,
-                    entity_type=ActivityEntityType.APPROVAL,
-                    entity_id=approval.id,
-                    entity_name=approval.resource_name,
-                    action=ActivityAction.CREATE,
-                    actor=current_user,
-                    department_id=risk.department_id,
-                )
-                await db.commit()
-            except IntegrityError as e:
-                await db.rollback()
-                if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
-                    raise HTTPException(
-                        status_code=status.HTTP_409_CONFLICT,
-                        detail="An approval request is already pending for this action."
-                    )
-                raise
+            from app.core.approval_helpers import create_approval_request_with_audit
+            await create_approval_request_with_audit(
+                db,
+                approval=approval,
+                actor=current_user,
+                department_id=risk.department_id,
+            )
             
             # Return 202 with approval info
             from fastapi.responses import JSONResponse
@@ -671,29 +656,13 @@ async def delete_risk(
         requires_privileged_approval=requires_privileged,
     )
     
-    try:
-        db.add(approval)
-        await db.flush()
-        
-        await log_activity(
-            db,
-            entity_type=ActivityEntityType.APPROVAL,
-            entity_id=approval.id,
-            entity_name=approval.resource_name,
-            action=ActivityAction.CREATE,
-            actor=current_user,
-            department_id=risk.department_id,
-        )
-        await db.commit()
-    except IntegrityError as e:
-        await db.rollback()
-        # Check if it's our unique constraint violation
-        if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="An approval request is already pending for this action."
-            )
-        raise
+    from app.core.approval_helpers import create_approval_request_with_audit
+    await create_approval_request_with_audit(
+        db,
+        approval=approval,
+        actor=current_user,
+        department_id=risk.department_id,
+    )
     
     from fastapi.responses import JSONResponse
     return JSONResponse(
