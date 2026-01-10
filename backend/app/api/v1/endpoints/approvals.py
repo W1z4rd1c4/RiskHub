@@ -386,7 +386,10 @@ async def approve_request(
                 kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
                 kri = kri_result.scalar_one_or_none()
                 if kri:
-                    await db.delete(kri)
+                    # Archive instead of hard delete (preserves audit trail + history)
+                    kri.is_archived = True
+                    kri.archived_at = datetime.now(UTC)
+                    kri.archived_by_id = current_user.id
         
         elif approval.action_type == ApprovalActionType.EDIT:
             # EDIT: Apply pending changes to the resource

@@ -91,9 +91,10 @@ class KRIDeadlineService:
         
         today = date.today()
         
-        # Fetch all KRIs with their relationships
+        # Fetch all ACTIVE (non-archived) KRIs with their relationships
         stmt = (
             select(KeyRiskIndicator)
+            .where(KeyRiskIndicator.is_archived == False)
             .options(
                 selectinload(KeyRiskIndicator.risk),
                 selectinload(KeyRiskIndicator.reporting_owner),

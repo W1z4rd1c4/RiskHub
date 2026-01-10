@@ -253,10 +253,11 @@ async def get_department_metrics(
         audited_control_result = await db.execute(audited_control_query)
         audited_control_count = audited_control_result.scalar() or 0
 
-        # Breaching KRI count (KRIs linked to department's risks, outside limits)
+        # Breaching KRI count (KRIs linked to department's risks, outside limits, non-archived)
         breaching_kri_query = select(func.count(KeyRiskIndicator.id.distinct())).join(Risk).where(
             Risk.department_id == dept.id,
             Risk.status != RiskStatus.archived.value,
+            KeyRiskIndicator.is_archived == False,
             or_(
                 KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
                 KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit
@@ -265,10 +266,11 @@ async def get_department_metrics(
         breaching_kri_result = await db.execute(breaching_kri_query)
         breaching_kri_count = breaching_kri_result.scalar() or 0
         
-        # Total KRI count (KRIs linked to department's risks)
+        # Total KRI count (KRIs linked to department's risks, non-archived)
         total_kri_query = select(func.count(KeyRiskIndicator.id.distinct())).join(Risk).where(
             Risk.department_id == dept.id,
-            Risk.status != RiskStatus.archived.value
+            Risk.status != RiskStatus.archived.value,
+            KeyRiskIndicator.is_archived == False,
         )
         total_kri_result = await db.execute(total_kri_query)
         total_kri_count = total_kri_result.scalar() or 0
@@ -558,10 +560,11 @@ async def get_kri_breach_trends(
         if dept_ids is not None and len(dept_ids) == 0:
             return []
 
-        # Build conditions: join KRIValueHistory -> KRI -> Risk; filter active risks
+        # Build conditions: join KRIValueHistory -> KRI -> Risk; filter active/non-archived
         conditions = [
             KRIValueHistory.period_end.isnot(None),
             Risk.status != RiskStatus.archived.value,
+            KeyRiskIndicator.is_archived == False,
         ]
         if dept_ids is not None:
             conditions.append(Risk.department_id.in_(dept_ids))
@@ -733,8 +736,9 @@ async def get_quarterly_comparison(
                 select(func.count(Risk.id)).where(*priority_conditions)
             )
             
-            # KRI breaches (value outside limits)
+            # KRI breaches (value outside limits, non-archived)
             kri_breach_query = select(func.count(KeyRiskIndicator.id)).where(
+                KeyRiskIndicator.is_archived == False,
                 or_(
                     KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
                     KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
@@ -863,9 +867,12 @@ async def get_quarterly_comparison(
                 )
                 orphaned_items = (orphaned_risks or 0) + (orphaned_controls or 0)
             
-            # KRI health: % of KRIs within limits
-            total_kris_query = select(func.count(KeyRiskIndicator.id))
+            # KRI health: % of KRIs within limits (non-archived only)
+            total_kris_query = select(func.count(KeyRiskIndicator.id)).where(
+                KeyRiskIndicator.is_archived == False
+            )
             kris_within_query = select(func.count(KeyRiskIndicator.id)).where(
+                KeyRiskIndicator.is_archived == False,
                 KeyRiskIndicator.current_value >= KeyRiskIndicator.lower_limit,
                 KeyRiskIndicator.current_value <= KeyRiskIndicator.upper_limit,
             )
@@ -880,8 +887,9 @@ async def get_quarterly_comparison(
             kris_within = await db.scalar(kris_within_query)
             kri_health = round((kris_within or 0) / total_kris * 100)
             
-            # Overdue KRIs: KRIs past due date (last_period_end + 15 days < now)
+            # Overdue KRIs: KRIs past due date (last_period_end + 15 days < now, non-archived)
             overdue_kris_query = select(func.count(KeyRiskIndicator.id)).where(
+                KeyRiskIndicator.is_archived == False,
                 KeyRiskIndicator.last_period_end.isnot(None),
                 func.date(KeyRiskIndicator.last_period_end) + 15 < func.current_date(),
             )

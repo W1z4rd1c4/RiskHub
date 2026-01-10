@@ -292,9 +292,10 @@ class KRIHistoryService:
         """
         today = date.today()
         
-        # Fetch all KRIs with their risk relationships
+        # Fetch all ACTIVE (non-archived) KRIs with their risk relationships
         stmt = (
             select(KeyRiskIndicator)
+            .where(KeyRiskIndicator.is_archived == False)
             .options(
                 selectinload(KeyRiskIndicator.risk),
                 selectinload(KeyRiskIndicator.reporting_owner),
@@ -347,9 +348,10 @@ class KRIHistoryService:
         today = date.today()
         advance_days = 7  # 7 days before period end
         
-        # Fetch all KRIs with their risk relationships
+        # Fetch all ACTIVE (non-archived) KRIs with their risk relationships
         stmt = (
             select(KeyRiskIndicator)
+            .where(KeyRiskIndicator.is_archived == False)
             .options(
                 selectinload(KeyRiskIndicator.risk),
                 selectinload(KeyRiskIndicator.reporting_owner),
