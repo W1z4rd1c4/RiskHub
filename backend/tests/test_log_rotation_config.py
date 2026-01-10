@@ -13,7 +13,7 @@ class TestLogRotationConfig:
         from app.core.logging import configure_logging
         
         # Configure with custom settings
-        configure_logging(app_rotation_size_mb=7, app_retention_count=5)
+        configure_logging(rotation_size_mb=7, retention_count=5)
         
         # Check handlers on root logger
         root_logger = logging.getLogger()
@@ -70,7 +70,7 @@ class TestLogRotationConfig:
         from app.core.logging import configure_logging
         
         # Reconfigure with different settings
-        configure_logging(app_rotation_size_mb=15, app_retention_count=8)
+        configure_logging(rotation_size_mb=15, retention_count=8)
         
         # Get new handlers
         root_logger = logging.getLogger()
