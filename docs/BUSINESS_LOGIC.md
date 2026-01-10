@@ -15,6 +15,7 @@
 6. [Sensitive Field Rules](#6-sensitive-field-rules)
 7. [Cross-Department Access](#7-cross-department-access)
 8. [Quick Reference Tables](#8-quick-reference-tables)
+9. [Activity Logging & Audit Trail](#9-activity-logging--audit-trail)
 
 ---
 
@@ -288,6 +289,17 @@ Each user has an `access_scope` that determines data visibility:
 - If the primary approver (owner) is the requester, it escalates to Department Head
 - If Department Head is also the requester, it escalates directly to Privileged
 
+### 5.5 Request Cancellation
+
+| Status | Who Can Cancel | Result |
+|--------|---------------|--------|
+| `PENDING` | Request creator OR privileged users | Status → `CANCELLED` |
+| `PENDING_PRIVILEGED` | Request creator OR privileged users | Status → `CANCELLED` |
+| `APPROVED` / `REJECTED` / `CANCELLED` | No one | Cannot cancel terminal states |
+
+> [!NOTE]
+> Cancellation is logged in the activity log with action `CANCEL`.
+
 ---
 
 ## 6. Sensitive Field Rules
@@ -335,8 +347,8 @@ Non-privileged users can access resources **outside their department** if they a
 | Role | Can Access |
 |------|-----------|
 | **Risk Owner** | The risk they own, regardless of department |
-| **Control Owner** | The control they own + its linked risks (read) |
-| **KRI Reporting Owner** | The KRI they own + its linked risk (read) |
+| **Control Owner** | The control they own + its linked risks (read + view controls) |
+| **KRI Reporting Owner** | The KRI they own + its linked risk (read + view controls) |
 
 ### 7.2 Access Inheritance
 
@@ -346,6 +358,7 @@ Non-privileged users can access resources **outside their department** if they a
 │                    │                                        │
 │                    ▼                                        │
 │   Can view KRI → Can view linked Risk (even if Dept B)      │
+│                → Can view Risk's linked Controls            │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────┐
@@ -353,8 +366,23 @@ Non-privileged users can access resources **outside their department** if they a
 │                    │                                        │
 │                    ▼                                        │
 │   Can edit Control → Can view linked Risks (even if Dept B) │
+│                    → Can view Risk's linked Controls        │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### 7.3 Risk-Control Linking Access
+
+| Endpoint | Access Rule | Approval Required? |
+|----------|-------------|--------------------|
+| `GET /risks/{id}/controls` | Ownership OR department | No (read-only) |
+| `POST /risks/{id}/controls` | Ownership for risk + department for control + `risks:write` | No |
+| `DELETE /risks/{id}/controls/{id}` | Ownership for risk + department for control + `risks:write` | No |
+
+> [!NOTE]
+> Linking/unlinking controls is **not subject to approval** because:
+> - User must already have write permission
+> - It's metadata management, not entity modification
+> - Both entities must be accessible to the user
 
 ---
 
@@ -368,13 +396,19 @@ Non-privileged users can access resources **outside their department** if they a
 | Control | Users with `controls:write` | Creator's department |
 | KRI | Users with `kri:write` | Inherits from linked Risk |
 
-### 8.2 Who Can Delete Entities
+### 8.2 Who Can Delete (Archive) Entities
 
-| Entity | Immediate Delete | Requires Approval |
-|--------|-----------------|-------------------|
-| Risk | Privileged users with `risks:delete` | Non-privileged: creates ApprovalRequest |
-| Control | Privileged users with `controls:delete` | Non-privileged: creates ApprovalRequest |
-| KRI | Privileged users with `kri:delete` | Non-privileged: creates ApprovalRequest |
+| Entity | Immediate Archive | Requires Approval |
+|--------|------------------|-------------------|
+| Risk | Privileged users | Non-privileged: creates ApprovalRequest |
+| Control | Privileged users | Non-privileged: creates ApprovalRequest |
+| KRI | Privileged users | Non-privileged: creates ApprovalRequest |
+
+> [!NOTE]
+> Deletion is implemented as **soft-delete (archival)** to preserve audit trails.
+> - Risks: `status = 'archived'`
+> - Controls: `status = 'archived'`
+> - KRIs: `is_archived = true`, `archived_at`, `archived_by_id`
 
 ### 8.3 Approval Action Decision Tree
 
@@ -432,6 +466,42 @@ User requests action (DELETE or EDIT sensitive field)
 | Control Owner | `controls:execute` | Can log own controls (cross-dept) |
 | Department Member | `controls:execute` | Department controls only |
 | Privileged User | `controls:execute` | All controls |
+
+---
+
+## 9. Activity Logging & Audit Trail
+
+### 9.1 Entity-Level Logging
+
+All significant actions are logged to the `activity_logs` table for audit compliance:
+
+| Entity Type | Actions Logged |
+|-------------|----------------|
+| RISK | CREATE, UPDATE, ARCHIVE |
+| CONTROL | CREATE, UPDATE, ARCHIVE |
+| KRI | CREATE, UPDATE, ARCHIVE |
+| KRI_VALUE | CREATE (value submission), UPDATE (value correction) |
+| APPROVAL | CREATE, APPROVE, REJECT, CANCEL |
+
+### 9.2 Change Tracking
+
+For UPDATE actions, the `changes` column stores a JSON object:
+```json
+{
+  "field_name": {"old": "previous_value", "new": "new_value"},
+  "another_field": {"old": 5, "new": 10}
+}
+```
+
+> [!IMPORTANT]
+> Date/datetime values are serialized to ISO format strings. Enum values are stored as their `.value`.
+
+### 9.3 Approval Execution Logging
+
+When an approval is executed:
+- The APPROVAL entity logs `APPROVE` or `REJECT`
+- The underlying entity (RISK/CONTROL/KRI) logs the actual change (ARCHIVE or UPDATE)
+- All entity-level logs include a description like "Archived via approval #123"
 
 ---
 

@@ -42,7 +42,7 @@
 | 99 Data Migration & Standalone AD | ✅ Complete (8/8) | 2026-01-04 |
 | 100 Marketing Presentation | ✅ Complete (3/3) | 2025-12-29 |
 | 151 Audit Resolution | ⏳ In progress (11/18) | - |
-| 152 Audit Resolution 2 | ⏳ In progress (6/8) | - |
+| 152 Audit Resolution 2 | ⏳ In progress (7/8) | - |
 | 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
@@ -164,7 +164,7 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 152-07: Cross-Department Access Inconsistencies. Fixed ownership checks in 3 risk-control endpoints (list, link, unlink) to match GET /risks/{id} pattern.
+- Completed Plan 152-08: Control Execution Department Scoping. Fixed ownership checks in 3 execution endpoints (list, create, get) to allow cross-department control owners to see/log executions.
 
 ### Next Step
 - Continue with Phase 151 remaining plans or Phase 17 Production Deployment.
