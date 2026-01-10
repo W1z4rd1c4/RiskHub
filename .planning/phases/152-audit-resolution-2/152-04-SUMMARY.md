@@ -72,6 +72,13 @@ python3 -m pytest tests/test_kri*.py -v --tb=short
 - ✅ Approval-driven KRI deletion archives (no hard delete)
 - ✅ Direct KRI deletion archives (no hard delete)
 - ✅ Archived KRIs excluded from all operational endpoints and dashboard metrics by default
+  - ✅ GET /kris (list)
+  - ✅ GET /kris/breaches (was missing, fixed)
+  - ✅ Dashboard metrics
+  - ✅ Deadline/overdue services
 - ✅ Archived KRIs cannot receive new values/edits (409 Conflict)
 - ✅ History rows preserved after archival
-- ✅ Tests added/updated and passing
+- ✅ Tests added/updated and passing:
+  - `test_kri_delete_archives_not_hard_deletes` - verifies is_archived=True
+  - `test_kri_history_preserved_after_archive` - verifies history rows remain
+  - `test_archived_kri_excluded_from_list` - verifies list exclusion

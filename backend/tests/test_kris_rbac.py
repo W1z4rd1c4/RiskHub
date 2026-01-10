@@ -88,6 +88,135 @@ async def test_admin_can_delete_kri(auth_client: AsyncClient, test_kri: KeyRiskI
     assert response.status_code == 204
 
 
+@pytest.mark.asyncio
+async def test_kri_delete_archives_not_hard_deletes(auth_client: AsyncClient, db_session, test_risk_for_kri):
+    """Verify deletion archives KRI (is_archived=True) instead of hard delete."""
+    from sqlalchemy import select
+    
+    # Create own KRI to avoid interference from other tests
+    kri = KeyRiskIndicator(
+        risk_id=test_risk_for_kri.id,
+        metric_name="Archive Test KRI",
+        description="KRI for archive verification",
+        unit="%",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+    kri_id = kri.id
+    
+    # Delete the KRI
+    response = await auth_client.delete(f"/api/v1/kris/{kri_id}?reason=Test%20archive")
+    assert response.status_code == 204
+    
+    # Verify row still exists with is_archived=True
+    db_session.expire_all()
+    result = await db_session.execute(
+        select(KeyRiskIndicator).where(KeyRiskIndicator.id == kri_id)
+    )
+    kri = result.scalar_one_or_none()
+    assert kri is not None, "KRI should still exist after delete (soft-delete)"
+    assert kri.is_archived is True
+    assert kri.archived_at is not None
+    assert kri.archived_by_id is not None
+
+
+@pytest.mark.asyncio
+async def test_kri_history_preserved_after_archive(auth_client: AsyncClient, db_session, test_risk_for_kri):
+    """Verify KRIValueHistory entries preserved after KRI archival."""
+    from sqlalchemy import select
+    from app.models.kri_history import KRIValueHistory
+    from datetime import date
+    
+    # Create KRI with a history entry
+    kri = KeyRiskIndicator(
+        risk_id=test_risk_for_kri.id,
+        metric_name="History Test KRI",
+        description="KRI with history for archive test",
+        unit="%",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        last_period_end=date(2025, 12, 31),
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+    
+    # Add history entry (must include lower_limit/upper_limit/unit per model)
+    history = KRIValueHistory(
+        kri_id=kri.id,
+        value=50.0,
+        period_start=date(2025, 12, 1),
+        period_end=date(2025, 12, 31),
+        recorded_by_id=None,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        breach_status="within",
+    )
+    db_session.add(history)
+    await db_session.commit()
+    
+    kri_id = kri.id
+    
+    # Archive (delete) the KRI
+    response = await auth_client.delete(f"/api/v1/kris/{kri_id}?reason=Archive+test")
+    assert response.status_code == 204
+    
+    # Verify history still exists
+    db_session.expire_all()
+    result = await db_session.execute(
+        select(KRIValueHistory).where(KRIValueHistory.kri_id == kri_id)
+    )
+    entries = result.scalars().all()
+    assert len(entries) == 1, "History entries should be preserved after archive"
+    assert entries[0].value == 50.0
+
+
+@pytest.mark.asyncio
+async def test_archived_kri_excluded_from_list(auth_client: AsyncClient, db_session, test_risk_for_kri):
+    """Verify archived KRI not returned in default list."""
+    from sqlalchemy import select
+    
+    # Create KRI
+    kri = KeyRiskIndicator(
+        risk_id=test_risk_for_kri.id,
+        metric_name="Archive Exclusion Test KRI",
+        description="KRI for archive exclusion test",
+        unit="%",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+    
+    kri_id = kri.id
+    
+    # Verify it appears in list initially
+    response = await auth_client.get("/api/v1/kris")
+    assert response.status_code == 200
+    items = response.json()["items"]
+    kri_ids = [item["id"] for item in items]
+    assert kri_id in kri_ids, "KRI should appear in list before archiving"
+    
+    # Archive the KRI
+    response = await auth_client.delete(f"/api/v1/kris/{kri_id}?reason=Archive+test")
+    assert response.status_code == 204
+    
+    # Verify it's excluded from list
+    response = await auth_client.get("/api/v1/kris")
+    assert response.status_code == 200
+    items = response.json()["items"]
+    kri_ids = [item["id"] for item in items]
+    assert kri_id not in kri_ids, "Archived KRI should be excluded from default list"
+
+
 # These tests use a client without risks:write/delete permissions
 # The client_employee fixture has risks:read but we need to check write/delete denial
 
