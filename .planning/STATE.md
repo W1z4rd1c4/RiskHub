@@ -47,7 +47,7 @@
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
 | 200 Entity Naming Enforcement | ✅ Complete (10/10) | 2026-01-05 |
-| 250 Spaghetti Simplification | ⏳ In progress (4/10) | - |
+| 250 Spaghetti Simplification | ⏳ In progress (5/10) | - |
 
 
 ## Session Context
@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 250-04: Created `create_approval_request_with_audit()` helper in `approval_helpers.py`. Refactored 6 call sites in `risks.py` and `kris.py` to use the helper, reducing ~85 lines of duplicated boilerplate. All tests pass.
+- Completed Plan 250-05: Extracted shared `StepIndicator` component from `ControlForm.tsx` and `RiskForm.tsx`, eliminating ~38 lines of duplicated step indicator markup while preserving each form's click navigation policy.
 
 ### Next Step
-- Continue with Phase 250 Plan 250-05, or Phase 17 Production Deployment.
+- Continue with Phase 250 Plan 250-06, or Phase 17 Production Deployment.
 
 ---
 *Updated: 2026-01-10*
