@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { OrphanedItem } from '@/types/orphanedItem';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 interface OrphanedItemsTableProps {
     items: OrphanedItem[];
@@ -55,15 +56,15 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                 </h3>
                 <div className="flex items-center gap-2">
                     <Filter className="h-4 w-4 text-slate-500" />
-                    <select
+                    <ThemedSelect
                         value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                        className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent"
-                    >
-                        <option value="all">All Types</option>
-                        <option value="risk">Risks Only</option>
-                        <option value="control">Controls Only</option>
-                    </select>
+                        onValueChange={setFilter}
+                        options={[
+                            { value: 'all', label: 'All Types' },
+                            { value: 'risk', label: 'Risks Only' },
+                            { value: 'control', label: 'Controls Only' },
+                        ]}
+                    />
                 </div>
             </div>
 

@@ -26,6 +26,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 type ErrorType = 'access_denied' | 'network_error' | null;
 type ViewMode = 'chronological' | 'by_person' | 'by_department' | 'by_risk';
@@ -306,8 +307,8 @@ export function ActivityLogPage() {
                                 if (mode.id !== 'by_risk') setSelectedRiskId(null);
                             }}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${viewMode === mode.id
-                                    ? 'bg-accent/20 text-accent border border-accent/30'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                                ? 'bg-accent/20 text-accent border border-accent/30'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
                                 }`}
                         >
                             {mode.label}
@@ -317,42 +318,33 @@ export function ActivityLogPage() {
 
                 {/* Conditional pickers based on view mode */}
                 {viewMode === 'by_person' && (
-                    <select
-                        value={selectedActorId ?? ''}
-                        onChange={(e) => { setSelectedActorId(e.target.value ? Number(e.target.value) : null); setPage(0); }}
-                        className="flex-1 min-w-[200px] bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-all appearance-none cursor-pointer"
-                    >
-                        <option value="">Select a person...</option>
-                        {users.map(u => (
-                            <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                        ))}
-                    </select>
+                    <ThemedSelect
+                        value={selectedActorId?.toString() ?? ''}
+                        onValueChange={(v) => { setSelectedActorId(v ? Number(v) : null); setPage(0); }}
+                        placeholder="Select a person..."
+                        className="flex-1 min-w-[200px]"
+                        options={users.map(u => ({ value: u.id.toString(), label: `${u.name} (${u.email})` }))}
+                    />
                 )}
 
                 {viewMode === 'by_department' && (
-                    <select
-                        value={selectedDepartmentId ?? ''}
-                        onChange={(e) => { setSelectedDepartmentId(e.target.value ? Number(e.target.value) : null); setPage(0); }}
-                        className="flex-1 min-w-[200px] bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-all appearance-none cursor-pointer"
-                    >
-                        <option value="">Select a department...</option>
-                        {departments.map(d => (
-                            <option key={d.id} value={d.id}>{d.name}</option>
-                        ))}
-                    </select>
+                    <ThemedSelect
+                        value={selectedDepartmentId?.toString() ?? ''}
+                        onValueChange={(v) => { setSelectedDepartmentId(v ? Number(v) : null); setPage(0); }}
+                        placeholder="Select a department..."
+                        className="flex-1 min-w-[200px]"
+                        options={departments.map(d => ({ value: d.id.toString(), label: d.name }))}
+                    />
                 )}
 
                 {viewMode === 'by_risk' && (
-                    <select
-                        value={selectedRiskId ?? ''}
-                        onChange={(e) => { setSelectedRiskId(e.target.value ? Number(e.target.value) : null); setPage(0); }}
-                        className="flex-1 min-w-[200px] bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-all appearance-none cursor-pointer"
-                    >
-                        <option value="">Select a risk...</option>
-                        {risks.map(r => (
-                            <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                    </select>
+                    <ThemedSelect
+                        value={selectedRiskId?.toString() ?? ''}
+                        onValueChange={(v) => { setSelectedRiskId(v ? Number(v) : null); setPage(0); }}
+                        placeholder="Select a risk..."
+                        className="flex-1 min-w-[200px]"
+                        options={risks.map(r => ({ value: r.id.toString(), label: r.name }))}
+                    />
                 )}
             </div>
 
@@ -370,16 +362,15 @@ export function ActivityLogPage() {
                 </div>
 
                 <div className="flex gap-2">
-                    <select
+                    <ThemedSelect
                         value={action}
-                        onChange={(e) => setAction(e.target.value)}
-                        className="w-full bg-black/20 border border-white/5 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-accent/50 transition-all appearance-none cursor-pointer"
-                    >
-                        <option value="">All Actions</option>
-                        {actions.map(act => (
-                            <option key={act} value={act}>{ACTION_LABELS[act] || act}</option>
-                        ))}
-                    </select>
+                        onValueChange={setAction}
+                        placeholder="All Actions"
+                        allowEmpty
+                        emptyLabel="All Actions"
+                        className="w-full"
+                        options={actions.map(act => ({ value: act, label: ACTION_LABELS[act] || act }))}
+                    />
                 </div>
 
                 <div className="flex items-center gap-2">

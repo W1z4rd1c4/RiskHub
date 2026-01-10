@@ -1,35 +1,43 @@
 # Technology Stack
 
 ## Core Technologies
-- Languages: Python (backend), TypeScript (frontend)
-- Backend Framework: FastAPI (async)
-- Frontend Framework: React + Vite
-- Database: PostgreSQL (docker-compose uses 16)
-- ORM: SQLAlchemy 2 (async)
-- AD Emulator: Separate FastAPI + React app for directory sync testing
-
-## Frontend (RiskHub UI)
-- React 19.2, React Router 7.11
-- Vite 7.2, TypeScript 5.9
-- Styling: Tailwind CSS 3.4 + tailwindcss-animate
-- UI Utilities: Radix UI, class-variance-authority, clsx, tailwind-merge
-- Data/Charts: Axios, Recharts, date-fns
-- Motion/Icons: Framer Motion, lucide-react
+| Layer | Technology |
+|-------|------------|
+| Languages | Python 3.12+ (backend), TypeScript 5.9 (frontend) |
+| Backend | FastAPI (async) |
+| Frontend | React 19 + Vite 7 |
+| Database | PostgreSQL 16 (docker-compose) |
+| ORM | SQLAlchemy 2 (async with asyncpg) |
+| AD Emulator | Standalone FastAPI + React app for directory sync |
 
 ## Backend (RiskHub API)
-- FastAPI 0.109+, Pydantic 2, Uvicorn
-- SQLAlchemy async + asyncpg, Alembic migrations
-- Auth: python-jose (JWT), passlib + bcrypt
-- Scheduling: APScheduler
-- Reporting: reportlab (PDF), openpyxl (Excel)
-- Testing: pytest, pytest-asyncio, httpx, pytest-cov
+- **Framework**: FastAPI ≥0.109, Pydantic 2, Uvicorn
+- **Database**: SQLAlchemy async + asyncpg, Alembic migrations
+- **Auth**: python-jose (JWT HS256), passlib + bcrypt (4.1.3)
+- **Scheduling**: APScheduler 3.11 (in-process)
+- **Logging**: structlog (JSON SIEM-ready), python-json-logger
+- **Reporting**: reportlab (PDF), openpyxl (Excel)
+- **Testing**: pytest, pytest-asyncio, httpx, pytest-cov, pytest-benchmark
+- **Security**: bandit, pip-audit, pre-commit, gitleaks
+
+## Frontend (RiskHub UI)
+- **Core**: React 19.2, React Router 7.11
+- **Build**: Vite 7.2, TypeScript 5.9, PostCSS + Autoprefixer
+- **Styling**: Tailwind CSS 3.4, tailwindcss-animate
+- **UI Utilities**: Radix UI (Label, Select, Slot, Tabs), class-variance-authority, clsx, tailwind-merge
+- **Data/Charts**: Axios, Recharts 3.6, date-fns 4, @tanstack/react-query 5
+- **Motion/Icons**: Framer Motion 12, lucide-react
+- **Testing**: Vitest 4, Testing Library (React 16, jest-dom 6), Playwright 1.57
 
 ## AD Emulator
-- Backend: FastAPI + SQLAlchemy async + Alembic
-- Frontend: React 19.2 + Vite 7.2 + Tailwind CSS 4.1
-- Purpose: stand-in directory service for RiskHub sync flows
+- **Backend**: FastAPI + SQLAlchemy async + Alembic (port 8001)
+- **Frontend**: React 19.2 + Vite 7.2 + Tailwind CSS 4.1 (port 5174)
+- **Purpose**: Stand-in Active Directory for RiskHub sync testing
 
-## Tooling
-- Lint/Typecheck: ESLint 9, TypeScript 5.9
-- Testing: Vitest + Testing Library, Playwright
-- Build: Vite, PostCSS + Autoprefixer
+## DevOps & Tooling
+- **Containers**: docker-compose (Postgres, optional full stack)
+- **Lint/Type**: ESLint 9 + typescript-eslint
+- **Pre-commit**: gitleaks, bandit, pip-audit
+- **CI**: GitHub Actions (`.github/workflows`)
+
+*Updated: 2026-01-10*
