@@ -42,7 +42,7 @@
 | 99 Data Migration & Standalone AD | ✅ Complete (8/8) | 2026-01-04 |
 | 100 Marketing Presentation | ✅ Complete (3/3) | 2025-12-29 |
 | 151 Audit Resolution | ⏳ In progress (11/18) | - |
-| 152 Audit Resolution 2 | ⏳ In progress (4/8) | - |
+| 152 Audit Resolution 2 | ⏳ In progress (5/8) | - |
 | 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
@@ -164,7 +164,7 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 152-05: Entity-Level Activity Logs on Approval Execution. Added entity-level logging for archive/edit flows, JSON normalization for dates/datetimes in activity_logger.py, fixed deps.py transaction boundary issue.
+- Completed Plan 152-06: Exception Handling & Commit/Rollback Patterns. Fixed 5 swallowed exceptions with rollback + logging in approvals.py, controls.py, kris.py.
 
 ### Next Step
 - Continue with Phase 151 remaining plans or Phase 17 Production Deployment.

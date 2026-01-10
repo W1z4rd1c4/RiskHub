@@ -416,8 +416,10 @@ async def update_control(
                 await NotificationService.notify_approvers(db, approval)
                 
                 await db.commit()
-            except Exception:
-                pass  # Notification failure should not fail the request
+            except Exception as e:
+                await db.rollback()
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to notify approvers for control edit approval #{approval.id}: {e}")
             
             from fastapi.responses import JSONResponse
             return JSONResponse(
@@ -596,8 +598,10 @@ async def delete_control(
         await NotificationService.notify_approvers(db, approval)
         
         await db.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        await db.rollback()
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to notify approvers for control delete approval #{approval.id}: {e}")
 
     from fastapi.responses import JSONResponse
     return JSONResponse(

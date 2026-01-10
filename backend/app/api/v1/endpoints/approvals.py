@@ -185,8 +185,9 @@ async def create_approval_request(
     try:
         await NotificationService.notify_approvers(db, approval)
         await db.commit()
-    except Exception:
-        pass  # Notification failure should not fail the approval request
+    except Exception as e:
+        await db.rollback()
+        logger.warning(f"Failed to notify approvers for approval #{approval.id}: {e}")
     
     return _build_approval_read(approval)
 
@@ -719,8 +720,8 @@ async def approve_request(
         # PENDING_PRIVILEGED: Notify privileged users first
         try:
             await NotificationService.notify_approvers(db, approval)
-        except Exception:
-            pass  # Notification failure should not fail the request
+        except Exception as e:
+            logger.warning(f"Failed to notify approvers for PENDING_PRIVILEGED approval #{approval.id}: {e}")
         # Commit status change for PENDING → PENDING_PRIVILEGED transition
         await db.commit()
     
