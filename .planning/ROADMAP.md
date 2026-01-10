@@ -550,6 +550,23 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 99. Data Migration & Standalone AD | 8/8 | Complete | 2026-01-04 |
 | 150. Audit (RiskHub-only) | 2/3 | In progress | - |
 | 151. Audit Resolution | 8/11 | In progress | - |
+| 180. E2E Business Logic | 1/8 | In progress | - |
+
+### Phase 180: E2E Business Logic Testing
+**Goal**: Comprehensive E2E test suite covering all business logic defined in docs/BUSINESS_LOGIC.md
+**Depends on**: Phase 5 (Automated Testing), Phase 8 (Permission Filtering)
+**Research**: None
+**Plans**: 8 plans
+
+Plans:
+- [x] 180-01: E2E Infrastructure & Role-Based Access (fixtures, helpers, POMs, §1 tests)
+- [ ] 180-02: Entity Ownership & Department Relationships (§2, §3 tests)
+- [ ] 180-03: Permission Matrix & CRUD Operations (§4 tests)
+- [ ] 180-04: Approval Workflows - Full Lifecycle (§5 tests)
+- [ ] 180-05: Sensitive Field Rules (§6 tests)
+- [ ] 180-06: Cross-Department Access (§7 tests)
+- [ ] 180-07: Activity Logging & Audit Trail (§9 tests)
+- [ ] 180-08: Suite Integration & Full Regression (CI config, docs)
 
 ### Phase 200: Entity Naming Enforcement
 **Goal**: Enforce mandatory "Name" field for all entities (Risk, Control, KRI) and update all UI components to display it prominently.
