@@ -539,7 +539,7 @@ export function RisksPage() {
                         data={risks}
                         columns={columns}
                         keyExtractor={(risk) => risk.id}
-                        onRowClick={(risk) => navigate(`/ risks / ${risk.id} `)}
+                        onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
                         emptyMessage="No risks found matching your criteria."
                         sortKey={sortField}
                         sortDirection={sortDirection}
@@ -571,7 +571,7 @@ export function RisksPage() {
                             data={items}
                             columns={columns}
                             keyExtractor={(risk) => risk.id}
-                            onRowClick={(risk) => navigate(`/ risks / ${risk.id} `)}
+                            onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
                             emptyMessage="No risks in this category."
                         />
                     )}
@@ -580,7 +580,7 @@ export function RisksPage() {
                     )}
                     renderItem={(risk) => (
                         <div
-                            onClick={() => navigate(`/ risks / ${risk.id} `)}
+                            onClick={() => navigate(`/risks/${risk.id}`)}
                             className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
                         >
                             <div className="flex items-center gap-4">
