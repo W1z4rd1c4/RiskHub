@@ -624,6 +624,22 @@ async def delete_risk(
     # Create approval request - ITEM STAYS VISIBLE
     # Store risk name and description for better workflow display
     desc_snippet = (risk.description[:100] + "...") if risk.description and len(risk.description) > 100 else (risk.description or "")
+    
+    # Determine primary approver: Risk Owner (if not self)
+    primary_approver_id = risk.owner_id if risk.owner_id != current_user.id else None
+    
+    # Fallback to department head if no owner or self-approval
+    if not primary_approver_id and risk.department_id:
+        from app.models import Department
+        dept_result = await db.execute(select(Department).where(Department.id == risk.department_id))
+        dept = dept_result.scalar_one_or_none()
+        if dept and hasattr(dept, 'head_id') and dept.head_id and dept.head_id != current_user.id:
+            primary_approver_id = dept.head_id
+    
+    # Determine if privileged approval is needed (priority risks)
+    requires_privileged = bool(risk.is_priority)
+    
+    from app.models import ApprovalActionType
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
         resource_id=risk.id,
@@ -631,6 +647,9 @@ async def delete_risk(
         requested_by_id=current_user.id,
         reason=f"{reason}\n\nDescription: {desc_snippet}" if desc_snippet else reason,
         status=ApprovalStatus.PENDING,
+        action_type=ApprovalActionType.DELETE,
+        primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged,
     )
     
     try:

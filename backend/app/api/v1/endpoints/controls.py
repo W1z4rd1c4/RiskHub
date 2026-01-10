@@ -527,6 +527,16 @@ async def delete_control(
     
     # Create approval request - ITEM STAYS VISIBLE
     name_snippet = control.name[:50] if control.name else ""
+    
+    # Get primary approver (Risk Owner of highest-priority linked risk)
+    from app.core.approval_helpers import get_primary_approver_for_control, check_control_requires_privileged_approval
+    from app.models import ApprovalActionType
+    primary_approver_id = await get_primary_approver_for_control(db, control.id)
+    if primary_approver_id == current_user.id:
+        primary_approver_id = None  # Prevent self-approval
+    
+    requires_privileged = await check_control_requires_privileged_approval(db, control.id)
+    
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.CONTROL,
         resource_id=control.id,
@@ -534,6 +544,9 @@ async def delete_control(
         requested_by_id=current_user.id,
         reason=reason,
         status=ApprovalStatus.PENDING,
+        action_type=ApprovalActionType.DELETE,
+        primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged,
     )
     
     try:
