@@ -11,7 +11,12 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:headed": "playwright test --headed",
+    "e2e:report": "playwright show-report",
+    "e2e:business-logic": "playwright test e2e/roles-access.spec.ts e2e/access-scope.spec.ts e2e/entity-ownership e2e/department-access.spec.ts e2e/permissions e2e/approval-workflows e2e/sensitive-fields e2e/cross-department e2e/activity-logging"
   },
   "dependencies": {
     "@playwright/test": "^1.57.0",
