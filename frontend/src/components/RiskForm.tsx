@@ -19,7 +19,7 @@ import type { UserLookupItem } from '@/services/lookupApi';
 import type { Risk, RiskCreate, RiskUpdate } from '@/types/risk';
 import { RiskStatus } from '@/types/risk';
 import { RiskScoreMatrix } from '@/components/RiskScoreMatrix';
-import { useRiskTypes, useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
+import { useRiskTypes, useTotalAssetsValue, useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import {
     PROBABILITY_DESCRIPTIONS,
@@ -49,6 +49,25 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
 
     // Fetch total assets for financial loss calculations
     const { totalAssets } = useTotalAssetsValue();
+
+    // Get thresholds for score-based colors
+    const { thresholds } = useRiskThresholds();
+
+    // Helper to get text color class based on score
+    const getScoreTextColor = (score: number) => {
+        if (score >= thresholds.critical) return 'text-rose-400';
+        if (score >= thresholds.high) return 'text-orange-400';
+        if (score >= thresholds.medium) return 'text-amber-400';
+        return 'text-emerald-400';
+    };
+
+    // Helper to get slider accent color based on score
+    const getSliderAccent = (score: number) => {
+        if (score >= thresholds.critical) return 'accent-rose-500';
+        if (score >= thresholds.high) return 'accent-orange-500';
+        if (score >= thresholds.medium) return 'accent-amber-500';
+        return 'accent-emerald-500';
+    };
 
     // Validation errors (inline)
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -262,7 +281,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
             <StepIndicator
                 steps={steps}
                 currentStep={currentStep}
-                isStepClickable={(idx) => idx < currentStep}
+                isStepClickable={(idx) => isEdit || idx < currentStep}
                 onStepClick={(idx) => setCurrentStep(idx)}
             />
 
@@ -630,7 +649,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                             <div className="grid md:grid-cols-2 gap-12">
                                 <section className="space-y-6">
-                                    <h4 className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Gross Risk (Baseline)</h4>
+                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>Gross Risk (Baseline)</h4>
                                     <div className="space-y-4">
                                         <div>
                                             <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
@@ -641,11 +660,11 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                 type="range" min="1" max="5" step="1"
                                                 value={formData.gross_probability}
                                                 onChange={(e) => handleInputChange('gross_probability', parseInt(e.target.value))}
-                                                className="w-full accent-amber-500"
+                                                className={`w-full ${getSliderAccent((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}
                                             />
                                             {formData.gross_probability && PROBABILITY_DESCRIPTIONS[formData.gross_probability] && (
                                                 <p className="text-xs text-slate-400 mt-1">
-                                                    <span className="font-semibold text-amber-400">
+                                                    <span className={`font-semibold ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>
                                                         {PROBABILITY_DESCRIPTIONS[formData.gross_probability].label}
                                                     </span>
                                                     <span className="mx-1">—</span>
@@ -662,11 +681,11 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                 type="range" min="1" max="5" step="1"
                                                 value={formData.gross_impact}
                                                 onChange={(e) => handleInputChange('gross_impact', parseInt(e.target.value))}
-                                                className="w-full accent-amber-500"
+                                                className={`w-full ${getSliderAccent((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}
                                             />
                                             {formData.gross_impact && IMPACT_DESCRIPTIONS[formData.gross_impact] && (
                                                 <p className="text-xs text-slate-400 mt-1">
-                                                    <span className="font-semibold text-amber-400">
+                                                    <span className={`font-semibold ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>
                                                         {IMPACT_DESCRIPTIONS[formData.gross_impact].label}
                                                     </span>
                                                     <span className="mx-1">—</span>
@@ -683,7 +702,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                         probability={formData.gross_probability || 1}
                                         impact={formData.gross_impact || 1}
                                         type="gross"
-                                        size="small"
+                                        size="large"
                                         onSelect={(p, i) => {
                                             handleInputChange('gross_probability', p);
                                             handleInputChange('gross_impact', i);
@@ -692,7 +711,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                 </section>
 
                                 <section className="space-y-6">
-                                    <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Net Risk (Target)</h4>
+                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>Net Risk (Target)</h4>
                                     <div className="space-y-4">
                                         <div>
                                             <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
@@ -703,11 +722,11 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                 type="range" min="1" max="5" step="1"
                                                 value={formData.net_probability}
                                                 onChange={(e) => handleInputChange('net_probability', parseInt(e.target.value))}
-                                                className="w-full accent-emerald-500"
+                                                className={`w-full ${getSliderAccent((formData.net_probability || 1) * (formData.net_impact || 1))}`}
                                             />
                                             {formData.net_probability && PROBABILITY_DESCRIPTIONS[formData.net_probability] && (
                                                 <p className="text-xs text-slate-400 mt-1">
-                                                    <span className="font-semibold text-emerald-400">
+                                                    <span className={`font-semibold ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>
                                                         {PROBABILITY_DESCRIPTIONS[formData.net_probability].label}
                                                     </span>
                                                     <span className="mx-1">—</span>
@@ -724,11 +743,11 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                 type="range" min="1" max="5" step="1"
                                                 value={formData.net_impact}
                                                 onChange={(e) => handleInputChange('net_impact', parseInt(e.target.value))}
-                                                className="w-full accent-emerald-500"
+                                                className={`w-full ${getSliderAccent((formData.net_probability || 1) * (formData.net_impact || 1))}`}
                                             />
                                             {formData.net_impact && IMPACT_DESCRIPTIONS[formData.net_impact] && (
                                                 <p className="text-xs text-slate-400 mt-1">
-                                                    <span className="font-semibold text-emerald-400">
+                                                    <span className={`font-semibold ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>
                                                         {IMPACT_DESCRIPTIONS[formData.net_impact].label}
                                                     </span>
                                                     <span className="mx-1">—</span>
@@ -745,7 +764,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                         probability={formData.net_probability || 1}
                                         impact={formData.net_impact || 1}
                                         type="net"
-                                        size="small"
+                                        size="large"
                                         onSelect={(p, i) => {
                                             handleInputChange('net_probability', p);
                                             handleInputChange('net_impact', i);
