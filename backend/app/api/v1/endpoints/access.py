@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.permissions import get_effective_permissions, get_scope_label, is_privileged_user
+from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
 from app.models import User, Role, RolePermission
 from app.models.user import AccessScope
@@ -18,11 +19,24 @@ ADMIN_PRIVILEGED_ROLES = {"admin", "cro"}
 
 
 def _require_privileged(user: User) -> None:
+    """
+    Require that the user has global (privileged) access scope.
+    
+    Used for endpoints that are restricted to platform-wide admins.
+    Raises 403 if user lacks GLOBAL access scope.
+    """
     if not is_privileged_user(user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 
 def _can_manage_privileged_status(user: User) -> bool:
+    """
+    Check if user can modify privileged status of other users.
+    
+    Only admin and CRO roles can change user roles or access scopes.
+    This is stricter than _require_privileged - not all privileged users
+    can manage privileged status, only admin/CRO.
+    """
     return bool(user.role and user.role.name in ADMIN_PRIVILEGED_ROLES)
 
 
@@ -67,11 +81,7 @@ async def list_access_users(
     """List users for access management with scope filters."""
     _require_privileged(current_user)
 
-    query = select(User).options(
-        selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
-        selectinload(User.department),
-        selectinload(User.manager),
-    )
+    query = select(User).options(*user_selectinload_options(include_permissions=True))
 
     if department_id is not None:
         query = query.where(User.department_id == department_id)
@@ -119,9 +129,7 @@ async def list_department_access_users(
         )
 
     query = select(User).options(
-        selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
-        selectinload(User.department),
-        selectinload(User.manager),
+        *user_selectinload_options(include_permissions=True)
     ).where(User.department_id == current_user.department_id).where(User.is_active == True)
 
     result = await db.execute(query)
@@ -160,11 +168,7 @@ async def update_access_user(
 
     result = await db.execute(
         select(User)
-        .options(
-            selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
-            selectinload(User.department),
-            selectinload(User.manager),
-        )
+        .options(*user_selectinload_options(include_permissions=True))
         .where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
@@ -258,11 +262,7 @@ async def update_access_user(
 
     result = await db.execute(
         select(User)
-        .options(
-            selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
-            selectinload(User.department),
-            selectinload(User.manager),
-        )
+        .options(*user_selectinload_options(include_permissions=True))
         .where(User.id == user.id)
     )
     return _build_access_user_read(result.scalar_one())

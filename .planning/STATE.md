@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 251-03: Simplified `admin.py` (935→779 lines) by extracting 13 Pydantic schemas to `app/schemas/admin.py`, centralizing admin gating via `require_platform_admin` dependency, and extracting `_parse_log_entry`/`_read_log_file` helpers for the logs domain. Tests pass.
+- Completed Plan 251-04: Simplified user endpoints by creating shared `user_query_options.py` helper, reducing selectinload duplication in `users.py` and `access.py`. Added docstrings to privileged gating helpers. Tests pass.
 
 ### Next Step
-- Continue Phase 251 Spaghetti Simplification 2 (3/10 plans complete). Execute Plan 251-04.
+- Continue Phase 251 Spaghetti Simplification 2 (4/10 plans complete). Execute Plan 251-05.
 
 
 ---
