@@ -213,7 +213,7 @@ async def test_control_owner_can_view_risk_controls_cross_dept(
     link = ControlRiskLink(
         control_id=cross_dept_control.id,
         risk_id=cross_dept_risk.id,
-        effectiveness="effective",
+        effectiveness="high",
     )
     db_session.add(link)
     await db_session.commit()
@@ -242,7 +242,7 @@ async def test_control_owner_can_link_control_to_risk(
         f"/api/v1/risks/{cross_dept_risk.id}/controls",
         json={
             "control_id": cross_dept_control.id,
-            "effectiveness": "effective",
+            "effectiveness": "high",
             "notes": "Cross-department link test",
         },
     )
