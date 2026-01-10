@@ -167,10 +167,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 180-04: E2E Tests for Approval Workflows. Created `ApprovalsPage.ts` POM and 3 spec files (status-flow, tiered-approval, self-approval) with 20 tests (6 passed, 14 skipped due to data conditions).
+- Completed Plan 180-05: E2E Tests for Sensitive Field Rules. Created 4 spec files in `frontend/e2e/sensitive-fields/` covering §6 (21 tests: 1 passed, 20 skipped due to data conditions).
 
 ### Next Step
-- Continue with Plan 180-05 if exists, or Phase 17 Production Deployment.
+- Continue with Plan 180-06 if exists, or proceed to Phase 17 Production Deployment.
 
 
 
