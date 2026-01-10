@@ -167,10 +167,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 180-03: E2E Tests for Permission Matrix & CRUD Operations. Created 4 spec files (risks-crud, controls-crud, kris-crud, approvals-access) with 59 tests (41 passed, 18 skipped).
+- Completed Plan 180-04: E2E Tests for Approval Workflows. Created `ApprovalsPage.ts` POM and 3 spec files (status-flow, tiered-approval, self-approval) with 20 tests (6 passed, 14 skipped due to data conditions).
 
 ### Next Step
-- Continue with Phase 180 E2E Business Logic (Plan 180-04 if exists) or Phase 17 Production Deployment.
+- Continue with Plan 180-05 if exists, or Phase 17 Production Deployment.
 
 
 
