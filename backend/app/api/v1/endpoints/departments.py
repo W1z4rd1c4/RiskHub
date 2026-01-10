@@ -37,84 +37,104 @@ RISK_LEVEL_RANGES = {
 }
 
 
-@router.get("", response_model=list[DepartmentSummary])
-async def list_departments(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    """List all departments with summary statistics."""
-    # Subquery for departments with ACTIVE users
-    active_dept_ids = select(User.department_id).where(
-        and_(User.department_id.isnot(None), User.is_active == True)
-    ).distinct()
+# ---------------------------------------------------------------------------
+# Private helpers: scoping and pagination
+# ---------------------------------------------------------------------------
 
-    query = select(Department).where(
-        or_(
-            Department.is_system == True,
-            Department.id.in_(active_dept_ids)
-        )
-    ).order_by(Department.name)
-    
-    # Apply department filtering
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:
-        query = query.filter(Department.id.in_(dept_ids))
-    
-    # Filter inactive departments generally
-    query = query.where(Department.is_active == True)
-    
-    result = await db.execute(query)
-    departments = result.scalars().all()
-    dept_map = {d.id: d for d in departments}
 
-    # 1. User counts
-    user_counts_result = await db.execute(
+def _get_scoped_department_ids(current_user: User) -> Optional[list[int]]:
+    """
+    Return visible department IDs for the user.
+
+    Returns None if user sees all departments (privileged).
+    """
+    return get_user_department_ids(current_user)
+
+
+async def _assert_department_in_scope(
+    department_id: int, db: AsyncSession, current_user: User
+) -> Department:
+    """
+    Load department by id and verify user access.
+
+    Raises HTTPException 404 if not found; 403 if out of scope.
+    """
+    result = await db.execute(select(Department).where(Department.id == department_id))
+    dept = result.scalar_one_or_none()
+    if not dept:
+        raise HTTPException(status_code=404, detail="Department not found")
+    check_department_access(department_id, current_user)
+    return dept
+
+
+def _clamp_pagination(skip: int, limit: int) -> tuple[int, int]:
+    """
+    Enforce pagination bounds.
+
+    Returns (skip, limit) where limit is clamped to MAX_PAGE_SIZE.
+    """
+    return max(0, skip), min(limit, MAX_PAGE_SIZE)
+
+
+# ---------------------------------------------------------------------------
+# Private helpers: stats builders (return dict[department_id, count])
+# ---------------------------------------------------------------------------
+
+
+async def _count_active_users_by_dept(db: AsyncSession) -> dict[int, int]:
+    """Active user count per department."""
+    result = await db.execute(
         select(User.department_id, func.count(User.id))
-        .where(User.is_active == True)  # Only count active users for accurate stats
+        .where(User.is_active == True)
         .group_by(User.department_id)
     )
-    user_counts = dict(user_counts_result.all())
-    
-    # 2. Risk counts (non-archived)
-    risk_counts_result = await db.execute(
+    return dict(result.all())
+
+
+async def _count_risks_by_dept(db: AsyncSession) -> dict[int, int]:
+    """Non-archived risk count per department."""
+    result = await db.execute(
         select(Risk.department_id, func.count(Risk.id))
         .where(Risk.status != RiskStatus.archived.value)
         .group_by(Risk.department_id)
     )
-    risk_counts = dict(risk_counts_result.all())
-    
-    # 3. High risk counts (net_score >= 16, non-archived)
-    high_risk_counts_result = await db.execute(
+    return dict(result.all())
+
+
+async def _count_high_risks_by_dept(db: AsyncSession) -> dict[int, int]:
+    """Non-archived risk count with net_score >= 16 ('critical' level) per department."""
+    result = await db.execute(
         select(Risk.department_id, func.count(Risk.id))
-        .where(
-            and_(
-                Risk.status != RiskStatus.archived.value,
-                Risk.net_score >= 16
-            )
-        )
+        .where(and_(Risk.status != RiskStatus.archived.value, Risk.net_score >= 16))
         .group_by(Risk.department_id)
     )
-    high_risk_counts = dict(high_risk_counts_result.all())
-    
-    # 4. Control counts (non-archived)
-    control_counts_result = await db.execute(
+    return dict(result.all())
+
+
+async def _count_controls_by_dept(db: AsyncSession) -> dict[int, int]:
+    """Non-archived control count per department."""
+    result = await db.execute(
         select(Control.department_id, func.count(Control.id))
         .where(Control.status != ControlStatus.archived.value)
         .group_by(Control.department_id)
     )
-    control_counts = dict(control_counts_result.all())
-    
-    # 5. KRI counts (linked to non-archived risks)
-    kri_counts_result = await db.execute(
+    return dict(result.all())
+
+
+async def _count_kris_by_dept(db: AsyncSession) -> dict[int, int]:
+    """KRI count linked to non-archived risks, grouped by risk's department."""
+    result = await db.execute(
         select(Risk.department_id, func.count(KeyRiskIndicator.id))
         .join(Risk)
         .where(Risk.status != RiskStatus.archived.value)
         .group_by(Risk.department_id)
     )
-    kri_counts = dict(kri_counts_result.all())
-    
-    # 6. Breaching KRI counts (linked to non-archived risks, outside limits)
-    breaching_kri_counts_result = await db.execute(
+    return dict(result.all())
+
+
+async def _count_breaching_kris_by_dept(db: AsyncSession) -> dict[int, int]:
+    """KRI count outside limits, linked to non-archived risks, per department."""
+    result = await db.execute(
         select(Risk.department_id, func.count(KeyRiskIndicator.id))
         .join(Risk)
         .where(
@@ -122,25 +142,66 @@ async def list_departments(
                 Risk.status != RiskStatus.archived.value,
                 or_(
                     KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
-                    KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit
-                )
+                    KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
+                ),
             )
         )
         .group_by(Risk.department_id)
     )
-    breaching_kri_counts = dict(breaching_kri_counts_result.all())
-    
-    # 7. Total net scores per department
-    net_score_totals_result = await db.execute(
+    return dict(result.all())
+
+
+async def _sum_net_scores_by_dept(db: AsyncSession) -> dict[int, int]:
+    """Total net_score for non-archived risks per department."""
+    result = await db.execute(
         select(Risk.department_id, func.sum(Risk.net_score))
         .where(Risk.status != RiskStatus.archived.value)
         .group_by(Risk.department_id)
     )
-    net_score_totals = dict(net_score_totals_result.all())
-    
-    summaries = []
-    for dept in departments:
-        summaries.append(DepartmentSummary(
+    return {dept_id: (total or 0) for dept_id, total in result.all()}
+
+
+@router.get("", response_model=list[DepartmentSummary])
+async def list_departments(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """
+    List all departments with summary statistics.
+
+    Scoping: Non-privileged users see only their own department(s).
+    Excludes: Inactive departments; archived entities in counts.
+    """
+    # 1. Load visible departments
+    active_dept_ids = select(User.department_id).where(
+        and_(User.department_id.isnot(None), User.is_active == True)
+    ).distinct()
+
+    query = (
+        select(Department)
+        .where(or_(Department.is_system == True, Department.id.in_(active_dept_ids)))
+        .where(Department.is_active == True)
+        .order_by(Department.name)
+    )
+    dept_ids = _get_scoped_department_ids(current_user)
+    if dept_ids is not None:
+        query = query.filter(Department.id.in_(dept_ids))
+
+    result = await db.execute(query)
+    departments = result.scalars().all()
+
+    # 2. Compute count maps (each helper returns dict[department_id, count])
+    user_counts = await _count_active_users_by_dept(db)
+    risk_counts = await _count_risks_by_dept(db)
+    high_risk_counts = await _count_high_risks_by_dept(db)
+    control_counts = await _count_controls_by_dept(db)
+    kri_counts = await _count_kris_by_dept(db)
+    breaching_kri_counts = await _count_breaching_kris_by_dept(db)
+    net_score_totals = await _sum_net_scores_by_dept(db)
+
+    # 3. Build response objects
+    return [
+        DepartmentSummary(
             id=dept.id,
             name=dept.name,
             code=dept.code,
@@ -150,10 +211,10 @@ async def list_departments(
             high_risk_count=high_risk_counts.get(dept.id, 0),
             breaching_kri_count=breaching_kri_counts.get(dept.id, 0),
             kri_count=kri_counts.get(dept.id, 0),
-            total_net_score=int(net_score_totals.get(dept.id, 0) or 0),
-        ))
-    
-    return summaries
+            total_net_score=int(net_score_totals.get(dept.id, 0)),
+        )
+        for dept in departments
+    ]
 
 
 @router.get("/{department_id}", response_model=DepartmentDetail)
@@ -162,21 +223,20 @@ async def get_department(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    """Get detailed department information with metrics."""
-    result = await db.execute(
-        select(Department).where(Department.id == department_id)
-    )
-    dept = result.scalar_one_or_none()
+    """
+    Get detailed department information with metrics.
+
+    Access: 404 if department not found; 403 if out of user's scope.
+    Excludes: Archived risks/controls/KRIs from counts and distributions.
+    Metrics: risk_distribution uses RISK_LEVEL_RANGES; control_stats groups by form/frequency.
+    """
+    dept = await _assert_department_in_scope(department_id, db, current_user)
     
-    if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
-    
-    # Verify department access
-    check_department_access(department_id, current_user)
-    
-    # Count users
+    # Count active users only (consistent with list_departments)
     user_count_result = await db.execute(
-        select(func.count(User.id)).where(User.department_id == department_id)
+        select(func.count(User.id)).where(
+            and_(User.department_id == department_id, User.is_active == True)
+        )
     )
     user_count = user_count_result.scalar() or 0
     
@@ -354,16 +414,14 @@ async def list_department_risks(
     status: Optional[str] = None,
     min_net_score: Optional[int] = Query(None, ge=0, le=25, description="Filter risks with net_score >= this value"),
 ):
-    """List risks for a specific department with KRI metadata."""
-    # Verify department exists
-    dept_result = await db.execute(
-        select(Department).where(Department.id == department_id)
-    )
-    if not dept_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Department not found")
-    
-    # Verify department access
-    check_department_access(department_id, current_user)
+    """
+    List risks for a specific department with KRI metadata.
+
+    Access: 404 if not found; 403 if out of scope.
+    Excludes: Archived risks by default (explicit status param overrides).
+    Pagination: skip/limit with MAX_PAGE_SIZE cap.
+    """
+    await _assert_department_in_scope(department_id, db, current_user)
     
     # Load risks with their KRIs eagerly
     query = (
@@ -421,16 +479,14 @@ async def list_department_controls(
     limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     status: Optional[str] = None,
 ):
-    """List controls for a specific department."""
-    # Verify department exists
-    dept_result = await db.execute(
-        select(Department).where(Department.id == department_id)
-    )
-    if not dept_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Department not found")
-    
-    # Verify department access
-    check_department_access(department_id, current_user)
+    """
+    List controls for a specific department.
+
+    Access: 404 if not found; 403 if out of scope.
+    Excludes: Archived controls by default (explicit status param overrides).
+    Pagination: skip/limit with MAX_PAGE_SIZE cap.
+    """
+    await _assert_department_in_scope(department_id, db, current_user)
     
     query = select(Control).where(Control.department_id == department_id)
     
@@ -474,17 +530,14 @@ async def list_department_kris(
     skip: int = Query(0, ge=0),
     limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
 ):
-    """List KRIs for a specific department."""
-    
-    # Verify department exists
-    dept_result = await db.execute(
-        select(Department).where(Department.id == department_id)
-    )
-    if not dept_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Department not found")
-    
-    # Verify department access
-    check_department_access(department_id, current_user)
+    """
+    List KRIs for a specific department.
+
+    Access: 404 if not found; 403 if out of scope.
+    Excludes: KRIs linked to archived risks.
+    Pagination: skip/limit with MAX_PAGE_SIZE cap.
+    """
+    await _assert_department_in_scope(department_id, db, current_user)
     
     # Query KRIs via Risk (exclude archived risks)
     query = (
