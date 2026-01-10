@@ -39,20 +39,25 @@ PERMISSIONS = [
     {"resource": "users", "action": "read", "description": "View users"},
     {"resource": "users", "action": "write", "description": "Manage users"},
     {"resource": "approvals", "action": "write", "description": "Resolve approval requests"},
-    {"resource": "kri", "action": "record", "description": "Submit KRI values"},
+    {"resource": "kri", "action": "submit", "description": "Submit KRI values"},
     {"resource": "activity_log", "action": "read", "description": "View activity log"},
 ]
 
 # Role-permission mappings
+# NOTE: kri:submit policy aligned with add_granular_permissions.py:
+#   - cro: has *:* (includes kri:submit)
+#   - risk_manager: granted kri:submit explicitly
+#   - department_head: granted kri:submit explicitly
+#   - control_owner: does NOT have kri:submit (must be reporting owner to submit)
 ROLE_PERMISSIONS = {
     "admin": ["users:*", "activity_log:read", "departments:read"],
     "cro": ["*:*"],
-    "risk_manager": ["controls:*", "risks:*", "departments:read", "reports:*", "users:read", "approvals:write", "activity_log:read"],
+    "risk_manager": ["controls:*", "risks:*", "departments:read", "reports:*", "users:read", "approvals:write", "activity_log:read", "kri:submit"],
     "actuarial": ["controls:read", "controls:write", "risks:read", "reports:read"],
     "compliance": ["controls:read", "controls:write", "risks:read", "reports:read"],
     "internal_audit": ["controls:read", "risks:read", "departments:read", "reports:read"],
-    "department_head": ["controls:read", "controls:write", "risks:read", "departments:read", "reports:read", "kri:record", "activity_log:read"],
-    "control_owner": ["controls:read", "controls:write", "risks:read", "kri:record"],
+    "department_head": ["controls:read", "controls:write", "risks:read", "departments:read", "reports:read", "kri:submit", "activity_log:read"],
+    "control_owner": ["controls:read", "controls:write", "risks:read"],  # No kri:submit - must be reporting owner
     "viewer": ["controls:read", "risks:read", "departments:read", "reports:read"],
 }
 

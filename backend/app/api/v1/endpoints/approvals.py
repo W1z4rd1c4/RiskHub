@@ -456,7 +456,7 @@ async def approve_request(
                                     recorded_at=recorded_at,
                                     period_end=period_end,
                                     is_privileged=True,
-                                    allow_open_period=True,  # Allow open period for approved submissions
+                                    # allow_open_period removed - periods are now always closed
                                 )
                             except ValueError as e:
                                 logger.error(f"KRI value recording failed (submit): {e}")
