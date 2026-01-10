@@ -47,7 +47,7 @@
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
 | 200 Entity Naming Enforcement | ✅ Complete (10/10) | 2026-01-05 |
-| 250 Spaghetti Simplification | ⏳ In progress (3/10) | - |
+| 250 Spaghetti Simplification | ⏳ In progress (4/10) | - |
 
 
 ## Session Context
@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 250-03: Extracted approval execution logic from `approvals.py` (961→586 lines) into `approval_execution_service.py` (673 lines). Refactored `approve_request()` from ~460 lines inline to ~75 lines orchestration. All 36 tests pass.
+- Completed Plan 250-04: Created `create_approval_request_with_audit()` helper in `approval_helpers.py`. Refactored 6 call sites in `risks.py` and `kris.py` to use the helper, reducing ~85 lines of duplicated boilerplate. All tests pass.
 
 ### Next Step
-- Continue with Phase 250 Plan 250-04, or Phase 17 Production Deployment.
+- Continue with Phase 250 Plan 250-05, or Phase 17 Production Deployment.
 
 ---
 *Updated: 2026-01-10*

@@ -390,19 +390,13 @@ async def update_kri(
             pending_changes=pending_changes,
             status=ApprovalStatus.PENDING,
         )
-        db.add(approval)
-        await db.flush()
-        
-        await log_activity(
+        from app.core.approval_helpers import create_approval_request_with_audit
+        await create_approval_request_with_audit(
             db,
-            entity_type=ActivityEntityType.APPROVAL,
-            entity_id=approval.id,
-            entity_name=approval.resource_name,
-            action=ActivityAction.CREATE,
+            approval=approval,
             actor=current_user,
             department_id=kri.risk.department_id,
         )
-        await db.commit()
         
         from fastapi.responses import JSONResponse
         return JSONResponse(
@@ -528,19 +522,14 @@ async def delete_kri(
         reason=reason,
         status=ApprovalStatus.PENDING,
     )
-    db.add(approval)
-    await db.flush()
-    
-    await log_activity(
+    from app.core.approval_helpers import create_approval_request_with_audit
+    await create_approval_request_with_audit(
         db,
-        entity_type=ActivityEntityType.APPROVAL,
-        entity_id=approval.id,
-        entity_name=approval.resource_name,
-        action=ActivityAction.CREATE,
+        approval=approval,
         actor=current_user,
         department_id=kri.risk.department_id,
+        on_duplicate_detail="Deletion request already pending",
     )
-    await db.commit()
     
     from fastapi.responses import JSONResponse
     return JSONResponse(
@@ -656,25 +645,14 @@ async def record_kri_value(
             requires_privileged_approval=requires_privileged,
         )
         
-        try:
-            db.add(approval)
-            await db.flush()
-            
-            await log_activity(
-                db,
-                entity_type=ActivityEntityType.APPROVAL,
-                entity_id=approval.id,
-                entity_name=approval.resource_name,
-                action=ActivityAction.CREATE,
-                actor=current_user,
-                department_id=kri.risk.department_id,
-            )
-            await db.commit()
-        except IntegrityError as e:
-            await db.rollback()
-            if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
-                raise HTTPException(status_code=409, detail="A value submission request is already pending for this KRI.")
-            raise
+        from app.core.approval_helpers import create_approval_request_with_audit
+        await create_approval_request_with_audit(
+            db,
+            approval=approval,
+            actor=current_user,
+            department_id=kri.risk.department_id,
+            on_duplicate_detail="A value submission request is already pending for this KRI.",
+        )
         
         # Notify Risk Owner (primary approver)
         if primary_approver_id:
@@ -921,25 +899,14 @@ async def correct_history_entry(
             status=ApprovalStatus.PENDING,
         )
         
-        try:
-            db.add(approval)
-            await db.flush()
-            
-            await log_activity(
-                db,
-                entity_type=ActivityEntityType.APPROVAL,
-                entity_id=approval.id,
-                entity_name=approval.resource_name,
-                action=ActivityAction.CREATE,
-                actor=current_user,
-                department_id=kri.risk.department_id,
-            )
-            await db.commit()
-        except IntegrityError as e:
-            await db.rollback()
-            if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
-                raise HTTPException(status_code=409, detail="A correction request is already pending for this KRI.")
-            raise
+        from app.core.approval_helpers import create_approval_request_with_audit
+        await create_approval_request_with_audit(
+            db,
+            approval=approval,
+            actor=current_user,
+            department_id=kri.risk.department_id,
+            on_duplicate_detail="A correction request is already pending for this KRI.",
+        )
         
         from fastapi.responses import JSONResponse
         return JSONResponse(

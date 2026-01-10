@@ -130,3 +130,65 @@ async def get_primary_approver_for_risk(
         return risk.department.manager_id
     
     return None
+
+
+async def create_approval_request_with_audit(
+    db: AsyncSession,
+    *,
+    approval: "ApprovalRequest",
+    actor: "User",
+    department_id: Optional[int],
+    on_duplicate_detail: str = "An approval request is already pending for this action.",
+) -> "ApprovalRequest":
+    """
+    Create an approval request with audit logging and commit.
+    
+    This is a focused helper that consolidates the repeated boilerplate for
+    creating approval requests:
+    1. Add and flush the approval request
+    2. Log the APPROVAL/CREATE activity
+    3. Commit the transaction
+    4. Handle IntegrityError for the ux_approval_pending unique constraint
+    
+    Args:
+        db: Database session
+        approval: The ApprovalRequest to persist (already populated)
+        actor: The user creating the request (for activity log)
+        department_id: Department ID for activity log scoping
+        on_duplicate_detail: Error message if unique constraint is violated
+        
+    Returns:
+        The persisted ApprovalRequest with ID populated
+        
+    Raises:
+        HTTPException(409): If a pending approval already exists (unique constraint violation)
+    """
+    from sqlalchemy.exc import IntegrityError
+    from fastapi import HTTPException, status
+    from app.core.activity_logger import log_activity
+    from app.models.activity_log import ActivityAction, ActivityEntityType
+    from app.models import ApprovalRequest
+    
+    try:
+        db.add(approval)
+        await db.flush()
+        
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.APPROVAL,
+            entity_id=approval.id,
+            entity_name=approval.resource_name,
+            action=ActivityAction.CREATE,
+            actor=actor,
+            department_id=department_id,
+        )
+        await db.commit()
+        return approval
+    except IntegrityError as e:
+        await db.rollback()
+        if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=on_duplicate_detail,
+            )
+        raise
