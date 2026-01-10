@@ -7,14 +7,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models import User, Risk, ControlRiskLink, KeyRiskIndicator, RiskTypeConfig
+from app.models import User, Risk, Control, ControlRiskLink, KeyRiskIndicator, RiskTypeConfig
 from app.schemas.risk import (
     RiskCreate, RiskUpdate, RiskRead, RiskSummary, RiskListResponse,
     RiskStatusEnum,
     ControlRiskLinkFromRisk, ControlRiskLinkRead, ControlEffectivenessEnum,
 )
 from app.api import deps
-from app.core.permissions import get_user_department_ids, check_department_access
+from app.core.permissions import get_user_department_ids, check_department_access, is_control_owner
 from app.core.security import require_permission, check_permission
 from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
