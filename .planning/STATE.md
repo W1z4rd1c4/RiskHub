@@ -48,6 +48,7 @@
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
 | 200 Entity Naming Enforcement | ✅ Complete (10/10) | 2026-01-05 |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
+| 251 Spaghetti Simplification 2 | ✅ Complete (10/10) | 2026-01-10 |
 
 
 ## Session Context
@@ -166,10 +167,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 251-09: Simplified `KRIDetailPage.tsx` (533→~298 lines) by extracting overview tab into `KRIDetailOverviewTab.tsx` and history tab into `KRIDetailHistoryTab.tsx` with pure transformation helpers. Build passes.
+- Completed Plan 251-10: Simplified `LinkManagementDialog.tsx` (518→265 lines) by extracting `LinkSearchPanel.tsx` and `ExistingLinksPanel.tsx` subcomponents with explicit types. Build passes.
 
 ### Next Step
-- Continue Phase 251 Spaghetti Simplification 2 (9/10 plans complete). Execute Plan 251-10.
+- Phase 251 Spaghetti Simplification 2 complete (10/10 plans). Continue with Phase 17 Production Deployment (Plan 17-01).
 
 
 ---

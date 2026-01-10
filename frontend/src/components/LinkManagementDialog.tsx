@@ -1,59 +1,32 @@
+/**
+ * LinkManagementDialog
+ * 
+ * Modal dialog for managing risk/control links.
+ * Orchestrates search, filter, link, and unlink operations.
+ * 
+ * Subcomponents:
+ * - LinkSearchPanel: Search, filter, and link new items
+ * - ExistingLinksPanel: Display and unlink existing items
+ */
+
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-    X,
-    Search,
-    Plus,
-    Trash2,
-    AlertCircle,
-    Link as LinkIcon,
-    Loader2
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { X, Link as LinkIcon } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
 import { lookupApi } from '@/services/lookupApi';
 import { ControlEffectiveness } from '@/types/risk';
-import { Filter, RotateCcw } from 'lucide-react';
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { LinkSearchPanel, type DepartmentLookup, type SearchResultItem } from './linking/LinkSearchPanel';
+import { ExistingLinksPanel, type ExistingLinkItem } from './linking/ExistingLinksPanel';
 
-// Link item types for control-to-risk or risk-to-control mode
-// Made generic to accept RiskControlLink or ControlRiskLink
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-interface LinkItem {
-    id: number;
-    risk_id?: number;
-    control_id?: number;
-    effectiveness: string;
-    notes?: string;
-    risk?: Record<string, unknown>;
-    control?: Record<string, unknown>;
-}
-
-// Search result types
-interface SearchResult {
-    id: number;
-    name?: string;
-    description?: string;
-    process?: string;
-    risk_level?: number;
-    frequency?: string;
-    department?: { name?: string };
-    department_name?: string;
-    control_owner_name?: string;
-}
-
-// Department lookup type
-interface DepartmentLookup {
-    id: number;
-    name: string;
-    code?: string;
-}
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
 
 interface LinkManagementDialogProps {
     mode: 'control-to-risk' | 'risk-to-control';
-    existingLinks: LinkItem[];
+    existingLinks: ExistingLinkItem[];
     onLink: (targetId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<void>;
     onUnlink: (targetId: number) => Promise<void>;
     isOpen: boolean;
@@ -61,6 +34,10 @@ interface LinkManagementDialogProps {
     showSearch?: boolean;
     showLinks?: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export function LinkManagementDialog({
     mode,
@@ -72,32 +49,47 @@ export function LinkManagementDialog({
     showSearch = true,
     showLinks = true
 }: LinkManagementDialogProps) {
+    // -----------------------------------------------------------------------
     // Search state
+    // -----------------------------------------------------------------------
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+    const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
     const [isSearching, setIsSearching] = useState(false);
 
+    // -----------------------------------------------------------------------
     // Selection state
+    // -----------------------------------------------------------------------
     const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null);
     const [isLinking, setIsLinking] = useState(false);
     const [isUnlinking, setIsUnlinking] = useState<number | null>(null);
 
+    // -----------------------------------------------------------------------
     // Filter state
+    // -----------------------------------------------------------------------
     const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
     const [selectedProcess, setSelectedProcess] = useState<string>('');
     const [selectedCategory, setSelectedCategory] = useState<string>('');
 
+    // -----------------------------------------------------------------------
     // Lookups state
+    // -----------------------------------------------------------------------
     const [departments, setDepartments] = useState<DepartmentLookup[]>([]);
     const [processes, setProcesses] = useState<string[]>([]);
     const [categories, setCategories] = useState<string[]>([]);
     const [isLoadingLookups, setIsLoadingLookups] = useState(false);
 
-    // Filter out already linked items from results
+    // -----------------------------------------------------------------------
+    // Derived values
+    // -----------------------------------------------------------------------
     const linkedTargetIds = existingLinks.map(link =>
         mode === 'control-to-risk' ? link.risk_id : link.control_id
     );
 
+    // -----------------------------------------------------------------------
+    // Effects
+    // -----------------------------------------------------------------------
+
+    // Load lookups when dialog opens
     useEffect(() => {
         if (isOpen && showSearch) {
             const loadLookups = async () => {
@@ -120,6 +112,7 @@ export function LinkManagementDialog({
         }
     }, [isOpen, showSearch]);
 
+    // Search with debounce
     useEffect(() => {
         if (!isOpen) {
             setSearchQuery('');
@@ -136,13 +129,18 @@ export function LinkManagementDialog({
         }, 300);
 
         return () => clearTimeout(delayDebounceFn);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery, selectedDeptId, selectedProcess, selectedCategory, isOpen]);
+
+    // -----------------------------------------------------------------------
+    // Handlers
+    // -----------------------------------------------------------------------
 
     const handleSearch = async () => {
         try {
             setIsSearching(true);
             const params: Record<string, string | number> = {
-                limit: 20 // Show more results since we have filters
+                limit: 20
             };
             if (searchQuery) params.search = searchQuery;
             if (selectedDeptId) params.department_id = selectedDeptId;
@@ -188,14 +186,9 @@ export function LinkManagementDialog({
         }
     };
 
-    const getEffectivenessColor = (eff: string) => {
-        switch (eff) {
-            case 'high': return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-            case 'medium': return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-            case 'low': return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
-            default: return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
-        }
-    };
+    // -----------------------------------------------------------------------
+    // Render
+    // -----------------------------------------------------------------------
 
     if (typeof document === 'undefined') return null;
 
@@ -238,264 +231,39 @@ export function LinkManagementDialog({
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                            {/* Search and Selection */}
+                            {/* Search Panel */}
                             {showSearch && (
-                                <section className="space-y-4">
-                                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                        <Plus className="h-3 w-3" />
-                                        Add New Link
-                                    </h3>
-
-                                    <div className="space-y-4">
-                                        <div className="relative group">
-                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                                            <input
-                                                type="text"
-                                                placeholder={`Search ${mode === 'control-to-risk' ? 'risks' : 'controls'} by name...`}
-                                                value={searchQuery}
-                                                onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium"
-                                            />
-                                            {isSearching && (
-                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                                    <Loader2 className="h-4 w-4 text-accent animate-spin" />
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                            <Filter className="h-3 w-3" />
-                                            Filters
-                                            {isLoadingLookups && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
-                                        </div>
-
-                                        {/* Advanced Filters */}
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                            <ThemedSelect
-                                                value={selectedDeptId?.toString() ?? ''}
-                                                onValueChange={(v) => setSelectedDeptId(v ? Number(v) : null)}
-                                                placeholder="All Departments"
-                                                allowEmpty
-                                                emptyLabel="All Departments"
-                                                options={departments.map(d => ({ value: d.id.toString(), label: d.name }))}
-                                            />
-
-                                            <ThemedSelect
-                                                value={selectedProcess}
-                                                onValueChange={(v) => setSelectedProcess(v)}
-                                                placeholder="All Processes"
-                                                allowEmpty
-                                                emptyLabel="All Processes"
-                                                options={processes.map(p => ({ value: p, label: p }))}
-                                            />
-
-                                            <ThemedSelect
-                                                value={selectedCategory}
-                                                onValueChange={(v) => setSelectedCategory(v)}
-                                                placeholder="All Categories"
-                                                allowEmpty
-                                                emptyLabel="All Categories"
-                                                options={categories.map(c => ({ value: c, label: c }))}
-                                            />
-                                        </div>
-
-                                        {(selectedDeptId || selectedProcess || selectedCategory) && (
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedDeptId(null);
-                                                    setSelectedProcess('');
-                                                    setSelectedCategory('');
-                                                }}
-                                                className="flex items-center gap-2 text-[10px] text-slate-500 hover:text-accent transition-colors mt-1 ml-1 self-start group"
-                                            >
-                                                <RotateCcw className="h-3 w-3 group-hover:rotate-[-45deg] transition-transform" />
-                                                Clear All Filters
-                                            </button>
-                                        )}
-
-                                        <div className="space-y-3">
-                                            <div className="flex items-center justify-between px-1">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                    {searchQuery ? 'Search Results' : 'Initial Suggestions'}
-                                                </span>
-                                                <span className="text-[10px] text-slate-600 font-medium">
-                                                    {searchResults.length} {searchResults.length === 1 ? 'item' : 'items'}
-                                                </span>
-                                            </div>
-
-                                            {searchResults.length > 0 && !selectedTargetId && (
-                                                <div className="bg-slate-900/50 border border-white/10 rounded-xl overflow-hidden divide-y divide-white/5 animate-in fade-in slide-in-from-top-2 duration-200">
-                                                    {searchResults.map((result) => (
-                                                        <button
-                                                            key={result.id}
-                                                            onClick={() => setSelectedTargetId(result.id)}
-                                                            className="w-full flex items-center justify-between px-4 py-3 hover:bg-accent/10 transition-colors text-left group"
-                                                        >
-                                                            <div className="flex flex-col flex-1 min-w-0 pr-4">
-                                                                <span className="text-xs font-bold text-white truncate group-hover:text-accent transition-colors text-balance">
-                                                                    {mode === 'control-to-risk' ? result.description : result.name}
-                                                                </span>
-                                                                <span className="text-[10px] text-slate-500 mt-0.5">
-                                                                    {mode === 'control-to-risk' ? result.process : (
-                                                                        <span className="flex items-center gap-1">
-                                                                            {result.department?.name}
-                                                                            {result.control_owner_name && (
-                                                                                <>
-                                                                                    <span className="text-slate-700 mx-1">/</span>
-                                                                                    <span className="text-slate-400 font-medium italic">{result.control_owner_name}</span>
-                                                                                </>
-                                                                            )}
-                                                                        </span>
-                                                                    )}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-3 shrink-0">
-                                                                {mode === 'risk-to-control' && (
-                                                                    <>
-                                                                        <div className="flex flex-col items-end">
-                                                                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Level</span>
-                                                                            <span className="text-[10px] font-bold text-white">{result.risk_level}/5</span>
-                                                                        </div>
-                                                                        <div className="flex flex-col items-end min-w-[60px]">
-                                                                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest text-right">Freq</span>
-                                                                            <span className="text-[10px] font-bold text-white capitalize">{result.frequency}</span>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                                <div className="p-1.5 rounded-lg bg-white/5 group-hover:bg-accent/20 transition-colors">
-                                                                    <Plus className="h-3 w-3 text-slate-500 group-hover:text-accent" />
-                                                                </div>
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            {searchResults.length === 0 && !isSearching && !isLoadingLookups && !selectedTargetId && (
-                                                <div className="py-12 flex flex-col items-center justify-center bg-slate-900/30 border border-dashed border-white/5 rounded-2xl">
-                                                    <div className="p-4 rounded-full bg-white/5 mb-4">
-                                                        <Search className="h-6 w-6 text-slate-600" />
-                                                    </div>
-                                                    <p className="text-sm font-bold text-slate-400">No {mode === 'control-to-risk' ? 'risks' : 'controls'} found</p>
-                                                    <p className="text-xs text-slate-600 mt-1">Try adjusting your filters or search query</p>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {/* Link Configuration Form (shown after selection) */}
-                                        <AnimatePresence>
-                                            {selectedTargetId && (
-                                                <motion.div
-                                                    initial={{ opacity: 0, height: 0 }}
-                                                    animate={{ opacity: 1, height: 'auto' }}
-                                                    exit={{ opacity: 0, height: 0 }}
-                                                    className="overflow-hidden"
-                                                >
-                                                    <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 space-y-4">
-                                                        <div className="flex justify-between items-start">
-                                                            <div className="flex-1 pr-4">
-                                                                <p className="text-[10px] text-accent font-black uppercase tracking-widest mb-1">Confirm Linkage</p>
-                                                                <p className="text-sm font-bold text-white leading-tight">
-                                                                    {mode === 'control-to-risk'
-                                                                        ? searchResults.find(r => r.id === selectedTargetId)?.description
-                                                                        : searchResults.find(r => r.id === selectedTargetId)?.name
-                                                                    }
-                                                                </p>
-                                                            </div>
-                                                            <button
-                                                                onClick={() => setSelectedTargetId(null)}
-                                                                className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors border border-white/10 rounded-md px-2 py-1"
-                                                            >
-                                                                Change
-                                                            </button>
-                                                        </div>
-
-                                                        <div className="flex gap-4">
-                                                            <div className="flex-1">
-                                                                {mode === 'risk-to-control' && (
-                                                                    <div className="bg-slate-900/50 border border-white/5 rounded-xl p-3">
-                                                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                                                                            Owner Information
-                                                                        </p>
-                                                                        <div className="flex items-center justify-between">
-                                                                            <span className="text-xs font-bold text-white">
-                                                                                {searchResults.find(r => r.id === selectedTargetId)?.control_owner_name || 'No owner assigned'}
-                                                                            </span>
-                                                                            <span className="text-[10px] text-slate-500">
-                                                                                {searchResults.find(r => r.id === selectedTargetId)?.department_name}
-                                                                            </span>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            <button
-                                                                onClick={handleLink}
-                                                                disabled={isLinking}
-                                                                className="px-6 flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all shadow-lg shadow-accent/20 disabled:opacity-50 h-10 self-end"
-                                                            >
-                                                                {isLinking ? <Loader2 className="h-3 w-3 animate-spin" /> : <LinkIcon className="h-3 w-3" />}
-                                                                Create Link
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </motion.div>
-                                            )}
-                                        </AnimatePresence>
-                                    </div>
-                                </section>
+                                <LinkSearchPanel
+                                    mode={mode}
+                                    searchQuery={searchQuery}
+                                    onSearchQueryChange={setSearchQuery}
+                                    searchResults={searchResults}
+                                    isSearching={isSearching}
+                                    selectedDeptId={selectedDeptId}
+                                    onDeptIdChange={setSelectedDeptId}
+                                    selectedProcess={selectedProcess}
+                                    onProcessChange={setSelectedProcess}
+                                    selectedCategory={selectedCategory}
+                                    onCategoryChange={setSelectedCategory}
+                                    departments={departments}
+                                    processes={processes}
+                                    categories={categories}
+                                    isLoadingLookups={isLoadingLookups}
+                                    selectedTargetId={selectedTargetId}
+                                    onSelectTarget={setSelectedTargetId}
+                                    onLink={handleLink}
+                                    isLinking={isLinking}
+                                />
                             )}
 
-                            {/* Existing Links Table */}
+                            {/* Existing Links Panel */}
                             {showLinks && (
-                                <section className="space-y-4">
-                                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-between">
-                                        <span>Existing Links</span>
-                                        <span className="text-accent">{existingLinks.length}</span>
-                                    </h3>
-
-                                    {existingLinks.length === 0 ? (
-                                        <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
-                                            <AlertCircle className="h-8 w-8 text-slate-700 mx-auto mb-2" />
-                                            <p className="text-xs text-slate-600 font-medium tracking-tight">No existing connections found.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {existingLinks.map((link) => (
-                                                <div
-                                                    key={link.id}
-                                                    className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center justify-between hover:bg-white/[0.05] transition-all"
-                                                >
-                                                    <div className="flex-1 min-w-0 pr-4">
-                                                        <div className="flex items-center gap-3 mb-1">
-                                                            <span className="text-xs font-bold text-white truncate">
-                                                                {mode === 'control-to-risk' ? (String(link.risk?.description || 'Unknown Risk')) : String(link.control?.name || 'Unknown Control')}
-                                                            </span>
-                                                            <span className={cn(
-                                                                "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border font-mono",
-                                                                getEffectivenessColor(link.effectiveness)
-                                                            )}>
-                                                                {link.effectiveness}
-                                                            </span>
-                                                        </div>
-                                                        {link.notes && (
-                                                            <p className="text-[10px] text-slate-400 italic line-clamp-1">"{link.notes}"</p>
-                                                        )}
-                                                    </div>
-                                                    <button
-                                                        onClick={() => handleUnlink(Number(mode === 'control-to-risk' ? link.risk_id : link.control_id))}
-                                                        disabled={isUnlinking === (mode === 'control-to-risk' ? link.risk_id : link.control_id)}
-                                                        className="p-2 text-slate-600 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-500/10"
-                                                    >
-                                                        {isUnlinking === (mode === 'control-to-risk' ? link.risk_id : link.control_id)
-                                                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                                                            : <Trash2 className="h-4 w-4" />
-                                                        }
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </section>
+                                <ExistingLinksPanel
+                                    mode={mode}
+                                    existingLinks={existingLinks}
+                                    onUnlink={handleUnlink}
+                                    isUnlinking={isUnlinking}
+                                />
                             )}
                         </div>
 
