@@ -42,7 +42,7 @@
 | 99 Data Migration & Standalone AD | ✅ Complete (8/8) | 2026-01-04 |
 | 100 Marketing Presentation | ✅ Complete (3/3) | 2025-12-29 |
 | 151 Audit Resolution | ⏳ In progress (11/18) | - |
-| 152 Audit Resolution 2 | ⏳ In progress (1/8) | - |
+| 152 Audit Resolution 2 | ⏳ In progress (2/8) | - |
 | 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
