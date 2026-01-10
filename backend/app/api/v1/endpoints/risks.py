@@ -796,8 +796,11 @@ async def link_risk_to_control(
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
     
-    # Verify department access for control
-    check_department_access(control.department_id, current_user)
+    # Verify access for control: ownership OR department
+    from app.core.permissions import is_control_owner
+    is_ctrl_owner = await is_control_owner(db, current_user.id, control.id)
+    if not is_ctrl_owner:
+        check_department_access(control.department_id, current_user)
     
     # Check if link already exists
     result = await db.execute(
@@ -873,7 +876,9 @@ async def unlink_risk_from_control(
     result = await db.execute(select(Control).where(Control.id == control_id))
     control = result.scalar_one_or_none()
     if control:
-        check_department_access(control.department_id, current_user)
+        is_ctrl_owner = await is_control_owner(db, current_user.id, control.id)
+        if not is_ctrl_owner:
+            check_department_access(control.department_id, current_user)
     
     await db.delete(link)
     await db.commit()
