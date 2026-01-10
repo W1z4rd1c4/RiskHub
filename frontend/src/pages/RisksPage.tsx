@@ -15,15 +15,16 @@ import {
 } from 'lucide-react';
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
-import { approvalsApi } from '@/services/approvalsApi';
 import type { RiskSummary, RiskStatus } from '@/types/risk';
 import { PermissionGate } from '@/components/PermissionGate';
 import { SortableTable } from '@/components/tables/SortableTable';
 import { CategoryDrillDown, MiniHeatmap, ViewSwitcher, Pagination } from '@/components/tables';
-import type { ViewMode } from '@/components/tables'; // Column type is now imported from SortableTable
-import type { Column, SortDirection } from '@/components/tables/SortableTable'; // Import Column and SortDirection from SortableTable
-import { useRiskTypes, useRiskThresholds } from '@/hooks/useRiskHubConfig'; // Original import for useRiskTypes and useRiskThresholds
+import type { ViewMode } from '@/components/tables';
+import type { Column, SortDirection } from '@/components/tables/SortableTable';
+import { useRiskTypes, useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 
 // Helper to convert hex color to rgba for backgrounds/borders
 function hexToRgba(hex: string, alpha: number): string {
@@ -37,13 +38,14 @@ function hexToRgba(hex: string, alpha: number): string {
 
 export function RisksPage() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+
     // State
     const [risks, setRisks] = useState<RiskSummary[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('');
     const [typeFilter, setTypeFilter] = useState<string>('');
     const [priorityFilter, setPriorityFilter] = useState<boolean | undefined>(undefined);
@@ -55,12 +57,13 @@ export function RisksPage() {
     const [sortField, setSortField] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
+    // Shared hooks for debouncing and pending approvals
+    const debouncedSearch = useDebouncedValue(search, 300);
+    const pendingApprovalIds = usePendingApprovalIds('risk');
+
     // Risk Hub configuration
     const { riskTypes, getColor, getInitials, getDisplayName } = useRiskTypes();
     const { getScoreColor } = useRiskThresholds();
-
-    const [pendingApprovalIds, setPendingApprovalIds] = useState<Set<number>>(new Set());
-    const [searchParams, setSearchParams] = useSearchParams();
     const limit = 10;
 
     useEffect(() => {
@@ -77,43 +80,7 @@ export function RisksPage() {
         }
     }, [searchParams]);
 
-    // Handle search debouncing
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearch(search);
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [search]);
 
-    useEffect(() => {
-        const fetchPending = async () => {
-            try {
-                // Fetch all pending approvals (paginate if more than 100)
-                const pageSize = 100;
-                type ApprovalItem = { resource_type: string; resource_id: number };
-                let allItems: ApprovalItem[] = [];
-                let skip = 0;
-                let total = 0;
-
-                do {
-                    const response = await approvalsApi.list({ status: 'pending', limit: pageSize, skip });
-                    total = response.total;
-                    allItems = [...allItems, ...response.items];
-                    skip += pageSize;
-                } while (skip < total);
-
-                const ids = new Set<number>(
-                    allItems
-                        .filter(a => a.resource_type === 'risk')
-                        .map(a => a.resource_id)
-                );
-                setPendingApprovalIds(ids);
-            } catch (error) {
-                console.error('Failed to fetch pending approvals:', error);
-            }
-        };
-        fetchPending();
-    }, []);
 
     const fetchRisks = useCallback(async () => {
         try {
