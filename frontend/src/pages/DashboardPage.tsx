@@ -58,7 +58,8 @@ export function DashboardPage() {
     const { user } = useAuth();
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [deptMetrics, setDeptMetrics] = useState<DepartmentMetrics[]>([]);
-    const [distribution, setDistribution] = useState<RiskDistribution | null>(null);
+    const [grossDistribution, setGrossDistribution] = useState<RiskDistribution | null>(null);
+    const [netDistribution, setNetDistribution] = useState<RiskDistribution | null>(null);
     const [trends, setTrends] = useState<ControlTrend[]>([]);
     const [riskTrends, setRiskTrends] = useState<RiskTrendPoint[]>([]);
     const [breachTrends, setBreachTrends] = useState<KRIBreachTrendPoint[]>([]);
@@ -78,10 +79,11 @@ export function DashboardPage() {
     const fetchData = useCallback(async () => {
         try {
             setError(null);
-            const [summaryData, deptData, distData, trendData, riskTrendData, breachTrendData] = await Promise.all([
+            const [summaryData, deptData, grossDistData, netDistData, trendData, riskTrendData, breachTrendData] = await Promise.all([
                 dashboardApi.fetchDashboardSummary(filters),
                 dashboardApi.fetchDepartmentMetrics(filters),
-                dashboardApi.fetchRiskDistribution(filters),
+                dashboardApi.fetchRiskDistribution(filters, 'gross'),
+                dashboardApi.fetchRiskDistribution(filters, 'net'),
                 dashboardApi.fetchControlTrends(filters),
                 dashboardApi.fetchRiskTrends(filters),
                 dashboardApi.fetchKriBreachTrends(filters)
@@ -89,7 +91,8 @@ export function DashboardPage() {
 
             setSummary(summaryData);
             setDeptMetrics(deptData);
-            setDistribution(distData);
+            setGrossDistribution(grossDistData);
+            setNetDistribution(netDistData);
             setTrends(trendData);
             setRiskTrends(riskTrendData);
             setBreachTrends(breachTrendData);
@@ -330,18 +333,32 @@ export function DashboardPage() {
                             className="glass-card flex flex-col"
                         >
                             <h3 className="text-lg font-bold text-white mb-8 flex items-center gap-2">
-                                <ShieldAlert className="h-5 w-5 text-purple-400" />
-                                Risk Matrix Distribution
+                                <ShieldAlert className="h-5 w-5 text-orange-400" />
+                                Gross Risk Matrix
                             </h3>
                             <div className="flex-1 flex items-center justify-center pb-4">
                                 <RiskDistributionMatrix
-                                    distribution={distribution?.distribution ?? []}
+                                    distribution={grossDistribution?.distribution ?? []}
+                                />
+                            </div>
+                        </motion.div>
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.75 }}
+                            className="glass-card flex flex-col"
+                        >
+                            <h3 className="text-lg font-bold text-white mb-8 flex items-center gap-2">
+                                <ShieldAlert className="h-5 w-5 text-purple-400" />
+                                Net Risk Matrix
+                            </h3>
+                            <div className="flex-1 flex items-center justify-center pb-4">
+                                <RiskDistributionMatrix
+                                    distribution={netDistribution?.distribution ?? []}
                                     onCellClick={(p, i) => setSelectedCell({ probability: p, impact: i })}
                                 />
                             </div>
                         </motion.div>
-                        {/* Placeholder for future widget or more detailed category charts */}
-                        <div className="hidden lg:block"></div>
                     </div>
 
                     {/* Historical Trends Row */}

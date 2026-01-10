@@ -577,6 +577,8 @@ PUBLIC_CONFIG_ALLOWLIST = {
     "medium_risk_min_net_score",
     "high_risk_min_net_score",
     "critical_risk_min_net_score",
+    # Asset value - needed for financial loss calculations in risk form
+    "total_assets_value",
 }
 
 

@@ -72,14 +72,24 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
         }
 
         if (config.value_type === 'int') {
+            // Format display value with space thousands separators (e.g., "10 000 000 000")
+            const numValue = parseInt(value) || 0;
+            const displayValue = numValue.toLocaleString('cs-CZ').replace(/\u00a0/g, ' ');
+            // Dynamic width: ~10px per char + padding
+            const inputWidth = Math.max(60, displayValue.length * 10 + 24);
+
             return (
                 <input
-                    type="number"
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    min={config.min_value ?? undefined}
-                    max={config.max_value ?? undefined}
-                    className="w-24 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-accent"
+                    type="text"
+                    inputMode="numeric"
+                    value={displayValue}
+                    onChange={(e) => {
+                        // Strip spaces and non-numeric chars, store raw number
+                        const cleaned = e.target.value.replace(/[^0-9]/g, '');
+                        setValue(cleaned);
+                    }}
+                    style={{ width: `${inputWidth}px` }}
+                    className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-right font-mono focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
                     disabled={!config.is_editable}
                 />
             );
