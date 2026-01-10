@@ -47,7 +47,7 @@ export function RiskScoreMatrix({
         return 'bg-emerald-500/40 hover:bg-emerald-500/60';
     };
 
-    // Get score badge color
+    // Get score badge color (background + text)
     const getScoreColorClass = (s: number) => {
         if (s >= thresholds.critical) return 'bg-rose-500/20 text-rose-400';
         if (s >= thresholds.high) return 'bg-orange-500/20 text-orange-400';
@@ -55,23 +55,30 @@ export function RiskScoreMatrix({
         return 'bg-emerald-500/20 text-emerald-400';
     };
 
+    // Get text-only color class based on score (for title)
+    const getTitleColorClass = (s: number) => {
+        if (s >= thresholds.critical) return 'text-rose-400';
+        if (s >= thresholds.high) return 'text-orange-400';
+        if (s >= thresholds.medium) return 'text-amber-400';
+        return 'text-emerald-400';
+    };
+
     // Highlighted cell border
     const isSelected = (p: number, i: number) => p === probability && i === impact;
 
     // Size classes
     const sizeClasses = {
-        small: { cell: 'w-6 h-6 text-[8px]', label: 'text-[8px]' },
-        medium: { cell: 'w-8 h-8 text-[10px]', label: 'text-[10px]' },
-        large: { cell: 'w-10 h-10 text-xs', label: 'text-xs' },
+        small: { cell: 'w-8 h-8 text-[10px]', label: 'text-[10px]' },
+        medium: { cell: 'w-10 h-10 text-xs', label: 'text-xs' },
+        large: { cell: 'w-12 h-12 text-sm', label: 'text-sm' },
     };
 
     const { cell: cellClass, label: labelClass } = sizeClasses[size];
 
     return (
         <div className="flex flex-col items-center">
-            {/* Type label */}
-            <div className={`${labelClass} font-black uppercase tracking-widest mb-3 ${type === 'gross' ? 'text-amber-400' : 'text-emerald-400'
-                }`}>
+            {/* Type label - color matches score threshold */}
+            <div className={`${labelClass} font-black uppercase tracking-widest mb-3 ${getTitleColorClass(score)}`}>
                 {type === 'gross' ? 'Gross Risk' : 'Net Risk'}
             </div>
 
