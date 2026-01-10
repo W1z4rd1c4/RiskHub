@@ -8,7 +8,6 @@ import {
     RefreshCw,
     AlertCircle,
     FileText,
-
     Sheet,
     Lock,
     User,
@@ -17,83 +16,92 @@ import {
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
 import { reportApi } from '@/services/reportApi';
-import { approvalsApi } from '@/services/approvalsApi';
 import type { ControlSummary } from '@/types/control';
 import { ControlStatus } from '@/types/control';
 import { PermissionGate } from '@/components/PermissionGate';
 import { SortableTable, CategoryDrillDown, ViewSwitcher, Pagination } from '@/components/tables';
 import type { Column, ViewMode } from '@/components/tables';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 
+
+/**
+ * Fetches all controls across all pages for grouped views.
+ * Preserves pageSize=100 logic, concatenation order, and error semantics.
+ */
+async function fetchAllForGroupedView(
+    search: string,
+    status: string
+): Promise<{ items: ControlSummary[]; total: number }> {
+    const pageSize = 100; // Backend max limit is 100
+    let allControls: ControlSummary[] = [];
+    let skip = 0;
+    let total = 0;
+
+    do {
+        const response = await controlApi.getControls({
+            skip,
+            limit: pageSize,
+            search: search || undefined,
+            status: status || undefined,
+        });
+
+        total = response.total;
+        allControls = [...allControls, ...response.items];
+        skip += pageSize;
+    } while (skip < total);
+
+    return { items: allControls, total };
+}
 
 export function ControlsPage() {
     const navigate = useNavigate();
+
     // State
     const [controls, setControls] = useState<ControlSummary[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('');
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [isExporting, setIsExporting] = useState(false);
 
-    const [pendingApprovalIds, setPendingApprovalIds] = useState<Set<number>>(new Set());
     const limit = 10;
 
-    // Handle search debouncing
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearch(search);
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [search]);
+    // Use shared hooks for debouncing and pending approvals
+    const debouncedSearch = useDebouncedValue(search, 300);
+    const pendingApprovalIds = usePendingApprovalIds('control');
 
 
     const fetchControls = useCallback(async () => {
         try {
-            // Only show skeleton for initial load OR non-search changes.
-            // For search updates, we fetch in the background to avoid flashing.
+            // Only show skeleton for initial load
             const shouldShowSkeleton = controls.length === 0;
-
             if (shouldShowSkeleton) {
                 setIsLoading(true);
             }
 
-            // For paginated "all" view, just fetch the current page
             if (viewMode === 'all') {
+                // Paginated "all" view: fetch current page only
                 const skip = (currentPage - 1) * limit;
                 const response = await controlApi.getControls({
                     skip,
                     limit,
                     search: debouncedSearch || undefined,
-                    status: statusFilter || undefined
+                    status: statusFilter || undefined,
                 });
                 setControls(response.items);
                 setTotalCount(response.total);
             } else {
-                // For grouped views, fetch ALL pages for accurate group counts
-                const pageSize = 100; // Backend max limit is 100
-                let allControls: ControlSummary[] = [];
-                let skip = 0;
-                let total = 0;
-
-                do {
-                    const response = await controlApi.getControls({
-                        skip,
-                        limit: pageSize,
-                        search: debouncedSearch || undefined,
-                        status: statusFilter || undefined
-                    });
-
-                    total = response.total;
-                    allControls = [...allControls, ...response.items];
-                    skip += pageSize;
-                } while (skip < total);
-
-                setControls(allControls);
+                // Grouped views: fetch all pages for accurate group counts
+                const { items, total } = await fetchAllForGroupedView(
+                    debouncedSearch,
+                    statusFilter
+                );
+                setControls(items);
                 setTotalCount(total);
             }
 
@@ -109,36 +117,6 @@ export function ControlsPage() {
     useEffect(() => {
         fetchControls();
     }, [fetchControls]);
-
-    useEffect(() => {
-        const fetchPending = async () => {
-            try {
-                // Fetch all pending approvals (paginate if more than 100)
-                const pageSize = 100;
-                type ApprovalItem = { resource_type: string; resource_id: number };
-                let allItems: ApprovalItem[] = [];
-                let skip = 0;
-                let total = 0;
-
-                do {
-                    const response = await approvalsApi.list({ status: 'pending', limit: pageSize, skip });
-                    total = response.total;
-                    allItems = [...allItems, ...response.items];
-                    skip += pageSize;
-                } while (skip < total);
-
-                const ids = new Set<number>(
-                    allItems
-                        .filter(a => a.resource_type === 'control')
-                        .map(a => a.resource_id)
-                );
-                setPendingApprovalIds(ids);
-            } catch (error) {
-                console.error('Failed to fetch pending approvals:', error);
-            }
-        };
-        fetchPending();
-    }, []);
 
     const handleExportPdf = async () => {
         setIsExporting(true);
