@@ -1,43 +1,38 @@
-"""Permission checking utilities for role-based access control."""
+"""Permission checking utilities for role-based access control.
+
+This module provides:
+1. Department scoping helpers - control access based on user department assignment
+2. Permission evaluation - check user permissions against roles
+3. Approval/committee access helpers - determine who can approve changes
+4. Sensitive field detection - identify changes requiring approval
+5. Cross-department ownership helpers - KRI reporting owners, control owners
+"""
 from typing import Optional
+
 from fastapi import HTTPException, status
+
 from app.models import User
 from app.models.user import AccessScope
 
 
-def check_department_access(
-    item_dept_id: int | None,
-    current_user: User,
-) -> None:
-    """
-    Raise 403 if user cannot access this department's resources.
-    
-    Args:
-        item_dept_id: Department ID of the resource being accessed
-        current_user: The authenticated user
-        
-    Raises:
-        HTTPException 403: If user doesn't have access to the department
-    """
-    if item_dept_id is None:
-        # Null department = only privileged users can access unassigned items
-        if not is_privileged_user(current_user):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to unassigned items"
-            )
-        return  # Privileged user can access
-    
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is None:
-        return  # Privileged user - full access
-    
-    if item_dept_id not in dept_ids:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this department's resources"
-        )
+# ============================================================================
+# Module-level Constants
+# ============================================================================
 
+# Sentinel for detecting "field not provided in payload" vs "explicitly set to None"
+_NOT_PROVIDED = object()
+
+# Sensitive fields that require approval when changed
+SENSITIVE_FIELDS: dict[str, set[str]] = {
+    "risk": {"owner_id", "department_id", "category", "is_priority"},
+    "control": {"control_owner_id", "department_id"},
+    "kri": {},  # KRIs inherit sensitivity from linked risk
+}
+
+
+# ============================================================================
+# 1. Department Scoping Helpers
+# ============================================================================
 
 def is_privileged_user(user: User) -> bool:
     """Check if user has global access scope (full system access)."""
@@ -82,10 +77,53 @@ def get_user_department_ids(user: User) -> Optional[list[int]]:
     return []  # Empty list means no access
 
 
-def can_manage_users(user: User) -> bool:
-    """Check if user can create/edit/delete users."""
-    return is_privileged_user(user) and has_permission(user, "users", "write")
+def check_department_access(
+    item_dept_id: int | None,
+    current_user: User,
+) -> None:
+    """
+    Raise 403 if user cannot access this department's resources.
+    
+    Args:
+        item_dept_id: Department ID of the resource being accessed
+        current_user: The authenticated user
+        
+    Raises:
+        HTTPException 403: If user doesn't have access to the department
+    """
+    if item_dept_id is None:
+        # Null department = only privileged users can access unassigned items
+        if not is_privileged_user(current_user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to unassigned items"
+            )
+        return  # Privileged user can access
+    
+    dept_ids = get_user_department_ids(current_user)
+    if dept_ids is None:
+        return  # Privileged user - full access
+    
+    if item_dept_id not in dept_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this department's resources"
+        )
 
+
+def get_scope_label(user: User) -> str:
+    """Return derived scope label: all, dept, none."""
+    dept_ids = get_user_department_ids(user)
+    if dept_ids is None:
+        return "all"
+    if not dept_ids:
+        return "none"
+    return "dept"
+
+
+# ============================================================================
+# 2. Permission Evaluation
+# ============================================================================
 
 def has_permission(user: User, resource: str, action: str) -> bool:
     """
@@ -118,15 +156,14 @@ def get_effective_permissions(user: User) -> list[str]:
     return sorted(perms)
 
 
-def get_scope_label(user: User) -> str:
-    """Return derived scope label: all, dept, none."""
-    dept_ids = get_user_department_ids(user)
-    if dept_ids is None:
-        return "all"
-    if not dept_ids:
-        return "none"
-    return "dept"
+def can_manage_users(user: User) -> bool:
+    """Check if user can create/edit/delete users."""
+    return is_privileged_user(user) and has_permission(user, "users", "write")
 
+
+# ============================================================================
+# 3. Approval and Committee Access Helpers
+# ============================================================================
 
 def can_resolve_approvals(user: User) -> bool:
     """
@@ -153,7 +190,9 @@ def can_view_risk_committee(user: User) -> bool:
     return role_name == "department_head"
 
 
-# ============== Critical Risk and Sensitive Field Detection ==============
+# ============================================================================
+# 4. Sensitive Field Detection
+# ============================================================================
 
 from app.models.global_config import ConfigDefaults, get_config_int
 
@@ -175,9 +214,7 @@ def is_high_risk_for_approval(risk) -> bool:
     if risk.is_priority:
         return True
     threshold = ConfigDefaults.HIGH_RISK_MIN_NET_SCORE
-    if risk.net_score >= threshold:
-        return True
-    return False
+    return risk.net_score >= threshold
 
 
 async def is_high_risk_for_approval_async(risk, db) -> bool:
@@ -197,23 +234,24 @@ async def is_high_risk_for_approval_async(risk, db) -> bool:
         "high_risk_min_net_score", 
         ConfigDefaults.HIGH_RISK_MIN_NET_SCORE
     )
-    if risk.net_score >= threshold:
-        return True
-    return False
+    return risk.net_score >= threshold
 
 
-SENSITIVE_FIELDS = {
-    "risk": {"owner_id", "department_id", "category", "is_priority"},
-    "control": {"control_owner_id", "department_id"},
-    "kri": {},  # KRIs inherit sensitivity from linked risk
-}
+def _is_priority_downgrade(old_val: object, new_val: object) -> bool:
+    """
+    Check if is_priority is being downgraded (True → False).
+    
+    Only true→false requires approval because it's a risk downgrade.
+    Upgrades (false→true) are allowed without approval.
+    """
+    return old_val is True and new_val is False
 
 
 def has_sensitive_field_changes(
     resource_type: str, 
-    old_data: dict, 
-    new_data: dict
-) -> tuple[bool, dict]:
+    old_data: dict[str, object], 
+    new_data: dict[str, object]
+) -> tuple[bool, dict[str, dict[str, object]]]:
     """
     Check if any sensitive fields are being changed, including clearing to None.
     
@@ -225,14 +263,18 @@ def has_sensitive_field_changes(
     Returns:
         Tuple of (has_sensitive_changes, changed_fields_dict)
         changed_fields_dict format: {"field_name": {"old": value, "new": value}}
+    
+    Note:
+        Uses _NOT_PROVIDED sentinel to distinguish between:
+        - Field not in payload → no change
+        - Field explicitly set to None → counts as a change (clearing)
     """
     sensitive = SENSITIVE_FIELDS.get(resource_type, set())
-    changed = {}
-    NOT_PROVIDED = object()  # Sentinel to detect "not in payload"
+    changed: dict[str, dict[str, object]] = {}
     
     for field in sensitive:
-        new_val = new_data.get(field, NOT_PROVIDED)
-        if new_val is NOT_PROVIDED:  # Field not in update payload - no change
+        new_val = new_data.get(field, _NOT_PROVIDED)
+        if new_val is _NOT_PROVIDED:  # Field not in update payload - no change
             continue
         
         old_val = old_data.get(field)
@@ -241,7 +283,7 @@ def has_sensitive_field_changes(
         
         # is_priority: only true→false requires approval (downgrade)
         if field == "is_priority":
-            if old_val is True and new_val is False:
+            if _is_priority_downgrade(old_val, new_val):
                 changed[field] = {"old": old_val, "new": new_val}
             # false→true or any other transition is allowed without approval
             continue
@@ -253,7 +295,11 @@ def has_sensitive_field_changes(
     return bool(changed), changed
 
 
-# ============== KRI Reporting Owner Access ==============
+# ============================================================================
+# 5. Cross-Department Ownership Helpers
+# ============================================================================
+
+# ----------------- KRI Reporting Owner Access -----------------
 
 async def is_kri_reporting_owner(db, user_id: int, kri_id: int) -> bool:
     """
@@ -325,7 +371,7 @@ async def get_risk_ids_where_kri_reporting_owner(db, user_id: int) -> list[int]:
     return [row[0] for row in result.all()]
 
 
-# ============== Control Owner Access ==============
+# ----------------- Control Owner Access -----------------
 
 async def is_control_owner(db, user_id: int, control_id: int) -> bool:
     """
