@@ -14,126 +14,219 @@ import {
     MinusCircle,
     Target,
 } from 'lucide-react';
-import { departmentApi, type DepartmentDetail } from '@/services/departmentApi';
-import { userApi } from '@/services/userApi';
 import { SortableTable, Pagination, type Column } from '@/components/tables';
+import {
+    useDepartmentDetail,
+    DEPARTMENT_PAGE_SIZE,
+    HIGH_RISK_MIN_NET_SCORE,
+    type TabView,
+    type DeptUser,
+} from '@/hooks/useDepartmentDetail';
 import type { RiskSummary } from '@/types/risk';
 import type { ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator } from '@/types/kri';
 
-// Pagination constants - must match backend MAX_PAGE_SIZE
-const DEPARTMENT_PAGE_SIZE = 100;
-// High risk threshold (net_score >= 10 = High or Critical)
-const HIGH_RISK_MIN_NET_SCORE = 10;
+// ─────────────────────────────────────────────────────────────────────────────
+// Column Definitions
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Simplified user type for scoped lookup
-interface DeptUser {
-    id: number;
-    name: string;
-    email: string;
-    role_name?: string;
-    department_id?: number;
+const riskColumns: Column<RiskSummary>[] = [
+    { key: 'process', label: 'Process', sortable: true },
+    { key: 'category', label: 'Category', sortable: true },
+    {
+        key: 'status',
+        label: 'Status',
+        sortable: true,
+        render: (risk) => (
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${risk.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
+                risk.status === 'monitoring' ? 'bg-blue-500/20 text-blue-400' :
+                    'bg-slate-500/20 text-slate-400'
+                }`}>
+                {risk.status}
+            </span>
+        ),
+    },
+    {
+        key: 'gross_score',
+        label: 'Gross',
+        sortable: true,
+        render: (risk) => (
+            <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${risk.gross_score >= 16 ? 'border-rose-500 text-rose-400' :
+                risk.gross_score >= 10 ? 'border-orange-500 text-orange-400' :
+                    risk.gross_score >= 5 ? 'border-amber-500 text-amber-400' :
+                        'border-emerald-500 text-emerald-400'
+                }`}>
+                {risk.gross_score}
+            </div>
+        ),
+    },
+    {
+        key: 'net_score',
+        label: 'Net',
+        sortable: true,
+        render: (risk) => (
+            <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${risk.net_score >= 16 ? 'border-rose-500 text-rose-400' :
+                risk.net_score >= 10 ? 'border-orange-500 text-orange-400' :
+                    risk.net_score >= 5 ? 'border-amber-500 text-amber-400' :
+                        'border-emerald-500 text-emerald-400'
+                }`}>
+                {risk.net_score}
+            </div>
+        ),
+    },
+];
+
+const controlColumns: Column<ControlSummary>[] = [
+    { key: 'name', label: 'Control Name', sortable: true },
+    { key: 'control_form', label: 'Form', sortable: true },
+    { key: 'frequency', label: 'Frequency', sortable: true },
+    {
+        key: 'status',
+        label: 'Status',
+        sortable: true,
+        render: (control) => (
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${control.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
+                'bg-slate-500/20 text-slate-400'
+                }`}>
+                {control.status}
+            </span>
+        ),
+    },
+    {
+        key: 'risk_level',
+        label: 'Risk Level',
+        sortable: true,
+        render: (control) => (
+            <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${control.risk_level >= 4 ? 'border-rose-500 text-rose-400' :
+                control.risk_level >= 3 ? 'border-amber-500 text-amber-400' :
+                    'border-emerald-500 text-emerald-400'
+                }`}>
+                {control.risk_level}/5
+            </div>
+        ),
+    },
+];
+
+const kriColumns: Column<KeyRiskIndicator>[] = [
+    {
+        key: 'metric_name',
+        label: 'Metric',
+        sortable: true,
+        render: (kri) => <span className="font-medium text-white">{kri.metric_name}</span>,
+    },
+    {
+        key: 'current_value',
+        label: 'Value',
+        sortable: true,
+        render: (kri) => (
+            <span className={`font-black ${kri.breach_status !== 'within' ? 'text-rose-400' : 'text-white'}`}>
+                {kri.current_value.toLocaleString('cs-CZ')} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
+            </span>
+        ),
+    },
+    {
+        key: 'breach_status',
+        label: 'Status',
+        sortable: true,
+        render: (kri) => (
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${kri.breach_status === 'within' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+                }`}>
+                {kri.breach_status === 'within' ? 'OK' : 'Breach'}
+            </span>
+        ),
+    },
+];
+
+const userColumns: Column<DeptUser>[] = [
+    { key: 'name', label: 'Name', sortable: true, render: (u) => <span className="text-white font-medium">{u.name}</span> },
+    { key: 'email', label: 'Email', sortable: true },
+    {
+        key: 'role_name',
+        label: 'Role',
+        sortable: true,
+        render: (u) => <span className="px-2 py-0.5 rounded-md bg-white/10 text-slate-300 text-[10px] uppercase font-bold">{u.role_name || 'Unknown'}</span>
+    },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper Functions
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getResultIcon(result: string) {
+    switch (result) {
+        case 'passed':
+            return <CheckCircle className="h-4 w-4 text-emerald-400" />;
+        case 'failed':
+            return <XCircle className="h-4 w-4 text-rose-400" />;
+        case 'warning':
+            return <AlertCircle className="h-4 w-4 text-amber-400" />;
+        case 'not_applicable':
+            return <MinusCircle className="h-4 w-4 text-slate-400" />;
+        default:
+            return <MinusCircle className="h-4 w-4 text-slate-400" />;
+    }
 }
 
-type TabView = 'risks' | 'controls' | 'kris' | 'activity' | 'users';
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function DepartmentDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    // Department metadata
-    const [department, setDepartment] = useState<DepartmentDetail | null>(null);
-
-    // Tab data
-    const [risks, setRisks] = useState<RiskSummary[]>([]);
-    const [controls, setControls] = useState<ControlSummary[]>([]);
-    const [kris, setKris] = useState<KeyRiskIndicator[]>([]);
-    const [users, setUsers] = useState<DeptUser[]>([]);
-
-    // UI state
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    // UI state (kept in page for tab/pagination control)
     const [activeTab, setActiveTab] = useState<TabView>('risks');
     const [riskFilter, setRiskFilter] = useState<'all' | 'high'>('all');
-
-    // Per-tab pagination state
     const [riskPage, setRiskPage] = useState(1);
     const [controlPage, setControlPage] = useState(1);
     const [kriPage, setKriPage] = useState(1);
     const [userPage, setUserPage] = useState(1);
-
-    // Fetch department metadata once on id change
-    useEffect(() => {
-        if (!id) return;
-        setIsLoading(true);
-        setError(null);
-        departmentApi.getDepartment(Number(id))
-            .then(setDepartment)
-            .catch(() => setError('Failed to load department details'))
-            .finally(() => setIsLoading(false));
-    }, [id]);
 
     // Reset risk page when filter or department changes
     useEffect(() => {
         setRiskPage(1);
     }, [riskFilter, id]);
 
-    // Fetch risks when risks tab is active or page changes
-    useEffect(() => {
-        if (!id || activeTab !== 'risks') return;
-        const skip = (riskPage - 1) * DEPARTMENT_PAGE_SIZE;
-        const params: { skip: number; limit: number; min_net_score?: number } = {
-            skip,
-            limit: DEPARTMENT_PAGE_SIZE,
-        };
-        if (riskFilter === 'high') {
-            params.min_net_score = HIGH_RISK_MIN_NET_SCORE;
-        }
-        departmentApi.getDepartmentRisks(Number(id), params)
-            .then(setRisks)
-            .catch(console.error);
-    }, [id, activeTab, riskPage, riskFilter]);
+    const departmentId = id ? Number(id) : undefined;
 
-    // Fetch controls when controls tab is active or page changes
-    useEffect(() => {
-        if (!id || activeTab !== 'controls') return;
-        const skip = (controlPage - 1) * DEPARTMENT_PAGE_SIZE;
-        departmentApi.getDepartmentControls(Number(id), { skip, limit: DEPARTMENT_PAGE_SIZE })
-            .then(setControls)
-            .catch(console.error);
-    }, [id, activeTab, controlPage]);
+    // Data fetching via custom hook
+    const {
+        department,
+        isLoading,
+        error,
+        risks,
+        controls,
+        kris,
+        users,
+        riskTotalPages,
+        controlTotalPages,
+        kriTotalPages,
+        userTotalPages,
+        getRiskCount,
+        refresh,
+    } = useDepartmentDetail({
+        departmentId,
+        activeTab,
+        riskFilter,
+        riskPage,
+        controlPage,
+        kriPage,
+        userPage,
+    });
 
-    // Fetch KRIs when kris tab is active or page changes
-    useEffect(() => {
-        if (!id || activeTab !== 'kris') return;
-        const skip = (kriPage - 1) * DEPARTMENT_PAGE_SIZE;
-        departmentApi.getDepartmentKRIs(Number(id), { skip, limit: DEPARTMENT_PAGE_SIZE })
-            .then(setKris)
-            .catch(console.error);
-    }, [id, activeTab, kriPage]);
-
-    // Fetch users when users tab is active or page changes
-    useEffect(() => {
-        if (!id || activeTab !== 'users') return;
-        const skip = (userPage - 1) * DEPARTMENT_PAGE_SIZE;
-        userApi.listVisibleUsers({ department_id: Number(id), skip, limit: DEPARTMENT_PAGE_SIZE })
-            .then(setUsers)
-            .catch(console.error);
-    }, [id, activeTab, userPage]);
-
-    // Compute pagination totals from department metadata
-    const getRiskCount = () => {
-        if (!department) return 0;
-        if (riskFilter === 'high') {
-            return department.risk_distribution.critical + department.risk_distribution.high;
-        }
-        return department.risk_count;
+    // Refresh handler that also resets pagination
+    const handleRefresh = () => {
+        refresh();
+        setRiskPage(1);
+        setControlPage(1);
+        setKriPage(1);
+        setUserPage(1);
     };
 
-    const riskTotalPages = Math.ceil(getRiskCount() / DEPARTMENT_PAGE_SIZE) || 1;
-    const controlTotalPages = Math.ceil((department?.control_count || 0) / DEPARTMENT_PAGE_SIZE) || 1;
-    const kriTotalPages = Math.ceil((department?.kri_count || 0) / DEPARTMENT_PAGE_SIZE) || 1;
-    const userTotalPages = Math.ceil((department?.user_count || 0) / DEPARTMENT_PAGE_SIZE) || 1;
+    // ─────────────────────────────────────────────────────────────────────────
+    // Render: Loading State
+    // ─────────────────────────────────────────────────────────────────────────
 
     if (isLoading) {
         return (
@@ -153,6 +246,10 @@ export function DepartmentDetailPage() {
         );
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Render: Error State
+    // ─────────────────────────────────────────────────────────────────────────
+
     if (error || !department) {
         return (
             <div className="glass-card border-rose-500/50 bg-rose-500/10">
@@ -164,152 +261,135 @@ export function DepartmentDetailPage() {
         );
     }
 
-    const riskColumns: Column<RiskSummary>[] = [
-        { key: 'process', label: 'Process', sortable: true },
-        { key: 'category', label: 'Category', sortable: true },
-        {
-            key: 'status',
-            label: 'Status',
-            sortable: true,
-            render: (risk) => (
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${risk.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
-                    risk.status === 'monitoring' ? 'bg-blue-500/20 text-blue-400' :
-                        'bg-slate-500/20 text-slate-400'
-                    }`}>
-                    {risk.status}
-                </span>
-            ),
-        },
-        {
-            key: 'gross_score',
-            label: 'Gross',
-            sortable: true,
-            render: (risk) => (
-                <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${risk.gross_score >= 16 ? 'border-rose-500 text-rose-400' :
-                    risk.gross_score >= 10 ? 'border-orange-500 text-orange-400' :
-                        risk.gross_score >= 5 ? 'border-amber-500 text-amber-400' :
-                            'border-emerald-500 text-emerald-400'
-                    }`}>
-                    {risk.gross_score}
+    // ─────────────────────────────────────────────────────────────────────────
+    // Tab Panel Render Functions
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const renderRisksTab = () => (
+        <div className="space-y-4">
+            <SortableTable
+                data={risks}
+                columns={riskColumns}
+                keyExtractor={(risk) => risk.id}
+                onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
+                emptyMessage={riskFilter === 'high' ? 'No high-risk items found.' : 'No risks found for this department.'}
+            />
+            {riskTotalPages > 1 && (
+                <Pagination
+                    currentPage={riskPage}
+                    totalPages={riskTotalPages}
+                    totalItems={getRiskCount()}
+                    itemsPerPage={DEPARTMENT_PAGE_SIZE}
+                    onPageChange={setRiskPage}
+                />
+            )}
+        </div>
+    );
+
+    const renderControlsTab = () => (
+        <div className="space-y-4">
+            <SortableTable
+                data={controls}
+                columns={controlColumns}
+                keyExtractor={(control) => control.id}
+                onRowClick={(control) => navigate(`/controls/${control.id}`)}
+                emptyMessage="No controls found for this department."
+            />
+            {controlTotalPages > 1 && (
+                <Pagination
+                    currentPage={controlPage}
+                    totalPages={controlTotalPages}
+                    totalItems={department.control_count}
+                    itemsPerPage={DEPARTMENT_PAGE_SIZE}
+                    onPageChange={setControlPage}
+                />
+            )}
+        </div>
+    );
+
+    const renderKrisTab = () => (
+        <div className="space-y-4">
+            <SortableTable
+                data={kris}
+                columns={kriColumns}
+                keyExtractor={(kri) => kri.id}
+                onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
+                emptyMessage="No KRIs found for this department."
+            />
+            {kriTotalPages > 1 && (
+                <Pagination
+                    currentPage={kriPage}
+                    totalPages={kriTotalPages}
+                    totalItems={department.kri_count}
+                    itemsPerPage={DEPARTMENT_PAGE_SIZE}
+                    onPageChange={setKriPage}
+                />
+            )}
+        </div>
+    );
+
+    const renderUsersTab = () => (
+        <div className="space-y-4">
+            <SortableTable
+                data={users}
+                columns={userColumns}
+                keyExtractor={(u) => u.id}
+                onRowClick={(u) => navigate(`/users/${u.id}`)}
+                emptyMessage="No users found for this department."
+            />
+            {userTotalPages > 1 && (
+                <Pagination
+                    currentPage={userPage}
+                    totalPages={userTotalPages}
+                    totalItems={department.user_count}
+                    itemsPerPage={DEPARTMENT_PAGE_SIZE}
+                    onPageChange={setUserPage}
+                />
+            )}
+        </div>
+    );
+
+    const renderActivityTab = () => (
+        <div className="glass-card !p-0 overflow-hidden">
+            {department.recent_executions.length === 0 ? (
+                <div className="p-12 text-center">
+                    <Calendar className="h-12 w-12 text-slate-600 mx-auto mb-4" />
+                    <p className="text-slate-500">No recent control executions</p>
                 </div>
-            ),
-        },
-        {
-            key: 'net_score',
-            label: 'Net',
-            sortable: true,
-            render: (risk) => (
-                <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${risk.net_score >= 16 ? 'border-rose-500 text-rose-400' :
-                    risk.net_score >= 10 ? 'border-orange-500 text-orange-400' :
-                        risk.net_score >= 5 ? 'border-amber-500 text-amber-400' :
-                            'border-emerald-500 text-emerald-400'
-                    }`}>
-                    {risk.net_score}
+            ) : (
+                <div className="divide-y divide-white/5">
+                    {department.recent_executions.map((execution) => (
+                        <div
+                            key={execution.id}
+                            className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
+                            onClick={() => navigate(`/controls/${execution.control_id}`)}
+                        >
+                            <div className="flex items-center gap-4">
+                                {getResultIcon(execution.result)}
+                                <div>
+                                    <p className="text-sm font-bold text-white">{execution.control_name}</p>
+                                    <p className="text-xs text-slate-500">
+                                        by {execution.executed_by} • {new Date(execution.executed_at).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${execution.result === 'passed' ? 'bg-emerald-500/20 text-emerald-400' :
+                                execution.result === 'failed' ? 'bg-rose-500/20 text-rose-400' :
+                                    execution.result === 'warning' ? 'bg-amber-500/20 text-amber-400' :
+                                        'bg-slate-500/20 text-slate-400'
+                                }`}>
+                                {execution.result === 'not_applicable' ? 'N/A' : execution.result}
+                            </span>
+                        </div>
+                    ))}
                 </div>
-            ),
-        },
-    ];
+            )}
+        </div>
+    );
 
-    const controlColumns: Column<ControlSummary>[] = [
-        { key: 'name', label: 'Control Name', sortable: true },
-        { key: 'control_form', label: 'Form', sortable: true },
-        { key: 'frequency', label: 'Frequency', sortable: true },
-        {
-            key: 'status',
-            label: 'Status',
-            sortable: true,
-            render: (control) => (
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${control.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
-                    'bg-slate-500/20 text-slate-400'
-                    }`}>
-                    {control.status}
-                </span>
-            ),
-        },
-        {
-            key: 'risk_level',
-            label: 'Risk Level',
-            sortable: true,
-            render: (control) => (
-                <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${control.risk_level >= 4 ? 'border-rose-500 text-rose-400' :
-                    control.risk_level >= 3 ? 'border-amber-500 text-amber-400' :
-                        'border-emerald-500 text-emerald-400'
-                    }`}>
-                    {control.risk_level}/5
-                </div>
-            ),
-        },
-    ];
-
-    const kriColumns: Column<KeyRiskIndicator>[] = [
-        {
-            key: 'metric_name',
-            label: 'Metric',
-            sortable: true,
-            render: (kri) => <span className="font-medium text-white">{kri.metric_name}</span>,
-        },
-        {
-            key: 'current_value',
-            label: 'Value',
-            sortable: true,
-            render: (kri) => (
-                <span className={`font-black ${kri.breach_status !== 'within' ? 'text-rose-400' : 'text-white'}`}>
-                    {kri.current_value.toLocaleString('cs-CZ')} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
-                </span>
-            ),
-        },
-        {
-            key: 'breach_status',
-            label: 'Status',
-            sortable: true,
-            render: (kri) => (
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${kri.breach_status === 'within' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
-                    }`}>
-                    {kri.breach_status === 'within' ? 'OK' : 'Breach'}
-                </span>
-            ),
-        },
-    ];
-
-    const userColumns: Column<DeptUser>[] = [
-        { key: 'name', label: 'Name', sortable: true, render: (u) => <span className="text-white font-medium">{u.name}</span> },
-        { key: 'email', label: 'Email', sortable: true },
-        {
-            key: 'role_name',
-            label: 'Role',
-            sortable: true,
-            render: (u) => <span className="px-2 py-0.5 rounded-md bg-white/10 text-slate-300 text-[10px] uppercase font-bold">{u.role_name || 'Unknown'}</span>
-        },
-    ];
-
-    const getResultIcon = (result: string) => {
-        switch (result) {
-            case 'passed':
-                return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-            case 'failed':
-                return <XCircle className="h-4 w-4 text-rose-400" />;
-            case 'warning':
-                return <AlertCircle className="h-4 w-4 text-amber-400" />;
-            case 'not_applicable':
-                return <MinusCircle className="h-4 w-4 text-slate-400" />;
-            default:
-                return <MinusCircle className="h-4 w-4 text-slate-400" />;
-        }
-    };
-
-    const handleRefresh = () => {
-        if (!id) return;
-        setIsLoading(true);
-        departmentApi.getDepartment(Number(id))
-            .then(setDepartment)
-            .catch(() => setError('Failed to load department details'))
-            .finally(() => setIsLoading(false));
-        // Reset pages to trigger data refetch
-        setRiskPage(1);
-        setControlPage(1);
-        setKriPage(1);
-        setUserPage(1);
-    };
+    // ─────────────────────────────────────────────────────────────────────────
+    // Main Render
+    // ─────────────────────────────────────────────────────────────────────────
 
     return (
         <div className="space-y-8">
@@ -448,127 +528,11 @@ export function DepartmentDetailPage() {
             </div>
 
             {/* Tab Content */}
-            {activeTab === 'risks' && (
-                <div className="space-y-4">
-                    <SortableTable
-                        data={risks}
-                        columns={riskColumns}
-                        keyExtractor={(risk) => risk.id}
-                        onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
-                        emptyMessage={riskFilter === 'high' ? 'No high-risk items found.' : 'No risks found for this department.'}
-                    />
-                    {riskTotalPages > 1 && (
-                        <Pagination
-                            currentPage={riskPage}
-                            totalPages={riskTotalPages}
-                            totalItems={getRiskCount()}
-                            itemsPerPage={DEPARTMENT_PAGE_SIZE}
-                            onPageChange={setRiskPage}
-                        />
-                    )}
-                </div>
-            )}
-
-            {activeTab === 'controls' && (
-                <div className="space-y-4">
-                    <SortableTable
-                        data={controls}
-                        columns={controlColumns}
-                        keyExtractor={(control) => control.id}
-                        onRowClick={(control) => navigate(`/controls/${control.id}`)}
-                        emptyMessage="No controls found for this department."
-                    />
-                    {controlTotalPages > 1 && (
-                        <Pagination
-                            currentPage={controlPage}
-                            totalPages={controlTotalPages}
-                            totalItems={department.control_count}
-                            itemsPerPage={DEPARTMENT_PAGE_SIZE}
-                            onPageChange={setControlPage}
-                        />
-                    )}
-                </div>
-            )}
-
-            {activeTab === 'kris' && (
-                <div className="space-y-4">
-                    <SortableTable
-                        data={kris}
-                        columns={kriColumns}
-                        keyExtractor={(kri) => kri.id}
-                        onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
-                        emptyMessage="No KRIs found for this department."
-                    />
-                    {kriTotalPages > 1 && (
-                        <Pagination
-                            currentPage={kriPage}
-                            totalPages={kriTotalPages}
-                            totalItems={department.kri_count}
-                            itemsPerPage={DEPARTMENT_PAGE_SIZE}
-                            onPageChange={setKriPage}
-                        />
-                    )}
-                </div>
-            )}
-
-            {activeTab === 'users' && (
-                <div className="space-y-4">
-                    <SortableTable
-                        data={users}
-                        columns={userColumns}
-                        keyExtractor={(u) => u.id}
-                        onRowClick={(u) => navigate(`/users/${u.id}`)}
-                        emptyMessage="No users found for this department."
-                    />
-                    {userTotalPages > 1 && (
-                        <Pagination
-                            currentPage={userPage}
-                            totalPages={userTotalPages}
-                            totalItems={department.user_count}
-                            itemsPerPage={DEPARTMENT_PAGE_SIZE}
-                            onPageChange={setUserPage}
-                        />
-                    )}
-                </div>
-            )}
-
-            {activeTab === 'activity' && (
-                <div className="glass-card !p-0 overflow-hidden">
-                    {department.recent_executions.length === 0 ? (
-                        <div className="p-12 text-center">
-                            <Calendar className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-                            <p className="text-slate-500">No recent control executions</p>
-                        </div>
-                    ) : (
-                        <div className="divide-y divide-white/5">
-                            {department.recent_executions.map((execution) => (
-                                <div
-                                    key={execution.id}
-                                    className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
-                                    onClick={() => navigate(`/controls/${execution.control_id}`)}
-                                >
-                                    <div className="flex items-center gap-4">
-                                        {getResultIcon(execution.result)}
-                                        <div>
-                                            <p className="text-sm font-bold text-white">{execution.control_name}</p>
-                                            <p className="text-xs text-slate-500">
-                                                by {execution.executed_by} • {new Date(execution.executed_at).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${execution.result === 'passed' ? 'bg-emerald-500/20 text-emerald-400' :
-                                        execution.result === 'failed' ? 'bg-rose-500/20 text-rose-400' :
-                                            execution.result === 'warning' ? 'bg-amber-500/20 text-amber-400' :
-                                                'bg-slate-500/20 text-slate-400'
-                                        }`}>
-                                        {execution.result === 'not_applicable' ? 'N/A' : execution.result}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
+            {activeTab === 'risks' && renderRisksTab()}
+            {activeTab === 'controls' && renderControlsTab()}
+            {activeTab === 'kris' && renderKrisTab()}
+            {activeTab === 'users' && renderUsersTab()}
+            {activeTab === 'activity' && renderActivityTab()}
         </div>
     );
 }
