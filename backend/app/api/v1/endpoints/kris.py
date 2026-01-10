@@ -690,8 +690,10 @@ async def record_kri_value(
                     resource_id=approval.id,
                 )
                 await db.commit()
-            except Exception:
-                pass  # Notification failure should not fail the request
+            except Exception as e:
+                await db.rollback()
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to notify Risk Owner for KRI value submission approval #{approval.id}: {e}")
         
         from fastapi.responses import JSONResponse
         return JSONResponse(
