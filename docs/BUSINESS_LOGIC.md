@@ -1,0 +1,466 @@
+# RiskHub Business Logic Reference
+
+> **Last Updated**: 2026-01-10  
+> **Purpose**: Comprehensive reference for entity ownership, permissions, approval workflows, and role-based access rules.
+
+---
+
+## Table of Contents
+
+1. [Roles & Access Scopes](#1-roles--access-scopes)
+2. [Entity Ownership Rules](#2-entity-ownership-rules)
+3. [Department Relationships](#3-department-relationships)
+4. [Permission Matrix](#4-permission-matrix)
+5. [Approval Workflows](#5-approval-workflows)
+6. [Sensitive Field Rules](#6-sensitive-field-rules)
+7. [Cross-Department Access](#7-cross-department-access)
+8. [Quick Reference Tables](#8-quick-reference-tables)
+
+---
+
+## 1. Roles & Access Scopes
+
+### 1.1 Role Definitions
+
+| Role | Display Name | Category | Business Data Access | Platform Admin | Risk Hub Config |
+|------|--------------|----------|---------------------|----------------|-----------------|
+| `ceo` | CEO | C-Suite | ✅ Privileged | ❌ | ❌ |
+| `cfo` | CFO | C-Suite | ✅ Privileged | ❌ | ❌ |
+| `cro` | CRO | C-Suite | ✅ Privileged | ❌ | ✅ **Only CRO** |
+| `coo` | COO | C-Suite | ❌ | ❌ | ❌ |
+| `risk_manager` | Risk Manager | Governance | ✅ Privileged | ❌ | ❌ |
+| `compliance` | Compliance | Governance | ✅ Privileged | ❌ | ❌ |
+| `legal` | Legal | Governance | ✅ Privileged | ❌ | ❌ |
+| `internal_audit` | Internal Audit | Governance | ✅ Privileged | ❌ | ❌ |
+| `actuarial` | Actuarial | Governance | ✅ Privileged | ❌ | ❌ |
+| `department_head` | Department Head | Department | ❌ Department-scoped | ❌ | ❌ |
+| `employee` | Employee | Department | ❌ Department-scoped | ❌ | ❌ |
+| `admin` | Administrator | System | ❌ **No business data** | ✅ | ❌ |
+| `viewer` | Viewer | System | ❌ Read-only | ❌ | ❌ |
+
+### 1.2 Access Scopes
+
+Each user has an `access_scope` that determines data visibility:
+
+| Scope | Value | Description | Who Has It |
+|-------|-------|-------------|-----------|
+| **GLOBAL** | `global` | See all departments' data | C-Suite, Governance roles |
+| **DEPARTMENT** | `department` | See only own department's data | Department Head, Employee |
+| **MANAGER** | `manager` | See data via manager relationship | Delegated employees |
+
+### 1.3 Privileged vs Non-Privileged
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    PRIVILEGED USERS                         │
+│  (access_scope = GLOBAL, can approve/reject requests)       │
+│                                                             │
+│  CEO, CFO, CRO, Risk Manager, Compliance, Legal,           │
+│  Internal Audit, Actuarial                                  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 NON-PRIVILEGED USERS                        │
+│  (access_scope = DEPARTMENT/MANAGER, require approval)      │
+│                                                             │
+│  Department Head, Employee                                  │
+│  (Can request but NOT approve deletions/edits)              │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     ADMIN (Special)                         │
+│         Platform access only - NO business data             │
+│         Can manage users, logs, system health               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. Entity Ownership Rules
+
+### 2.1 Risk
+
+| Field | Type | Description | Who Can Be Owner |
+|-------|------|-------------|------------------|
+| `owner_id` | FK → User | Risk Owner | Any active user |
+| `department_id` | FK → Department | Owning department | Must match department with `is_active=True` |
+
+**Ownership Hierarchy:**
+1. **Risk Owner** (`owner_id`) - Primary responsible person
+2. **Department** (`department_id`) - Organizational ownership
+3. **Department Head** - Fallback approver if no owner
+
+**Who Can Own a Risk:**
+- Any user can be assigned as Risk Owner regardless of their department
+- The assigned owner is typically someone in the same department, but this is not enforced
+- Changing `owner_id` is a **sensitive field change** requiring approval
+
+### 2.2 Control
+
+| Field | Type | Description | Who Can Be Owner |
+|-------|------|-------------|------------------|
+| `control_owner_id` | FK → User | Control Owner | Any active user |
+| `department_id` | FK → Department | Owning department | Any active department |
+| `created_by_id` | FK → User | Creator | Automatically set |
+| `updated_by_id` | FK → User | Last updater | Automatically set |
+
+**Ownership Hierarchy:**
+1. **Control Owner** (`control_owner_id`) - Responsible for control execution
+2. **Department** (`department_id`) - Organizational ownership
+3. **Risk Owners of Linked Risks** - Fallback approvers
+
+**Who Can Own a Control:**
+- Any user can be Control Owner (cross-department assignment allowed)
+- Control Owner can edit the control (subject to approval if linked to high-risk)
+- Changing `control_owner_id` is a **sensitive field change**
+
+### 2.3 Key Risk Indicator (KRI)
+
+| Field | Type | Description | Who Can Be Owner |
+|-------|------|-------------|------------------|
+| `risk_id` | FK → Risk | **Required** parent risk | Must link to existing Risk |
+| `reporting_owner_id` | FK → User | Reporting Owner | Any active user (optional) |
+
+**Ownership Hierarchy:**
+1. **Reporting Owner** (`reporting_owner_id`) - Responsible for submitting KRI values
+2. **Risk Owner** (of linked risk) - Fallback if no reporting owner
+3. **Department** (inherited from linked risk)
+
+**Who Can Own a KRI:**
+- Any user can be assigned as Reporting Owner
+- If no Reporting Owner, the linked Risk's owner is responsible
+- KRIs **inherit department access** from their linked Risk
+
+### 2.4 Department
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `manager_id` | FK → User | Department Manager/Head |
+| `is_active` | Boolean | Soft delete flag |
+| `is_system` | Boolean | System departments cannot be deleted |
+
+**Who Can Manage Departments:**
+- Only Admin and CRO can create/edit/delete departments
+- Manager assignment determines fallback approval authority
+
+---
+
+## 3. Department Relationships
+
+### 3.1 Entity-Department Mapping
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      DEPARTMENT                             │
+│  manager_id → User (Department Head)                        │
+└─────────────────────────────────────────────────────────────┘
+         │                    │                    │
+         ▼                    ▼                    ▼
+    ┌─────────┐         ┌──────────┐         ┌─────────┐
+    │  USERS  │         │  RISKS   │         │ CONTROLS│
+    │ dept_id │         │ dept_id  │         │ dept_id │
+    └─────────┘         └──────────┘         └─────────┘
+                              │
+                              ▼
+                        ┌─────────┐
+                        │  KRIs   │
+                        │ risk_id │ (inherits dept from Risk)
+                        └─────────┘
+```
+
+### 3.2 Department Access Rules
+
+| User Access Scope | Can See Risks | Can See Controls | Can See KRIs |
+|-------------------|--------------|------------------|--------------|
+| GLOBAL | All departments | All departments | All departments |
+| DEPARTMENT | Own department only | Own department only | Own dept's risks' KRIs |
+| MANAGER | Via manager's department | Via manager's department | Via manager |
+
+**Special Cases:**
+- **Unassigned items** (`department_id = NULL`): Only GLOBAL users can access
+- **Cross-department ownership**: See Section 7
+
+---
+
+## 4. Permission Matrix
+
+### 4.1 Resource Permissions
+
+| Permission | Description | Typical Roles |
+|------------|-------------|---------------|
+| `risks:read` | View risks | All (scoped by department) |
+| `risks:write` | Create/edit risks | Risk Manager, Compliance |
+| `risks:delete` | Delete risks | Privileged only (via approval) |
+| `controls:read` | View controls | All (scoped) |
+| `controls:write` | Create/edit controls | Risk Manager, Dept Head |
+| `controls:delete` | Delete controls | Privileged only (via approval) |
+| `controls:execute` | Log control executions | Control Owner, Executor |
+| `kri:read` | View KRIs | All (scoped) |
+| `kri:write` | Create/edit KRIs | Risk Manager |
+| `kri:submit` | Submit KRI values | Reporting Owner, Risk Owner |
+| `approvals:read` | View approval queue | All |
+| `approvals:write` | Approve/reject requests | Privileged users only |
+| `users:read` | View user list | Admin, CRO |
+| `users:write` | Create/edit users | Admin only |
+| `activity_log:read` | View activity log | Risk Manager, Compliance, Admin |
+
+### 4.2 Role-Permission Grid
+
+| Role | risks:* | controls:* | kri:* | approvals:write | users:write | Risk Hub |
+|------|---------|------------|-------|-----------------|-------------|----------|
+| CRO | ✅ Full | ✅ Full | ✅ Full | ✅ | ❌ | ✅ **Configure** |
+| Risk Manager | ✅ Full | ✅ Full | ✅ Full | ✅ | ❌ | ❌ |
+| Compliance | ✅ Read | ✅ Read | ✅ Read | ✅ | ❌ | ❌ |
+| Dept Head | ✅ Dept | ✅ Dept | ✅ Dept | ❌ | ❌ | ❌ |
+| Employee | ✅ Dept R | ✅ Dept R | ✅ Dept R | ❌ | ❌ | ❌ |
+| Admin | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+
+---
+
+## 5. Approval Workflows
+
+### 5.1 Approval Status Flow
+
+```
+                    User submits request
+                           │
+                           ▼
+                    ┌─────────────┐
+                    │   PENDING   │
+                    │ (awaiting   │
+                    │  primary)   │
+                    └──────┬──────┘
+                           │
+           ┌───────────────┼───────────────┐
+           ▼               ▼               ▼
+    ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+    │  CANCELLED  │ │  REJECTED   │ │  Primary    │
+    │ (by user)   │ │ (by approver)│ │  Approved   │
+    └─────────────┘ └─────────────┘ └──────┬──────┘
+                                           │
+                           ┌───────────────┴───────────────┐
+                           │  requires_privileged = true?  │
+                           └───────────────┬───────────────┘
+                                   │               │
+                               Yes ▼               ▼ No
+                    ┌─────────────────────┐ ┌─────────────┐
+                    │ PENDING_PRIVILEGED  │ │  APPROVED   │
+                    │ (awaiting CRO/RM)   │ │  (action    │
+                    └──────────┬──────────┘ │  executed)  │
+                               │            └─────────────┘
+               ┌───────────────┼───────────────┐
+               ▼               ▼               ▼
+        ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+        │  CANCELLED  │ │  REJECTED   │ │  APPROVED   │
+        │             │ │             │ │  (action    │
+        └─────────────┘ └─────────────┘ │  executed)  │
+                                        └─────────────┘
+```
+
+### 5.2 Tiered Approval Model
+
+| Stage | Approver | Condition |
+|-------|----------|-----------|
+| **Primary Approval** | Risk Owner or Department Head | Always required for non-privileged users |
+| **Privileged Approval** | CRO, Risk Manager, or other privileged user | Required if `requires_privileged_approval = true` |
+
+**When is Privileged Approval Required?**
+- Risk has `is_priority = true`
+- Risk has `net_score >= high_risk_min_net_score` threshold (default: 10)
+- Control is linked to any high-risk/priority risk
+
+### 5.3 Who Can Approve What
+
+| Action Type | Primary Approver | Privileged Approver |
+|------------|------------------|---------------------|
+| **Delete Risk** | Risk Owner → Dept Head | CRO, Risk Manager |
+| **Delete Control** | Risk Owner of highest-priority linked risk → Dept Head | CRO, Risk Manager |
+| **Edit Risk (sensitive)** | Risk Owner → Dept Head | Required if high-risk |
+| **Edit Control (sensitive)** | Risk Owner of linked risk → Dept Head | Required if linked to high-risk |
+| **Edit KRI** | Risk Owner of linked risk | Required if linked risk is high-risk |
+| **KRI History Correction** | Risk Owner | CRO approval required |
+
+### 5.4 Self-Approval Prevention
+
+- Users **cannot approve their own requests**
+- If the primary approver (owner) is the requester, it escalates to Department Head
+- If Department Head is also the requester, it escalates directly to Privileged
+
+---
+
+## 6. Sensitive Field Rules
+
+### 6.1 Sensitive Fields by Entity
+
+| Entity | Sensitive Fields | Approval Trigger |
+|--------|------------------|------------------|
+| **Risk** | `owner_id`, `department_id`, `category`, `is_priority` | Any change requires approval |
+| **Control** | `control_owner_id`, `department_id` | Any change requires approval |
+| **KRI** | (none - inherits from linked Risk) | Value changes may require approval |
+
+### 6.2 Priority Risk Edit Rule
+
+> [!IMPORTANT]
+> **Any edit on a priority risk (`is_priority = true`) requires approval from Risk Manager or CRO.**
+
+This applies to **ALL fields**, not just sensitive ones:
+
+| User Type | Editing Priority Risk | Result |
+|-----------|----------------------|--------|
+| CRO / Risk Manager | Any field | ✅ Immediate update |
+| Department Head | Any field | ⏳ Creates approval request |
+| Employee | Any field | ⏳ Creates approval request |
+| Risk Owner (non-privileged) | Any field | ⏳ Creates approval request |
+
+### 6.3 Special Cases
+
+**is_priority Field (Risk):**
+- `true → false` (downgrade): **REQUIRES approval** (removing from priority watch)
+- `false → true` (upgrade): NO approval needed (adding to priority is always allowed)
+
+**Clearing to NULL:**
+- `owner_id: 5 → null`: **REQUIRES approval** (removing owner)
+- This prevents accidental orphaning of entities
+
+---
+
+## 7. Cross-Department Access
+
+### 7.1 Ownership-Based Access
+
+Non-privileged users can access resources **outside their department** if they are:
+
+| Role | Can Access |
+|------|-----------|
+| **Risk Owner** | The risk they own, regardless of department |
+| **Control Owner** | The control they own + its linked risks (read) |
+| **KRI Reporting Owner** | The KRI they own + its linked risk (read) |
+
+### 7.2 Access Inheritance
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│   KRI Reporting Owner (Dept A)                              │
+│                    │                                        │
+│                    ▼                                        │
+│   Can view KRI → Can view linked Risk (even if Dept B)      │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│   Control Owner (Dept A)                                    │
+│                    │                                        │
+│                    ▼                                        │
+│   Can edit Control → Can view linked Risks (even if Dept B) │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 8. Quick Reference Tables
+
+### 8.1 Who Can Create Entities
+
+| Entity | Who Can Create | Default Department |
+|--------|----------------|-------------------|
+| Risk | Users with `risks:write` | Creator's department |
+| Control | Users with `controls:write` | Creator's department |
+| KRI | Users with `kri:write` | Inherits from linked Risk |
+
+### 8.2 Who Can Delete Entities
+
+| Entity | Immediate Delete | Requires Approval |
+|--------|-----------------|-------------------|
+| Risk | Privileged users with `risks:delete` | Non-privileged: creates ApprovalRequest |
+| Control | Privileged users with `controls:delete` | Non-privileged: creates ApprovalRequest |
+| KRI | Privileged users with `kri:delete` | Non-privileged: creates ApprovalRequest |
+
+### 8.3 Approval Action Decision Tree
+
+```
+User requests action (DELETE or EDIT sensitive field)
+                │
+                ▼
+┌───────────────────────────────────────┐
+│        Is user privileged?            │
+│    (access_scope = GLOBAL)            │
+└───────────────────┬───────────────────┘
+                    │
+        Yes ───────►│◄──────── No
+        │                      │
+        ▼                      ▼
+    IMMEDIATE           CREATE APPROVAL
+    EXECUTION           REQUEST
+        │                      │
+        │                      ▼
+        │           ┌─────────────────────────┐
+        │           │ Set primary_approver_id │
+        │           │ (Risk Owner or Dept Head)│
+        │           └────────────┬────────────┘
+        │                        │
+        │                        ▼
+        │           ┌─────────────────────────┐
+        │           │ Is risk high-priority?  │
+        │           │ (is_priority OR         │
+        │           │  net_score >= threshold)│
+        │           └────────────┬────────────┘
+        │                        │
+        │            Yes ────────┴──────── No
+        │            │                     │
+        │            ▼                     ▼
+        │   requires_privileged    requires_privileged
+        │         = TRUE                 = FALSE
+        │            │                     │
+        │            └──────────┬──────────┘
+        │                       │
+        └───────────────────────┴─────► DONE
+```
+
+### 8.4 KRI Value Submission Flow
+
+| Submitter | Action | Approval Required |
+|-----------|--------|-------------------|
+| KRI Reporting Owner | Submit value | Only if linked risk is high-priority |
+| Risk Owner (fallback) | Submit value | Only if risk is high-priority |
+| Privileged User | Submit value | Never (immediate) |
+
+### 8.5 Control Execution Logging
+
+| Logger | Permission Required | Department Scope |
+|--------|---------------------|------------------|
+| Control Owner | `controls:execute` | Can log own controls (cross-dept) |
+| Department Member | `controls:execute` | Department controls only |
+| Privileged User | `controls:execute` | All controls |
+
+---
+
+## Appendix A: Code References
+
+| Concept | File | Function/Class |
+|---------|------|----------------|
+| Role Types | `app/models/role.py` | `RoleType` enum |
+| Access Scope | `app/models/user.py` | `AccessScope` enum |
+| Privileged Check | `app/core/permissions.py` | `is_privileged_user()` |
+| Department Access | `app/core/permissions.py` | `check_department_access()` |
+| Sensitive Fields | `app/core/permissions.py` | `SENSITIVE_FIELDS` dict |
+| High-Risk Check | `app/core/permissions.py` | `is_high_risk_for_approval_async()` |
+| Approval Model | `app/models/approval_request.py` | `ApprovalRequest` |
+| Primary Approver | `app/core/approval_helpers.py` | `get_primary_approver_for_control()` |
+| Cross-dept Access | `app/core/permissions.py` | `is_control_owner()`, `is_kri_reporting_owner()` |
+
+---
+
+## Appendix B: Configuration (Risk Hub)
+
+These values are configurable by CRO in Risk Hub:
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `high_risk_min_net_score` | 10 | Threshold for requiring privileged approval |
+| `medium_risk_min_net_score` | 5 | Medium risk threshold for reporting |
+| `critical_risk_min_net_score` | 20 | Critical risk threshold |
+
+---
+
+*Document generated from codebase analysis. See individual model files for authoritative definitions.*
