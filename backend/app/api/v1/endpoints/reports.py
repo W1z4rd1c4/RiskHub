@@ -1,15 +1,21 @@
 """
 Report generation endpoints for PDF and Excel exports.
 Secured with department scoping for RBAC compliance.
+
+Patterns used:
+- Streaming helpers: _stream_pdf(), _stream_excel() for consistent response formatting
+- Query builders: Per-entity functions for explicit, auditable queries
+- Empty scoping: Unified handling of users with no accessible departments
 """
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Callable, Any
 
 from fastapi import APIRouter, Depends, Query, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from sqlalchemy.sql import Select
 from io import BytesIO
 
 from app.db.session import get_db
@@ -33,13 +39,43 @@ from app.services.report_service import (
 router = APIRouter()
 
 
-def get_filename(base: str, ext: str) -> str:
+# =============================================================================
+# Streaming Response Helpers
+# =============================================================================
+
+_PDF_MEDIA_TYPE = "application/pdf"
+_EXCEL_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _get_filename(base: str, ext: str) -> str:
     """Generate a filename with current date."""
     date_str = datetime.now().strftime('%Y-%m-%d')
     return f"{base}-{date_str}.{ext}"
 
 
-def validate_department_access(department_id: Optional[int], dept_ids: Optional[list[int]]) -> None:
+def _stream_pdf(filename_base: str, content_bytes: bytes) -> StreamingResponse:
+    """Create a PDF streaming response with correct headers."""
+    return StreamingResponse(
+        BytesIO(content_bytes),
+        media_type=_PDF_MEDIA_TYPE,
+        headers={"Content-Disposition": f'attachment; filename="{_get_filename(filename_base, "pdf")}"'}
+    )
+
+
+def _stream_excel(filename_base: str, content_bytes: bytes) -> StreamingResponse:
+    """Create an Excel streaming response with correct headers."""
+    return StreamingResponse(
+        BytesIO(content_bytes),
+        media_type=_EXCEL_MEDIA_TYPE,
+        headers={"Content-Disposition": f'attachment; filename="{_get_filename(filename_base, "xlsx")}"'}
+    )
+
+
+# =============================================================================
+# Department Scoping
+# =============================================================================
+
+def _validate_department_access(department_id: Optional[int], dept_ids: Optional[list[int]]) -> None:
     """
     Validate that requested department is within user's accessible departments.
     
@@ -59,6 +95,99 @@ def validate_department_access(department_id: Optional[int], dept_ids: Optional[
         )
 
 
+def _user_has_no_departments(dept_ids: Optional[list[int]]) -> bool:
+    """Check if user is non-privileged and has no accessible departments."""
+    return dept_ids is not None and len(dept_ids) == 0
+
+
+# =============================================================================
+# Query Builders (per-entity, explicit, no generics)
+# =============================================================================
+
+def _controls_report_query(
+    dept_ids: Optional[list[int]],
+    department_id: Optional[int],
+    status_filter: Optional[str]
+) -> Select:
+    """Build controls query with RBAC scoping and filters applied."""
+    query = select(Control).options(selectinload(Control.department))
+    
+    # Department scoping for non-privileged
+    if dept_ids is not None:
+        query = query.where(Control.department_id.in_(dept_ids))
+    
+    # User-specified filters
+    if department_id:
+        query = query.where(Control.department_id == department_id)
+    if status_filter:
+        query = query.where(Control.status == status_filter)
+    
+    return query.order_by(Control.name)
+
+
+def _risks_report_query(
+    dept_ids: Optional[list[int]],
+    department_id: Optional[int],
+    status_filter: Optional[str]
+) -> Select:
+    """Build risks query with RBAC scoping and filters applied."""
+    query = select(Risk).options(selectinload(Risk.department))
+    
+    # Department scoping for non-privileged
+    if dept_ids is not None:
+        query = query.where(Risk.department_id.in_(dept_ids))
+    
+    # User-specified filters
+    if department_id:
+        query = query.where(Risk.department_id == department_id)
+    if status_filter:
+        query = query.where(Risk.status == status_filter)
+    
+    return query.order_by(Risk.process)
+
+
+def _audit_trail_query(
+    dept_ids: Optional[list[int]],
+    department_id: Optional[int],
+    result_filter: Optional[str],
+    control_id: Optional[int],
+    from_date: Optional[datetime],
+    to_date: Optional[datetime]
+) -> Select:
+    """Build audit trail (ControlExecution) query with RBAC scoping and filters."""
+    query = (
+        select(ControlExecution)
+        .join(Control, ControlExecution.control_id == Control.id)
+        .options(
+            selectinload(ControlExecution.control).selectinload(Control.department),
+            selectinload(ControlExecution.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
+            selectinload(ControlExecution.executed_by)
+        )
+    )
+    
+    # Department scoping for non-privileged
+    if dept_ids is not None:
+        query = query.where(Control.department_id.in_(dept_ids))
+    
+    # User-specified filters
+    if department_id:
+        query = query.where(Control.department_id == department_id)
+    if result_filter:
+        query = query.where(ControlExecution.result == result_filter)
+    if control_id:
+        query = query.where(ControlExecution.control_id == control_id)
+    if from_date:
+        query = query.where(ControlExecution.executed_at >= from_date)
+    if to_date:
+        query = query.where(ControlExecution.executed_at <= to_date)
+    
+    return query.order_by(ControlExecution.executed_at.desc())
+
+
+# =============================================================================
+# Report Endpoints
+# =============================================================================
+
 @router.get("/controls/pdf")
 async def download_controls_pdf(
     department_id: Optional[int] = Query(None, description="Filter by department"),
@@ -67,45 +196,17 @@ async def download_controls_pdf(
     current_user: User = Depends(require_permission("reports", "read"))
 ):
     """Download controls report as PDF. Scoped to user's accessible departments."""
-    # Get user's department scope
     dept_ids = get_user_department_ids(current_user)
+    _validate_department_access(department_id, dept_ids)
     
-    # Validate requested department filter
-    validate_department_access(department_id, dept_ids)
+    if _user_has_no_departments(dept_ids):
+        return _stream_pdf("controls", generate_controls_pdf([]))
     
-    query = select(Control).options(selectinload(Control.department))
-    
-    # Apply department scoping
-    if dept_ids is not None:
-        if not dept_ids:
-            # User has no departments - return empty report
-            return StreamingResponse(
-                BytesIO(generate_controls_pdf([])),
-                media_type="application/pdf",
-                headers={"Content-Disposition": f'attachment; filename="{get_filename("controls", "pdf")}"'}
-            )
-        query = query.where(Control.department_id.in_(dept_ids))
-    
-    # Additional user-specified filters
-    if department_id:
-        query = query.where(Control.department_id == department_id)
-    if status_filter:
-        query = query.where(Control.status == status_filter)
-    
-    query = query.order_by(Control.name)
-    
+    query = _controls_report_query(dept_ids, department_id, status_filter)
     result = await db.execute(query)
     controls = result.scalars().all()
     
-    pdf_bytes = generate_controls_pdf(list(controls))
-    
-    return StreamingResponse(
-        BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{get_filename("controls", "pdf")}"'
-        }
-    )
+    return _stream_pdf("controls", generate_controls_pdf(list(controls)))
 
 
 @router.get("/controls/excel")
@@ -117,38 +218,16 @@ async def download_controls_excel(
 ):
     """Download controls report as Excel. Scoped to user's accessible departments."""
     dept_ids = get_user_department_ids(current_user)
-    validate_department_access(department_id, dept_ids)
+    _validate_department_access(department_id, dept_ids)
     
-    query = select(Control).options(selectinload(Control.department))
+    if _user_has_no_departments(dept_ids):
+        return _stream_excel("controls", generate_controls_excel([]))
     
-    if dept_ids is not None:
-        if not dept_ids:
-            return StreamingResponse(
-                BytesIO(generate_controls_excel([])),
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers={"Content-Disposition": f'attachment; filename="{get_filename("controls", "xlsx")}"'}
-            )
-        query = query.where(Control.department_id.in_(dept_ids))
-    
-    if department_id:
-        query = query.where(Control.department_id == department_id)
-    if status_filter:
-        query = query.where(Control.status == status_filter)
-    
-    query = query.order_by(Control.name)
-    
+    query = _controls_report_query(dept_ids, department_id, status_filter)
     result = await db.execute(query)
     controls = result.scalars().all()
     
-    excel_bytes = generate_controls_excel(list(controls))
-    
-    return StreamingResponse(
-        BytesIO(excel_bytes),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": f'attachment; filename="{get_filename("controls", "xlsx")}"'
-        }
-    )
+    return _stream_excel("controls", generate_controls_excel(list(controls)))
 
 
 @router.get("/risks/pdf")
@@ -160,38 +239,16 @@ async def download_risks_pdf(
 ):
     """Download risks report as PDF. Scoped to user's accessible departments."""
     dept_ids = get_user_department_ids(current_user)
-    validate_department_access(department_id, dept_ids)
+    _validate_department_access(department_id, dept_ids)
     
-    query = select(Risk).options(selectinload(Risk.department))
+    if _user_has_no_departments(dept_ids):
+        return _stream_pdf("risks", generate_risks_pdf([]))
     
-    if dept_ids is not None:
-        if not dept_ids:
-            return StreamingResponse(
-                BytesIO(generate_risks_pdf([])),
-                media_type="application/pdf",
-                headers={"Content-Disposition": f'attachment; filename="{get_filename("risks", "pdf")}"'}
-            )
-        query = query.where(Risk.department_id.in_(dept_ids))
-    
-    if department_id:
-        query = query.where(Risk.department_id == department_id)
-    if status_filter:
-        query = query.where(Risk.status == status_filter)
-    
-    query = query.order_by(Risk.process)
-    
+    query = _risks_report_query(dept_ids, department_id, status_filter)
     result = await db.execute(query)
     risks = result.scalars().all()
     
-    pdf_bytes = generate_risks_pdf(list(risks))
-    
-    return StreamingResponse(
-        BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{get_filename("risks", "pdf")}"'
-        }
-    )
+    return _stream_pdf("risks", generate_risks_pdf(list(risks)))
 
 
 @router.get("/risks/excel")
@@ -203,38 +260,16 @@ async def download_risks_excel(
 ):
     """Download risks report as Excel. Scoped to user's accessible departments."""
     dept_ids = get_user_department_ids(current_user)
-    validate_department_access(department_id, dept_ids)
+    _validate_department_access(department_id, dept_ids)
     
-    query = select(Risk).options(selectinload(Risk.department))
+    if _user_has_no_departments(dept_ids):
+        return _stream_excel("risks", generate_risks_excel([]))
     
-    if dept_ids is not None:
-        if not dept_ids:
-            return StreamingResponse(
-                BytesIO(generate_risks_excel([])),
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers={"Content-Disposition": f'attachment; filename="{get_filename("risks", "xlsx")}"'}
-            )
-        query = query.where(Risk.department_id.in_(dept_ids))
-    
-    if department_id:
-        query = query.where(Risk.department_id == department_id)
-    if status_filter:
-        query = query.where(Risk.status == status_filter)
-    
-    query = query.order_by(Risk.process)
-    
+    query = _risks_report_query(dept_ids, department_id, status_filter)
     result = await db.execute(query)
     risks = result.scalars().all()
     
-    excel_bytes = generate_risks_excel(list(risks))
-    
-    return StreamingResponse(
-        BytesIO(excel_bytes),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": f'attachment; filename="{get_filename("risks", "xlsx")}"'
-        }
-    )
+    return _stream_excel("risks", generate_risks_excel(list(risks)))
 
 
 @router.get("/summary/pdf")
@@ -245,32 +280,26 @@ async def download_summary_pdf(
 ):
     """Download dashboard summary as PDF. Scoped to user's accessible departments."""
     dept_ids = get_user_department_ids(current_user)
-    validate_department_access(department_id, dept_ids)
+    _validate_department_access(department_id, dept_ids)
     
-    # Build queries with department scoping
+    if _user_has_no_departments(dept_ids):
+        empty_summary = {
+            'total_controls': 0,
+            'total_risks': 0,
+            'critical_risks_count': 0,
+            'average_net_risk_score': 0,
+            'controls_by_status': {}
+        }
+        return _stream_pdf("dashboard-summary", generate_dashboard_summary_pdf(empty_summary))
+    
+    # Build queries for controls and risks
     controls_query = select(Control)
     risks_query = select(Risk)
     
-    # Apply department scoping for non-privileged users
     if dept_ids is not None:
-        if not dept_ids:
-            # Empty summary for users with no department
-            summary = {
-                'total_controls': 0,
-                'total_risks': 0,
-                'critical_risks_count': 0,
-                'average_net_risk_score': 0,
-                'controls_by_status': {}
-            }
-            return StreamingResponse(
-                BytesIO(generate_dashboard_summary_pdf(summary)),
-                media_type="application/pdf",
-                headers={"Content-Disposition": f'attachment; filename="{get_filename("dashboard-summary", "pdf")}"'}
-            )
         controls_query = controls_query.where(Control.department_id.in_(dept_ids))
         risks_query = risks_query.where(Risk.department_id.in_(dept_ids))
     
-    # User-specified department filter (must be within scope)
     if department_id:
         controls_query = controls_query.where(Control.department_id == department_id)
         risks_query = risks_query.where(Risk.department_id == department_id)
@@ -281,16 +310,12 @@ async def download_summary_pdf(
     risks_result = await db.execute(risks_query)
     risks = risks_result.scalars().all()
     
-    # Calculate summary metrics
+    # Calculate metrics
     total_controls = len(controls)
     total_risks = len(risks)
     critical_risks = sum(1 for r in risks if r.net_probability * r.net_impact >= 16)
-    avg_net_score = (
-        sum(r.net_probability * r.net_impact for r in risks) / len(risks)
-        if risks else 0
-    )
+    avg_net_score = sum(r.net_probability * r.net_impact for r in risks) / len(risks) if risks else 0
     
-    # Controls by status
     controls_by_status = {}
     for c in controls:
         ctrl_status = c.status or 'unknown'
@@ -304,15 +329,7 @@ async def download_summary_pdf(
         'controls_by_status': controls_by_status
     }
     
-    pdf_bytes = generate_dashboard_summary_pdf(summary)
-    
-    return StreamingResponse(
-        BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{get_filename("dashboard-summary", "pdf")}"'
-        }
-    )
+    return _stream_pdf("dashboard-summary", generate_dashboard_summary_pdf(summary))
 
 
 @router.get("/audit-trail/pdf")
@@ -327,55 +344,16 @@ async def download_audit_trail_pdf(
 ):
     """Download audit trail (control executions) as PDF. Scoped to user's accessible departments."""
     dept_ids = get_user_department_ids(current_user)
-    validate_department_access(department_id, dept_ids)
+    _validate_department_access(department_id, dept_ids)
     
-    # Build query with eager loading
-    query = (
-        select(ControlExecution)
-        .join(Control, ControlExecution.control_id == Control.id)
-        .options(
-            selectinload(ControlExecution.control).selectinload(Control.department),
-            selectinload(ControlExecution.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
-            selectinload(ControlExecution.executed_by)
-        )
-    )
+    if _user_has_no_departments(dept_ids):
+        return _stream_pdf("audit-trail", generate_audit_trail_pdf([]))
     
-    # Department scoping
-    if dept_ids is not None:
-        if not dept_ids:
-            return StreamingResponse(
-                BytesIO(generate_audit_trail_pdf([])),
-                media_type="application/pdf",
-                headers={"Content-Disposition": f'attachment; filename="{get_filename("audit-trail", "pdf")}"'}
-            )
-        query = query.where(Control.department_id.in_(dept_ids))
-    
-    # Filters
-    if department_id:
-        query = query.where(Control.department_id == department_id)
-    if result:
-        query = query.where(ControlExecution.result == result)
-    if control_id:
-        query = query.where(ControlExecution.control_id == control_id)
-    if from_date:
-        query = query.where(ControlExecution.executed_at >= from_date)
-    if to_date:
-        query = query.where(ControlExecution.executed_at <= to_date)
-    
-    query = query.order_by(ControlExecution.executed_at.desc())
-    
+    query = _audit_trail_query(dept_ids, department_id, result, control_id, from_date, to_date)
     result_set = await db.execute(query)
     executions = result_set.scalars().all()
     
-    pdf_bytes = generate_audit_trail_pdf(list(executions))
-    
-    return StreamingResponse(
-        BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'attachment; filename="{get_filename("audit-trail", "pdf")}"'
-        }
-    )
+    return _stream_pdf("audit-trail", generate_audit_trail_pdf(list(executions)))
 
 
 @router.get("/audit-trail/excel")
@@ -390,53 +368,14 @@ async def download_audit_trail_excel(
 ):
     """Download audit trail (control executions) as Excel. Scoped to user's accessible departments."""
     dept_ids = get_user_department_ids(current_user)
-    validate_department_access(department_id, dept_ids)
+    _validate_department_access(department_id, dept_ids)
     
-    # Build query with eager loading
-    query = (
-        select(ControlExecution)
-        .join(Control, ControlExecution.control_id == Control.id)
-        .options(
-            selectinload(ControlExecution.control).selectinload(Control.department),
-            selectinload(ControlExecution.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
-            selectinload(ControlExecution.executed_by)
-        )
-    )
+    if _user_has_no_departments(dept_ids):
+        return _stream_excel("audit-trail", generate_audit_trail_excel([]))
     
-    # Department scoping
-    if dept_ids is not None:
-        if not dept_ids:
-            return StreamingResponse(
-                BytesIO(generate_audit_trail_excel([])),
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                headers={"Content-Disposition": f'attachment; filename="{get_filename("audit-trail", "xlsx")}"'}
-            )
-        query = query.where(Control.department_id.in_(dept_ids))
-    
-    # Filters
-    if department_id:
-        query = query.where(Control.department_id == department_id)
-    if result:
-        query = query.where(ControlExecution.result == result)
-    if control_id:
-        query = query.where(ControlExecution.control_id == control_id)
-    if from_date:
-        query = query.where(ControlExecution.executed_at >= from_date)
-    if to_date:
-        query = query.where(ControlExecution.executed_at <= to_date)
-    
-    query = query.order_by(ControlExecution.executed_at.desc())
-    
+    query = _audit_trail_query(dept_ids, department_id, result, control_id, from_date, to_date)
     result_set = await db.execute(query)
     executions = result_set.scalars().all()
     
-    excel_bytes = generate_audit_trail_excel(list(executions))
-    
-    return StreamingResponse(
-        BytesIO(excel_bytes),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": f'attachment; filename="{get_filename("audit-trail", "xlsx")}"'
-        }
-    )
+    return _stream_excel("audit-trail", generate_audit_trail_excel(list(executions)))
 
