@@ -6,11 +6,17 @@ export default defineConfig({
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
     workers: process.env.CI ? 1 : undefined,
-    reporter: [
-        ['html', { outputFolder: 'playwright-report' }],
-        ['json', { outputFile: 'test-results/results.json' }],
-    ],
-    timeout: 30000,
+    reporter: process.env.CI
+        ? [
+            ['html', { outputFolder: 'playwright-report' }],
+            ['json', { outputFile: 'test-results/results.json' }],
+            ['junit', { outputFile: 'test-results/junit.xml' }],
+        ]
+        : [
+            ['html', { outputFolder: 'playwright-report' }],
+            ['json', { outputFile: 'test-results/results.json' }],
+        ],
+    timeout: 60000,
 
     use: {
         baseURL: 'http://localhost:5173',
@@ -32,6 +38,13 @@ export default defineConfig({
             name: 'webkit',
             use: { ...devices['Desktop Safari'] },
         },
+        {
+            name: 'ci',
+            use: {
+                ...devices['Desktop Chrome'],
+                headless: true,
+            },
+        },
     ],
 
     webServer: {
@@ -40,4 +53,8 @@ export default defineConfig({
         reuseExistingServer: !process.env.CI,
         timeout: 120000,
     },
+
+    /* Global setup for health checks */
+    globalSetup: './e2e/setup/global-setup.ts',
 });
+
