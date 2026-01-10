@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 251-08: Simplified `ActivityLogPage.tsx` (560→414 lines) by extracting data fetching into `useActivityLogPageState.ts` hook and filter UI into `ActivityLogFilterBar.tsx` component. Build passes.
+- Completed Plan 251-09: Simplified `KRIDetailPage.tsx` (533→~298 lines) by extracting overview tab into `KRIDetailOverviewTab.tsx` and history tab into `KRIDetailHistoryTab.tsx` with pure transformation helpers. Build passes.
 
 ### Next Step
-- Continue Phase 251 Spaghetti Simplification 2 (8/10 plans complete). Execute Plan 251-09.
+- Continue Phase 251 Spaghetti Simplification 2 (9/10 plans complete). Execute Plan 251-10.
 
 
 ---
