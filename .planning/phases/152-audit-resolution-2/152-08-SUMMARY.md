@@ -12,6 +12,16 @@ Control owners couldn't see executions for cross-department controls they own—
 | `GET /executions` | Query includes `OR control_id.in_(owned_control_ids)` |
 | `POST /executions` | Checks `is_control_owner` before department access |
 | `GET /executions/{id}` | Checks `is_control_owner` before department access |
+| `POST /controls/{id}/executions` | **Added** `is_control_owner` check (was missing) |
+| `GET /controls/{id}/executions` | **Added** `is_control_owner` check (was missing) |
+
+### Additional Fixes (Audit Gap Resolution)
+
+| Issue | Fix |
+|-------|-----|
+| `POST /approvals` duplicate check | Now includes `PENDING_PRIVILEGED` + IntegrityError handler |
+| `GET /kris/{id}/history` archived leak | Blocks non-privileged access to archived KRI history |
+| KRI breach notification `pass` | Now logs warnings instead of swallowing silently |
 
 ### Pattern Used
 ```python
@@ -34,3 +44,6 @@ if not is_owner:
 
 ## Files Modified
 - `backend/app/api/v1/endpoints/executions.py`
+- `backend/app/api/v1/endpoints/controls.py`
+- `backend/app/api/v1/endpoints/approvals.py`
+- `backend/app/api/v1/endpoints/kris.py`
