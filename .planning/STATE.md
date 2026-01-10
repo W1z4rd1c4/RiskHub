@@ -47,7 +47,7 @@
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
 | 200 Entity Naming Enforcement | ✅ Complete (10/10) | 2026-01-05 |
-| 250 Spaghetti Simplification | ⏳ In progress (5/10) | - |
+| 250 Spaghetti Simplification | ⏳ In progress (6/10) | - |
 
 
 ## Session Context
@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 250-05: Extracted shared `StepIndicator` component from `ControlForm.tsx` and `RiskForm.tsx`, eliminating ~38 lines of duplicated step indicator markup while preserving each form's click navigation policy.
+- Completed Plan 250-06: Simplified `RiskDetailPage.tsx` by extracting tab contents into `RiskDetailOverviewTab.tsx` and `RiskDetailKriHistoryTab.tsx`, reducing file from 719 to ~310 lines.
 
 ### Next Step
-- Continue with Phase 250 Plan 250-06, or Phase 17 Production Deployment.
+- Continue with Phase 250 Plan 250-07, or Phase 17 Production Deployment.
 
 ---
 *Updated: 2026-01-10*
