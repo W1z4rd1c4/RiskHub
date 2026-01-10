@@ -368,7 +368,8 @@ async def test_approve_kri_value_submission_with_period_end(
 ):
     """Test approving a KRI value submission records history with period_end."""
     today = date.today()
-    _, current_period_end = KRIHistoryService.period_bounds_for_date(
+    # Use closed period - after 152-03, future/open periods are rejected
+    _, closed_period_end = KRIHistoryService.latest_closed_period_for_date(
         today, KRIFrequency.monthly.value
     )
     
@@ -396,7 +397,7 @@ async def test_approve_kri_value_submission_with_period_end(
         action_type=ApprovalActionType.EDIT,
         pending_changes={
             "current_value": {"old": 30.0, "new": 55.0},
-            "period_end": current_period_end.isoformat(),
+            "period_end": closed_period_end.isoformat(),
             "recorded_at": datetime.now(UTC).isoformat(),
         },
         status=ApprovalStatus.PENDING,
@@ -415,14 +416,14 @@ async def test_approve_kri_value_submission_with_period_end(
     # Verify KRI value was updated
     await db_session.refresh(kri)
     assert kri.current_value == 55.0
-    assert kri.last_period_end == current_period_end
+    assert kri.last_period_end == closed_period_end
     
     # Verify history entry was created
     from sqlalchemy import select
     result = await db_session.execute(
         select(KRIValueHistory).where(
             KRIValueHistory.kri_id == kri.id,
-            KRIValueHistory.period_end == current_period_end,
+            KRIValueHistory.period_end == closed_period_end,
         )
     )
     entry = result.scalar_one_or_none()
