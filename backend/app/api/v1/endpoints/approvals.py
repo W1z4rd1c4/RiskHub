@@ -120,7 +120,7 @@ async def create_approval_request(
             raise HTTPException(status_code=404, detail="Control not found")
         # Verify requester has access to resource's department
         check_department_access(resource.department_id, current_user)
-        resource_name = f"{resource.control_id_code}: {resource.name[:50] if resource.name else ''}"
+        resource_name = f"Control #{resource.id}: {resource.name[:50] if resource.name else ''}"
         department_id = resource.department_id
     elif request_data.resource_type == ApprovalResourceTypeEnum.kri:
         # Load KRI with linked Risk for department access check
