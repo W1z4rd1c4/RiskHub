@@ -55,10 +55,10 @@
 
 | Item | Status |
 |------|--------|
-| Large page components | Addressed via hooks + local panels (Phase 250) |
-| Complex permission logic | Moved to services (Phase 250) |
-| Duplicate approval code | Consolidated to `approval_helpers.py` (Phase 250) |
-
+| Large page components | ✅ Addressed via hooks + subcomponents (Phase 250-251) |
+| Complex permission logic | ✅ Moved to services (Phase 250) |
+| Duplicate approval code | ✅ Consolidated to `approval_helpers.py` (Phase 250) |
+| `Record<string, unknown>` types | ✅ Replaced with explicit types (Phase 251) |
 
 ## Data Integrity ✅
 
@@ -77,25 +77,34 @@
 | Multi-language support | English default, Czech planned |
 | **KRI period visibility** | Users should see which period they're submitting for |
 
-## Recent Remediation (Phase 151)
+## Recent Remediation (Phase 151-152)
 
 - ✅ Risk ID generation - atomic retry pattern
 - ✅ Approval request duplication - partial unique index
 - ✅ Sensitive field detection - None value handling
 - ✅ Approval workflow edge cases - cancel, tiered fields
-
-## Recent Remediation (Phase 152)
-
-- ✅ KRI period semantics - non-privileged now submit for closed periods only
+- ✅ KRI period semantics - non-privileged submit for closed periods only
 
 ## Recent Remediation (Phase 250 - Code Simplification)
 
 - ✅ Extracted data-fetching hooks (`useDepartmentDetail`, `useUsersPageFilters`)
 - ✅ Consolidated approval patterns (`create_approval_request_with_audit` helper)
 - ✅ Simplified service layer (`_already_flagged`, `_create_orphan`, `_get_item_details`)
-- ✅ Extracted schemas from endpoint files to `schemas/riskhub.py`
+- ✅ Extracted schemas from endpoint files to `schemas/riskhub.py`, `schemas/admin.py`
 - ✅ Created reusable `StepIndicator` component
-- ✅ Removed duplicate code across 10 plans (~300+ lines eliminated)
+- ✅ Removed duplicate code across 10 plans
+
+## Recent Remediation (Phase 251 - Code Simplification 2)
+
+- ✅ Extracted `useActivityLogPageState` hook for Activity Log page
+- ✅ Created `ActivityLogFilterBar` presentational component
+- ✅ Simplified reports endpoints with streaming helpers
+- ✅ Refactored admin endpoints with extracted schemas
+- ✅ Simplified departments endpoint with scope/pagination helpers
+- ✅ Extracted KRI detail tabs (`KRIDetailOverviewTab`, `KRIDetailHistoryTab`)
+- ✅ Simplified `LinkManagementDialog` with `LinkSearchPanel` and `ExistingLinksPanel`
+- ✅ Replaced `Record<string, unknown>` with explicit `SearchResultItem`, `ExistingLinkItem`
+- ✅ Added shared hooks: `useDebouncedValue`, `usePendingApprovalIds`
+- ✅ Removed ~1000+ lines of duplicated/complex code across 10 plans
 
 *Updated: 2026-01-10*
-

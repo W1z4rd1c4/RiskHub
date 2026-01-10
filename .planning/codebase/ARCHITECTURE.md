@@ -18,13 +18,14 @@ RiskHub is an enterprise risk management platform: React SPA → FastAPI REST AP
 ## RiskHub Frontend
 - **Entry**: `frontend/src/main.tsx` → `App.tsx` (React Router routes)
 - **Contexts**: `AuthContext` (JWT + user), `DashboardFilterContext` (filters)
-- **API Layer**: `frontend/src/services/*.ts` using shared `apiClient` with Bearer tokens
-- **Pages**: 28 route-level pages in `frontend/src/pages`
-- **Components**: 73+ UI/domain components in categorized folders
+- **API Layer**: `frontend/src/services/*.ts` (21 modules) using shared `apiClient` with Bearer tokens
+- **Pages**: 30 route-level pages in `frontend/src/pages`
+- **Components**: 78 UI/domain components in 18 categorized folders
+- **Hooks**: 7 custom hooks for data-fetching and state management
 
 ## RiskHub Backend
 - **Entry**: `backend/app/main.py` with CORS + middleware
-- **Routers**: 19 versioned routers under `backend/app/api/v1/endpoints`
+- **Routers**: 20 versioned routers under `backend/app/api/v1/endpoints`
 - **Layers**: endpoints → services → models/schemas (separation of concerns)
 - **Auth**: JWT validation via `Depends` + RBAC permission checks (`permissions.py`)
 - **Scheduler**: APScheduler for KRI deadline notifications (in-process)
@@ -65,8 +66,10 @@ RiskHub is an enterprise risk management platform: React SPA → FastAPI REST AP
 - **Dependency Injection**: FastAPI `Depends` for auth, DB sessions, permissions
 - **Layered Architecture**: endpoints → services → models/schemas
 - **React Contexts**: Global auth + dashboard filter state
+- **Custom Hooks**: Data-fetching and state encapsulation (7 hooks)
 - **RBAC**: 11+ granular permissions with access scope (global/department/manager)
 - **Approval Workflow**: Tiered approvals for sensitive field changes
 - **Historization**: KRI history + quarterly metric snapshots
+- **Page Orchestrator Pattern**: Main component owns state, subcomponents present
 
 *Updated: 2026-01-10*
