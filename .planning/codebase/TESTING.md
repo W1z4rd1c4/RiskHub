@@ -10,7 +10,7 @@
 ### Test Types
 | Type | Location | Count |
 |------|----------|-------|
-| Unit/Integration | `backend/tests/test_*.py` | 38 files |
+| Unit/Integration | `backend/tests/test_*.py` | 40 files |
 | API Benchmarks | `test_api_benchmarks.py` | Performance |
 | Concurrency | `test_concurrency_stress.py`, `test_risks_concurrency.py` | Race conditions |
 | RBAC | `test_*_rbac.py` | Permission testing |
