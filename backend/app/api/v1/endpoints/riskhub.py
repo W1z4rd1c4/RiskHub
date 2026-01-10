@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel, Field
 
 from app.db.session import get_db
 from app.models import User, RiskTypeConfig, GlobalConfig, ApprovalScenario, Risk
@@ -13,6 +12,13 @@ from app.models.role import RoleType
 from app.api.deps import get_current_user
 from app.core.activity_logger import log_activity
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.riskhub import (
+    RiskTypeRead, RiskTypeCreate, RiskTypeUpdate, PublicRiskTypeRead,
+    GlobalConfigRead, GlobalConfigUpdate,
+    ApprovalScenarioRead, ApprovalScenarioUpdate,
+    RoleHubRead, RoleHubCreate, RoleHubUpdate, PermissionHubRead,
+    DepartmentHubRead, DepartmentHubCreate, DepartmentHubUpdate,
+)
 
 router = APIRouter()
 
@@ -22,7 +28,7 @@ router = APIRouter()
 # ============================================================================
 
 def require_cro(current_user: User) -> User:
-    """Dependency: Only CRO can access Risk Hub endpoints."""
+    """Check that user has CRO role. Raises 403 if not."""
     if current_user.role.name not in RoleType.cro_only_roles():
         raise HTTPException(
             status_code=403, 
@@ -31,46 +37,12 @@ def require_cro(current_user: User) -> User:
     return current_user
 
 
-# ============================================================================
-# Risk Types Schemas
-# ============================================================================
-
-class RiskTypeRead(BaseModel):
-    """Risk type response schema."""
-    id: int
-    code: str
-    display_name: str
-    description: str | None
-    color: str
-    icon: str | None
-    sort_order: int
-    is_active: bool
-    is_system: bool
-    risk_count: int
-    created_at: str
-    updated_at: str
-
-    class Config:
-        from_attributes = True
+def get_cro_user(current_user: User = Depends(get_current_user)) -> User:
+    """FastAPI dependency: authenticated user with CRO role."""
+    return require_cro(current_user)
 
 
-class RiskTypeCreate(BaseModel):
-    """Create risk type request schema."""
-    code: str = Field(..., min_length=2, max_length=50, pattern=r'^[a-z][a-z0-9_]*$')
-    display_name: str = Field(..., min_length=2, max_length=100)
-    description: str | None = None
-    color: str = Field(default="#64748b", pattern=r'^#[0-9a-fA-F]{6}$')
-    icon: str | None = None
-    sort_order: int = 0
 
-
-class RiskTypeUpdate(BaseModel):
-    """Update risk type request schema."""
-    display_name: str | None = None
-    description: str | None = None
-    color: str | None = None
-    icon: str | None = None
-    sort_order: int | None = None
 
 
 # ============================================================================
@@ -80,14 +52,13 @@ class RiskTypeUpdate(BaseModel):
 @router.get("/risk-types", response_model=list[RiskTypeRead])
 async def list_risk_types(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    cro_user: User = Depends(get_cro_user),
     include_inactive: bool = Query(False, description="Include soft-deleted types")
 ) -> list[RiskTypeRead]:
     """
     List all risk types with dynamically computed risk counts.
     CRO only.
     """
-    require_cro(current_user)
     
     query = select(RiskTypeConfig).order_by(RiskTypeConfig.sort_order, RiskTypeConfig.display_name)
     
@@ -128,13 +99,12 @@ async def list_risk_types(
 async def create_risk_type(
     data: RiskTypeCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> RiskTypeRead:
     """
     Create a new risk type.
     CRO only.
     """
-    require_cro(current_user)
     
     # Check for duplicate code
     existing = await db.execute(
@@ -161,7 +131,7 @@ async def create_risk_type(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.CREATE,
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
@@ -190,13 +160,12 @@ async def update_risk_type(
     id: int,
     data: RiskTypeUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> RiskTypeRead:
     """
     Update a risk type.
     CRO only. Cannot change code of system types.
     """
-    require_cro(current_user)
     
     result = await db.execute(select(RiskTypeConfig).where(RiskTypeConfig.id == id))
     risk_type = result.scalar_one_or_none()
@@ -221,7 +190,7 @@ async def update_risk_type(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.UPDATE,
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
@@ -249,14 +218,13 @@ async def update_risk_type(
 async def delete_risk_type(
     id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> dict:
     """
     Soft-delete a risk type.
     CRO only. Cannot delete system types.
     If risks use this type, they become orphaned.
     """
-    require_cro(current_user)
     
     result = await db.execute(select(RiskTypeConfig).where(RiskTypeConfig.id == id))
     risk_type = result.scalar_one_or_none()
@@ -278,7 +246,7 @@ async def delete_risk_type(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.DELETE,
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
@@ -293,13 +261,12 @@ async def delete_risk_type(
 async def restore_risk_type(
     id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> RiskTypeRead:
     """
     Restore a soft-deleted risk type.
     CRO only.
     """
-    require_cro(current_user)
     
     result = await db.execute(select(RiskTypeConfig).where(RiskTypeConfig.id == id))
     risk_type = result.scalar_one_or_none()
@@ -316,7 +283,7 @@ async def restore_risk_type(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.UPDATE,
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
@@ -340,32 +307,6 @@ async def restore_risk_type(
     )
 
 
-# ============================================================================
-# Global Config Schemas
-# ============================================================================
-
-class GlobalConfigRead(BaseModel):
-    """Global config response schema."""
-    id: int
-    key: str
-    value: str
-    value_type: str
-    category: str
-    display_name: str
-    description: str | None
-    min_value: int | None
-    max_value: int | None
-    is_editable: bool
-    updated_at: str
-    updated_by_name: str | None = None
-
-    class Config:
-        from_attributes = True
-
-
-class GlobalConfigUpdate(BaseModel):
-    """Update global config request schema."""
-    value: str
 
 
 # ============================================================================
@@ -375,13 +316,12 @@ class GlobalConfigUpdate(BaseModel):
 @router.get("/config", response_model=dict[str, list[GlobalConfigRead]])
 async def list_all_configs(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> dict[str, list[GlobalConfigRead]]:
     """
     List all configs grouped by category.
     CRO only.
     """
-    require_cro(current_user)
     
     result = await db.execute(
         select(GlobalConfig)
@@ -417,13 +357,12 @@ async def list_all_configs(
 async def list_config_category(
     category: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> list[GlobalConfigRead]:
     """
     List configs for a specific category.
     CRO only.
     """
-    require_cro(current_user)
     
     result = await db.execute(
         select(GlobalConfig)
@@ -457,13 +396,12 @@ async def update_config(
     key: str,
     data: GlobalConfigUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> GlobalConfigRead:
     """
     Update a config value.
     CRO only. Validates against min/max for int types.
     """
-    require_cro(current_user)
     
     result = await db.execute(
         select(GlobalConfig)
@@ -494,14 +432,14 @@ async def update_config(
     
     old_value = config.value
     config.value = data.value
-    config.updated_by_id = current_user.id
+    config.updated_by_id = cro_user.id
     
     await db.commit()
     await db.refresh(config)
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.UPDATE,
         entity_type=ActivityEntityType.CONFIG,
         entity_id=config.id,
@@ -521,33 +459,10 @@ async def update_config(
         max_value=config.max_value,
         is_editable=config.is_editable,
         updated_at=config.updated_at.isoformat(),
-        updated_by_name=current_user.name
+        updated_by_name=cro_user.name
     )
 
 
-# ============================================================================
-# Approval Scenarios Schemas
-# ============================================================================
-
-class ApprovalScenarioRead(BaseModel):
-    """Approval scenario response schema."""
-    id: int
-    key: str
-    display_name: str
-    description: str
-    requires_approval: bool
-    approver_roles: list[str]
-    updated_at: str
-    updated_by_name: str | None = None
-
-    class Config:
-        from_attributes = True
-
-
-class ApprovalScenarioUpdate(BaseModel):
-    """Update approval scenario request schema."""
-    requires_approval: bool | None = None
-    approver_roles: list[str] | None = None
 
 
 # ============================================================================
@@ -557,13 +472,12 @@ class ApprovalScenarioUpdate(BaseModel):
 @router.get("/approval-scenarios", response_model=list[ApprovalScenarioRead])
 async def list_approval_scenarios(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> list[ApprovalScenarioRead]:
     """
     List all approval scenarios.
     CRO only.
     """
-    require_cro(current_user)
     
     result = await db.execute(
         select(ApprovalScenario)
@@ -592,13 +506,12 @@ async def update_approval_scenario(
     key: str,
     data: ApprovalScenarioUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> ApprovalScenarioRead:
     """
     Update an approval scenario.
     CRO only. Cannot create new scenarios.
     """
-    require_cro(current_user)
     
     result = await db.execute(
         select(ApprovalScenario)
@@ -622,7 +535,7 @@ async def update_approval_scenario(
         scenario.set_approver_roles(data.approver_roles)
         changes.append(f"approver_roles: {old_roles} → {data.approver_roles}")
     
-    scenario.updated_by_id = current_user.id
+    scenario.updated_by_id = cro_user.id
     
     await db.commit()
     await db.refresh(scenario)
@@ -630,7 +543,7 @@ async def update_approval_scenario(
     if changes:
         await log_activity(
             db=db,
-            actor=current_user,
+            actor=cro_user,
             action=ActivityAction.UPDATE,
             entity_type=ActivityEntityType.CONFIG,
             entity_id=scenario.id,
@@ -646,7 +559,7 @@ async def update_approval_scenario(
         requires_approval=scenario.requires_approval,
         approver_roles=scenario.get_approver_roles(),
         updated_at=scenario.updated_at.isoformat(),
-        updated_by_name=current_user.name
+        updated_by_name=cro_user.name
     )
 
 
@@ -708,13 +621,6 @@ async def get_public_config(
 # Public Risk Types Endpoint (for all authenticated users)
 # ============================================================================
 
-class PublicRiskTypeRead(BaseModel):
-    """Minimal risk type schema for public access."""
-    code: str
-    display_name: str
-    color: str
-    icon: str | None
-    sort_order: int
 
 
 @router.get("/public-risk-types", response_model=list[PublicRiskTypeRead])
@@ -746,49 +652,6 @@ async def list_public_risk_types(
     ]
 
 
-# ============================================================================
-# Role Management Schemas
-# ============================================================================
-
-class RoleHubRead(BaseModel):
-    """Role response schema for Risk Hub."""
-    id: int
-    name: str
-    display_name: str
-    description: str | None
-    is_system: bool
-    is_active: bool
-    user_count: int
-    permissions: list[str]  # ["risks:read", "controls:write", ...]
-
-    class Config:
-        from_attributes = True
-
-
-class RoleHubCreate(BaseModel):
-    """Create role request schema."""
-    name: str = Field(..., min_length=2, max_length=50, pattern=r'^[a-z][a-z0-9_]*$')
-    display_name: str = Field(..., min_length=2, max_length=100)
-    description: str | None = None
-    permission_ids: list[int] = Field(default_factory=list)
-
-
-class RoleHubUpdate(BaseModel):
-    """Update role request schema."""
-    display_name: str | None = None
-    description: str | None = None
-    permission_ids: list[int] | None = None
-
-
-class PermissionHubRead(BaseModel):
-    """Permission response schema."""
-    id: int
-    resource: str
-    action: str
-    description: str | None
-
-    class Config:
-        from_attributes = True
 
 
 # ============================================================================
@@ -798,12 +661,11 @@ class PermissionHubRead(BaseModel):
 @router.get("/permissions", response_model=list[PermissionHubRead])
 async def list_permissions(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> list[PermissionHubRead]:
     """List all available permissions for role assignment. CRO only."""
     from app.models.role import Permission
     
-    require_cro(current_user)
     
     result = await db.execute(select(Permission).order_by(Permission.resource, Permission.action))
     permissions = result.scalars().all()
@@ -822,13 +684,11 @@ async def list_permissions(
 @router.get("/roles", response_model=list[RoleHubRead])
 async def list_roles(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    cro_user: User = Depends(get_cro_user),
     include_inactive: bool = Query(False, description="Include soft-deleted roles")
 ) -> list[RoleHubRead]:
     """List all roles with permissions. CRO only."""
     from app.models.role import Role, RolePermission, Permission
-    
-    require_cro(current_user)
     
     query = select(Role).options(
         selectinload(Role.permissions).selectinload(RolePermission.permission),
@@ -860,12 +720,10 @@ async def list_roles(
 async def create_role(
     data: RoleHubCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> RoleHubRead:
     """Create a new role. CRO only."""
     from app.models.role import Role, RolePermission, Permission
-    
-    require_cro(current_user)
     
     # Check for duplicate name
     existing = await db.execute(select(Role).where(Role.name == data.name))
@@ -911,13 +769,14 @@ async def create_role(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.CREATE,
         entity_type=ActivityEntityType.ROLE,
         entity_id=role.id,
         entity_name=role.display_name,
         description=f"Created role: {role.display_name}"
     )
+    
     
     return RoleHubRead(
         id=role.id,
@@ -936,12 +795,10 @@ async def update_role(
     id: int,
     data: RoleHubUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> RoleHubRead:
     """Update a role. CRO only."""
     from app.models.role import Role, RolePermission, Permission
-    
-    require_cro(current_user)
     
     result = await db.execute(
         select(Role)
@@ -1008,13 +865,14 @@ async def update_role(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.UPDATE,
         entity_type=ActivityEntityType.ROLE,
         entity_id=role.id,
         entity_name=role.display_name,
         description=f"Updated role: {role.display_name}"
     )
+    
     
     return RoleHubRead(
         id=role.id,
@@ -1032,12 +890,10 @@ async def update_role(
 async def delete_role(
     id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> dict:
     """Soft-delete a role. CRO only. Cannot delete system roles or roles with users."""
     from app.models.role import Role
-    
-    require_cro(current_user)
     
     result = await db.execute(
         select(Role).options(selectinload(Role.users)).where(Role.id == id)
@@ -1070,13 +926,14 @@ async def delete_role(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.DELETE,
         entity_type=ActivityEntityType.ROLE,
         entity_id=role.id,
         entity_name=role.display_name,
         description=f"Deleted role: {role.display_name}"
     )
+    
     
     return {"status": "deleted", "id": id}
 
@@ -1085,12 +942,10 @@ async def delete_role(
 async def restore_role(
     id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> RoleHubRead:
     """Restore a soft-deleted role. CRO only."""
     from app.models.role import Role, RolePermission
-    
-    require_cro(current_user)
     
     result = await db.execute(
         select(Role)
@@ -1111,13 +966,14 @@ async def restore_role(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.UPDATE,
         entity_type=ActivityEntityType.ROLE,
         entity_id=role.id,
         entity_name=role.display_name,
         description=f"Restored role: {role.display_name}"
     )
+    
     
     return RoleHubRead(
         id=role.id,
@@ -1131,38 +987,6 @@ async def restore_role(
     )
 
 
-# ============================================================================
-# Department Management Schemas
-# ============================================================================
-
-class DepartmentHubRead(BaseModel):
-    """Department response schema for Risk Hub."""
-    id: int
-    name: str
-    code: str | None
-    manager_id: int | None
-    manager_name: str | None
-    is_active: bool
-    user_count: int
-    risk_count: int
-    control_count: int
-
-    class Config:
-        from_attributes = True
-
-
-class DepartmentHubCreate(BaseModel):
-    """Create department request schema."""
-    name: str = Field(..., min_length=2, max_length=100)
-    code: str | None = Field(None, max_length=50)
-    manager_id: int | None = None
-
-
-class DepartmentHubUpdate(BaseModel):
-    """Update department request schema."""
-    name: str | None = None
-    code: str | None = None
-    manager_id: int | None = None
 
 
 # ============================================================================
@@ -1172,14 +996,12 @@ class DepartmentHubUpdate(BaseModel):
 @router.get("/departments", response_model=list[DepartmentHubRead])
 async def list_departments_hub(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    cro_user: User = Depends(get_cro_user),
     include_inactive: bool = Query(False, description="Include soft-deleted departments")
 ) -> list[DepartmentHubRead]:
     """List all departments with stats. CRO only."""
     from app.models.department import Department
     from app.models import Risk, Control
-    
-    require_cro(current_user)
     
     query = select(Department).options(
         selectinload(Department.users),
@@ -1224,12 +1046,10 @@ async def list_departments_hub(
 async def create_department(
     data: DepartmentHubCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> DepartmentHubRead:
     """Create a new department. CRO only."""
     from app.models.department import Department
-    
-    require_cro(current_user)
     
     # Check for duplicate name
     existing = await db.execute(select(Department).where(Department.name == data.name))
@@ -1265,13 +1085,14 @@ async def create_department(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.CREATE,
         entity_type=ActivityEntityType.DEPARTMENT,
         entity_id=dept.id,
         entity_name=dept.name,
         description=f"Created department: {dept.name}"
     )
+    
     
     return DepartmentHubRead(
         id=dept.id,
@@ -1291,13 +1112,11 @@ async def update_department(
     id: int,
     data: DepartmentHubUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> DepartmentHubRead:
     """Update a department. CRO only."""
     from app.models.department import Department
     from app.models import Risk, Control
-    
-    require_cro(current_user)
     
     result = await db.execute(
         select(Department)
@@ -1363,13 +1182,14 @@ async def update_department(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.UPDATE,
         entity_type=ActivityEntityType.DEPARTMENT,
         entity_id=dept.id,
         entity_name=dept.name,
         description=f"Updated department: {dept.name}"
     )
+    
     
     return DepartmentHubRead(
         id=dept.id,
@@ -1388,13 +1208,11 @@ async def update_department(
 async def delete_department(
     id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> dict:
     """Soft-delete a department. CRO only. Cannot delete departments with users/risks/controls."""
     from app.models.department import Department
     from app.models import Risk, Control
-    
-    require_cro(current_user)
     
     result = await db.execute(
         select(Department).options(selectinload(Department.users)).where(Department.id == id)
@@ -1448,13 +1266,14 @@ async def delete_department(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.DELETE,
         entity_type=ActivityEntityType.DEPARTMENT,
         entity_id=dept.id,
         entity_name=dept.name,
         description=f"Deleted department: {dept.name}"
     )
+    
     
     return {"status": "deleted", "id": id}
 
@@ -1463,12 +1282,10 @@ async def delete_department(
 async def restore_department(
     id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    cro_user: User = Depends(get_cro_user)
 ) -> DepartmentHubRead:
     """Restore a soft-deleted department. CRO only."""
     from app.models.department import Department
-    
-    require_cro(current_user)
     
     result = await db.execute(
         select(Department).options(selectinload(Department.manager)).where(Department.id == id)
@@ -1487,13 +1304,14 @@ async def restore_department(
     
     await log_activity(
         db=db,
-        actor=current_user,
+        actor=cro_user,
         action=ActivityAction.UPDATE,
         entity_type=ActivityEntityType.DEPARTMENT,
         entity_id=dept.id,
         entity_name=dept.name,
         description=f"Restored department: {dept.name}"
     )
+    
     
     return DepartmentHubRead(
         id=dept.id,
