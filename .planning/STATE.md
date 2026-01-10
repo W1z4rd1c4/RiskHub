@@ -47,7 +47,7 @@
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
 | 200 Entity Naming Enforcement | ✅ Complete (10/10) | 2026-01-05 |
-| 250 Spaghetti Simplification | ⏳ In progress (2/10) | - |
+| 250 Spaghetti Simplification | ⏳ In progress (3/10) | - |
 
 
 ## Session Context
@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 250-02: Extracted quarterly comparison logic from `dashboard.py` (1145→757 lines) into `quarterly_comparison_service.py` (341 lines). Removed 9 dead computations. All tests pass.
+- Completed Plan 250-03: Extracted approval execution logic from `approvals.py` (961→586 lines) into `approval_execution_service.py` (673 lines). Refactored `approve_request()` from ~460 lines inline to ~75 lines orchestration. All 36 tests pass.
 
 ### Next Step
-- Continue with Phase 250 Plan 250-03, or Phase 17 Production Deployment.
+- Continue with Phase 250 Plan 250-04, or Phase 17 Production Deployment.
 
 ---
 *Updated: 2026-01-10*
