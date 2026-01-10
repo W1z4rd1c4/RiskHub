@@ -11,6 +11,7 @@ import { riskApi } from '@/services/riskApi';
 import type { RiskSummary } from '@/types/risk';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 interface ResolveOrphanModalProps {
     isOpen: boolean;
@@ -290,14 +291,14 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                                 </h5>
                                                 <div className="space-y-3">
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                                        <select
+                                                        <ThemedSelect
                                                             value={selectedRiskDept}
-                                                            onChange={(e) => setSelectedRiskDept(e.target.value)}
-                                                            className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-slate-300 outline-none focus:border-accent/40"
-                                                        >
-                                                            <option value="">All Departments</option>
-                                                            {uniqueDepartments.map(d => <option key={d} value={d}>{d}</option>)}
-                                                        </select>
+                                                            onValueChange={setSelectedRiskDept}
+                                                            placeholder="All Departments"
+                                                            allowEmpty
+                                                            emptyLabel="All Departments"
+                                                            options={uniqueDepartments.map(d => ({ value: d, label: d }))}
+                                                        />
                                                         <input
                                                             type="text"
                                                             placeholder="Search risks..."
@@ -464,9 +465,10 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                             </div>
                         </div>
                     </motion.div>
-                </div>
-            )}
-        </AnimatePresence>,
+                </div >
+            )
+            }
+        </AnimatePresence >,
         document.body
     );
 }

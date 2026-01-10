@@ -9,6 +9,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { adminApi, type LogConfig } from '@/services/adminApi';
 import { cn } from '@/lib/utils';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 const tabs = [
     { id: 'health', label: 'System Health', icon: Activity },
@@ -162,27 +163,25 @@ function AuditLogsPanel() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <select
+                    <ThemedSelect
                         value={eventFilter}
-                        onChange={(e) => setEventFilter(e.target.value)}
-                        className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none"
-                    >
-                        <option value="">All Events</option>
-                        {eventTypes.map(type => (
-                            <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>
-                        ))}
-                    </select>
+                        onValueChange={setEventFilter}
+                        placeholder="All Events"
+                        allowEmpty
+                        emptyLabel="All Events"
+                        options={eventTypes.map(type => ({ value: type, label: type.replace(/_/g, ' ') }))}
+                    />
 
-                    <select
-                        value={lines}
-                        onChange={(e) => setLines(parseInt(e.target.value))}
-                        className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none"
-                    >
-                        <option value="50">Last 50</option>
-                        <option value="100">Last 100</option>
-                        <option value="200">Last 200</option>
-                        <option value="500">Last 500</option>
-                    </select>
+                    <ThemedSelect
+                        value={lines.toString()}
+                        onValueChange={(v) => setLines(parseInt(v))}
+                        options={[
+                            { value: '50', label: 'Last 50' },
+                            { value: '100', label: 'Last 100' },
+                            { value: '200', label: 'Last 200' },
+                            { value: '500', label: 'Last 500' },
+                        ]}
+                    />
 
                     <div className="flex gap-2">
                         <button
@@ -360,34 +359,6 @@ function HealthPanel() {
                     </p>
                 </div>
             </div>
-
-            {stats && (
-                <div className="bg-white/5 rounded-xl p-4">
-                    <h4 className="text-white font-medium mb-4">Platform Statistics</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                        <div>
-                            <p className="text-2xl font-bold text-white">{stats.total_users}</p>
-                            <p className="text-sm text-slate-500">Total Users</p>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-white">{stats.total_risks}</p>
-                            <p className="text-sm text-slate-500">Risks</p>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-white">{stats.total_controls}</p>
-                            <p className="text-sm text-slate-500">Controls</p>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-white">{stats.total_kris}</p>
-                            <p className="text-sm text-slate-500">KRIs</p>
-                        </div>
-                        <div>
-                            <p className="text-2xl font-bold text-amber-400">{stats.pending_approvals}</p>
-                            <p className="text-sm text-slate-500">Pending Approvals</p>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
@@ -410,16 +381,14 @@ function LogsPanel() {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">Application Logs</h3>
-                <select
+                <ThemedSelect
                     value={eventFilter}
-                    onChange={(e) => setEventFilter(e.target.value)}
-                    className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-                >
-                    <option value="">All Events</option>
-                    {eventTypes.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                    ))}
-                </select>
+                    onValueChange={setEventFilter}
+                    placeholder="All Events"
+                    allowEmpty
+                    emptyLabel="All Events"
+                    options={eventTypes.map(type => ({ value: type, label: type }))}
+                />
             </div>
 
             <div className="overflow-x-auto max-h-96 overflow-y-auto">

@@ -5,6 +5,7 @@ import { X, Save, Trash2, Calendar, Activity, Plus, User } from 'lucide-react';
 import type { KeyRiskIndicator, KRIUpdate, KRICreate } from '@/types/kri';
 import { userApi } from '@/services/userApi';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 interface KRIModalProps {
     risk_id: number;
@@ -201,35 +202,33 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                         <Calendar className="h-3 w-3" />
                                         Reporting Frequency
                                     </label>
-                                    <select
+                                    <ThemedSelect
                                         value={formData.frequency || 'quarterly'}
-                                        onChange={e => setFormData({ ...formData, frequency: e.target.value as any })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
-                                    >
-                                        <option value="daily" className="bg-slate-900">Daily</option>
-                                        <option value="weekly" className="bg-slate-900">Weekly</option>
-                                        <option value="monthly" className="bg-slate-900">Monthly</option>
-                                        <option value="quarterly" className="bg-slate-900">Quarterly</option>
-                                        <option value="annually" className="bg-slate-900">Annually</option>
-                                    </select>
+                                        onValueChange={(v) => setFormData({ ...formData, frequency: v as any })}
+                                        className="w-full"
+                                        options={[
+                                            { value: 'daily', label: 'Daily' },
+                                            { value: 'weekly', label: 'Weekly' },
+                                            { value: 'monthly', label: 'Monthly' },
+                                            { value: 'quarterly', label: 'Quarterly' },
+                                            { value: 'annually', label: 'Annually' },
+                                        ]}
+                                    />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1">
                                         <User className="h-3 w-3" />
                                         Reporting Owner
                                     </label>
-                                    <select
-                                        value={formData.reporting_owner_id || ''}
-                                        onChange={e => setFormData({ ...formData, reporting_owner_id: e.target.value ? parseInt(e.target.value) : undefined })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
-                                    >
-                                        <option value="" className="bg-slate-900">Risk Owner (Default)</option>
-                                        {users.map(user => (
-                                            <option key={user.id} value={user.id} className="bg-slate-900">
-                                                {user.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <ThemedSelect
+                                        value={formData.reporting_owner_id?.toString() ?? ''}
+                                        onValueChange={(v) => setFormData({ ...formData, reporting_owner_id: v ? parseInt(v) : undefined })}
+                                        placeholder="Risk Owner (Default)"
+                                        allowEmpty
+                                        emptyLabel="Risk Owner (Default)"
+                                        className="w-full"
+                                        options={users.map(user => ({ value: user.id.toString(), label: user.name }))}
+                                    />
                                 </div>
                             </div>
 

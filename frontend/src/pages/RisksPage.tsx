@@ -23,6 +23,7 @@ import { CategoryDrillDown, MiniHeatmap, ViewSwitcher, Pagination } from '@/comp
 import type { ViewMode } from '@/components/tables'; // Column type is now imported from SortableTable
 import type { Column, SortDirection } from '@/components/tables/SortableTable'; // Import Column and SortDirection from SortableTable
 import { useRiskTypes, useRiskThresholds } from '@/hooks/useRiskHubConfig'; // Original import for useRiskTypes and useRiskThresholds
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 // Helper to convert hex color to rgba for backgrounds/borders
 function hexToRgba(hex: string, alpha: number): string {
@@ -450,7 +451,7 @@ export function RisksPage() {
             {/* View Switcher */}
             <ViewSwitcher value={viewMode} onChange={(v) => { setViewMode(v); setRisks([]); setCurrentPage(1); }} exclude={['risk']} />
 
-            {/* Filters */}
+            {/* Filters Bar */}
             <div className="glass-card flex flex-col md:flex-row gap-4">
                 <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
                     <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
@@ -462,40 +463,37 @@ export function RisksPage() {
                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
                     />
                 </div>
-                <div className="flex gap-3 flex-wrap">
-                    <select
+                <div className="flex gap-4 items-center">
+                    <ThemedSelect
                         value={statusFilter}
-                        onChange={(e) => { setStatusFilter(e.target.value as RiskStatus | ''); setRisks([]); setCurrentPage(1); }}
-                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-300 outline-none focus:border-accent/50 appearance-none min-w-[130px]"
-                    >
-                        <option value="" className="bg-slate-900">All Statuses</option>
-                        <option value="active" className="bg-slate-900">Active</option>
-                        <option value="monitoring" className="bg-slate-900">Monitoring</option>
-                        <option value="closed" className="bg-slate-900">Closed</option>
-                    </select>
-                    <select
+                        onValueChange={(v) => { setStatusFilter(v as RiskStatus | ''); setRisks([]); setCurrentPage(1); }}
+                        placeholder="All Statuses"
+                        allowEmpty
+                        emptyLabel="All Statuses"
+                        options={[
+                            { value: 'active', label: 'Active' },
+                            { value: 'monitoring', label: 'Monitoring' },
+                            { value: 'closed', label: 'Closed' },
+                        ]}
+                    />
+                    <ThemedSelect
                         value={typeFilter}
-                        onChange={(e) => { setTypeFilter(e.target.value); setRisks([]); setCurrentPage(1); }}
-                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-300 outline-none focus:border-accent/50 appearance-none min-w-[130px]"
-                    >
-                        <option value="" className="bg-slate-900">All Types</option>
-                        {riskTypes.map(rt => (
-                            <option key={rt.code} value={rt.code} className="bg-slate-900">
-                                {rt.display_name}
-                            </option>
-                        ))}
-                    </select>
+                        onValueChange={(v) => { setTypeFilter(v); setRisks([]); setCurrentPage(1); }}
+                        placeholder="All Types"
+                        allowEmpty
+                        emptyLabel="All Types"
+                        options={riskTypes.map(rt => ({ value: rt.code, label: rt.display_name }))}
+                    />
                     <button
                         onClick={() => { setPriorityFilter(priorityFilter === true ? undefined : true); setRisks([]); setCurrentPage(1); }}
-                        className={`px - 4 py - 2.5 rounded - xl border text - sm font - bold transition - all flex items - center gap - 2 ${priorityFilter === true
+                        className={`p-2.5 rounded-xl border transition-all ${priorityFilter === true
                             ? 'bg-amber-400/20 border-amber-400/50 text-amber-400'
-                            : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
-                            } `}
+                            : 'glass text-slate-400 hover:text-white'
+                            }`}
+                        title="Priority Risks"
                     >
-                        <Star className="h-4 w-4" />
-                        Priority
+                        <Star className="h-5 w-5" />
                     </button>
-
                     {criticalFilter && (
                         <button
                             onClick={() => {
@@ -504,11 +502,10 @@ export function RisksPage() {
                                 newParams.delete('critical');
                                 setSearchParams(newParams);
                             }}
-                            className="px-4 py-2.5 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 bg-rose-400/20 border-rose-400/50 text-rose-400"
+                            className="p-2.5 rounded-xl border bg-rose-400/20 border-rose-400/50 text-rose-400"
+                            title="Critical Only (click to clear)"
                         >
-                            <AlertTriangle className="h-4 w-4" />
-                            Critical Only
-                            <span className="text-xs opacity-60 ml-1">✕</span>
+                            <AlertTriangle className="h-5 w-5" />
                         </button>
                     )}
                     {hasBreachFilter && (
@@ -517,18 +514,17 @@ export function RisksPage() {
                                 setHasBreachFilter(undefined);
                                 setSearchParams({});
                             }}
-                            className="px-4 py-2.5 rounded-xl border text-sm font-bold transition-all flex items-center gap-2 bg-rose-400/20 border-rose-400/50 text-rose-400"
+                            className="p-2.5 rounded-xl border bg-rose-400/20 border-rose-400/50 text-rose-400"
+                            title="Breached Only (click to clear)"
                         >
-                            <AlertCircle className="h-4 w-4" />
-                            Breached Only
-                            <span className="text-xs opacity-60 ml-1">✕</span>
+                            <AlertCircle className="h-5 w-5" />
                         </button>
                     )}
                     <button
                         onClick={() => { fetchRisks(); setRisks([]); }}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     >
-                        <RefreshCw className={`h - 5 w - 5 ${isLoading ? 'animate-spin text-accent' : ''} `} />
+                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
                     </button>
                 </div>
             </div>

@@ -14,6 +14,7 @@ import { riskApi } from '@/services/riskApi';
 import { userApi } from '@/services/userApi';
 import type { KRICreate } from '@/types/kri';
 import type { RiskSummary } from '@/types/risk';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 interface KRIFormProps {
     initialData?: Partial<KRICreate>;
@@ -228,40 +229,33 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {/* Filters Row */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                        <select
+                                        <ThemedSelect
                                             value={selectedDept}
-                                            onChange={(e) => setSelectedDept(e.target.value)}
-                                            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none focus:border-accent/50 transition-all appearance-none"
-                                        >
-                                            <option value="" className="bg-slate-900">All Departments</option>
-                                            {uniqueDepartments.map(d => (
-                                                <option key={d} value={d} className="bg-slate-900">{d}</option>
-                                            ))}
-                                        </select>
+                                            onValueChange={setSelectedDept}
+                                            placeholder="All Departments"
+                                            allowEmpty
+                                            emptyLabel="All Departments"
+                                            options={uniqueDepartments.map(d => ({ value: d, label: d }))}
+                                        />
 
-                                        <select
+                                        <ThemedSelect
                                             value={selectedProcess}
-                                            onChange={(e) => setSelectedProcess(e.target.value)}
-                                            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none focus:border-accent/50 transition-all appearance-none"
-                                        >
-                                            <option value="" className="bg-slate-900">All Processes</option>
-                                            {uniqueProcesses.map(p => (
-                                                <option key={p} value={p} className="bg-slate-900">{p}</option>
-                                            ))}
-                                        </select>
+                                            onValueChange={setSelectedProcess}
+                                            placeholder="All Processes"
+                                            allowEmpty
+                                            emptyLabel="All Processes"
+                                            options={uniqueProcesses.map(p => ({ value: p, label: p }))}
+                                        />
 
-                                        <select
+                                        <ThemedSelect
                                             value={selectedCategory}
-                                            onChange={(e) => setSelectedCategory(e.target.value)}
-                                            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none focus:border-accent/50 transition-all appearance-none"
-                                        >
-                                            <option value="" className="bg-slate-900">All Categories</option>
-                                            {uniqueCategories.map(c => (
-                                                <option key={c} value={c} className="bg-slate-900">{c}</option>
-                                            ))}
-                                        </select>
+                                            onValueChange={setSelectedCategory}
+                                            placeholder="All Categories"
+                                            allowEmpty
+                                            emptyLabel="All Categories"
+                                            options={uniqueCategories.map(c => ({ value: c, label: c }))}
+                                        />
                                     </div>
 
                                     <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
@@ -403,19 +397,20 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
                                         Unit
                                     </label>
-                                    <select
-                                        value={formData.unit}
-                                        onChange={(e) => handleInputChange('unit', e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
-                                    >
-                                        <option value="%" className="bg-slate-900">% (Percentage)</option>
-                                        <option value="count" className="bg-slate-900">Count</option>
-                                        <option value="days" className="bg-slate-900">Days</option>
-                                        <option value="hours" className="bg-slate-900">Hours</option>
-                                        <option value="CZK" className="bg-slate-900">CZK</option>
-                                        <option value="EUR" className="bg-slate-900">EUR</option>
-                                        <option value="ratio" className="bg-slate-900">Ratio</option>
-                                    </select>
+                                    <ThemedSelect
+                                        value={formData.unit || '%'}
+                                        onValueChange={(v) => handleInputChange('unit', v)}
+                                        className="w-full"
+                                        options={[
+                                            { value: '%', label: '% (Percentage)' },
+                                            { value: 'count', label: 'Count' },
+                                            { value: 'days', label: 'Days' },
+                                            { value: 'hours', label: 'Hours' },
+                                            { value: 'CZK', label: 'CZK' },
+                                            { value: 'EUR', label: 'EUR' },
+                                            { value: 'ratio', label: 'Ratio' },
+                                        ]}
+                                    />
                                 </div>
 
                                 {/* Frequency and Reporting Owner */}
@@ -425,35 +420,33 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                             <Calendar className="h-3 w-3" />
                                             Reporting Frequency
                                         </label>
-                                        <select
+                                        <ThemedSelect
                                             value={formData.frequency || 'quarterly'}
-                                            onChange={(e) => handleInputChange('frequency', e.target.value)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
-                                        >
-                                            <option value="daily" className="bg-slate-900">Daily</option>
-                                            <option value="weekly" className="bg-slate-900">Weekly</option>
-                                            <option value="monthly" className="bg-slate-900">Monthly</option>
-                                            <option value="quarterly" className="bg-slate-900">Quarterly</option>
-                                            <option value="annually" className="bg-slate-900">Annually</option>
-                                        </select>
+                                            onValueChange={(v) => handleInputChange('frequency', v)}
+                                            className="w-full"
+                                            options={[
+                                                { value: 'daily', label: 'Daily' },
+                                                { value: 'weekly', label: 'Weekly' },
+                                                { value: 'monthly', label: 'Monthly' },
+                                                { value: 'quarterly', label: 'Quarterly' },
+                                                { value: 'annually', label: 'Annually' },
+                                            ]}
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
                                             <User className="h-3 w-3" />
                                             Reporting Owner
                                         </label>
-                                        <select
-                                            value={formData.reporting_owner_id || ''}
-                                            onChange={(e) => handleInputChange('reporting_owner_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
-                                        >
-                                            <option value="" className="bg-slate-900">Risk Owner (Default)</option>
-                                            {users.map(user => (
-                                                <option key={user.id} value={user.id} className="bg-slate-900">
-                                                    {user.name} ({user.email})
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <ThemedSelect
+                                            value={formData.reporting_owner_id?.toString() ?? ''}
+                                            onValueChange={(v) => handleInputChange('reporting_owner_id', v ? parseInt(v) : undefined)}
+                                            placeholder="Risk Owner (Default)"
+                                            allowEmpty
+                                            emptyLabel="Risk Owner (Default)"
+                                            className="w-full"
+                                            options={users.map(user => ({ value: user.id.toString(), label: `${user.name} (${user.email})` }))}
+                                        />
                                         <p className="text-[9px] text-slate-600 mt-1 ml-1">Leave empty to use Risk owner as default</p>
                                     </div>
                                 </div>

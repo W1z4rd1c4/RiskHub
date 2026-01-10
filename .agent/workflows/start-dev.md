@@ -60,3 +60,8 @@ If you encounter database connection issues:
 2. Check if DB container is up: `docker-compose ps db`
 3. Restart DB: `docker-compose restart db`
 4. Check `.env` has correct DATABASE_URL for your mode
+
+If you see "ModuleNotFoundError" (e.g., `psutil`):
+1. The `dev.sh` script auto-installs dependencies, but if running manually:
+2. Activate venv first: `source backend/venv/bin/activate`
+3. Install deps: `pip install -r backend/requirements.txt`

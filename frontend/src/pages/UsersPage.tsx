@@ -26,6 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import { PermissionChips, PermissionMatrix } from '@/components/access/PermissionMatrix';
 import { AccessEditModal } from '@/components/access/AccessEditModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 // Scope badge colors
 const scopeColors: Record<string, string> = {
@@ -276,33 +277,39 @@ export function UsersPage() {
                         </div>
                         <div className="flex gap-2 flex-wrap">
                             <div className="relative">
-                                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                                <select
-                                    className="bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-8 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-sm"
+                                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10 pointer-events-none" />
+                                <ThemedSelect
                                     value={roleFilter}
-                                    onChange={(e) => setRoleFilter(e.target.value)}
-                                >
-                                    <option value="all">All Roles</option>
-                                    <option value="admin">Admins</option>
-                                    <option value="cro">CROs</option>
-                                    <option value="risk_manager">Risk Managers</option>
-                                    <option value="department_head">Dept Heads</option>
-                                    <option value="control_owner">Control Owners</option>
-                                </select>
+                                    onValueChange={setRoleFilter}
+                                    placeholder="All Roles"
+                                    allowEmpty
+                                    emptyLabel="All Roles"
+                                    className="pl-9"
+                                    options={[
+                                        { value: 'admin', label: 'Admins' },
+                                        { value: 'cro', label: 'CROs' },
+                                        { value: 'risk_manager', label: 'Risk Managers' },
+                                        { value: 'department_head', label: 'Dept Heads' },
+                                        { value: 'control_owner', label: 'Control Owners' },
+                                    ]}
+                                />
                             </div>
                             {isAccessMode && (
                                 <div className="relative">
-                                    <Crown className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                                    <select
-                                        className="bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-8 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all text-sm"
+                                    <Crown className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 z-10 pointer-events-none" />
+                                    <ThemedSelect
                                         value={scopeFilter}
-                                        onChange={(e) => setScopeFilter(e.target.value)}
-                                    >
-                                        <option value="all">All Scopes</option>
-                                        <option value="global">Global</option>
-                                        <option value="department">Department</option>
-                                        <option value="manager">Manager</option>
-                                    </select>
+                                        onValueChange={setScopeFilter}
+                                        placeholder="All Scopes"
+                                        allowEmpty
+                                        emptyLabel="All Scopes"
+                                        className="pl-9"
+                                        options={[
+                                            { value: 'global', label: 'Global' },
+                                            { value: 'department', label: 'Department' },
+                                            { value: 'manager', label: 'Manager' },
+                                        ]}
+                                    />
                                 </div>
                             )}
                         </div>
@@ -315,30 +322,22 @@ export function UsersPage() {
                                 <Key className="h-3.5 w-3.5" />
                                 Filter by Capability:
                             </span>
-                            <select
-                                className={cn(
-                                    "bg-white/5 border rounded-lg py-1.5 px-3 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all",
-                                    permResourceFilter !== 'all' ? "border-purple-500/50 text-purple-400" : "border-white/10 text-white"
-                                )}
+                            <ThemedSelect
                                 value={permResourceFilter}
-                                onChange={(e) => setPermResourceFilter(e.target.value)}
-                            >
-                                {permissionResources.map(r => (
-                                    <option key={r.value} value={r.value}>{r.label}</option>
-                                ))}
-                            </select>
-                            <select
+                                onValueChange={setPermResourceFilter}
                                 className={cn(
-                                    "bg-white/5 border rounded-lg py-1.5 px-3 text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all",
-                                    permActionFilter !== 'all' ? "border-emerald-500/50 text-emerald-400" : "border-white/10 text-white"
+                                    permResourceFilter !== 'all' && "border-purple-500/50"
                                 )}
+                                options={permissionResources.map(r => ({ value: r.value, label: r.label }))}
+                            />
+                            <ThemedSelect
                                 value={permActionFilter}
-                                onChange={(e) => setPermActionFilter(e.target.value)}
-                            >
-                                {permissionActions.map(a => (
-                                    <option key={a.value} value={a.value}>{a.label}</option>
-                                ))}
-                            </select>
+                                onValueChange={setPermActionFilter}
+                                className={cn(
+                                    permActionFilter !== 'all' && "border-emerald-500/50"
+                                )}
+                                options={permissionActions.map(a => ({ value: a.value, label: a.label }))}
+                            />
                             {hasPermFilters && (
                                 <button
                                     onClick={() => { setPermResourceFilter('all'); setPermActionFilter('all'); }}

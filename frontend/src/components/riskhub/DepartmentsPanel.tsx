@@ -5,6 +5,7 @@ import { riskHubApi } from '@/services/riskHubApi';
 import { accessApi } from '@/services/accessApi';
 import type { DepartmentHubCreate, DepartmentHubUpdate, DepartmentHubRead } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 interface DepartmentModalProps {
     isOpen: boolean;
@@ -101,18 +102,15 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
 
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-1">Manager</label>
-                        <select
-                            value={managerId || ''}
-                            onChange={(e) => setManagerId(e.target.value ? Number(e.target.value) : undefined)}
-                            className="w-full px-3 py-2 bg-gray-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
-                        >
-                            <option value="">-- No Manager --</option>
-                            {users?.map(user => (
-                                <option key={user.id} value={user.id}>
-                                    {user.name} ({user.email})
-                                </option>
-                            ))}
-                        </select>
+                        <ThemedSelect
+                            value={managerId?.toString() ?? ''}
+                            onValueChange={(v) => setManagerId(v ? Number(v) : undefined)}
+                            placeholder="-- No Manager --"
+                            allowEmpty
+                            emptyLabel="-- No Manager --"
+                            className="w-full"
+                            options={users?.map(user => ({ value: user.id.toString(), label: `${user.name} (${user.email})` })) ?? []}
+                        />
                     </div>
 
                     {error && (

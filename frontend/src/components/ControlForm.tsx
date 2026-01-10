@@ -23,6 +23,8 @@ import { riskApi } from '@/services/riskApi';
 import type { Control, ControlCreate, ControlUpdate } from '@/types/control';
 import { ControlForm as ControlFormType, ControlFrequency, ControlStatus } from '@/types/control';
 import type { RiskSummary, ControlEffectiveness } from '@/types/risk';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
+
 interface ControlFormProps {
     initialData?: Control;
     isEdit?: boolean;
@@ -383,18 +385,15 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                         <div>
                                             <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Department</label>
                                             <div className="grid grid-cols-1 gap-2">
-                                                <select
-                                                    value={formData.department_id || ''}
-                                                    onChange={(e) => handleInputChange('department_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
-                                                >
-                                                    <option value="" className="bg-slate-900">-- Select Department --</option>
-                                                    {departments.map(dept => (
-                                                        <option key={dept.id} value={dept.id} className="bg-slate-900">
-                                                            {dept.name} ({dept.code})
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                <ThemedSelect
+                                                    value={formData.department_id?.toString() ?? ''}
+                                                    onValueChange={(v) => handleInputChange('department_id', v ? parseInt(v) : undefined)}
+                                                    placeholder="-- Select Department --"
+                                                    allowEmpty
+                                                    emptyLabel="-- Select Department --"
+                                                    className="w-full"
+                                                    options={departments.map(dept => ({ value: dept.id.toString(), label: `${dept.name} (${dept.code})` }))}
+                                                />
                                                 <div className="mt-4">
                                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Owner Position</label>
                                                     <input
@@ -518,27 +517,21 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Frequency</label>
-                                    <select
-                                        value={formData.frequency}
-                                        onChange={(e) => handleInputChange('frequency', e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
-                                    >
-                                        {Object.values(ControlFrequency).map(f => (
-                                            <option key={f} value={f} className="bg-slate-900">{f.replace('_', ' ').toUpperCase()}</option>
-                                        ))}
-                                    </select>
+                                    <ThemedSelect
+                                        value={formData.frequency || ControlFrequency.MONTHLY}
+                                        onValueChange={(v) => handleInputChange('frequency', v)}
+                                        className="w-full"
+                                        options={Object.values(ControlFrequency).map(f => ({ value: f, label: f.replace('_', ' ').toUpperCase() }))}
+                                    />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Control Form</label>
-                                    <select
-                                        value={formData.control_form}
-                                        onChange={(e) => handleInputChange('control_form', e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
-                                    >
-                                        {Object.values(ControlFormType).map(f => (
-                                            <option key={f} value={f} className="bg-slate-900">{f.toUpperCase()}</option>
-                                        ))}
-                                    </select>
+                                    <ThemedSelect
+                                        value={formData.control_form || ControlFormType.MANUAL}
+                                        onValueChange={(v) => handleInputChange('control_form', v)}
+                                        className="w-full"
+                                        options={Object.values(ControlFormType).map(f => ({ value: f, label: f.toUpperCase() }))}
+                                    />
                                 </div>
                             </div>
                             <div>
@@ -638,15 +631,16 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                         <div className="grid md:grid-cols-2 gap-6">
                                             <div>
                                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Effectiveness</label>
-                                                <select
+                                                <ThemedSelect
                                                     value={riskEffectiveness}
-                                                    onChange={(e) => setRiskEffectiveness(e.target.value as ControlEffectiveness)}
-                                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
-                                                >
-                                                    <option value="high" className="bg-slate-900">High</option>
-                                                    <option value="medium" className="bg-slate-900">Medium</option>
-                                                    <option value="low" className="bg-slate-900">Low</option>
-                                                </select>
+                                                    onValueChange={(v) => setRiskEffectiveness(v as ControlEffectiveness)}
+                                                    className="w-full"
+                                                    options={[
+                                                        { value: 'high', label: 'High' },
+                                                        { value: 'medium', label: 'Medium' },
+                                                        { value: 'low', label: 'Low' },
+                                                    ]}
+                                                />
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Link Notes (Optional)</label>
@@ -664,38 +658,32 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                     <div className="space-y-3">
                                         {/* Filters Row */}
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                            <select
+                                            <ThemedSelect
                                                 value={selectedDept}
-                                                onChange={(e) => setSelectedDept(e.target.value)}
-                                                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none focus:border-accent/50 transition-all appearance-none"
-                                            >
-                                                <option value="" className="bg-slate-900">All Departments</option>
-                                                {uniqueDepartments.map(d => (
-                                                    <option key={d} value={d} className="bg-slate-900">{d}</option>
-                                                ))}
-                                            </select>
+                                                onValueChange={setSelectedDept}
+                                                placeholder="All Departments"
+                                                allowEmpty
+                                                emptyLabel="All Departments"
+                                                options={uniqueDepartments.map(d => ({ value: d, label: d }))}
+                                            />
 
-                                            <select
+                                            <ThemedSelect
                                                 value={selectedProcess}
-                                                onChange={(e) => setSelectedProcess(e.target.value)}
-                                                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none focus:border-accent/50 transition-all appearance-none"
-                                            >
-                                                <option value="" className="bg-slate-900">All Processes</option>
-                                                {uniqueProcesses.map(p => (
-                                                    <option key={p} value={p} className="bg-slate-900">{p}</option>
-                                                ))}
-                                            </select>
+                                                onValueChange={setSelectedProcess}
+                                                placeholder="All Processes"
+                                                allowEmpty
+                                                emptyLabel="All Processes"
+                                                options={uniqueProcesses.map(p => ({ value: p, label: p }))}
+                                            />
 
-                                            <select
+                                            <ThemedSelect
                                                 value={selectedCategory}
-                                                onChange={(e) => setSelectedCategory(e.target.value)}
-                                                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-300 outline-none focus:border-accent/50 transition-all appearance-none"
-                                            >
-                                                <option value="" className="bg-slate-900">All Categories</option>
-                                                {uniqueCategories.map(c => (
-                                                    <option key={c} value={c} className="bg-slate-900">{c}</option>
-                                                ))}
-                                            </select>
+                                                onValueChange={setSelectedCategory}
+                                                placeholder="All Categories"
+                                                allowEmpty
+                                                emptyLabel="All Categories"
+                                                options={uniqueCategories.map(c => ({ value: c, label: c }))}
+                                            />
                                         </div>
 
                                         <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">

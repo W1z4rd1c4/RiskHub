@@ -14,6 +14,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import type { AccessUserRead, AccessUserUpdate, RoleWithPermissions, AccessScopeEnum } from '@/types/access';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import type { UserRead } from '@/types/user';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 interface AccessEditModalProps {
     isOpen: boolean;
@@ -196,16 +197,15 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                             <Building2 className="h-4 w-4 text-blue-400" />
                                             Department
                                         </label>
-                                        <select
-                                            value={selectedDeptId ?? ''}
-                                            onChange={(e) => setSelectedDeptId(e.target.value ? Number(e.target.value) : null)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-blue-400/40"
-                                        >
-                                            <option value="">No department</option>
-                                            {departments.map((dept) => (
-                                                <option key={dept.id} value={dept.id}>{dept.name}</option>
-                                            ))}
-                                        </select>
+                                        <ThemedSelect
+                                            value={selectedDeptId?.toString() ?? ''}
+                                            onValueChange={(v) => setSelectedDeptId(v ? Number(v) : null)}
+                                            placeholder="No department"
+                                            allowEmpty
+                                            emptyLabel="No department"
+                                            className="w-full"
+                                            options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
+                                        />
                                     </div>
 
                                     {/* Manager Selection */}
@@ -214,16 +214,15 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                             <User className="h-4 w-4 text-emerald-400" />
                                             Reports To
                                         </label>
-                                        <select
-                                            value={selectedManagerId ?? ''}
-                                            onChange={(e) => setSelectedManagerId(e.target.value ? Number(e.target.value) : null)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-emerald-400/40"
-                                        >
-                                            <option value="">No manager (Top Level)</option>
-                                            {allUsers.map((u) => (
-                                                <option key={u.id} value={u.id}>{u.name}</option>
-                                            ))}
-                                        </select>
+                                        <ThemedSelect
+                                            value={selectedManagerId?.toString() ?? ''}
+                                            onValueChange={(v) => setSelectedManagerId(v ? Number(v) : null)}
+                                            placeholder="No manager (Top Level)"
+                                            allowEmpty
+                                            emptyLabel="No manager (Top Level)"
+                                            className="w-full"
+                                            options={allUsers.map(u => ({ value: u.id.toString(), label: u.name }))}
+                                        />
                                     </div>
 
                                     {/* Access Scope (Admin/CRO only) */}
