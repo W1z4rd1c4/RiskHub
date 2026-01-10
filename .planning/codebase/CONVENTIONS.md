@@ -3,11 +3,11 @@
 ## Backend (Python)
 
 ### File Organization
-- Routers: `backend/app/api/v1/endpoints/*.py`
+- Routers: `backend/app/api/v1/endpoints/*.py` (20 modules)
 - Dependencies: `backend/app/api/deps.py`, `backend/app/core/security.py`
 - Models: `backend/app/models/*.py` (SQLAlchemy)
-- Schemas: `backend/app/schemas/*.py` (Pydantic)
-- Services: `backend/app/services/*.py` (business logic)
+- Schemas: `backend/app/schemas/*.py` (17 Pydantic modules)
+- Services: `backend/app/services/*.py` (9 domain services)
 
 ### Naming
 - **Functions/Variables**: `snake_case`
@@ -25,9 +25,10 @@
 ## Frontend (TypeScript/React)
 
 ### File Organization
-- Pages: `frontend/src/pages/*.tsx` (28 route-level)
-- Components: `frontend/src/components/<category>/*.tsx`
-- Services: `frontend/src/services/*Api.ts` (API clients)
+- Pages: `frontend/src/pages/*.tsx` (30 route-level)
+- Components: `frontend/src/components/<category>/*.tsx` (78 total)
+- Hooks: `frontend/src/hooks/*.ts` (7 custom hooks)
+- Services: `frontend/src/services/*Api.ts` (21 API clients)
 - Types: `frontend/src/types/*.ts`
 - Tests: `frontend/src/**/__tests__/*.test.tsx`
 
@@ -50,17 +51,28 @@
 - ISO 8601 dates in API, `date-fns` for formatting
 - Consistent error response format: `{ detail: string }`
 
-## Simplification Patterns (Phase 250)
+## Simplification Patterns (Phase 250-251)
 
-### Frontend
-- **Data-fetching hooks**: Extract multi-endpoint loading logic to `use*.ts` hooks (e.g., `useDepartmentDetail`, `useUsersPageFilters`)
-- **Local panelling**: Extract large tab/panel JSX into local render functions (`renderRisksTab()`, `renderUsersTab()`) rather than separate files when sharing state
-- **Reusable UI**: Extract duplicated wizard components (e.g., `StepIndicator.tsx`) to `components/ui/`
+### Frontend Patterns
+| Pattern | Description | Examples |
+|---------|-------------|----------|
+| **Data-fetching hooks** | Extract multi-endpoint loading logic | `useDepartmentDetail`, `useActivityLogPageState` |
+| **Shared list-page hooks** | Reusable pagination/pending state | `useDebouncedValue`, `usePendingApprovalIds` |
+| **Local panelling** | Extract tab JSX to local render functions | `renderRisksTab()`, `renderUsersTab()` |
+| **Page orchestrator** | Main page owns state, subcomponents present | `LinkManagementDialog` + panels |
+| **Presentational subcomponents** | Extract complex sections to subfolders | `linking/LinkSearchPanel`, `risks/RiskDetailOverviewTab` |
+| **Reusable UI primitives** | Extract duplicated wizard components | `StepIndicator.tsx`, `ThemedSelect` |
+| **Explicit local types** | Replace `Record<string, unknown>` with explicit interfaces | `SearchResultItem`, `ExistingLinkItem` |
 
-### Backend
-- **Service helpers**: Extract repeated patterns to private `_helper()` functions (e.g., `_already_flagged`, `_create_orphan`, `_get_item_details`)
-- **Sentinel patterns**: Use module-scope sentinel objects (e.g., `_NOT_PROVIDED = object()`) for detecting None vs unset
-- **Inline Pydantic → modules**: Move inline schemas to dedicated `schemas/*.py` files
+### Backend Patterns
+| Pattern | Description | Examples |
+|---------|-------------|----------|
+| **Service helpers** | Extract repeated patterns to `_helper()` functions | `_already_flagged`, `_create_orphan`, `_get_item_details` |
+| **Sentinel patterns** | Module-scope sentinels for None vs unset | `_NOT_PROVIDED = object()` |
+| **Inline Pydantic → modules** | Move inline schemas to `schemas/*.py` | `schemas/riskhub.py`, `schemas/admin.py` |
+| **Consolidated approval helper** | Unified approval creation logic | `create_approval_request_with_audit()` |
+| **Resource assertion helper** | Scope-aware resource access assertion | `_assert_department_in_scope()` |
+| **Query builder extraction** | Extract complex query setup to helpers | `_build_controls_query()`, `_build_risks_query()` |
+| **Streaming response helpers** | Unified PDF/Excel streaming | `_stream_pdf()`, `_stream_excel()` |
 
 *Updated: 2026-01-10*
-

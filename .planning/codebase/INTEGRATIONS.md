@@ -26,11 +26,21 @@
 - **PDF**: reportlab library
 - **Excel**: openpyxl library
 - **Exports**: Controls, Risks, Audit Trail, Activity Log
+- **Helpers**: `_stream_pdf()`, `_stream_excel()` for unified streaming
 
 ### Notification Service
 - **Module**: `backend/app/services/notification_service.py`
 - **Scheduler**: APScheduler (in-process)
 - **Types**: KRI deadlines, approval requests, overdue alerts
+
+### Approval Execution Service
+- **Module**: `backend/app/services/approval_execution_service.py`
+- **Purpose**: Centralized approval workflow execution
+- **Helper**: `create_approval_request_with_audit()` in `approval_helpers.py`
+
+### Quarterly Comparison Service
+- **Module**: `backend/app/services/quarterly_comparison_service.py`
+- **Purpose**: Period-based metrics calculation for QoQ comparisons
 
 ## Auth & Identity
 
@@ -57,7 +67,7 @@
 - **Auth**: Bearer token from localStorage
 - **Error Handling**: Centralized error parsing
 
-### API Services (19 modules)
+### API Services (21 modules)
 | Service | Endpoints |
 |---------|-----------|
 | authApi | Login, demo |
@@ -73,6 +83,7 @@
 | reportApi | PDF/Excel exports |
 | riskHubApi | Config + risk types |
 | activityLogApi | Audit trail |
+| lookupApi | Scoped pickers |
 | ... | (and more) |
 
 ## Logging & Monitoring
