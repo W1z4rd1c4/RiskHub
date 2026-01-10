@@ -22,8 +22,8 @@
 │   ├── src/
 │   │   ├── components/          # 73+ UI components (14 categories)
 │   │   ├── contexts/            # Auth, DashboardFilter contexts
-│   │   ├── hooks/               # Custom React hooks
-│   │   ├── pages/               # 28 route-level pages
+│   │   ├── hooks/               # 4 custom hooks (data-fetching, filters)
+│   │   ├── pages/               # 30 route-level pages
 │   │   ├── services/            # 19 API client modules
 │   │   ├── types/               # 12 shared TypeScript types
 │   │   ├── test/                # Vitest setup + mocks
@@ -31,6 +31,7 @@
 │   │   └── main.tsx             # Entry
 │   ├── tests/                   # 3 Playwright E2E specs
 │   └── package.json
+
 ├── AD Emulator/                 # Standalone directory emulator
 │   ├── backend/
 │   │   ├── app/                 # FastAPI API
