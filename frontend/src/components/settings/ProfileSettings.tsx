@@ -78,13 +78,13 @@ function expandWildcardPermissions(permissions: string[], role: string): string[
     const filtered = permissions.filter(p => p !== '*:*');
 
     // Admin role = system administration only (not business/GRC)
+    // Per BUSINESS_LOGIC.md: admin has users:*, activity_log:read, departments:read
     if (role === 'admin') {
         return [
             ...filtered,
             'users:read',
             'users:write',
             'departments:read',
-            'departments:write',
             'activity_log:read',
             'admin:config',
             'admin:logs',
@@ -240,9 +240,6 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                         </div>
                     )}
                 </div>
-                <p className="text-xs text-slate-500 mt-3 italic">
-                    Permissions are determined by your role and access scope. Contact your CRO to request changes.
-                </p>
             </section>
         </div>
     );

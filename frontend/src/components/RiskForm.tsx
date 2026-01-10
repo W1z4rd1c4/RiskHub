@@ -20,6 +20,7 @@ import type { Risk, RiskCreate, RiskUpdate } from '@/types/risk';
 import { RiskStatus } from '@/types/risk';
 import { RiskScoreMatrix } from '@/components/RiskScoreMatrix';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 interface RiskFormProps {
     initialData?: Risk;
@@ -312,18 +313,13 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Risk Type</label>
-                                    <select
-                                        value={formData.risk_type}
-                                        onChange={(e) => handleInputChange('risk_type', e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none"
+                                    <ThemedSelect
+                                        value={formData.risk_type || 'operational'}
+                                        onValueChange={(v) => handleInputChange('risk_type', v)}
                                         disabled={riskTypesLoading}
-                                    >
-                                        {riskTypes.map(rt => (
-                                            <option key={rt.code} value={rt.code} className="bg-slate-900">
-                                                {rt.display_name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        className="w-full"
+                                        options={riskTypes.map(rt => ({ value: rt.code, label: rt.display_name }))}
+                                    />
                                 </div>
                                 <div className="relative">
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
@@ -505,17 +501,15 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
                                         Department <span className="text-rose-400">*</span>
                                     </label>
-                                    <select
-                                        value={formData.department_id || ''}
-                                        onChange={(e) => handleInputChange('department_id', e.target.value ? parseInt(e.target.value) : null)}
-                                        className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all appearance-none ${fieldErrors.department_id ? 'border-rose-500' : 'border-white/10'
-                                            }`}
-                                    >
-                                        <option value="" className="bg-slate-900">Select Department</option>
-                                        {departments.map(d => (
-                                            <option key={d.id} value={d.id} className="bg-slate-900">{d.name} ({d.code})</option>
-                                        ))}
-                                    </select>
+                                    <ThemedSelect
+                                        value={formData.department_id?.toString() ?? ''}
+                                        onValueChange={(v) => handleInputChange('department_id', v ? parseInt(v) : null)}
+                                        placeholder="Select Department"
+                                        allowEmpty
+                                        emptyLabel="Select Department"
+                                        className={fieldErrors.department_id ? 'border-rose-500' : ''}
+                                        options={departments.map(d => ({ value: d.id.toString(), label: `${d.name} (${d.code})` }))}
+                                    />
                                     {fieldErrors.department_id && (
                                         <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
                                             <AlertCircle className="h-3 w-3" /> {fieldErrors.department_id}

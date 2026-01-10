@@ -443,3 +443,62 @@
 .theme-light .confirm-dialog-input::placeholder {
   color: #94a3b8 !important;
 }
+
+/* =================================
+   THEMED SELECT - All Themes
+   ================================= */
+
+/* Light Theme - Select Trigger */
+.theme-light [data-radix-select-trigger] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+.theme-light [data-radix-select-trigger]:hover {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-light [data-radix-select-trigger][data-placeholder] {
+  color: #94a3b8 !important;
+}
+
+/* Light Theme - Select Dropdown */
+.theme-light .themed-select-content {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2);
+}
+
+.theme-light .themed-select-item {
+  color: #334155 !important;
+}
+
+.theme-light .themed-select-item:hover,
+.theme-light .themed-select-item[data-highlighted] {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  color: #0f172a !important;
+}
+
+/* True Dark Theme - Select Trigger */
+.theme-dark [data-radix-select-trigger] {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.theme-dark [data-radix-select-trigger]:hover {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* True Dark Theme - Select Dropdown */
+.theme-dark .themed-select-content {
+  background-color: rgba(10, 10, 10, 0.98) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.theme-dark .themed-select-item:hover,
+.theme-dark .themed-select-item[data-highlighted] {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}

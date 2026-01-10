@@ -7,7 +7,6 @@ import {
     Plus,
     Trash2,
     AlertCircle,
-    ChevronDown,
     Link as LinkIcon,
     Loader2
 } from 'lucide-react';
@@ -17,6 +16,7 @@ import { riskApi } from '@/services/riskApi';
 import { lookupApi } from '@/services/lookupApi';
 import { ControlEffectiveness } from '@/types/risk';
 import { Filter, RotateCcw } from 'lucide-react';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 // Link item types for control-to-risk or risk-to-control mode
 // Made generic to accept RiskControlLink or ControlRiskLink
@@ -271,47 +271,32 @@ export function LinkManagementDialog({
 
                                         {/* Advanced Filters */}
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                            <div className="relative">
-                                                <select
-                                                    value={selectedDeptId || ''}
-                                                    onChange={(e) => setSelectedDeptId(e.target.value ? Number(e.target.value) : null)}
-                                                    className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl py-2 pl-3 pr-8 text-xs text-slate-300 focus:outline-none focus:border-accent/50 transition-all cursor-pointer hover:bg-white/10"
-                                                >
-                                                    <option value="">All Departments</option>
-                                                    {departments.map(d => (
-                                                        <option key={d.id} value={d.id}>{d.name}</option>
-                                                    ))}
-                                                </select>
-                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500 pointer-events-none" />
-                                            </div>
+                                            <ThemedSelect
+                                                value={selectedDeptId?.toString() ?? ''}
+                                                onValueChange={(v) => setSelectedDeptId(v ? Number(v) : null)}
+                                                placeholder="All Departments"
+                                                allowEmpty
+                                                emptyLabel="All Departments"
+                                                options={departments.map(d => ({ value: d.id.toString(), label: d.name }))}
+                                            />
 
-                                            <div className="relative">
-                                                <select
-                                                    value={selectedProcess}
-                                                    onChange={(e) => setSelectedProcess(e.target.value)}
-                                                    className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl py-2 pl-3 pr-8 text-xs text-slate-300 focus:outline-none focus:border-accent/50 transition-all cursor-pointer hover:bg-white/10"
-                                                >
-                                                    <option value="">All Processes</option>
-                                                    {processes.map(p => (
-                                                        <option key={p} value={p}>{p}</option>
-                                                    ))}
-                                                </select>
-                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500 pointer-events-none" />
-                                            </div>
+                                            <ThemedSelect
+                                                value={selectedProcess}
+                                                onValueChange={(v) => setSelectedProcess(v)}
+                                                placeholder="All Processes"
+                                                allowEmpty
+                                                emptyLabel="All Processes"
+                                                options={processes.map(p => ({ value: p, label: p }))}
+                                            />
 
-                                            <div className="relative">
-                                                <select
-                                                    value={selectedCategory}
-                                                    onChange={(e) => setSelectedCategory(e.target.value)}
-                                                    className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl py-2 pl-3 pr-8 text-xs text-slate-300 focus:outline-none focus:border-accent/50 transition-all cursor-pointer hover:bg-white/10"
-                                                >
-                                                    <option value="">All Categories</option>
-                                                    {categories.map(c => (
-                                                        <option key={c} value={c}>{c}</option>
-                                                    ))}
-                                                </select>
-                                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500 pointer-events-none" />
-                                            </div>
+                                            <ThemedSelect
+                                                value={selectedCategory}
+                                                onValueChange={(v) => setSelectedCategory(v)}
+                                                placeholder="All Categories"
+                                                allowEmpty
+                                                emptyLabel="All Categories"
+                                                options={categories.map(c => ({ value: c, label: c }))}
+                                            />
                                         </div>
 
                                         {(selectedDeptId || selectedProcess || selectedCategory) && (

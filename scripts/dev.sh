@@ -64,11 +64,38 @@ run_migrations() {
     echo -e "${YELLOW}Running database migrations...${NC}"
     cd backend
     if [ -f "alembic.ini" ]; then
+        source venv/bin/activate
         alembic upgrade head
         echo -e "${GREEN}Migrations complete!${NC}"
     else
         echo "No alembic.ini found, skipping migrations"
     fi
+    cd ..
+}
+
+setup_backend_venv() {
+    echo -e "${YELLOW}Setting up backend virtual environment...${NC}"
+    cd backend
+    
+    # Create venv if it doesn't exist
+    if [ ! -d "venv" ]; then
+        echo "Creating virtual environment..."
+        python3 -m venv venv
+    fi
+    
+    # Activate and install/update dependencies
+    source venv/bin/activate
+    
+    # Quick check if requirements need updating (compare timestamps)
+    if [ "requirements.txt" -nt "venv/.deps_installed" ] 2>/dev/null || [ ! -f "venv/.deps_installed" ]; then
+        echo "Installing/updating Python dependencies..."
+        pip install -q -r requirements.txt
+        touch venv/.deps_installed
+        echo -e "${GREEN}Dependencies up to date!${NC}"
+    else
+        echo -e "${GREEN}Dependencies already up to date${NC}"
+    fi
+    
     cd ..
 }
 
@@ -116,10 +143,12 @@ case $MODE in
     
     "full")
         start_database
+        setup_backend_venv
         run_migrations
         
         echo -e "${YELLOW}Starting backend...${NC}"
         cd backend
+        source venv/bin/activate
         uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
         BACKEND_PID=$!
         cd ..
@@ -162,6 +191,7 @@ case $MODE in
     "backend")
         # Backend only mode
         start_database
+        setup_backend_venv
         run_migrations
         
         echo ""
@@ -171,6 +201,7 @@ case $MODE in
         echo ""
         
         cd backend
+        source venv/bin/activate
         uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
         ;;
 esac

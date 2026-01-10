@@ -1,34 +1,72 @@
 # System Architecture
 
 ## High-Level Design
-RiskHub is a React SPA that talks to a FastAPI REST API backed by PostgreSQL. A separate AD Emulator service (FastAPI + React) simulates an external directory for sync testing.
+RiskHub is an enterprise risk management platform: React SPA → FastAPI REST API → PostgreSQL. A separate AD Emulator service simulates Azure AD for directory sync testing.
 
-### RiskHub Frontend
-- Single-page app with React Router routes in `frontend/src/App.tsx`.
-- Auth state and permission checks via React contexts.
-- API access through a shared `apiClient` wrapper that attaches Bearer tokens.
+```
+┌─────────────────┐      ┌─────────────────┐      ┌────────────────┐
+│  React SPA      │─────→│  FastAPI API    │─────→│  PostgreSQL    │
+│  (Vite, :5173)  │ JWT  │  (:8000)        │ SQL  │  (:5432)       │
+└─────────────────┘      └────────┬────────┘      └────────────────┘
+                                  │ HTTP
+                         ┌────────▼────────┐      ┌────────────────┐
+                         │  AD Emulator    │─────→│  Postgres      │
+                         │  API (:8001)    │      │  (ad_emulator) │
+                         └─────────────────┘      └────────────────┘
+```
 
-### RiskHub Backend
-- FastAPI app with versioned routers under `backend/app/api/v1`.
-- Async SQLAlchemy for DB access; models/schemas/services separated by layer.
-- Background scheduler (APScheduler) for periodic KRI deadline checks.
-- Report export service generates PDF/Excel for controls, risks, audit trail.
+## RiskHub Frontend
+- **Entry**: `frontend/src/main.tsx` → `App.tsx` (React Router routes)
+- **Contexts**: `AuthContext` (JWT + user), `DashboardFilterContext` (filters)
+- **API Layer**: `frontend/src/services/*.ts` using shared `apiClient` with Bearer tokens
+- **Pages**: 28 route-level pages in `frontend/src/pages`
+- **Components**: 73+ UI/domain components in categorized folders
 
-### AD Emulator
-- Standalone FastAPI API with its own Postgres database.
-- Simple React UI for directory browsing/testing.
-- RiskHub integrates via HTTP client to sync directory users.
+## RiskHub Backend
+- **Entry**: `backend/app/main.py` with CORS + middleware
+- **Routers**: 19 versioned routers under `backend/app/api/v1/endpoints`
+- **Layers**: endpoints → services → models/schemas (separation of concerns)
+- **Auth**: JWT validation via `Depends` + RBAC permission checks (`permissions.py`)
+- **Scheduler**: APScheduler for KRI deadline notifications (in-process)
+- **Logging**: structlog middleware with request_id/user_id/client_ip injection
+
+## API Routers
+| Router | Prefix | Responsibility |
+|--------|--------|----------------|
+| health | / | Liveness/readiness |
+| auth | /auth | Login, JWT, demo auth |
+| users | /users | User CRUD, access |
+| access | /access | Permission matrix |
+| controls | /controls | Control catalog CRUD |
+| risks | /risks | Risk register CRUD |
+| kris | /kris + /risks/*/kris | KRI values + history |
+| dashboard | /dashboard | Stats, charts, metrics |
+| departments | /departments | Org structure |
+| reports | /reports | PDF/Excel exports |
+| executions | /executions | Control execution logs |
+| approvals | /approvals | Workflow approvals |
+| notifications | /notifications | Alerts and reminders |
+| admin | /admin | System health, logs, SIEM |
+| directory | /directory | AD sync webhook |
+| orphaned-items | /orphaned-items | Governance orphans |
+| lookups | /lookups | Scoped user pickers |
+| activity-log | /activity-log | Audit trail |
+| riskhub | /riskhub | Config, risk types, thresholds |
 
 ## Data Flow
-1. User interacts with SPA -> `apiClient` sends HTTP requests with JWT.
-2. FastAPI validates via Pydantic schemas and `Depends` auth/permission checks.
-3. Service layer performs business logic and DB writes via async sessions.
-4. Responses serialized to JSON for the SPA.
-5. Scheduler jobs run in-process to create notifications.
-6. Directory sync calls AD Emulator API and applies diffs to local users/departments.
+1. User interacts with SPA → `apiClient` sends HTTP + JWT
+2. FastAPI validates via Pydantic schemas + `Depends` auth
+3. Service layer executes business logic + DB writes (async)
+4. Activity log writes in same transaction for audit
+5. JSON response → SPA updates React Query cache
+6. Scheduler jobs run nightly for KRI deadline alerts
 
 ## Design Patterns
-- FastAPI dependency injection (`Depends`) for auth, permissions, and DB sessions.
-- Layered organization: endpoints -> services -> models/schemas.
-- React contexts for auth + dashboard filter state.
-- Domain-oriented component folders for dashboard, controls, risks, governance, history.
+- **Dependency Injection**: FastAPI `Depends` for auth, DB sessions, permissions
+- **Layered Architecture**: endpoints → services → models/schemas
+- **React Contexts**: Global auth + dashboard filter state
+- **RBAC**: 11+ granular permissions with access scope (global/department/manager)
+- **Approval Workflow**: Tiered approvals for sensitive field changes
+- **Historization**: KRI history + quarterly metric snapshots
+
+*Updated: 2026-01-10*

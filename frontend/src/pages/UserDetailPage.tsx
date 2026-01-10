@@ -21,6 +21,7 @@ import type { UserRead, UserUpdate, Role } from '@/types/user';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 export function UserDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -207,37 +208,32 @@ export function UserDetailPage() {
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-300">Role</label>
-                                <select
-                                    required
+                                <ThemedSelect
+                                    value={(editData.role_id ?? 0).toString()}
+                                    onValueChange={(v) => setEditData({ ...editData, role_id: Number(v) })}
                                     disabled={!canManageUsers}
                                     className={cn(
-                                        "w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50",
-                                        !canManageUsers && "opacity-60 cursor-not-allowed"
+                                        "w-full",
+                                        !canManageUsers && "opacity-60"
                                     )}
-                                    value={editData.role_id}
-                                    onChange={e => setEditData({ ...editData, role_id: Number(e.target.value) })}
-                                >
-                                    {roles.map(role => (
-                                        <option key={role.id} value={role.id}>{role.display_name}</option>
-                                    ))}
-                                </select>
+                                    options={roles.map(role => ({ value: role.id.toString(), label: role.display_name }))}
+                                />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-300">Department</label>
-                                <select
+                                <ThemedSelect
+                                    value={editData.department_id?.toString() ?? ''}
+                                    onValueChange={(v) => setEditData({ ...editData, department_id: v ? Number(v) : null })}
+                                    placeholder="No Department Scoping"
+                                    allowEmpty
+                                    emptyLabel="No Department Scoping"
                                     disabled={!canManageUsers}
                                     className={cn(
-                                        "w-full bg-white/5 border border-white/10 rounded-xl py-2 px-4 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50",
-                                        !canManageUsers && "opacity-60 cursor-not-allowed"
+                                        "w-full",
+                                        !canManageUsers && "opacity-60"
                                     )}
-                                    value={editData.department_id || ''}
-                                    onChange={e => setEditData({ ...editData, department_id: e.target.value ? Number(e.target.value) : null })}
-                                >
-                                    <option value="">No Department Scoping</option>
-                                    {departments.map(dept => (
-                                        <option key={dept.id} value={dept.id}>{dept.name}</option>
-                                    ))}
-                                </select>
+                                    options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
+                                />
                             </div>
                         </div>
 
