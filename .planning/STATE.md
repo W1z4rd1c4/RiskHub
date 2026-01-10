@@ -48,7 +48,7 @@
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
 | 200 Entity Naming Enforcement | ✅ Complete (10/10) | 2026-01-05 |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
-| 251 Spaghetti Simplification 2 | ✅ Complete (10/10) | 2026-01-10 |
+| 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
 
 
 ## Session Context
@@ -167,10 +167,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 251-10: Simplified `LinkManagementDialog.tsx` (518→265 lines) by extracting `LinkSearchPanel.tsx` and `ExistingLinksPanel.tsx` subcomponents with explicit types. Build passes.
+- Completed Plan 251-11: Corrected `251-01-PLAN.md` and `251-02-PLAN.md` to mark them as already-complete (simplifications were done in Phase 250). Added Pre-flight checklists to prevent future rework.
 
 ### Next Step
-- Phase 251 Spaghetti Simplification 2 complete (10/10 plans). Continue with Phase 17 Production Deployment (Plan 17-01).
+- Phase 251 Spaghetti Simplification 2 complete (11/11 plans). Continue with Phase 17 Production Deployment (Plan 17-01).
 
 
 ---
