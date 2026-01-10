@@ -115,17 +115,24 @@ async def list_breaches(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
     department_id: Optional[int] = Query(None, description="Filter by department ID"),
-    include_archived: bool = Query(False, description="Include KRIs linked to archived risks"),
+    include_archived: bool = Query(False, description="Include archived KRIs/risks (privileged only)"),
 ):
-    """List only breached KRIs for dashboard widget. Excludes archived risks by default."""
+    """List only breached KRIs for dashboard widget. Excludes archived risks AND archived KRIs by default."""
     from app.models.risk import RiskStatus
+    from app.core.permissions import can_resolve_approvals
     
     # Apply department filtering via Risk join
     query = select(KeyRiskIndicator).join(Risk)
     
-    # Exclude archived risks by default
-    if not include_archived:
-        query = query.where(Risk.status != RiskStatus.archived.value)
+    # Exclude archived risks AND archived KRIs by default
+    # Only privileged users can include archived items
+    if include_archived and can_resolve_approvals(current_user):
+        pass  # Include all
+    else:
+        query = query.where(
+            Risk.status != RiskStatus.archived.value,
+            KeyRiskIndicator.is_archived == False,
+        )
     
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:
