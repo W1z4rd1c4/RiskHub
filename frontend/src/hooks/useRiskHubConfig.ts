@@ -173,3 +173,42 @@ export function useRiskThresholds() {
         },
     };
 }
+
+/**
+ * Default total assets value (10B CZK) - used when config not available
+ */
+const DEFAULT_TOTAL_ASSETS = 10_000_000_000;
+
+/**
+ * Hook to fetch total assets value from Risk Hub config.
+ * Used for calculating financial loss ranges in risk impact descriptions.
+ */
+export function useTotalAssetsValue() {
+    const query = useQuery({
+        queryKey: ['riskHub', 'config', 'total_assets_value'],
+        queryFn: async () => {
+            try {
+                const result = await riskHubApi.getConfigValue('total_assets_value');
+                if (!result) return DEFAULT_TOTAL_ASSETS;
+
+                const val = result.value;
+                if (typeof val === 'number') return val;
+                if (typeof val === 'string') {
+                    const parsed = parseInt(val, 10);
+                    return isNaN(parsed) ? DEFAULT_TOTAL_ASSETS : parsed;
+                }
+                return DEFAULT_TOTAL_ASSETS;
+            } catch {
+                return DEFAULT_TOTAL_ASSETS;
+            }
+        },
+        staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+        retry: 2,
+    });
+
+    return {
+        totalAssets: query.data ?? DEFAULT_TOTAL_ASSETS,
+        isLoading: query.isLoading,
+        error: query.error,
+    };
+}

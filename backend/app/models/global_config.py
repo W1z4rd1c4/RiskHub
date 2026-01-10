@@ -96,6 +96,7 @@ class ConfigDefaults:
     """Default values for global configuration keys."""
     # Risk thresholds
     HIGH_RISK_MIN_NET_SCORE = 15  # net_score >= this = critical/high risk
+    TOTAL_ASSETS_VALUE = 10_000_000_000  # 10B CZK - used for financial loss calculations
     
     # Notification timing (days)
     ADVANCE_REMINDER_DAYS = 7  # Days before period end to send reminder
