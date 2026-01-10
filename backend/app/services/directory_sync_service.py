@@ -554,7 +554,6 @@ class DirectorySyncService:
             target_email = _normalize_email(user_data.get("email"))
             target_name = _display_name(user_data, target_email)
             target_department = _normalize_text(user_data.get("department"))
-            target_department = _normalize_text(user_data.get("department"))
             target_active = user_data.get("account_enabled", True)
             target_employee_type = user_data.get("employee_type", "employee")
             
@@ -564,7 +563,6 @@ class DirectorySyncService:
                 
                 user.email = target_email or user.email
                 user.name = target_name
-                user.is_active = target_active
                 user.is_active = target_active
                 user.external_id = external_id
                 user.employee_type = target_employee_type
@@ -596,7 +594,6 @@ class DirectorySyncService:
                 )
                 db.add(user)
                 await db.commit()
-                await db.refresh(user)
                 await db.refresh(user)
                 
                 # Cleanup (fire and forget check)

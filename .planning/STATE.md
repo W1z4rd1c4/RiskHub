@@ -47,7 +47,7 @@
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
 | 200 Entity Naming Enforcement | ✅ Complete (10/10) | 2026-01-05 |
-| 250 Spaghetti Simplification | ⏳ In progress (9/10) | - |
+| 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
 
 
 ## Session Context
@@ -166,10 +166,11 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 250-09: Simplified `DepartmentDetailPage.tsx` by extracting data-fetching into `useDepartmentDetail.ts` hook and organizing tab panels into local render functions. Build passes.
+- Completed Plan 250-10: Simplified `directory_sync_service.py` (removed 3 duplicates) and `orphaned_item_service.py` (extracted 3 helpers: `_already_flagged`, `_create_orphan`, `_get_item_details`; refactored methods to use them). Tests pass.
 
 ### Next Step
-- Continue with Phase 250 Plan 250-10, or Phase 17 Production Deployment.
+- Phase 250 Spaghetti Simplification complete (10/10 plans). Continue with Phase 17 Production Deployment.
+
 
 ---
 *Updated: 2026-01-10*
