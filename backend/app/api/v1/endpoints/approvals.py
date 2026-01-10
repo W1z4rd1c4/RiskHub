@@ -511,13 +511,13 @@ async def approve_request(
                 raise HTTPException(status_code=500, detail=f"Database error during approval: {str(e)}")
 
     else:
-        # PENDING_PRIVILEGED: Notify privileged users
+        # PENDING_PRIVILEGED: Notify privileged users first
         try:
             await NotificationService.notify_approvers(db, approval)
         except Exception:
-            pass
-    
-    await db.commit()
+            pass  # Notification failure should not fail the request
+        # Commit status change for PENDING → PENDING_PRIVILEGED transition
+        await db.commit()
     
     # Reload with relationships
     result = await db.execute(
@@ -635,12 +635,25 @@ async def cancel_request(
     if approval.requested_by_id != current_user.id:
         raise HTTPException(status_code=403, detail="Only the requester can cancel their request")
     
-    if approval.status != ApprovalStatus.PENDING:
+    if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
         raise HTTPException(status_code=400, detail=f"Cannot cancel request with status: {approval.status.value}")
     
     # Update status
     approval.status = ApprovalStatus.CANCELLED
     approval.resolved_at = datetime.utcnow()
+    
+    # Log activity for cancellation
+    department_id = await _get_approval_department_id(db, approval)
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.APPROVAL,
+        entity_id=approval.id,
+        entity_name=approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}",
+        action=ActivityAction.DELETE,
+        actor=current_user,
+        department_id=department_id,
+        description="Approval request cancelled by requester",
+    )
     
     await db.commit()
     
