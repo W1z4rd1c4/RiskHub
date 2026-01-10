@@ -139,12 +139,12 @@ async def create_approval_request(
         resource_name = (resource.metric_name or f"KRI-{resource.id}")[:50]
         department_id = resource.risk.department_id
     
-    # Check for existing pending request
+    # Check for existing pending request (both PENDING and PENDING_PRIVILEGED)
     existing = await db.execute(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType(request_data.resource_type.value),
             ApprovalRequest.resource_id == request_data.resource_id,
-            ApprovalRequest.status == ApprovalStatus.PENDING
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
         )
     )
     if existing.scalar_one_or_none():
@@ -159,8 +159,18 @@ async def create_approval_request(
         reason=request_data.reason,
         status=ApprovalStatus.PENDING,
     )
-    db.add(approval)
-    await db.flush()
+    
+    try:
+        db.add(approval)
+        await db.flush()
+    except IntegrityError as e:
+        await db.rollback()
+        if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="An approval request is already pending for this action."
+            )
+        raise
     
     await log_activity(
         db,

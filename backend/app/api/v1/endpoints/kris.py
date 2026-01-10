@@ -737,7 +737,6 @@ async def record_kri_value(
             from app.models.notification import NotificationType
             from app.services.notification_service import NotificationService
             
-            # Notify KRI Owner
             if kri.reporting_owner_id:
                 try:
                     await NotificationService.create_notification(
@@ -750,7 +749,8 @@ async def record_kri_value(
                         resource_id=kri.id,
                     )
                 except Exception as e:
-                    pass
+                    import logging
+                    logging.getLogger(__name__).warning(f"Failed to notify KRI reporting owner about breach: {e}")
             
             # Notify Risk Owner (if different)
             if kri.risk and kri.risk.owner_id and kri.risk.owner_id != kri.reporting_owner_id:
@@ -765,7 +765,8 @@ async def record_kri_value(
                         resource_id=kri.id,
                     )
                 except Exception as e:
-                    pass
+                    import logging
+                    logging.getLogger(__name__).warning(f"Failed to notify Risk owner about KRI breach: {e}")
             
             await db.commit()
         
@@ -789,6 +790,7 @@ async def get_kri_history(
     from datetime import date
     from app.services.kri_history_service import KRIHistoryService
     from app.schemas.kri import KRIHistoryEntry
+    from app.core.permissions import can_resolve_approvals
     
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -799,6 +801,10 @@ async def get_kri_history(
     kri = result.scalar_one_or_none()
     
     if not kri:
+        raise HTTPException(status_code=404, detail="KRI not found")
+    
+    # Block access to archived KRIs for non-privileged users
+    if kri.is_archived and not can_resolve_approvals(current_user):
         raise HTTPException(status_code=404, detail="KRI not found")
     
     # Verify department access
