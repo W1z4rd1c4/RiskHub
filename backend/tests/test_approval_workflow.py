@@ -150,3 +150,104 @@ class TestApprovalWorkflow:
         notification = result.scalar_one_or_none()
         assert notification is not None
         assert notification.title == "Request rejected"
+
+    async def test_priority_risk_edit_requires_approval_from_non_privileged(
+        self,
+        client_employee: AsyncClient,
+        client_risk_manager: AsyncClient,
+        db_session,
+        test_department,
+        test_user,
+        seed_risk_types,
+    ):
+        """
+        TIERED APPROVAL TEST: Non-privileged user editing a priority risk 
+        should trigger an approval request (202), not immediate update.
+        """
+        from app.models import Risk
+        from app.models.risk import RiskStatus
+        
+        # Create a priority risk
+        priority_risk = Risk(
+            risk_id_code="PRIO-R01",
+            name="Priority Test Risk",
+            process="Priority Process",
+            description="A priority risk for tiered approval test",
+            department_id=test_department.id,
+            owner_id=test_user.id,
+            risk_type="operational",
+            category="High Impact",
+            is_priority=True,  # Priority risk!
+            gross_probability=4,
+            gross_impact=5,
+            gross_score=20,
+            net_probability=3,
+            net_impact=4,
+            net_score=12,
+            status=RiskStatus.ACTIVE.value,
+        )
+        db_session.add(priority_risk)
+        await db_session.commit()
+        await db_session.refresh(priority_risk)
+        
+        # Non-privileged employee tries to edit ANY field on priority risk
+        response = await client_employee.patch(
+            f"/api/v1/risks/{priority_risk.id}",
+            json={"description": "Updated description"}
+        )
+        
+        # Should return 202 with approval request (NOT 200 immediate)
+        assert response.status_code == 202
+        data = response.json()
+        assert "approval_id" in data
+        assert data["action_type"] == "edit"
+        assert "priority risk" in data.get("message", "").lower() or "approval" in data.get("message", "").lower()
+
+    async def test_privileged_user_can_edit_priority_risk_immediately(
+        self,
+        client_cro: AsyncClient,
+        db_session,
+        test_department,
+        test_user,
+        seed_risk_types,
+    ):
+        """
+        TIERED APPROVAL TEST: Privileged user (CRO) can edit priority risk 
+        immediately without approval (200).
+        """
+        from app.models import Risk
+        from app.models.risk import RiskStatus
+        
+        # Create a priority risk
+        priority_risk = Risk(
+            risk_id_code="PRIO-R02",
+            name="Priority Test Risk 2",
+            process="Priority Process 2",
+            description="A priority risk for privileged edit test",
+            department_id=test_department.id,
+            owner_id=test_user.id,
+            risk_type="operational",
+            category="High Impact",
+            is_priority=True,
+            gross_probability=4,
+            gross_impact=5,
+            gross_score=20,
+            net_probability=3,
+            net_impact=4,
+            net_score=12,
+            status=RiskStatus.ACTIVE.value,
+        )
+        db_session.add(priority_risk)
+        await db_session.commit()
+        await db_session.refresh(priority_risk)
+        
+        # CRO edits priority risk - should be immediate
+        response = await client_cro.patch(
+            f"/api/v1/risks/{priority_risk.id}",
+            json={"description": "CRO updated this priority risk"}
+        )
+        
+        # Should return 200 (immediate, no approval needed for privileged)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["description"] == "CRO updated this priority risk"
