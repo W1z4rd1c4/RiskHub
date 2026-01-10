@@ -59,10 +59,10 @@ async def get_primary_approver_for_control(
             return risk.owner_id
     
     # Fallback: department head (skip self)
-    if control.department and control.department.head_id:
-        if requester_id and control.department.head_id == requester_id:
+    if control.department and control.department.manager_id:
+        if requester_id and control.department.manager_id == requester_id:
             return None  # Force escalation to privileged approvers
-        return control.department.head_id
+        return control.department.manager_id
     
     return None
 
@@ -126,7 +126,7 @@ async def get_primary_approver_for_risk(
         return risk.owner_id
     
     # Fallback: department head (unless they're the requester)
-    if risk.department and risk.department.head_id and risk.department.head_id != requester_id:
-        return risk.department.head_id
+    if risk.department and risk.department.manager_id and risk.department.manager_id != requester_id:
+        return risk.department.manager_id
     
     return None
