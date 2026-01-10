@@ -312,431 +312,59 @@ async def approve_request(
     - Primary approver (Risk Owner): can approve PENDING requests they own.
       If requires_privileged_approval, moves to PENDING_PRIVILEGED instead of applying.
     """
-    logger.info(f"Processing approval request {approval_id}")
-    result = await db.execute(
-        select(ApprovalRequest)
-        .options(
-            selectinload(ApprovalRequest.requested_by),
-            selectinload(ApprovalRequest.resolved_by),
-            selectinload(ApprovalRequest.primary_approver),
-            selectinload(ApprovalRequest.privileged_approver),
-        )
-        .where(ApprovalRequest.id == approval_id)
+    from app.services.approval_execution_service import (
+        load_approval, assert_can_approve, apply_status_transition,
+        apply_side_effects, log_approval_approve,
     )
-    approval = result.scalar_one_or_none()
     
-    if not approval:
-        raise HTTPException(status_code=404, detail="Approval request not found")
+    logger.info(f"Processing approval request {approval_id}")
     
-    is_privileged = can_resolve_approvals(current_user)
-    is_primary_approver = approval.primary_approver_id == current_user.id
+    # 1) Load approval with relationships
+    approval = await load_approval(db, approval_id)
     
-    # Check if user can approve this request
-    if approval.status == ApprovalStatus.PENDING:
-        # PENDING: primary approver or privileged user can approve
-        if not is_primary_approver and not is_privileged:
-            raise HTTPException(status_code=403, detail="Only the primary approver or a privileged user can approve this request")
-    elif approval.status == ApprovalStatus.PENDING_PRIVILEGED:
-        # PENDING_PRIVILEGED: only privileged user can approve
-        if not is_privileged:
-            raise HTTPException(status_code=403, detail="This request requires privileged user approval (CRO/Admin/Risk Manager)")
-    else:
-        raise HTTPException(status_code=400, detail=f"Cannot approve request with status: {approval.status.value}")
+    # 2) Authorize
+    is_privileged, is_primary_approver = assert_can_approve(approval, current_user)
     
     previous_status = approval.status
     
-    # Determine if we should apply changes or move to next approval stage
-    should_apply_changes = False
+    # 3) Transition status
+    should_apply_changes = apply_status_transition(
+        approval,
+        current_user=current_user,
+        resolution_notes=resolve_data.resolution_notes,
+        is_privileged=is_privileged,
+        is_primary_approver=is_primary_approver,
+    )
     
-    if approval.status == ApprovalStatus.PENDING:
-        if is_privileged:
-            # Privileged user bypasses tiered approval
-            approval.status = ApprovalStatus.APPROVED
-            approval.resolved_by_id = current_user.id
-            approval.resolved_at = datetime.utcnow()
-            approval.resolution_notes = resolve_data.resolution_notes
-            should_apply_changes = True
-        elif is_primary_approver:
-            # Primary approver approving
-            approval.primary_approved_at = datetime.utcnow()
-            if approval.requires_privileged_approval:
-                # Move to PENDING_PRIVILEGED
-                approval.status = ApprovalStatus.PENDING_PRIVILEGED
-                approval.resolution_notes = f"Primary approval by Risk Owner: {resolve_data.resolution_notes}"
-            else:
-                # No privileged approval needed, finalize
-                approval.status = ApprovalStatus.APPROVED
-                approval.resolved_by_id = current_user.id
-                approval.resolved_at = datetime.utcnow()
-                approval.resolution_notes = resolve_data.resolution_notes
-                should_apply_changes = True
-    elif approval.status == ApprovalStatus.PENDING_PRIVILEGED:
-        # Privileged user finalizing
-        approval.status = ApprovalStatus.APPROVED
-        approval.privileged_approver_id = current_user.id
-        approval.privileged_approved_at = datetime.utcnow()
-        approval.resolved_by_id = current_user.id
-        approval.resolved_at = datetime.utcnow()
-        approval.resolution_notes = (approval.resolution_notes or "") + f"\nPrivileged approval: {resolve_data.resolution_notes}"
-        should_apply_changes = True
-    
-    # AUTO-EXECUTE based on action type (only if should apply changes)
+    # 4) Apply side effects if approved
     if should_apply_changes:
-        if approval.action_type == ApprovalActionType.DELETE:
-            # DELETE: Archive/delete the resource
-            if approval.resource_type == ApprovalResourceType.RISK:
-                risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
-                risk = risk_result.scalar_one_or_none()
-                if risk:
-                    old_status = risk.status
-                    risk.status = RiskStatusEnum.archived.value
-                    await log_activity(
-                        db,
-                        entity_type=ActivityEntityType.RISK,
-                        entity_id=risk.id,
-                        entity_name=f"{risk.risk_id_code}: {risk.name}",
-                        action=ActivityAction.ARCHIVE,
-                        actor=current_user,
-                        department_id=risk.department_id,
-                        changes=(
-                            {"status": {"old": old_status, "new": risk.status}}
-                            if old_status != risk.status
-                            else None
-                        ),
-                        description=f"Archived via approval #{approval.id}",
-                    )
-            elif approval.resource_type == ApprovalResourceType.CONTROL:
-                control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
-                control = control_result.scalar_one_or_none()
-                if control:
-                    old_status = control.status
-                    control.status = ControlStatus.archived.value
-                    control.updated_by_id = current_user.id
-                    await log_activity(
-                        db,
-                        entity_type=ActivityEntityType.CONTROL,
-                        entity_id=control.id,
-                        entity_name=f"{control.name}",
-                        action=ActivityAction.ARCHIVE,
-                        actor=current_user,
-                        department_id=control.department_id,
-                        changes=(
-                            {"status": {"old": old_status, "new": control.status}}
-                            if old_status != control.status
-                            else None
-                        ),
-                        description=f"Archived via approval #{approval.id}",
-                    )
-            elif approval.resource_type == ApprovalResourceType.KRI:
-                kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
-                kri = kri_result.scalar_one_or_none()
-                if kri:
-                    old_is_archived = kri.is_archived
-                    # Archive instead of hard delete (preserves audit trail + history)
-                    kri.is_archived = True
-                    kri.archived_at = datetime.now(UTC)
-                    kri.archived_by_id = current_user.id
-                    department_id = await _get_approval_department_id(db, approval)
-                    await log_activity(
-                        db,
-                        entity_type=ActivityEntityType.KRI,
-                        entity_id=kri.id,
-                        entity_name=f"{kri.metric_name}",
-                        action=ActivityAction.ARCHIVE,
-                        actor=current_user,
-                        department_id=department_id,
-                        changes=(
-                            {"is_archived": {"old": old_is_archived, "new": kri.is_archived}}
-                            if old_is_archived != kri.is_archived
-                            else None
-                        ),
-                        description=f"Archived via approval #{approval.id}",
-                    )
+        await apply_side_effects(db, approval, current_user)
         
-        elif approval.action_type == ApprovalActionType.EDIT:
-            # EDIT: Apply pending changes to the resource
-            if approval.pending_changes:
-                changes = approval.pending_changes
-                if approval.resource_type == ApprovalResourceType.RISK:
-                    risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
-                    risk = risk_result.scalar_one_or_none()
-                    if risk:
-                        applied_changes: dict = {}
-                        for field, vals in changes.items():
-                            if hasattr(risk, field):
-                                setattr(risk, field, vals.get("new"))
-                                applied_changes[field] = vals
-                        if applied_changes:
-                            await log_activity(
-                                db,
-                                entity_type=ActivityEntityType.RISK,
-                                entity_id=risk.id,
-                                entity_name=f"{risk.risk_id_code}: {risk.name}",
-                                action=ActivityAction.UPDATE,
-                                actor=current_user,
-                                department_id=risk.department_id,
-                                changes=applied_changes,
-                                description=f"Updated via approval #{approval.id}",
-                            )
-                elif approval.resource_type == ApprovalResourceType.CONTROL:
-                    control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
-                    control = control_result.scalar_one_or_none()
-                    if control:
-                        applied_changes: dict = {}
-                        for field, vals in changes.items():
-                            if hasattr(control, field):
-                                setattr(control, field, vals.get("new"))
-                                applied_changes[field] = vals
-                        if applied_changes:
-                            await log_activity(
-                                db,
-                                entity_type=ActivityEntityType.CONTROL,
-                                entity_id=control.id,
-                                entity_name=f"{control.name}",
-                                action=ActivityAction.UPDATE,
-                                actor=current_user,
-                                department_id=control.department_id,
-                                changes=applied_changes,
-                                description=f"Updated via approval #{approval.id}",
-                            )
-                elif approval.resource_type == ApprovalResourceType.KRI:
-                    kri_result = await db.execute(
-                        select(KeyRiskIndicator)
-                        .options(selectinload(KeyRiskIndicator.risk))
-                        .where(KeyRiskIndicator.id == approval.resource_id)
-                    )
-                    kri = kri_result.scalar_one_or_none()
-                    if kri:
-                        if "history_entry_id" in changes:
-                            from app.services.kri_history_service import KRIHistoryService
-                            entry_id = changes.get("history_entry_id")
-                            new_value = changes.get("new_value")
-                            old_value = changes.get("old_value")
-                            if entry_id is None or new_value is None:
-                                raise HTTPException(status_code=400, detail="Invalid KRI history correction payload")
-                            old_kri_current_value = kri.current_value
-                            old_kri_last_period_end = kri.last_period_end
-                            old_kri_last_reported_at = kri.last_reported_at
-                            logger.info(f"Applying KRI history correction: entry {entry_id}, val {new_value}")
-                            try:
-                                updated_entry = await KRIHistoryService.apply_history_correction(
-                                    db=db,
-                                    entry_id=entry_id,
-                                    new_value=new_value,
-                                    corrected_by_id=current_user.id,
-                                )
-                                department_id = kri.risk.department_id if kri.risk else None
-                                await log_activity(
-                                    db,
-                                    entity_type=ActivityEntityType.KRI_VALUE,
-                                    entity_id=entry_id,
-                                    entity_name=f"{kri.metric_name} ({updated_entry.period_end.isoformat()})",
-                                    action=ActivityAction.UPDATE,
-                                    actor=current_user,
-                                    department_id=department_id,
-                                    changes={"value": {"old": old_value, "new": new_value}},
-                                    description=f"Corrected via approval #{approval.id}",
-                                )
-                                kri_changes: dict[str, dict[str, object]] = {}
-                                if old_kri_current_value != kri.current_value:
-                                    kri_changes["current_value"] = {"old": old_kri_current_value, "new": kri.current_value}
-                                if old_kri_last_period_end != kri.last_period_end:
-                                    kri_changes["last_period_end"] = {"old": old_kri_last_period_end, "new": kri.last_period_end}
-                                if old_kri_last_reported_at != kri.last_reported_at:
-                                    kri_changes["last_reported_at"] = {"old": old_kri_last_reported_at, "new": kri.last_reported_at}
-                                if kri_changes:
-                                    await log_activity(
-                                        db,
-                                        entity_type=ActivityEntityType.KRI,
-                                        entity_id=kri.id,
-                                        entity_name=f"{kri.metric_name}",
-                                        action=ActivityAction.UPDATE,
-                                        actor=current_user,
-                                        department_id=department_id,
-                                        changes=kri_changes,
-                                        description=f"Updated via approval #{approval.id} (history correction)",
-                                    )
-                            except ValueError as e:
-                                logger.error(f"KRI history correction failed: {e}")
-                                raise HTTPException(status_code=400, detail=str(e))
-                            except Exception as e:
-                                logger.error(f"Unexpected error in KRI history correction: {e}")
-                                raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
-                        elif "period_end" in changes and "current_value" in changes:
-                            # Handle value submission approval with period_end
-                            from datetime import date as date_type
-                            from app.services.kri_history_service import KRIHistoryService
-                            
-                            value_change = changes.get("current_value")
-                            period_end_str = changes.get("period_end")
-                            recorded_at_str = changes.get("recorded_at")
-                            
-                            if value_change is None or period_end_str is None:
-                                raise HTTPException(status_code=400, detail="Invalid KRI value submission payload")
-                            
-                            # Parse period_end and recorded_at
-                            period_end = date_type.fromisoformat(period_end_str)
-                            recorded_at = datetime.fromisoformat(recorded_at_str) if recorded_at_str else None
-                            
-                            old_kri_current_value = kri.current_value
-                            old_kri_last_period_end = kri.last_period_end
-                            old_kri_last_reported_at = kri.last_reported_at
-                            try:
-                                logger.info(f"Recording KRI value for approval: {value_change.get('new')}")
-                                history_entry = await KRIHistoryService.record_value(
-                                    db=db,
-                                    kri=kri,
-                                    value=value_change.get("new"),
-                                    recorded_by_id=current_user.id,
-                                    recorded_at=recorded_at,
-                                    period_end=period_end,
-                                    is_privileged=True,
-                                    # allow_open_period removed - periods are now always closed
-                                )
-                                department_id = kri.risk.department_id if kri.risk else None
-                                await log_activity(
-                                    db,
-                                    entity_type=ActivityEntityType.KRI_VALUE,
-                                    entity_id=history_entry.id,
-                                    entity_name=f"{kri.metric_name} ({history_entry.period_end.isoformat()})",
-                                    action=ActivityAction.CREATE,
-                                    actor=current_user,
-                                    department_id=department_id,
-                                    changes={
-                                        "value": {"old": value_change.get("old"), "new": value_change.get("new")},
-                                        "period_end": {"old": None, "new": period_end.isoformat()},
-                                    },
-                                    description=f"Recorded via approval #{approval.id}",
-                                )
-                                kri_changes: dict[str, dict[str, object]] = {}
-                                if old_kri_current_value != kri.current_value:
-                                    kri_changes["current_value"] = {"old": old_kri_current_value, "new": kri.current_value}
-                                if old_kri_last_period_end != kri.last_period_end:
-                                    kri_changes["last_period_end"] = {"old": old_kri_last_period_end, "new": kri.last_period_end}
-                                if old_kri_last_reported_at != kri.last_reported_at:
-                                    kri_changes["last_reported_at"] = {"old": old_kri_last_reported_at, "new": kri.last_reported_at}
-                                if kri_changes:
-                                    await log_activity(
-                                        db,
-                                        entity_type=ActivityEntityType.KRI,
-                                        entity_id=kri.id,
-                                        entity_name=f"{kri.metric_name}",
-                                        action=ActivityAction.UPDATE,
-                                        actor=current_user,
-                                        department_id=department_id,
-                                        changes=kri_changes,
-                                        description=f"Updated via approval #{approval.id} (value submission)",
-                                    )
-                            except ValueError as e:
-                                logger.error(f"KRI value recording failed (submit): {e}")
-                                raise HTTPException(status_code=400, detail=str(e))
-                            except Exception as e:
-                                logger.error(f"Unexpected error in KRI value recording: {e}")
-                                raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
-                        else:
-                            value_change = changes.get("current_value")
-                            applied_changes: dict = {}
-                            for field, vals in changes.items():
-                                if field == "current_value":
-                                    continue
-                                if hasattr(kri, field):
-                                    setattr(kri, field, vals.get("new"))
-                                    applied_changes[field] = vals
-                            if value_change is not None:
-                                from app.services.kri_history_service import KRIHistoryService
-                                old_kri_current_value = kri.current_value
-                                old_kri_last_period_end = kri.last_period_end
-                                old_kri_last_reported_at = kri.last_reported_at
-                                try:
-                                    history_entry = await KRIHistoryService.record_value(
-                                        db=db,
-                                        kri=kri,
-                                        value=value_change.get("new"),
-                                        recorded_by_id=current_user.id,
-                                        is_privileged=True,
-                                    )
-                                    department_id = kri.risk.department_id if kri.risk else None
-                                    await log_activity(
-                                        db,
-                                        entity_type=ActivityEntityType.KRI_VALUE,
-                                        entity_id=history_entry.id,
-                                        entity_name=f"{kri.metric_name} ({history_entry.period_end.isoformat()})",
-                                        action=ActivityAction.CREATE,
-                                        actor=current_user,
-                                        department_id=department_id,
-                                        changes={
-                                            "value": {"old": value_change.get("old"), "new": value_change.get("new")},
-                                            "period_end": {"old": None, "new": history_entry.period_end.isoformat()},
-                                        },
-                                        description=f"Recorded via approval #{approval.id}",
-                                    )
-                                    if old_kri_current_value != kri.current_value:
-                                        applied_changes["current_value"] = {
-                                            "old": old_kri_current_value,
-                                            "new": kri.current_value,
-                                        }
-                                    if old_kri_last_period_end != kri.last_period_end:
-                                        applied_changes["last_period_end"] = {
-                                            "old": old_kri_last_period_end,
-                                            "new": kri.last_period_end,
-                                        }
-                                    if old_kri_last_reported_at != kri.last_reported_at:
-                                        applied_changes["last_reported_at"] = {
-                                            "old": old_kri_last_reported_at,
-                                            "new": kri.last_reported_at,
-                                        }
-                                except ValueError as e:
-                                    logger.error(f"Failed to record value during approval: {str(e)}")
-                                    raise HTTPException(status_code=400, detail=f"KRI value recording failed: {str(e)}")
-                            if applied_changes:
-                                department_id = kri.risk.department_id if kri.risk else None
-                                await log_activity(
-                                    db,
-                                    entity_type=ActivityEntityType.KRI,
-                                    entity_id=kri.id,
-                                    entity_name=f"{kri.metric_name}",
-                                    action=ActivityAction.UPDATE,
-                                    actor=current_user,
-                                    department_id=department_id,
-                                    changes=applied_changes,
-                                    description=f"Updated via approval #{approval.id}",
-                                )
-            
+        # Log approval APPROVE action
+        if approval.status == ApprovalStatus.APPROVED:
+            await log_approval_approve(db, approval, current_user, previous_status)
+        
         # Commit changes
         try:
             logger.info("Flushing and committing changes...")
-            if approval.status == ApprovalStatus.APPROVED:
-                department_id = await _get_approval_department_id(db, approval)
-                await log_activity(
-                    db,
-                    entity_type=ActivityEntityType.APPROVAL,
-                    entity_id=approval.id,
-                    entity_name=approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}",
-                    action=ActivityAction.APPROVE,
-                    actor=current_user,
-                    department_id=department_id,
-                    changes={"status": {"old": previous_status.value, "new": approval.status.value}},
-                )
-            await db.flush() # Check for integrity errors
+            await db.flush()
             await db.commit()
             logger.info("Commit successful")
         except Exception as e:
-                import traceback
-                logger.error(f"Error applying approval {approval_id}: {str(e)}")
-                logger.error(traceback.format_exc())
-                await db.rollback()
-                raise HTTPException(status_code=500, detail=f"Database error during approval: {str(e)}")
-
+            import traceback
+            logger.error(f"Error applying approval {approval_id}: {str(e)}")
+            logger.error(traceback.format_exc())
+            await db.rollback()
+            raise HTTPException(status_code=500, detail=f"Database error during approval: {str(e)}")
     else:
-        # PENDING_PRIVILEGED: Notify privileged users first
+        # PENDING → PENDING_PRIVILEGED: Notify privileged users
         try:
             await NotificationService.notify_approvers(db, approval)
         except Exception as e:
             logger.warning(f"Failed to notify approvers for PENDING_PRIVILEGED approval #{approval.id}: {e}")
-        # Commit status change for PENDING → PENDING_PRIVILEGED transition
         await db.commit()
     
-    # Reload with relationships
+    # Reload with relationships for response
     result = await db.execute(
         select(ApprovalRequest)
         .options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
@@ -744,9 +372,7 @@ async def approve_request(
     )
     approval = result.scalar_one()
     
-
-    
-    # Notify requester in the background (fresh DB session)
+    # Notify requester in background (fresh DB session)
     if approval.status == ApprovalStatus.APPROVED and isinstance(db.bind, AsyncEngine):
         background_tasks.add_task(
             _notify_requester_resolved_background,
