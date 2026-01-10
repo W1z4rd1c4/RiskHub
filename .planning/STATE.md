@@ -166,10 +166,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 251-01: Simplified `controls.py` by extracting 4 helpers (`_build_pending_changes`, `_first_high_risk_linked_risk`, `_apply_department_scoping`, `_apply_process_category_filters`) and consolidating approval boilerplate with `create_approval_request_with_audit()`. Tests pass.
+- Completed Plan 251-02: Simplified `departments.py` by extracting 10 helpers (3 scoping/pagination, 7 stats builders), refactoring `list_departments` to orchestration-only, and updating all endpoints with `_assert_department_in_scope` and comprehensive docstrings. Fixed user count to filter only active users. Tests pass.
 
 ### Next Step
-- Continue Phase 251 Spaghetti Simplification 2 (1/10 plans complete). Execute Plan 251-02.
+- Continue Phase 251 Spaghetti Simplification 2 (2/10 plans complete). Execute Plan 251-03.
 
 
 ---
