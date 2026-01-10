@@ -5,7 +5,6 @@ import {
     X,
     ChevronRight,
     ChevronLeft,
-    CheckCircle2,
     AlertCircle,
     Info,
     User,
@@ -13,6 +12,7 @@ import {
     Activity,
     Plus
 } from 'lucide-react';
+import { StepIndicator } from '@/components/ui/StepIndicator';
 import { riskApi } from '@/services/riskApi';
 import { lookupApi } from '@/services/lookupApi';
 import type { UserLookupItem } from '@/services/lookupApi';
@@ -251,33 +251,12 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
     return (
         <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">
             {/* Multi-step indicator */}
-            <div className="flex justify-between items-center px-4">
-                {steps.map((step, idx) => {
-                    // Can only click on past steps (already completed)
-                    const canClick = idx < currentStep;
-                    return (
-                        <div
-                            key={step.id}
-                            className={`flex flex-col items-center gap-2 group ${canClick ? 'cursor-pointer' : 'cursor-default'}`}
-                            onClick={() => {
-                                // Only allow going back to completed steps
-                                if (canClick) {
-                                    setCurrentStep(idx);
-                                }
-                            }}
-                        >
-                            <div className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${currentStep === idx ? 'bg-accent border-accent text-white shadow-[0_0_15px_rgba(30,132,255,0.3)]' :
-                                currentStep > idx ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-white/5 border-white/10 text-slate-500'
-                                }`}>
-                                {currentStep > idx ? <CheckCircle2 className="h-5 w-5" /> : <step.icon className="h-5 w-5" />}
-                            </div>
-                            <span className={`text-[10px] font-black uppercase tracking-widest ${currentStep === idx ? 'text-white' : canClick ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-500'}`}>
-                                {step.title}
-                            </span>
-                        </div>
-                    );
-                })}
-            </div>
+            <StepIndicator
+                steps={steps}
+                currentStep={currentStep}
+                isStepClickable={(idx) => idx < currentStep}
+                onStepClick={(idx) => setCurrentStep(idx)}
+            />
 
             <div className="glass-card min-h-[480px] flex flex-col">
                 {error && (
