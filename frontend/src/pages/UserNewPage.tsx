@@ -14,6 +14,7 @@ import { userApi } from '@/services/userApi';
 import { departmentApi } from '@/services/departmentApi';
 import type { UserCreate, Role } from '@/types/user';
 import { usePermissions } from '@/hooks/usePermissions';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 export function UserNewPage() {
     const navigate = useNavigate();
@@ -197,34 +198,29 @@ export function UserNewPage() {
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-300">Platform Role</label>
                             <div className="relative">
-                                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none" />
-                                <select
-                                    required
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50"
-                                    value={formData.role_id}
-                                    onChange={e => setFormData({ ...formData, role_id: Number(e.target.value) })}
-                                >
-                                    {roles.map(role => (
-                                        <option key={role.id} value={role.id}>{role.display_name}</option>
-                                    ))}
-                                </select>
+                                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
+                                <ThemedSelect
+                                    value={formData.role_id.toString()}
+                                    onValueChange={(v) => setFormData({ ...formData, role_id: Number(v) })}
+                                    className="w-full pl-10"
+                                    options={roles.map(role => ({ value: role.id.toString(), label: role.display_name }))}
+                                />
                             </div>
                         </div>
 
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-300">Department</label>
                             <div className="relative">
-                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none" />
-                                <select
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-accent/50"
-                                    value={formData.department_id || ''}
-                                    onChange={e => setFormData({ ...formData, department_id: e.target.value ? Number(e.target.value) : null })}
-                                >
-                                    <option value="">No Department Scoping</option>
-                                    {departments.map(dept => (
-                                        <option key={dept.id} value={dept.id}>{dept.name}</option>
-                                    ))}
-                                </select>
+                                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
+                                <ThemedSelect
+                                    value={formData.department_id?.toString() ?? ''}
+                                    onValueChange={(v) => setFormData({ ...formData, department_id: v ? Number(v) : null })}
+                                    placeholder="No Department Scoping"
+                                    allowEmpty
+                                    emptyLabel="No Department Scoping"
+                                    className="w-full pl-10"
+                                    options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
+                                />
                             </div>
                         </div>
 

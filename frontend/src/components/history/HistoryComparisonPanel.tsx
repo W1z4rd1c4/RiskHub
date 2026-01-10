@@ -8,6 +8,7 @@ import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { HistoryChangeCard } from './HistoryChangeCard';
 import type { KRIHistoryEntry } from '@/types/kri';
 import type { HistoryComparisonField, HistoryStatus } from '@/types/history';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 interface HistoryComparisonPanelProps {
     entries: KRIHistoryEntry[];
@@ -156,42 +157,22 @@ export function HistoryComparisonPanel({
 
                 <div className="flex items-center gap-3 bg-white/5 p-1.5 rounded-xl border border-white/10 ml-auto">
                     {/* Left selector (previous/baseline) */}
-                    <div className="relative group">
-                        <select
-                            value={leftId ?? ''}
-                            onChange={(e) => setLeftId(e.target.value ? parseInt(e.target.value) : null)}
-                            className="bg-transparent pl-3 pr-8 py-1.5 text-xs font-bold text-slate-400 hover:text-white transition-colors outline-none cursor-pointer appearance-none rounded-lg hover:bg-white/5"
-                        >
-                            {sortedEntries.map(entry => (
-                                <option key={entry.id} value={entry.id} className="bg-[#0f172a] text-white">
-                                    {formatOptionLabel(entry)}
-                                </option>
-                            ))}
-                        </select>
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600 group-hover:text-slate-400 transition-colors">
-                            <ArrowRight className="h-3 w-3 rotate-90 scale-75" />
-                        </div>
-                    </div>
+                    <ThemedSelect
+                        value={leftId?.toString() ?? ''}
+                        onValueChange={(v) => setLeftId(v ? parseInt(v) : null)}
+                        className="min-w-[180px]"
+                        options={sortedEntries.map(entry => ({ value: entry.id.toString(), label: formatOptionLabel(entry) }))}
+                    />
 
                     <div className="w-px h-4 bg-white/10" />
 
                     {/* Right selector (current/target) */}
-                    <div className="relative group">
-                        <select
-                            value={rightId ?? ''}
-                            onChange={(e) => setRightId(e.target.value ? parseInt(e.target.value) : null)}
-                            className="bg-transparent pl-3 pr-8 py-1.5 text-xs font-black text-accent hover:text-accent/80 transition-colors outline-none cursor-pointer appearance-none rounded-lg hover:bg-white/5"
-                        >
-                            {sortedEntries.map(entry => (
-                                <option key={entry.id} value={entry.id} className="bg-[#0f172a] text-white">
-                                    {formatOptionLabel(entry)}
-                                </option>
-                            ))}
-                        </select>
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-accent/50 group-hover:text-accent transition-colors">
-                            <ArrowRight className="h-3 w-3 rotate-90 scale-75" />
-                        </div>
-                    </div>
+                    <ThemedSelect
+                        value={rightId?.toString() ?? ''}
+                        onValueChange={(v) => setRightId(v ? parseInt(v) : null)}
+                        className="min-w-[180px]"
+                        options={sortedEntries.map(entry => ({ value: entry.id.toString(), label: formatOptionLabel(entry) }))}
+                    />
                 </div>
             </div>
 

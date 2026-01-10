@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useDashboardFilters, type RiskLevel } from '../../contexts/DashboardFilterContext';
 import { lookupApi } from '../../services/lookupApi';
+import { ThemedSelect } from '../ui/ThemedSelect';
 
 interface Department {
     id: number;
@@ -148,16 +149,14 @@ export function FilterBar() {
                                     <Building2 className="h-3 w-3" />
                                     Department
                                 </label>
-                                <select
-                                    value={filters.departmentId ?? ''}
-                                    onChange={(e) => setDepartmentId(e.target.value ? Number(e.target.value) : null)}
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white appearance-none cursor-pointer hover:border-white/20 focus:border-accent focus:outline-none transition-colors"
-                                >
-                                    <option value="">All Departments</option>
-                                    {departments.map(dept => (
-                                        <option key={dept.id} value={dept.id}>{dept.name}</option>
-                                    ))}
-                                </select>
+                                <ThemedSelect
+                                    value={filters.departmentId?.toString() ?? ''}
+                                    onValueChange={(v) => setDepartmentId(v ? Number(v) : null)}
+                                    placeholder="All Departments"
+                                    allowEmpty
+                                    emptyLabel="All Departments"
+                                    options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
+                                />
                             </div>
 
                             {/* Risk Level Toggle */}
@@ -189,17 +188,14 @@ export function FilterBar() {
                                     <CheckCircle className="h-3 w-3" />
                                     Control Status
                                 </label>
-                                <select
+                                <ThemedSelect
                                     value={filters.controlStatus ?? ''}
-                                    onChange={(e) => setControlStatus(e.target.value || null)}
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white appearance-none cursor-pointer hover:border-white/20 focus:border-accent focus:outline-none transition-colors"
-                                >
-                                    {CONTROL_STATUSES.map(status => (
-                                        <option key={status.value ?? 'all'} value={status.value ?? ''}>
-                                            {status.label}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onValueChange={(v) => setControlStatus(v || null)}
+                                    placeholder="All Statuses"
+                                    allowEmpty
+                                    emptyLabel="All Statuses"
+                                    options={CONTROL_STATUSES.filter(s => s.value !== null).map(status => ({ value: status.value!, label: status.label }))}
+                                />
                             </div>
 
                             {/* Control Form Dropdown */}
@@ -208,17 +204,14 @@ export function FilterBar() {
                                     <Shield className="h-3 w-3" />
                                     Control Form
                                 </label>
-                                <select
+                                <ThemedSelect
                                     value={filters.controlForm ?? ''}
-                                    onChange={(e) => setControlForm(e.target.value || null)}
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white appearance-none cursor-pointer hover:border-white/20 focus:border-accent focus:outline-none transition-colors"
-                                >
-                                    {CONTROL_FORMS.map(form => (
-                                        <option key={form.value ?? 'all'} value={form.value ?? ''}>
-                                            {form.label}
-                                        </option>
-                                    ))}
-                                </select>
+                                    onValueChange={(v) => setControlForm(v || null)}
+                                    placeholder="All Forms"
+                                    allowEmpty
+                                    emptyLabel="All Forms"
+                                    options={CONTROL_FORMS.filter(f => f.value !== null).map(form => ({ value: form.value!, label: form.label }))}
+                                />
                             </div>
                         </div>
                     </motion.div>

@@ -23,6 +23,7 @@ import { ControlStatus } from '@/types/control';
 import { PermissionGate } from '@/components/PermissionGate';
 import { SortableTable, CategoryDrillDown, ViewSwitcher, Pagination } from '@/components/tables';
 import type { Column, ViewMode } from '@/components/tables';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 
 export function ControlsPage() {
@@ -317,16 +318,18 @@ export function ControlsPage() {
                     />
                 </div>
                 <div className="flex gap-4">
-                    <select
+                    <ThemedSelect
                         value={statusFilter}
-                        onChange={(e) => { setStatusFilter(e.target.value); setControls([]); setCurrentPage(1); }}
-                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-300 outline-none focus:border-accent/50 appearance-none min-w-[140px]"
-                    >
-                        <option value="" className="bg-slate-900">All Statuses</option>
-                        <option value="active" className="bg-slate-900">Active</option>
-                        <option value="draft" className="bg-slate-900">Draft</option>
-                        <option value="inactive" className="bg-slate-900">Inactive</option>
-                    </select>
+                        onValueChange={(v) => { setStatusFilter(v); setControls([]); setCurrentPage(1); }}
+                        placeholder="All Statuses"
+                        allowEmpty
+                        emptyLabel="All Statuses"
+                        options={[
+                            { value: 'active', label: 'Active' },
+                            { value: 'draft', label: 'Draft' },
+                            { value: 'inactive', label: 'Inactive' },
+                        ]}
+                    />
                     <button
                         onClick={() => { fetchControls(); setControls([]); }}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"

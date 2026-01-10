@@ -19,6 +19,7 @@ import { executionApi } from '@/services/executionApi';
 import { reportApi } from '@/services/reportApi';
 import type { ControlExecution, ExecutionResult } from '@/services/executionApi';
 import { Pagination } from '@/components/tables';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 export function AuditTrailPage() {
     const navigate = useNavigate();
@@ -110,17 +111,20 @@ export function AuditTrailPage() {
                 <div className="flex-1 glass-card flex items-center gap-4 !py-3">
                     <div className="flex items-center gap-3 px-4 py-2 bg-white/5 rounded-xl border border-white/10 group focus-within:border-accent/50 transition-all flex-1">
                         <Filter className="h-4 w-4 text-slate-500 group-focus-within:text-accent" />
-                        <select
+                        <ThemedSelect
                             value={resultFilter}
-                            onChange={(e) => setResultFilter(e.target.value as ExecutionResult | '')}
-                            className="bg-transparent border-none outline-none text-sm text-white w-full appearance-none cursor-pointer"
-                        >
-                            <option value="" className="bg-slate-900">All Results</option>
-                            <option value="passed" className="bg-slate-900">Passed</option>
-                            <option value="failed" className="bg-slate-900">Failed</option>
-                            <option value="warning" className="bg-slate-900">Warning</option>
-                            <option value="not_applicable" className="bg-slate-900">N/A</option>
-                        </select>
+                            onValueChange={(v) => setResultFilter(v as ExecutionResult | '')}
+                            placeholder="All Results"
+                            allowEmpty
+                            emptyLabel="All Results"
+                            className="flex-1"
+                            options={[
+                                { value: 'passed', label: 'Passed' },
+                                { value: 'failed', label: 'Failed' },
+                                { value: 'warning', label: 'Warning' },
+                                { value: 'not_applicable', label: 'N/A' },
+                            ]}
+                        />
                     </div>
 
                     <div className="h-8 w-px bg-white/10 hidden md:block" />
