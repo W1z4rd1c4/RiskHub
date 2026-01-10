@@ -1,5 +1,6 @@
 """Service for logging activities across the system."""
 from enum import Enum as PyEnum
+from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import ActivityLog, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -18,6 +19,8 @@ def _normalize_change_value(value: object) -> object:
     """Normalize enums for JSON-friendly change logging."""
     if isinstance(value, PyEnum):
         return value.value
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
     return value
 
 
@@ -50,6 +53,21 @@ def _truncate_changes(changes: dict | None) -> dict | None:
         else:
             truncated[field] = _truncate_change_value(value)
     return truncated or None
+
+
+def _normalize_changes(changes: dict | None) -> dict | None:
+    if not changes or not isinstance(changes, dict):
+        return changes
+    normalized: dict[str, object] = {}
+    for field, value in changes.items():
+        if isinstance(value, dict) and ("old" in value or "new" in value):
+            normalized[field] = {
+                "old": _normalize_change_value(value.get("old")),
+                "new": _normalize_change_value(value.get("new")),
+            }
+        else:
+            normalized[field] = _normalize_change_value(value)
+    return normalized or None
 
 
 def build_change_set(model: object, updates: dict, *, extra_changes: dict | None = None) -> dict | None:
@@ -111,7 +129,7 @@ async def log_activity(
     if description is None:
         description = _generate_description(entity_type, entity_name, action, changes)
     description = _truncate_text(description, MAX_DESCRIPTION_LENGTH) or ""
-    changes = _truncate_changes(changes)
+    changes = _truncate_changes(_normalize_changes(changes))
     
     entry = ActivityLog(
         entity_type=entity_type.value,

@@ -71,21 +71,13 @@ async def get_current_user(
     should_update = not last_active or (now - last_active) > timedelta(minutes=1)
     
     if should_update:
-        # We need to ensure we don't break the transaction for the caller
-        # But dependencies share the session.
-        # Committing here commits strict/readonly transactions?
-        # Safe strategy: Update logic, let caller or auto-cleanup handle commit?
-        # No, for GET requests nobody commits.
-        # We MUST commit here to save the timestamp.
+        # Update last_active_at in-session. Do NOT commit here to avoid
+        # breaking transaction boundaries for the caller. The update will
+        # be committed by endpoints that write (POST/PUT/DELETE) or flushed
+        # at session cleanup. For read-only GET requests the update may not
+        # persist, which is acceptable for best-effort presence tracking.
         user.last_active_at = now
         db.add(user)
-        try:
-            await db.commit()
-            await db.refresh(user)
-        except Exception as e:
-            # If commit fails (e.g. concurrent update), just ignore. 
-            # Presence tracking is best-effort.
-            pass
 
     return user
 
