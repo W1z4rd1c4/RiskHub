@@ -1,21 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
     ArrowLeft,
     Edit,
     Trash2,
-    Building2,
-    User,
-    Tag,
-    ShieldAlert,
     Star,
-    Clock,
     AlertTriangle,
-    CheckCircle2,
-    FileText,
-    Plus,
-    Link as LinkIcon,
     History,
     Target
 } from 'lucide-react';
@@ -25,40 +15,13 @@ import type { Risk, RiskControlLink, ControlEffectiveness } from '@/types/risk';
 import type { KeyRiskIndicator, KRICreate, KRIUpdate, OverdueKRI } from '@/types/kri';
 import type { HistoryTimelineItem } from '@/types/history';
 import { PermissionGate } from '@/components/PermissionGate';
-import { RiskScoreMatrix } from '@/components/RiskScoreMatrix';
-import { LinkManagementDialog } from '@/components/LinkManagementDialog';
-import { ControlCreateDialog } from '@/components/ControlCreateDialog';
-import { KRIGaugeCard } from '@/components/kri/KRIGaugeCard';
 import { KRIModal } from '@/components/kri/KRIModal';
-import { ControlGaugeCard } from '@/components/controls/ControlGaugeCard';
-import { HistoryTimeline } from '@/components/history';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-
-// Helper to convert hex color to rgba for backgrounds/borders
-function hexToRgba(hex: string, alpha: number): string {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!result) return `rgba(100, 116, 139, ${alpha})`; // slate-500 fallback
-    const r = parseInt(result[1], 16);
-    const g = parseInt(result[2], 16);
-    const b = parseInt(result[3], 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
+import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
+import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 
 type TabView = 'overview' | 'history';
-
-const container = {
-    hidden: { opacity: 0 },
-    show: {
-        opacity: 1,
-        transition: { staggerChildren: 0.1 }
-    }
-};
-
-const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-};
 
 export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -343,349 +306,41 @@ export function RiskDetailPage() {
 
             {/* Overview Tab */}
             {activeTab === 'overview' && (
-                <>
-                    {/* Risk Matrices - Gross vs Net */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="glass-card"
-                    >
-                        <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
-                            <ShieldAlert className="h-5 w-5 text-accent" />
-                            <h3 className="font-bold text-white uppercase tracking-widest text-xs">Risk Assessment</h3>
-                        </div>
-
-                        <div className="flex flex-col md:flex-row items-center justify-center gap-12 md:gap-24 py-4">
-                            <RiskScoreMatrix
-                                probability={risk.gross_probability}
-                                impact={risk.gross_impact}
-                                type="gross"
-                                size="medium"
-                            />
-
-                            <div className="hidden md:block w-px h-32 bg-white/10" />
-                            <div className="md:hidden w-32 h-px bg-white/10" />
-
-                            <RiskScoreMatrix
-                                probability={risk.net_probability}
-                                impact={risk.net_impact}
-                                type="net"
-                                size="medium"
-                            />
-                        </div>
-                    </motion.div>
-
-                    <motion.div
-                        variants={container}
-                        initial="hidden"
-                        animate="show"
-                        className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
-                    >
-                        {/* Classification */}
-                        <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                                <Tag className="h-5 w-5 text-purple-400" />
-                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">Classification</h3>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Type</span>
-                                    {(() => {
-                                        const typeColor = getColor(risk.risk_type);
-                                        return (
-                                            <span
-                                                className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase"
-                                                style={{
-                                                    color: typeColor,
-                                                    backgroundColor: hexToRgba(typeColor, 0.12),
-                                                }}
-                                            >
-                                                {getDisplayName(risk.risk_type)}
-                                            </span>
-                                        );
-                                    })()}
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Category</span>
-                                    <span className="text-sm text-white font-medium">{risk.category || '—'}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Process</span>
-                                    <span className="text-sm text-white font-medium">{risk.process}</span>
-                                </div>
-                                {risk.subprocess && (
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Subprocess</span>
-                                        <span className="text-sm text-slate-300 font-medium">{risk.subprocess}</span>
-                                    </div>
-                                )}
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Priority</span>
-                                    <span className={`flex items-center gap-1 text-sm font-bold ${risk.is_priority ? 'text-amber-400' : 'text-slate-400'}`}>
-                                        {risk.is_priority ? <><Star className="h-3 w-3 fill-amber-400" /> Yes</> : 'No'}
-                                    </span>
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        {/* Ownership */}
-                        <motion.div variants={item} className="glass-card flex flex-col gap-6">
-                            <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                                <User className="h-5 w-5 text-accent" />
-                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">Ownership</h3>
-                            </div>
-
-                            <div className="space-y-5">
-                                <div className="flex gap-3 items-start">
-                                    <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-xs font-bold">
-                                        {risk.owner?.name?.[0] || 'U'}
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Risk Owner</p>
-                                        <p className="text-sm font-bold text-white leading-snug">{risk.owner?.name || 'Unassigned'}</p>
-                                        <p className="text-xs text-slate-500">{risk.owner?.email || ''}</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-3 items-start">
-                                    <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
-                                        <Building2 className="h-4 w-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Department</p>
-                                        <p className="text-sm font-bold text-white leading-snug">{risk.department?.name || 'No Dept'}</p>
-                                        <p className="text-xs text-slate-500 font-mono">{risk.department?.code || ''}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        {/* KRI Section */}
-                        <motion.div variants={item} className="glass-card flex flex-col gap-6 md:col-span-2 lg:col-span-3">
-                            <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                                <div className="flex items-center gap-3">
-                                    <FileText className="h-5 w-5 text-amber-400" />
-                                    <h3 className="font-bold text-white uppercase tracking-widest text-xs">Risk Appetite Indicators</h3>
-                                </div>
-                                <PermissionGate resource="risks" action="write">
-                                    <button
-                                        onClick={() => {
-                                            setSelectedKRI(null);
-                                            setIsKRIModalOpen(true);
-                                        }}
-                                        className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/20 transition-all font-bold"
-                                    >
-                                        <Plus className="h-3 w-3 inline mr-1" /> Add KRI
-                                    </button>
-                                </PermissionGate>
-                            </div>
-
-                            {risk.kris && risk.kris.length > 0 ? (
-                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                    {risk.kris.map(kri => {
-                                        const overdueInfo = overdueKRIs.find(o => o.kri_id === kri.id);
-                                        return (
-                                            <KRIGaugeCard
-                                                key={kri.id}
-                                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                kri={kri as any}
-                                                isOverdue={!!overdueInfo}
-                                                daysOverdue={overdueInfo?.days_overdue}
-                                                onClick={() => {
-                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                    setSelectedKRI(kri as any);
-                                                    setIsKRIModalOpen(true);
-                                                }}
-                                            />
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                                    <p className="text-slate-600 text-sm font-medium mb-2">No Key Risk Indicators (KRIs) configured for this risk.</p>
-                                    <p className="text-[10px] text-slate-700 max-w-xs mx-auto">KRIs help monitor if the risk remains within the organization's appetite framework.</p>
-                                </div>
-                            )}
-                        </motion.div>
-                    </motion.div>
-
-                    {/* Linked Controls */}
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.5 }}
-                        className="glass-card"
-                    >
-                        <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
-                            <div className="flex items-center gap-3">
-                                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">Mitigating Controls</h3>
-                            </div>
-                            <PermissionGate resource="risks" action="write">
-                                <div className="flex items-stretch bg-accent/10 border border-accent/20 rounded-lg overflow-hidden">
-                                    <button
-                                        onClick={() => {
-                                            setDialogMode('search-only');
-                                            setIsLinkDialogOpen(true);
-                                        }}
-                                        className="flex items-center gap-2 px-4 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all border-r border-accent/20"
-                                    >
-                                        <LinkIcon className="h-3 w-3" />
-                                        Link Existing
-                                    </button>
-                                    <button
-                                        onClick={() => setIsCreateDialogOpen(true)}
-                                        className="flex items-center gap-2 px-3 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all"
-                                        title="Create New Control"
-                                    >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        <span>Add control</span>
-                                    </button>
-                                </div>
-                            </PermissionGate>
-                        </div>
-
-                        {(() => {
-                            const activeControls = linkedControls.filter(link =>
-                                link.control?.status !== 'draft' && link.control?.status !== 'archived'
-                            );
-                            const draftControls = linkedControls.filter(link => link.control?.status === 'draft');
-                            const archivedControls = linkedControls.filter(link => link.control?.status === 'archived');
-
-                            return (
-                                <>
-                                    {activeControls.length === 0 && draftControls.length === 0 && archivedControls.length === 0 ? (
-                                        <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                                            <p className="text-xs text-slate-600 font-medium">No controls linked to this risk.</p>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            {activeControls.length > 0 && (
-                                                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                                    {activeControls.map((link) => (
-                                                        <ControlGaugeCard
-                                                            key={link.id}
-                                                            link={link}
-                                                            onClick={() => link.control && navigate(`/controls/${link.control.id}`)}
-                                                        />
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            {draftControls.length > 0 && (
-                                                <div className="mt-8">
-                                                    <h4 className="text-[10px] font-black text-amber-500/70 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                        <span className="w-2 h-2 rounded-full bg-amber-500/50"></span>
-                                                        Draft Controls ({draftControls.length})
-                                                    </h4>
-                                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-60">
-                                                        {draftControls.map((link) => (
-                                                            <ControlGaugeCard
-                                                                key={link.id}
-                                                                link={link}
-                                                                onClick={() => link.control && navigate(`/controls/${link.control.id}`)}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                    <p className="text-[10px] text-slate-600 italic mt-3">Draft controls are not yet active and won't be included in compliance metrics.</p>
-                                                </div>
-                                            )}
-
-                                            {archivedControls.length > 0 && (
-                                                <div className="mt-8">
-                                                    <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                        <span className="w-2 h-2 rounded-full bg-slate-600"></span>
-                                                        Archived Controls ({archivedControls.length})
-                                                    </h4>
-                                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-40 hover:opacity-100 transition-opacity">
-                                                        {archivedControls.map((link) => (
-                                                            <ControlGaugeCard
-                                                                key={link.id}
-                                                                link={link}
-                                                                onClick={() => link.control && navigate(`/controls/${link.control.id}`)}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </>
-                                    )}
-                                </>
-                            );
-                        })()}
-
-                        <PermissionGate resource="risks" action="write">
-                            <button
-                                onClick={() => {
-                                    setDialogMode('links-only');
-                                    setIsLinkDialogOpen(true);
-                                }}
-                                className="w-full mt-6 py-3 border border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-all"
-                            >
-                                Manage Existing Links
-                            </button>
-                        </PermissionGate>
-
-                        <LinkManagementDialog
-                            isOpen={isLinkDialogOpen}
-                            onClose={() => setIsLinkDialogOpen(false)}
-                            mode="risk-to-control"
-                            existingLinks={linkedControls}
-                            onLink={handleLinkControl}
-                            onUnlink={handleUnlinkControl}
-                            showSearch={dialogMode !== 'links-only'}
-                            showLinks={dialogMode !== 'search-only'}
-                        />
-
-                        <ControlCreateDialog
-                            isOpen={isCreateDialogOpen}
-                            onClose={() => setIsCreateDialogOpen(false)}
-                            onSuccess={() => {
-                                setIsCreateDialogOpen(false);
-                                fetchData();
-                            }}
-                        />
-                    </motion.div>
-
-                    {/* Timestamps */}
-                    <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">
-                        <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            Created: {new Date(risk.created_at).toLocaleDateString()}
-                        </div>
-                        <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            Updated: {new Date(risk.updated_at).toLocaleDateString()}
-                        </div>
-                    </div>
-                </>
+                <RiskDetailOverviewTab
+                    risk={risk}
+                    linkedControls={linkedControls}
+                    overdueKRIs={overdueKRIs}
+                    getColor={getColor}
+                    getDisplayName={getDisplayName}
+                    onOpenAddKri={() => {
+                        setSelectedKRI(null);
+                        setIsKRIModalOpen(true);
+                    }}
+                    onOpenKri={(kri) => {
+                        setSelectedKRI(kri);
+                        setIsKRIModalOpen(true);
+                    }}
+                    onLinkControl={handleLinkControl}
+                    onUnlinkControl={handleUnlinkControl}
+                    onOpenCreateControl={() => setIsCreateDialogOpen(true)}
+                    onNavigateToControl={(controlId) => navigate(`/controls/${controlId}`)}
+                    onRefreshData={fetchData}
+                    isLinkDialogOpen={isLinkDialogOpen}
+                    setIsLinkDialogOpen={setIsLinkDialogOpen}
+                    dialogMode={dialogMode}
+                    setDialogMode={setDialogMode}
+                    isCreateDialogOpen={isCreateDialogOpen}
+                    setIsCreateDialogOpen={setIsCreateDialogOpen}
+                />
             )}
 
             {/* History Tab */}
             {activeTab === 'history' && (
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="glass-card"
-                >
-                    <h3 className="text-xs font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
-                        <History className="h-4 w-4 text-accent" />
-                        Aggregated KRI History
-                        {kriHistoryItems.length > 0 && (
-                            <span className="text-slate-500 font-normal">({kriHistoryItems.length} entries)</span>
-                        )}
-                    </h3>
-
-                    <HistoryTimeline
-                        items={kriHistoryItems}
-                        loading={isHistoryLoading}
-                        emptyMessage={
-                            risk.kris && risk.kris.length > 0
-                                ? 'No KRI values have been recorded yet.'
-                                : 'This risk has no KRIs configured. Add KRIs from the Overview tab to start tracking history.'
-                        }
-                    />
-                </motion.div>
+                <RiskDetailKriHistoryTab
+                    items={kriHistoryItems}
+                    loading={isHistoryLoading}
+                    hasKRIs={!!(risk.kris && risk.kris.length > 0)}
+                />
             )}
 
             {risk && (
