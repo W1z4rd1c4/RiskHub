@@ -93,5 +93,21 @@
         "unlink": "Unlink",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
+    },
+    "audit_trail": {
+        "title": "Audit Trail",
+        "subtitle": "Global log of all control executions and compliance checks.",
+        "all_results": "All Results",
+        "total_records": "{{count}} Total Records",
+        "columns": {
+            "date_time": "Date/Time",
+            "control": "Control",
+            "owner": "Owner",
+            "risk": "Risk",
+            "executor": "Executor",
+            "result": "Result",
+            "key_finding": "Key Finding",
+            "action": "Action"
+        }
     }
 }

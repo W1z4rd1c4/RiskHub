@@ -93,5 +93,21 @@
         "unlink": "Odpojit",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
+    },
+    "audit_trail": {
+        "title": "Auditní stopa",
+        "subtitle": "Globální přehled všech exekucí kontrol a kontroly shody.",
+        "all_results": "Všechny výsledky",
+        "total_records": "{{count}} celkem záznamů",
+        "columns": {
+            "date_time": "Datum/Čas",
+            "control": "Kontrola",
+            "owner": "Vlastník",
+            "risk": "Riziko",
+            "executor": "Provedl",
+            "result": "Výsledek",
+            "key_finding": "Klíčové zjištění",
+            "action": "Akce"
+        }
     }
 }

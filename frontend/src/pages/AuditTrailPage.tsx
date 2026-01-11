@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
     ClipboardCheck,
     Filter,
@@ -22,6 +23,7 @@ import { Pagination } from '@/components/tables';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 export function AuditTrailPage() {
+    const { t } = useTranslation('controls');
     const navigate = useNavigate();
 
     const [executions, setExecutions] = useState<ControlExecution[]>([]);
@@ -83,8 +85,8 @@ export function AuditTrailPage() {
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-black text-white mb-2">Audit Trail</h2>
-                    <p className="text-slate-500 font-medium">Global log of all control executions and compliance checks.</p>
+                    <h2 className="text-3xl font-black text-white mb-2">{t('audit_trail.title', 'Audit Trail')}</h2>
+                    <p className="text-slate-500 font-medium">{t('audit_trail.subtitle', 'Global log of all control executions and compliance checks.')}</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -114,15 +116,15 @@ export function AuditTrailPage() {
                         <ThemedSelect
                             value={resultFilter}
                             onValueChange={(v) => setResultFilter(v as ExecutionResult | '')}
-                            placeholder="All Results"
+                            placeholder={t('audit_trail.all_results', 'All Results')}
                             allowEmpty
-                            emptyLabel="All Results"
+                            emptyLabel={t('audit_trail.all_results', 'All Results')}
                             className="flex-1"
                             options={[
-                                { value: 'passed', label: 'Passed' },
-                                { value: 'failed', label: 'Failed' },
-                                { value: 'warning', label: 'Warning' },
-                                { value: 'not_applicable', label: 'N/A' },
+                                { value: 'passed', label: t('results.passed', 'Passed') },
+                                { value: 'failed', label: t('results.failed', 'Failed') },
+                                { value: 'warning', label: t('results.warning', 'Warning') },
+                                { value: 'not_applicable', label: t('results.not_applicable', 'N/A') },
                             ]}
                         />
                     </div>
@@ -131,7 +133,7 @@ export function AuditTrailPage() {
 
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-500 px-4">
                         <ClipboardCheck className="h-4 w-4" />
-                        {executions.length} Total Records
+                        {t('audit_trail.total_records', '{{count}} Total Records', { count: executions.length })}
                     </div>
                 </div>
             </div>
@@ -141,14 +143,14 @@ export function AuditTrailPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-white/5 bg-white/[0.02]">
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Date/Time</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Control</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Owner</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Risk</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Executor</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">Result</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">Key Finding</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">Action</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.date_time', 'Date/Time')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.control', 'Control')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.owner', 'Owner')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.risk', 'Risk')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.executor', 'Executor')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">{t('audit_trail.columns.result', 'Result')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.key_finding', 'Key Finding')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">{t('audit_trail.columns.action', 'Action')}</th>
                             </tr>
                         </thead>
                         <tbody

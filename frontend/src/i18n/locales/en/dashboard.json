@@ -40,6 +40,7 @@
         "risk_committee": "Risk Committee"
     },
     "sections": {
+        "quarterly_comparison": "Quarterly Comparison",
         "control_analytics": "Control Analytics",
         "control_execution_trends": "Control Execution Trends",
         "gross_risk_matrix": "Gross Risk Matrix",
@@ -48,7 +49,45 @@
         "risk_creation_trends": "Risk Creation Trends",
         "kri_breach_history": "KRI Breach History",
         "departmental_visibility": "Departmental Visibility",
-        "no_execution_history": "No execution history available"
+        "no_execution_history": "No execution history available",
+        "critical_risks": "Critical Risks",
+        "risk_exposure_by_dept": "Risk Exposure by Dept",
+        "recent_activity": "Recent Activity"
+    },
+    "quarterly": {
+        "new_risks": "New Risks",
+        "closed_risks": "Closed Risks",
+        "active_risks": "Active Risks",
+        "priority_risks": "Priority Risks",
+        "kri_breaches": "KRI Breaches",
+        "pending_approvals": "Pending Approvals",
+        "audit_activity": "Audit Activity",
+        "failed_audits": "Failed Audits",
+        "control_coverage": "Control Coverage %",
+        "unaudited_controls": "Unaudited Controls",
+        "orphaned_items": "Orphaned Items",
+        "kri_health": "KRI Health %",
+        "overdue_kris": "Overdue KRIs",
+        "activity_volume": "Activity Volume",
+        "risks_without_kri": "Risks Without KRI"
+    },
+    "kri": {
+        "all_current": "All KRIs Current",
+        "no_due_soon": "No KRIs are due soon or overdue.",
+        "no_overdue": "No KRIs are overdue for reporting.",
+        "active_breaches": "Active Breaches",
+        "view_risk_register": "View Risk Register"
+    },
+    "charts": {
+        "draft": "Draft",
+        "active": "Active",
+        "manual": "Manual",
+        "automatic": "Automatic",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "uncategorised": "Uncategorised"
     },
     "errors": {
         "connection_interrupted": "Connection Interrupted",
