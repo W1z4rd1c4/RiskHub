@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface ConfirmDialogProps {
     isOpen: boolean;
@@ -49,20 +50,26 @@ export function ConfirmDialog({
     onConfirm,
     title,
     message,
-    confirmLabel = 'Confirm',
-    cancelLabel = 'Cancel',
+    confirmLabel,
+    cancelLabel,
     variant = 'danger',
     isLoading = false,
     showInput = false,
     inputLabel,
-    inputPlaceholder = 'Enter reason...',
+    inputPlaceholder,
     inputRequired = true,
 }: ConfirmDialogProps) {
+    const { t } = useTranslation('common');
     const confirmRef = useRef<HTMLButtonElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const [inputValue, setInputValue] = useState('');
     const styles = variantStyles[variant];
     const IconComponent = styles.icon;
+
+    // Use translations for defaults
+    const resolvedConfirmLabel = confirmLabel ?? t('actions.confirm');
+    const resolvedCancelLabel = cancelLabel ?? t('actions.cancel');
+    const resolvedInputPlaceholder = inputPlaceholder ?? t('labels.notes');
 
     // Reset input when dialog opens/closes
     useEffect(() => {
@@ -148,7 +155,7 @@ export function ConfirmDialog({
                                         ref={inputRef}
                                         value={inputValue}
                                         onChange={(e) => setInputValue(e.target.value)}
-                                        placeholder={inputPlaceholder}
+                                        placeholder={resolvedInputPlaceholder}
                                         rows={3}
                                         className="confirm-dialog-input w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder:text-slate-500 outline-none focus:border-accent/50 transition-all resize-none"
                                     />
@@ -162,7 +169,7 @@ export function ConfirmDialog({
                                     disabled={isLoading}
                                     className="px-4 py-2.5 text-sm font-semibold text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all disabled:opacity-50"
                                 >
-                                    {cancelLabel}
+                                    {resolvedCancelLabel}
                                 </button>
                                 <button
                                     ref={confirmRef}
@@ -173,10 +180,10 @@ export function ConfirmDialog({
                                     {isLoading ? (
                                         <span className="flex items-center gap-2">
                                             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            Processing...
+                                            {t('labels.loading')}
                                         </span>
                                     ) : (
-                                        confirmLabel
+                                        resolvedConfirmLabel
                                     )}
                                 </button>
                             </div>

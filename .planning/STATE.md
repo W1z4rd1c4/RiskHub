@@ -167,10 +167,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 20-01: i18n Infrastructure Setup. Installed react-i18next with language detection, created 20 translation files (10 EN, 10 CS) with comprehensive ERM terminology, integrated with main.tsx and LocalizationSettings.tsx, created type-safe hooks for translation, date, and number formatting.
+- Completed Plan 20-02: Frontend Core Components Translation. Added i18n to Sidebar, Header, ConfirmDialog, ArchiveConfirmDialog, Pagination, and AppearanceSettings. Updated EN/CS translation files with navigation, common, and settings keys.
 
 ### Next Step
-- Continue Phase 20 Czech Localization with Plan 20-02 (component-level translation integration).
+- Continue Phase 20 Czech Localization with Plan 20-03 (Risk pages localization).
 
 
 
