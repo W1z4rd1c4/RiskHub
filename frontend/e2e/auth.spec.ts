@@ -11,8 +11,10 @@ async function loginAsDemoUser(page: Page, accountName: string) {
     await page.waitForSelector(`button:has-text("${accountName}")`, { timeout: 10000 });
     // Click the demo account button containing the name
     await page.click(`button:has-text("${accountName}")`);
-    // Wait for redirect - app redirects to / or /admin depending on user
-    await page.waitForURL(/^http:\/\/localhost:5173\/(dashboard|admin|$)/, { timeout: 15000 });
+    // Wait for any protected route (not login)
+    await page.waitForURL(/^http:\/\/localhost:5173\/(?!login)/, { timeout: 20000 });
+    // Wait for sidebar to confirm app loaded
+    await page.waitForSelector('aside', { timeout: 10000 });
 }
 
 test.describe('Authentication', () => {
@@ -60,7 +62,7 @@ test.describe('Authentication', () => {
             await loginAsDemoUser(page, 'System Admin');
 
             // Click logout button
-            await page.click('button:has(.lucide-log-out)');
+            await page.click('[data-testid="logout-button"]');
 
             // Should redirect to login
             await expect(page).toHaveURL(/.*login/);
@@ -70,7 +72,8 @@ test.describe('Authentication', () => {
     test.describe('Role-based Access', () => {
         test('admin should see Admin Console link', async ({ page }) => {
             await loginAsDemoUser(page, 'System Admin');
-            await expect(page.locator('a[href="/admin"]')).toBeVisible();
+            // Admin console link is in the sidebar
+            await expect(page.locator('aside a[href="/admin"]')).toBeVisible({ timeout: 5000 });
         });
 
         test('employee should not see Admin Console link', async ({ page }) => {

@@ -68,7 +68,7 @@ export class DashboardPage {
 
     // Logout button
     get logoutButton(): Locator {
-        return this.page.locator('button:has(.lucide-log-out)');
+        return this.page.locator('[data-testid="logout-button"]');
     }
 
     // Actions

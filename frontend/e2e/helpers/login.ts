@@ -53,8 +53,8 @@ export async function loginAsDemoUser(
  * @param page - Playwright page object
  */
 export async function logout(page: Page): Promise<void> {
-    // Click logout button (has lucide log-out icon)
-    await page.click('button:has(.lucide-log-out)');
+    // Click logout button (has data-testid)
+    await page.click('[data-testid="logout-button"]');
 
     // Wait for redirect to login page
     await page.waitForURL(/.*login/, { timeout: 10000 });
