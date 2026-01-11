@@ -1,11 +1,12 @@
 {
-    "title": "Settings",
-    "page_subtitle": "Configure your preferences",
+    "title": "Platform Settings",
+    "page_subtitle": "Manage your profile and personalize your experience",
     "tabs": {
         "profile": "Profile",
         "appearance": "Appearance",
         "notifications": "Notifications",
-        "localization": "Localization"
+        "localization": "Localization",
+        "documentation": "Help & Docs"
     },
     "profile": {
         "title": "Profile Settings",
@@ -13,7 +14,11 @@
         "email": "Email Address",
         "department": "Department",
         "role": "Role",
-        "last_login": "Last Login"
+        "last_login": "Last Login",
+        "your_identity": "Your Identity",
+        "your_permissions": "Your Permissions",
+        "access_scope": "Access Scope",
+        "ad_notice": "Your profile is managed by your organization's Active Directory. Contact your IT administrator to update your information."
     },
     "appearance": {
         "title": "Theme",
