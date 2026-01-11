@@ -483,6 +483,7 @@ async def cancel_request(
     
     # Update status
     approval.status = ApprovalStatus.CANCELLED
+    approval.resolved_by_id = current_user.id
     approval.resolved_at = datetime.now(UTC)
     
     # Log activity for cancellation
@@ -492,7 +493,7 @@ async def cancel_request(
         entity_type=ActivityEntityType.APPROVAL,
         entity_id=approval.id,
         entity_name=approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}",
-        action=ActivityAction.DELETE,
+        action=ActivityAction.CANCEL,
         actor=current_user,
         department_id=department_id,
         description="Approval request cancelled by requester",

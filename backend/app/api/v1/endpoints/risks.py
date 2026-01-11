@@ -61,7 +61,7 @@ async def generate_risk_id_code(db: AsyncSession, process: str) -> str:
         select(Risk.risk_id_code)
         .where(Risk.risk_id_code.like(pattern))
         .order_by(Risk.risk_id_code.desc())
-        .limit(10)
+        .limit(100)
     )
     existing_codes = [row[0] for row in result.all()]
     
