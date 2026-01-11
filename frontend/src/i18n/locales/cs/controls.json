@@ -1,6 +1,7 @@
 {
     "title": "Katalog kontrol",
-    "page_subtitle": "Správa definic a exekuce kontrol",
+    "page_subtitle": "Správa a audit organizačních rizikových kontrol podle 13bodového standardu.",
+    "new_control": "Nová kontrola",
     "create_control": "Vytvořit kontrolu",
     "edit_control": "Upravit kontrolu",
     "view_control": "Zobrazit kontrolu",
@@ -65,12 +66,27 @@
         "all_frequencies": "Všechny frekvence",
         "all_departments": "Všechna oddělení",
         "all_owners": "Všichni vlastníci",
-        "overdue_only": "Pouze opožděné"
+        "all_statuses": "Všechny stavy",
+        "overdue_only": "Pouze opožděné",
+        "search_placeholder": "Hledat podle názvu, popisu, rizika nebo oddělení..."
     },
     "empty_state": {
-        "no_controls": "Nebyly nalezeny žádné kontroly",
+        "no_controls": "Nebyly nalezeny žádné kontroly odpovídající kritériím.",
         "no_executions": "Žádná historie exekuce",
         "no_linked_risks": "Žádné propojené rizika"
+    },
+    "errors": {
+        "load_failed": "Nepodařilo se načíst kontroly. Zkontrolujte prosím připojení.",
+        "title": "Chyba při načítání kontrol",
+        "try_again": "Zkusit znovu"
+    },
+    "columns": {
+        "name": "Název",
+        "department": "Oddělení",
+        "frequency": "Frekvence",
+        "risk_level": "Úroveň rizika",
+        "status": "Stav",
+        "pending": "Čeká"
     },
     "actions": {
         "link_risk": "Propojit riziko",

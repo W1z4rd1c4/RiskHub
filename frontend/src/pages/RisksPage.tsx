@@ -1,6 +1,6 @@
-
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
     Plus,
     Search,
@@ -64,6 +64,7 @@ export function RisksPage() {
     // Risk Hub configuration
     const { riskTypes, getColor, getInitials, getDisplayName } = useRiskTypes();
     const { getScoreColor } = useRiskThresholds();
+    const { t } = useTranslation('risks');
     const limit = 10;
 
     useEffect(() => {
@@ -156,7 +157,7 @@ export function RisksPage() {
             setError(null);
         } catch (err) {
             console.error('[RisksPage] Error fetching risks:', err);
-            setError('Failed to load risks. Please check your connection.');
+            setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
         }
@@ -204,7 +205,7 @@ export function RisksPage() {
     const columns: Column<RiskSummary>[] = useMemo(() => [
         {
             key: 'name',
-            label: 'Name',
+            label: t('columns.name'),
             className: 'w-[450px] min-w-[300px]',
             sortable: true,
             render: (risk) => (
@@ -217,7 +218,7 @@ export function RisksPage() {
                         {pendingApprovalIds.has(risk.id) && (
                             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20" title="Changes Pending Approval">
                                 <Lock className="h-2.5 w-2.5" />
-                                Pending
+                                {t('columns.pending')}
                             </div>
                         )}
                     </div>
@@ -227,7 +228,7 @@ export function RisksPage() {
         },
         {
             key: 'category',
-            label: 'Category',
+            label: t('columns.category'),
             sortable: true,
             render: (risk) => (
                 <span className="text-xs font-medium text-slate-400">{risk.category || '—'}</span>
@@ -235,7 +236,7 @@ export function RisksPage() {
         },
         {
             key: 'description',
-            label: 'Description',
+            label: t('columns.description'),
             sortable: true,
             render: (risk) => {
                 const text = risk.description || '';
@@ -254,7 +255,7 @@ export function RisksPage() {
         },
         {
             key: 'risk_type',
-            label: 'Type',
+            label: t('columns.type'),
             sortable: true,
             className: 'text-center',
             render: (risk) => {
@@ -278,7 +279,7 @@ export function RisksPage() {
         },
         {
             key: 'gross_score',
-            label: 'Gross',
+            label: t('columns.gross'),
             sortable: true,
             className: 'text-center',
             render: (risk) => (
@@ -291,7 +292,7 @@ export function RisksPage() {
         },
         {
             key: 'net_score',
-            label: 'Net',
+            label: t('columns.net'),
             sortable: true,
             className: 'text-center',
             render: (risk) => (
@@ -304,7 +305,7 @@ export function RisksPage() {
         },
         {
             key: 'status',
-            label: 'Status',
+            label: t('fields.status'),
             sortable: true,
             render: (risk) => (
                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getStatusColor(risk.status)}`}>
@@ -314,7 +315,7 @@ export function RisksPage() {
         },
         {
             key: 'control_count',
-            label: 'Controls',
+            label: t('columns.controls'),
             sortable: true,
             className: 'text-center',
             render: (risk) => {
@@ -331,7 +332,7 @@ export function RisksPage() {
         },
         {
             key: 'kri_count',
-            label: 'KRIs',
+            label: t('columns.kris'),
             sortable: true,
             className: 'text-center',
             render: (risk) => {
@@ -383,8 +384,8 @@ export function RisksPage() {
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-black text-white mb-2">Risk Register</h2>
-                    <p className="text-slate-500 font-medium tracking-tight">Track and manage organizational risks with gross/net scoring from OS 18.</p>
+                    <h2 className="text-3xl font-black text-white mb-2">{t('title')}</h2>
+                    <p className="text-slate-500 font-medium tracking-tight">{t('page_subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
@@ -409,7 +410,7 @@ export function RisksPage() {
                             className="btn-primary"
                         >
                             <Plus className="h-5 w-5" />
-                            New Risk
+                            {t('new_risk')}
                         </button>
                     </PermissionGate>
                 </div>
@@ -424,7 +425,7 @@ export function RisksPage() {
                     <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
                     <input
                         type="text"
-                        placeholder="Search by name, process or category..."
+                        placeholder={t('filters.search_placeholder')}
                         value={search}
                         onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
@@ -434,21 +435,21 @@ export function RisksPage() {
                     <ThemedSelect
                         value={statusFilter}
                         onValueChange={(v) => { setStatusFilter(v as RiskStatus | ''); setRisks([]); setCurrentPage(1); }}
-                        placeholder="All Statuses"
+                        placeholder={t('filters.all_statuses')}
                         allowEmpty
-                        emptyLabel="All Statuses"
+                        emptyLabel={t('filters.all_statuses')}
                         options={[
-                            { value: 'active', label: 'Active' },
-                            { value: 'monitoring', label: 'Monitoring' },
-                            { value: 'closed', label: 'Closed' },
+                            { value: 'active', label: t('status.active') },
+                            { value: 'monitoring', label: t('status.mitigated') },
+                            { value: 'closed', label: t('status.closed') },
                         ]}
                     />
                     <ThemedSelect
                         value={typeFilter}
                         onValueChange={(v) => { setTypeFilter(v); setRisks([]); setCurrentPage(1); }}
-                        placeholder="All Types"
+                        placeholder={t('filters.all_types')}
                         allowEmpty
-                        emptyLabel="All Types"
+                        emptyLabel={t('filters.all_types')}
                         options={riskTypes.map(rt => ({ value: rt.code, label: rt.display_name }))}
                     />
                     <button
@@ -501,10 +502,10 @@ export function RisksPage() {
                 <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
                     <AlertCircle className="h-12 w-12 text-rose-500" />
                     <div>
-                        <p className="text-white font-bold text-xl">Error Loading Risks</p>
+                        <p className="text-white font-bold text-xl">{t('errors.title')}</p>
                         <p className="text-slate-500 max-w-sm mx-auto">{error}</p>
                     </div>
-                    <button onClick={fetchRisks} className="text-accent font-bold hover:underline">Try Again</button>
+                    <button onClick={fetchRisks} className="text-accent font-bold hover:underline">{t('errors.try_again')}</button>
                 </div>
             ) : isLoading ? (
                 <div className="glass-card !p-0 overflow-hidden">
@@ -540,7 +541,7 @@ export function RisksPage() {
                         columns={columns}
                         keyExtractor={(risk) => risk.id}
                         onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
-                        emptyMessage="No risks found matching your criteria."
+                        emptyMessage={t('empty_state.no_risks')}
                         sortKey={sortField}
                         sortDirection={sortDirection}
                         onSort={(key, direction) => {
@@ -572,7 +573,7 @@ export function RisksPage() {
                             columns={columns}
                             keyExtractor={(risk) => risk.id}
                             onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
-                            emptyMessage="No risks in this category."
+                            emptyMessage={t('empty_state.no_risks')}
                         />
                     )}
                     renderGroupExtra={(items) => (
