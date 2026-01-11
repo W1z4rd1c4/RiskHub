@@ -1,0 +1,60 @@
+{
+    "title": "Settings",
+    "page_subtitle": "Configure your preferences",
+    "tabs": {
+        "profile": "Profile",
+        "appearance": "Appearance",
+        "notifications": "Notifications",
+        "localization": "Localization"
+    },
+    "profile": {
+        "title": "Profile Settings",
+        "name": "Display Name",
+        "email": "Email Address",
+        "department": "Department",
+        "role": "Role",
+        "last_login": "Last Login"
+    },
+    "appearance": {
+        "title": "Appearance Settings",
+        "theme": "Theme",
+        "theme_light": "Light",
+        "theme_dark": "Dark",
+        "theme_system": "System",
+        "density": "Display Density",
+        "density_comfortable": "Comfortable",
+        "density_compact": "Compact"
+    },
+    "notifications": {
+        "title": "Notification Settings",
+        "email_notifications": "Email Notifications",
+        "browser_notifications": "Browser Notifications",
+        "approval_requests": "Approval Requests",
+        "kri_breaches": "KRI Breaches",
+        "overdue_items": "Overdue Items",
+        "system_updates": "System Updates"
+    },
+    "localization": {
+        "title": "Localization Settings",
+        "language": "Display Language",
+        "language_description": "Select your preferred language for the RiskHub interface.",
+        "date_format": "Date Format",
+        "number_format": "Number Format",
+        "timezone": "Timezone",
+        "coming_soon": "Coming Soon",
+        "coming_soon_message": "Full language translation is currently in development. Your preference will be saved and applied automatically once translations are available.",
+        "current_preference": "Current language preference:"
+    },
+    "languages": {
+        "en": "English",
+        "cs": "Czech"
+    },
+    "actions": {
+        "save_changes": "Save Changes",
+        "reset_defaults": "Reset to Defaults"
+    },
+    "messages": {
+        "saved": "Settings saved successfully",
+        "reset": "Settings reset to defaults"
+    }
+}

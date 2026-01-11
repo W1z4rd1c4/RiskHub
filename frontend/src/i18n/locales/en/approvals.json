@@ -1,0 +1,80 @@
+{
+    "title": "Approvals",
+    "page_subtitle": "Review and manage approval requests",
+    "tabs": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled",
+        "all": "All"
+    },
+    "status": {
+        "pending": "Pending",
+        "pending_privileged": "Pending Privileged Review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
+    },
+    "request_types": {
+        "create": "Create",
+        "update": "Update",
+        "delete": "Delete"
+    },
+    "entity_types": {
+        "risk": "Risk",
+        "control": "Control",
+        "kri": "KRI"
+    },
+    "fields": {
+        "request_type": "Request Type",
+        "entity_type": "Entity Type",
+        "entity_name": "Entity Name",
+        "requested_by": "Requested By",
+        "requested_at": "Requested At",
+        "reviewed_by": "Reviewed By",
+        "reviewed_at": "Reviewed At",
+        "status": "Status",
+        "changes": "Changes",
+        "reason": "Reason"
+    },
+    "actions": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "cancel": "Cancel Request",
+        "view_details": "View Details",
+        "view_changes": "View Changes"
+    },
+    "dialogs": {
+        "approve_title": "Approve Request",
+        "approve_message": "Are you sure you want to approve this request?",
+        "reject_title": "Reject Request",
+        "reject_message": "Please provide a reason for rejection:",
+        "reject_reason_placeholder": "Enter rejection reason...",
+        "cancel_title": "Cancel Request",
+        "cancel_message": "Are you sure you want to cancel this request?"
+    },
+    "workflow": {
+        "title": "Approval Workflow",
+        "4_eyes_principle": "Four-Eyes Principle",
+        "tiered_approval": "Tiered Approval",
+        "primary_approver": "Primary Approver",
+        "privileged_approver": "Privileged Approver",
+        "self_approval_prohibited": "Self-approval is not permitted"
+    },
+    "changes": {
+        "field": "Field",
+        "old_value": "Old Value",
+        "new_value": "New Value",
+        "no_changes": "No changes"
+    },
+    "empty_state": {
+        "no_pending": "No pending approvals",
+        "no_history": "No approval history",
+        "no_requests": "No approval requests"
+    },
+    "notifications": {
+        "approved": "Request approved successfully",
+        "rejected": "Request rejected",
+        "cancelled": "Request cancelled"
+    }
+}

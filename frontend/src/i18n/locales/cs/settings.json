@@ -1,0 +1,60 @@
+{
+    "title": "Nastavení",
+    "page_subtitle": "Konfigurujte své preference",
+    "tabs": {
+        "profile": "Profil",
+        "appearance": "Vzhled",
+        "notifications": "Oznámení",
+        "localization": "Jazyk"
+    },
+    "profile": {
+        "title": "Nastavení profilu",
+        "name": "Zobrazované jméno",
+        "email": "E-mailová adresa",
+        "department": "Oddělení",
+        "role": "Role",
+        "last_login": "Poslední přihlášení"
+    },
+    "appearance": {
+        "title": "Nastavení vzhledu",
+        "theme": "Motiv",
+        "theme_light": "Světlý",
+        "theme_dark": "Tmavý",
+        "theme_system": "Systémový",
+        "density": "Hustota zobrazení",
+        "density_comfortable": "Pohodlné",
+        "density_compact": "Kompaktní"
+    },
+    "notifications": {
+        "title": "Nastavení oznámení",
+        "email_notifications": "E-mailová oznámení",
+        "browser_notifications": "Oznámení v prohlížeči",
+        "approval_requests": "Žádosti o schválení",
+        "kri_breaches": "Překročení KRI",
+        "overdue_items": "Opožděné položky",
+        "system_updates": "Systémové aktualizace"
+    },
+    "localization": {
+        "title": "Nastavení jazyka",
+        "language": "Jazyk rozhraní",
+        "language_description": "Vyberte preferovaný jazyk pro rozhraní RiskHub.",
+        "date_format": "Formát data",
+        "number_format": "Formát čísla",
+        "timezone": "Časové pásmo",
+        "coming_soon": "Již brzy",
+        "coming_soon_message": "Plný překlad je v současné době ve vývoji. Vaše preference bude uložena a automaticky aplikována, jakmile budou překlady k dispozici.",
+        "current_preference": "Aktuální jazyková preference:"
+    },
+    "languages": {
+        "en": "Angličtina",
+        "cs": "Čeština"
+    },
+    "actions": {
+        "save_changes": "Uložit změny",
+        "reset_defaults": "Obnovit výchozí"
+    },
+    "messages": {
+        "saved": "Nastavení bylo úspěšně uloženo",
+        "reset": "Nastavení bylo obnoveno na výchozí hodnoty"
+    }
+}

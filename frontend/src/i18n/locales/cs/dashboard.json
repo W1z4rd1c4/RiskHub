@@ -1,0 +1,48 @@
+{
+    "title": "Přehled",
+    "welcome": "Vítejte zpět, {{name}}",
+    "widgets": {
+        "risk_overview": "Přehled rizik",
+        "control_status": "Stav kontrol",
+        "kri_summary": "Souhrn KRI",
+        "pending_approvals": "Čekající schválení",
+        "recent_activity": "Nedávná aktivita",
+        "risk_heatmap": "Riziková heatmapa",
+        "risk_trend": "Trend rizik",
+        "department_summary": "Souhrn oddělení",
+        "breach_alerts": "Upozornění na překročení"
+    },
+    "metrics": {
+        "total_risks": "Celkem rizik",
+        "high_priority": "Vysoká priorita",
+        "critical_risks": "Kritická rizika",
+        "pending_approval": "Čeká na schválení",
+        "active_controls": "Aktivní kontroly",
+        "control_coverage": "Pokrytí kontrolami",
+        "kri_breaches": "Překročení KRI",
+        "overdue_items": "Opožděné položky"
+    },
+    "filters": {
+        "department": "Oddělení",
+        "time_period": "Období",
+        "view_mode": "Režim zobrazení"
+    },
+    "time_periods": {
+        "today": "Dnes",
+        "this_week": "Tento týden",
+        "this_month": "Tento měsíc",
+        "this_quarter": "Toto čtvrtletí",
+        "this_year": "Tento rok"
+    },
+    "empty_state": {
+        "no_risks": "Žádná rizika k zobrazení",
+        "no_pending_approvals": "Žádná čekající schválení",
+        "no_breaches": "Nebylo zjištěno překročení KRI"
+    },
+    "risk_committee": {
+        "title": "Výbor pro řízení rizik",
+        "meeting_mode": "Režim schůze",
+        "executive_summary": "Manažerský přehled",
+        "quarterly_metrics": "Čtvrtletní metriky"
+    }
+}

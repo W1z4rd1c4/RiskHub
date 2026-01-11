@@ -1,0 +1,80 @@
+{
+    "title": "Schvalování",
+    "page_subtitle": "Kontrola a správa žádostí o schválení",
+    "tabs": {
+        "pending": "Čekající",
+        "approved": "Schválené",
+        "rejected": "Zamítnuté",
+        "cancelled": "Zrušené",
+        "all": "Vše"
+    },
+    "status": {
+        "pending": "Čeká",
+        "pending_privileged": "Čeká na privilegované schválení",
+        "approved": "Schváleno",
+        "rejected": "Zamítnuto",
+        "cancelled": "Zrušeno"
+    },
+    "request_types": {
+        "create": "Vytvoření",
+        "update": "Aktualizace",
+        "delete": "Smazání"
+    },
+    "entity_types": {
+        "risk": "Riziko",
+        "control": "Kontrola",
+        "kri": "KRI"
+    },
+    "fields": {
+        "request_type": "Typ žádosti",
+        "entity_type": "Typ entity",
+        "entity_name": "Název entity",
+        "requested_by": "Žádal",
+        "requested_at": "Datum žádosti",
+        "reviewed_by": "Schválil",
+        "reviewed_at": "Datum schválení",
+        "status": "Stav",
+        "changes": "Změny",
+        "reason": "Důvod"
+    },
+    "actions": {
+        "approve": "Schválit",
+        "reject": "Zamítnout",
+        "cancel": "Zrušit žádost",
+        "view_details": "Zobrazit podrobnosti",
+        "view_changes": "Zobrazit změny"
+    },
+    "dialogs": {
+        "approve_title": "Schválit žádost",
+        "approve_message": "Opravdu chcete schválit tuto žádost?",
+        "reject_title": "Zamítnout žádost",
+        "reject_message": "Uveďte prosím důvod zamítnutí:",
+        "reject_reason_placeholder": "Zadejte důvod zamítnutí...",
+        "cancel_title": "Zrušit žádost",
+        "cancel_message": "Opravdu chcete zrušit tuto žádost?"
+    },
+    "workflow": {
+        "title": "Schvalovací workflow",
+        "4_eyes_principle": "Princip čtyř očí",
+        "tiered_approval": "Víceúrovňové schvalování",
+        "primary_approver": "Primární schvalovatel",
+        "privileged_approver": "Privilegovaný schvalovatel",
+        "self_approval_prohibited": "Vlastní schválení není povoleno"
+    },
+    "changes": {
+        "field": "Pole",
+        "old_value": "Původní hodnota",
+        "new_value": "Nová hodnota",
+        "no_changes": "Žádné změny"
+    },
+    "empty_state": {
+        "no_pending": "Žádná čekající schválení",
+        "no_history": "Žádná historie schvalování",
+        "no_requests": "Žádné žádosti o schválení"
+    },
+    "notifications": {
+        "approved": "Žádost byla úspěšně schválena",
+        "rejected": "Žádost byla zamítnuta",
+        "cancelled": "Žádost byla zrušena"
+    }
+}
