@@ -1,6 +1,7 @@
 {
     "title": "Control Catalog",
-    "page_subtitle": "Manage control definitions and execution",
+    "page_subtitle": "Manage and audit organizational risk controls according to the 13-point standard.",
+    "new_control": "New Control",
     "create_control": "Create Control",
     "edit_control": "Edit Control",
     "view_control": "View Control",
@@ -65,12 +66,27 @@
         "all_frequencies": "All Frequencies",
         "all_departments": "All Departments",
         "all_owners": "All Owners",
-        "overdue_only": "Overdue Only"
+        "all_statuses": "All Statuses",
+        "overdue_only": "Overdue Only",
+        "search_placeholder": "Search by name, description, risk or department..."
     },
     "empty_state": {
-        "no_controls": "No controls found",
+        "no_controls": "No controls found matching your criteria.",
         "no_executions": "No execution history",
         "no_linked_risks": "No linked risks"
+    },
+    "errors": {
+        "load_failed": "Failed to load controls. Please check your connection.",
+        "title": "Error Loading Controls",
+        "try_again": "Try Again"
+    },
+    "columns": {
+        "name": "Name",
+        "department": "Department",
+        "frequency": "Frequency",
+        "risk_level": "Risk Level",
+        "status": "Status",
+        "pending": "Pending"
     },
     "actions": {
         "link_risk": "Link Risk",
