@@ -42,3 +42,19 @@ export interface CreateApprovalRequest {
 export interface ResolveApprovalRequest {
     resolution_notes: string;
 }
+
+/**
+ * Response when an edit/delete requires approval (HTTP 202).
+ * Indicates the change was queued for approval rather than applied immediately.
+ */
+export interface ApprovalCreatedResponse {
+    message: string;
+    approval_id: number;
+    action_type?: string;
+    pending_fields?: string[];
+    pending_changes?: Record<string, { old: unknown; new: unknown }>;
+}
+
+export function isApprovalCreatedResponse(response: unknown): response is ApprovalCreatedResponse {
+    return typeof response === 'object' && response !== null && 'approval_id' in response;
+}
