@@ -1,12 +1,91 @@
 {
     "title": "Administrace",
-    "page_subtitle": "Správa systému a konfigurace",
+    "page_subtitle": "Správa platformy, stav systému a správa uživatelů",
     "tabs": {
         "users": "Uživatelé",
         "departments": "Oddělení",
         "risk_hub": "Risk Hub",
         "logs": "Systémové logy",
-        "documentation": "Dokumentace"
+        "documentation": "Dokumentace",
+        "health": "Stav systému",
+        "application_logs": "Aplikační logy",
+        "audit_logs": "Auditní logy",
+        "sessions": "Aktivní relace"
+    },
+    "console": {
+        "title": "Administrace",
+        "subtitle": "Správa platformy, stav systému a správa uživatelů",
+        "loading": "Načítání..."
+    },
+    "health": {
+        "title": "Stav systému",
+        "loading": "Načítání stavu systému...",
+        "refresh": "Obnovit",
+        "database": "Databáze",
+        "connected": "Připojeno",
+        "error": "Chyba",
+        "latency": "Latence",
+        "uptime": "Doba provozu",
+        "since_restart": "Od posledního restartu",
+        "memory": "Paměť",
+        "process_memory": "Využití paměti procesu",
+        "active_users": "Aktivní uživatelé",
+        "in_last_24h": "Za posledních 24 hodin"
+    },
+    "application_logs": {
+        "title": "Aplikační logy",
+        "loading": "Načítání logů...",
+        "all_events": "Všechny události",
+        "columns": {
+            "time": "Čas",
+            "level": "Úroveň",
+            "event": "Událost",
+            "user": "Uživatel",
+            "details": "Podrobnosti"
+        }
+    },
+    "audit": {
+        "title": "Nastavení rotace logů",
+        "max_file_size": "Maximální velikost souboru (MB)",
+        "max_file_size_hint": "Maximální velikost log souboru před rotací.",
+        "retention_count": "Počet uchovávaných souborů",
+        "retention_count_hint": "Počet záložních souborů k uchování.",
+        "note": "Poznámka: Aktualizace těchto nastavení ovlivňuje aplikační i auditní logy.",
+        "save_settings": "Uložit nastavení",
+        "saving": "Ukládání...",
+        "event_feed": "Auditní události",
+        "live": "Živě",
+        "all_events": "Všechny události",
+        "last_n": "Posledních {{count}}",
+        "no_events": "Nebyly nalezeny žádné auditní události v aktuálním okně.",
+        "view": "Zobrazit",
+        "columns": {
+            "timestamp": "Časové razítko",
+            "event": "Událost",
+            "user": "Uživatel",
+            "client_ip": "IP klienta",
+            "details": "Podrobnosti"
+        }
+    },
+    "sessions": {
+        "title": "Aktivní relace",
+        "description": "Uživatelé s aktivitou za posledních 24 hodin",
+        "loading": "Načítání relací...",
+        "online": "Online",
+        "offline": "Offline",
+        "revoked": "Zrušeno",
+        "revoke": "Zrušit",
+        "access_revoked": "Přístup zrušen",
+        "revoke_confirm": "Zrušit relaci pro {{name}}?",
+        "columns": {
+            "user": "Uživatel",
+            "email": "E-mail",
+            "role": "Role",
+            "department": "Oddělení",
+            "last_activity": "Poslední aktivita",
+            "status": "Stav",
+            "actions": "Akce"
+        }
     },
     "users": {
         "title": "Správa uživatelů",
@@ -87,12 +166,79 @@
     },
     "access": {
         "title": "Správa přístupu",
+        "subtitle": "Správa přístupu uživatelů, rolí a oprávnění na platformě.",
         "permission_matrix": "Matice oprávnění",
         "access_scope": "Rozsah přístupu",
+        "add_user": "Přidat uživatele",
+        "search_placeholder": "Hledat podle jména nebo e-mailu...",
+        "filter_by_capability": "Filtrovat podle schopnosti:",
+        "all_permissions": "Všechna oprávnění",
+        "any_action": "Jakákoliv akce",
+        "clear": "Vymazat",
+        "of_users": "{{count}} z {{total}} uživatelů",
+        "stats": {
+            "total_users": "Celkem uživatelů",
+            "active": "Aktivní",
+            "privileged": "Privilegovaní",
+            "sys_admins": "Sys Admins"
+        },
+        "roles": {
+            "all": "Všechny role",
+            "admins": "Administrátoři",
+            "cros": "CROs",
+            "risk_managers": "Risk Manažeři",
+            "dept_heads": "Vedoucí oddělení",
+            "control_owners": "Vlastníci kontrol"
+        },
         "scopes": {
             "global": "Globální",
             "department": "Oddělení",
-            "manager": "Manažer"
+            "manager": "Manažer",
+            "platform": "Platforma",
+            "all": "Všechny rozsahy"
+        },
+        "table": {
+            "user": "Uživatel",
+            "role_department": "Role a oddělení",
+            "scope": "Rozsah",
+            "permissions": "Oprávnění",
+            "status": "Stav",
+            "actions": "Akce",
+            "no_department": "Bez oddělení",
+            "view_only": "Pouze náhled",
+            "no_users_found": "Nebyli nalezeni žádní uživatelé odpovídající vašim kritériím."
+        },
+        "status": {
+            "active": "Aktivní",
+            "inactive": "Neaktivní"
+        },
+        "actions": {
+            "edit_access": "Upravit přístup",
+            "activate": "Aktivovat",
+            "deactivate": "Deaktivovat"
+        },
+        "capabilities": {
+            "platform_admin": "Schopnosti správy platformy",
+            "riskhub": "Schopnosti Risk Hub",
+            "effective_permissions": "Efektivní oprávnění",
+            "user_management": "Správa uživatelů",
+            "user_management_desc": "Přidávání, úprava, deaktivace uživatelů",
+            "system_health": "Stav systému",
+            "system_health_desc": "Monitorování databáze, paměti",
+            "technical_logs": "Technické logy",
+            "technical_logs_desc": "Zobrazení logů aktivit a bezpečnosti",
+            "session_management": "Správa relací",
+            "session_management_desc": "Zobrazení a zrušení uživatelských relací",
+            "risk_types": "Typy rizik",
+            "risk_types_desc": "Vytváření, úprava, mazání kategorií rizik",
+            "global_config": "Globální konfigurace",
+            "global_config_desc": "Nastavení prahových hodnot a systému",
+            "approval_rules": "Pravidla schvalování",
+            "approval_rules_desc": "Konfigurace scénářů schvalování",
+            "all_business_data": "Všechna obchodní data",
+            "all_business_data_desc": "Plný přístup k rizikům, kontrolám, KRI",
+            "platform_admin_note": "Administrátor platformy nemá přístup k obchodním datům (rizika, kontroly, KRI)",
+            "cro_note": "Chief Risk Officer má plný přístup ke konfiguraci obchodních procesů přes Risk Hub"
         }
     },
     "governance": {
