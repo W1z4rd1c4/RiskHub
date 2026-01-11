@@ -3,7 +3,7 @@ Report generation service for PDF and Excel exports.
 """
 from io import BytesIO
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -14,6 +14,8 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+from app.services.report_translations import get_report_translator
 
 if TYPE_CHECKING:
     from app.models.control import Control
@@ -26,8 +28,9 @@ DARK_BG = colors.HexColor("#0f172a")
 HEADER_BG = colors.HexColor("#1e293b")
 
 
-def generate_controls_pdf(controls: list["Control"]) -> bytes:
+def generate_controls_pdf(controls: list["Control"], locale: str = 'en') -> bytes:
     """Generate a PDF report of controls."""
+    t = get_report_translator(locale)
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -59,15 +62,15 @@ def generate_controls_pdf(controls: list["Control"]) -> bytes:
     elements = []
     
     # Title
-    elements.append(Paragraph("RiskHub - Control Catalog Report", title_style))
-    elements.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", subtitle_style))
+    elements.append(Paragraph(f"RiskHub - {t('control_inventory')}", title_style))
+    elements.append(Paragraph(f"{t('generated_on')}: {datetime.now().strftime('%Y-%m-%d %H:%M')}", subtitle_style))
     elements.append(Spacer(1, 12))
     
     if not controls:
-        elements.append(Paragraph("No controls found.", styles['Normal']))
+        elements.append(Paragraph(t('no_controls_found') if locale == 'cs' else "No controls found.", styles['Normal']))
     else:
         # Table header
-        table_data = [["Name", "Department", "Status", "Form", "Frequency", "Risk Level"]]
+        table_data = [[t('name'), t('department'), t('status'), t('control_type'), t('frequency'), t('risk_level')]]
         
         for control in controls:
             dept_name = control.department.name if control.department else "N/A"
@@ -100,7 +103,7 @@ def generate_controls_pdf(controls: list["Control"]) -> bytes:
         
         # Summary
         elements.append(Spacer(1, 24))
-        elements.append(Paragraph(f"Total Controls: {len(controls)}", styles['Normal']))
+        elements.append(Paragraph(f"{t('total')} {t('controls')}: {len(controls)}", styles['Normal']))
     
     doc.build(elements)
     buffer.seek(0)
@@ -174,8 +177,9 @@ def generate_controls_excel(controls: list["Control"]) -> bytes:
     return buffer.getvalue()
 
 
-def generate_risks_pdf(risks: list["Risk"]) -> bytes:
+def generate_risks_pdf(risks: list["Risk"], locale: str = 'en') -> bytes:
     """Generate a PDF report of risks."""
+    t = get_report_translator(locale)
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -207,15 +211,15 @@ def generate_risks_pdf(risks: list["Risk"]) -> bytes:
     elements = []
     
     # Title
-    elements.append(Paragraph("RiskHub - Risk Register Report", title_style))
-    elements.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", subtitle_style))
+    elements.append(Paragraph(f"RiskHub - {t('risk_register')}", title_style))
+    elements.append(Paragraph(f"{t('generated_on')}: {datetime.now().strftime('%Y-%m-%d %H:%M')}", subtitle_style))
     elements.append(Spacer(1, 12))
     
     if not risks:
-        elements.append(Paragraph("No risks found.", styles['Normal']))
+        elements.append(Paragraph(t('no_risks_found') if locale == 'cs' else "No risks found.", styles['Normal']))
     else:
         # Table header
-        table_data = [["Process", "Category", "Department", "Gross Score", "Net Score", "Status"]]
+        table_data = [[t('process'), t('category'), t('department'), t('gross_score'), t('net_score'), t('status')]]
         
         for risk in risks:
             dept_name = risk.department.name if risk.department else "N/A"
@@ -251,7 +255,8 @@ def generate_risks_pdf(risks: list["Risk"]) -> bytes:
         # Summary
         elements.append(Spacer(1, 24))
         high_risks = sum(1 for r in risks if r.net_probability * r.net_impact >= 16)
-        elements.append(Paragraph(f"Total Risks: {len(risks)} | High/Critical: {high_risks}", styles['Normal']))
+        critical_label = t('critical_risks') if locale == 'cs' else 'High/Critical'
+        elements.append(Paragraph(f"{t('total')} {t('risks')}: {len(risks)} | {critical_label}: {high_risks}", styles['Normal']))
     
     doc.build(elements)
     buffer.seek(0)
@@ -425,8 +430,9 @@ def generate_dashboard_summary_pdf(summary: dict) -> bytes:
     return buffer.getvalue()
 
 
-def generate_audit_trail_pdf(executions: list) -> bytes:
+def generate_audit_trail_pdf(executions: list, locale: str = 'en') -> bytes:
     """Generate a PDF report of control executions for audit trail."""
+    t = get_report_translator(locale)
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -458,15 +464,15 @@ def generate_audit_trail_pdf(executions: list) -> bytes:
     elements = []
     
     # Title
-    elements.append(Paragraph("RiskHub - Audit Trail Report", title_style))
-    elements.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", subtitle_style))
+    elements.append(Paragraph(f"RiskHub - {t('audit_trail')}", title_style))
+    elements.append(Paragraph(f"{t('generated_on')}: {datetime.now().strftime('%Y-%m-%d %H:%M')}", subtitle_style))
     elements.append(Spacer(1, 12))
     
     if not executions:
-        elements.append(Paragraph("No control executions found.", styles['Normal']))
+        elements.append(Paragraph(t('no_executions_found') if locale == 'cs' else "No control executions found.", styles['Normal']))
     else:
-        # Table header
-        table_data = [["Date", "Control", "Dept", "Executor", "Result", "Findings", "Next Due"]]
+        # Table header  
+        table_data = [[t('execution_date'), t('control'), t('department'), t('executed_by'), t('result'), t('notes'), t('next_due')]]
         
         for exe in executions:
             # Format date
