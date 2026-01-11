@@ -48,3 +48,30 @@ class NotificationListResponse(BaseModel):
     skip: int
     limit: int
     unread_count: int
+
+
+class NotificationPreferences(BaseModel):
+    """User notification preference toggles per type."""
+    approval_pending: bool = True
+    approval_resolved: bool = True
+    approval_cancelled: bool = True
+    kri_due_soon: bool = True
+    kri_due_tomorrow: bool = True
+    kri_overdue: bool = True
+    kri_near_breach: bool = True
+    kri_breach_detected: bool = True
+    
+    model_config = {"from_attributes": True}
+
+
+class NotificationPreferencesUpdate(BaseModel):
+    """Partial update for notification preferences."""
+    approval_pending: bool | None = None
+    approval_resolved: bool | None = None
+    approval_cancelled: bool | None = None
+    kri_due_soon: bool | None = None
+    kri_due_tomorrow: bool | None = None
+    kri_overdue: bool | None = None
+    kri_near_breach: bool | None = None
+    kri_breach_detected: bool | None = None
+

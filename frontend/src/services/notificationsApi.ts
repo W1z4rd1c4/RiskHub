@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { NotificationListResponse, NotificationQueryParams } from '../types/notification';
+import type { NotificationListResponse, NotificationQueryParams, NotificationPreferences, NotificationPreferencesUpdate } from '../types/notification';
 
 export const notificationsApi = {
     /**
@@ -25,4 +25,17 @@ export const notificationsApi = {
      */
     markAllAsRead: () =>
         apiClient.post<void>('/notifications/read-all', {}),
+
+    /**
+     * Get current user's notification preferences.
+     */
+    getPreferences: () =>
+        apiClient.get<NotificationPreferences>('/notifications/preferences'),
+
+    /**
+     * Update current user's notification preferences.
+     */
+    updatePreferences: (updates: NotificationPreferencesUpdate) =>
+        apiClient.put<NotificationPreferences>('/notifications/preferences', updates),
 };
+

@@ -25,6 +25,7 @@ from app.schemas.approval_request import (
 from app.schemas.notification import (
     NotificationTypeEnum,
     NotificationBase, NotificationCreate, NotificationRead, NotificationListResponse,
+    NotificationPreferences, NotificationPreferencesUpdate,
 )
 from app.schemas.directory_user import (
     DirectoryUserCreate, DirectoryUserUpdate, DirectoryUserRead,
@@ -54,6 +55,7 @@ __all__ = [
     # Notification schemas
     "NotificationTypeEnum",
     "NotificationBase", "NotificationCreate", "NotificationRead", "NotificationListResponse",
+    "NotificationPreferences", "NotificationPreferencesUpdate",
     # Directory emulator schemas
     "DirectoryUserCreate", "DirectoryUserUpdate", "DirectoryUserRead",
     "DirectorySyncPreview", "DirectorySyncLogRead", "DirectoryUserDiff",

@@ -62,8 +62,18 @@ export const dashboardApi = {
         return apiClient.get<KRIBreachTrendPoint[]>('/dashboard/kri-breach-trends', { params });
     },
 
-    async fetchQuarterlyComparison(): Promise<any> {
-        return apiClient.get<any>('/dashboard/quarterly-comparison');
+    async fetchQuarterlyComparison(
+        currentQuarter?: string,
+        compareQuarter?: string
+    ): Promise<any> {
+        const params: Record<string, string> = {};
+        if (currentQuarter) params.current_quarter = currentQuarter;
+        if (compareQuarter) params.compare_quarter = compareQuarter;
+        return apiClient.get<any>('/dashboard/quarterly-comparison', { params });
+    },
+
+    async fetchAvailablePeriods(): Promise<{ years: number[]; current_quarter: string }> {
+        return apiClient.get<{ years: number[]; current_quarter: string }>('/dashboard/available-periods');
     },
 
     async fetchCommitteeSummary(): Promise<any> {

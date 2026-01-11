@@ -1,6 +1,6 @@
 from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import String, Boolean, ForeignKey, DateTime, func, Enum as SQLEnum
+from sqlalchemy import String, Boolean, ForeignKey, DateTime, func, Enum as SQLEnum, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -59,6 +59,10 @@ class User(Base):
     # User preferences (synced across devices)
     preferred_theme: Mapped[str] = mapped_column(String(20), default='riskhub', server_default='riskhub')
     preferred_language: Mapped[str] = mapped_column(String(10), default='en', server_default='en')
+    
+    # Notification preferences (JSON blob for flexibility)
+    # Structure: {"approval_pending": true, "approval_resolved": true, "kri_due_soon": true, ...}
+    notification_preferences: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     
     # Control relationships
     owned_controls: Mapped[list["Control"]] = relationship(

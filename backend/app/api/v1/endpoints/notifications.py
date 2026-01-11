@@ -6,7 +6,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models import User
 from app.models.notification import Notification
-from app.schemas.notification import NotificationRead, NotificationListResponse
+from app.schemas.notification import (
+    NotificationRead, NotificationListResponse,
+    NotificationPreferences, NotificationPreferencesUpdate,
+)
 from app.api import deps
 from app.core.permissions import can_resolve_approvals
 from app.services.kri_deadline_service import KRIDeadlineService
@@ -93,6 +96,37 @@ async def get_unread_count(
     return {"count": count}
 
 
+@router.get("/preferences", response_model=NotificationPreferences)
+async def get_notification_preferences(
+    current_user: User = Depends(deps.get_current_user),
+):
+    """Get current user's notification preferences."""
+    prefs = current_user.notification_preferences or {}
+    # Merge with defaults (all True if not set)
+    defaults = NotificationPreferences()
+    return NotificationPreferences(**{**defaults.model_dump(), **prefs})
+
+
+@router.put("/preferences", response_model=NotificationPreferences)
+async def update_notification_preferences(
+    preferences: NotificationPreferencesUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """Update current user's notification preferences."""
+    # Get existing or empty
+    existing = current_user.notification_preferences or {}
+    # Merge with update (only non-None fields)
+    updates = {k: v for k, v in preferences.model_dump().items() if v is not None}
+    new_prefs = {**existing, **updates}
+    
+    current_user.notification_preferences = new_prefs
+    await db.commit()
+    
+    defaults = NotificationPreferences()
+    return NotificationPreferences(**{**defaults.model_dump(), **new_prefs})
+
+
 @router.post("/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
 async def mark_as_read(
     notification_id: int,
@@ -156,4 +190,5 @@ async def trigger_kri_deadline_check(
     
     result = await KRIDeadlineService.check_kri_deadlines(db)
     return {"status": "completed", "results": result}
+
 
