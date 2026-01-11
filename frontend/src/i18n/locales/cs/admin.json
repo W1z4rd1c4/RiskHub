@@ -1,0 +1,98 @@
+{
+    "title": "Administrace",
+    "page_subtitle": "Správa systému a konfigurace",
+    "tabs": {
+        "users": "Uživatelé",
+        "departments": "Oddělení",
+        "risk_hub": "Risk Hub",
+        "logs": "Systémové logy",
+        "documentation": "Dokumentace"
+    },
+    "users": {
+        "title": "Správa uživatelů",
+        "create_user": "Vytvořit uživatele",
+        "edit_user": "Upravit uživatele",
+        "delete_user": "Smazat uživatele",
+        "sync_ad": "Synchronizovat z AD",
+        "fields": {
+            "name": "Jméno",
+            "email": "E-mail",
+            "role": "Role",
+            "department": "Oddělení",
+            "status": "Stav",
+            "last_login": "Poslední přihlášení",
+            "permissions": "Oprávnění"
+        },
+        "roles": {
+            "admin": "Administrátor",
+            "cro": "Chief Risk Officer",
+            "risk_manager": "Risk Manager",
+            "department_manager": "Vedoucí oddělení",
+            "risk_owner": "Vlastník rizika",
+            "control_owner": "Vlastník kontroly",
+            "kri_owner": "Vlastník KRI",
+            "viewer": "Čtenář"
+        },
+        "status": {
+            "active": "Aktivní",
+            "inactive": "Neaktivní",
+            "pending": "Čeká"
+        }
+    },
+    "departments": {
+        "title": "Správa oddělení",
+        "create_department": "Vytvořit oddělení",
+        "edit_department": "Upravit oddělení",
+        "delete_department": "Smazat oddělení",
+        "fields": {
+            "name": "Název oddělení",
+            "code": "Kód oddělení",
+            "manager": "Vedoucí oddělení",
+            "parent": "Nadřazené oddělení",
+            "risk_count": "Počet rizik",
+            "control_count": "Počet kontrol"
+        }
+    },
+    "risk_hub": {
+        "title": "Konfigurace Risk Hub",
+        "general": "Obecná nastavení",
+        "thresholds": "Schvalovací prahy",
+        "risk_types": "Typy rizik",
+        "notifications": "Nastavení oznámení",
+        "total_asset_value": "Celková hodnota aktiv"
+    },
+    "logs": {
+        "title": "Systémové logy",
+        "application_logs": "Aplikační logy",
+        "audit_logs": "Auditní logy",
+        "log_level": "Úroveň logování",
+        "log_rotation": "Rotace logů",
+        "recent_logs": "Nedávné logy"
+    },
+    "documentation": {
+        "title": "Správa dokumentace",
+        "upload": "Nahrát dokument",
+        "categories": "Kategorie",
+        "visibility": "Viditelnost"
+    },
+    "activity_log": {
+        "title": "Auditní stopa",
+        "audit_trail": "Forenzní záznam",
+        "view_modes": {
+            "chronological": "Chronologicky",
+            "by_person": "Podle osoby",
+            "by_department": "Podle oddělení",
+            "by_risk": "Podle rizika"
+        }
+    },
+    "access": {
+        "title": "Správa přístupu",
+        "permission_matrix": "Matice oprávnění",
+        "access_scope": "Rozsah přístupu",
+        "scopes": {
+            "global": "Globální",
+            "department": "Oddělení",
+            "manager": "Manažer"
+        }
+    }
+}

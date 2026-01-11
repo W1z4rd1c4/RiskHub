@@ -1,0 +1,81 @@
+{
+    "title": "Key Risk Indicators",
+    "page_subtitle": "Monitor and track risk indicators",
+    "create_kri": "Create KRI",
+    "edit_kri": "Edit KRI",
+    "view_kri": "View KRI",
+    "delete_kri": "Delete KRI",
+    "fields": {
+        "name": "KRI Name",
+        "description": "Description",
+        "unit": "Unit of Measure",
+        "department": "Department",
+        "owner": "KRI Owner",
+        "linked_risk": "Linked Risk",
+        "frequency": "Reporting Frequency",
+        "current_value": "Current Value",
+        "target_value": "Target Value",
+        "lower_limit": "Lower Limit",
+        "upper_limit": "Upper Limit",
+        "status": "Status",
+        "last_reported": "Last Reported",
+        "next_due": "Next Due"
+    },
+    "frequencies": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "annually": "Annually"
+    },
+    "status": {
+        "within_limits": "Within Limits",
+        "warning": "Warning",
+        "breached": "Breached",
+        "not_reported": "Not Reported",
+        "overdue": "Overdue"
+    },
+    "tabs": {
+        "overview": "Overview",
+        "values": "Value History",
+        "history": "Change History"
+    },
+    "values": {
+        "submit_value": "Submit Value",
+        "correct_value": "Correct Value",
+        "value": "Value",
+        "date": "Date",
+        "submitted_by": "Submitted By",
+        "notes": "Notes",
+        "correction": "Correction",
+        "original_value": "Original Value"
+    },
+    "thresholds": {
+        "title": "Thresholds",
+        "tolerance_limits": "Tolerance Limits",
+        "early_warning": "Early Warning System",
+        "breach_level": "Breach Level"
+    },
+    "filters": {
+        "all_frequencies": "All Frequencies",
+        "all_departments": "All Departments",
+        "all_owners": "All Owners",
+        "breached_only": "Breached Only",
+        "overdue_only": "Overdue Only"
+    },
+    "empty_state": {
+        "no_kris": "No KRIs found",
+        "no_values": "No value history",
+        "no_linked_risk": "No linked risk"
+    },
+    "actions": {
+        "link_risk": "Link Risk",
+        "export_pdf": "Export PDF",
+        "export_excel": "Export Excel"
+    },
+    "alerts": {
+        "breach_alert": "Breach Alert",
+        "value_breached": "This KRI has breached its limits",
+        "overdue_alert": "Value submission overdue"
+    }
+}

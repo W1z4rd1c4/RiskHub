@@ -1,0 +1,81 @@
+{
+    "title": "Klíčové indikátory rizik",
+    "page_subtitle": "Sledování a monitorování indikátorů rizik",
+    "create_kri": "Vytvořit KRI",
+    "edit_kri": "Upravit KRI",
+    "view_kri": "Zobrazit KRI",
+    "delete_kri": "Smazat KRI",
+    "fields": {
+        "name": "Název KRI",
+        "description": "Popis",
+        "unit": "Jednotka měření",
+        "department": "Oddělení",
+        "owner": "Vlastník KRI",
+        "linked_risk": "Propojené riziko",
+        "frequency": "Frekvence hlášení",
+        "current_value": "Aktuální hodnota",
+        "target_value": "Cílová hodnota",
+        "lower_limit": "Dolní limit",
+        "upper_limit": "Horní limit",
+        "status": "Stav",
+        "last_reported": "Naposledy nahlášeno",
+        "next_due": "Příští termín"
+    },
+    "frequencies": {
+        "daily": "Denně",
+        "weekly": "Týdně",
+        "monthly": "Měsíčně",
+        "quarterly": "Čtvrtletně",
+        "annually": "Ročně"
+    },
+    "status": {
+        "within_limits": "V limitech",
+        "warning": "Varování",
+        "breached": "Překročeno",
+        "not_reported": "Nenahlášeno",
+        "overdue": "Opožděno"
+    },
+    "tabs": {
+        "overview": "Přehled",
+        "values": "Historie hodnot",
+        "history": "Historie změn"
+    },
+    "values": {
+        "submit_value": "Odeslat hodnotu",
+        "correct_value": "Opravit hodnotu",
+        "value": "Hodnota",
+        "date": "Datum",
+        "submitted_by": "Odeslal",
+        "notes": "Poznámky",
+        "correction": "Oprava",
+        "original_value": "Původní hodnota"
+    },
+    "thresholds": {
+        "title": "Hranice",
+        "tolerance_limits": "Hranice tolerance",
+        "early_warning": "Systém včasného varování",
+        "breach_level": "Kritický limit"
+    },
+    "filters": {
+        "all_frequencies": "Všechny frekvence",
+        "all_departments": "Všechna oddělení",
+        "all_owners": "Všichni vlastníci",
+        "breached_only": "Pouze překročené",
+        "overdue_only": "Pouze opožděné"
+    },
+    "empty_state": {
+        "no_kris": "Nebyly nalezeny žádné KRI",
+        "no_values": "Žádná historie hodnot",
+        "no_linked_risk": "Žádné propojené riziko"
+    },
+    "actions": {
+        "link_risk": "Propojit riziko",
+        "export_pdf": "Export PDF",
+        "export_excel": "Export Excel"
+    },
+    "alerts": {
+        "breach_alert": "Upozornění na překročení",
+        "value_breached": "Tento KRI překročil své limity",
+        "overdue_alert": "Odeslání hodnoty je opožděno"
+    }
+}

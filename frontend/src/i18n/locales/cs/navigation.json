@@ -1,0 +1,30 @@
+{
+    "sidebar": {
+        "dashboard": "Přehled",
+        "risks": "Rizika",
+        "controls": "Kontroly",
+        "kris": "KRI",
+        "approvals": "Schvalování",
+        "activity_log": "Auditní stopa",
+        "reports": "Reporty",
+        "settings": "Nastavení",
+        "admin": "Administrace",
+        "documentation": "Dokumentace",
+        "help": "Nápověda"
+    },
+    "user_menu": {
+        "profile": "Profil",
+        "settings": "Nastavení",
+        "help": "Nápověda a podpora",
+        "logout": "Odhlásit se",
+        "switch_account": "Přepnout účet"
+    },
+    "breadcrumb": {
+        "home": "Domů",
+        "back_to_list": "Zpět na seznam"
+    },
+    "header": {
+        "notifications": "Oznámení",
+        "search_placeholder": "Hledat..."
+    }
+}
