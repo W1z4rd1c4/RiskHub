@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { BookOpen, FileText, ChevronLeft, ArrowRight } from 'lucide-react';
 import { adminApi } from '@/services/adminApi';
 
@@ -58,8 +59,8 @@ export function DocumentationPage() {
                     </div>
 
                     <div className="flex-1 p-10">
-                        <article className="prose prose-invert prose-slate prose-headings:text-white prose-a:text-accent prose-pre:bg-slate-900/50 prose-pre:border prose-pre:border-white/10 max-w-none">
-                            <ReactMarkdown>{activeDoc.content || ''}</ReactMarkdown>
+                        <article className="prose prose-invert prose-slate prose-headings:text-white prose-a:text-accent prose-pre:bg-slate-900/50 prose-pre:border prose-pre:border-white/10 prose-table:border prose-table:border-white/10 prose-th:bg-white/5 prose-th:p-2 prose-td:p-2 prose-td:border-t prose-td:border-white/10 max-w-none">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeDoc.content || ''}</ReactMarkdown>
                         </article>
                     </div>
                 </div>
