@@ -8,6 +8,7 @@ import type {
     ControlEffectiveness,
     RiskListResponse
 } from '@/types/risk';
+import type { ApprovalCreatedResponse } from '@/types/approval';
 
 export const riskApi = {
     async getRisks(params: {
@@ -34,8 +35,8 @@ export const riskApi = {
         return apiClient.post<Risk>('/risks', data);
     },
 
-    async updateRisk(id: number, data: RiskUpdate): Promise<Risk> {
-        return apiClient.patch<Risk>(`/risks/${id}`, data);
+    async updateRisk(id: number, data: RiskUpdate): Promise<Risk | ApprovalCreatedResponse> {
+        return apiClient.patch<Risk | ApprovalCreatedResponse>(`/risks/${id}`, data);
     },
 
     async deleteRisk(id: number, reason: string = 'Archived by user'): Promise<void> {

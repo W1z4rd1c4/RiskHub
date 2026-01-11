@@ -9,6 +9,7 @@ import type {
     ControlListResponse
 } from '@/types/control';
 import { ControlEffectiveness } from '@/types/risk';
+import type { ApprovalCreatedResponse } from '@/types/approval';
 
 export const controlApi = {
     async getControls(params: {
@@ -31,8 +32,8 @@ export const controlApi = {
         return apiClient.post<Control>('/controls', data);
     },
 
-    async updateControl(id: number, data: ControlUpdate): Promise<Control> {
-        return apiClient.patch<Control>(`/controls/${id}`, data);
+    async updateControl(id: number, data: ControlUpdate): Promise<Control | ApprovalCreatedResponse> {
+        return apiClient.patch<Control | ApprovalCreatedResponse>(`/controls/${id}`, data);
     },
 
     async deleteControl(id: number, reason: string = 'Archived by user'): Promise<void> {
