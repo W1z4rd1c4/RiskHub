@@ -108,9 +108,9 @@ export const adminApi = {
     updateLogConfig: (config: LogConfig) =>
         apiClient.post<LogConfig>('/admin/logs/config', config),
 
-    // Documentation
-    getDocs: () =>
-        apiClient.get<DocumentationResponse>('/admin/docs'),
+    // Documentation (with locale support)
+    getDocs: (locale: string = 'en') =>
+        apiClient.get<DocumentationResponse>('/admin/docs', { params: { locale } }),
 
     // Active Sessions
     getActiveSessions: () =>

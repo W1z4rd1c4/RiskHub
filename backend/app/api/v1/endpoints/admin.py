@@ -513,72 +513,75 @@ async def get_audit_logs(
 
 @router.get("/docs", response_model=DocumentationResponse)
 async def get_documentation(
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    locale: str = "en"
 ) -> DocumentationResponse:
     """
-    Get platform documentation based on user role.
+    Get platform documentation based on user role and locale.
+    
+    Args:
+        locale: Language code ('en' or 'cs'). Defaults to 'en'.
     """
     from pathlib import Path
+    import re
     
-    # documentation files are in backend/docs/
-    docs_dir = Path(__file__).parent.parent.parent.parent.parent / "docs"
+    # Documentation files are in docs/ subdirectories
+    docs_base = Path(__file__).parent.parent.parent.parent.parent / "docs"
     
-    # Basic mapping of filenames to pretty titles
-    titles = {
-        # Admin Docs
-        "ADMIN_SIEM_GUIDE.md": "SIEM Integration: The Blueprint",
-        "ADMIN_ARCHITECTURE.md": "System Architecture: A Narrative Guide",
-        "ADMIN_MAINTENANCE.md": "Maintenance Perspectives",
-        "ADMIN_CONVENTIONS.md": "The Artisan's Code (Conventions)",
-        "ADMIN_INTEGRATIONS.md": "The RiskHub Ecosystem",
-        "ADMIN_STACK.md": "The RiskHub Tech Stack",
-        "ADMIN_STRUCTURE.md": "A Tour of the Repository",
-        "ADMIN_TESTING.md": "The RiskHub Testing Story",
-        # User Docs
-        "USER_GETTING_STARTED.md": "Getting Started with RiskHub",
-        "USER_KRIS_GUIDE.md": "Key Risk Indicators Guide",
-        # Manager Docs
-        "MANAGER_RISKS_GUIDE.md": "Managing Risks",
-        "MANAGER_CONTROLS_GUIDE.md": "Managing Controls",
-        # Role Specific
-        "DEPT_HEAD_GUIDE.md": "Department Head Responsibilities",
-    }
+    # Determine which directories to read from based on locale
+    locale_suffix = "-cs" if locale == "cs" else ""
+    admin_dir = docs_base / f"admin{locale_suffix}"
+    user_dir = docs_base / f"user{locale_suffix}"
+    
+    # Fallback to English if locale-specific dir doesn't exist
+    if not admin_dir.exists():
+        admin_dir = docs_base / "admin"
+    if not user_dir.exists():
+        user_dir = docs_base / "user"
+    
+    def extract_title(content: str, filename: str) -> str:
+        """Extract title from first H1 heading or generate from filename."""
+        # Look for first # heading
+        match = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
+        if match:
+            return match.group(1).strip()
+        # Fallback to filename
+        return filename.replace("-", " ").replace("_", " ").replace(".md", "").title()
     
     documents = []
     role = current_user.role.name.lower()
     
-    # Define visibility
+    # Define visibility based on role
     can_see_admin = role in ["admin", "cro"]
     can_see_manager = role in ["admin", "cro", "risk_manager", "department_head"]
-    can_see_dept_head = role in ["admin", "cro", "department_head"]
     
-    if docs_dir.exists():
-        for doc_file in docs_dir.glob("*.md"):
-            filename = doc_file.name
-            
-            # Filter based on prefix/role
-            if filename.startswith("ADMIN_") and not can_see_admin:
-                continue
-            if filename.startswith("MANAGER_") and not can_see_manager:
-                continue
-            if filename == "DEPT_HEAD_GUIDE.md" and not can_see_dept_head:
-                continue
-            
-            # Everyone sees USER_ docs
-            # Also everyone sees docs that don't match these strict prefixes (unless we want to be strict)
-            
+    # Admin docs (CRO and Admin only)
+    if can_see_admin and admin_dir.exists():
+        for doc_file in admin_dir.glob("*.md"):
             with open(doc_file, "r", encoding="utf-8") as f:
                 content = f.read()
-                
+            
             documents.append(DocumentationEntry(
-                id=doc_file.stem.lower(),
-                title=titles.get(filename, filename.replace("_", " ").replace(".md", "").title()),
+                id=f"admin_{doc_file.stem.lower()}",
+                title=extract_title(content, doc_file.name),
                 content=content
             ))
+    
+    # User docs (everyone can see)
+    if user_dir.exists():
+        for doc_file in user_dir.glob("*.md"):
+            with open(doc_file, "r", encoding="utf-8") as f:
+                content = f.read()
             
+            documents.append(DocumentationEntry(
+                id=f"user_{doc_file.stem.lower()}",
+                title=extract_title(content, doc_file.name),
+                content=content
+            ))
+    
     # Sort documents by title for consistent UI
     documents.sort(key=lambda x: x.title)
-            
+    
     return DocumentationResponse(documents=documents)
 
 
