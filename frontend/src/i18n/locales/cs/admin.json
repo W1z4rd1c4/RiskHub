@@ -129,6 +129,9 @@
         "col_department": "Oddělení",
         "col_previous_owner": "Předchozí vlastník",
         "col_orphaned": "Osiřelo",
-        "col_actions": "Akce"
+        "col_actions": "Akce",
+        "type_risk": "Riziko",
+        "type_control": "Kontrola",
+        "type_kri": "KRI"
     }
 }

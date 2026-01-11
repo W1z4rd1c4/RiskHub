@@ -67,5 +67,32 @@
     "messages": {
         "saved": "Nastavení bylo úspěšně uloženo",
         "reset": "Nastavení bylo obnoveno na výchozí hodnoty"
+    },
+    "permissions": {
+        "risks_read": "Zobrazit rizika",
+        "risks_write": "Vytvořit a upravit rizika",
+        "risks_delete": "Smazat rizika",
+        "controls_read": "Zobrazit kontroly",
+        "controls_write": "Vytvořit a upravit kontroly",
+        "controls_delete": "Smazat kontroly",
+        "controls_execute": "Zaznamenat exekuce kontrol",
+        "kris_read": "Zobrazit KRI",
+        "kris_write": "Vytvořit a upravit KRI",
+        "kris_delete": "Smazat KRI",
+        "kri_submit": "Odeslat hodnoty KRI",
+        "approvals_read": "Zobrazit schválení",
+        "approvals_approve": "Schválit/zamítnout žádosti",
+        "users_read": "Zobrazit uživatele",
+        "users_write": "Spravovat uživatele",
+        "activity_log_read": "Zobrazit auditní stopu",
+        "departments_read": "Zobrazit oddělení",
+        "departments_write": "Spravovat oddělení",
+        "reports_read": "Zobrazit reporty",
+        "reports_export": "Exportovat reporty",
+        "admin_config": "Konfigurace systému",
+        "admin_logs": "Zobrazit systémové logy",
+        "admin_sessions": "Spravovat aktivní relace",
+        "admin_all": "Plný admin přístup",
+        "super_admin": "Super Admin (všechna oprávnění)"
     }
 }
