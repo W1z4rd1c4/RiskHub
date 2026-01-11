@@ -27,23 +27,22 @@ export function KRIsPage() {
         try {
             // For 'all' view, use server-side pagination
             if (viewMode === 'all') {
-                const skip = (currentPage - 1) * limit;
-                const data = await kriApi.getKRIs({ skip, size: limit });
+                const data = await kriApi.getKRIs({ page: currentPage, size: limit });
                 setKris(data.items || []);
                 setTotalCount(data.total || 0);
             } else {
                 // For grouped views, fetch ALL pages for accurate group counts
                 const pageSize = 100;
                 let allKRIs: KeyRiskIndicator[] = [];
-                let skip = 0;
+                let page = 1;
                 let total = 0;
 
                 do {
-                    const data = await kriApi.getKRIs({ skip, size: pageSize });
+                    const data = await kriApi.getKRIs({ page, size: pageSize });
                     total = data.total || 0;
                     allKRIs = [...allKRIs, ...(data.items || [])];
-                    skip += pageSize;
-                } while (skip < total);
+                    page++;
+                } while ((page - 1) * pageSize < total);
 
                 setKris(allKRIs);
                 setTotalCount(total);

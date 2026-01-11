@@ -187,8 +187,10 @@ export function RiskDetailPage() {
     };
 
     const handleDeleteKRI = async (kriId: number) => {
+        const reason = prompt('Why is this KRI being deleted?');
+        if (!reason) return; // User cancelled or empty reason
         try {
-            await kriApi.deleteKRI(kriId);
+            await kriApi.deleteKRI(kriId, reason);
             await fetchData();
         } catch (err) {
             console.error('KRI Delete failed:', err);

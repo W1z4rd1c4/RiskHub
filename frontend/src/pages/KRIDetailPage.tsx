@@ -78,10 +78,12 @@ export function KRIDetailPage() {
     };
 
     const handleDelete = async () => {
-        if (!kri || !confirm('Are you sure you want to delete this KRI?')) return;
+        if (!kri) return;
+        const reason = prompt('Why is this KRI being deleted?');
+        if (!reason) return; // User cancelled or empty reason
         setIsDeleting(true);
         try {
-            await kriApi.deleteKRI(kri.id);
+            await kriApi.deleteKRI(kri.id, reason);
             navigate('/kris');
         } catch (err) {
             console.error('Failed to delete KRI:', err);
