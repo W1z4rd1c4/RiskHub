@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, Calendar, AlertTriangle, HelpCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { dashboardApi } from '@/services/dashboardApi';
 
 interface MetricChange {
@@ -26,26 +27,7 @@ interface QuarterlyData {
     snapshot_info?: SnapshotInfo;
 }
 
-const METRIC_LABELS: Record<string, string> = {
-    // Row 1: Risk Posture
-    new_risks: 'New Risks',
-    closed_risks: 'Closed Risks',
-    active_risks: 'Active Risks',
-    priority_risks: 'Priority Risks',
-    kri_breaches: 'KRI Breaches',
-    pending_approvals: 'Pending Approvals',
-    // Row 2: Audit & Control Effectiveness
-    audit_activity: 'Audit Activity',
-    failed_audits: 'Failed Audits',
-    control_coverage: 'Control Coverage %',
-    unaudited_controls: 'Unaudited Controls',
-    // Row 3: Governance Health
-    orphaned_items: 'Orphaned Items',
-    kri_health: 'KRI Health %',
-    overdue_kris: 'Overdue KRIs',
-    activity_volume: 'Activity Volume',
-    risks_without_kri: 'Risks Without KRI',
-};
+
 
 const METRIC_COLORS: Record<string, { positive: string; negative: string }> = {
     // Row 1: Risk Posture
@@ -81,9 +63,29 @@ function formatQuarter(dateStr: string): string {
 }
 
 export function QuarterlyComparisonWidget() {
+    const { t } = useTranslation('dashboard');
     const [data, setData] = useState<QuarterlyData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Metric labels with translations
+    const metricLabels: Record<string, string> = {
+        new_risks: t('quarterly.new_risks', 'New Risks'),
+        closed_risks: t('quarterly.closed_risks', 'Closed Risks'),
+        active_risks: t('quarterly.active_risks', 'Active Risks'),
+        priority_risks: t('quarterly.priority_risks', 'Priority Risks'),
+        kri_breaches: t('quarterly.kri_breaches', 'KRI Breaches'),
+        pending_approvals: t('quarterly.pending_approvals', 'Pending Approvals'),
+        audit_activity: t('quarterly.audit_activity', 'Audit Activity'),
+        failed_audits: t('quarterly.failed_audits', 'Failed Audits'),
+        control_coverage: t('quarterly.control_coverage', 'Control Coverage %'),
+        unaudited_controls: t('quarterly.unaudited_controls', 'Unaudited Controls'),
+        orphaned_items: t('quarterly.orphaned_items', 'Orphaned Items'),
+        kri_health: t('quarterly.kri_health', 'KRI Health %'),
+        overdue_kris: t('quarterly.overdue_kris', 'Overdue KRIs'),
+        activity_volume: t('quarterly.activity_volume', 'Activity Volume'),
+        risks_without_kri: t('quarterly.risks_without_kri', 'Risks Without KRI'),
+    };
 
     useEffect(() => {
         dashboardApi.fetchQuarterlyComparison()
@@ -100,7 +102,7 @@ export function QuarterlyComparisonWidget() {
             <div className="glass-card">
                 <div className="flex items-center gap-2 mb-6">
                     <Calendar className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-bold text-white">Quarterly Comparison</h3>
+                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison', 'Quarterly Comparison')}</h3>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {Array(6).fill(0).map((_, i) => (
@@ -116,14 +118,14 @@ export function QuarterlyComparisonWidget() {
             <div className="glass-card">
                 <div className="flex items-center gap-2 mb-6">
                     <Calendar className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-bold text-white">Quarterly Comparison</h3>
+                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison', 'Quarterly Comparison')}</h3>
                 </div>
                 <p className="text-slate-500 text-sm">{error || 'No data available'}</p>
             </div>
         );
     }
 
-    const metrics = Object.keys(METRIC_LABELS);
+    const metrics = Object.keys(metricLabels);
     const snapshotAvailable = data.snapshot_info?.last_quarter_snapshot_available ?? true;
     const snapshotMetrics = new Set(data.snapshot_info?.snapshot_metrics ?? []);
 
@@ -136,7 +138,7 @@ export function QuarterlyComparisonWidget() {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-bold text-white">Quarterly Comparison</h3>
+                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison', 'Quarterly Comparison')}</h3>
                 </div>
                 <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                     {formatQuarter(data.period.this_start)} vs {formatQuarter(data.period.last_start)}
@@ -184,7 +186,7 @@ export function QuarterlyComparisonWidget() {
                         >
                             <div className="flex items-center justify-between mb-2">
                                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                    {METRIC_LABELS[key] || key}
+                                    {metricLabels[key] || key}
                                 </p>
                                 {showUncertainty && (
                                     <span title="No historical snapshot - comparison unavailable">
