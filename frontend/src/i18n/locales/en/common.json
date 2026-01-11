@@ -101,5 +101,13 @@
         "last_30_days": "Last 30 Days",
         "last_90_days": "Last 90 Days",
         "custom_range": "Custom Range"
+    },
+    "views": {
+        "all": "All",
+        "by_category": "By Category",
+        "by_department": "By Department",
+        "by_process": "By Process",
+        "by_risk_type": "By Risk Type",
+        "by_risk": "By Risk"
     }
 }

@@ -1,11 +1,12 @@
 {
-    "title": "Nastavení",
-    "page_subtitle": "Konfigurujte své preference",
+    "title": "Nastavení platformy",
+    "page_subtitle": "Spravujte svůj profil a přizpůsobte si zážitek",
     "tabs": {
         "profile": "Profil",
         "appearance": "Vzhled",
         "notifications": "Oznámení",
-        "localization": "Jazyk"
+        "localization": "Jazyk",
+        "documentation": "Nápověda a dokumentace"
     },
     "profile": {
         "title": "Nastavení profilu",
@@ -13,7 +14,11 @@
         "email": "E-mailová adresa",
         "department": "Oddělení",
         "role": "Role",
-        "last_login": "Poslední přihlášení"
+        "last_login": "Poslední přihlášení",
+        "your_identity": "Vaše identita",
+        "your_permissions": "Vaše oprávnění",
+        "access_scope": "Rozsah přístupu",
+        "ad_notice": "Váš profil je spravován Active Directory vaší organizace. Pro aktualizaci informací kontaktujte správce IT."
     },
     "appearance": {
         "title": "Motiv",

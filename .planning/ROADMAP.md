@@ -33,6 +33,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing, and documentation (14 plans)
 - [ ] **Phase 18: Vendor Risk Management** — Third-party risk assessments (deferred)
 - [ ] **Phase 19: Advanced Audit Workflows** — Audit automation (deferred)
+- [ ] **Phase 20: Czech Localization** — Full i18n infrastructure, Czech translations for UI, API, reports, and documentation (9 plans)
 - [ ] **Phase 70: Risk Hub** — Admin Console for system configuration, dynamic risk types, approval rules (Plans 1-7 verified)
 - [ ] **Phase 71: Risk Hub Review** — Audit Risk Hub implementation for logical/technical errors and bugs
 - [ ] **Phase 72: Risk Hub Resolution** — Fix Phase 71 findings across backend and frontend
@@ -302,6 +303,23 @@ Plans:
 
 **Deferred to future phase:**
 - Delegation settings (out-of-office approval routing) — see Phase 15.1
+
+### Phase 20: Czech Localization
+**Goal**: Implement full Czech language support for the RiskHub application including UI, API messages, reports, and documentation.
+**Depends on**: Phase 15 (Settings Page with localization placeholder)
+**Status**: Planned
+**Plans**: 9 plans
+
+Plans:
+- [ ] 20-01: i18n Infrastructure Setup (react-i18next, translation file structure, language switching)
+- [ ] 20-02: Frontend Core Components Translation (layout, navigation, common UI)
+- [ ] 20-03: Risk, Control, and KRI Page Translation (domain terminology)
+- [ ] 20-04: Dashboard, Approvals, and Admin Pages Translation
+- [ ] 20-05: Backend API Messages Translation (errors, validation, activity log)
+- [ ] 20-06: PDF/Excel Report Translation (export documents in Czech)
+- [ ] 20-07: Administrator Documentation Translation (7 docs → docs/admin-cs/)
+- [ ] 20-08: End-User Documentation Translation (8 docs → docs/user-cs/)
+- [ ] 20-09: Localization Integration and Verification (testing, glossary, dev docs)
 
 ### Phase 17: Production Deployment & Enterprise Integration
 **Goal**: Production-ready deployment, Azure AD/Entra SSO, comprehensive documentation, and enterprise testing

@@ -2,22 +2,9 @@
  * ViewSwitcher - Tab-style view mode selector.
  */
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 export type ViewMode = 'all' | 'category' | 'department' | 'process' | 'risk_type' | 'risk';
-
-interface ViewOption {
-    value: ViewMode;
-    label: string;
-}
-
-const VIEW_OPTIONS: ViewOption[] = [
-    { value: 'all', label: 'All' },
-    { value: 'category', label: 'By Category' },
-    { value: 'department', label: 'By Department' },
-    { value: 'process', label: 'By Process' },
-    { value: 'risk_type', label: 'By Risk Type' },
-    { value: 'risk', label: 'By Risk' },
-];
 
 interface ViewSwitcherProps {
     value: ViewMode;
@@ -27,6 +14,17 @@ interface ViewSwitcherProps {
 }
 
 export function ViewSwitcher({ value, onChange, className, exclude = [] }: ViewSwitcherProps) {
+    const { t } = useTranslation('common');
+
+    const VIEW_OPTIONS = [
+        { value: 'all' as ViewMode, label: t('views.all', 'All') },
+        { value: 'category' as ViewMode, label: t('views.by_category', 'By Category') },
+        { value: 'department' as ViewMode, label: t('views.by_department', 'By Department') },
+        { value: 'process' as ViewMode, label: t('views.by_process', 'By Process') },
+        { value: 'risk_type' as ViewMode, label: t('views.by_risk_type', 'By Risk Type') },
+        { value: 'risk' as ViewMode, label: t('views.by_risk', 'By Risk') },
+    ];
+
     const options = VIEW_OPTIONS.filter(opt => !exclude.includes(opt.value));
 
     return (
@@ -48,3 +46,4 @@ export function ViewSwitcher({ value, onChange, className, exclude = [] }: ViewS
         </div>
     );
 }
+
