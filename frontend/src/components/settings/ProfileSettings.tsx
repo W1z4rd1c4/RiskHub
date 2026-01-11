@@ -16,37 +16,8 @@ interface ProfileSettingsProps {
     };
 }
 
-// Permission display names mapping
-const permissionLabels: Record<string, string> = {
-    'risks:read': 'View Risks',
-    'risks:write': 'Create & Edit Risks',
-    'risks:delete': 'Delete Risks',
-    'controls:read': 'View Controls',
-    'controls:write': 'Create & Edit Controls',
-    'controls:delete': 'Delete Controls',
-    'controls:execute': 'Log Control Executions',
-    'kris:read': 'View KRIs',
-    'kris:write': 'Create & Edit KRIs',
-    'kris:delete': 'Delete KRIs',
-    'kri:submit': 'Submit KRI Values',
-    'approvals:read': 'View Approvals',
-    'approvals:approve': 'Approve/Reject Requests',
-    'users:read': 'View Users',
-    'users:write': 'Manage Users',
-    'activity_log:read': 'View Activity Log',
-    'departments:read': 'View Departments',
-    'departments:write': 'Manage Departments',
-    'reports:read': 'View Reports',
-    'reports:export': 'Export Reports',
-    'admin:config': 'System Configuration',
-    'admin:logs': 'View System Logs',
-    'admin:sessions': 'Manage Active Sessions',
-    'admin:*': 'Full Admin Access',
-    '*:*': 'Super Admin (All Permissions)',
-};
-
 // Get human-readable permission name
-function getPermissionLabel(permission: string): string {
+function getPermissionLabel(permission: string, permissionLabels: Record<string, string>): string {
     if (permissionLabels[permission]) {
         return permissionLabels[permission];
     }
@@ -139,6 +110,36 @@ function getResourceColor(resource: string): string {
 
 export function ProfileSettings({ user }: ProfileSettingsProps) {
     const { t } = useTranslation('settings');
+
+    // Permission labels with translations
+    const permissionLabels: Record<string, string> = {
+        'risks:read': t('permissions.risks_read', 'View Risks'),
+        'risks:write': t('permissions.risks_write', 'Create & Edit Risks'),
+        'risks:delete': t('permissions.risks_delete', 'Delete Risks'),
+        'controls:read': t('permissions.controls_read', 'View Controls'),
+        'controls:write': t('permissions.controls_write', 'Create & Edit Controls'),
+        'controls:delete': t('permissions.controls_delete', 'Delete Controls'),
+        'controls:execute': t('permissions.controls_execute', 'Log Control Executions'),
+        'kris:read': t('permissions.kris_read', 'View KRIs'),
+        'kris:write': t('permissions.kris_write', 'Create & Edit KRIs'),
+        'kris:delete': t('permissions.kris_delete', 'Delete KRIs'),
+        'kri:submit': t('permissions.kri_submit', 'Submit KRI Values'),
+        'approvals:read': t('permissions.approvals_read', 'View Approvals'),
+        'approvals:approve': t('permissions.approvals_approve', 'Approve/Reject Requests'),
+        'users:read': t('permissions.users_read', 'View Users'),
+        'users:write': t('permissions.users_write', 'Manage Users'),
+        'activity_log:read': t('permissions.activity_log_read', 'View Activity Log'),
+        'departments:read': t('permissions.departments_read', 'View Departments'),
+        'departments:write': t('permissions.departments_write', 'Manage Departments'),
+        'reports:read': t('permissions.reports_read', 'View Reports'),
+        'reports:export': t('permissions.reports_export', 'Export Reports'),
+        'admin:config': t('permissions.admin_config', 'System Configuration'),
+        'admin:logs': t('permissions.admin_logs', 'View System Logs'),
+        'admin:sessions': t('permissions.admin_sessions', 'Manage Active Sessions'),
+        'admin:*': t('permissions.admin_all', 'Full Admin Access'),
+        '*:*': t('permissions.super_admin', 'Super Admin (All Permissions)'),
+    };
+
     const rawPermissions = user.effective_permissions || user.permissions || [];
     const expandedPermissions = expandWildcardPermissions(rawPermissions, user.role);
     const groupedPermissions = groupPermissions(expandedPermissions);
@@ -233,7 +234,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                                         {perms.map(perm => (
                                             <li key={perm} className="text-sm text-slate-300 flex items-center gap-2">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                {getPermissionLabel(perm)}
+                                                {getPermissionLabel(perm, permissionLabels)}
                                             </li>
                                         ))}
                                     </ul>

@@ -129,6 +129,9 @@
         "col_department": "Department",
         "col_previous_owner": "Previous Owner",
         "col_orphaned": "Orphaned",
-        "col_actions": "Actions"
+        "col_actions": "Actions",
+        "type_risk": "Risk",
+        "type_control": "Control",
+        "type_kri": "KRI"
     }
 }
