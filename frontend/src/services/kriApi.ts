@@ -11,7 +11,7 @@ import type {
     OverdueKRI,
     DueSoonKRI,
 } from '../types/kri';
-
+import type { ApprovalCreatedResponse } from '../types/approval';
 export const kriApi = {
     async getKRIs(params?: { risk_id?: number; breach_only?: boolean; page?: number; size?: number }): Promise<KRIListResponse> {
         return apiClient.get<KRIListResponse>('/kris', { params });
@@ -29,8 +29,8 @@ export const kriApi = {
         return apiClient.post<KeyRiskIndicator>('/kris', data);
     },
 
-    async updateKRI(id: number, data: KRIUpdate): Promise<KeyRiskIndicator> {
-        return apiClient.put<KeyRiskIndicator>(`/kris/${id}`, data);
+    async updateKRI(id: number, data: KRIUpdate): Promise<KeyRiskIndicator | ApprovalCreatedResponse> {
+        return apiClient.put<KeyRiskIndicator | ApprovalCreatedResponse>(`/kris/${id}`, data);
     },
 
     async deleteKRI(id: number, reason: string): Promise<void> {
