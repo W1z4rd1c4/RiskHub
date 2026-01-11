@@ -16,14 +16,20 @@
         "last_login": "Last Login"
     },
     "appearance": {
-        "title": "Appearance Settings",
+        "title": "Theme",
+        "description": "Choose how RiskHub looks to you.",
         "theme": "Theme",
         "theme_light": "Light",
+        "theme_light_desc": "Clean and bright for daytime use",
         "theme_dark": "Dark",
+        "theme_dark_desc": "True dark mode for OLED displays",
+        "theme_riskhub": "RiskHub Theme",
+        "theme_riskhub_desc": "Premium signature theme",
         "theme_system": "System",
         "density": "Display Density",
         "density_comfortable": "Comfortable",
-        "density_compact": "Compact"
+        "density_compact": "Compact",
+        "persistence_note": "Theme preference is saved locally on this device and will persist across sessions."
     },
     "notifications": {
         "title": "Notification Settings",

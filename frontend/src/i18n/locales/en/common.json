@@ -24,7 +24,8 @@
         "approve": "Approve",
         "reject": "Reject",
         "yes": "Yes",
-        "no": "No"
+        "no": "No",
+        "archive": "Archive"
     },
     "labels": {
         "name": "Name",
@@ -49,7 +50,13 @@
         "unknown": "Unknown",
         "loading": "Loading...",
         "no_data": "No data available",
-        "no_results": "No results found"
+        "no_results": "No results found",
+        "archiving": "Archiving",
+        "archive_reason": "Reason for Archiving",
+        "archive_reason_placeholder": "e.g., Control is no longer needed, superseded by new process...",
+        "control": "Control",
+        "risk": "Risk",
+        "results": "results"
     },
     "errors": {
         "generic": "An error occurred. Please try again.",
@@ -74,7 +81,9 @@
     "confirmation": {
         "delete_title": "Confirm Delete",
         "delete_message": "Are you sure you want to delete this item? This action cannot be undone.",
-        "unsaved_changes": "You have unsaved changes. Are you sure you want to leave?"
+        "unsaved_changes": "You have unsaved changes. Are you sure you want to leave?",
+        "archive_title": "Archive {{type}}",
+        "archive_reversible": "This action can be undone by an administrator."
     },
     "pagination": {
         "page": "Page",
