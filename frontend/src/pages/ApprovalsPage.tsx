@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import {
     CheckCircle2,
     Clock,
@@ -14,13 +15,14 @@ import {
 import { approvalsApi } from '../services/approvalsApi';
 import type { ApprovalRequest, ApprovalActionType, ApprovalStatus } from '../types/approval';
 import { usePermissions } from '../hooks/usePermissions';
-import { cn } from '@/lib/utils'; // Assuming this exists, based on other files
+import { cn } from '@/lib/utils';
 
 export default function ApprovalsPage() {
     const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'pending' | 'all' | 'mine'>('pending');
     const { canResolveApprovals: canResolve, user } = usePermissions();
+    const { t } = useTranslation('approvals');
 
     // Dialog State
     const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null);
@@ -142,8 +144,8 @@ export default function ApprovalsPage() {
         <div className="space-y-8 p-8">
             {/* Header */}
             <div>
-                <h1 className="text-4xl font-black text-white tracking-tighter mb-2">Workflow</h1>
-                <p className="text-slate-500 font-medium">Manage approval requests for critical changes and deletions.</p>
+                <h1 className="text-4xl font-black text-white tracking-tighter mb-2">{t('title')}</h1>
+                <p className="text-slate-500 font-medium">{t('page_subtitle')}</p>
             </div>
 
             {/* Filters */}
@@ -166,7 +168,7 @@ export default function ApprovalsPage() {
                             : "text-slate-400 hover:text-white hover:bg-white/5"
                     )}
                 >
-                    Pending Queue
+                    {t('tabs.pending')}
                 </button>
                 <button
                     onClick={() => setFilter('mine')}
@@ -177,7 +179,7 @@ export default function ApprovalsPage() {
                             : "text-slate-400 hover:text-white hover:bg-white/5"
                     )}
                 >
-                    My Requests
+                    {t('tabs.mine')}
                 </button>
                 <button
                     onClick={() => setFilter('all')}
@@ -188,7 +190,7 @@ export default function ApprovalsPage() {
                             : "text-slate-400 hover:text-white hover:bg-white/5"
                     )}
                 >
-                    History
+                    {t('tabs.history')}
                 </button>
             </div>
 
@@ -200,8 +202,8 @@ export default function ApprovalsPage() {
             ) : approvals.length === 0 ? (
                 <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
                     <CheckCircle2 className="h-12 w-12 text-slate-700 mx-auto mb-4" />
-                    <h3 className="text-lg font-bold text-white mb-2">All Caught Up</h3>
-                    <p className="text-slate-500 max-w-sm mx-auto">There are no approval requests matching your current filter.</p>
+                    <h3 className="text-lg font-bold text-white mb-2">{t('empty_state.all_caught_up')}</h3>
+                    <p className="text-slate-500 max-w-sm mx-auto">{t('empty_state.no_matching')}</p>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -324,7 +326,7 @@ export default function ApprovalsPage() {
                                         exit={{ height: 0, opacity: 0 }}
                                         className="bg-white/[0.02] border-t border-white/5 px-6 py-4"
                                     >
-                                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Proposed Changes</h4>
+                                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t('labels.proposed_changes')}</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                             {Object.entries(approval.pending_changes).map(([field, change]) => (
                                                 <div key={field} className="bg-black/20 rounded-lg p-3 border border-white/5">
@@ -364,16 +366,16 @@ export default function ApprovalsPage() {
                         >
                             <div className="p-6">
                                 <h3 className="text-xl font-bold text-white mb-2">
-                                    {dialogMode === 'approve' ? 'Approve Request' : 'Reject Request'}
+                                    {dialogMode === 'approve' ? t('dialogs.approve_title') : t('dialogs.reject_title')}
                                 </h3>
                                 <p className="text-sm text-slate-400 mb-6">
-                                    Please provide a reason for this decision (mandatory).
+                                    {t('dialogs.resolution_required')}
                                 </p>
 
                                 <textarea
                                     value={resolutionNotes}
                                     onChange={(e) => setResolutionNotes(e.target.value)}
-                                    placeholder="Enter resolution notes..."
+                                    placeholder={t('dialogs.resolution_placeholder')}
                                     className="w-full h-32 bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder:text-slate-600 outline-none focus:border-accent/50 resize-none"
                                 />
 
@@ -382,7 +384,7 @@ export default function ApprovalsPage() {
                                         onClick={closeDialog}
                                         className="px-4 py-2 text-sm font-bold text-slate-400 hover:text-white transition-colors"
                                     >
-                                        Cancel
+                                        {t('actions.cancel')}
                                     </button>
                                     <button
                                         onClick={handleResolve}
@@ -394,7 +396,7 @@ export default function ApprovalsPage() {
                                                 : "bg-rose-500 hover:bg-rose-600"
                                         )}
                                     >
-                                        {isSubmitting ? 'Processing...' : (dialogMode === 'approve' ? 'Approve' : 'Reject')}
+                                        {isSubmitting ? t('dialogs.processing') : (dialogMode === 'approve' ? t('actions.approve') : t('actions.reject'))}
                                     </button>
                                 </div>
                             </div>

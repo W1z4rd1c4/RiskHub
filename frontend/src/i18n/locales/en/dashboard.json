@@ -1,6 +1,9 @@
 {
-    "title": "Dashboard",
+    "title": "Operational Insight",
+    "page_subtitle": "Overview of risk posture and control performance across the organization.",
     "welcome": "Welcome back, {{name}}",
+    "loading": "Synchronizing Insight...",
+    "live_data": "Live Data",
     "widgets": {
         "risk_overview": "Risk Overview",
         "control_status": "Control Status",
@@ -21,6 +24,36 @@
         "control_coverage": "Control Coverage",
         "kri_breaches": "KRI Breaches",
         "overdue_items": "Overdue Items"
+    },
+    "stats": {
+        "total_controls": "Total Controls",
+        "active_depts": "Active Depts",
+        "critical_risks": "Critical Risks",
+        "avg_risk_score": "Avg Risk Score",
+        "live": "Live",
+        "stable": "Stable",
+        "urgent": "Urgent",
+        "calculated": "Calculated"
+    },
+    "views": {
+        "overview": "Overview",
+        "risk_committee": "Risk Committee"
+    },
+    "sections": {
+        "control_analytics": "Control Analytics",
+        "control_execution_trends": "Control Execution Trends",
+        "gross_risk_matrix": "Gross Risk Matrix",
+        "net_risk_matrix": "Net Risk Matrix",
+        "time_series_analysis": "Time Series Analysis",
+        "risk_creation_trends": "Risk Creation Trends",
+        "kri_breach_history": "KRI Breach History",
+        "departmental_visibility": "Departmental Visibility",
+        "no_execution_history": "No execution history available"
+    },
+    "errors": {
+        "connection_interrupted": "Connection Interrupted",
+        "load_failed": "Failed to load dashboard data. Please check your connection.",
+        "retry": "Retry Connection"
     },
     "filters": {
         "department": "Department",

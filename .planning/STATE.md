@@ -167,10 +167,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 20-03: Risk, Control, and KRI Page Translation. Added i18n to RisksPage, ControlsPage, and KRIsPage with page titles, filters, columns, and error messages. Updated EN/CS risks.json, controls.json, and kris.json with new keys.
+- Completed Plan 20-04: Dashboard and Approvals Pages Translation. Added i18n to DashboardPage (title, stats, sections, views, errors) and ApprovalsPage (title, tabs, empty states, dialogs). Updated EN/CS dashboard.json and approvals.json.
 
 ### Next Step
-- Continue Phase 20 Czech Localization with Plan 20-04 (Detail pages and forms translation).
+- Continue Phase 20 Czech Localization with remaining admin pages (Admin Console, Governance, Departments, Users) or proceed to next phase.
 
 
 
