@@ -1,38 +1,40 @@
 import { Sun, Moon, Sparkles, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
 
-const themeOptions = [
-    {
-        value: 'light' as const,
-        label: 'Light',
-        description: 'Clean and bright for daytime use',
-        icon: Sun,
-    },
-    {
-        value: 'dark' as const,
-        label: 'Dark',
-        description: 'True dark mode for OLED displays',
-        icon: Moon,
-    },
-    {
-        value: 'riskhub' as const,
-        label: 'RiskHub Theme',
-        description: 'Premium signature theme',
-        icon: Sparkles,
-    },
-];
-
 export function AppearanceSettings() {
     const { theme, setTheme } = useTheme();
+    const { t } = useTranslation('settings');
+
+    const themeOptions = [
+        {
+            value: 'light' as const,
+            label: t('appearance.theme_light'),
+            description: t('appearance.theme_light_desc'),
+            icon: Sun,
+        },
+        {
+            value: 'dark' as const,
+            label: t('appearance.theme_dark'),
+            description: t('appearance.theme_dark_desc'),
+            icon: Moon,
+        },
+        {
+            value: 'riskhub' as const,
+            label: t('appearance.theme_riskhub'),
+            description: t('appearance.theme_riskhub_desc'),
+            icon: Sparkles,
+        },
+    ];
 
     return (
         <div className="space-y-8">
             {/* Theme Selection Section */}
             <section>
-                <h3 className="text-lg font-semibold mb-2">Theme</h3>
+                <h3 className="text-lg font-semibold mb-2">{t('appearance.title')}</h3>
                 <p className="text-slate-400 text-sm mb-6">
-                    Choose how RiskHub looks to you.
+                    {t('appearance.description')}
                 </p>
 
                 <div className="grid gap-4 md:grid-cols-3">
@@ -91,8 +93,9 @@ export function AppearanceSettings() {
 
             {/* Note */}
             <p className="text-xs text-slate-500 italic">
-                Theme preference is saved locally on this device and will persist across sessions.
+                {t('appearance.persistence_note')}
             </p>
         </div>
     );
 }
+

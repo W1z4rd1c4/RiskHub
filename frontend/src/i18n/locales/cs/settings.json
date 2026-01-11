@@ -16,14 +16,20 @@
         "last_login": "Poslední přihlášení"
     },
     "appearance": {
-        "title": "Nastavení vzhledu",
+        "title": "Motiv",
+        "description": "Vyberte, jak má RiskHub vypadat.",
         "theme": "Motiv",
         "theme_light": "Světlý",
+        "theme_light_desc": "Čistý a jasný pro denní používání",
         "theme_dark": "Tmavý",
+        "theme_dark_desc": "Skutečný tmavý režim pro OLED displeje",
+        "theme_riskhub": "RiskHub motiv",
+        "theme_riskhub_desc": "Prémiový podpisový motiv",
         "theme_system": "Systémový",
         "density": "Hustota zobrazení",
         "density_comfortable": "Pohodlné",
-        "density_compact": "Kompaktní"
+        "density_compact": "Kompaktní",
+        "persistence_note": "Preference motivu je uložena lokálně na tomto zařízení a zůstane zachována mezi relacemi."
     },
     "notifications": {
         "title": "Nastavení oznámení",

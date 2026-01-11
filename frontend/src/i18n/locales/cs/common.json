@@ -24,7 +24,8 @@
         "approve": "Schválit",
         "reject": "Zamítnout",
         "yes": "Ano",
-        "no": "Ne"
+        "no": "Ne",
+        "archive": "Archivovat"
     },
     "labels": {
         "name": "Název",
@@ -49,7 +50,13 @@
         "unknown": "Neznámé",
         "loading": "Načítání...",
         "no_data": "Žádná data k dispozici",
-        "no_results": "Nebyly nalezeny žádné výsledky"
+        "no_results": "Nebyly nalezeny žádné výsledky",
+        "archiving": "Archivace",
+        "archive_reason": "Důvod archivace",
+        "archive_reason_placeholder": "např. Kontrola již není potřebná, nahrazena novým procesem...",
+        "control": "Kontrola",
+        "risk": "Riziko",
+        "results": "výsledků"
     },
     "errors": {
         "generic": "Došlo k chybě. Zkuste to prosím znovu.",
@@ -74,7 +81,9 @@
     "confirmation": {
         "delete_title": "Potvrdit smazání",
         "delete_message": "Opravdu chcete smazat tuto položku? Tuto akci nelze vrátit zpět.",
-        "unsaved_changes": "Máte neuložené změny. Opravdu chcete odejít?"
+        "unsaved_changes": "Máte neuložené změny. Opravdu chcete odejít?",
+        "archive_title": "Archivovat {{type}}",
+        "archive_reversible": "Tuto akci může administrátor vrátit zpět."
     },
     "pagination": {
         "page": "Stránka",
