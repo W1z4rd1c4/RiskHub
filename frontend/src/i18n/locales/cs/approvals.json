@@ -1,8 +1,10 @@
 {
-    "title": "Schvalování",
-    "page_subtitle": "Kontrola a správa žádostí o schválení",
+    "title": "Workflow",
+    "page_subtitle": "Správa žádostí o schválení kritických změn a mazání.",
     "tabs": {
-        "pending": "Čekající",
+        "pending": "Fronta čekajících",
+        "mine": "Moje žádosti",
+        "history": "Historie",
         "approved": "Schválené",
         "rejected": "Zamítnuté",
         "cancelled": "Zrušené",
@@ -51,7 +53,10 @@
         "reject_message": "Uveďte prosím důvod zamítnutí:",
         "reject_reason_placeholder": "Zadejte důvod zamítnutí...",
         "cancel_title": "Zrušit žádost",
-        "cancel_message": "Opravdu chcete zrušit tuto žádost?"
+        "cancel_message": "Opravdu chcete zrušit tuto žádost?",
+        "resolution_placeholder": "Zadejte poznámky k rozhodnutí...",
+        "resolution_required": "Uveďte prosím důvod tohoto rozhodnutí (povinné).",
+        "processing": "Zpracovávám..."
     },
     "workflow": {
         "title": "Schvalovací workflow",
@@ -70,7 +75,16 @@
     "empty_state": {
         "no_pending": "Žádná čekající schválení",
         "no_history": "Žádná historie schvalování",
-        "no_requests": "Žádné žádosti o schválení"
+        "no_requests": "Žádné žádosti o schválení",
+        "all_caught_up": "Vše zpracováno",
+        "no_matching": "Neexistují žádné žádosti odpovídající aktuálnímu filtru."
+    },
+    "labels": {
+        "proposed_changes": "Navrhované změny",
+        "approved_on": "Schváleno {{date}} v {{time}}",
+        "rejected_on": "Zamítnuto {{date}} v {{time}}",
+        "by": "od",
+        "re": "Ohledně:"
     },
     "notifications": {
         "approved": "Žádost byla úspěšně schválena",

@@ -1,6 +1,9 @@
 {
-    "title": "Přehled",
+    "title": "Provozní přehled",
+    "page_subtitle": "Přehled rizikové pozice a výkonu kontrol v celé organizaci.",
     "welcome": "Vítejte zpět, {{name}}",
+    "loading": "Synchronizace přehledu...",
+    "live_data": "Živá data",
     "widgets": {
         "risk_overview": "Přehled rizik",
         "control_status": "Stav kontrol",
@@ -21,6 +24,36 @@
         "control_coverage": "Pokrytí kontrolami",
         "kri_breaches": "Překročení KRI",
         "overdue_items": "Opožděné položky"
+    },
+    "stats": {
+        "total_controls": "Celkem kontrol",
+        "active_depts": "Aktivní oddělení",
+        "critical_risks": "Kritická rizika",
+        "avg_risk_score": "Průměrné skóre",
+        "live": "Živo",
+        "stable": "Stabilní",
+        "urgent": "Nalnéhavové",
+        "calculated": "Vypočteno"
+    },
+    "views": {
+        "overview": "Přehled",
+        "risk_committee": "Výbor pro řízení rizik"
+    },
+    "sections": {
+        "control_analytics": "Analytika kontrol",
+        "control_execution_trends": "Trendy exekuce kontrol",
+        "gross_risk_matrix": "Matice hrubého rizika",
+        "net_risk_matrix": "Matice čistého rizika",
+        "time_series_analysis": "Analýza časové řady",
+        "risk_creation_trends": "Trendy vytváření rizik",
+        "kri_breach_history": "Historie překročení KRI",
+        "departmental_visibility": "Viditelnost oddělení",
+        "no_execution_history": "Žádná historie exekuce"
+    },
+    "errors": {
+        "connection_interrupted": "Připojení přerušeno",
+        "load_failed": "Nepodařilo se načíst data přehledu. Zkontrolujte připojení.",
+        "retry": "Zkusit znovu"
     },
     "filters": {
         "department": "Oddělení",
