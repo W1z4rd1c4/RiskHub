@@ -419,7 +419,7 @@ async def reject_request(
     # Update approval status
     approval.status = ApprovalStatus.REJECTED
     approval.resolved_by_id = current_user.id
-    approval.resolved_at = datetime.utcnow()
+    approval.resolved_at = datetime.now(UTC)
     approval.resolution_notes = resolve_data.resolution_notes
     
     department_id = await _get_approval_department_id(db, approval)
@@ -483,7 +483,7 @@ async def cancel_request(
     
     # Update status
     approval.status = ApprovalStatus.CANCELLED
-    approval.resolved_at = datetime.utcnow()
+    approval.resolved_at = datetime.now(UTC)
     
     # Log activity for cancellation
     department_id = await _get_approval_department_id(db, approval)
