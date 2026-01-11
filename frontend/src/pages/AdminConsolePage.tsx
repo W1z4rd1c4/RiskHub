@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import {
     Server, Users, Activity, Terminal, RefreshCw,
     Database, Clock, MemoryStick,
@@ -11,16 +12,17 @@ import { adminApi, type LogConfig } from '@/services/adminApi';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
-const tabs = [
-    { id: 'health', label: 'System Health', icon: Activity },
-    { id: 'logs', label: 'Application Logs', icon: Terminal },
-    { id: 'audit', label: 'Audit Logs', icon: Shield },
-    { id: 'sessions', label: 'Active Sessions', icon: Users },
+const tabDefs = [
+    { id: 'health', labelKey: 'tabs.health', icon: Activity },
+    { id: 'logs', labelKey: 'tabs.application_logs', icon: Terminal },
+    { id: 'audit', labelKey: 'tabs.audit_logs', icon: Shield },
+    { id: 'sessions', labelKey: 'tabs.sessions', icon: Users },
 ] as const;
 
-type TabId = typeof tabs[number]['id'];
+type TabId = typeof tabDefs[number]['id'];
 
 function LogSettingsPanel() {
+    const { t } = useTranslation('admin');
     const queryClient = useQueryClient();
     const { data: config, isLoading } = useQuery({
         queryKey: ['logConfig'],
@@ -48,12 +50,12 @@ function LogSettingsPanel() {
         <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
             <div className="flex items-center gap-2 mb-4">
                 <Settings2 className="h-5 w-5 text-accent" />
-                <h4 className="text-white font-medium">Log Rotation Settings</h4>
+                <h4 className="text-white font-medium">{t('audit.title')}</h4>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                    <label className="text-sm text-slate-400">Max File Size (MB)</label>
+                    <label className="text-sm text-slate-400">{t('audit.max_file_size')}</label>
                     <input
                         type="number"
                         value={form.log_rotation_size_mb}
@@ -62,11 +64,11 @@ function LogSettingsPanel() {
                         min="1"
                         max="1000"
                     />
-                    <p className="text-xs text-slate-500">Maximum size per log file before rotation.</p>
+                    <p className="text-xs text-slate-500">{t('audit.max_file_size_hint')}</p>
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-sm text-slate-400">Retention Count (Files)</label>
+                    <label className="text-sm text-slate-400">{t('audit.retention_count')}</label>
                     <input
                         type="number"
                         value={form.log_retention_count}
@@ -75,20 +77,20 @@ function LogSettingsPanel() {
                         min="1"
                         max="50"
                     />
-                    <p className="text-xs text-slate-500">Number of backup files to keep.</p>
+                    <p className="text-xs text-slate-500">{t('audit.retention_count_hint')}</p>
                 </div>
             </div>
 
             <div className="mt-4 flex items-center justify-between">
                 <p className="text-xs text-amber-500/80 italic">
-                    Note: Updating these settings affects both Application and Audit logs.
+                    {t('audit.note')}
                 </p>
                 <button
                     onClick={() => mutation.mutate(form)}
                     disabled={mutation.isPending}
                     className="px-4 py-2 bg-accent hover:bg-accent/80 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
                 >
-                    {mutation.isPending ? 'Saving...' : 'Save Settings'}
+                    {mutation.isPending ? t('audit.saving') : t('audit.save_settings')}
                 </button>
             </div>
         </div>
@@ -96,6 +98,7 @@ function LogSettingsPanel() {
 }
 
 function AuditLogsPanel() {
+    const { t } = useTranslation('admin');
     const [lines, setLines] = useState<number>(100);
     const [eventFilter, setEventFilter] = useState<string>('');
     const [autoRefresh, setAutoRefresh] = useState(false);
@@ -137,7 +140,7 @@ function AuditLogsPanel() {
     };
 
     if (isLoading && !data) {
-        return <div className="text-slate-400 text-center py-8">Loading audit logs...</div>;
+        return <div className="text-slate-400 text-center py-8">{t('application_logs.loading')}</div>;
     }
 
     const logs = data?.entries || [];
@@ -149,10 +152,10 @@ function AuditLogsPanel() {
 
             <div className="flex flex-wrap items-center justify-between gap-4 py-2">
                 <div className="flex items-center gap-4">
-                    <h3 className="text-lg font-semibold text-white">Audit Event Feed</h3>
+                    <h3 className="text-lg font-semibold text-white">{t('audit.event_feed')}</h3>
                     <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
                         <div className={cn("w-2 h-2 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-500")} />
-                        <span className="text-xs text-slate-400">Live</span>
+                        <span className="text-xs text-slate-400">{t('audit.live')}</span>
                         <input
                             type="checkbox"
                             checked={autoRefresh}
@@ -166,9 +169,9 @@ function AuditLogsPanel() {
                     <ThemedSelect
                         value={eventFilter}
                         onValueChange={setEventFilter}
-                        placeholder="All Events"
+                        placeholder={t('audit.all_events')}
                         allowEmpty
-                        emptyLabel="All Events"
+                        emptyLabel={t('audit.all_events')}
                         options={eventTypes.map(type => ({ value: type, label: type.replace(/_/g, ' ') }))}
                     />
 
@@ -216,18 +219,18 @@ function AuditLogsPanel() {
                 <table className="w-full text-sm text-left">
                     <thead className="bg-white/5 text-slate-400">
                         <tr className="border-b border-white/10">
-                            <th className="py-3 px-4 font-medium">Timestamp</th>
-                            <th className="py-3 px-4 font-medium">Event</th>
-                            <th className="py-3 px-4 font-medium">User</th>
-                            <th className="py-3 px-4 font-medium">Client IP</th>
-                            <th className="py-3 px-4 font-medium text-right">Details</th>
+                            <th className="py-3 px-4 font-medium">{t('audit.columns.timestamp')}</th>
+                            <th className="py-3 px-4 font-medium">{t('audit.columns.event')}</th>
+                            <th className="py-3 px-4 font-medium">{t('audit.columns.user')}</th>
+                            <th className="py-3 px-4 font-medium">{t('audit.columns.client_ip')}</th>
+                            <th className="py-3 px-4 font-medium text-right">{t('audit.columns.details')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                         {logs.length === 0 ? (
                             <tr>
                                 <td colSpan={5} className="py-8 text-center text-slate-500">
-                                    No audit events found in current log window.
+                                    {t('audit.no_events')}
                                 </td>
                             </tr>
                         ) : (
@@ -258,7 +261,7 @@ function AuditLogsPanel() {
                                             className="text-xs text-accent hover:underline"
                                             onClick={() => alert(JSON.stringify(log.extra, null, 2))}
                                         >
-                                            View
+                                            {t('audit.view')}
                                         </button>
                                     </td>
                                 </tr>
@@ -272,6 +275,7 @@ function AuditLogsPanel() {
 }
 
 function HealthPanel() {
+    const { t } = useTranslation('admin');
     const { data: health, isLoading, refetch } = useQuery({
         queryKey: ['adminHealth'],
         queryFn: () => adminApi.getSystemHealth(),
@@ -284,19 +288,19 @@ function HealthPanel() {
     });
 
     if (isLoading) {
-        return <div className="text-slate-400 text-center py-8">Loading system health...</div>;
+        return <div className="text-slate-400 text-center py-8">{t('health.loading')}</div>;
     }
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">System Health</h3>
+                <h3 className="text-lg font-semibold text-white">{t('health.title')}</h3>
                 <button
                     onClick={() => refetch()}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                 >
                     <RefreshCw className="h-4 w-4" />
-                    Refresh
+                    {t('health.refresh')}
                 </button>
             </div>
 
@@ -307,55 +311,55 @@ function HealthPanel() {
                             "h-5 w-5",
                             health?.database_status === 'connected' ? 'text-green-400' : 'text-red-400'
                         )} />
-                        <span className="text-slate-400 text-sm">Database</span>
+                        <span className="text-slate-400 text-sm">{t('health.database')}</span>
                     </div>
                     <p className={cn(
                         "text-xl font-bold",
                         health?.database_status === 'connected' ? 'text-green-400' : 'text-red-400'
                     )}>
-                        {health?.database_status === 'connected' ? 'Connected' : 'Error'}
+                        {health?.database_status === 'connected' ? t('health.connected') : t('health.error')}
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                        Latency: {health?.database_latency_ms?.toFixed(2)}ms
+                        {t('health.latency')}: {health?.database_latency_ms?.toFixed(2)}ms
                     </p>
                 </div>
 
                 <div className="bg-white/5 rounded-xl p-4">
                     <div className="flex items-center gap-3 mb-2">
                         <Clock className="h-5 w-5 text-blue-400" />
-                        <span className="text-slate-400 text-sm">Uptime</span>
+                        <span className="text-slate-400 text-sm">{t('health.uptime')}</span>
                     </div>
                     <p className="text-xl font-bold text-white">
                         {Math.floor((health?.uptime_seconds || 0) / 3600)}h {Math.floor(((health?.uptime_seconds || 0) % 3600) / 60)}m
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                        Since last restart
+                        {t('health.since_restart')}
                     </p>
                 </div>
 
                 <div className="bg-white/5 rounded-xl p-4">
                     <div className="flex items-center gap-3 mb-2">
                         <MemoryStick className="h-5 w-5 text-purple-400" />
-                        <span className="text-slate-400 text-sm">Memory</span>
+                        <span className="text-slate-400 text-sm">{t('health.memory')}</span>
                     </div>
                     <p className="text-xl font-bold text-white">
                         {health?.memory_usage_mb?.toFixed(0)} MB
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                        Process memory usage
+                        {t('health.process_memory')}
                     </p>
                 </div>
 
                 <div className="bg-white/5 rounded-xl p-4">
                     <div className="flex items-center gap-3 mb-2">
                         <Users className="h-5 w-5 text-amber-400" />
-                        <span className="text-slate-400 text-sm">Active Users</span>
+                        <span className="text-slate-400 text-sm">{t('health.active_users')}</span>
                     </div>
                     <p className="text-xl font-bold text-white">
                         {stats?.active_users_24h || 0}
                     </p>
                     <p className="text-xs text-slate-500 mt-1">
-                        In last 24 hours
+                        {t('health.in_last_24h')}
                     </p>
                 </div>
             </div>
@@ -364,6 +368,7 @@ function HealthPanel() {
 }
 
 function LogsPanel() {
+    const { t } = useTranslation('admin');
     const [eventFilter, setEventFilter] = useState<string>('');
 
     const { data: logs, isLoading } = useQuery({
@@ -372,7 +377,7 @@ function LogsPanel() {
     });
 
     if (isLoading) {
-        return <div className="text-slate-400 text-center py-8">Loading logs...</div>;
+        return <div className="text-slate-400 text-center py-8">{t('application_logs.loading')}</div>;
     }
 
     const eventTypes = [...new Set(logs?.map(l => l.event_type) || [])];
@@ -380,13 +385,13 @@ function LogsPanel() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">Application Logs</h3>
+                <h3 className="text-lg font-semibold text-white">{t('application_logs.title')}</h3>
                 <ThemedSelect
                     value={eventFilter}
                     onValueChange={setEventFilter}
-                    placeholder="All Events"
+                    placeholder={t('application_logs.all_events')}
                     allowEmpty
-                    emptyLabel="All Events"
+                    emptyLabel={t('application_logs.all_events')}
                     options={eventTypes.map(type => ({ value: type, label: type }))}
                 />
             </div>
@@ -395,11 +400,11 @@ function LogsPanel() {
                 <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-slate-900">
                         <tr className="border-b border-white/10">
-                            <th className="text-left py-2 px-3 text-slate-400 font-medium">Time</th>
-                            <th className="text-left py-2 px-3 text-slate-400 font-medium">Level</th>
-                            <th className="text-left py-2 px-3 text-slate-400 font-medium">Event</th>
-                            <th className="text-left py-2 px-3 text-slate-400 font-medium">User</th>
-                            <th className="text-left py-2 px-3 text-slate-400 font-medium">Details</th>
+                            <th className="text-left py-2 px-3 text-slate-400 font-medium">{t('application_logs.columns.time')}</th>
+                            <th className="text-left py-2 px-3 text-slate-400 font-medium">{t('application_logs.columns.level')}</th>
+                            <th className="text-left py-2 px-3 text-slate-400 font-medium">{t('application_logs.columns.event')}</th>
+                            <th className="text-left py-2 px-3 text-slate-400 font-medium">{t('application_logs.columns.user')}</th>
+                            <th className="text-left py-2 px-3 text-slate-400 font-medium">{t('application_logs.columns.details')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -433,6 +438,7 @@ function LogsPanel() {
 }
 
 function SessionsPanel() {
+    const { t } = useTranslation('admin');
     const queryClient = useQueryClient();
 
     const { data: sessions, isLoading } = useQuery({
@@ -446,15 +452,15 @@ function SessionsPanel() {
     });
 
     if (isLoading) {
-        return <div className="text-slate-400 text-center py-8">Loading sessions...</div>;
+        return <div className="text-slate-400 text-center py-8">{t('sessions.loading')}</div>;
     }
 
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">Active Sessions</h3>
+                <h3 className="text-lg font-semibold text-white">{t('sessions.title')}</h3>
                 <p className="text-sm text-slate-500">
-                    Users with activity in the last 24 hours
+                    {t('sessions.description')}
                 </p>
             </div>
 
@@ -462,13 +468,13 @@ function SessionsPanel() {
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">User</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Email</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Role</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Department</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Last Activity</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Status</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Actions</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.user')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.email')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.role')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.department')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.last_activity')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.status')}</th>
+                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -484,15 +490,15 @@ function SessionsPanel() {
                             const isRevoked = !session.is_active;
 
                             let statusColor = "bg-slate-500";
-                            let statusText = "Offline";
+                            let statusText = t('sessions.offline');
                             let durationText = "";
 
                             if (isRevoked) {
                                 statusColor = "bg-red-500";
-                                statusText = "Revoked";
+                                statusText = t('sessions.revoked');
                             } else if (isOnline) {
                                 statusColor = "bg-emerald-500";
-                                statusText = "Online";
+                                statusText = t('sessions.online');
                                 if (lastLoginDate) {
                                     const onlineMinutes = Math.floor((now.getTime() - lastLoginDate.getTime()) / 60000);
                                     const hours = Math.floor(onlineMinutes / 60);
@@ -534,18 +540,18 @@ function SessionsPanel() {
                                         {!isRevoked && (
                                             <button
                                                 onClick={() => {
-                                                    if (confirm(`Revoke session for ${session.user_name}?`)) {
+                                                    if (confirm(t('sessions.revoke_confirm', { name: session.user_name }))) {
                                                         revokeMutation.mutate(session.user_id);
                                                     }
                                                 }}
                                                 className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-colors ml-auto"
                                             >
                                                 <UserX className="h-4 w-4" />
-                                                Revoke
+                                                {t('sessions.revoke')}
                                             </button>
                                         )}
                                         {isRevoked && (
-                                            <span className="text-xs text-red-500 font-medium px-3 py-1.5">Access Revoked</span>
+                                            <span className="text-xs text-red-500 font-medium px-3 py-1.5">{t('sessions.access_revoked')}</span>
                                         )}
                                     </td>
                                 </tr>
@@ -559,12 +565,13 @@ function SessionsPanel() {
 }
 
 export function AdminConsolePage() {
+    const { t } = useTranslation('admin');
     const { user, isLoading } = useAuth();
     const [activeTab, setActiveTab] = useState<TabId>('health');
 
     // Wait for auth to load before checking role
     if (isLoading) {
-        return <div className="flex items-center justify-center min-h-screen text-slate-400">Loading...</div>;
+        return <div className="flex items-center justify-center min-h-screen text-slate-400">{t('console.loading')}</div>;
     }
 
     // Only Admin can access Admin Console
@@ -581,9 +588,9 @@ export function AdminConsolePage() {
                         <Server className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-white font-heading">Admin Console</h1>
+                        <h1 className="text-2xl font-bold text-white font-heading">{t('console.title')}</h1>
                         <p className="text-slate-400">
-                            Platform administration, system health, and user management
+                            {t('console.subtitle')}
                         </p>
                     </div>
                 </div>
@@ -591,7 +598,7 @@ export function AdminConsolePage() {
 
             {/* Tab Navigation */}
             <div className="glass-card p-2 flex gap-2 overflow-x-auto">
-                {tabs.map((tab) => {
+                {tabDefs.map((tab) => {
                     const isActive = activeTab === tab.id;
                     return (
                         <button
@@ -605,7 +612,7 @@ export function AdminConsolePage() {
                             )}
                         >
                             <tab.icon className="h-4 w-4" />
-                            <span className="font-medium">{tab.label}</span>
+                            <span className="font-medium">{t(tab.labelKey)}</span>
                         </button>
                     );
                 })}

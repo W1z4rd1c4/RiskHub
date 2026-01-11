@@ -1,12 +1,91 @@
 {
     "title": "Admin Console",
-    "page_subtitle": "System administration and configuration",
+    "page_subtitle": "Platform administration, system health, and user management",
     "tabs": {
         "users": "Users",
         "departments": "Departments",
         "risk_hub": "Risk Hub",
         "logs": "System Logs",
-        "documentation": "Documentation"
+        "documentation": "Documentation",
+        "health": "System Health",
+        "application_logs": "Application Logs",
+        "audit_logs": "Audit Logs",
+        "sessions": "Active Sessions"
+    },
+    "console": {
+        "title": "Admin Console",
+        "subtitle": "Platform administration, system health, and user management",
+        "loading": "Loading..."
+    },
+    "health": {
+        "title": "System Health",
+        "loading": "Loading system health...",
+        "refresh": "Refresh",
+        "database": "Database",
+        "connected": "Connected",
+        "error": "Error",
+        "latency": "Latency",
+        "uptime": "Uptime",
+        "since_restart": "Since last restart",
+        "memory": "Memory",
+        "process_memory": "Process memory usage",
+        "active_users": "Active Users",
+        "in_last_24h": "In last 24 hours"
+    },
+    "application_logs": {
+        "title": "Application Logs",
+        "loading": "Loading logs...",
+        "all_events": "All Events",
+        "columns": {
+            "time": "Time",
+            "level": "Level",
+            "event": "Event",
+            "user": "User",
+            "details": "Details"
+        }
+    },
+    "audit": {
+        "title": "Log Rotation Settings",
+        "max_file_size": "Max File Size (MB)",
+        "max_file_size_hint": "Maximum size per log file before rotation.",
+        "retention_count": "Retention Count (Files)",
+        "retention_count_hint": "Number of backup files to keep.",
+        "note": "Note: Updating these settings affects both Application and Audit logs.",
+        "save_settings": "Save Settings",
+        "saving": "Saving...",
+        "event_feed": "Audit Event Feed",
+        "live": "Live",
+        "all_events": "All Events",
+        "last_n": "Last {{count}}",
+        "no_events": "No audit events found in current log window.",
+        "view": "View",
+        "columns": {
+            "timestamp": "Timestamp",
+            "event": "Event",
+            "user": "User",
+            "client_ip": "Client IP",
+            "details": "Details"
+        }
+    },
+    "sessions": {
+        "title": "Active Sessions",
+        "description": "Users with activity in the last 24 hours",
+        "loading": "Loading sessions...",
+        "online": "Online",
+        "offline": "Offline",
+        "revoked": "Revoked",
+        "revoke": "Revoke",
+        "access_revoked": "Access Revoked",
+        "revoke_confirm": "Revoke session for {{name}}?",
+        "columns": {
+            "user": "User",
+            "email": "Email",
+            "role": "Role",
+            "department": "Department",
+            "last_activity": "Last Activity",
+            "status": "Status",
+            "actions": "Actions"
+        }
     },
     "users": {
         "title": "User Management",
@@ -87,12 +166,79 @@
     },
     "access": {
         "title": "Access Management",
+        "subtitle": "Manage user access, roles, and permissions across the platform.",
         "permission_matrix": "Permission Matrix",
         "access_scope": "Access Scope",
+        "add_user": "Add User",
+        "search_placeholder": "Search by name or email...",
+        "filter_by_capability": "Filter by Capability:",
+        "all_permissions": "All Permissions",
+        "any_action": "Any Action",
+        "clear": "Clear",
+        "of_users": "{{count}} of {{total}} users",
+        "stats": {
+            "total_users": "Total Users",
+            "active": "Active",
+            "privileged": "Privileged",
+            "sys_admins": "Sys Admins"
+        },
+        "roles": {
+            "all": "All Roles",
+            "admins": "Admins",
+            "cros": "CROs",
+            "risk_managers": "Risk Managers",
+            "dept_heads": "Dept Heads",
+            "control_owners": "Control Owners"
+        },
         "scopes": {
             "global": "Global",
             "department": "Department",
-            "manager": "Manager"
+            "manager": "Manager",
+            "platform": "Platform",
+            "all": "All Scopes"
+        },
+        "table": {
+            "user": "User",
+            "role_department": "Role & Department",
+            "scope": "Scope",
+            "permissions": "Permissions",
+            "status": "Status",
+            "actions": "Actions",
+            "no_department": "No department",
+            "view_only": "View only",
+            "no_users_found": "No users found matching your criteria."
+        },
+        "status": {
+            "active": "Active",
+            "inactive": "Inactive"
+        },
+        "actions": {
+            "edit_access": "Edit Access",
+            "activate": "Activate",
+            "deactivate": "Deactivate"
+        },
+        "capabilities": {
+            "platform_admin": "Platform Administration Capabilities",
+            "riskhub": "Risk Hub Capabilities",
+            "effective_permissions": "Effective Permissions",
+            "user_management": "User Management",
+            "user_management_desc": "Add, edit, deactivate users",
+            "system_health": "System Health",
+            "system_health_desc": "Monitor database, memory",
+            "technical_logs": "Technical Logs",
+            "technical_logs_desc": "View activity and security logs",
+            "session_management": "Session Management",
+            "session_management_desc": "View and revoke user sessions",
+            "risk_types": "Risk Types",
+            "risk_types_desc": "Create, edit, delete risk categories",
+            "global_config": "Global Config",
+            "global_config_desc": "Set thresholds and system settings",
+            "approval_rules": "Approval Rules",
+            "approval_rules_desc": "Configure approval scenarios",
+            "all_business_data": "All Business Data",
+            "all_business_data_desc": "Full access to risks, controls, KRIs",
+            "platform_admin_note": "Platform Admin has no access to business data (risks, controls, KRIs)",
+            "cro_note": "Chief Risk Officer has full business configuration access via Risk Hub"
         }
     },
     "governance": {
