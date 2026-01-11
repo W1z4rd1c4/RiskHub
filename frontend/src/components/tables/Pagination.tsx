@@ -2,6 +2,7 @@
  * Pagination - Page navigation with "Page X of Y" display.
  */
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 interface PaginationProps {
@@ -21,6 +22,7 @@ export function Pagination({
     onPageChange,
     className,
 }: PaginationProps) {
+    const { t } = useTranslation('common');
     const canGoPrev = currentPage > 1;
     const canGoNext = currentPage < totalPages;
 
@@ -32,13 +34,13 @@ export function Pagination({
             <div className="text-sm text-slate-400">
                 {totalItems !== undefined ? (
                     <>
-                        Showing <span className="font-medium text-white">{startItem}</span> to{' '}
-                        <span className="font-medium text-white">{endItem}</span> of{' '}
-                        <span className="font-medium text-white">{totalItems}</span> results
+                        {t('pagination.showing')} <span className="font-medium text-white">{startItem}</span> {t('pagination.to')}{' '}
+                        <span className="font-medium text-white">{endItem}</span> {t('pagination.of')}{' '}
+                        <span className="font-medium text-white">{totalItems}</span> {t('labels.results')}
                     </>
                 ) : (
                     <>
-                        Page <span className="font-medium text-white">{currentPage}</span> of{' '}
+                        {t('pagination.page')} <span className="font-medium text-white">{currentPage}</span> {t('pagination.of')}{' '}
                         <span className="font-medium text-white">{totalPages}</span>
                     </>
                 )}

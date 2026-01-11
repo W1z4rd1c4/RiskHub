@@ -3,14 +3,18 @@
         "dashboard": "Dashboard",
         "risks": "Risks",
         "controls": "Controls",
-        "kris": "KRIs",
-        "approvals": "Approvals",
-        "activity_log": "Activity Log",
+        "kris": "Risk Appetite",
+        "approvals": "Workflow",
+        "activity_log": "Audit Trail",
         "reports": "Reports",
         "settings": "Settings",
         "admin": "Admin Console",
         "documentation": "Documentation",
-        "help": "Help"
+        "help": "Help",
+        "departments": "Departments",
+        "governance": "Governance",
+        "risk_hub": "Risk Hub",
+        "users": "Access Management"
     },
     "user_menu": {
         "profile": "Profile",

@@ -3,14 +3,18 @@
         "dashboard": "Přehled",
         "risks": "Rizika",
         "controls": "Kontroly",
-        "kris": "KRI",
-        "approvals": "Schvalování",
+        "kris": "Rizikový apetit",
+        "approvals": "Úkoly",
         "activity_log": "Auditní stopa",
         "reports": "Reporty",
         "settings": "Nastavení",
         "admin": "Administrace",
         "documentation": "Dokumentace",
-        "help": "Nápověda"
+        "help": "Nápověda",
+        "departments": "Oddělení",
+        "governance": "Správa",
+        "risk_hub": "Risk Hub",
+        "users": "Správa přístupu"
     },
     "user_menu": {
         "profile": "Profil",

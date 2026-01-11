@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import {
     LayoutDashboard,
@@ -26,24 +27,26 @@ import { approvalsApi } from '@/services/approvalsApi';
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
-const navigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'Controls', href: '/controls', icon: ClipboardList },
-    { name: 'Risks', href: '/risks', icon: ShieldAlert },
-    { name: 'Risk Appetite', href: '/kris', icon: Target },
-    { name: 'Departments', href: '/departments', icon: Building2 },
-    { name: 'Governance', href: '/governance', icon: Scale },
-    { name: 'Audit Trail', href: '/audit-trail', icon: History },
-    { name: 'Settings', href: '/settings', icon: Settings },
-];
-
 export function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const { canManageAccess, canViewActivityLog } = usePermissions();
+    const { t } = useTranslation('navigation');
     const [pendingCount, setPendingCount] = useState(0);
     const [orphanCount, setOrphanCount] = useState(0);
+
+    // Navigation items with translation keys
+    const navigation = [
+        { name: t('sidebar.dashboard'), href: '/', icon: LayoutDashboard },
+        { name: t('sidebar.controls'), href: '/controls', icon: ClipboardList },
+        { name: t('sidebar.risks'), href: '/risks', icon: ShieldAlert },
+        { name: t('sidebar.kris'), href: '/kris', icon: Target },
+        { name: t('sidebar.departments'), href: '/departments', icon: Building2 },
+        { name: t('sidebar.governance'), href: '/governance', icon: Scale },
+        { name: t('sidebar.activity_log'), href: '/audit-trail', icon: History },
+        { name: t('sidebar.settings'), href: '/settings', icon: Settings },
+    ];
 
     useEffect(() => {
         const fetchData = async () => {
@@ -73,7 +76,7 @@ export function Sidebar() {
     };
 
     const workflowItem = {
-        name: 'Workflow',
+        name: t('sidebar.approvals'),
         href: '/approvals',
         icon: ClipboardCheck,
         badge: pendingCount > 0 ? pendingCount : undefined
@@ -82,7 +85,7 @@ export function Sidebar() {
     // Access Management visible to admins, privileged users, and department heads
     const canViewUsers = canManageAccess || user?.role === 'department_head';
     const userManagementItem = canViewUsers
-        ? { name: 'Access Management', href: '/users', icon: UsersIcon }
+        ? { name: t('sidebar.users'), href: '/users', icon: UsersIcon }
         : null;
 
     const navigationWithBadges = navigation.map(item => {
@@ -96,27 +99,27 @@ export function Sidebar() {
     });
 
     const activityLogItem = {
-        name: 'Activity Log',
+        name: t('sidebar.activity_log'),
         href: '/activity-log',
         icon: Activity,
     };
 
     // Risk Hub visible only to CRO
     const riskHubItem = user?.role === 'cro' ? {
-        name: 'Risk Hub',
+        name: t('sidebar.risk_hub'),
         href: '/risk-hub',
         icon: Command,
     } : null;
 
     // Admin Console visible only to Admin
     const adminConsoleItem = user?.role === 'admin' ? {
-        name: 'Admin Console',
+        name: t('sidebar.admin'),
         href: '/admin',
         icon: Server,
     } : null;
 
     const documentationItem = user?.role === 'admin' ? {
-        name: 'Documentation',
+        name: t('sidebar.documentation'),
         href: '/admin/docs',
         icon: BookOpen,
     } : null;
@@ -208,10 +211,11 @@ export function Sidebar() {
                         className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all duration-200"
                     >
                         <LogOut className="h-4 w-4" />
-                        Sign Out
+                        {t('user_menu.logout')}
                     </button>
                 </div>
             </div>
         </aside>
     );
 }
+

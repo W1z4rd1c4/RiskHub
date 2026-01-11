@@ -1,4 +1,5 @@
 import { Bell, Search, LogOut } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 export function Header() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const { t } = useTranslation('navigation');
 
     const handleLogout = () => {
         logout();
@@ -18,7 +20,7 @@ export function Header() {
                 <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent" />
                 <input
                     type="text"
-                    placeholder="Search controls, departments..."
+                    placeholder={t('header.search_placeholder')}
                     className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
                 />
             </div>
@@ -42,7 +44,7 @@ export function Header() {
                             className="text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
                         >
                             <LogOut className="h-4 w-4 mr-2" />
-                            Logout
+                            {t('user_menu.logout')}
                         </Button>
                     </>
                 )}
@@ -50,3 +52,4 @@ export function Header() {
         </header>
     );
 }
+
