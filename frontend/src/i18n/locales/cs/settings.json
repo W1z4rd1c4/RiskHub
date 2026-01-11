@@ -94,5 +94,15 @@
         "admin_sessions": "Spravovat aktivní relace",
         "admin_all": "Plný admin přístup",
         "super_admin": "Super Admin (všechna oprávnění)"
+    },
+    "documentation": {
+        "title": "Dokumentace a nápověda",
+        "subtitle": "Přístup k průvodcům a dokumentaci přizpůsobené vaší roli ({{role}}).",
+        "loading": "Načítání dokumentace...",
+        "back": "Zpět na dokumentaci",
+        "view_manual": "Zobrazit manuál",
+        "empty_title": "Dokumentace není dostupná",
+        "empty_subtitle": "Dokumentace bude dostupná v budoucích aktualizacích.",
+        "version_info": "RiskHub v1.0 • Dokumentace bude rozšířena v budoucích aktualizacích"
     }
 }
