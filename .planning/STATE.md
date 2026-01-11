@@ -168,10 +168,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 153-08: Fixed cross-department risk owner access on `update_risk` and `delete_risk` endpoints. Risk owners can now edit/request deletion of their assigned risks regardless of department, matching the pattern in `get_risk` and BUSINESS_LOGIC.md §7.1.
+- Completed Plan 153-09: Fixed KRI API frontend/backend mismatches - added `reason` parameter to `deleteKRI`, changed pagination from `skip` to `page`, updated all delete callers to prompt for reason.
 
 ### Next Step
-- Continue with Phase 153 Audit Resolution 3 (Plan 153-09 or next pending plan).
+- Continue with Phase 153 Audit Resolution 3 (Plan 153-10 or next pending plan).
 
 
 

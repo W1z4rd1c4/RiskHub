@@ -13,7 +13,7 @@ import type {
 } from '../types/kri';
 
 export const kriApi = {
-    async getKRIs(params?: { risk_id?: number; breach_only?: boolean; page?: number; size?: number; skip?: number }): Promise<KRIListResponse> {
+    async getKRIs(params?: { risk_id?: number; breach_only?: boolean; page?: number; size?: number }): Promise<KRIListResponse> {
         return apiClient.get<KRIListResponse>('/kris', { params });
     },
 
@@ -33,8 +33,8 @@ export const kriApi = {
         return apiClient.put<KeyRiskIndicator>(`/kris/${id}`, data);
     },
 
-    async deleteKRI(id: number): Promise<void> {
-        return apiClient.delete<void>(`/kris/${id}`);
+    async deleteKRI(id: number, reason: string): Promise<void> {
+        return apiClient.delete<void>(`/kris/${id}`, { params: { reason } });
     },
 
     // History endpoints
