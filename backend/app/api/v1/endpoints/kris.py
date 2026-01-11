@@ -357,7 +357,7 @@ async def update_kri(
             ApprovalRequest.resource_type == ApprovalResourceType.KRI,
             ApprovalRequest.resource_id == kri.id,
             ApprovalRequest.action_type == ApprovalActionType.DELETE,
-            ApprovalRequest.status == ApprovalStatus.PENDING
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
         )
     )
     if existing_delete.scalar_one_or_none():
@@ -371,7 +371,7 @@ async def update_kri(
                 ApprovalRequest.resource_type == ApprovalResourceType.KRI,
                 ApprovalRequest.resource_id == kri.id,
                 ApprovalRequest.action_type == ApprovalActionType.EDIT,
-                ApprovalRequest.status == ApprovalStatus.PENDING
+                ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
             )
         )
         if existing.scalar_one_or_none():
@@ -506,7 +506,7 @@ async def delete_kri(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType.KRI,
             ApprovalRequest.resource_id == kri.id,
-            ApprovalRequest.status == ApprovalStatus.PENDING
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
         )
     )
     if existing.scalar_one_or_none():
