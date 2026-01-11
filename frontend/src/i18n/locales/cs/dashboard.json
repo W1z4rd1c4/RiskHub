@@ -69,7 +69,9 @@
         "kri_health": "Zdraví KRI %",
         "overdue_kris": "Opožděné KRI",
         "activity_volume": "Objem aktivity",
-        "risks_without_kri": "Rizika bez KRI"
+        "risks_without_kri": "Rizika bez KRI",
+        "current_period": "Aktuální:",
+        "compare_period": "Porovnat:"
     },
     "kri": {
         "all_current": "Všechna KRI aktuální",
