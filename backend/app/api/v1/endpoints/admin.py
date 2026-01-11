@@ -525,8 +525,9 @@ async def get_documentation(
     from pathlib import Path
     import re
     
-    # Documentation files are in docs/ subdirectories
-    docs_base = Path(__file__).parent.parent.parent.parent.parent / "docs"
+    # Documentation files are in docs/ subdirectories at project root
+    # Path: admin.py -> endpoints -> v1 -> api -> app -> backend -> project_root -> docs
+    docs_base = Path(__file__).parent.parent.parent.parent.parent.parent / "docs"
     
     # Determine which directories to read from based on locale
     locale_suffix = "-cs" if locale == "cs" else ""
