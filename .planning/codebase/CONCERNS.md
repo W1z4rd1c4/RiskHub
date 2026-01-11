@@ -77,6 +77,46 @@
 | Multi-language support | English default, Czech planned |
 | **KRI period visibility** | Users should see which period they're submitting for |
 
+## Phase 153 Audit Findings (2026-01-11)
+
+### Critical (Data Integrity / Production Breaking)
+
+| Issue | Location | Impact |
+|-------|----------|--------|
+| DB enum case mismatch (ApprovalStatus) | `a9b8c7d6e5f4_add_pending_privileged` L21 adds `'pending_privileged'` (lowercase), indexes use uppercase | Query failures, status mismatches |
+| Notification enum drift (APPROVAL_CANCELLED) | DB enum missing, model defines it, service emits it | 500 on cancellation notifications |
+| Logging config kwargs mismatch | `main.py` L95-98 passes `app_rotation_size_mb`, function expects `rotation_size_mb` | Silent config failure |
+| datetime.utcnow() inconsistency | `approvals.py`, `approval_execution_service.py` | Timezone-naive vs aware comparison issues |
+
+### High (Major Feature Bugs)
+
+| Issue | Location | Impact |
+|-------|----------|--------|
+| KRI delete missing reason param | FE `kriApi.ts` L36, BE requires `reason` query | 422 on all KRI deletes |
+| KRI pagination mismatch (skip vs page) | FE sends `skip`, BE expects `page/size` | Wrong pagination results |
+| Dashboard KRI dept filter ignored | FE passes `department_id`, BE signature doesn't accept it | Filter silently ignored |
+| Approvals cancel button missing `pending_privileged` | `ApprovalsPage.tsx` L307 only checks `'pending'` | Can't cancel tiered approvals |
+| Sidebar duplicate activity log routes | `/audit-trail` (L47) + `/activity-log` (L103) | Duplicate nav items or dead pages |
+| KRI permission mismatch | FE checks `kri:record`, BE enforces `kri:submit` | Permission denied unexpectedly |
+| Activity Log risk picker truncated | FE requests 200, BE caps at 100 | Truncated picker options |
+| Edit/delete 202 response typed as entity | `riskApi.ts`, `kriApi.ts`, `controlApi.ts` | Runtime type mismatches |
+| KRI PENDING_PRIVILEGED missing in checks | `kris.py` delete/update only check PENDING | Duplicate approvals possible |
+
+### Medium (Correctness / Performance)
+
+| Issue | Location | Impact |
+|-------|----------|--------|
+| Migration nullable=False without default | `597c3ba51f80_add_tiered_approval_fields.py` L26 | Fails on non-empty DB |
+| Risk ID generator limit(10) | `risks.py` L64 | Can miss higher numbers if >10 risks |
+| Approval cancel logged as DELETE | `approvals.py` L489 | Wrong activity type in audit trail |
+| Cross-department owner update blocked | `risks.py` update_risk | Risk owners can't edit cross-dept risks |
+
+### Low (Polish / Dev Ergonomics)
+
+| Issue | Location | Impact |
+|-------|----------|--------|
+| Report downloads broken if VITE_API_URL missing | `reportApi.ts` L51 | Dev-only issue |
+
 ## Recent Remediation (Phase 151-152)
 
 - ✅ Risk ID generation - atomic retry pattern
