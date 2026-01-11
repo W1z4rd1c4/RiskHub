@@ -1,4 +1,5 @@
 import { User, Mail, Building, Shield, Key } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface ProfileSettingsProps {
     user: {
@@ -137,6 +138,7 @@ function getResourceColor(resource: string): string {
 }
 
 export function ProfileSettings({ user }: ProfileSettingsProps) {
+    const { t } = useTranslation('settings');
     const rawPermissions = user.effective_permissions || user.permissions || [];
     const expandedPermissions = expandWildcardPermissions(rawPermissions, user.role);
     const groupedPermissions = groupPermissions(expandedPermissions);
@@ -147,7 +149,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
             <section>
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <User className="h-5 w-5 text-accent" />
-                    Your Identity
+                    {t('profile.your_identity', 'Your Identity')}
                 </h3>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-6">
                     <div className="flex items-center gap-4 mb-6">
@@ -167,7 +169,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
                                 <Mail className="h-3 w-3" />
-                                Email Address
+                                {t('profile.email', 'Email Address')}
                             </label>
                             <p className="text-white font-medium">{user.email}</p>
                         </div>
@@ -176,7 +178,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
                                 <Building className="h-3 w-3" />
-                                Department
+                                {t('profile.department', 'Department')}
                             </label>
                             <p className="text-white font-medium">{user.department_name || 'Not Assigned'}</p>
                         </div>
@@ -185,7 +187,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
                                 <Shield className="h-3 w-3" />
-                                Role
+                                {t('profile.role', 'Role')}
                             </label>
                             <div className="flex items-center gap-2">
                                 <span className="px-3 py-1 bg-accent/20 text-accent rounded-full text-sm font-medium">
@@ -198,7 +200,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
                                 <Key className="h-3 w-3" />
-                                Access Scope
+                                {t('profile.access_scope', 'Access Scope')}
                             </label>
                             <p className="text-white font-medium">{user.scope_label}</p>
                         </div>
@@ -207,7 +209,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
 
                 {/* AD Notice */}
                 <p className="text-xs text-slate-500 mt-3 italic">
-                    Your profile is managed by your organization's Active Directory. Contact your IT administrator to update your information.
+                    {t('profile.ad_notice', 'Your profile is managed by your organization\'s Active Directory. Contact your IT administrator to update your information.')}
                 </p>
             </section>
 
@@ -215,7 +217,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
             <section>
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Key className="h-5 w-5 text-accent" />
-                    Your Permissions
+                    {t('profile.your_permissions', 'Your Permissions')}
                 </h3>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-6">
                     {Object.keys(groupedPermissions).length === 0 ? (

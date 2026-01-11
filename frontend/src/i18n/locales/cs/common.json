@@ -101,5 +101,13 @@
         "last_30_days": "Posledních 30 dní",
         "last_90_days": "Posledních 90 dní",
         "custom_range": "Vlastní rozsah"
+    },
+    "views": {
+        "all": "Vše",
+        "by_category": "Dle kategorie",
+        "by_department": "Dle oddělení",
+        "by_process": "Dle procesu",
+        "by_risk_type": "Dle typu rizika",
+        "by_risk": "Dle rizika"
     }
 }

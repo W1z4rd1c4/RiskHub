@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
@@ -23,6 +24,7 @@ const typeLabels: Record<string, string> = {
 };
 
 export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTableProps) {
+    const { t } = useTranslation('admin');
     const [filter, setFilter] = useState<string>('all');
 
     const filteredItems = filter === 'all'
@@ -39,9 +41,9 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
         return (
             <div className="glass-card text-center py-16">
                 <AlertTriangle className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-white mb-2">All Clear</h3>
+                <h3 className="text-xl font-bold text-white mb-2">{t('governance.all_clear', 'All Clear')}</h3>
                 <p className="text-slate-500 max-w-md mx-auto">
-                    No orphaned items found. All risks and controls have assigned owners.
+                    {t('governance.no_orphans', 'No orphaned items found. All risks and controls have assigned owners.')}
                 </p>
             </div>
         );
@@ -52,7 +54,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
             <div className="p-4 border-b border-white/5 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-amber-400" />
-                    Orphaned Items ({filteredItems.length})
+                    {t('governance.orphaned_items', 'Orphaned Items')} ({filteredItems.length})
                 </h3>
                 <div className="flex items-center gap-2">
                     <Filter className="h-4 w-4 text-slate-500" />
@@ -60,9 +62,9 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                         value={filter}
                         onValueChange={setFilter}
                         options={[
-                            { value: 'all', label: 'All Types' },
-                            { value: 'risk', label: 'Risks Only' },
-                            { value: 'control', label: 'Controls Only' },
+                            { value: 'all', label: t('governance.all_types', 'All Types') },
+                            { value: 'risk', label: t('governance.risks_only', 'Risks Only') },
+                            { value: 'control', label: t('governance.controls_only', 'Controls Only') },
                         ]}
                     />
                 </div>
@@ -72,13 +74,13 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-white/5">
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Type</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Description</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Department</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Previous Owner</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Orphaned</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_type', 'Type')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_name', 'Name')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_description', 'Description')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_department', 'Department')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_previous_owner', 'Previous Owner')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_orphaned', 'Orphaned')}</th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_actions', 'Actions')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -147,7 +149,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                             className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-accent text-white hover:text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-white/10 group-hover:border-accent/50 shadow-sm active:scale-95"
                                         >
                                             <UserCheck className="h-3.5 w-3.5" />
-                                            Resolve
+                                            {t('governance.resolve', 'Resolve')}
                                         </button>
                                     </td>
                                 </tr>

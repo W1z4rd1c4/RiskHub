@@ -1,21 +1,23 @@
 import { useState } from 'react';
 import { User, Palette, Globe, BookOpen } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { ProfileSettings, AppearanceSettings, LocalizationSettings, DocumentationSettings } from '@/components/settings';
 
-const tabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'appearance', label: 'Appearance', icon: Palette },
-    { id: 'localization', label: 'Localization', icon: Globe },
-    { id: 'documentation', label: 'Help & Docs', icon: BookOpen },
-] as const;
-
-type TabId = typeof tabs[number]['id'];
+type TabId = 'profile' | 'appearance' | 'localization' | 'documentation';
 
 export function SettingsPage() {
+    const { t } = useTranslation('settings');
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<TabId>('profile');
+
+    const tabs = [
+        { id: 'profile' as TabId, label: t('tabs.profile', 'Profile'), icon: User },
+        { id: 'appearance' as TabId, label: t('tabs.appearance', 'Appearance'), icon: Palette },
+        { id: 'localization' as TabId, label: t('tabs.localization', 'Localization'), icon: Globe },
+        { id: 'documentation' as TabId, label: t('tabs.documentation', 'Help & Docs'), icon: BookOpen },
+    ];
 
     return (
         <div className="space-y-6">
@@ -26,9 +28,9 @@ export function SettingsPage() {
                         <User className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-white font-heading">Platform Settings</h1>
+                        <h1 className="text-2xl font-bold text-white font-heading">{t('title', 'Platform Settings')}</h1>
                         <p className="text-slate-400">
-                            Manage your profile and personalize your experience
+                            {t('page_subtitle', 'Manage your profile and personalize your experience')}
                         </p>
                     </div>
                 </div>
@@ -74,3 +76,4 @@ export function SettingsPage() {
         </div>
     );
 }
+
