@@ -330,6 +330,7 @@ class KRIHistoryService:
                         else (kri.risk.owner.name if kri.risk and hasattr(kri.risk, 'owner') and kri.risk.owner else None)
                     ),
                     "risk_id": kri.risk_id,
+                    "department_id": kri.risk.department_id if kri.risk else None,
                 })
         
         # Sort by days overdue descending
@@ -389,6 +390,7 @@ class KRIHistoryService:
                         else (kri.risk.owner.name if kri.risk and hasattr(kri.risk, 'owner') and kri.risk.owner else None)
                     ),
                     "risk_id": kri.risk_id,
+                    "department_id": kri.risk.department_id if kri.risk else None,
                 })
         
         # Sort by days until due ascending (most urgent first)
