@@ -168,13 +168,14 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 153-07: Fixed Risk ID generator limit (10→100), approval cancel action type (DELETE→CANCEL + resolved_by_id), and created migration for server_default on requires_privileged_approval.
+- Completed Plan 153-08: Fixed cross-department risk owner access on `update_risk` and `delete_risk` endpoints. Risk owners can now edit/request deletion of their assigned risks regardless of department, matching the pattern in `get_risk` and BUSINESS_LOGIC.md §7.1.
 
 ### Next Step
-- Continue with Phase 153 Audit Resolution 3 (Plan 153-08 or next pending plan).
+- Continue with Phase 153 Audit Resolution 3 (Plan 153-09 or next pending plan).
 
 
 
 ---
 *Updated: 2026-01-11*
+
 

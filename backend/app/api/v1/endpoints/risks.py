@@ -399,12 +399,15 @@ async def update_risk(
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
     
-    # Verify department access
-    check_department_access(risk.department_id, current_user)
-    
     # Check permission: either risks:write or is risk owner
     has_write = check_permission(current_user, "risks", "write")
     is_owner = risk.owner_id == current_user.id
+    
+    # Risk owners can edit their risk regardless of department (cross-department access)
+    # per BUSINESS_LOGIC.md §7.1
+    if not is_owner:
+        # Verify department access only for non-owners
+        check_department_access(risk.department_id, current_user)
     
     if not has_write and not is_owner:
         raise HTTPException(
@@ -593,8 +596,12 @@ async def delete_risk(
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
     
-    # Verify department access
-    check_department_access(risk.department_id, current_user)
+    # Allow risk owners to request deletion regardless of department (cross-department access)
+    # per BUSINESS_LOGIC.md §7.1
+    is_owner = risk.owner_id == current_user.id
+    if not is_owner:
+        # Verify department access only for non-owners
+        check_department_access(risk.department_id, current_user)
     
     # Privileged users can delete immediately
     if can_resolve_approvals(current_user):
