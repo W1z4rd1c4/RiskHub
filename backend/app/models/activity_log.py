@@ -20,6 +20,7 @@ class ActivityAction(str, PyEnum):
     UNLINK = "unlink"
     LOGIN = "login"
     FAILED_LOGIN = "failed_login"
+    CANCEL = "cancel"
 
 
 class ActivityEntityType(str, PyEnum):
