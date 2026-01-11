@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, ArrowRight, Activity, CalendarClock, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { kriApi } from '@/services/kriApi';
 import type { OverdueKRI, DueSoonKRI } from '@/types/kri';
@@ -9,6 +10,7 @@ import type { OverdueKRI, DueSoonKRI } from '@/types/kri';
 type TabType = 'upcoming' | 'overdue';
 
 export function KRIStatusWidget() {
+    const { t } = useTranslation('dashboard');
     const navigate = useNavigate();
     const { filters } = useDashboardFilters();
     const [activeTab, setActiveTab] = useState<TabType>('upcoming');
@@ -59,8 +61,8 @@ export function KRIStatusWidget() {
             <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
                 <Clock className="h-6 w-6 text-emerald-500" />
             </div>
-            <h4 className="text-white font-bold mb-1">All KRIs Current</h4>
-            <p className="text-xs text-slate-500">No KRIs are due soon or overdue.</p>
+            <h4 className="text-white font-bold mb-1">{t('kri.all_current', 'All KRIs Current')}</h4>
+            <p className="text-xs text-slate-500">{t('kri.no_due_soon', 'No KRIs are due soon or overdue.')}</p>
         </div>
     );
 
@@ -96,8 +98,8 @@ export function KRIStatusWidget() {
                     <button
                         onClick={() => setActiveTab('upcoming')}
                         className={`flex-1 py-1.5 px-3 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${activeTab === 'upcoming'
-                                ? 'bg-accent text-white'
-                                : 'text-slate-400 hover:text-white'
+                            ? 'bg-accent text-white'
+                            : 'text-slate-400 hover:text-white'
                             }`}
                     >
                         <CalendarClock className="h-3 w-3 inline mr-1" />
@@ -106,8 +108,8 @@ export function KRIStatusWidget() {
                     <button
                         onClick={() => setActiveTab('overdue')}
                         className={`flex-1 py-1.5 px-3 text-[10px] font-black uppercase tracking-widest rounded-md transition-all ${activeTab === 'overdue'
-                                ? 'bg-amber-500 text-white'
-                                : 'text-slate-400 hover:text-white'
+                            ? 'bg-amber-500 text-white'
+                            : 'text-slate-400 hover:text-white'
                             }`}
                     >
                         <AlertTriangle className="h-3 w-3 inline mr-1" />

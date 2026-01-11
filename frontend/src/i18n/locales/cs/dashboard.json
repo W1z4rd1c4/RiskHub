@@ -40,6 +40,7 @@
         "risk_committee": "Výbor pro řízení rizik"
     },
     "sections": {
+        "quarterly_comparison": "Čtvrtletní srovnání",
         "control_analytics": "Analytika kontrol",
         "control_execution_trends": "Trendy exekuce kontrol",
         "gross_risk_matrix": "Matice hrubého rizika",
@@ -48,7 +49,45 @@
         "risk_creation_trends": "Trendy vytváření rizik",
         "kri_breach_history": "Historie překročení KRI",
         "departmental_visibility": "Viditelnost oddělení",
-        "no_execution_history": "Žádná historie exekuce"
+        "no_execution_history": "Žádná historie exekuce",
+        "critical_risks": "Kritická rizika",
+        "risk_exposure_by_dept": "Riziková expozice dle oddělení",
+        "recent_activity": "Nedávná aktivita"
+    },
+    "quarterly": {
+        "new_risks": "Nová rizika",
+        "closed_risks": "Uzavřená rizika",
+        "active_risks": "Aktivní rizika",
+        "priority_risks": "Prioritní rizika",
+        "kri_breaches": "Překročení KRI",
+        "pending_approvals": "Čekající schválení",
+        "audit_activity": "Auditní aktivita",
+        "failed_audits": "Neúspěšné audity",
+        "control_coverage": "Pokrytí kontrolami %",
+        "unaudited_controls": "Neauditované kontroly",
+        "orphaned_items": "Osiřelé položky",
+        "kri_health": "Zdraví KRI %",
+        "overdue_kris": "Opožděné KRI",
+        "activity_volume": "Objem aktivity",
+        "risks_without_kri": "Rizika bez KRI"
+    },
+    "kri": {
+        "all_current": "Všechna KRI aktuální",
+        "no_due_soon": "Žádná KRI nejsou brzy splatná ani opožděná.",
+        "no_overdue": "Žádná KRI nejsou opožděná.",
+        "active_breaches": "Aktivní překročení",
+        "view_risk_register": "Zobrazit registr rizik"
+    },
+    "charts": {
+        "draft": "Návrh",
+        "active": "Aktivní",
+        "manual": "Manuální",
+        "automatic": "Automatická",
+        "daily": "Denně",
+        "weekly": "Týdně",
+        "monthly": "Měsíčně",
+        "quarterly": "Čtvrtletně",
+        "uncategorised": "Nekategorizováno"
     },
     "errors": {
         "connection_interrupted": "Připojení přerušeno",
