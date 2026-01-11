@@ -1,0 +1,30 @@
+{
+    "sidebar": {
+        "dashboard": "Dashboard",
+        "risks": "Risks",
+        "controls": "Controls",
+        "kris": "KRIs",
+        "approvals": "Approvals",
+        "activity_log": "Activity Log",
+        "reports": "Reports",
+        "settings": "Settings",
+        "admin": "Admin Console",
+        "documentation": "Documentation",
+        "help": "Help"
+    },
+    "user_menu": {
+        "profile": "Profile",
+        "settings": "Settings",
+        "help": "Help & Support",
+        "logout": "Log Out",
+        "switch_account": "Switch Account"
+    },
+    "breadcrumb": {
+        "home": "Home",
+        "back_to_list": "Back to List"
+    },
+    "header": {
+        "notifications": "Notifications",
+        "search_placeholder": "Search..."
+    }
+}
