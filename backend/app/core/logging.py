@@ -57,29 +57,39 @@ class NonAuditFilter(logging.Filter):
         return record.name != "audit" and not record.name.startswith("audit.")
 
 
-def get_log_settings() -> tuple[int, int]:
+def get_log_settings() -> tuple[int, int, int, int]:
     """
     Get log rotation settings from Risk Hub config or defaults.
     
     Returns:
-        Tuple of (rotation_size_bytes, retention_count)
+        Tuple of (app_size_bytes, app_count, audit_size_bytes, audit_count)
     """
     # Try to read from config cache synchronously
     try:
         from app.models.global_config import get_config_sync
-        size_mb = get_config_sync("log_rotation_size_mb", DEFAULT_LOG_ROTATION_SIZE_MB)
-        count = get_config_sync("log_retention_count", DEFAULT_LOG_RETENTION_COUNT)
-        return (int(size_mb) * 1024 * 1024, int(count))
+        app_size = get_config_sync("app_log_rotation_size_mb", DEFAULT_LOG_ROTATION_SIZE_MB)
+        app_count = get_config_sync("app_log_retention_count", DEFAULT_LOG_RETENTION_COUNT)
+        audit_size = get_config_sync("audit_log_rotation_size_mb", DEFAULT_LOG_ROTATION_SIZE_MB)
+        audit_count = get_config_sync("audit_log_retention_count", DEFAULT_LOG_RETENTION_COUNT)
+        return (
+            int(app_size) * 1024 * 1024,
+            int(app_count),
+            int(audit_size) * 1024 * 1024,
+            int(audit_count)
+        )
     except Exception:
         # Fallback to defaults if config not available
-        return (DEFAULT_LOG_ROTATION_SIZE_MB * 1024 * 1024, DEFAULT_LOG_RETENTION_COUNT)
+        default_bytes = DEFAULT_LOG_ROTATION_SIZE_MB * 1024 * 1024
+        return (default_bytes, DEFAULT_LOG_RETENTION_COUNT, default_bytes, DEFAULT_LOG_RETENTION_COUNT)
 
 
 def configure_logging(
     log_level: str = "INFO",
     json_console: bool = True,
-    rotation_size_mb: int | None = None,
-    retention_count: int | None = None,
+    app_rotation_size_mb: int | None = None,
+    app_retention_count: int | None = None,
+    audit_rotation_size_mb: int | None = None,
+    audit_retention_count: int | None = None,
 ) -> structlog.BoundLogger:
     """
     Configure structlog with JSON rendering and dual file output.
@@ -87,8 +97,10 @@ def configure_logging(
     Args:
         log_level: Minimum log level (DEBUG, INFO, WARNING, ERROR)
         json_console: Whether to render JSON to console (True for prod)
-        rotation_size_mb: Max size per log file in MB (default from config)
-        retention_count: Number of backup files to keep (default from config)
+        app_rotation_size_mb: Max size per app log file in MB (default from config)
+        app_retention_count: Number of app backup files to keep (default from config)
+        audit_rotation_size_mb: Max size per audit log file in MB (default from config)
+        audit_retention_count: Number of audit backup files to keep (default from config)
     
     Returns:
         Configured structlog logger
@@ -100,14 +112,16 @@ def configure_logging(
     app_log_file = str(log_dir / "app.json.log")
     audit_log_file = str(log_dir / "audit.json.log")
     
-    # Get rotation settings
-    if rotation_size_mb is None or retention_count is None:
-        default_size, default_count = get_log_settings()
-        rotation_size_bytes = (rotation_size_mb * 1024 * 1024) if rotation_size_mb else default_size
-        backup_count = retention_count if retention_count else default_count
-    else:
-        rotation_size_bytes = rotation_size_mb * 1024 * 1024
-        backup_count = retention_count
+    # Get rotation settings (separate for app and audit handlers)
+    default_app_size, default_app_count, default_audit_size, default_audit_count = get_log_settings()
+    
+    # App handler settings
+    app_size_bytes = (app_rotation_size_mb * 1024 * 1024) if app_rotation_size_mb else default_app_size
+    app_backup_count = app_retention_count if app_retention_count else default_app_count
+    
+    # Audit handler settings
+    audit_size_bytes = (audit_rotation_size_mb * 1024 * 1024) if audit_rotation_size_mb else default_audit_size
+    audit_backup_count = audit_retention_count if audit_retention_count else default_audit_count
     
     # Shared processors for both structlog and stdlib logging
     shared_processors: list[structlog.types.Processor] = [
@@ -150,8 +164,8 @@ def configure_logging(
     # App file handler - general logs (excludes audit)
     app_handler = logging.handlers.RotatingFileHandler(
         app_log_file,
-        maxBytes=rotation_size_bytes,
-        backupCount=backup_count,
+        maxBytes=app_size_bytes,
+        backupCount=app_backup_count,
         encoding="utf-8",
     )
     app_handler.setFormatter(json_formatter)
@@ -161,8 +175,8 @@ def configure_logging(
     # Audit file handler - security/audit events only
     audit_handler = logging.handlers.RotatingFileHandler(
         audit_log_file,
-        maxBytes=rotation_size_bytes,
-        backupCount=backup_count,
+        maxBytes=audit_size_bytes,
+        backupCount=audit_backup_count,
         encoding="utf-8",
     )
     audit_handler.setFormatter(json_formatter)
