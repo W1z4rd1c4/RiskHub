@@ -117,6 +117,7 @@ backend/*.db
 
 # Temporary/Test artifacts
 *.json
+!frontend/src/i18n/locales/**/*.json
 *.txt
 frontend/test-results/
 backend/logs/

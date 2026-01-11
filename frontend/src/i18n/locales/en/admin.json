@@ -1,0 +1,98 @@
+{
+    "title": "Admin Console",
+    "page_subtitle": "System administration and configuration",
+    "tabs": {
+        "users": "Users",
+        "departments": "Departments",
+        "risk_hub": "Risk Hub",
+        "logs": "System Logs",
+        "documentation": "Documentation"
+    },
+    "users": {
+        "title": "User Management",
+        "create_user": "Create User",
+        "edit_user": "Edit User",
+        "delete_user": "Delete User",
+        "sync_ad": "Sync from AD",
+        "fields": {
+            "name": "Name",
+            "email": "Email",
+            "role": "Role",
+            "department": "Department",
+            "status": "Status",
+            "last_login": "Last Login",
+            "permissions": "Permissions"
+        },
+        "roles": {
+            "admin": "Administrator",
+            "cro": "Chief Risk Officer",
+            "risk_manager": "Risk Manager",
+            "department_manager": "Department Manager",
+            "risk_owner": "Risk Owner",
+            "control_owner": "Control Owner",
+            "kri_owner": "KRI Owner",
+            "viewer": "Viewer"
+        },
+        "status": {
+            "active": "Active",
+            "inactive": "Inactive",
+            "pending": "Pending"
+        }
+    },
+    "departments": {
+        "title": "Department Management",
+        "create_department": "Create Department",
+        "edit_department": "Edit Department",
+        "delete_department": "Delete Department",
+        "fields": {
+            "name": "Department Name",
+            "code": "Department Code",
+            "manager": "Department Manager",
+            "parent": "Parent Department",
+            "risk_count": "Risk Count",
+            "control_count": "Control Count"
+        }
+    },
+    "risk_hub": {
+        "title": "Risk Hub Configuration",
+        "general": "General Settings",
+        "thresholds": "Approval Thresholds",
+        "risk_types": "Risk Types",
+        "notifications": "Notification Settings",
+        "total_asset_value": "Total Asset Value"
+    },
+    "logs": {
+        "title": "System Logs",
+        "application_logs": "Application Logs",
+        "audit_logs": "Audit Logs",
+        "log_level": "Log Level",
+        "log_rotation": "Log Rotation",
+        "recent_logs": "Recent Logs"
+    },
+    "documentation": {
+        "title": "Documentation Management",
+        "upload": "Upload Document",
+        "categories": "Categories",
+        "visibility": "Visibility"
+    },
+    "activity_log": {
+        "title": "Activity Log",
+        "audit_trail": "Audit Trail",
+        "view_modes": {
+            "chronological": "Chronological",
+            "by_person": "By Person",
+            "by_department": "By Department",
+            "by_risk": "By Risk"
+        }
+    },
+    "access": {
+        "title": "Access Management",
+        "permission_matrix": "Permission Matrix",
+        "access_scope": "Access Scope",
+        "scopes": {
+            "global": "Global",
+            "department": "Department",
+            "manager": "Manager"
+        }
+    }
+}

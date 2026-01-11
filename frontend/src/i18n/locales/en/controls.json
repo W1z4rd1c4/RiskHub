@@ -1,0 +1,81 @@
+{
+    "title": "Control Catalog",
+    "page_subtitle": "Manage control definitions and execution",
+    "create_control": "Create Control",
+    "edit_control": "Edit Control",
+    "view_control": "View Control",
+    "delete_control": "Delete Control",
+    "fields": {
+        "name": "Control Name",
+        "description": "Description",
+        "control_objective": "Control Objective",
+        "department": "Department",
+        "owner": "Control Owner",
+        "status": "Status",
+        "frequency": "Frequency",
+        "type": "Control Type",
+        "evidence": "Evidence Required",
+        "linked_risks": "Linked Risks",
+        "last_executed": "Last Executed",
+        "next_due": "Next Due"
+    },
+    "types": {
+        "preventive": "Preventive",
+        "detective": "Detective",
+        "corrective": "Corrective",
+        "compensating": "Compensating"
+    },
+    "frequencies": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "annually": "Annually",
+        "ad_hoc": "Ad Hoc"
+    },
+    "status": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "under_review": "Under Review",
+        "deprecated": "Deprecated"
+    },
+    "tabs": {
+        "overview": "Overview",
+        "execution": "Execution Log",
+        "risks": "Linked Risks",
+        "history": "History"
+    },
+    "execution": {
+        "title": "Control Execution",
+        "log_execution": "Log Execution",
+        "execution_date": "Execution Date",
+        "result": "Result",
+        "notes": "Execution Notes",
+        "evidence": "Evidence",
+        "executed_by": "Executed By"
+    },
+    "results": {
+        "passed": "Passed",
+        "failed": "Failed",
+        "not_tested": "Not Tested",
+        "not_applicable": "Not Applicable"
+    },
+    "filters": {
+        "all_types": "All Types",
+        "all_frequencies": "All Frequencies",
+        "all_departments": "All Departments",
+        "all_owners": "All Owners",
+        "overdue_only": "Overdue Only"
+    },
+    "empty_state": {
+        "no_controls": "No controls found",
+        "no_executions": "No execution history",
+        "no_linked_risks": "No linked risks"
+    },
+    "actions": {
+        "link_risk": "Link Risk",
+        "unlink": "Unlink",
+        "export_pdf": "Export PDF",
+        "export_excel": "Export Excel"
+    }
+}

@@ -1,0 +1,85 @@
+{
+    "title": "Registr rizik",
+    "page_subtitle": "Správa a sledování organizačních rizik",
+    "create_risk": "Vytvořit riziko",
+    "edit_risk": "Upravit riziko",
+    "view_risk": "Zobrazit riziko",
+    "delete_risk": "Smazat riziko",
+    "fields": {
+        "name": "Název rizika",
+        "description": "Popis",
+        "category": "Kategorie",
+        "department": "Oddělení",
+        "owner": "Vlastník rizika",
+        "status": "Stav",
+        "process": "Proces",
+        "probability": "Pravděpodobnost",
+        "impact": "Dopad",
+        "gross_score": "Inherentní skóre",
+        "net_score": "Reziduální skóre",
+        "is_priority": "Prioritní riziko",
+        "linked_controls": "Propojené kontroly",
+        "linked_kris": "Propojené KRI"
+    },
+    "probability_levels": {
+        "1": "Nepravděpodobná",
+        "2": "Nízká",
+        "3": "Střední",
+        "4": "Vysoká",
+        "5": "Extrémní"
+    },
+    "impact_levels": {
+        "1": "Žádný",
+        "2": "Nízký",
+        "3": "Střední",
+        "4": "Vysoký",
+        "5": "Extrémní"
+    },
+    "categories": {
+        "operational": "Operační",
+        "financial": "Finanční",
+        "strategic": "Strategické",
+        "compliance": "Compliance",
+        "reputational": "Reputační"
+    },
+    "status": {
+        "active": "Aktivní",
+        "mitigated": "Zmírněno",
+        "accepted": "Akceptováno",
+        "closed": "Uzavřeno"
+    },
+    "tabs": {
+        "overview": "Přehled",
+        "controls": "Kontroly",
+        "kris": "KRI",
+        "history": "Historie"
+    },
+    "matrix": {
+        "title": "Riziková matice",
+        "probability_axis": "Pravděpodobnost",
+        "impact_axis": "Dopad"
+    },
+    "scoring": {
+        "inherent_risk": "Inherentní riziko",
+        "residual_risk": "Reziduální riziko",
+        "risk_score": "Rizikové skóre"
+    },
+    "filters": {
+        "all_categories": "Všechny kategorie",
+        "all_departments": "Všechna oddělení",
+        "all_owners": "Všichni vlastníci",
+        "priority_only": "Pouze prioritní"
+    },
+    "empty_state": {
+        "no_risks": "Nebyly nalezeny žádné rizika",
+        "no_linked_controls": "Žádné propojené kontroly",
+        "no_linked_kris": "Žádné propojené KRI"
+    },
+    "actions": {
+        "link_control": "Propojit kontrolu",
+        "link_kri": "Propojit KRI",
+        "unlink": "Odpojit",
+        "export_pdf": "Export PDF",
+        "export_excel": "Export Excel"
+    }
+}

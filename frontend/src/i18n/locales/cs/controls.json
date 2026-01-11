@@ -1,0 +1,81 @@
+{
+    "title": "Katalog kontrol",
+    "page_subtitle": "Správa definic a exekuce kontrol",
+    "create_control": "Vytvořit kontrolu",
+    "edit_control": "Upravit kontrolu",
+    "view_control": "Zobrazit kontrolu",
+    "delete_control": "Smazat kontrolu",
+    "fields": {
+        "name": "Název kontroly",
+        "description": "Popis",
+        "control_objective": "Cíl kontroly",
+        "department": "Oddělení",
+        "owner": "Vlastník kontroly",
+        "status": "Stav",
+        "frequency": "Frekvence",
+        "type": "Typ kontroly",
+        "evidence": "Požadovaný důkaz",
+        "linked_risks": "Propojené rizika",
+        "last_executed": "Naposledy provedeno",
+        "next_due": "Příští termín"
+    },
+    "types": {
+        "preventive": "Preventivní",
+        "detective": "Detektivní",
+        "corrective": "Nápravná",
+        "compensating": "Kompenzační"
+    },
+    "frequencies": {
+        "daily": "Denně",
+        "weekly": "Týdně",
+        "monthly": "Měsíčně",
+        "quarterly": "Čtvrtletně",
+        "annually": "Ročně",
+        "ad_hoc": "Dle potřeby"
+    },
+    "status": {
+        "active": "Aktivní",
+        "inactive": "Neaktivní",
+        "under_review": "V revizi",
+        "deprecated": "Zastaralé"
+    },
+    "tabs": {
+        "overview": "Přehled",
+        "execution": "Záznam exekuce",
+        "risks": "Propojené rizika",
+        "history": "Historie"
+    },
+    "execution": {
+        "title": "Exekuce kontrol",
+        "log_execution": "Zaznamenat exekuci",
+        "execution_date": "Datum exekuce",
+        "result": "Výsledek",
+        "notes": "Poznámky k exekuci",
+        "evidence": "Důkaz",
+        "executed_by": "Provedl"
+    },
+    "results": {
+        "passed": "Splněno",
+        "failed": "Nesplněno",
+        "not_tested": "Netestováno",
+        "not_applicable": "Nepoužitelné"
+    },
+    "filters": {
+        "all_types": "Všechny typy",
+        "all_frequencies": "Všechny frekvence",
+        "all_departments": "Všechna oddělení",
+        "all_owners": "Všichni vlastníci",
+        "overdue_only": "Pouze opožděné"
+    },
+    "empty_state": {
+        "no_controls": "Nebyly nalezeny žádné kontroly",
+        "no_executions": "Žádná historie exekuce",
+        "no_linked_risks": "Žádné propojené rizika"
+    },
+    "actions": {
+        "link_risk": "Propojit riziko",
+        "unlink": "Odpojit",
+        "export_pdf": "Export PDF",
+        "export_excel": "Export Excel"
+    }
+}

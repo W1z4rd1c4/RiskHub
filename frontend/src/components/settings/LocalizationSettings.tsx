@@ -1,11 +1,11 @@
-import { Globe, Check, Info } from 'lucide-react';
-import { useState } from 'react';
+import { Globe, Check, CheckCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
-
-type Language = 'en' | 'cs';
+import { useLanguage } from '@/i18n/hooks';
+import type { SupportedLanguage } from '@/i18n';
 
 interface LanguageOption {
-    code: Language;
+    code: SupportedLanguage;
     name: string;
     nativeName: string;
     flag: string;
@@ -26,22 +26,9 @@ const languages: LanguageOption[] = [
     },
 ];
 
-const STORAGE_KEY = 'riskhub-language';
-
 export function LocalizationSettings() {
-    const [language, setLanguageState] = useState<Language>(() => {
-        if (typeof window === 'undefined') return 'en';
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored === 'en' || stored === 'cs') {
-            return stored;
-        }
-        return 'en'; // Default to English
-    });
-
-    const setLanguage = (newLang: Language) => {
-        localStorage.setItem(STORAGE_KEY, newLang);
-        setLanguageState(newLang);
-    };
+    const { t } = useTranslation('settings');
+    const { language, setLanguage } = useLanguage();
 
     const selectedLang = languages.find(l => l.code === language) || languages[0];
 
@@ -51,10 +38,10 @@ export function LocalizationSettings() {
             <section>
                 <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                     <Globe className="h-5 w-5 text-accent" />
-                    Display Language
+                    {t('localization.language')}
                 </h3>
                 <p className="text-slate-400 text-sm mb-6">
-                    Select your preferred language for the RiskHub interface.
+                    {t('localization.language_description')}
                 </p>
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -100,15 +87,18 @@ export function LocalizationSettings() {
                 </div>
             </section>
 
-            {/* Coming Soon Notice */}
-            <section className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+            {/* Active Translation Notice */}
+            <section className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
                 <div className="flex gap-3">
-                    <Info className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <CheckCircle className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
                     <div>
-                        <h4 className="font-semibold text-amber-400 mb-1">Coming Soon</h4>
+                        <h4 className="font-semibold text-emerald-400 mb-1">
+                            {language === 'cs' ? 'Aktivní překlad' : 'Active Translation'}
+                        </h4>
                         <p className="text-sm text-slate-400">
-                            Full language translation is currently in development. Your preference will be saved
-                            and applied automatically once translations are available.
+                            {language === 'cs'
+                                ? 'Čeština je nyní aktivní. Rozhraní se postupně překládá do vybraného jazyka.'
+                                : 'Language switching is now active. The interface will be progressively translated.'}
                         </p>
                     </div>
                 </div>
@@ -119,7 +109,7 @@ export function LocalizationSettings() {
                 <div className="flex items-center gap-3">
                     <span className="text-2xl">{selectedLang.flag}</span>
                     <div>
-                        <p className="text-sm text-slate-400">Current language preference:</p>
+                        <p className="text-sm text-slate-400">{t('localization.current_preference')}</p>
                         <p className="font-semibold">{selectedLang.name} ({selectedLang.nativeName})</p>
                     </div>
                 </div>
@@ -127,7 +117,9 @@ export function LocalizationSettings() {
 
             {/* Note */}
             <p className="text-xs text-slate-500 italic">
-                Language preference is saved locally on this device and will persist across sessions.
+                {language === 'cs'
+                    ? 'Jazyková preference je uložena lokálně na tomto zařízení a přetrvá i po restartu.'
+                    : 'Language preference is saved locally on this device and will persist across sessions.'}
             </p>
         </div>
     );

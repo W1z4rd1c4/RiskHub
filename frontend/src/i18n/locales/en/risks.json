@@ -1,0 +1,85 @@
+{
+    "title": "Risk Register",
+    "page_subtitle": "Manage and monitor organizational risks",
+    "create_risk": "Create Risk",
+    "edit_risk": "Edit Risk",
+    "view_risk": "View Risk",
+    "delete_risk": "Delete Risk",
+    "fields": {
+        "name": "Risk Name",
+        "description": "Description",
+        "category": "Category",
+        "department": "Department",
+        "owner": "Risk Owner",
+        "status": "Status",
+        "process": "Process",
+        "probability": "Probability",
+        "impact": "Impact",
+        "gross_score": "Gross Score",
+        "net_score": "Net Score",
+        "is_priority": "Priority Risk",
+        "linked_controls": "Linked Controls",
+        "linked_kris": "Linked KRIs"
+    },
+    "probability_levels": {
+        "1": "Very Low",
+        "2": "Low",
+        "3": "Medium",
+        "4": "High",
+        "5": "Very High"
+    },
+    "impact_levels": {
+        "1": "Negligible",
+        "2": "Minor",
+        "3": "Moderate",
+        "4": "Major",
+        "5": "Catastrophic"
+    },
+    "categories": {
+        "operational": "Operational",
+        "financial": "Financial",
+        "strategic": "Strategic",
+        "compliance": "Compliance",
+        "reputational": "Reputational"
+    },
+    "status": {
+        "active": "Active",
+        "mitigated": "Mitigated",
+        "accepted": "Accepted",
+        "closed": "Closed"
+    },
+    "tabs": {
+        "overview": "Overview",
+        "controls": "Controls",
+        "kris": "KRIs",
+        "history": "History"
+    },
+    "matrix": {
+        "title": "Risk Matrix",
+        "probability_axis": "Probability",
+        "impact_axis": "Impact"
+    },
+    "scoring": {
+        "inherent_risk": "Inherent Risk",
+        "residual_risk": "Residual Risk",
+        "risk_score": "Risk Score"
+    },
+    "filters": {
+        "all_categories": "All Categories",
+        "all_departments": "All Departments",
+        "all_owners": "All Owners",
+        "priority_only": "Priority Only"
+    },
+    "empty_state": {
+        "no_risks": "No risks found",
+        "no_linked_controls": "No linked controls",
+        "no_linked_kris": "No linked KRIs"
+    },
+    "actions": {
+        "link_control": "Link Control",
+        "link_kri": "Link KRI",
+        "unlink": "Unlink",
+        "export_pdf": "Export PDF",
+        "export_excel": "Export Excel"
+    }
+}

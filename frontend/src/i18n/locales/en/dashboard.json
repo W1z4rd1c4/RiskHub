@@ -1,0 +1,48 @@
+{
+    "title": "Dashboard",
+    "welcome": "Welcome back, {{name}}",
+    "widgets": {
+        "risk_overview": "Risk Overview",
+        "control_status": "Control Status",
+        "kri_summary": "KRI Summary",
+        "pending_approvals": "Pending Approvals",
+        "recent_activity": "Recent Activity",
+        "risk_heatmap": "Risk Heatmap",
+        "risk_trend": "Risk Trend",
+        "department_summary": "Department Summary",
+        "breach_alerts": "Breach Alerts"
+    },
+    "metrics": {
+        "total_risks": "Total Risks",
+        "high_priority": "High Priority",
+        "critical_risks": "Critical Risks",
+        "pending_approval": "Pending Approval",
+        "active_controls": "Active Controls",
+        "control_coverage": "Control Coverage",
+        "kri_breaches": "KRI Breaches",
+        "overdue_items": "Overdue Items"
+    },
+    "filters": {
+        "department": "Department",
+        "time_period": "Time Period",
+        "view_mode": "View Mode"
+    },
+    "time_periods": {
+        "today": "Today",
+        "this_week": "This Week",
+        "this_month": "This Month",
+        "this_quarter": "This Quarter",
+        "this_year": "This Year"
+    },
+    "empty_state": {
+        "no_risks": "No risks to display",
+        "no_pending_approvals": "No pending approvals",
+        "no_breaches": "No KRI breaches detected"
+    },
+    "risk_committee": {
+        "title": "Risk Committee",
+        "meeting_mode": "Meeting Mode",
+        "executive_summary": "Executive Summary",
+        "quarterly_metrics": "Quarterly Metrics"
+    }
+}
