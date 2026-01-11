@@ -8,6 +8,7 @@ class NotificationTypeEnum(str, Enum):
     """Notification type values."""
     approval_pending = "approval_pending"
     approval_resolved = "approval_resolved"
+    approval_cancelled = "approval_cancelled"
     kri_due_soon = "kri_due_soon"
     kri_due_tomorrow = "kri_due_tomorrow"
     kri_overdue = "kri_overdue"
