@@ -32,8 +32,8 @@ export function usePermissions() {
         canCreateKRIs: hasPermission('risks', 'write'),
         canEditKRIs: hasPermission('risks', 'write'),
         canDeleteKRIs: hasPermission('risks', 'delete'),
-        // KRI value recording - requires kri:record OR risks:write OR approvals:write
-        canRecordKRI: hasPermission('kri', 'record') || hasPermission('risks', 'write') || hasPermission('approvals', 'write'),
+        // KRI value recording - requires kri:submit OR risks:write OR approvals:write
+        canRecordKRI: hasPermission('kri', 'submit') || hasPermission('risks', 'write') || hasPermission('approvals', 'write'),
         // Approvals permission for workflow management
         canResolveApprovals: hasPermission('approvals', 'write'),
         // Access management permissions

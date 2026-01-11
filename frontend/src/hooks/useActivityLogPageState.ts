@@ -138,7 +138,7 @@ export function useActivityLogPageState(): UseActivityLogPageStateReturn {
                     activityLogApi.getActions(),
                     lookupApi.getUsers(),
                     lookupApi.getDepartments(),
-                    riskApi.getRisks({ limit: 200 }) // Get first 200 risks for picker
+                    riskApi.getRisks({ limit: 100 }) // Get first 100 risks for picker (matches backend cap)
                 ]);
                 setActions(acts);
                 setUsers(usersData);
