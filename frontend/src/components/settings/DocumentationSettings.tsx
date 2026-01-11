@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { BookOpen, FileText, ChevronLeft, ArrowRight, ExternalLink } from 'lucide-react';
+import { BookOpen, FileText, ChevronLeft, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { adminApi } from '@/services/adminApi';
 import type { DocumentationEntry } from '@/services/adminApi';
 
 export function DocumentationSettings() {
+    const { t } = useTranslation('settings');
     const { user } = useAuth();
     const [selectedDoc, setSelectedDoc] = useState<DocumentationEntry | null>(null);
 
@@ -23,7 +25,7 @@ export function DocumentationSettings() {
         return (
             <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                 <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4" />
-                <p>Loading documentation...</p>
+                <p>{t('documentation.loading', 'Loading documentation...')}</p>
             </div>
         );
     }
@@ -37,7 +39,7 @@ export function DocumentationSettings() {
                     className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-sm font-medium rounded-xl transition-all border border-white/10"
                 >
                     <ChevronLeft className="h-4 w-4" />
-                    Back to Documentation
+                    {t('documentation.back', 'Back to Documentation')}
                 </button>
 
                 <div className="glass-card min-h-[500px] flex flex-col overflow-hidden">
@@ -70,10 +72,10 @@ export function DocumentationSettings() {
             <section>
                 <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
                     <BookOpen className="h-5 w-5 text-accent" />
-                    Documentation & Help
+                    {t('documentation.title', 'Documentation & Help')}
                 </h3>
                 <p className="text-slate-400 text-sm mb-6">
-                    Access guides and documentation tailored to your role ({user?.role_display_name || 'User'}).
+                    {t('documentation.subtitle', 'Access guides and documentation tailored to your role ({{role}}).', { role: user?.role_display_name || 'User' })}
                 </p>
             </section>
 
@@ -81,8 +83,8 @@ export function DocumentationSettings() {
             {docs.length === 0 ? (
                 <div className="glass-card flex flex-col items-center justify-center py-16 text-slate-500">
                     <BookOpen className="h-12 w-12 mb-4 opacity-10" />
-                    <h3 className="text-lg font-semibold text-white mb-2">No Documentation Available</h3>
-                    <p className="text-sm">Documentation will be available in future updates.</p>
+                    <h3 className="text-lg font-semibold text-white mb-2">{t('documentation.empty_title', 'No Documentation Available')}</h3>
+                    <p className="text-sm">{t('documentation.empty_subtitle', 'Documentation will be available in future updates.')}</p>
                 </div>
             ) : (
                 /* Documentation Cards Grid */
@@ -110,7 +112,7 @@ export function DocumentationSettings() {
 
                             {/* View Manual Link */}
                             <div className="flex items-center gap-2 text-accent text-sm font-semibold mt-auto">
-                                View Manual
+                                {t('documentation.view_manual', 'View Manual')}
                                 <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                             </div>
                         </button>
@@ -118,36 +120,12 @@ export function DocumentationSettings() {
                 </section>
             )}
 
-            {/* Quick Links */}
-            <section className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <h4 className="font-semibold mb-3">Quick Links</h4>
-                <div className="flex flex-wrap gap-2">
-                    <a
-                        href="mailto:support@riskhub.local"
-                        className="px-3 py-1.5 bg-white/10 text-slate-300 text-sm rounded-lg hover:bg-white/20 transition-colors inline-flex items-center gap-1.5"
-                    >
-                        Contact Support
-                        <ExternalLink className="h-3 w-3" />
-                    </a>
-                    <a
-                        href="/activity-log"
-                        className="px-3 py-1.5 bg-white/10 text-slate-300 text-sm rounded-lg hover:bg-white/20 transition-colors"
-                    >
-                        View Activity Log
-                    </a>
-                    <a
-                        href="/notifications"
-                        className="px-3 py-1.5 bg-white/10 text-slate-300 text-sm rounded-lg hover:bg-white/20 transition-colors"
-                    >
-                        Notifications
-                    </a>
-                </div>
-            </section>
+
 
             {/* Version Info */}
             <section className="text-center">
                 <p className="text-xs text-slate-500">
-                    RiskHub v1.0 • Documentation will be expanded in future updates
+                    {t('documentation.version_info', 'RiskHub v1.0 • Documentation will be expanded in future updates')}
                 </p>
             </section>
         </div>

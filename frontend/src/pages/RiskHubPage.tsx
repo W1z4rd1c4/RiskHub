@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Command, Palette, Settings2, ShieldCheck, Shield, Building } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { RolesPanel, DepartmentsPanel, RiskTypesPanel, SystemSettingsPanel, ApprovalScenariosPanel } from '@/components/riskhub';
@@ -16,8 +17,18 @@ const tabs = [
 type TabId = typeof tabs[number]['id'];
 
 export function RiskHubPage() {
+    const { t } = useTranslation('admin');
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<TabId>('risk-types');
+
+    // Tab labels with translations
+    const tabLabels: Record<TabId, string> = {
+        'risk-types': t('riskhub.tabs.risk_types', 'Risk Types'),
+        'settings': t('riskhub.tabs.system_settings', 'System Settings'),
+        'approvals': t('riskhub.tabs.approval_rules', 'Approval Rules'),
+        'roles': t('riskhub.tabs.roles', 'Roles'),
+        'departments': t('riskhub.tabs.departments', 'Departments'),
+    };
 
     // Only CRO can access Risk Hub
     if (user?.role !== 'cro') {
@@ -33,9 +44,9 @@ export function RiskHubPage() {
                         <Command className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-white font-heading">Risk Hub</h1>
+                        <h1 className="text-2xl font-bold text-white font-heading">{t('riskhub.title', 'Risk Hub')}</h1>
                         <p className="text-slate-400">
-                            Configure risk management policies, thresholds, and approval workflows
+                            {t('riskhub.subtitle', 'Configure risk management policies, thresholds, and approval workflows')}
                         </p>
                     </div>
                 </div>
@@ -57,7 +68,7 @@ export function RiskHubPage() {
                             )}
                         >
                             <tab.icon className="h-4 w-4" />
-                            <span className="font-medium">{tab.label}</span>
+                            <span className="font-medium">{tabLabels[tab.id]}</span>
                         </button>
                     );
                 })}
@@ -74,7 +85,7 @@ export function RiskHubPage() {
 
             {/* Footer Note */}
             <div className="text-center text-sm text-slate-500">
-                Changes are logged and auditable. All modifications take effect immediately.
+                {t('riskhub.footer', 'Changes are logged and auditable. All modifications take effect immediately.')}
             </div>
         </div>
     );

@@ -133,5 +133,17 @@
         "type_risk": "Riziko",
         "type_control": "Kontrola",
         "type_kri": "KRI"
+    },
+    "riskhub": {
+        "title": "Risk Hub",
+        "subtitle": "Konfigurace politik řízení rizik, prahových hodnot a schvalovacích workflow",
+        "footer": "Změny jsou zaznamenávány a auditovatelné. Všechny úpravy se projeví okamžitě.",
+        "tabs": {
+            "risk_types": "Typy rizik",
+            "system_settings": "Nastavení systému",
+            "approval_rules": "Pravidla schvalování",
+            "roles": "Role",
+            "departments": "Oddělení"
+        }
     }
 }

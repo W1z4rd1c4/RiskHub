@@ -94,5 +94,15 @@
         "admin_sessions": "Manage Active Sessions",
         "admin_all": "Full Admin Access",
         "super_admin": "Super Admin (All Permissions)"
+    },
+    "documentation": {
+        "title": "Documentation & Help",
+        "subtitle": "Access guides and documentation tailored to your role ({{role}}).",
+        "loading": "Loading documentation...",
+        "back": "Back to Documentation",
+        "view_manual": "View Manual",
+        "empty_title": "No Documentation Available",
+        "empty_subtitle": "Documentation will be available in future updates.",
+        "version_info": "RiskHub v1.0 • Documentation will be expanded in future updates"
     }
 }
