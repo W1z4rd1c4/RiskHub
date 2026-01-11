@@ -129,7 +129,7 @@ export function Sidebar() {
     const filteredNavigation = isAdmin
         ? [
             // Admin-only navigation (no business data)
-            navigationWithBadges[7], // Settings
+            navigationWithBadges[6], // Settings (index 6, not 7)
             ...(userManagementItem ? [userManagementItem] : []),
             ...(adminConsoleItem ? [adminConsoleItem] : []),
             ...(documentationItem ? [documentationItem] : []),
@@ -206,6 +206,7 @@ export function Sidebar() {
                     )}
                     <button
                         onClick={handleLogout}
+                        data-testid="logout-button"
                         className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all duration-200"
                     >
                         <LogOut className="h-4 w-4" />

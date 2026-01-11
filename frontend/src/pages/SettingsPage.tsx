@@ -45,6 +45,7 @@ export function SettingsPage() {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
+                            data-testid={`settings-tab-${tab.id}`}
                             className={cn(
                                 "flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap",
                                 isActive
