@@ -69,7 +69,9 @@
         "kri_health": "KRI Health %",
         "overdue_kris": "Overdue KRIs",
         "activity_volume": "Activity Volume",
-        "risks_without_kri": "Risks Without KRI"
+        "risks_without_kri": "Risks Without KRI",
+        "current_period": "Current:",
+        "compare_period": "Compare:"
     },
     "kri": {
         "all_current": "All KRIs Current",

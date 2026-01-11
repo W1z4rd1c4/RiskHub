@@ -661,6 +661,49 @@ async def get_quarterly_comparison(
         raise
 
 
+@router.get("/available-periods")
+async def get_available_periods(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_committee_user),
+):
+    """
+    Get available years and quarters for period selection.
+    
+    Returns:
+        - years: List of unique years with data (from snapshots + entity creation dates)
+        - current_quarter: Current quarter label (e.g., '2026-Q1')
+    """
+    from datetime import datetime, timezone
+    from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot
+    from app.core.snapshot_service import get_quarter_label
+    
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    current_quarter_label = get_quarter_label(now)
+    current_year = now.year
+    
+    # Get distinct years from quarterly snapshots
+    snapshot_years_result = await db.execute(
+        select(QuarterlyMetricSnapshot.year.distinct())
+        .order_by(QuarterlyMetricSnapshot.year)
+    )
+    snapshot_years = set(row[0] for row in snapshot_years_result.fetchall())
+    
+    # Get distinct years from risk creation dates
+    risk_years_result = await db.execute(
+        select(func.extract('year', Risk.created_at).distinct())
+        .where(Risk.created_at.isnot(None))
+    )
+    risk_years = set(int(row[0]) for row in risk_years_result.fetchall() if row[0])
+    
+    # Combine all years and include current year
+    all_years = sorted(snapshot_years | risk_years | {current_year})
+    
+    return {
+        "years": all_years,
+        "current_quarter": current_quarter_label,
+    }
+
+
 @router.get("/committee-summary")
 async def get_committee_summary(
     db: AsyncSession = Depends(get_db),

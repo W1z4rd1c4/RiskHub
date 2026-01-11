@@ -10,6 +10,7 @@ class NotificationType(str, PyEnum):
     """Type of notification."""
     APPROVAL_PENDING = "approval_pending"
     APPROVAL_RESOLVED = "approval_resolved"
+    APPROVAL_CANCELLED = "approval_cancelled"
     KRI_DUE_SOON = "kri_due_soon"
     KRI_DUE_TOMORROW = "kri_due_tomorrow"
     KRI_OVERDUE = "kri_overdue"
