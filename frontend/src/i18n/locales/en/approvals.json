@@ -1,8 +1,10 @@
 {
-    "title": "Approvals",
-    "page_subtitle": "Review and manage approval requests",
+    "title": "Workflow",
+    "page_subtitle": "Manage approval requests for critical changes and deletions.",
     "tabs": {
-        "pending": "Pending",
+        "pending": "Pending Queue",
+        "mine": "My Requests",
+        "history": "History",
         "approved": "Approved",
         "rejected": "Rejected",
         "cancelled": "Cancelled",
@@ -51,7 +53,10 @@
         "reject_message": "Please provide a reason for rejection:",
         "reject_reason_placeholder": "Enter rejection reason...",
         "cancel_title": "Cancel Request",
-        "cancel_message": "Are you sure you want to cancel this request?"
+        "cancel_message": "Are you sure you want to cancel this request?",
+        "resolution_placeholder": "Enter resolution notes...",
+        "resolution_required": "Please provide a reason for this decision (mandatory).",
+        "processing": "Processing..."
     },
     "workflow": {
         "title": "Approval Workflow",
@@ -70,7 +75,16 @@
     "empty_state": {
         "no_pending": "No pending approvals",
         "no_history": "No approval history",
-        "no_requests": "No approval requests"
+        "no_requests": "No approval requests",
+        "all_caught_up": "All Caught Up",
+        "no_matching": "There are no approval requests matching your current filter."
+    },
+    "labels": {
+        "proposed_changes": "Proposed Changes",
+        "approved_on": "Approved on {{date}} at {{time}}",
+        "rejected_on": "Rejected on {{date}} at {{time}}",
+        "by": "by",
+        "re": "Re:"
     },
     "notifications": {
         "approved": "Request approved successfully",
