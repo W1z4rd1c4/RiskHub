@@ -17,15 +17,16 @@ const typeIcons: Record<string, typeof ShieldAlert> = {
     kri: AlertTriangle,
 };
 
-const typeLabels: Record<string, string> = {
-    risk: 'Risk',
-    control: 'Control',
-    kri: 'KRI',
-};
-
 export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTableProps) {
     const { t } = useTranslation('admin');
     const [filter, setFilter] = useState<string>('all');
+
+    // Type labels with translations
+    const typeLabels: Record<string, string> = {
+        risk: t('governance.type_risk', 'Risk'),
+        control: t('governance.type_control', 'Control'),
+        kri: t('governance.type_kri', 'KRI'),
+    };
 
     const filteredItems = filter === 'all'
         ? items
