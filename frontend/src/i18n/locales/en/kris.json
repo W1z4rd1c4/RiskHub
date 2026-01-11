@@ -1,6 +1,7 @@
 {
-    "title": "Key Risk Indicators",
-    "page_subtitle": "Monitor and track risk indicators",
+    "title": "Risk Appetite",
+    "page_subtitle": "Monitor Key Risk Indicators and appetite breaches.",
+    "new_kri": "New KRI",
     "create_kri": "Create KRI",
     "edit_kri": "Edit KRI",
     "view_kri": "View KRI",
@@ -60,13 +61,28 @@
         "all_frequencies": "All Frequencies",
         "all_departments": "All Departments",
         "all_owners": "All Owners",
+        "all": "All",
+        "within": "Within",
+        "breach": "Breach",
         "breached_only": "Breached Only",
-        "overdue_only": "Overdue Only"
+        "overdue": "Overdue",
+        "overdue_only": "Overdue Only",
+        "search_placeholder": "Search by metric name..."
     },
     "empty_state": {
-        "no_kris": "No KRIs found",
+        "no_kris": "No KRIs found matching your criteria.",
         "no_values": "No value history",
-        "no_linked_risk": "No linked risk"
+        "no_linked_risk": "No linked risk",
+        "no_group": "No KRIs in this group."
+    },
+    "columns": {
+        "metric": "Metric",
+        "value": "Value",
+        "limits": "Limits",
+        "status": "Status",
+        "risk": "Risk",
+        "description": "Description",
+        "ok": "OK"
     },
     "actions": {
         "link_risk": "Link Risk",

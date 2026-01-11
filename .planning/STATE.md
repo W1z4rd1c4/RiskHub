@@ -167,10 +167,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 20-02: Frontend Core Components Translation. Added i18n to Sidebar, Header, ConfirmDialog, ArchiveConfirmDialog, Pagination, and AppearanceSettings. Updated EN/CS translation files with navigation, common, and settings keys.
+- Completed Plan 20-03: Risk, Control, and KRI Page Translation. Added i18n to RisksPage, ControlsPage, and KRIsPage with page titles, filters, columns, and error messages. Updated EN/CS risks.json, controls.json, and kris.json with new keys.
 
 ### Next Step
-- Continue Phase 20 Czech Localization with Plan 20-03 (Risk pages localization).
+- Continue Phase 20 Czech Localization with Plan 20-04 (Detail pages and forms translation).
 
 
 

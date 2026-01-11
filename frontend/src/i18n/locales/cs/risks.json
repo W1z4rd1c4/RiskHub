@@ -1,6 +1,7 @@
 {
     "title": "Registr rizik",
-    "page_subtitle": "Správa a sledování organizačních rizik",
+    "page_subtitle": "Sledování a řízení organizačních rizik s hrubým/čistým skórováním dle OS 18.",
+    "new_risk": "Nové riziko",
     "create_risk": "Vytvořit riziko",
     "edit_risk": "Upravit riziko",
     "view_risk": "Zobrazit riziko",
@@ -68,12 +69,31 @@
         "all_categories": "Všechny kategorie",
         "all_departments": "Všechna oddělení",
         "all_owners": "Všichni vlastníci",
-        "priority_only": "Pouze prioritní"
+        "all_statuses": "Všechny stavy",
+        "all_types": "Všechny typy",
+        "priority_only": "Prioritní rizika",
+        "search_placeholder": "Hledat podle názvu, procesu nebo kategorie..."
     },
     "empty_state": {
-        "no_risks": "Nebyly nalezeny žádné rizika",
+        "no_risks": "Nebyla nalezena žádná rizika odpovídající kritériím.",
         "no_linked_controls": "Žádné propojené kontroly",
         "no_linked_kris": "Žádné propojené KRI"
+    },
+    "errors": {
+        "load_failed": "Nepodařilo se načíst rizika. Zkontrolujte prosím připojení.",
+        "title": "Chyba při načítání rizik",
+        "try_again": "Zkusit znovu"
+    },
+    "columns": {
+        "name": "Název",
+        "category": "Kategorie",
+        "description": "Popis",
+        "type": "Typ",
+        "gross": "Hrubé",
+        "net": "Čisté",
+        "controls": "Kontroly",
+        "kris": "KRI",
+        "pending": "Čeká"
     },
     "actions": {
         "link_control": "Propojit kontrolu",

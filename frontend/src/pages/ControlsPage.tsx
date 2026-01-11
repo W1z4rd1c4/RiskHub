@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
     Plus,
     Search,
@@ -70,6 +71,7 @@ export function ControlsPage() {
     const [isExporting, setIsExporting] = useState(false);
 
     const limit = 10;
+    const { t } = useTranslation('controls');
 
     // Use shared hooks for debouncing and pending approvals
     const debouncedSearch = useDebouncedValue(search, 300);
@@ -108,7 +110,7 @@ export function ControlsPage() {
             setError(null);
         } catch (err) {
             console.error('Error fetching controls:', err);
-            setError('Failed to load controls. Please check your connection.');
+            setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
         }
@@ -162,7 +164,7 @@ export function ControlsPage() {
     const columns: Column<ControlSummary>[] = useMemo(() => [
         {
             key: 'name',
-            label: 'Name',
+            label: t('columns.name'),
             sortable: true,
             render: (control) => (
                 <div className="flex items-center gap-2">
@@ -170,7 +172,7 @@ export function ControlsPage() {
                     {pendingApprovalIds.has(control.id) && (
                         <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20" title="Changes Pending Approval">
                             <Lock className="h-2.5 w-2.5" />
-                            Pending
+                            {t('columns.pending')}
                         </div>
                     )}
                 </div>
@@ -178,7 +180,7 @@ export function ControlsPage() {
         },
         {
             key: 'department_name',
-            label: 'Department',
+            label: t('columns.department'),
             sortable: true,
             render: (control) => (
                 <span className="text-xs font-medium text-slate-300">{control.department_name || 'Unassigned'}</span>
@@ -186,7 +188,7 @@ export function ControlsPage() {
         },
         {
             key: 'frequency',
-            label: 'Frequency',
+            label: t('columns.frequency'),
             sortable: true,
             render: (control) => (
                 <div className="flex items-center gap-2 text-xs text-slate-400 capitalize">
@@ -197,7 +199,7 @@ export function ControlsPage() {
         },
         {
             key: 'risk_level',
-            label: 'Risk Level',
+            label: t('columns.risk_level'),
             sortable: true,
             className: 'text-center',
             render: (control) => (
@@ -210,7 +212,7 @@ export function ControlsPage() {
         },
         {
             key: 'status',
-            label: 'Status',
+            label: t('columns.status'),
             sortable: true,
             render: (control) => (
                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getStatusColor(control.status)}`}>
@@ -248,8 +250,8 @@ export function ControlsPage() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-black text-white mb-2">Control Catalog</h2>
-                    <p className="text-slate-500 font-medium tracking-tight">Manage and audit organizational risk controls according to the 13-point standard.</p>
+                    <h2 className="text-3xl font-black text-white mb-2">{t('title')}</h2>
+                    <p className="text-slate-500 font-medium tracking-tight">{t('page_subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
@@ -274,7 +276,7 @@ export function ControlsPage() {
                             className="btn-primary"
                         >
                             <Plus className="h-5 w-5" />
-                            New Control
+                            {t('new_control')}
                         </button>
                     </PermissionGate>
                 </div>
@@ -289,7 +291,7 @@ export function ControlsPage() {
                     <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
                     <input
                         type="text"
-                        placeholder="Search by name, description, risk or department..."
+                        placeholder={t('filters.search_placeholder')}
                         value={search}
                         onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
@@ -299,13 +301,13 @@ export function ControlsPage() {
                     <ThemedSelect
                         value={statusFilter}
                         onValueChange={(v) => { setStatusFilter(v); setControls([]); setCurrentPage(1); }}
-                        placeholder="All Statuses"
+                        placeholder={t('filters.all_statuses')}
                         allowEmpty
-                        emptyLabel="All Statuses"
+                        emptyLabel={t('filters.all_statuses')}
                         options={[
-                            { value: 'active', label: 'Active' },
-                            { value: 'draft', label: 'Draft' },
-                            { value: 'inactive', label: 'Inactive' },
+                            { value: 'active', label: t('status.active') },
+                            { value: 'draft', label: t('status.inactive') },
+                            { value: 'inactive', label: t('status.inactive') },
                         ]}
                     />
                     <button
@@ -323,10 +325,10 @@ export function ControlsPage() {
                 <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
                     <AlertCircle className="h-12 w-12 text-rose-500" />
                     <div>
-                        <p className="text-white font-bold text-xl">Error Loading Controls</p>
+                        <p className="text-white font-bold text-xl">{t('errors.title')}</p>
                         <p className="text-slate-500 max-w-sm mx-auto">{error}</p>
                     </div>
-                    <button onClick={fetchControls} className="text-accent font-bold hover:underline">Try Again</button>
+                    <button onClick={fetchControls} className="text-accent font-bold hover:underline">{t('errors.try_again')}</button>
                 </div>
             ) : isLoading ? (
                 <div className="glass-card !p-0 overflow-hidden">
@@ -361,7 +363,7 @@ export function ControlsPage() {
                         columns={columns}
                         keyExtractor={(control) => control.id}
                         onRowClick={(control) => navigate(`/controls/${control.id}`)}
-                        emptyMessage="No controls found matching your criteria."
+                        emptyMessage={t('empty_state.no_controls')}
                     />
                     <Pagination
                         currentPage={currentPage}
@@ -411,7 +413,7 @@ export function ControlsPage() {
                             columns={columns}
                             keyExtractor={(control) => control.id}
                             onRowClick={(control) => navigate(`/controls/${control.id}`)}
-                            emptyMessage="No controls in this category."
+                            emptyMessage={t('empty_state.no_controls')}
                         />
                     )}
                     renderItem={(control) => (
