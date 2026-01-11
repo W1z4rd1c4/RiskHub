@@ -67,5 +67,32 @@
     "messages": {
         "saved": "Settings saved successfully",
         "reset": "Settings reset to defaults"
+    },
+    "permissions": {
+        "risks_read": "View Risks",
+        "risks_write": "Create & Edit Risks",
+        "risks_delete": "Delete Risks",
+        "controls_read": "View Controls",
+        "controls_write": "Create & Edit Controls",
+        "controls_delete": "Delete Controls",
+        "controls_execute": "Log Control Executions",
+        "kris_read": "View KRIs",
+        "kris_write": "Create & Edit KRIs",
+        "kris_delete": "Delete KRIs",
+        "kri_submit": "Submit KRI Values",
+        "approvals_read": "View Approvals",
+        "approvals_approve": "Approve/Reject Requests",
+        "users_read": "View Users",
+        "users_write": "Manage Users",
+        "activity_log_read": "View Activity Log",
+        "departments_read": "View Departments",
+        "departments_write": "Manage Departments",
+        "reports_read": "View Reports",
+        "reports_export": "Export Reports",
+        "admin_config": "System Configuration",
+        "admin_logs": "View System Logs",
+        "admin_sessions": "Manage Active Sessions",
+        "admin_all": "Full Admin Access",
+        "super_admin": "Super Admin (All Permissions)"
     }
 }

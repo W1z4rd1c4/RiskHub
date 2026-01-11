@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
     Save,
     X,
@@ -23,6 +24,7 @@ interface KRIFormProps {
 }
 
 export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
+    const { t } = useTranslation('kris');
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -425,11 +427,11 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                             onValueChange={(v) => handleInputChange('frequency', v)}
                                             className="w-full"
                                             options={[
-                                                { value: 'daily', label: 'Daily' },
-                                                { value: 'weekly', label: 'Weekly' },
-                                                { value: 'monthly', label: 'Monthly' },
-                                                { value: 'quarterly', label: 'Quarterly' },
-                                                { value: 'annually', label: 'Annually' },
+                                                { value: 'daily', label: t('frequencies.daily', 'Daily') },
+                                                { value: 'weekly', label: t('frequencies.weekly', 'Weekly') },
+                                                { value: 'monthly', label: t('frequencies.monthly', 'Monthly') },
+                                                { value: 'quarterly', label: t('frequencies.quarterly', 'Quarterly') },
+                                                { value: 'annually', label: t('frequencies.annually', 'Annually') },
                                             ]}
                                         />
                                     </div>
