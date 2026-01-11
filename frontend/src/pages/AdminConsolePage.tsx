@@ -559,8 +559,13 @@ function SessionsPanel() {
 }
 
 export function AdminConsolePage() {
-    const { user } = useAuth();
+    const { user, isLoading } = useAuth();
     const [activeTab, setActiveTab] = useState<TabId>('health');
+
+    // Wait for auth to load before checking role
+    if (isLoading) {
+        return <div className="flex items-center justify-center min-h-screen text-slate-400">Loading...</div>;
+    }
 
     // Only Admin can access Admin Console
     if (user?.role !== 'admin') {
