@@ -161,6 +161,7 @@ async def list_breaches(
 async def list_overdue_kris(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
+    department_id: Optional[int] = Query(None, description="Filter by specific department"),
 ):
     """
     List all KRIs that are overdue for reporting.
@@ -171,18 +172,15 @@ async def list_overdue_kris(
     
     overdue = await KRIHistoryService.get_overdue_kris(db)
     
-    # Filter by department access
+    # Filter by explicit department_id parameter if provided
+    if department_id is not None:
+        filtered = [item for item in overdue if item.get("department_id") == department_id]
+        return filtered
+    
+    # Filter by department access (RBAC)
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:
-        # Need to check each KRI's risk department
-        filtered = []
-        for item in overdue:
-            risk_result = await db.execute(
-                select(Risk).where(Risk.id == item["risk_id"])
-            )
-            risk = risk_result.scalar_one_or_none()
-            if risk and risk.department_id in dept_ids:
-                filtered.append(item)
+        filtered = [item for item in overdue if item.get("department_id") in dept_ids]
         return filtered
     
     return overdue
@@ -192,6 +190,7 @@ async def list_overdue_kris(
 async def list_due_soon_kris(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
+    department_id: Optional[int] = Query(None, description="Filter by specific department"),
 ):
     """
     List all KRIs that are due soon (within 7 days before period end).
@@ -203,18 +202,15 @@ async def list_due_soon_kris(
     
     due_soon = await KRIHistoryService.get_due_soon_kris(db)
     
-    # Filter by department access
+    # Filter by explicit department_id parameter if provided
+    if department_id is not None:
+        filtered = [item for item in due_soon if item.get("department_id") == department_id]
+        return filtered
+    
+    # Filter by department access (RBAC)
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:
-        # Need to check each KRI's risk department
-        filtered = []
-        for item in due_soon:
-            risk_result = await db.execute(
-                select(Risk).where(Risk.id == item["risk_id"])
-            )
-            risk = risk_result.scalar_one_or_none()
-            if risk and risk.department_id in dept_ids:
-                filtered.append(item)
+        filtered = [item for item in due_soon if item.get("department_id") in dept_ids]
         return filtered
     
     return due_soon
