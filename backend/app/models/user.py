@@ -56,6 +56,10 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     
+    # User preferences (synced across devices)
+    preferred_theme: Mapped[str] = mapped_column(String(20), default='riskhub', server_default='riskhub')
+    preferred_language: Mapped[str] = mapped_column(String(10), default='en', server_default='en')
+    
     # Control relationships
     owned_controls: Mapped[list["Control"]] = relationship(
         "Control", 

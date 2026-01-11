@@ -49,6 +49,7 @@
 | 200 Entity Naming Enforcement | ✅ Complete (10/10) | 2026-01-05 |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
+| 25 User-Specific Settings | ✅ Complete (5/5) | 2026-01-11 |
 
 
 ## Session Context

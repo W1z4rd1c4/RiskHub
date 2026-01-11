@@ -52,6 +52,7 @@ export function LocalizationSettings() {
                             <button
                                 key={lang.code}
                                 onClick={() => setLanguage(lang.code)}
+                                data-testid={`language-${lang.code}`}
                                 className={cn(
                                     "relative flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left",
                                     isSelected

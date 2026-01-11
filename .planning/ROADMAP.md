@@ -34,6 +34,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 18: Vendor Risk Management** — Third-party risk assessments (deferred)
 - [ ] **Phase 19: Advanced Audit Workflows** — Audit automation (deferred)
 - [ ] **Phase 20: Czech Localization** — Full i18n infrastructure, Czech translations for UI, API, reports, and documentation (9 plans)
+- [x] **Phase 25: User-Specific Settings** — Fix theme/language persistence across user sessions (5 plans)
 - [ ] **Phase 70: Risk Hub** — Admin Console for system configuration, dynamic risk types, approval rules (Plans 1-7 verified)
 - [ ] **Phase 71: Risk Hub Review** — Audit Risk Hub implementation for logical/technical errors and bugs
 - [ ] **Phase 72: Risk Hub Resolution** — Fix Phase 71 findings across backend and frontend
@@ -320,6 +321,19 @@ Plans:
 - [ ] 20-07: Administrator Documentation Translation (7 docs → docs/admin-cs/)
 - [ ] 20-08: End-User Documentation Translation (8 docs → docs/user-cs/)
 - [ ] 20-09: Localization Integration and Verification (testing, glossary, dev docs)
+
+### Phase 25: User-Specific Settings
+**Goal**: Fix theme and language settings persistence across user sessions with cross-device sync via server storage.
+**Depends on**: Phase 15 (Settings Page), Phase 20 (Czech Localization)
+**Status**: Planned
+**Plans**: 5 plans
+
+Plans:
+- [ ] 25-00: Backend Preferences Storage (User model columns, migration, API endpoints)
+- [ ] 25-01: Frontend Sync Infrastructure (API client, storage utils, AuthContext sync)
+- [ ] 25-02: Theme Context Refactoring (server sync, multi-tab sync, simplify)
+- [ ] 25-03: Language Context Refactoring (server sync, i18n trigger, simplify)
+- [ ] 25-04: Verification & E2E Testing (settings-isolation.spec.ts, data-testid)
 
 ### Phase 17: Production Deployment & Enterprise Integration
 **Goal**: Production-ready deployment, Azure AD/Entra SSO, comprehensive documentation, and enterprise testing
