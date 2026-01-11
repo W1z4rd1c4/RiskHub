@@ -11,7 +11,6 @@ import {
     Settings,
     Shield,
     ChevronRight,
-    History,
     LogOut,
     Users as UsersIcon,
     ClipboardCheck,
@@ -44,7 +43,6 @@ export function Sidebar() {
         { name: t('sidebar.kris'), href: '/kris', icon: Target },
         { name: t('sidebar.departments'), href: '/departments', icon: Building2 },
         { name: t('sidebar.governance'), href: '/governance', icon: Scale },
-        { name: t('sidebar.activity_log'), href: '/audit-trail', icon: History },
         { name: t('sidebar.settings'), href: '/settings', icon: Settings },
     ];
 
@@ -140,9 +138,9 @@ export function Sidebar() {
             // Business user navigation
             navigationWithBadges[0], // Dashboard
             workflowItem,
-            ...navigationWithBadges.slice(1, 7), // Controls, Risks, Risk Appetite, Departments, Governance, Audit Trail
+            ...navigationWithBadges.slice(1, 6), // Controls, Risks, Risk Appetite, Departments, Governance
             ...(canViewActivityLog ? [activityLogItem] : []),
-            navigationWithBadges[7], // Settings
+            navigationWithBadges[6], // Settings
             ...(userManagementItem ? [userManagementItem] : []),
             ...(riskHubItem ? [riskHubItem] : []),
         ];
