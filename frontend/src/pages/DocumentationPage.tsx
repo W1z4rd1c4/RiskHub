@@ -3,14 +3,16 @@ import { useQuery } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { BookOpen, FileText, ChevronLeft, ArrowRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { adminApi } from '@/services/adminApi';
 
 export function DocumentationPage() {
+    const { i18n } = useTranslation();
     const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
     const { data: docsData, isLoading } = useQuery({
-        queryKey: ['adminDocs'],
-        queryFn: () => adminApi.getDocs(),
+        queryKey: ['adminDocs', i18n.language],
+        queryFn: () => adminApi.getDocs(i18n.language),
     });
 
     const docs = docsData?.documents || [];

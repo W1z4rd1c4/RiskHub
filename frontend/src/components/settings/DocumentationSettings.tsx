@@ -9,13 +9,13 @@ import { adminApi } from '@/services/adminApi';
 import type { DocumentationEntry } from '@/services/adminApi';
 
 export function DocumentationSettings() {
-    const { t } = useTranslation('settings');
+    const { t, i18n } = useTranslation('settings');
     const { user } = useAuth();
     const [selectedDoc, setSelectedDoc] = useState<DocumentationEntry | null>(null);
 
     const { data: docsData, isLoading } = useQuery({
-        queryKey: ['settingsDocs'],
-        queryFn: () => adminApi.getDocs(),
+        queryKey: ['settingsDocs', i18n.language],
+        queryFn: () => adminApi.getDocs(i18n.language),
     });
 
     const docs = docsData?.documents || [];
