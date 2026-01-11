@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Users,
     UserPlus,
@@ -19,6 +20,7 @@ import { UsersFilterBar } from '@/components/access/UsersFilterBar';
 import { UsersTable } from '@/components/access/UsersTable';
 
 export function UsersPage() {
+    const { t } = useTranslation('admin');
     const [users, setUsers] = useState<AccessUserRead[]>([]);
     const [fallbackUsers, setFallbackUsers] = useState<UserRead[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -135,12 +137,10 @@ export function UsersPage() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
                         <Users className="h-8 w-8 text-accent" />
-                        {isAccessMode ? 'Access Management' : 'User Management'}
+                        {isAccessMode ? t('access.title') : t('users.title')}
                     </h1>
                     <p className="text-slate-400 mt-1">
-                        {isAccessMode
-                            ? 'Manage user access, roles, and permissions across the platform.'
-                            : 'View platform users and their roles.'}
+                        {isAccessMode ? t('access.subtitle') : t('users.subtitle', { defaultValue: 'View platform users and their roles.' })}
                     </p>
                 </div>
                 {canManageUsers && (
@@ -149,7 +149,7 @@ export function UsersPage() {
                         className="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
                     >
                         <UserPlus className="h-5 w-5" />
-                        Add User
+                        {t('access.add_user')}
                     </button>
                 )}
             </div>
@@ -160,7 +160,7 @@ export function UsersPage() {
                         <Users className="h-6 w-6 text-purple-400" />
                     </div>
                     <div>
-                        <p className="text-sm text-slate-400">Total Users</p>
+                        <p className="text-sm text-slate-400">{t('access.stats.total_users')}</p>
                         <p className="text-2xl font-bold text-white">{totalCount}</p>
                     </div>
                 </div>
@@ -169,7 +169,7 @@ export function UsersPage() {
                         <UserCheck className="h-6 w-6 text-emerald-400" />
                     </div>
                     <div>
-                        <p className="text-sm text-slate-400">Active</p>
+                        <p className="text-sm text-slate-400">{t('access.stats.active')}</p>
                         <p className="text-2xl font-bold text-white">{activeCount}</p>
                     </div>
                 </div>
@@ -178,7 +178,7 @@ export function UsersPage() {
                         <Crown className="h-6 w-6 text-amber-400" />
                     </div>
                     <div>
-                        <p className="text-sm text-slate-400">Privileged</p>
+                        <p className="text-sm text-slate-400">{t('access.stats.privileged')}</p>
                         <p className="text-2xl font-bold text-white">{privilegedCount}</p>
                     </div>
                 </div>
@@ -187,7 +187,7 @@ export function UsersPage() {
                         <Server className="h-6 w-6 text-slate-400" />
                     </div>
                     <div>
-                        <p className="text-sm text-slate-400">Sys Admins</p>
+                        <p className="text-sm text-slate-400">{t('access.stats.sys_admins')}</p>
                         <p className="text-2xl font-bold text-white">{isAccessMode ? users.filter(u => u.role.name === 'admin').length : 0}</p>
                     </div>
                 </div>

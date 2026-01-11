@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Edit2,
     UserX,
@@ -49,21 +50,22 @@ export function UsersTable({
     onEditAccess,
     onToggleStatus,
 }: UsersTableProps) {
+    const { t } = useTranslation('admin');
     return (
         <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
                 <thead>
                     <tr className="border-b border-white/10">
-                        <th className="py-4 px-4 text-sm font-semibold text-slate-300">User</th>
-                        <th className="py-4 px-4 text-sm font-semibold text-slate-300">Role & Department</th>
+                        <th className="py-4 px-4 text-sm font-semibold text-slate-300">{t('access.table.user')}</th>
+                        <th className="py-4 px-4 text-sm font-semibold text-slate-300">{t('access.table.role_department')}</th>
                         {isAccessMode && (
-                            <th className="py-4 px-4 text-sm font-semibold text-slate-300">Scope</th>
+                            <th className="py-4 px-4 text-sm font-semibold text-slate-300">{t('access.table.scope')}</th>
                         )}
                         {isAccessMode && (
-                            <th className="py-4 px-4 text-sm font-semibold text-slate-300">Permissions</th>
+                            <th className="py-4 px-4 text-sm font-semibold text-slate-300">{t('access.table.permissions')}</th>
                         )}
-                        <th className="py-4 px-4 text-sm font-semibold text-slate-300">Status</th>
-                        <th className="py-4 px-4 text-sm font-semibold text-slate-300 text-right">Actions</th>
+                        <th className="py-4 px-4 text-sm font-semibold text-slate-300">{t('access.table.status')}</th>
+                        <th className="py-4 px-4 text-sm font-semibold text-slate-300 text-right">{t('access.table.actions')}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -99,7 +101,7 @@ export function UsersTable({
                                             </p>
                                             <p className="text-xs text-slate-500 flex items-center gap-1.5">
                                                 <Building2 className="h-3.5 w-3.5 text-slate-500" />
-                                                {user.department_name || 'No department'}
+                                                {user.department_name || t('access.table.no_department')}
                                             </p>
                                         </div>
                                     </td>
@@ -180,7 +182,7 @@ export function UsersTable({
                                                 ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
                                                 : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
                                         )}>
-                                            {user.is_active ? 'Active' : 'Inactive'}
+                                            {user.is_active ? t('access.status.active') : t('access.status.inactive')}
                                         </span>
                                     </td>
                                     <td className="py-4 px-4 text-right">
@@ -203,7 +205,7 @@ export function UsersTable({
                                                             ? "text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
                                                             : "text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
                                                     )}
-                                                    title={user.is_active ? "Deactivate" : "Activate"}
+                                                    title={user.is_active ? t('access.actions.deactivate') : t('access.actions.activate')}
                                                 >
                                                     {user.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                                                 </button>
@@ -219,65 +221,65 @@ export function UsersTable({
                                                 /* Admin: Show platform capabilities */
                                                 <>
                                                     <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
-                                                        Platform Administration Capabilities
+                                                        {t('access.capabilities.platform_admin')}
                                                     </div>
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                         <div className="bg-white/5 p-3 rounded-lg">
-                                                            <div className="text-slate-400 text-xs mb-1">User Management</div>
-                                                            <div className="text-white text-sm">Add, edit, deactivate users</div>
+                                                            <div className="text-slate-400 text-xs mb-1">{t('access.capabilities.user_management')}</div>
+                                                            <div className="text-white text-sm">{t('access.capabilities.user_management_desc')}</div>
                                                         </div>
                                                         <div className="bg-white/5 p-3 rounded-lg">
-                                                            <div className="text-slate-400 text-xs mb-1">System Health</div>
-                                                            <div className="text-white text-sm">Monitor database, memory</div>
+                                                            <div className="text-slate-400 text-xs mb-1">{t('access.capabilities.system_health')}</div>
+                                                            <div className="text-white text-sm">{t('access.capabilities.system_health_desc')}</div>
                                                         </div>
                                                         <div className="bg-white/5 p-3 rounded-lg">
-                                                            <div className="text-slate-400 text-xs mb-1">Technical Logs</div>
-                                                            <div className="text-white text-sm">View activity and security logs</div>
+                                                            <div className="text-slate-400 text-xs mb-1">{t('access.capabilities.technical_logs')}</div>
+                                                            <div className="text-white text-sm">{t('access.capabilities.technical_logs_desc')}</div>
                                                         </div>
                                                         <div className="bg-white/5 p-3 rounded-lg">
-                                                            <div className="text-slate-400 text-xs mb-1">Session Management</div>
-                                                            <div className="text-white text-sm">View and revoke user sessions</div>
+                                                            <div className="text-slate-400 text-xs mb-1">{t('access.capabilities.session_management')}</div>
+                                                            <div className="text-white text-sm">{t('access.capabilities.session_management_desc')}</div>
                                                         </div>
                                                     </div>
                                                     <div className="mt-3 text-xs text-amber-400/70">
                                                         <Server className="h-3 w-3 inline mr-1" />
-                                                        Platform Admin has no access to business data (risks, controls, KRIs)
+                                                        {t('access.capabilities.platform_admin_note')}
                                                     </div>
                                                 </>
                                             ) : user.role.name === 'cro' ? (
                                                 /* CRO: Show Risk Hub capabilities */
                                                 <>
                                                     <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
-                                                        Risk Hub Capabilities
+                                                        {t('access.capabilities.riskhub')}
                                                     </div>
                                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                                         <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
-                                                            <div className="text-amber-400 text-xs mb-1">Risk Types</div>
-                                                            <div className="text-white text-sm">Create, edit, delete risk categories</div>
+                                                            <div className="text-amber-400 text-xs mb-1">{t('access.capabilities.risk_types')}</div>
+                                                            <div className="text-white text-sm">{t('access.capabilities.risk_types_desc')}</div>
                                                         </div>
                                                         <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
-                                                            <div className="text-amber-400 text-xs mb-1">Global Config</div>
-                                                            <div className="text-white text-sm">Set thresholds and system settings</div>
+                                                            <div className="text-amber-400 text-xs mb-1">{t('access.capabilities.global_config')}</div>
+                                                            <div className="text-white text-sm">{t('access.capabilities.global_config_desc')}</div>
                                                         </div>
                                                         <div className="bg-amber-500/10 p-3 rounded-lg border border-amber-500/20">
-                                                            <div className="text-amber-400 text-xs mb-1">Approval Rules</div>
-                                                            <div className="text-white text-sm">Configure approval scenarios</div>
+                                                            <div className="text-amber-400 text-xs mb-1">{t('access.capabilities.approval_rules')}</div>
+                                                            <div className="text-white text-sm">{t('access.capabilities.approval_rules_desc')}</div>
                                                         </div>
                                                         <div className="bg-purple-500/10 p-3 rounded-lg border border-purple-500/20">
-                                                            <div className="text-purple-400 text-xs mb-1">All Business Data</div>
-                                                            <div className="text-white text-sm">Full access to risks, controls, KRIs</div>
+                                                            <div className="text-purple-400 text-xs mb-1">{t('access.capabilities.all_business_data')}</div>
+                                                            <div className="text-white text-sm">{t('access.capabilities.all_business_data_desc')}</div>
                                                         </div>
                                                     </div>
                                                     <div className="mt-3 text-xs text-amber-400/70">
                                                         <Crown className="h-3 w-3 inline mr-1" />
-                                                        Chief Risk Officer has full business configuration access via Risk Hub
+                                                        {t('access.capabilities.cro_note')}
                                                     </div>
                                                 </>
                                             ) : (
                                                 /* Regular users: Show business permissions matrix */
                                                 <>
                                                     <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
-                                                        Effective Permissions
+                                                        {t('access.capabilities.effective_permissions')}
                                                     </div>
                                                     <PermissionMatrix permissions={user.effective_permissions} />
                                                 </>
@@ -327,14 +329,14 @@ export function UsersTable({
                                     </span>
                                 </td>
                                 <td className="py-4 px-4 text-right">
-                                    <span className="text-xs text-slate-500 italic">View only</span>
+                                    <span className="text-xs text-slate-500 italic">{t('access.table.view_only')}</span>
                                 </td>
                             </tr>
                         ))
                     ) : (
                         <tr>
                             <td colSpan={isAccessMode ? 6 : 4} className="py-12 text-center text-slate-500">
-                                No users found matching your criteria.
+                                {t('access.table.no_users_found')}
                             </td>
                         </tr>
                     )}

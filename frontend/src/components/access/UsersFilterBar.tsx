@@ -1,4 +1,5 @@
 import { Search, Filter, Crown, Key } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 import { permissionResources, permissionActions } from '@/hooks/useUsersPageFilters';
@@ -38,6 +39,7 @@ export function UsersFilterBar({
     filteredCount,
     totalCount,
 }: UsersFilterBarProps) {
+    const { t } = useTranslation('admin');
     return (
         <div className="flex flex-col gap-4 mb-6">
             {/* Row 1: Search + Role + Scope */}
@@ -46,7 +48,7 @@ export function UsersFilterBar({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
                     <input
                         type="text"
-                        placeholder="Search by name or email..."
+                        placeholder={t('access.search_placeholder')}
                         className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50 transition-all"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -58,16 +60,16 @@ export function UsersFilterBar({
                         <ThemedSelect
                             value={roleFilter}
                             onValueChange={setRoleFilter}
-                            placeholder="All Roles"
+                            placeholder={t('access.roles.all')}
                             allowEmpty
-                            emptyLabel="All Roles"
+                            emptyLabel={t('access.roles.all')}
                             className="pl-9"
                             options={[
-                                { value: 'admin', label: 'Admins' },
-                                { value: 'cro', label: 'CROs' },
-                                { value: 'risk_manager', label: 'Risk Managers' },
-                                { value: 'department_head', label: 'Dept Heads' },
-                                { value: 'control_owner', label: 'Control Owners' },
+                                { value: 'admin', label: t('access.roles.admins') },
+                                { value: 'cro', label: t('access.roles.cros') },
+                                { value: 'risk_manager', label: t('access.roles.risk_managers') },
+                                { value: 'department_head', label: t('access.roles.dept_heads') },
+                                { value: 'control_owner', label: t('access.roles.control_owners') },
                             ]}
                         />
                     </div>
@@ -77,14 +79,14 @@ export function UsersFilterBar({
                             <ThemedSelect
                                 value={scopeFilter}
                                 onValueChange={setScopeFilter}
-                                placeholder="All Scopes"
+                                placeholder={t('access.scopes.all')}
                                 allowEmpty
-                                emptyLabel="All Scopes"
+                                emptyLabel={t('access.scopes.all')}
                                 className="pl-9"
                                 options={[
-                                    { value: 'global', label: 'Global' },
-                                    { value: 'department', label: 'Department' },
-                                    { value: 'manager', label: 'Manager' },
+                                    { value: 'global', label: t('access.scopes.global') },
+                                    { value: 'department', label: t('access.scopes.department') },
+                                    { value: 'manager', label: t('access.scopes.manager') },
                                 ]}
                             />
                         </div>
@@ -97,7 +99,7 @@ export function UsersFilterBar({
                 <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
                         <Key className="h-3.5 w-3.5" />
-                        Filter by Capability:
+                        {t('access.filter_by_capability')}
                     </span>
                     <ThemedSelect
                         value={permResourceFilter}
@@ -120,11 +122,11 @@ export function UsersFilterBar({
                             onClick={resetPermissionFilters}
                             className="text-xs text-slate-500 hover:text-white underline transition-colors"
                         >
-                            Clear
+                            {t('access.clear')}
                         </button>
                     )}
                     <span className="text-xs text-slate-500 ml-2">
-                        {filteredCount} of {totalCount} users
+                        {t('access.of_users', { count: filteredCount, total: totalCount })}
                     </span>
                 </div>
             )}
