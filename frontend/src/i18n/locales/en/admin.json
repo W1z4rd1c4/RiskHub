@@ -133,5 +133,17 @@
         "type_risk": "Risk",
         "type_control": "Control",
         "type_kri": "KRI"
+    },
+    "riskhub": {
+        "title": "Risk Hub",
+        "subtitle": "Configure risk management policies, thresholds, and approval workflows",
+        "footer": "Changes are logged and auditable. All modifications take effect immediately.",
+        "tabs": {
+            "risk_types": "Risk Types",
+            "system_settings": "System Settings",
+            "approval_rules": "Approval Rules",
+            "roles": "Roles",
+            "departments": "Departments"
+        }
     }
 }
