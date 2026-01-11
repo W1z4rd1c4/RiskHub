@@ -304,7 +304,7 @@ export default function ApprovalsPage() {
                                             </>
                                         )}
 
-                                        {user?.id === approval.requested_by_id && approval.status === 'pending' && (
+                                        {user?.id === approval.requested_by_id && (approval.status === 'pending' || approval.status === 'pending_privileged') && (
                                             <button
                                                 onClick={() => handleCancel(approval.id)}
                                                 className="p-2 hover:bg-rose-500/10 hover:text-rose-400 text-slate-500 rounded-lg transition-colors"
