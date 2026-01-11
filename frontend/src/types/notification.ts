@@ -36,3 +36,17 @@ export interface NotificationQueryParams {
     limit?: number;
     unread_only?: boolean;
 }
+
+export interface NotificationPreferences {
+    approval_pending: boolean;
+    approval_resolved: boolean;
+    approval_cancelled: boolean;
+    kri_due_soon: boolean;
+    kri_due_tomorrow: boolean;
+    kri_overdue: boolean;
+    kri_near_breach: boolean;
+    kri_breach_detected: boolean;
+}
+
+export type NotificationPreferencesUpdate = Partial<NotificationPreferences>;
+

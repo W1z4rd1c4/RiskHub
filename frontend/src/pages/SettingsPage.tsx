@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { User, Palette, Globe, BookOpen } from 'lucide-react';
+import { User, Palette, Globe, BookOpen, Bell } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { ProfileSettings, AppearanceSettings, LocalizationSettings, DocumentationSettings } from '@/components/settings';
+import { ProfileSettings, AppearanceSettings, LocalizationSettings, DocumentationSettings, NotificationSettings } from '@/components/settings';
 
-type TabId = 'profile' | 'appearance' | 'localization' | 'documentation';
+type TabId = 'profile' | 'appearance' | 'localization' | 'notifications' | 'documentation';
 
 export function SettingsPage() {
     const { t } = useTranslation('settings');
@@ -16,6 +16,7 @@ export function SettingsPage() {
         { id: 'profile' as TabId, label: t('tabs.profile', 'Profile'), icon: User },
         { id: 'appearance' as TabId, label: t('tabs.appearance', 'Appearance'), icon: Palette },
         { id: 'localization' as TabId, label: t('tabs.localization', 'Localization'), icon: Globe },
+        { id: 'notifications' as TabId, label: t('tabs.notifications', 'Notifications'), icon: Bell },
         { id: 'documentation' as TabId, label: t('tabs.documentation', 'Help & Docs'), icon: BookOpen },
     ];
 
@@ -68,6 +69,9 @@ export function SettingsPage() {
                 )}
                 {activeTab === 'localization' && (
                     <LocalizationSettings />
+                )}
+                {activeTab === 'notifications' && (
+                    <NotificationSettings />
                 )}
                 {activeTab === 'documentation' && (
                     <DocumentationSettings />

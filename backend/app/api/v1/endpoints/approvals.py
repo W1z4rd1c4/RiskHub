@@ -498,6 +498,13 @@ async def cancel_request(
         description="Approval request cancelled by requester",
     )
     
+    # Notify approvers about cancellation
+    await NotificationService.notify_approvers_cancelled(
+        db=db,
+        approval=approval,
+        cancelled_by_user=current_user,
+    )
+    
     await db.commit()
     
     # Reload with relationships
