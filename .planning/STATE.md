@@ -167,10 +167,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 20-04: Dashboard and Approvals Pages Translation. Added i18n to DashboardPage (title, stats, sections, views, errors) and ApprovalsPage (title, tabs, empty states, dialogs). Updated EN/CS dashboard.json and approvals.json.
+- Completed Plan 20-05: Backend API Messages Translation. Created i18n infrastructure with translation loader, EN/CS message dictionaries (errors, validation, approvals, activity, notifications), and language detection middleware.
 
 ### Next Step
-- Continue Phase 20 Czech Localization with remaining admin pages (Admin Console, Governance, Departments, Users) or proceed to next phase.
+- Continue Phase 20 with remaining tasks or proceed to next phase. Backend i18n infrastructure ready for endpoint integration.
 
 
 

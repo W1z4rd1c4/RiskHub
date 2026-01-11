@@ -137,6 +137,10 @@ app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
 # Rate limiting middleware (disabled in debug mode)
 app.add_middleware(RateLimitMiddleware, enabled=not settings.debug)
 
+# Language detection middleware (Accept-Language header support)
+from app.middleware.language import LanguageMiddleware
+app.add_middleware(LanguageMiddleware)
+
 # Include API routes
 app.include_router(api_router, prefix="/api/v1")
 
