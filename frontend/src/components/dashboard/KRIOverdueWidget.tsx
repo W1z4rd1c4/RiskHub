@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, ArrowRight, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { kriApi } from '@/services/kriApi';
 import type { OverdueKRI } from '@/types/kri';
 
 export function KRIOverdueWidget() {
+    const { t } = useTranslation('dashboard');
     const navigate = useNavigate();
     const { filters } = useDashboardFilters();
     const [overdueKRIs, setOverdueKRIs] = useState<OverdueKRI[]>([]);
@@ -39,8 +41,8 @@ export function KRIOverdueWidget() {
             <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
                 <Clock className="h-6 w-6 text-emerald-500" />
             </div>
-            <h4 className="text-white font-bold mb-1">All KRIs Current</h4>
-            <p className="text-xs text-slate-500">No KRIs are overdue for reporting.</p>
+            <h4 className="text-white font-bold mb-1">{t('kri.all_current', 'All KRIs Current')}</h4>
+            <p className="text-xs text-slate-500">{t('kri.no_overdue', 'No KRIs are overdue for reporting.')}</p>
         </div>
     );
 
