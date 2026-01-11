@@ -46,6 +46,7 @@ export function AppearanceSettings() {
                             <button
                                 key={option.value}
                                 onClick={() => setTheme(option.value)}
+                                data-testid={`theme-${option.value}`}
                                 className={cn(
                                     "relative flex flex-col items-start p-4 rounded-xl border-2 transition-all text-left",
                                     isSelected

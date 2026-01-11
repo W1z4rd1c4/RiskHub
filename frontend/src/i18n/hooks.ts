@@ -2,6 +2,8 @@ import { useCallback, useMemo } from 'react';
 import { useTranslation as useI18nextTranslation } from 'react-i18next';
 import { type SupportedLanguage, STORAGE_KEY } from './index';
 import type { Namespace } from './types';
+import { useAuth } from '@/contexts/AuthContext';
+import { saveLanguageToServer } from '@/utils/userSettingsStorage';
 
 /**
  * Type-safe translation hook with namespace support.
@@ -157,19 +159,24 @@ export function useFormattedNumber() {
 
 /**
  * Hook to get and set the current language.
- * Updates both i18n and localStorage.
+ * Updates i18n, localStorage, and syncs to server when authenticated.
  */
 export function useLanguage() {
     const { i18n: i18nInstance } = useI18nextTranslation();
+    const { isAuthenticated } = useAuth();
 
     const language = i18nInstance.language as SupportedLanguage;
 
     const setLanguage = useCallback(
         (newLang: SupportedLanguage) => {
             i18nInstance.changeLanguage(newLang);
-            localStorage.setItem(STORAGE_KEY, newLang);
+            if (isAuthenticated) {
+                saveLanguageToServer(newLang).catch(console.error);
+            } else {
+                localStorage.setItem(STORAGE_KEY, newLang);
+            }
         },
-        [i18nInstance]
+        [i18nInstance, isAuthenticated]
     );
 
     return useMemo(
@@ -180,3 +187,4 @@ export function useLanguage() {
 
 // Re-export the standard useTranslation for convenience
 export { useI18nextTranslation as useTranslation };
+

@@ -1,6 +1,11 @@
+/**
+ * Theme context with server sync and multi-tab support.
+ */
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { getLocalTheme, saveThemeToServer, THEME_KEY } from '@/utils/userSettingsStorage';
 
-type Theme = 'dark' | 'light' | 'riskhub';
+export type Theme = 'dark' | 'light' | 'riskhub';
 
 interface ThemeContextType {
     theme: Theme;
@@ -9,16 +14,15 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'riskhub-theme';
+const isValidTheme = (value: string | null): value is Theme =>
+    value === 'light' || value === 'dark' || value === 'riskhub';
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+    const { isAuthenticated } = useAuth();
+
     const [theme, setThemeState] = useState<Theme>(() => {
-        if (typeof window === 'undefined') return 'riskhub';
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored === 'light' || stored === 'dark' || stored === 'riskhub') {
-            return stored;
-        }
-        return 'riskhub'; // Default to RiskHub Theme
+        const stored = getLocalTheme();
+        return isValidTheme(stored) ? stored : 'riskhub';
     });
 
     // Apply theme class to document
@@ -33,9 +37,33 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         // riskhub is default, no class needed (uses :root variables)
     }, [theme]);
 
+    // Listen for storage changes (multi-tab sync)
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === THEME_KEY && e.newValue && isValidTheme(e.newValue)) {
+                setThemeState(e.newValue);
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
+
+    // Re-read theme when auth state changes (login/logout triggers sync)
+    useEffect(() => {
+        const stored = getLocalTheme();
+        if (isValidTheme(stored) && stored !== theme) {
+            setThemeState(stored);
+        }
+    }, [isAuthenticated]);
+
     const setTheme = (newTheme: Theme) => {
-        localStorage.setItem(STORAGE_KEY, newTheme);
         setThemeState(newTheme);
+        if (isAuthenticated) {
+            saveThemeToServer(newTheme).catch(console.error);
+        } else {
+            // Guest mode: just save locally
+            localStorage.setItem(THEME_KEY, newTheme);
+        }
     };
 
     return (
@@ -45,7 +73,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     );
 }
 
-export function useTheme() {
+export function useTheme(): ThemeContextType {
     const context = useContext(ThemeContext);
     if (context === undefined) {
         throw new Error('useTheme must be used within a ThemeProvider');

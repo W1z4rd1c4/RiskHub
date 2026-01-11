@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authApi } from '@/services/authApi';
+import { syncPreferencesFromServer, clearLocalSettings } from '@/utils/userSettingsStorage';
 
 interface User {
     id: number;
@@ -43,6 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const response = await authApi.login({ email, password });
             setToken(response.access_token);
             setUser(response.user);
+
+            // Sync preferences from server (async, don't block login)
+            syncPreferencesFromServer().catch(console.error);
+
             return response.user;
         } catch (err) {
             throw new Error(err instanceof Error ? err.message : 'Login failed');
@@ -51,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const logout = () => {
         localStorage.removeItem('access_token');
+        clearLocalSettings(); // Clear theme/language
         setTokenState(null);
         setUser(null);
     };
@@ -68,6 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const userData = await authApi.getCurrentUser(token);
                 if (isMounted) {
                     setUser(userData);
+                    // Sync preferences on app load
+                    syncPreferencesFromServer().catch(console.error);
                 }
             } catch {
                 // Token invalid, clear it
