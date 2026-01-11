@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Plus, Search, RefreshCw, AlertTriangle, CheckCircle, ChevronRight, User, Shield, Building2 } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { PermissionGate } from '@/components/PermissionGate';
@@ -18,6 +19,7 @@ export function KRIsPage() {
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const { t } = useTranslation('kris');
     const limit = 10;
 
     const fetchKRIs = useCallback(async () => {
@@ -84,7 +86,7 @@ export function KRIsPage() {
     const columns: Column<KeyRiskIndicator>[] = [
         {
             key: 'metric_name',
-            label: 'Metric',
+            label: t('columns.metric'),
             sortable: true,
             render: (kri) => (
                 <div className="flex items-center gap-2">
@@ -94,7 +96,7 @@ export function KRIsPage() {
         },
         {
             key: 'current_value',
-            label: 'Value',
+            label: t('columns.value'),
             sortable: true,
             render: (kri) => {
                 const isBreaching = kri.breach_status !== 'within';
@@ -107,7 +109,7 @@ export function KRIsPage() {
         },
         {
             key: 'lower_limit',
-            label: 'Limits',
+            label: t('columns.limits'),
             render: (kri) => (
                 <span className="text-xs text-slate-500">
                     {formatNumber(kri.lower_limit)} – {formatNumber(kri.upper_limit)}
@@ -116,7 +118,7 @@ export function KRIsPage() {
         },
         {
             key: 'breach_status',
-            label: 'Status',
+            label: t('columns.status'),
             sortable: true,
             render: (kri) => {
                 const isBreaching = kri.breach_status !== 'within';
@@ -126,14 +128,14 @@ export function KRIsPage() {
                         : 'bg-emerald-500/10 text-emerald-400'
                         }`}>
                         {isBreaching ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
-                        {isBreaching ? 'Breach' : 'OK'}
+                        {isBreaching ? t('filters.breach') : t('columns.ok')}
                     </span>
                 );
             },
         },
         {
             key: 'risk_process',
-            label: 'Risk',
+            label: t('columns.risk'),
             sortable: true,
             render: (kri) => (
                 <span className="text-white text-xs font-bold block truncate max-w-[150px]" title={kri.risk_process}>
@@ -143,7 +145,7 @@ export function KRIsPage() {
         },
         {
             key: 'risk_description',
-            label: 'Description',
+            label: t('columns.description'),
             sortable: true,
             render: (kri) => (
                 <span className="text-slate-400 text-xs font-medium block truncate max-w-[200px]" title={kri.risk_description}>
@@ -178,8 +180,8 @@ export function KRIsPage() {
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-black text-white mb-2">Risk Appetite</h2>
-                    <p className="text-slate-500 font-medium tracking-tight">Monitor Key Risk Indicators and appetite breaches.</p>
+                    <h2 className="text-3xl font-black text-white mb-2">{t('title')}</h2>
+                    <p className="text-slate-500 font-medium tracking-tight">{t('page_subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
@@ -191,7 +193,7 @@ export function KRIsPage() {
                     </button>
                     <PermissionGate resource="risks" action="write">
                         <button onClick={() => navigate('/kris/new')} className="btn-primary">
-                            <Plus className="h-5 w-5" /> New KRI
+                            <Plus className="h-5 w-5" /> {t('new_kri')}
                         </button>
                     </PermissionGate>
                 </div>
@@ -206,7 +208,7 @@ export function KRIsPage() {
                     <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
                     <input
                         type="text"
-                        placeholder="Search by metric name..."
+                        placeholder={t('filters.search_placeholder')}
                         value={search}
                         onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
@@ -223,7 +225,7 @@ export function KRIsPage() {
                                 : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                                 }`}
                         >
-                            {opt === 'all' ? 'All' : opt === 'within' ? 'Within' : opt === 'breach' ? 'Breach' : 'Overdue'}
+                            {t(`filters.${opt}`)}
                         </button>
                     ))}
                     <button
@@ -268,7 +270,7 @@ export function KRIsPage() {
                         columns={columns}
                         keyExtractor={(kri) => kri.id}
                         onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
-                        emptyMessage="No KRIs found matching your criteria."
+                        emptyMessage={t('empty_state.no_kris')}
                     />
                     <Pagination
                         currentPage={currentPage}
@@ -318,7 +320,7 @@ export function KRIsPage() {
                             columns={columns}
                             keyExtractor={(kri) => kri.id}
                             onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
-                            emptyMessage="No KRIs in this group."
+                            emptyMessage={t('empty_state.no_group')}
                         />
                     )}
                     renderItem={(kri: KeyRiskIndicator) => (

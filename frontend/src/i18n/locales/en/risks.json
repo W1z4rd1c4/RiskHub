@@ -1,6 +1,7 @@
 {
     "title": "Risk Register",
-    "page_subtitle": "Manage and monitor organizational risks",
+    "page_subtitle": "Track and manage organizational risks with gross/net scoring from OS 18.",
+    "new_risk": "New Risk",
     "create_risk": "Create Risk",
     "edit_risk": "Edit Risk",
     "view_risk": "View Risk",
@@ -68,12 +69,31 @@
         "all_categories": "All Categories",
         "all_departments": "All Departments",
         "all_owners": "All Owners",
-        "priority_only": "Priority Only"
+        "all_statuses": "All Statuses",
+        "all_types": "All Types",
+        "priority_only": "Priority Risks",
+        "search_placeholder": "Search by name, process or category..."
     },
     "empty_state": {
-        "no_risks": "No risks found",
+        "no_risks": "No risks found matching your criteria.",
         "no_linked_controls": "No linked controls",
         "no_linked_kris": "No linked KRIs"
+    },
+    "errors": {
+        "load_failed": "Failed to load risks. Please check your connection.",
+        "title": "Error Loading Risks",
+        "try_again": "Try Again"
+    },
+    "columns": {
+        "name": "Name",
+        "category": "Category",
+        "description": "Description",
+        "type": "Type",
+        "gross": "Gross",
+        "net": "Net",
+        "controls": "Controls",
+        "kris": "KRIs",
+        "pending": "Pending"
     },
     "actions": {
         "link_control": "Link Control",
