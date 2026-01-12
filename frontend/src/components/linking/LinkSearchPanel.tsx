@@ -13,6 +13,7 @@ import {
     Link as LinkIcon,
 } from 'lucide-react';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from 'react-i18next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,6 +90,7 @@ export function LinkSearchPanel({
     onLink,
     isLinking,
 }: LinkSearchPanelProps) {
+    const { t } = useTranslation('common');
     const hasActiveFilters = selectedDeptId || selectedProcess || selectedCategory;
 
     const clearAllFilters = () => {
@@ -112,7 +114,7 @@ export function LinkSearchPanel({
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                     <input
                         type="text"
-                        placeholder={`Search ${mode === 'control-to-risk' ? 'risks' : 'controls'} by name...`}
+                        placeholder={mode === 'control-to-risk' ? t('filters.search_risks') : t('filters.search_controls')}
                         value={searchQuery}
                         onChange={(e) => onSearchQueryChange(e.target.value)}
                         className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium"
@@ -136,27 +138,27 @@ export function LinkSearchPanel({
                     <ThemedSelect
                         value={selectedDeptId?.toString() ?? ''}
                         onValueChange={(v) => onDeptIdChange(v ? Number(v) : null)}
-                        placeholder="All Departments"
+                        placeholder={t('filters.all_departments')}
                         allowEmpty
-                        emptyLabel="All Departments"
+                        emptyLabel={t('filters.all_departments')}
                         options={departments.map(d => ({ value: d.id.toString(), label: d.name }))}
                     />
 
                     <ThemedSelect
                         value={selectedProcess}
                         onValueChange={onProcessChange}
-                        placeholder="All Processes"
+                        placeholder={t('filters.all_processes')}
                         allowEmpty
-                        emptyLabel="All Processes"
+                        emptyLabel={t('filters.all_processes')}
                         options={processes.map(p => ({ value: p, label: p }))}
                     />
 
                     <ThemedSelect
                         value={selectedCategory}
                         onValueChange={onCategoryChange}
-                        placeholder="All Categories"
+                        placeholder={t('filters.all_categories')}
                         allowEmpty
-                        emptyLabel="All Categories"
+                        emptyLabel={t('filters.all_categories')}
                         options={categories.map(c => ({ value: c, label: c }))}
                     />
                 </div>
