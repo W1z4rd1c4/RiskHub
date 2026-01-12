@@ -1,6 +1,11 @@
+/**
+ * CategoryBreakdownCharts - Pie charts showing control breakdown by status, form, and frequency.
+ * Uses theme-aware colors via useChartTheme hook.
+ */
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
+import { useChartTheme } from '@/hooks/useChartTheme';
 
 interface CategoryBreakdownChartsProps {
     controlsByStatus: Record<string, number>;
@@ -42,6 +47,7 @@ interface MiniPieChartProps {
 
 function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps) {
     const { t } = useTranslation('common');
+    const chartTheme = useChartTheme();
     const chartData = Object.entries(data).map(([key, value]) => ({
         name: formatLabel(key),
         value,
@@ -88,14 +94,14 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
                         </Pie>
                         <Tooltip
                             contentStyle={{
-                                backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                backgroundColor: chartTheme.tooltipBackground,
+                                border: `1px solid ${chartTheme.tooltipBorder}`,
                                 borderRadius: '8px',
                                 backdropFilter: 'blur(8px)',
                                 padding: '8px 12px',
                             }}
-                            itemStyle={{ color: '#fff', fontSize: '12px' }}
-                            labelStyle={{ color: '#94a3b8', fontSize: '10px', fontWeight: 700 }}
+                            itemStyle={{ color: chartTheme.tooltipTextPrimary, fontSize: '12px' }}
+                            labelStyle={{ color: chartTheme.tooltipTextSecondary, fontSize: '10px', fontWeight: 700 }}
                             formatter={(value, name) => {
                                 const val = (value as number) ?? 0;
                                 const label = (name as string) ?? '';

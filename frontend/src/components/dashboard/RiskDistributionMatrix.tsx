@@ -17,15 +17,21 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
         return item ? item.count : 0;
     };
 
-    const getCellColor = (p: number, i: number) => {
+    /** Returns inline style for cell background color - uses inline styles to bypass theme CSS overrides */
+    const getCellStyle = (p: number, i: number): React.CSSProperties => {
         const score = p * i;
         const count = getCountForCell(p, i);
-        if (count === 0) return 'bg-white/[0.02] opacity-20';
-
-        if (score >= 16) return 'bg-rose-500/40 hover:bg-rose-500/60';
-        if (score >= 10) return 'bg-orange-500/40 hover:bg-orange-500/60';
-        if (score >= 5) return 'bg-amber-500/40 hover:bg-amber-500/60';
-        return 'bg-emerald-500/40 hover:bg-emerald-500/60';
+        if (count === 0) {
+            return { backgroundColor: 'rgba(255, 255, 255, 0.02)', opacity: 0.2 };
+        }
+        // Critical (rose-500/40)
+        if (score >= 16) return { backgroundColor: 'rgba(244, 63, 94, 0.4)' };
+        // High (orange-500/40)
+        if (score >= 10) return { backgroundColor: 'rgba(249, 115, 22, 0.4)' };
+        // Medium (amber-500/40)
+        if (score >= 5) return { backgroundColor: 'rgba(245, 158, 11, 0.4)' };
+        // Low (emerald-500/40)
+        return { backgroundColor: 'rgba(16, 185, 129, 0.4)' };
     };
 
     const handleCellClick = (p: number, i: number) => {
@@ -70,12 +76,14 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                                         role={isClickable ? 'button' : undefined}
                                         aria-label={isClickable ? `View ${count} risks at probability ${p}, impact ${i}` : undefined}
                                         className={`
-                                            w-16 h-16 ${getCellColor(p, i)}
+                                            w-16 h-16
                                             rounded-xl flex flex-col items-center justify-center
-                                            transition-all duration-300 m-1.5 glass-card
-                                            ${count > 0 ? 'scale-100 opacity-100 shadow-lg shadow-black/20' : 'scale-95'}
-                                            ${isClickable ? 'cursor-pointer focus:ring-2 focus:ring-accent focus:outline-none' : ''}
+                                            transition-all duration-300 m-1.5
+                                            backdrop-blur-xl border border-white/10
+                                            ${count > 0 ? 'scale-100 shadow-lg shadow-black/20' : 'scale-95'}
+                                            ${isClickable ? 'cursor-pointer focus:ring-2 focus:ring-accent focus:outline-none hover:opacity-80' : ''}
                                         `}
+                                        style={getCellStyle(p, i)}
                                         title={`P:${p} × I:${i} | ${count} Risks${isClickable ? ' - Click to view' : ''}`}
                                         whileHover={isClickable ? { scale: 1.08, y: -3 } : undefined}
                                         whileTap={isClickable ? { scale: 0.95 } : undefined}

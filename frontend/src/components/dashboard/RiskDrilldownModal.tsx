@@ -9,10 +9,12 @@ import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
 
 interface RiskInCell {
     id: number;
+    risk_id_code?: string;
     name: string;
     description?: string;
     net_score: number;
     department_name: string;
+    owner_name?: string;
 }
 
 interface RiskDrilldownModalProps {
@@ -20,9 +22,10 @@ interface RiskDrilldownModalProps {
     onClose: () => void;
     probability: number;
     impact: number;
+    riskType?: 'gross' | 'net';
 }
 
-export function RiskDrilldownModal({ isOpen, onClose, probability, impact }: RiskDrilldownModalProps) {
+export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskType = 'net' }: RiskDrilldownModalProps) {
     const navigate = useNavigate();
     const { filters } = useDashboardFilters();
     const [risks, setRisks] = useState<RiskInCell[]>([]);
@@ -35,7 +38,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact }: Ris
         setError(null);
 
         try {
-            const data = await dashboardApi.fetchRisksByCell(probability, impact, filters);
+            const data = await dashboardApi.fetchRisksByCell(probability, impact, filters, riskType);
             setRisks(data);
         } catch (err) {
             console.error('Error fetching risks:', err);
@@ -43,7 +46,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact }: Ris
         } finally {
             setIsLoading(false);
         }
-    }, [isOpen, probability, impact, filters, filters.departmentId]);
+    }, [isOpen, probability, impact, filters, filters.departmentId, riskType]);
 
     useEffect(() => {
         fetchRisks();
@@ -112,7 +115,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact }: Ris
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold text-white">
-                                            Risks at P{probability} × I{impact}
+                                            {riskType === 'gross' ? 'Gross' : 'Net'} Risks at P{probability} × I{impact}
                                         </h3>
                                         <p className="text-sm text-slate-500">
                                             Score: {score} • <span className={getSeverityColor()}>{getSeverityLabel()}</span>
@@ -166,19 +169,24 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact }: Ris
                                                                 {risk.description}
                                                             </p>
                                                         )}
-                                                        <p className="text-xs text-slate-500 mt-1">
+                                                        <p className="text-xs text-slate-500 mt-2">
                                                             {risk.department_name}
                                                         </p>
                                                     </div>
-                                                    <div className="flex items-center gap-3 shrink-0">
-                                                        <span className={`text-sm font-bold ${risk.net_score >= 15 ? 'text-rose-400' :
-                                                            risk.net_score >= 10 ? 'text-orange-400' :
-                                                                risk.net_score >= 5 ? 'text-amber-400' :
-                                                                    'text-emerald-400'
-                                                            }`}>
-                                                            Score: {risk.net_score}
-                                                        </span>
-                                                        <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-white transition-colors" />
+                                                    <div className="flex flex-col items-end gap-1 shrink-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-sm font-bold ${risk.net_score >= 15 ? 'text-rose-400' :
+                                                                risk.net_score >= 10 ? 'text-orange-400' :
+                                                                    risk.net_score >= 5 ? 'text-amber-400' :
+                                                                        'text-emerald-400'
+                                                                }`}>
+                                                                Score: {risk.net_score}
+                                                            </span>
+                                                            <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-white transition-colors" />
+                                                        </div>
+                                                        <p className="text-xs text-slate-500">
+                                                            {risk.owner_name || 'Unassigned'}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             </motion.button>

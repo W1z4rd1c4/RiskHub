@@ -1,3 +1,7 @@
+/**
+ * ControlTrendChart - Bar chart showing control execution trends.
+ * Uses theme-aware colors via useChartTheme hook.
+ */
 import {
     BarChart,
     Bar,
@@ -9,12 +13,15 @@ import {
     Cell
 } from 'recharts';
 import type { ControlTrend } from '../../types/dashboard';
+import { useChartTheme } from '@/hooks/useChartTheme';
 
 interface ControlTrendChartProps {
     data: ControlTrend[];
 }
 
 export function ControlTrendChart({ data }: ControlTrendChartProps) {
+    const chartTheme = useChartTheme();
+
     return (
         <div className="w-full h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -28,30 +35,30 @@ export function ControlTrendChart({ data }: ControlTrendChartProps) {
                             <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.2} />
                         </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.gridStroke} />
                     <XAxis
                         dataKey="period"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+                        tick={{ fill: chartTheme.axisTickFill, fontSize: 10, fontWeight: 700 }}
                         dy={10}
                     />
                     <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+                        tick={{ fill: chartTheme.axisTickFill, fontSize: 10, fontWeight: 700 }}
                     />
                     <Tooltip
-                        cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+                        cursor={{ fill: chartTheme.gridStroke }}
                         contentStyle={{
-                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            backgroundColor: chartTheme.tooltipBackground,
+                            border: `1px solid ${chartTheme.tooltipBorder}`,
                             borderRadius: '8px',
                             backdropFilter: 'blur(8px)',
                             padding: '12px'
                         }}
-                        itemStyle={{ color: '#fff' }}
-                        labelStyle={{ color: '#94a3b8', fontSize: '10px', fontWeight: 900, marginBottom: '4px', textTransform: 'uppercase' }}
+                        itemStyle={{ color: chartTheme.tooltipTextPrimary }}
+                        labelStyle={{ color: chartTheme.tooltipTextSecondary, fontSize: '10px', fontWeight: 900, marginBottom: '4px', textTransform: 'uppercase' }}
                     />
                     <Bar
                         dataKey="execution_count"
