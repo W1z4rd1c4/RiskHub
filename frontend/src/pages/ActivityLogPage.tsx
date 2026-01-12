@@ -22,6 +22,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useActivityLogPageState, type ActiveTab } from '@/hooks/useActivityLogPageState';
 import { ActivityLogFilterBar } from '@/components/activity-log/ActivityLogFilterBar';
+import { useTranslation } from 'react-i18next';
 
 // ─────────────────────────────────────────────────────────────
 // Helper functions for rendering
@@ -104,6 +105,7 @@ const TABS: { id: ActiveTab; label: string }[] = [
 
 export function ActivityLogPage() {
     const { canViewActivityLog } = usePermissions();
+    const { t } = useTranslation('common');
 
     // Permission gate - early return if user lacks permission
     // This prevents any API calls from being made
@@ -113,10 +115,9 @@ export function ActivityLogPage() {
                 <div className="p-4 bg-rose-500/10 rounded-2xl">
                     <ShieldX className="h-12 w-12 text-rose-400" />
                 </div>
-                <h2 className="text-2xl font-bold text-white">Access Denied</h2>
+                <h2 className="text-2xl font-bold text-white">{t('access.denied')}</h2>
                 <p className="text-slate-400 text-center max-w-md">
-                    You don't have permission to view the Activity Log.
-                    Contact your administrator if you believe this is an error.
+                    {t('access.denied_activity_log')}
                 </p>
             </div>
         );
@@ -141,7 +142,7 @@ export function ActivityLogPage() {
                 <button
                     onClick={() => state.refresh()}
                     className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-slate-400 hover:text-white"
-                    title="Refresh Log"
+                    title={t('tooltips.refresh_log')}
                 >
                     <RefreshCw className={`h-5 w-5 ${state.isLoading ? 'animate-spin' : ''}`} />
                 </button>

@@ -109,5 +109,24 @@
             "key_finding": "Key Finding",
             "action": "Action"
         }
+    },
+    "form": {
+        "placeholders": {
+            "name": "e.g. Daily Transaction Reconciliation",
+            "description": "Describe the purpose and steps of this control...",
+            "select_department": "-- Select Department --",
+            "process_owner_position": "e.g. Chief Accountant",
+            "search_owners": "Search owners...",
+            "data_source": "Data Source (e.g. SAP Export)",
+            "methodology_reference": "Methodology Reference (e.g. Standard OS 18)",
+            "link_rationale": "Rationale for this link...",
+            "all_departments": "All Departments",
+            "all_processes": "All Processes",
+            "all_categories": "All Categories",
+            "search_risks": "Search by risk ID, name...",
+            "verification_notes": "Describe what was verified and any issues found...",
+            "evidence_reference": "e.g. SharePoint URL, Doc ID...",
+            "additional_notes": "Any other relevant details for the audit trail..."
+        }
     }
 }

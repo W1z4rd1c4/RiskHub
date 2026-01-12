@@ -4,6 +4,7 @@ import { Shield, Plus, Edit, Trash2, RotateCcw, AlertCircle, Users } from 'lucid
 import { riskHubApi } from '@/services/riskHubApi';
 import type { RoleHubCreate, RoleHubUpdate, RoleHubRead, PermissionRead } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface RoleModalProps {
     isOpen: boolean;
@@ -201,6 +202,7 @@ function RoleModal({ isOpen, onClose, role, allPermissions, permissionsLoading, 
 
 export function RolesPanel() {
     const queryClient = useQueryClient();
+    const { t } = useTranslation(['admin', 'common']);
     const [showInactive, setShowInactive] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<RoleHubRead | null>(null);
@@ -256,7 +258,7 @@ export function RolesPanel() {
     };
 
     if (rolesLoading) {
-        return <div className="text-slate-400 text-center py-8">Loading roles...</div>;
+        return <div className="text-slate-400 text-center py-8">{t('common:loading.roles')}</div>;
     }
 
     return (
@@ -332,7 +334,7 @@ export function RolesPanel() {
                                                 </span>
                                             ))
                                         ) : (
-                                            <span className="text-xs text-slate-500 italic">No permissions</span>
+                                            <span className="text-xs text-slate-500 italic">{t('labels.no_permissions')}</span>
                                         )}
                                     </div>
                                 </td>
@@ -414,7 +416,7 @@ export function RolesPanel() {
             {deleteConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6">
-                        <h3 className="text-lg font-bold text-white mb-2">Delete Role?</h3>
+                        <h3 className="text-lg font-bold text-white mb-2">{t('confirmations.delete_role')}</h3>
                         <p className="text-slate-400 text-sm mb-4">
                             Are you sure you want to delete <strong className="text-white">{deleteConfirm.display_name}</strong>?
                             {deleteConfirm.user_count > 0 && (

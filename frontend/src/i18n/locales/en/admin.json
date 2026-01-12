@@ -291,5 +291,31 @@
             "roles": "Roles",
             "departments": "Departments"
         }
+    },
+    "confirmations": {
+        "delete_department": "Delete Department?",
+        "delete_department_desc": "This action will permanently delete the department. This cannot be undone.",
+        "delete_risk_type": "Delete Risk Type?",
+        "delete_risk_type_desc": "This action will permanently delete the risk type. This cannot be undone.",
+        "delete_role": "Delete Role?",
+        "delete_role_desc": "This action will permanently delete the role. This cannot be undone."
+    },
+    "errors": {
+        "failed_to_load_settings": "Failed to load settings",
+        "failed_to_load_risk_types": "Failed to load risk types",
+        "failed_to_load_approval_scenarios": "Failed to load approval scenarios",
+        "failed_to_load": "Failed to load"
+    },
+    "labels": {
+        "no_permissions": "No permissions",
+        "no_manager": "No manager"
+    },
+    "form": {
+        "placeholders": {
+            "name": "John Doe",
+            "email": "john@example.com",
+            "password": "••••••••",
+            "no_department_scoping": "No Department Scoping"
+        }
     }
 }

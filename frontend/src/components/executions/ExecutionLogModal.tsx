@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, AlertTriangle, XCircle, MinusCircle, Loader2 } from 'lucide-react';
 import { executionApi } from '@/services/executionApi';
 import type { ControlExecutionCreate } from '@/services/executionApi';
+import { useTranslation } from 'react-i18next';
 
 interface ExecutionLogModalProps {
     isOpen: boolean;
@@ -21,6 +22,7 @@ const RESULTS = [
 ];
 
 export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onSuccess }: ExecutionLogModalProps) {
+    const { t } = useTranslation('controls');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState<Omit<ControlExecutionCreate, 'control_id'>>({
@@ -123,7 +125,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                                 <textarea
                                     value={formData.findings}
                                     onChange={(e) => setFormData({ ...formData, findings: e.target.value })}
-                                    placeholder="Describe what was verified and any issues found..."
+                                    placeholder={t('form.placeholders.verification_notes')}
                                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accent/50 min-h-[100px] transition-all resize-none"
                                 />
                             </div>
@@ -135,7 +137,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                                     type="text"
                                     value={formData.evidence_reference}
                                     onChange={(e) => setFormData({ ...formData, evidence_reference: e.target.value })}
-                                    placeholder="e.g. SharePoint URL, Doc ID..."
+                                    placeholder={t('form.placeholders.evidence_reference')}
                                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accent/50 transition-all"
                                 />
                             </div>
@@ -157,7 +159,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                                 <textarea
                                     value={formData.notes}
                                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                                    placeholder="Any other relevant details for the audit trail..."
+                                    placeholder={t('form.placeholders.additional_notes')}
                                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-accent/50 min-h-[80px] transition-all resize-none"
                                 />
                             </div>

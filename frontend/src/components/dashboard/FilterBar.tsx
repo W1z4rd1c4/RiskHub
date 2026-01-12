@@ -12,6 +12,7 @@ import {
 import { useDashboardFilters, type RiskLevel } from '../../contexts/DashboardFilterContext';
 import { lookupApi } from '../../services/lookupApi';
 import { ThemedSelect } from '../ui/ThemedSelect';
+import { useTranslation } from 'react-i18next';
 
 interface Department {
     id: number;
@@ -54,6 +55,7 @@ export function FilterBar() {
 
     const [departments, setDepartments] = useState<Department[]>([]);
     const [isExpanded, setIsExpanded] = useState(false);
+    const { t } = useTranslation('common');
 
     useEffect(() => {
         lookupApi.getDepartments().then(setDepartments).catch(console.error);
@@ -152,9 +154,9 @@ export function FilterBar() {
                                 <ThemedSelect
                                     value={filters.departmentId?.toString() ?? ''}
                                     onValueChange={(v) => setDepartmentId(v ? Number(v) : null)}
-                                    placeholder="All Departments"
+                                    placeholder={t('filters.all_departments')}
                                     allowEmpty
-                                    emptyLabel="All Departments"
+                                    emptyLabel={t('filters.all_departments')}
                                     options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
                                 />
                             </div>
@@ -191,9 +193,9 @@ export function FilterBar() {
                                 <ThemedSelect
                                     value={filters.controlStatus ?? ''}
                                     onValueChange={(v) => setControlStatus(v || null)}
-                                    placeholder="All Statuses"
+                                    placeholder={t('filters.all_statuses')}
                                     allowEmpty
-                                    emptyLabel="All Statuses"
+                                    emptyLabel={t('filters.all_statuses')}
                                     options={CONTROL_STATUSES.filter(s => s.value !== null).map(status => ({ value: status.value!, label: status.label }))}
                                 />
                             </div>
@@ -207,9 +209,9 @@ export function FilterBar() {
                                 <ThemedSelect
                                     value={filters.controlForm ?? ''}
                                     onValueChange={(v) => setControlForm(v || null)}
-                                    placeholder="All Forms"
+                                    placeholder={t('filters.all_forms')}
                                     allowEmpty
-                                    emptyLabel="All Forms"
+                                    emptyLabel={t('filters.all_forms')}
                                     options={CONTROL_FORMS.filter(f => f.value !== null).map(form => ({ value: form.value!, label: form.label }))}
                                 />
                             </div>

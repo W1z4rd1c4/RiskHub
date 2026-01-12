@@ -15,9 +15,11 @@ import { departmentApi } from '@/services/departmentApi';
 import type { UserCreate, Role } from '@/types/user';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from 'react-i18next';
 
 export function UserNewPage() {
     const navigate = useNavigate();
+    const { t } = useTranslation('admin');
     const { canManageUsers } = usePermissions();
     const [isLoading, setIsLoading] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -151,7 +153,7 @@ export function UserNewPage() {
                                     required
                                     type="text"
                                     className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                                    placeholder="John Doe"
+                                    placeholder={t('form.placeholders.name')}
                                     value={formData.name}
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                                 />
@@ -166,7 +168,7 @@ export function UserNewPage() {
                                     required
                                     type="email"
                                     className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                                    placeholder="john@example.com"
+                                    placeholder={t('form.placeholders.email')}
                                     value={formData.email}
                                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                                 />
@@ -181,7 +183,7 @@ export function UserNewPage() {
                                     required
                                     type="password"
                                     className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                                    placeholder="••••••••"
+                                    placeholder={t('form.placeholders.password')}
                                     value={formData.password}
                                     onChange={e => setFormData({ ...formData, password: e.target.value })}
                                 />
@@ -215,9 +217,9 @@ export function UserNewPage() {
                                 <ThemedSelect
                                     value={formData.department_id?.toString() ?? ''}
                                     onValueChange={(v) => setFormData({ ...formData, department_id: v ? Number(v) : null })}
-                                    placeholder="No Department Scoping"
+                                    placeholder={t('form.placeholders.no_department_scoping')}
                                     allowEmpty
-                                    emptyLabel="No Department Scoping"
+                                    emptyLabel={t('form.placeholders.no_department_scoping')}
                                     className="w-full pl-10"
                                     options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
                                 />

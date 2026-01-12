@@ -93,5 +93,17 @@
         "breach_alert": "Breach Alert",
         "value_breached": "This KRI has breached its limits",
         "overdue_alert": "Value submission overdue"
+    },
+    "form": {
+        "placeholders": {
+            "metric_name": "e.g. Customer complaint rate",
+            "description": "Describe what this KRI measures and why it matters...",
+            "search_risks": "Search by risk ID, name...",
+            "all_departments": "All Departments",
+            "all_processes": "All Processes",
+            "all_categories": "All Categories",
+            "reporting_owner_default": "Risk Owner (Default)",
+            "correction_reason": "Explain why this correction is needed..."
+        }
     }
 }
