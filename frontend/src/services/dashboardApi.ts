@@ -24,10 +24,11 @@ function buildQueryParams(filters?: DashboardFilters): Record<string, any> {
 }
 
 export const dashboardApi = {
-    async fetchRisksByCell(probability: number, impact: number, filters?: DashboardFilters): Promise<any[]> {
+    async fetchRisksByCell(probability: number, impact: number, filters?: DashboardFilters, riskType: 'gross' | 'net' = 'net'): Promise<any[]> {
         const params = buildQueryParams(filters);
         params.probability = probability;
         params.impact = impact;
+        params.risk_type = riskType;
         return apiClient.get<any[]>('/dashboard/risks-by-cell', { params });
     },
 

@@ -455,15 +455,30 @@ async def get_risks_by_cell(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
     department_id: Optional[int] = Query(None, description="Filter by department"),
+    risk_type: Literal["gross", "net"] = Query("net", description="Type of risk matrix: 'gross' or 'net'"),
     include_archived: bool = Query(False, description="Include archived risks"),
 ):
-    """Get list of risks at a specific probability/impact intersection for drill-down."""
+    """Get list of risks at a specific probability/impact intersection for drill-down.
+    
+    Args:
+        risk_type: 'gross' uses gross_probability/gross_impact; 'net' uses net_probability/net_impact
+    """
     
     dept_ids = get_user_department_ids(current_user)
 
+    # Select probability/impact columns based on risk_type
+    if risk_type == "gross":
+        prob_col = Risk.gross_probability
+        impact_col = Risk.gross_impact
+        score_col = Risk.gross_score
+    else:
+        prob_col = Risk.net_probability
+        impact_col = Risk.net_impact
+        score_col = Risk.net_score
+
     conditions = [
-        Risk.net_probability == probability,
-        Risk.net_impact == impact
+        prob_col == probability,
+        impact_col == impact
     ]
     
     if not include_archived:
@@ -477,14 +492,18 @@ async def get_risks_by_cell(
     query = select(
         Risk.id,
         Risk.risk_id_code,
+        Risk.name.label('risk_name'),
         Risk.description,
-        Risk.net_score,
-        Department.name.label('department_name')
+        score_col.label('score'),
+        Department.name.label('department_name'),
+        User.name.label('owner_name')
     ).join(
         Department, Risk.department_id == Department.id, isouter=True
+    ).join(
+        User, Risk.owner_id == User.id, isouter=True
     ).where(
         and_(*conditions)
-    ).order_by(Risk.net_score.desc())
+    ).order_by(score_col.desc())
     
     result = await db.execute(query)
     rows = result.all()
@@ -492,10 +511,12 @@ async def get_risks_by_cell(
     return [
         {
             "id": row.id,
-            "name": row.risk_id_code,  # Use risk_id_code as display name
-            "description": row.description[:100] + "..." if len(row.description) > 100 else row.description,
-            "net_score": row.net_score,
-            "department_name": row.department_name or "Unassigned"
+            "risk_id_code": row.risk_id_code,
+            "name": row.risk_name or row.risk_id_code,  # Risk name, fallback to code
+            "description": row.description[:150] + "..." if row.description and len(row.description) > 150 else (row.description or ""),
+            "net_score": row.score,  # Keep key as net_score for backwards compatibility
+            "department_name": row.department_name or "Unassigned",
+            "owner_name": row.owner_name or "Unassigned"
         }
         for row in rows
     ]

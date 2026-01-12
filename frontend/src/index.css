@@ -150,14 +150,19 @@
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-.theme-dark .glass-card {
+.theme-dark .glass-card:not(.preserve-color) {
   background-color: rgba(255, 255, 255, 0.03) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-.theme-dark .glass-card:hover {
+.theme-dark .glass-card:not(.preserve-color):hover {
   background-color: rgba(255, 255, 255, 0.06) !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Preserve colors for matrix cells - don't override bg in dark theme */
+.theme-dark .glass-card.preserve-color {
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 /* True Dark - Sidebar */
@@ -269,15 +274,20 @@
   backdrop-filter: blur(12px);
 }
 
-.theme-light .glass-card {
+.theme-light .glass-card:not(.preserve-color) {
   background-color: rgba(255, 255, 255, 0.9) !important;
   border-color: rgba(0, 0, 0, 0.08) !important;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
 }
 
-.theme-light .glass-card:hover {
+.theme-light .glass-card:not(.preserve-color):hover {
   background-color: rgba(255, 255, 255, 1) !important;
   border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Preserve colors for matrix cells - don't override bg in light theme */
+.theme-light .glass-card.preserve-color {
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 /* Light theme - Mesh gradient background */
