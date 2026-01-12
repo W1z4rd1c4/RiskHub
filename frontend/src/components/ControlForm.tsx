@@ -369,7 +369,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                     {currentStep === 1 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             {isLoadingLookups ? (
-                                <div className="text-slate-500 text-sm">Loading...</div>
+                                <div className="text-slate-500 text-sm">{t('loading.generic', { ns: 'common' })}</div>
                             ) : (
                                 <>
                                     <div className="grid md:grid-cols-2 gap-8">
