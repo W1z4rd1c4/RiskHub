@@ -70,7 +70,7 @@ export function DashboardPage() {
     const [error, setError] = useState<string | null>(null);
 
     // Risk matrix drill-down state
-    const [selectedCell, setSelectedCell] = useState<{ probability: number; impact: number } | null>(null);
+    const [selectedCell, setSelectedCell] = useState<{ probability: number; impact: number; riskType: 'gross' | 'net' } | null>(null);
 
     // Risk Committee view state
     const [activeView, setActiveView] = useState<'overview' | 'committee'>('overview');
@@ -341,6 +341,7 @@ export function DashboardPage() {
                             <div className="flex-1 flex items-center justify-center pb-4">
                                 <RiskDistributionMatrix
                                     distribution={grossDistribution?.distribution ?? []}
+                                    onCellClick={(p, i) => setSelectedCell({ probability: p, impact: i, riskType: 'gross' })}
                                 />
                             </div>
                         </motion.div>
@@ -357,7 +358,7 @@ export function DashboardPage() {
                             <div className="flex-1 flex items-center justify-center pb-4">
                                 <RiskDistributionMatrix
                                     distribution={netDistribution?.distribution ?? []}
-                                    onCellClick={(p, i) => setSelectedCell({ probability: p, impact: i })}
+                                    onCellClick={(p, i) => setSelectedCell({ probability: p, impact: i, riskType: 'net' })}
                                 />
                             </div>
                         </motion.div>
@@ -421,6 +422,7 @@ export function DashboardPage() {
                         onClose={() => setSelectedCell(null)}
                         probability={selectedCell?.probability ?? 0}
                         impact={selectedCell?.impact ?? 0}
+                        riskType={selectedCell?.riskType ?? 'net'}
                     />
                 </>
             )}

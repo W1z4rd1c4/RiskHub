@@ -1,6 +1,7 @@
 /**
  * HistoryTrendChart - Reusable trend chart for historical series data.
  * Supports reference lines for thresholds and gradient fills.
+ * Uses theme-aware colors via useChartTheme hook.
  */
 import {
     AreaChart,
@@ -14,6 +15,7 @@ import {
 } from 'recharts';
 import { cn } from '@/lib/utils';
 import type { HistoryTrendPoint } from '@/types/history';
+import { useChartTheme } from '@/hooks/useChartTheme';
 
 interface HistoryTrendChartProps {
     data: HistoryTrendPoint[];
@@ -36,6 +38,8 @@ export function HistoryTrendChart({
     emptyMessage = 'No data available',
     className,
 }: HistoryTrendChartProps) {
+    const chartTheme = useChartTheme();
+
     if (!data || data.length === 0) {
         return (
             <div className={cn('flex items-center justify-center h-[280px] text-slate-500 text-sm', className)}>
@@ -61,36 +65,36 @@ export function HistoryTrendChart({
                     <CartesianGrid
                         strokeDasharray="3 3"
                         vertical={false}
-                        stroke="rgba(255,255,255,0.05)"
+                        stroke={chartTheme.gridStroke}
                     />
 
                     <XAxis
                         dataKey="label"
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+                        tick={{ fill: chartTheme.axisTickFill, fontSize: 10, fontWeight: 700 }}
                         dy={10}
                     />
 
                     <YAxis
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+                        tick={{ fill: chartTheme.axisTickFill, fontSize: 10, fontWeight: 700 }}
                         tickFormatter={formatValue}
                     />
 
                     <Tooltip
-                        cursor={{ stroke: 'rgba(255,255,255,0.1)' }}
+                        cursor={{ stroke: chartTheme.cursorStroke }}
                         contentStyle={{
-                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            backgroundColor: chartTheme.tooltipBackground,
+                            border: `1px solid ${chartTheme.tooltipBorder}`,
                             borderRadius: '8px',
                             backdropFilter: 'blur(8px)',
                             padding: '12px',
                         }}
-                        itemStyle={{ color: '#fff' }}
+                        itemStyle={{ color: chartTheme.tooltipTextPrimary }}
                         labelStyle={{
-                            color: '#94a3b8',
+                            color: chartTheme.tooltipTextSecondary,
                             fontSize: '10px',
                             fontWeight: 900,
                             marginBottom: '4px',

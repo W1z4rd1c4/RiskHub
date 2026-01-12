@@ -1,9 +1,11 @@
 /**
  * KRIBreachHistoryChart - Area chart showing KRI breach trends over time.
  * Refined with smoother curves, premium tooltips, and vibrant accents.
+ * Uses theme-aware colors via useChartTheme hook.
  */
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 import type { KRIBreachTrendPoint } from '@/types/dashboard';
+import { useChartTheme } from '@/hooks/useChartTheme';
 
 interface KRIBreachHistoryChartProps {
     data: KRIBreachTrendPoint[];
@@ -11,6 +13,8 @@ interface KRIBreachHistoryChartProps {
 }
 
 export function KRIBreachHistoryChart({ data, emptyMessage = 'No KRI breach data available.' }: KRIBreachHistoryChartProps) {
+    const chartTheme = useChartTheme();
+
     if (data.length === 0) {
         return (
             <div className="flex items-center justify-center h-48 text-slate-500 text-sm italic font-medium">
@@ -33,33 +37,33 @@ export function KRIBreachHistoryChart({ data, emptyMessage = 'No KRI breach data
                             <stop offset="95%" stopColor="#F97316" stopOpacity={0} />
                         </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} opacity={0.3} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} vertical={false} opacity={0.5} />
                     <XAxis
                         dataKey="period"
-                        tick={{ fill: '#475569', fontSize: 10, fontWeight: 600 }}
+                        tick={{ fill: chartTheme.axisTickFill, fontSize: 10, fontWeight: 600 }}
                         axisLine={false}
                         tickLine={false}
                         dy={10}
                     />
                     <YAxis
-                        tick={{ fill: '#475569', fontSize: 10, fontWeight: 600 }}
+                        tick={{ fill: chartTheme.axisTickFill, fontSize: 10, fontWeight: 600 }}
                         axisLine={false}
                         tickLine={false}
                         allowDecimals={false}
                         dx={-5}
                     />
                     <Tooltip
-                        cursor={{ stroke: '#334155', strokeWidth: 1 }}
+                        cursor={{ stroke: chartTheme.cursorStroke, strokeWidth: 1 }}
                         contentStyle={{
-                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            backgroundColor: chartTheme.tooltipBackground,
                             backdropFilter: 'blur(12px)',
-                            border: '1px solid rgba(255,255,255,0.1)',
+                            border: `1px solid ${chartTheme.tooltipBorder}`,
                             borderRadius: '12px',
                             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
                             padding: '12px 16px',
                         }}
-                        itemStyle={{ fontSize: '12px', fontWeight: 600, padding: '2px 0' }}
-                        labelStyle={{ color: '#94A3B8', fontWeight: 800, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.05em', marginBottom: '8px', display: 'block' }}
+                        itemStyle={{ color: chartTheme.tooltipTextPrimary, fontSize: '12px', fontWeight: 600, padding: '2px 0' }}
+                        labelStyle={{ color: chartTheme.tooltipTextSecondary, fontWeight: 800, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.05em', marginBottom: '8px', display: 'block' }}
                     />
                     <Legend
                         verticalAlign="top"
@@ -72,7 +76,7 @@ export function KRIBreachHistoryChart({ data, emptyMessage = 'No KRI breach data
                             fontWeight: 800,
                             textTransform: 'uppercase',
                             letterSpacing: '0.05em',
-                            color: '#94A3B8'
+                            color: chartTheme.tooltipTextSecondary
                         }}
                     />
                     <Area
@@ -83,7 +87,7 @@ export function KRIBreachHistoryChart({ data, emptyMessage = 'No KRI breach data
                         fill="url(#totalEntriesGradientNew)"
                         strokeWidth={2.5}
                         animationDuration={1500}
-                        activeDot={{ r: 6, stroke: '#1E84FF', strokeWidth: 2, fill: '#0F172A' }}
+                        activeDot={{ r: 6, stroke: '#1E84FF', strokeWidth: 2, fill: chartTheme.activeDotFill }}
                     />
                     <Area
                         type="monotone"
@@ -93,7 +97,7 @@ export function KRIBreachHistoryChart({ data, emptyMessage = 'No KRI breach data
                         fill="url(#breachGradientNew)"
                         strokeWidth={2.5}
                         animationDuration={1500}
-                        activeDot={{ r: 6, stroke: '#F97316', strokeWidth: 2, fill: '#0F172A' }}
+                        activeDot={{ r: 6, stroke: '#F97316', strokeWidth: 2, fill: chartTheme.activeDotFill }}
                     />
                 </AreaChart>
             </ResponsiveContainer>
