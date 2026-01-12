@@ -22,10 +22,12 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from 'react-i18next';
 
 export function UserDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { t } = useTranslation('admin');
     const { canManageUsers } = usePermissions();
     const [user, setUser] = useState<UserRead | null>(null);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -224,9 +226,9 @@ export function UserDetailPage() {
                                 <ThemedSelect
                                     value={editData.department_id?.toString() ?? ''}
                                     onValueChange={(v) => setEditData({ ...editData, department_id: v ? Number(v) : null })}
-                                    placeholder="No Department Scoping"
+                                    placeholder={t('form.placeholders.no_department_scoping')}
                                     allowEmpty
-                                    emptyLabel="No Department Scoping"
+                                    emptyLabel={t('form.placeholders.no_department_scoping')}
                                     disabled={!canManageUsers}
                                     className={cn(
                                         "w-full",
