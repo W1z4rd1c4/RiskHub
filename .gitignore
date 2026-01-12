@@ -121,3 +121,7 @@ backend/*.db
 *.txt
 frontend/test-results/
 backend/logs/
+
+# NotebookLM export files
+REPO.TXT
+repo_export/
