@@ -101,5 +101,16 @@
         "unlink": "Unlink",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
+    },
+    "form": {
+        "placeholders": {
+            "name": "Enter a short, descriptive name for this risk...",
+            "type_or_select": "Type or select existing...",
+            "select_process_first": "Select process first...",
+            "subprocess_of": "Subprocess of {{process}}...",
+            "description": "Describe the risk in detail...",
+            "select_department": "Select Department",
+            "search_by_name": "Search by name..."
+        }
     }
 }

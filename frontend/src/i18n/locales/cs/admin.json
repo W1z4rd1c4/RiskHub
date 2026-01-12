@@ -291,5 +291,31 @@
             "roles": "Role",
             "departments": "Oddělení"
         }
+    },
+    "confirmations": {
+        "delete_department": "Smazat oddělení?",
+        "delete_department_desc": "Tato akce trvale odstraní oddělení. Tuto akci nelze vrátit zpět.",
+        "delete_risk_type": "Smazat typ rizika?",
+        "delete_risk_type_desc": "Tato akce trvale odstraní typ rizika. Tuto akci nelze vrátit zpět.",
+        "delete_role": "Smazat roli?",
+        "delete_role_desc": "Tato akce trvale odstraní roli. Tuto akci nelze vrátit zpět."
+    },
+    "errors": {
+        "failed_to_load_settings": "Nepodařilo se načíst nastavení",
+        "failed_to_load_risk_types": "Nepodařilo se načíst typy rizik",
+        "failed_to_load_approval_scenarios": "Nepodařilo se načíst scénáře schvalování",
+        "failed_to_load": "Nepodařilo se načíst"
+    },
+    "labels": {
+        "no_permissions": "Žádná oprávnění",
+        "no_manager": "Bez vedoucího"
+    },
+    "form": {
+        "placeholders": {
+            "name": "Jan Novák",
+            "email": "jan@example.com",
+            "password": "••••••••",
+            "no_department_scoping": "Bez omezení na oddělení"
+        }
     }
 }

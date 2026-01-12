@@ -29,6 +29,7 @@ import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { RiskQuickViewModal } from '@/components/RiskQuickViewModal';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 type TabView = 'overview' | 'history';
 
@@ -48,6 +49,7 @@ const item = {
 export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { t } = useTranslation('common');
     const { user, hasPermission } = useAuth();
     const [control, setControl] = useState<Control | null>(null);
     const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
@@ -134,7 +136,7 @@ export function ControlDetailPage() {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">Loading Control Data</p>
+                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">{t('loading.control_data')}</p>
             </div>
         );
     }
@@ -146,14 +148,14 @@ export function ControlDetailPage() {
                     <XCircle className="h-10 w-10 text-rose-500" />
                 </div>
                 <div>
-                    <h3 className="text-xl font-bold text-white uppercase tracking-tight">Control Not Found</h3>
-                    <p className="text-slate-500 mt-2 font-medium">The control ID requested does not exist or has been removed.</p>
+                    <h3 className="text-xl font-bold text-white uppercase tracking-tight">{t('access.control_not_found')}</h3>
+                    <p className="text-slate-500 mt-2 font-medium">{t('errors.not_found')}</p>
                 </div>
                 <button
                     onClick={() => navigate('/controls')}
                     className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all flex items-center gap-2"
                 >
-                    <ArrowLeft className="h-4 w-4" /> Back to Catalog
+                    <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.controls', 'Control Catalog')}
                 </button>
             </div>
         );

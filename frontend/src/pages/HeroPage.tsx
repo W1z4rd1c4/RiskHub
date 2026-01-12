@@ -1,8 +1,12 @@
 import { motion } from 'framer-motion';
 import { Shield, ArrowRight, Zap, BarChart3, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+
 export function HeroPage() {
     const navigate = useNavigate();
+    const { t } = useTranslation('common');
+
     const handleLogin = () => {
         // Mock login as admin (ID 1 from seed)
         // Mock auth removed
@@ -32,8 +36,8 @@ export function HeroPage() {
                 </h1>
 
                 <p className="text-xl md:text-2xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-                    The next generation Enterprise Risk Management platform.
-                    Built for modern insurance giants under SII regulation.
+                    {t('hero.tagline')}
+                    {' '}{t('hero.subtitle')}
                 </p>
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -41,14 +45,14 @@ export function HeroPage() {
                         onClick={handleLogin}
                         className="btn-primary group"
                     >
-                        Access Platform
+                        {t('hero.access_platform')}
                         <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                     </button>
 
                     <div className="flex items-center gap-6 mt-8 sm:mt-0 px-8 py-3 glass rounded-full text-sm font-medium text-slate-300">
                         <span className="flex items-center gap-2">
                             <Lock className="h-4 w-4 text-emerald-400" />
-                            Secure Enterprise Access
+                            {t('hero.secure_access')}
                         </span>
                     </div>
                 </div>
@@ -63,26 +67,26 @@ export function HeroPage() {
             >
                 <div className="glass-card flex flex-col items-center text-center">
                     <Zap className="h-8 w-8 text-amber-400 mb-4" />
-                    <h3 className="text-lg font-bold mb-2">Real-time Analytics</h3>
-                    <p className="text-sm text-slate-400">Instantly monitor control execution across all organizational levels.</p>
+                    <h3 className="text-lg font-bold mb-2">{t('hero.feature_analytics_title')}</h3>
+                    <p className="text-sm text-slate-400">{t('hero.feature_analytics_desc')}</p>
                 </div>
 
                 <div className="glass-card flex flex-col items-center text-center">
                     <BarChart3 className="h-8 w-8 text-accent mb-4" />
-                    <h3 className="text-lg font-bold mb-2">SII Compliance</h3>
-                    <p className="text-sm text-slate-400">Adopt a standardized risk framework built on Solvency II pillars.</p>
+                    <h3 className="text-lg font-bold mb-2">{t('hero.feature_sii_title')}</h3>
+                    <p className="text-sm text-slate-400">{t('hero.feature_sii_desc')}</p>
                 </div>
 
                 <div className="glass-card flex flex-col items-center text-center">
                     <Shield className="h-8 w-8 text-emerald-400 mb-4" />
-                    <h3 className="text-lg font-bold mb-2">Role Based Access</h3>
-                    <p className="text-sm text-slate-400">Granular permissions tailored for CROs, Managers, and Auditors.</p>
+                    <h3 className="text-lg font-bold mb-2">{t('hero.feature_rbac_title')}</h3>
+                    <p className="text-sm text-slate-400">{t('hero.feature_rbac_desc')}</p>
                 </div>
             </motion.div>
 
             {/* Footer Branding */}
             <div className="absolute bottom-10 text-slate-500 text-xs tracking-widest uppercase font-bold">
-                Engineered for Solvency II Excellence
+                {t('hero.footer')}
             </div>
         </div>
     );

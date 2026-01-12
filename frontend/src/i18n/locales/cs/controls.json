@@ -109,5 +109,24 @@
             "key_finding": "Klíčové zjištění",
             "action": "Akce"
         }
+    },
+    "form": {
+        "placeholders": {
+            "name": "např. Denní odsouhlasení transakcí",
+            "description": "Popište účel a kroky této kontroly...",
+            "select_department": "-- Vyberte oddělení --",
+            "process_owner_position": "např. Hlavní účetní",
+            "search_owners": "Hledat vlastníky...",
+            "data_source": "Zdroj dat (např. Export SAP)",
+            "methodology_reference": "Reference metodologie (např. Standard OS 18)",
+            "link_rationale": "Důvod tohoto propojení...",
+            "all_departments": "Všechna oddělení",
+            "all_processes": "Všechny procesy",
+            "all_categories": "Všechny kategorie",
+            "search_risks": "Hledat podle ID rizika, názvu...",
+            "verification_notes": "Popište, co bylo ověřeno a jaké problémy byly nalezeny...",
+            "evidence_reference": "např. SharePoint URL, ID dokumentu...",
+            "additional_notes": "Jakékoli další relevantní podrobnosti pro auditní stopu..."
+        }
     }
 }

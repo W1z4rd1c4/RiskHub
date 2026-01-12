@@ -6,6 +6,7 @@ import type { KeyRiskIndicator, KRIUpdate, KRICreate } from '@/types/kri';
 import { userApi } from '@/services/userApi';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from 'react-i18next';
 
 interface KRIModalProps {
     risk_id: number;
@@ -17,6 +18,7 @@ interface KRIModalProps {
 }
 
 export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KRIModalProps) {
+    const { t } = useTranslation('kris');
     const isCreate = !kri;
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -143,7 +145,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Metric Name</label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. Payment Rejection Rate"
+                                    placeholder={t('form.placeholders.metric_name')}
                                     value={formData.metric_name}
                                     onChange={e => setFormData({ ...formData, metric_name: e.target.value })}
                                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all font-medium"
@@ -223,9 +225,9 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                     <ThemedSelect
                                         value={formData.reporting_owner_id?.toString() ?? ''}
                                         onValueChange={(v) => setFormData({ ...formData, reporting_owner_id: v ? parseInt(v) : undefined })}
-                                        placeholder="Risk Owner (Default)"
+                                        placeholder={t('form.placeholders.reporting_owner_default')}
                                         allowEmpty
-                                        emptyLabel="Risk Owner (Default)"
+                                        emptyLabel={t('form.placeholders.reporting_owner_default')}
                                         className="w-full"
                                         options={users.map(user => ({ value: user.id.toString(), label: user.name }))}
                                     />

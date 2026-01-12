@@ -4,6 +4,7 @@ import { Palette, Plus, Edit, Trash2, RotateCcw, AlertCircle } from 'lucide-reac
 import { riskHubApi } from '@/services/riskHubApi';
 import type { RiskType, RiskTypeCreate, RiskTypeUpdate } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface RiskTypeModalProps {
     isOpen: boolean;
@@ -162,6 +163,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
 
 export function RiskTypesPanel() {
     const queryClient = useQueryClient();
+    const { t } = useTranslation(['admin', 'common']);
     const [showInactive, setShowInactive] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingType, setEditingType] = useState<RiskType | null>(null);
@@ -208,11 +210,11 @@ export function RiskTypesPanel() {
     };
 
     if (isLoading) {
-        return <div className="text-slate-400 text-center py-8">Loading risk types...</div>;
+        return <div className="text-slate-400 text-center py-8">{t('common:loading.risk_types')}</div>;
     }
 
     if (error) {
-        return <div className="text-red-400 text-center py-8">Failed to load risk types</div>;
+        return <div className="text-red-400 text-center py-8">{t('errors.failed_to_load_risk_types')}</div>;
     }
 
     return (
@@ -348,7 +350,7 @@ export function RiskTypesPanel() {
             {deleteConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6">
-                        <h3 className="text-lg font-bold text-white mb-2">Delete Risk Type?</h3>
+                        <h3 className="text-lg font-bold text-white mb-2">{t('confirmations.delete_risk_type')}</h3>
                         <p className="text-slate-400 text-sm mb-4">
                             Are you sure you want to delete <strong className="text-white">{deleteConfirm.display_name}</strong>?
                             {deleteConfirm.risk_count > 0 && (

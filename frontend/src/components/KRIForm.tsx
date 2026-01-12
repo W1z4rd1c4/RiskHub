@@ -235,27 +235,27 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                         <ThemedSelect
                                             value={selectedDept}
                                             onValueChange={setSelectedDept}
-                                            placeholder="All Departments"
+                                            placeholder={t('form.placeholders.all_departments')}
                                             allowEmpty
-                                            emptyLabel="All Departments"
+                                            emptyLabel={t('form.placeholders.all_departments')}
                                             options={uniqueDepartments.map(d => ({ value: d, label: d }))}
                                         />
 
                                         <ThemedSelect
                                             value={selectedProcess}
                                             onValueChange={setSelectedProcess}
-                                            placeholder="All Processes"
+                                            placeholder={t('form.placeholders.all_processes')}
                                             allowEmpty
-                                            emptyLabel="All Processes"
+                                            emptyLabel={t('form.placeholders.all_processes')}
                                             options={uniqueProcesses.map(p => ({ value: p, label: p }))}
                                         />
 
                                         <ThemedSelect
                                             value={selectedCategory}
                                             onValueChange={setSelectedCategory}
-                                            placeholder="All Categories"
+                                            placeholder={t('form.placeholders.all_categories')}
                                             allowEmpty
-                                            emptyLabel="All Categories"
+                                            emptyLabel={t('form.placeholders.all_categories')}
                                             options={uniqueCategories.map(c => ({ value: c, label: c }))}
                                         />
                                     </div>
@@ -264,7 +264,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                         <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
                                         <input
                                             type="text"
-                                            placeholder="Search by risk ID, name..."
+                                            placeholder={t('form.placeholders.search_risks')}
                                             value={riskSearch}
                                             onChange={(e) => setRiskSearch(e.target.value)}
                                             className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
@@ -337,7 +337,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                         value={formData.metric_name}
                                         onChange={(e) => handleInputChange('metric_name', e.target.value)}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                        placeholder="e.g. Customer complaint rate"
+                                        placeholder={t('form.placeholders.metric_name')}
                                     />
                                 </div>
 
@@ -351,7 +351,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                         value={formData.description}
                                         onChange={(e) => handleInputChange('description', e.target.value)}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all resize-none"
-                                        placeholder="Describe what this KRI measures and why it matters..."
+                                        placeholder={t('form.placeholders.description')}
                                     />
                                 </div>
 
@@ -443,9 +443,9 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                         <ThemedSelect
                                             value={formData.reporting_owner_id?.toString() ?? ''}
                                             onValueChange={(v) => handleInputChange('reporting_owner_id', v ? parseInt(v) : undefined)}
-                                            placeholder="Risk Owner (Default)"
+                                            placeholder={t('form.placeholders.reporting_owner_default')}
                                             allowEmpty
-                                            emptyLabel="Risk Owner (Default)"
+                                            emptyLabel={t('form.placeholders.reporting_owner_default')}
                                             className="w-full"
                                             options={users.map(user => ({ value: user.id.toString(), label: `${user.name} (${user.email})` }))}
                                         />
