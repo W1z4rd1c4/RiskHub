@@ -25,7 +25,10 @@
         "reject": "Zamítnout",
         "yes": "Ano",
         "no": "Ne",
-        "archive": "Archivovat"
+        "archive": "Archivovat",
+        "view_all": "Zobrazit vše →",
+        "add_control": "Přidat kontrolu",
+        "mark_all_read": "Označit vše jako přečtené"
     },
     "labels": {
         "name": "Název",
@@ -83,7 +86,8 @@
         "delete_message": "Opravdu chcete smazat tuto položku? Tuto akci nelze vrátit zpět.",
         "unsaved_changes": "Máte neuložené změny. Opravdu chcete odejít?",
         "archive_title": "Archivovat {{type}}",
-        "archive_reversible": "Tuto akci může administrátor vrátit zpět."
+        "archive_reversible": "Tuto akci může administrátor vrátit zpět.",
+        "remove_link": "Opravdu chcete odebrat toto propojení?"
     },
     "pagination": {
         "page": "Stránka",
@@ -162,7 +166,12 @@
         "no_risk_info": "Žádné podrobné informace o riziku",
         "no_sync_runs": "Zatím nebyly zaznamenány žádné synchronizace.",
         "no_risks_found": "Nebyly nalezeny žádné rizika",
-        "no_controls_found": "Nebyly nalezeny žádné kontroly"
+        "no_controls_found": "Nebyly nalezeny žádné kontroly",
+        "no_controls_department": "Pro toto oddělení nebyly nalezeny žádné kontroly.",
+        "no_kris_department": "Pro toto oddělení nebyly nalezeny žádné KRI.",
+        "no_users_department": "Pro toto oddělení nebyli nalezeni žádní uživatelé.",
+        "all_caught_up": "Vše přečteno!",
+        "nothing_to_show": "Zatím nic k zobrazení"
     },
     "access": {
         "denied": "Přístup zamítnut",

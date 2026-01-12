@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Shield, Building2, User, Loader2, Check, Crown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { accessApi } from '@/services/accessApi';
 import { departmentApi } from '@/services/departmentApi';
 import { userApi } from '@/services/userApi';
@@ -31,6 +32,7 @@ const SCOPE_OPTIONS: { value: AccessScopeEnum; label: string; description: strin
 
 export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditModalProps) {
     const { canManagePrivileged } = usePermissions();
+    const { t } = useTranslation('common');
 
     const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
@@ -158,7 +160,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                             {!isInitialized ? (
                                 <div className="py-20 flex flex-col items-center justify-center gap-4">
                                     <Loader2 className="h-10 w-10 text-accent animate-spin" />
-                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Loading...</p>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{t('loading.generic')}</p>
                                 </div>
                             ) : (
                                 <motion.div

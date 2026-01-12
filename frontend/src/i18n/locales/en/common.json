@@ -25,7 +25,10 @@
         "reject": "Reject",
         "yes": "Yes",
         "no": "No",
-        "archive": "Archive"
+        "archive": "Archive",
+        "view_all": "View all →",
+        "add_control": "Add control",
+        "mark_all_read": "Mark all as read"
     },
     "labels": {
         "name": "Name",
@@ -83,7 +86,8 @@
         "delete_message": "Are you sure you want to delete this item? This action cannot be undone.",
         "unsaved_changes": "You have unsaved changes. Are you sure you want to leave?",
         "archive_title": "Archive {{type}}",
-        "archive_reversible": "This action can be undone by an administrator."
+        "archive_reversible": "This action can be undone by an administrator.",
+        "remove_link": "Are you sure you want to remove this link?"
     },
     "pagination": {
         "page": "Page",
@@ -162,7 +166,12 @@
         "no_risk_info": "No detailed risk information available",
         "no_sync_runs": "No sync runs recorded yet.",
         "no_risks_found": "No risks found",
-        "no_controls_found": "No controls found"
+        "no_controls_found": "No controls found",
+        "no_controls_department": "No controls found for this department.",
+        "no_kris_department": "No KRIs found for this department.",
+        "no_users_department": "No users found for this department.",
+        "all_caught_up": "All caught up!",
+        "nothing_to_show": "Nothing to show yet"
     },
     "access": {
         "denied": "Access Denied",

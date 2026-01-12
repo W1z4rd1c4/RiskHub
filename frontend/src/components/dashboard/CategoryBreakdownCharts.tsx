@@ -1,4 +1,5 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { useTranslation } from 'react-i18next';
 import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
 
 interface CategoryBreakdownChartsProps {
@@ -40,6 +41,7 @@ interface MiniPieChartProps {
 }
 
 function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps) {
+    const { t } = useTranslation('common');
     const chartData = Object.entries(data).map(([key, value]) => ({
         name: formatLabel(key),
         value,
@@ -53,7 +55,7 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
             <div className="flex flex-col items-center">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">{title}</h4>
                 <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center">
-                    <span className="text-xs text-slate-600">No data</span>
+                    <span className="text-xs text-slate-600">{t('empty.no_data')}</span>
                 </div>
             </div>
         );
