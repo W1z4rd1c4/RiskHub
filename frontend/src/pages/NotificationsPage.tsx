@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCircle, AlertCircle, Clock, AlertTriangle, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
 
@@ -68,6 +69,7 @@ function getResourcePath(resourceType?: string, resourceId?: number): string | n
 
 export function NotificationsPage() {
     const navigate = useNavigate();
+    const { t } = useTranslation('common');
     const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [total, setTotal] = useState(0);
@@ -138,7 +140,7 @@ export function NotificationsPage() {
                 <div>
                     <h1 className="text-3xl font-bold text-white font-heading">Notifications</h1>
                     <p className="text-slate-400 mt-1">
-                        {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up!'}
+                        {unreadCount > 0 ? `${unreadCount} ${t('labels.all').toLowerCase()} ${t('labels.all').toLowerCase() === 'all' ? 'unread' : ''}`.replace('all ', '') : t('empty.all_caught_up')}
                     </p>
                 </div>
                 {unreadCount > 0 && (
@@ -147,7 +149,7 @@ export function NotificationsPage() {
                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent/10 text-accent hover:bg-accent/20 transition-colors text-sm font-medium"
                     >
                         <Check className="h-4 w-4" />
-                        Mark all as read
+                        {t('actions.mark_all_read')}
                     </button>
                 )}
             </div>
@@ -182,13 +184,13 @@ export function NotificationsPage() {
             {/* Notification List */}
             <div className="glass-card overflow-hidden">
                 {loading ? (
-                    <div className="p-8 text-center text-slate-400">Loading...</div>
+                    <div className="p-8 text-center text-slate-400">{t('loading.generic')}</div>
                 ) : notifications.length === 0 ? (
                     <div className="p-12 text-center text-slate-400">
                         <Bell className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                        <p className="text-lg font-medium text-white">No notifications</p>
+                        <p className="text-lg font-medium text-white">{t('empty.no_notifications')}</p>
                         <p className="text-sm mt-1">
-                            {activeTab === 'unread' ? 'All caught up!' : 'Nothing to show yet'}
+                            {activeTab === 'unread' ? t('empty.all_caught_up') : t('empty.nothing_to_show')}
                         </p>
                     </div>
                 ) : (
