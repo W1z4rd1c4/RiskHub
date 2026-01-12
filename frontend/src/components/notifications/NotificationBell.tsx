@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCircle, AlertCircle, Clock, AlertTriangle, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
 
@@ -67,6 +68,7 @@ function getResourcePath(resourceType?: string, resourceId?: number): string | n
 
 export function NotificationBell() {
     const navigate = useNavigate();
+    const { t } = useTranslation('common');
     const [isOpen, setIsOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -190,11 +192,11 @@ export function NotificationBell() {
                     {/* Notification List */}
                     <div className="max-h-80 overflow-y-auto">
                         {loading ? (
-                            <div className="p-4 text-center text-slate-400">Loading...</div>
+                            <div className="p-4 text-center text-slate-400">{t('loading.generic')}</div>
                         ) : notifications.length === 0 ? (
                             <div className="p-8 text-center text-slate-400">
                                 <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                <p>No notifications</p>
+                                <p>{t('empty.no_notifications')}</p>
                             </div>
                         ) : (
                             <div className="divide-y divide-white/5">
@@ -240,14 +242,14 @@ export function NotificationBell() {
                                 onClick={handleMarkAllAsRead}
                                 className="text-xs text-accent hover:text-accent/80 font-medium"
                             >
-                                Mark all as read
+                                {t('actions.mark_all_read')}
                             </button>
                         )}
                         <button
                             onClick={handleViewAll}
                             className="text-xs text-slate-400 hover:text-white font-medium ml-auto"
                         >
-                            View all →
+                            {t('actions.view_all')}
                         </button>
                     </div>
                 </div>
