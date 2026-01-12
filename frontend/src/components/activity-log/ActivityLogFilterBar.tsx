@@ -3,6 +3,7 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { ACTION_LABELS } from '@/types/activityLog';
 import type { ViewMode } from '@/hooks/useActivityLogPageState';
 import type { UserLookupItem } from '@/services/lookupApi';
+import { useTranslation } from 'react-i18next';
 
 export interface ActivityLogFilterBarProps {
     // Search filter
@@ -71,6 +72,8 @@ export function ActivityLogFilterBar({
     departments,
     risks,
 }: ActivityLogFilterBarProps) {
+    const { t } = useTranslation('common');
+
     return (
         <>
             {/* View Mode Selector */}
@@ -96,7 +99,7 @@ export function ActivityLogFilterBar({
                     <ThemedSelect
                         value={selectedActorId?.toString() ?? ''}
                         onValueChange={(v) => onActorChange(v ? Number(v) : null)}
-                        placeholder="Select a person..."
+                        placeholder={t('filters.select_person')}
                         className="flex-1 min-w-[200px]"
                         options={users.map(u => ({ value: u.id.toString(), label: `${u.name} (${u.email})` }))}
                     />
@@ -106,7 +109,7 @@ export function ActivityLogFilterBar({
                     <ThemedSelect
                         value={selectedDepartmentId?.toString() ?? ''}
                         onValueChange={(v) => onDepartmentChange(v ? Number(v) : null)}
-                        placeholder="Select a department..."
+                        placeholder={t('filters.select_department')}
                         className="flex-1 min-w-[200px]"
                         options={departments.map(d => ({ value: d.id.toString(), label: d.name }))}
                     />
@@ -116,7 +119,7 @@ export function ActivityLogFilterBar({
                     <ThemedSelect
                         value={selectedRiskId?.toString() ?? ''}
                         onValueChange={(v) => onRiskChange(v ? Number(v) : null)}
-                        placeholder="Select a risk..."
+                        placeholder={t('filters.select_risk')}
                         className="flex-1 min-w-[200px]"
                         options={risks.map(r => ({ value: r.id.toString(), label: r.name }))}
                     />
@@ -129,7 +132,7 @@ export function ActivityLogFilterBar({
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="Search logs..."
+                        placeholder={t('filters.search_logs')}
                         value={search}
                         onChange={(e) => onSearchChange(e.target.value)}
                         className="w-full bg-black/20 border border-white/5 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/50 transition-all"
@@ -140,9 +143,9 @@ export function ActivityLogFilterBar({
                     <ThemedSelect
                         value={action}
                         onValueChange={onActionChange}
-                        placeholder="All Actions"
+                        placeholder={t('filters.all_actions')}
                         allowEmpty
-                        emptyLabel="All Actions"
+                        emptyLabel={t('filters.all_actions')}
                         className="w-full"
                         options={actions.map(act => ({ value: act, label: ACTION_LABELS[act] || act }))}
                     />

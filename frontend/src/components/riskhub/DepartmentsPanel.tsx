@@ -6,6 +6,7 @@ import { accessApi } from '@/services/accessApi';
 import type { DepartmentHubCreate, DepartmentHubUpdate, DepartmentHubRead } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from 'react-i18next';
 
 interface DepartmentModalProps {
     isOpen: boolean;
@@ -144,6 +145,7 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
 
 export function DepartmentsPanel() {
     const queryClient = useQueryClient();
+    const { t } = useTranslation(['admin', 'common']);
     const [showInactive, setShowInactive] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [editingDept, setEditingDept] = useState<DepartmentHubRead | null>(null);
@@ -194,7 +196,7 @@ export function DepartmentsPanel() {
     };
 
     if (isLoading) {
-        return <div className="text-slate-400 text-center py-8">Loading departments...</div>;
+        return <div className="text-slate-400 text-center py-8">{t('common:loading.departments')}</div>;
     }
 
     return (
@@ -258,7 +260,7 @@ export function DepartmentsPanel() {
                                     {dept.manager_name ? (
                                         <div className="text-sm text-slate-300">{dept.manager_name}</div>
                                     ) : (
-                                        <span className="text-xs text-slate-500 italic">No manager</span>
+                                        <span className="text-xs text-slate-500 italic">{t('labels.no_manager')}</span>
                                     )}
                                 </td>
                                 <td className="py-3 px-4 text-center">
@@ -339,7 +341,7 @@ export function DepartmentsPanel() {
             {deleteConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6">
-                        <h3 className="text-lg font-bold text-white mb-2">Delete Department?</h3>
+                        <h3 className="text-lg font-bold text-white mb-2">{t('confirmations.delete_department')}</h3>
                         <p className="text-slate-400 text-sm mb-4">
                             Are you sure you want to delete <strong className="text-white">{deleteConfirm.name}</strong>?
                             {(deleteConfirm.user_count > 0 || deleteConfirm.risk_count > 0 || deleteConfirm.control_count > 0) && (

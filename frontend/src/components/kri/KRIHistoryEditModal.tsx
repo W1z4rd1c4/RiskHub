@@ -5,6 +5,7 @@ import { X, Edit3, AlertCircle, CheckCircle } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { Button } from '@/components/ui/button';
 import type { KRIHistoryEntry, KRIHistoryEdit } from '@/types/kri';
+import { useTranslation } from 'react-i18next';
 
 interface KRIHistoryEditModalProps {
     isOpen: boolean;
@@ -15,6 +16,7 @@ interface KRIHistoryEditModalProps {
 }
 
 export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }: KRIHistoryEditModalProps) {
+    const { t } = useTranslation('kris');
     const [newValue, setNewValue] = useState(entry.value.toString());
     const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -138,7 +140,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
                                     onChange={(e) => setReason(e.target.value)}
                                     required
                                     rows={3}
-                                    placeholder="Explain why this correction is needed..."
+                                    placeholder={t('form.placeholders.correction_reason')}
                                     className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-slate-600 focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20 resize-none"
                                 />
                             </div>

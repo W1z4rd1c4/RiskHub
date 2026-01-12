@@ -15,6 +15,7 @@ import {
     Search,
     Plus
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { controlApi } from '@/services/controlApi';
 import { lookupApi } from '@/services/lookupApi';
@@ -48,6 +49,7 @@ interface DepartmentOption {
 
 export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }: ControlFormProps) {
     const navigate = useNavigate();
+    const { t } = useTranslation('controls');
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -347,7 +349,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                     value={formData.name}
                                     onChange={(e) => handleInputChange('name', e.target.value)}
                                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-400"
-                                    placeholder="e.g. Daily Transaction Reconciliation"
+                                    placeholder={t('form.placeholders.name')}
                                 />
                             </div>
                             <div>
@@ -358,7 +360,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                     value={formData.description}
                                     onChange={(e) => handleInputChange('description', e.target.value)}
                                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-400 resize-none"
-                                    placeholder="Describe the purpose and steps of this control..."
+                                    placeholder={t('form.placeholders.description')}
                                 />
                             </div>
                         </div>
@@ -378,9 +380,9 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                                 <ThemedSelect
                                                     value={formData.department_id?.toString() ?? ''}
                                                     onValueChange={(v) => handleInputChange('department_id', v ? parseInt(v) : undefined)}
-                                                    placeholder="-- Select Department --"
+                                                    placeholder={t('form.placeholders.select_department')}
                                                     allowEmpty
-                                                    emptyLabel="-- Select Department --"
+                                                    emptyLabel={t('form.placeholders.select_department')}
                                                     className="w-full"
                                                     options={departments.map(dept => ({ value: dept.id.toString(), label: `${dept.name} (${dept.code})` }))}
                                                 />
@@ -391,7 +393,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                                         value={formData.process_owner_position || ''}
                                                         onChange={(e) => handleInputChange('process_owner_position', e.target.value)}
                                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600"
-                                                        placeholder="e.g. Chief Accountant"
+                                                        placeholder={t('form.placeholders.process_owner_position')}
                                                     />
                                                 </div>
                                             </div>
@@ -467,7 +469,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                                 <div className="space-y-2">
                                                     <input
                                                         type="text"
-                                                        placeholder="Search owners..."
+                                                        placeholder={t('form.placeholders.search_owners')}
                                                         value={ownerSearch}
                                                         onChange={(e) => setOwnerSearch(e.target.value)}
                                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-600"
@@ -532,14 +534,14 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                         value={formData.data_source || ''}
                                         onChange={(e) => handleInputChange('data_source', e.target.value)}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                        placeholder="Data Source (e.g. SAP Export)"
+                                        placeholder={t('form.placeholders.data_source')}
                                     />
                                     <input
                                         type="text"
                                         value={formData.methodology_reference || ''}
                                         onChange={(e) => handleInputChange('methodology_reference', e.target.value)}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                        placeholder="Methodology Reference (e.g. Standard OS 18)"
+                                        placeholder={t('form.placeholders.methodology_reference')}
                                     />
                                 </div>
                             </div>
@@ -639,7 +641,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                                     value={linkNotes}
                                                     onChange={(e) => setLinkNotes(e.target.value)}
                                                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                                    placeholder="Rationale for this link..."
+                                                    placeholder={t('form.placeholders.link_rationale')}
                                                 />
                                             </div>
                                         </div>
@@ -651,27 +653,27 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                             <ThemedSelect
                                                 value={selectedDept}
                                                 onValueChange={setSelectedDept}
-                                                placeholder="All Departments"
+                                                placeholder={t('form.placeholders.all_departments')}
                                                 allowEmpty
-                                                emptyLabel="All Departments"
+                                                emptyLabel={t('form.placeholders.all_departments')}
                                                 options={uniqueDepartments.map(d => ({ value: d, label: d }))}
                                             />
 
                                             <ThemedSelect
                                                 value={selectedProcess}
                                                 onValueChange={setSelectedProcess}
-                                                placeholder="All Processes"
+                                                placeholder={t('form.placeholders.all_processes')}
                                                 allowEmpty
-                                                emptyLabel="All Processes"
+                                                emptyLabel={t('form.placeholders.all_processes')}
                                                 options={uniqueProcesses.map(p => ({ value: p, label: p }))}
                                             />
 
                                             <ThemedSelect
                                                 value={selectedCategory}
                                                 onValueChange={setSelectedCategory}
-                                                placeholder="All Categories"
+                                                placeholder={t('form.placeholders.all_categories')}
                                                 allowEmpty
-                                                emptyLabel="All Categories"
+                                                emptyLabel={t('form.placeholders.all_categories')}
                                                 options={uniqueCategories.map(c => ({ value: c, label: c }))}
                                             />
                                         </div>
@@ -680,7 +682,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                             <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
                                             <input
                                                 type="text"
-                                                placeholder="Search by risk ID, name..."
+                                                placeholder={t('form.placeholders.search_risks')}
                                                 value={riskSearch}
                                                 onChange={(e) => setRiskSearch(e.target.value)}
                                                 className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-400"

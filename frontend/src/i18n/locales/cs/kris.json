@@ -93,5 +93,17 @@
         "breach_alert": "Upozornění na překročení",
         "value_breached": "Tento KRI překročil své limity",
         "overdue_alert": "Odeslání hodnoty je opožděno"
+    },
+    "form": {
+        "placeholders": {
+            "metric_name": "např. Míra stížností zákazníků",
+            "description": "Popište, co tento KRI měří a proč je důležitý...",
+            "search_risks": "Hledat podle ID rizika, názvu...",
+            "all_departments": "Všechna oddělení",
+            "all_processes": "Všechny procesy",
+            "all_categories": "Všechny kategorie",
+            "reporting_owner_default": "Vlastník rizika (výchozí)",
+            "correction_reason": "Vysvětlete, proč je tato oprava potřebná..."
+        }
     }
 }

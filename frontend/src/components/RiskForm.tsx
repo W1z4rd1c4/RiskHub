@@ -12,6 +12,7 @@ import {
     Activity,
     Plus
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { riskApi } from '@/services/riskApi';
 import { lookupApi } from '@/services/lookupApi';
@@ -40,6 +41,7 @@ const steps = [
 
 export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
     const navigate = useNavigate();
+    const { t } = useTranslation('risks');
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -308,7 +310,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                     onChange={(e) => handleInputChange('name', e.target.value)}
                                     className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all ${fieldErrors.name ? 'border-rose-500' : 'border-white/10'
                                         }`}
-                                    placeholder="Enter a short, descriptive name for this risk..."
+                                    placeholder={t('form.placeholders.name')}
                                 />
                                 {fieldErrors.name && (
                                     <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
@@ -343,7 +345,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                             onBlur={() => setTimeout(() => setShowProcessDropdown(false), 150)}
                                             className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all ${fieldErrors.process ? 'border-rose-500' : 'border-white/10'
                                                 }`}
-                                            placeholder="Type or select existing..."
+                                            placeholder={t('form.placeholders.type_or_select')}
                                         />
                                         {/* Dropdown with existing processes */}
                                         {showProcessDropdown && existingProcesses.length > 0 && (
@@ -394,7 +396,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                             onFocus={() => setShowSubprocessDropdown(true)}
                                             onBlur={() => setTimeout(() => setShowSubprocessDropdown(false), 150)}
                                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                            placeholder={formData.process ? `Subprocess of ${formData.process}...` : "Select process first..."}
+                                            placeholder={formData.process ? t('form.placeholders.subprocess_of', { process: formData.process }) : t('form.placeholders.select_process_first')}
                                         />
                                         {/* Dropdown with subprocesses for selected process */}
                                         {showSubprocessDropdown && formData.process && (subprocessesByProcess[formData.process]?.length || formData.subprocess) && (
@@ -488,7 +490,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                     onChange={(e) => handleInputChange('description', e.target.value)}
                                     className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all resize-none ${fieldErrors.description ? 'border-rose-500' : 'border-white/10'
                                         }`}
-                                    placeholder="Describe the risk in detail..."
+                                    placeholder={t('form.placeholders.description')}
                                 />
                                 {fieldErrors.description && (
                                     <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
@@ -510,7 +512,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                     <ThemedSelect
                                         value={formData.department_id?.toString() ?? ''}
                                         onValueChange={(v) => handleInputChange('department_id', v ? parseInt(v) : null)}
-                                        placeholder="Select Department"
+                                        placeholder={t('form.placeholders.select_department')}
                                         allowEmpty
                                         emptyLabel="Select Department"
                                         className={fieldErrors.department_id ? 'border-rose-500' : ''}
@@ -592,7 +594,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                         <div className="space-y-2">
                                             <input
                                                 type="text"
-                                                placeholder="Search by name..."
+                                                placeholder={t('form.placeholders.search_by_name')}
                                                 value={ownerSearch}
                                                 onChange={(e) => setOwnerSearch(e.target.value)}
                                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all"

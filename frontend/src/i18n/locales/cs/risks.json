@@ -101,5 +101,16 @@
         "unlink": "Odpojit",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
+    },
+    "form": {
+        "placeholders": {
+            "name": "Zadejte krátký, popisný název rizika...",
+            "type_or_select": "Zadejte nebo vyberte...",
+            "select_process_first": "Nejprve vyberte proces...",
+            "subprocess_of": "Podproces {{process}}...",
+            "description": "Popište riziko podrobně...",
+            "select_department": "Vyberte oddělení",
+            "search_by_name": "Hledat podle názvu..."
+        }
     }
 }

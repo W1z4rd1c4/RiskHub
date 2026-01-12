@@ -14,12 +14,14 @@ import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
 import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
 import type { Risk } from '@/types/risk';
+import { useTranslation } from 'react-i18next';
 
 type TabView = 'overview' | 'history';
 
 export function KRIDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { t } = useTranslation('common');
     const [kri, setKri] = useState<KeyRiskIndicator | null>(null);
     const [linkedRisk, setLinkedRisk] = useState<Risk | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -134,10 +136,10 @@ export function KRIDetailPage() {
         return (
             <div className="p-8 flex flex-col items-center justify-center min-h-[60vh]">
                 <Target className="h-16 w-16 text-slate-700 mb-4" />
-                <h2 className="text-xl font-bold text-white mb-2">KRI Not Found</h2>
-                <p className="text-sm text-slate-500 mb-6">The requested Key Risk Indicator does not exist.</p>
+                <h2 className="text-xl font-bold text-white mb-2">{t('access.kri_not_found')}</h2>
+                <p className="text-sm text-slate-500 mb-6">{t('access.kri_not_found_desc')}</p>
                 <Button onClick={() => navigate('/kris')} variant="outline">
-                    <ArrowLeft className="h-4 w-4 mr-2" /> Back to Risk Appetite
+                    <ArrowLeft className="h-4 w-4 mr-2" /> {t('navigation:tabs.risk_appetite', 'Risk Appetite')}
                 </Button>
             </div>
         );
