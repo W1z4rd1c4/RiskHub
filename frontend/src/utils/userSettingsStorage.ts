@@ -49,6 +49,22 @@ export async function syncPreferencesFromServer(): Promise<UserPreferences> {
     setLocalTheme(prefs.theme);
     setLocalLanguage(prefs.language);
 
+    // Always dispatch synthetic storage events so same-tab listeners (ThemeContext) update.
+    // Native StorageEvent only fires for OTHER tabs, not the current one.
+    // We dispatch unconditionally because on login, localStorage was cleared.
+    window.dispatchEvent(new StorageEvent('storage', {
+        key: THEME_KEY,
+        oldValue: null,
+        newValue: prefs.theme,
+        storageArea: localStorage,
+    }));
+    window.dispatchEvent(new StorageEvent('storage', {
+        key: LANGUAGE_KEY,
+        oldValue: null,
+        newValue: prefs.language,
+        storageArea: localStorage,
+    }));
+
     // Also update i18n instance if language differs
     if (i18n.language !== prefs.language) {
         i18n.changeLanguage(prefs.language);
