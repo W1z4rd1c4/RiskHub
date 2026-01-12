@@ -12,6 +12,7 @@ import type { RiskSummary } from '@/types/risk';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from 'react-i18next';
 
 interface ResolveOrphanModalProps {
     isOpen: boolean;
@@ -30,6 +31,7 @@ interface UserOption {
 }
 
 export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: ResolveOrphanModalProps) {
+    const { t } = useTranslation('common');
     const [users, setUsers] = useState<UserOption[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
@@ -294,14 +296,14 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                                         <ThemedSelect
                                                             value={selectedRiskDept}
                                                             onValueChange={setSelectedRiskDept}
-                                                            placeholder="All Departments"
+                                                            placeholder={t('filters.all_departments')}
                                                             allowEmpty
-                                                            emptyLabel="All Departments"
+                                                            emptyLabel={t('filters.all_departments')}
                                                             options={uniqueDepartments.map(d => ({ value: d, label: d }))}
                                                         />
                                                         <input
                                                             type="text"
-                                                            placeholder="Search risks..."
+                                                            placeholder={t('filters.search_risks')}
                                                             value={riskSearchQuery}
                                                             onChange={(e) => setRiskSearchQuery(e.target.value)}
                                                             className="col-span-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white outline-none focus:border-accent/40"
@@ -343,7 +345,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                                                             <input
                                                                 type="text"
-                                                                placeholder="Search users..."
+                                                                placeholder={t('filters.search_items')}
                                                                 value={searchQuery}
                                                                 onChange={(e) => setSearchQuery(e.target.value)}
                                                                 className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white outline-none focus:border-emerald-400/40"
