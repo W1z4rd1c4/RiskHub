@@ -40,6 +40,12 @@ async def seed_all():
     print("\n6️⃣  Seeding KRIs...")
     await seed_kris()
     
+    # Optional: E2E test data seeding
+    if os.environ.get('SEED_E2E_DATA', '').lower() == 'true':
+        print("\n7️⃣  Seeding E2E test data...")
+        from seed_e2e_all import seed_e2e_all
+        await seed_e2e_all()
+    
     print("\n" + "=" * 60)
     print("✅ ALL DATA SEEDED SUCCESSFULLY!")
     print("=" * 60)
