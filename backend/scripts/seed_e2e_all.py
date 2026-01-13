@@ -15,6 +15,7 @@ from scripts.seed_e2e_controls import seed_controls
 from scripts.seed_e2e_kris import seed_kris
 from scripts.seed_e2e_approvals import seed_approvals
 from scripts.seed_e2e_activity_logs import seed_activity_logs
+from scripts.seed_e2e_resolved_approvals import seed_resolved_approvals
 
 
 async def seed_e2e_all():
@@ -50,6 +51,10 @@ async def seed_e2e_all():
     print("\n6️⃣  Seeding Activity Logs...")
     await seed_activity_logs()
     
+    # Step 7: Seed resolved approvals (Phase 179-08)
+    print("\n7️⃣  Seeding Resolved Approvals...")
+    await seed_resolved_approvals()
+    
     # Summary
     print("\n" + "="*60)
     print("✅ E2E TEST DATA SEEDING COMPLETE")
@@ -58,7 +63,8 @@ async def seed_e2e_all():
     print("   • 15 E2E risks (10 cross-department)")
     print("   • 12 E2E controls (14 risk links)")
     print("   • 10 E2E KRIs (4 cross-department reporters)")
-    print("   • 5 E2E approval requests")
+    print("   • 5 E2E pending approval requests")
+    print("   • 4 E2E resolved approval requests")
     print("   • 13 E2E activity log entries")
     print("\n💡 All entities prefixed with 'E2E-' for isolation")
     return 0
@@ -66,4 +72,3 @@ async def seed_e2e_all():
 
 if __name__ == "__main__":
     exit(asyncio.run(seed_e2e_all()))
-
