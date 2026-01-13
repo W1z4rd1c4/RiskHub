@@ -600,7 +600,7 @@ Plans:
 - [x] 179-06: Master Seed Script & Integration (orchestration and seed_all.py integration)
 - [x] 179-07: Activity Log Data Seeding (CRUD history for activity-logging tests)
 - [x] 179-08: Resolved Approval Data (APPROVED/REJECTED/CANCELLED for workflow tests)
-- [ ] 179-09: Sensitive Field Approval Data (pending approvals for owner/dept changes)
+- [x] 179-09: Sensitive Field Approval Data (pending approvals for owner/dept changes)
 - [ ] 179-10: Permission-Gated Action Data (delete approvals, control executions, KRI corrections)
 - [ ] 179-11: Deterministic Cross-Department Scenarios (known user-entity ownership)
 
