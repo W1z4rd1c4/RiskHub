@@ -169,10 +169,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 154-02: Backend RBAC Fixes. Added `is_control_owner` bypass to control-side linking endpoints and ownership checks to KRI history endpoint. Added 5 new tests covering cross-department access.
+- Completed Plan 154-03: API Contract Fixes. Added `process` and `category` filters to `GET /risks`, and `description` field to `RiskBriefForLink` schema.
 
 ### Next Step
-- Execute Plan 154-03 or 154-04 (frontend 202 response handling).
+- Execute Plan 154-04 (frontend 202 response handling).
 
 
 

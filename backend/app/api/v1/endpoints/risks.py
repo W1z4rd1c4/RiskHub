@@ -95,6 +95,8 @@ async def list_risks(
     min_net_score: Optional[int] = Query(None, ge=0, le=25, description="Filter risks with net_score >= this value (e.g., 15 for critical)"),
     sort_by: Optional[str] = Query(None, description="Field to sort by"),
     sort_order: Optional[str] = Query("asc", description="Sort order (asc or desc)"),
+    process: Optional[str] = Query(None, description="Filter by process name"),
+    category: Optional[str] = Query(None, description="Filter by category"),
 ) -> RiskListResponse:
     """
     List risks with pagination and filters.
@@ -170,6 +172,14 @@ async def list_risks(
     # Net score filter (for critical risks: min_net_score=15)
     if min_net_score is not None:
         base_query = base_query.where(Risk.net_score >= min_net_score)
+
+    # Process filter (for link dialog filtering)
+    if process:
+        base_query = base_query.where(Risk.process == process)
+    
+    # Category filter (for link dialog filtering)
+    if category:
+        base_query = base_query.where(Risk.category == category)
 
     # Get total count before pagination
     count_query = select(func.count()).select_from(base_query.subquery())
