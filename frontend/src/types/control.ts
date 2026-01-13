@@ -4,7 +4,7 @@ export const ControlForm = {
     AUTOMATIC: 'automatic' as ControlForm,
 };
 
-export type ControlFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually' | 'ad_hoc';
+export type ControlFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually' | 'ad_hoc' | 'continuous';
 export const ControlFrequency = {
     DAILY: 'daily' as ControlFrequency,
     WEEKLY: 'weekly' as ControlFrequency,
@@ -12,6 +12,7 @@ export const ControlFrequency = {
     QUARTERLY: 'quarterly' as ControlFrequency,
     ANNUALLY: 'annually' as ControlFrequency,
     AD_HOC: 'ad_hoc' as ControlFrequency,
+    CONTINUOUS: 'continuous' as ControlFrequency,
 };
 
 export type ControlStatus = 'draft' | 'active' | 'inactive' | 'archived';
@@ -68,6 +69,7 @@ export interface Control {
 export interface ControlSummary {
     id: number;
     name: string;
+    description?: string;
     department_id?: number;
     department_name?: string;
     frequency: ControlFrequency;
