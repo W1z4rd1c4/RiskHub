@@ -32,7 +32,11 @@ export function ViewSwitcher({ value, onChange, className, exclude = [] }: ViewS
             {options.map((option) => (
                 <button
                     key={option.value}
-                    onClick={() => onChange(option.value)}
+                    onClick={() => {
+                        if (option.value !== value) {
+                            onChange(option.value);
+                        }
+                    }}
                     className={cn(
                         'px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200',
                         value === option.value

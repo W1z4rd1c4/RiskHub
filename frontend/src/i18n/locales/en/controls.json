@@ -32,7 +32,8 @@
         "monthly": "Monthly",
         "quarterly": "Quarterly",
         "annually": "Annually",
-        "ad_hoc": "Ad Hoc"
+        "ad_hoc": "Ad Hoc",
+        "continuous": "Continuous"
     },
     "status": {
         "active": "Active",

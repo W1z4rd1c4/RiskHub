@@ -197,6 +197,7 @@ async def list_controls(
         items.append(ControlSummary(
             id=c.id,
             name=c.name,
+            description=c.description,
             department_id=c.department_id,
             department_name=c.department.name if c.department else None,
             frequency=ControlFrequencyEnum(c.frequency),
