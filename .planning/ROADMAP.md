@@ -583,12 +583,32 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 150. Audit (RiskHub-only) | 2/3 | In progress | - |
 | 151. Audit Resolution | 8/11 | In progress | - |
 | 180. E2E Business Logic | 1/8 | In progress | - |
+| 179. E2E Test Data | 6/11 | In progress | - |
+
+### Phase 179: E2E Test Data
+**Goal**: Create comprehensive insurance risk data (risks, controls, KRIs) with cross-department ownership to enable E2E tests that currently skip due to missing data.
+**Depends on**: Phase 180 (E2E Business Logic Testing)
+**Research**: None (data based on Slavia Pojišťovna insurance operations research)
+**Plans**: 11 plans
+
+Plans:
+- [x] 179-01: Foundation & User Verification (validate demo users, create ID mappings)
+- [x] 179-02: Cross-Department Risk Data (15 risks with cross-dept ownership per §2.1, §7.1)
+- [x] 179-03: Cross-Department Control Data (12 controls with risk links per §2.2, §7.2)
+- [x] 179-04: KRI Data with Reporting Owners (10 KRIs per §2.3)
+- [x] 179-05: Approval Request Seeding (5 approval requests per §5.1-§5.4)
+- [x] 179-06: Master Seed Script & Integration (orchestration and seed_all.py integration)
+- [x] 179-07: Activity Log Data Seeding (CRUD history for activity-logging tests)
+- [ ] 179-08: Resolved Approval Data (APPROVED/REJECTED/CANCELLED for workflow tests)
+- [ ] 179-09: Sensitive Field Approval Data (pending approvals for owner/dept changes)
+- [ ] 179-10: Permission-Gated Action Data (delete approvals, control executions, KRI corrections)
+- [ ] 179-11: Deterministic Cross-Department Scenarios (known user-entity ownership)
 
 ### Phase 180: E2E Business Logic Testing
 **Goal**: Comprehensive E2E test suite covering all business logic defined in docs/BUSINESS_LOGIC.md
 **Depends on**: Phase 5 (Automated Testing), Phase 8 (Permission Filtering)
 **Research**: None
-**Plans**: 8 plans
+**Plans**: 9 plans
 
 Plans:
 - [x] 180-01: E2E Infrastructure & Role-Based Access (fixtures, helpers, POMs, §1 tests)
@@ -599,6 +619,7 @@ Plans:
 - [ ] 180-06: Cross-Department Access (§7 tests)
 - [ ] 180-07: Activity Logging & Audit Trail (§9 tests)
 - [ ] 180-08: Suite Integration & Full Regression (CI config, docs)
+- [ ] 180-09: E2E Test Data Verification (verify Phase 179 data enables tests)
 
 ### Phase 200: Entity Naming Enforcement
 **Goal**: Enforce mandatory "Name" field for all entities (Risk, Control, KRI) and update all UI components to display it prominently.
