@@ -764,7 +764,7 @@ async def get_kri_history(
     from datetime import date
     from app.services.kri_history_service import KRIHistoryService
     from app.schemas.kri import KRIHistoryEntry
-    from app.core.permissions import can_resolve_approvals
+    from app.core.permissions import can_resolve_approvals, is_kri_reporting_owner
     
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -781,8 +781,24 @@ async def get_kri_history(
     if kri.is_archived and not can_resolve_approvals(current_user):
         raise HTTPException(status_code=404, detail="KRI not found")
     
-    # Verify department access
-    check_department_access(kri.risk.department_id, current_user)
+    # Allow access via ownership (cross-department) per BUSINESS_LOGIC.md §7.1
+    has_access = False
+    # 1. KRI reporting owner
+    if await is_kri_reporting_owner(db, current_user.id, kri_id):
+        has_access = True
+    # 2. Risk owner (of linked risk)
+    elif kri.risk and kri.risk.owner_id == current_user.id:
+        has_access = True
+    else:
+        # 3. Fall back to department access
+        try:
+            check_department_access(kri.risk.department_id, current_user)
+            has_access = True
+        except HTTPException:
+            pass
+    
+    if not has_access:
+        raise HTTPException(status_code=403, detail="Access denied")
     
     entries, total = await KRIHistoryService.get_history(
         db=db,
