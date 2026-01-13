@@ -18,6 +18,7 @@ class ControlFrequencyEnum(str, Enum):
     quarterly = "quarterly"
     annually = "annually"
     ad_hoc = "ad_hoc"
+    continuous = "continuous"
 
 
 class ControlStatusEnum(str, Enum):
@@ -123,6 +124,7 @@ class ControlSummary(BaseModel):
     """Minimal schema for control list views."""
     id: int
     name: str
+    description: Optional[str] = None
     department_id: Optional[int] = None
     department_name: Optional[str] = None
     frequency: ControlFrequencyEnum

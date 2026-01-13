@@ -32,7 +32,8 @@
         "monthly": "Měsíčně",
         "quarterly": "Čtvrtletně",
         "annually": "Ročně",
-        "ad_hoc": "Dle potřeby"
+        "ad_hoc": "Dle potřeby",
+        "continuous": "Průběžně"
     },
     "status": {
         "active": "Aktivní",
