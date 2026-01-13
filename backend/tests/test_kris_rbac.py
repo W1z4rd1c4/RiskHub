@@ -442,3 +442,152 @@ async def test_privileged_user_can_edit_directly(auth_client: AsyncClient, test_
     data = response.json()
     assert data["metric_name"] == "Updated by Admin"
 
+
+# =============================================================================
+# Cross-Department KRI History Access (Phase 154-02)
+# Validates reporting owner and risk owner can access KRI history cross-department
+# =============================================================================
+
+@pytest.fixture
+async def cross_dept_for_kri(db_session):
+    """Create a second department for cross-dept KRI tests."""
+    dept = Department(
+        name="Analytics Department",
+        description="Second department for KRI cross-dept tests",
+        code="ANALYTICS",
+        is_active=True,
+    )
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+    return dept
+
+
+@pytest.fixture
+async def cross_dept_risk_for_kri(db_session, cross_dept_for_kri: Department, test_user):
+    """Create a risk in cross-dept for KRI testing."""
+    risk = Risk(
+        risk_id_code="R-XDEPT-KRI",
+        name="Cross-Dept KRI Risk",
+        process="Cross-Dept KRI Process",
+        description="Risk in different department for KRI history test",
+        department_id=cross_dept_for_kri.id,  # Different department
+        owner_id=test_user.id,  # Owned by test_user (from main dept)
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+    return risk
+
+
+@pytest.fixture
+async def cross_dept_kri_with_reporting_owner(db_session, cross_dept_risk_for_kri: Risk, test_user):
+    """Create a KRI in cross-dept with test_user as reporting owner."""
+    kri = KeyRiskIndicator(
+        risk_id=cross_dept_risk_for_kri.id,
+        metric_name="Cross-Dept KRI",
+        description="KRI in different department",
+        unit="%",
+        current_value=75.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        reporting_owner_id=test_user.id,  # test_user is from main dept
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+    return kri
+
+
+@pytest.mark.asyncio
+async def test_reporting_owner_can_view_kri_history_cross_department(
+    auth_client: AsyncClient,
+    db_session,
+    cross_dept_kri_with_reporting_owner: KeyRiskIndicator,
+):
+    """
+    KRI reporting owner can view history for their KRI even in different department.
+    Per BUSINESS_LOGIC.md §7.1 and Phase 154-02 fix.
+    """
+    from app.models.kri_history import KRIValueHistory
+    from datetime import date
+    
+    kri = cross_dept_kri_with_reporting_owner
+    
+    # Add a history entry
+    history = KRIValueHistory(
+        kri_id=kri.id,
+        value=75.0,
+        period_start=date(2025, 12, 1),
+        period_end=date(2025, 12, 31),
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        breach_status="within",
+    )
+    db_session.add(history)
+    await db_session.commit()
+    
+    # Reporting owner (test_user via auth_client) can view history cross-department
+    response = await auth_client.get(f"/api/v1/kris/{kri.id}/history")
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] >= 1
+    assert len(data["items"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_risk_owner_can_view_kri_history_cross_department(
+    auth_client: AsyncClient,
+    db_session,
+    cross_dept_risk_for_kri: Risk,
+):
+    """
+    Risk owner can view history for KRIs linked to their risk even in different department.
+    Per BUSINESS_LOGIC.md §7.1 and Phase 154-02 fix.
+    """
+    from app.models.kri_history import KRIValueHistory
+    from datetime import date
+    
+    # Create KRI without explicit reporting owner (falls back to risk owner)
+    kri = KeyRiskIndicator(
+        risk_id=cross_dept_risk_for_kri.id,
+        metric_name="Risk Owner KRI",
+        description="KRI for risk owner history test",
+        unit="count",
+        current_value=10.0,
+        lower_limit=0.0,
+        upper_limit=50.0,
+        reporting_owner_id=None,  # No explicit reporting owner
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+    
+    # Add a history entry
+    history = KRIValueHistory(
+        kri_id=kri.id,
+        value=10.0,
+        period_start=date(2025, 11, 1),
+        period_end=date(2025, 11, 30),
+        lower_limit=0.0,
+        upper_limit=50.0,
+        unit="count",
+        breach_status="within",
+    )
+    db_session.add(history)
+    await db_session.commit()
+    
+    # Risk owner (test_user via auth_client) can view history cross-department
+    response = await auth_client.get(f"/api/v1/kris/{kri.id}/history")
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] >= 1
