@@ -169,10 +169,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 154-01: Workflow Bug Sweep Discovery. Created DISCOVERY.md with 6 confirmed workflow bugs (cross-department access on control-side endpoints, KRI history, 202 response handling). Decision: `mirror-risk-side` access pattern chosen.
+- Completed Plan 154-02: Backend RBAC Fixes. Added `is_control_owner` bypass to control-side linking endpoints and ownership checks to KRI history endpoint. Added 5 new tests covering cross-department access.
 
 ### Next Step
-- Execute Plan 154-02: Add `is_control_owner()` bypass to control-side linking endpoints.
+- Execute Plan 154-03 or 154-04 (frontend 202 response handling).
 
 
 
