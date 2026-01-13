@@ -421,13 +421,18 @@ export function ControlsPage() {
                             onClick={() => navigate(`/controls/${control.id}`)}
                             className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
                         >
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm font-bold text-white">{control.name}</span>
-                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getStatusColor(control.status)}`}>
-                                    {control.status}
-                                </span>
+                            <div className="flex-1 min-w-0 mr-4">
+                                <div className="flex items-center gap-4">
+                                    <span className="text-sm font-bold text-white">{control.name}</span>
+                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getStatusColor(control.status)}`}>
+                                        {control.status}
+                                    </span>
+                                </div>
+                                {control.description && (
+                                    <p className="text-xs text-slate-500 mt-1 truncate max-w-lg">{control.description}</p>
+                                )}
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 shrink-0">
                                 <div className="flex items-center gap-2 text-xs text-slate-400 capitalize">
                                     <Calendar className="h-3 w-3 text-accent" />
                                     {control.frequency}
