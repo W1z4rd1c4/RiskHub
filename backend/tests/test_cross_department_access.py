@@ -254,6 +254,92 @@ async def test_control_owner_can_link_control_to_risk(
 
 
 # =============================================================================
+# Cross-Department Control-Side Linking Tests (Phase 154-02)
+# Validates control-side endpoints mirror risk-side cross-dept access
+# =============================================================================
+
+@pytest.mark.asyncio
+async def test_control_owner_can_list_risks_via_control_endpoint(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    cross_dept_risk: Risk,
+    cross_dept_control: Control,
+):
+    """
+    Control owner can list linked risks via /controls/{id}/risks (cross-department).
+    """
+    # Link control to risk first
+    link = ControlRiskLink(
+        control_id=cross_dept_control.id,
+        risk_id=cross_dept_risk.id,
+        effectiveness="high",
+    )
+    db_session.add(link)
+    await db_session.commit()
+    
+    # Control owner can list risks via control-side endpoint
+    response = await auth_client.get(f"/api/v1/controls/{cross_dept_control.id}/risks")
+    
+    assert response.status_code == 200
+    risks = response.json()
+    assert len(risks) >= 1
+    risk_ids = [r["risk_id"] for r in risks]
+    assert cross_dept_risk.id in risk_ids
+
+
+@pytest.mark.asyncio
+async def test_control_owner_can_link_risk_via_control_endpoint(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    cross_dept_risk: Risk,
+    cross_dept_control: Control,
+):
+    """
+    Control owner can link a risk via /controls/{id}/risks (cross-department).
+    """
+    response = await auth_client.post(
+        f"/api/v1/controls/{cross_dept_control.id}/risks",
+        json={
+            "risk_id": cross_dept_risk.id,
+            "effectiveness": "medium",
+            "notes": "Control-side cross-department link test",
+        },
+    )
+    
+    assert response.status_code == 201
+    data = response.json()
+    assert data["control_id"] == cross_dept_control.id
+    assert data["risk_id"] == cross_dept_risk.id
+
+
+@pytest.mark.asyncio
+async def test_control_owner_can_unlink_risk_via_control_endpoint(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    cross_dept_risk: Risk,
+    cross_dept_control: Control,
+):
+    """
+    Control owner can unlink a risk via /controls/{id}/risks/{rid} (cross-department).
+    """
+    # Link control to risk first
+    link = ControlRiskLink(
+        control_id=cross_dept_control.id,
+        risk_id=cross_dept_risk.id,
+        effectiveness="low",
+    )
+    db_session.add(link)
+    await db_session.commit()
+    
+    # Control owner can unlink via control-side endpoint
+    response = await auth_client.delete(
+        f"/api/v1/controls/{cross_dept_control.id}/risks/{cross_dept_risk.id}"
+    )
+    
+    assert response.status_code == 204
+
+
+# =============================================================================
 # Negative Cases - Non-Owner Access Denied
 # =============================================================================
 
@@ -276,3 +362,4 @@ async def test_non_owner_cannot_create_execution_for_other_dept_control(
     
     # Should be denied (no ownership, no dept access, and no execute permission)
     assert response.status_code in [403, 422]  # 403 or possibly permission check first
+
