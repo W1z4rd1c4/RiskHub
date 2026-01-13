@@ -169,10 +169,10 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 180-09: E2E Test Data Verification. Ran full E2E suite (278 passed, 204 skipped) and targeted suites (cross-department, approval-workflows, entity-ownership, permissions) to verify Phase 179 test data.
+- Completed Plan 154-01: Workflow Bug Sweep Discovery. Created DISCOVERY.md with 6 confirmed workflow bugs (cross-department access on control-side endpoints, KRI history, 202 response handling). Decision: `mirror-risk-side` access pattern chosen.
 
 ### Next Step
-- Continue with Phase 180 Business Logic Verification (Plan 180-10 or next pending plan).
+- Execute Plan 154-02: Add `is_control_owner()` bypass to control-side linking endpoints.
 
 
 

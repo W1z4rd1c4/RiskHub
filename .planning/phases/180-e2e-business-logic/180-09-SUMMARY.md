@@ -7,13 +7,15 @@ Verified that Phase 179 E2E test data enables previously-skipped E2E tests and d
 
 ## Baseline Results (Full E2E Suite)
 
-| Metric | Count |
-|--------|-------|
-| Total Tests | 1,048 |
-| Passed | 278 |
-| Skipped | 204 |
-| Failed | 0 |
-| Duration | 8.0 min |
+**Re-run after Phase 179 Plans 179-07 to 179-11 (activity logs, resolved approvals, sensitive approvals, etc.)**
+
+| Metric | Previous | Current |
+|--------|----------|---------|
+| Total Tests | 1,048 | 1,048 |
+| Passed | 278 | 267 |
+| Skipped | 204 | 208 |
+| Failed | 0 | 0 |
+| Duration | 8.0 min | 7.5 min |
 
 > **Note:** Tests run across 3 browsers: Chromium, WebKit, CI (headless Chromium)
 
