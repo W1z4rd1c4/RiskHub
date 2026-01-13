@@ -14,7 +14,8 @@ import {
     XCircle,
     ShieldAlert,
     Plus,
-    Target
+    Target,
+    AlertCircle
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
@@ -30,6 +31,7 @@ import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { RiskQuickViewModal } from '@/components/RiskQuickViewModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { isApprovalCreatedResponse } from '@/types/approval';
 
 type TabView = 'overview' | 'history';
 
@@ -63,24 +65,37 @@ export function ControlDetailPage() {
     const [selectedRisk, setSelectedRisk] = useState<Risk | null>(null);
     const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
     const [isLoadingRisk, setIsLoadingRisk] = useState(false);
+    const [linkedRisksError, setLinkedRisksError] = useState<string | null>(null);
+    const [linkError, setLinkError] = useState<string | null>(null);
+    const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
         if (!id) return;
+        const ctrlId = parseInt(id);
+
+        // Fetch control data first (critical)
         try {
             setIsLoading(true);
-            const ctrlId = parseInt(id);
-            const [ctrlData, riskData] = await Promise.all([
-                controlApi.getControl(ctrlId),
-                controlApi.getLinkedRisks(ctrlId)
-            ]);
+            const ctrlData = await controlApi.getControl(ctrlId);
             setControl(ctrlData);
-            setLinkedRisks(riskData);
             setError(null);
         } catch (err) {
             console.error('Error fetching control details:', err);
             setError('Failed to load control details.');
+            setIsLoading(false);
+            return;
         } finally {
             setIsLoading(false);
+        }
+
+        // Fetch linked risks separately (non-critical - page should still render)
+        try {
+            const riskData = await controlApi.getLinkedRisks(ctrlId);
+            setLinkedRisks(riskData);
+            setLinkedRisksError(null);
+        } catch (err) {
+            console.error('Error fetching linked risks:', err);
+            setLinkedRisksError('Unable to load linked risks. You may not have access to this data.');
         }
     }, [id]);
 
@@ -90,31 +105,50 @@ export function ControlDetailPage() {
 
     const handleArchive = async (reason: string) => {
         if (!control) return;
-        await controlApi.deleteControl(control.id, reason);
-        navigate('/controls');
+        try {
+            const response = await controlApi.deleteControl(control.id, reason);
+
+            // Check if the response indicates approval was required (202)
+            if (isApprovalCreatedResponse(response)) {
+                setApprovalMessage(
+                    `Archive request submitted for approval (ID: ${response.approval_id}). The control has not been archived yet.`
+                );
+                setIsArchiveDialogOpen(false);
+                // Don't navigate away - show the approval message
+                return;
+            }
+
+            // Immediate archive (204) - navigate away
+            navigate('/controls');
+        } catch (err) {
+            console.error('Archive failed:', err);
+            setApprovalMessage('Failed to archive control. Please try again.');
+        }
     };
 
     const handleLinkRisk = async (riskId: number, effectiveness: ControlEffectiveness, notes?: string) => {
         if (!control) return;
+        setLinkError(null);
         try {
             await controlApi.linkRisk(control.id, { risk_id: riskId, effectiveness, notes });
             const riskData = await controlApi.getLinkedRisks(control.id);
             setLinkedRisks(riskData);
         } catch (err) {
             console.error('Linking failed:', err);
-            alert('Failed to link risk.');
+            setLinkError('Failed to link risk. Please try again.');
         }
     };
 
     const handleUnlinkRisk = async (riskId: number) => {
         if (!control) return;
+        setLinkError(null);
         try {
             await controlApi.unlinkRisk(control.id, riskId);
             const riskData = await controlApi.getLinkedRisks(control.id);
             setLinkedRisks(riskData);
         } catch (err) {
             console.error('Unlinking failed:', err);
-            alert('Failed to unlink risk.');
+            setLinkError('Failed to unlink risk. Please try again.');
         }
     };
 
@@ -170,6 +204,30 @@ export function ControlDetailPage() {
 
     return (
         <div className="space-y-8">
+            {/* Approval/Error Message Banner */}
+            {approvalMessage && (
+                <div className={`p-4 rounded-xl border flex items-start gap-3 ${approvalMessage.includes('Failed')
+                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                    }`}>
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-sm font-medium">{approvalMessage}</p>
+                        {!approvalMessage.includes('Failed') && (
+                            <p className="text-xs mt-1 opacity-75">
+                                View pending approvals in the <button onClick={() => navigate('/approvals')} className="underline hover:no-underline">Approvals</button> section.
+                            </p>
+                        )}
+                    </div>
+                    <button
+                        onClick={() => setApprovalMessage(null)}
+                        className="ml-auto text-current opacity-50 hover:opacity-100"
+                    >
+                        <XCircle className="h-4 w-4" />
+                    </button>
+                </div>
+            )}
+
             {/* Header / Breadcrumb */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                 <div className="space-y-2">
@@ -336,34 +394,50 @@ export function ControlDetailPage() {
                             <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-black rounded-full border border-emerald-500/20">{linkedRisks.length}</span>
                         </div>
 
-                        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                            {linkedRisks.length === 0 ? (
-                                <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl col-span-full">
-                                    <p className="text-xs text-slate-600 font-medium">No risks linked to this control.</p>
-                                </div>
-                            ) : (
-                                linkedRisks.map((link) => (
-                                    <div
-                                        key={link.id}
-                                        onClick={(e) => handleRiskClick(link.risk_id, e)}
-                                        className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer relative"
-                                    >
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div>
-                                                <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || 'Unnamed Risk'}</span>
-                                                {link.risk?.process && <span className="text-[10px] text-slate-500 block mt-0.5">{link.risk.process}</span>}
-                                            </div>
-                                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${link.effectiveness === 'high' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
-                                                }`}>
-                                                {link.effectiveness}
-                                            </span>
-                                        </div>
-                                        {link.risk?.description && <p className="mt-1 text-[10px] text-slate-400 line-clamp-2">{link.risk.description}</p>}
-                                        {link.notes && <p className="mt-2 text-[10px] text-slate-500 font-medium italic">"{link.notes}"</p>}
+                        {/* Link Error Message */}
+                        {linkError && (
+                            <div className="mb-3 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4" />
+                                {linkError}
+                            </div>
+                        )}
+
+                        {/* Linked Risks Error State */}
+                        {linkedRisksError ? (
+                            <div className="py-10 text-center border-2 border-dashed border-rose-500/20 rounded-2xl bg-rose-500/5">
+                                <AlertCircle className="h-8 w-8 text-rose-400 mx-auto mb-2" />
+                                <p className="text-xs text-rose-400 font-medium">{linkedRisksError}</p>
+                            </div>
+                        ) : (
+                            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                                {linkedRisks.length === 0 ? (
+                                    <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl col-span-full">
+                                        <p className="text-xs text-slate-600 font-medium">No risks linked to this control.</p>
                                     </div>
-                                ))
-                            )}
-                        </div>
+                                ) : (
+                                    linkedRisks.map((link) => (
+                                        <div
+                                            key={link.id}
+                                            onClick={(e) => handleRiskClick(link.risk_id, e)}
+                                            className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer relative"
+                                        >
+                                            <div className="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || 'Unnamed Risk'}</span>
+                                                    {link.risk?.process && <span className="text-[10px] text-slate-500 block mt-0.5">{link.risk.process}</span>}
+                                                </div>
+                                                <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${link.effectiveness === 'high' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                                                    }`}>
+                                                    {link.effectiveness}
+                                                </span>
+                                            </div>
+                                            {link.risk?.description && <p className="mt-1 text-[10px] text-slate-400 line-clamp-2">{link.risk.description}</p>}
+                                            {link.notes && <p className="mt-2 text-[10px] text-slate-500 font-medium italic">"{link.notes}"</p>}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
 
                         <PermissionGate resource="controls" action="write">
                             <button
