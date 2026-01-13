@@ -169,7 +169,7 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 154-04: Frontend UX Fixes. Added 202 approval response handling to archive flows, separated fetches for resilience, replaced `alert()` with inline error banners. Phase 154 Workflow Bug Sweep complete.
+- Completed Plan 154-05: E2E Test Coverage. Added 5 new tests across `control-owner-access.spec.ts` and `status-flow.spec.ts` to cover control-side linking and approval-queued UX. All 23 backend tests pass. Phase 154 fully closed.
 
 ### Next Step
 - Continue with Phase 180 Business Logic Verification or start new feature work.
