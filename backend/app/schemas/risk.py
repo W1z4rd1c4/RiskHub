@@ -193,6 +193,7 @@ class RiskBriefForLink(BaseModel):
     risk_id_code: str
     name: str
     process: str
+    description: str  # Used by ControlDetailPage and ExistingLinksPanel
     gross_score: int
     net_score: int
     
