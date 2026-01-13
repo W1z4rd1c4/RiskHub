@@ -7,7 +7,9 @@ import {
     Star,
     AlertTriangle,
     History,
-    Target
+    Target,
+    AlertCircle,
+    XCircle
 } from 'lucide-react';
 import { riskApi } from '@/services/riskApi';
 import { kriApi } from '@/services/kriApi';
@@ -21,6 +23,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 import { useTranslation } from 'react-i18next';
+import { isApprovalCreatedResponse } from '@/types/approval';
 
 type TabView = 'overview' | 'history';
 
@@ -41,6 +44,8 @@ export function RiskDetailPage() {
     // Delete confirmation dialog state
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
+    const [linkError, setLinkError] = useState<string | null>(null);
 
     // KRI Modal State
     const [isKRIModalOpen, setIsKRIModalOpen] = useState(false);
@@ -138,11 +143,23 @@ export function RiskDetailPage() {
         if (!risk) return;
         try {
             setIsDeleting(true);
-            await riskApi.deleteRisk(risk.id, reason || 'Archived by user');
+            const response = await riskApi.deleteRisk(risk.id, reason || 'Archived by user');
+
+            // Check if the response indicates approval was required (202)
+            if (isApprovalCreatedResponse(response)) {
+                setApprovalMessage(
+                    `Archive request submitted for approval (ID: ${response.approval_id}). The risk has not been archived yet.`
+                );
+                setIsDeleteDialogOpen(false);
+                // Don't navigate away - show the approval message
+                return;
+            }
+
+            // Immediate archive (204) - navigate away
             navigate('/risks');
         } catch (err) {
             console.error('Error deleting risk:', err);
-            alert('Failed to archive risk.');
+            setApprovalMessage('Failed to archive risk. Please try again.');
         } finally {
             setIsDeleting(false);
             setIsDeleteDialogOpen(false);
@@ -151,25 +168,27 @@ export function RiskDetailPage() {
 
     const handleLinkControl = async (controlId: number, effectiveness: ControlEffectiveness, notes?: string) => {
         if (!risk) return;
+        setLinkError(null);
         try {
             await riskApi.linkControl(risk.id, { control_id: controlId, effectiveness, notes });
             const controlsData = await riskApi.getLinkedControls(risk.id);
             setLinkedControls(controlsData);
         } catch (err) {
             console.error('Linking failed:', err);
-            alert('Failed to link control.');
+            setLinkError('Failed to link control. Please try again.');
         }
     };
 
     const handleUnlinkControl = async (controlId: number) => {
         if (!risk) return;
+        setLinkError(null);
         try {
             await riskApi.unlinkControl(risk.id, controlId);
             const controlsData = await riskApi.getLinkedControls(risk.id);
             setLinkedControls(controlsData);
         } catch (err) {
             console.error('Unlinking failed:', err);
-            alert('Failed to unlink control.');
+            setLinkError('Failed to unlink control. Please try again.');
         }
     };
 
@@ -242,6 +261,41 @@ export function RiskDetailPage() {
 
     return (
         <div className="space-y-8">
+            {/* Approval/Error Message Banner */}
+            {approvalMessage && (
+                <div className={`p-4 rounded-xl border flex items-start gap-3 ${approvalMessage.includes('Failed')
+                        ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                        : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                    }`}>
+                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-sm font-medium">{approvalMessage}</p>
+                        {!approvalMessage.includes('Failed') && (
+                            <p className="text-xs mt-1 opacity-75">
+                                View pending approvals in the <button onClick={() => navigate('/approvals')} className="underline hover:no-underline">Approvals</button> section.
+                            </p>
+                        )}
+                    </div>
+                    <button
+                        onClick={() => setApprovalMessage(null)}
+                        className="ml-auto text-current opacity-50 hover:opacity-100"
+                    >
+                        <XCircle className="h-4 w-4" />
+                    </button>
+                </div>
+            )}
+
+            {/* Link Error Message */}
+            {linkError && (
+                <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    {linkError}
+                    <button onClick={() => setLinkError(null)} className="ml-auto opacity-50 hover:opacity-100">
+                        <XCircle className="h-3 w-3" />
+                    </button>
+                </div>
+            )}
+
             {/* Header / Breadcrumb */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
                 <div className="space-y-2">

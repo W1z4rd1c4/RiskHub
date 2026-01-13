@@ -36,8 +36,8 @@ export const controlApi = {
         return apiClient.patch<Control | ApprovalCreatedResponse>(`/controls/${id}`, data);
     },
 
-    async deleteControl(id: number, reason: string = 'Archived by user'): Promise<void> {
-        return apiClient.delete<void>(`/controls/${id}?reason=${encodeURIComponent(reason)}`);
+    async deleteControl(id: number, reason: string = 'Archived by user'): Promise<void | ApprovalCreatedResponse> {
+        return apiClient.delete<void | ApprovalCreatedResponse>(`/controls/${id}?reason=${encodeURIComponent(reason)}`);
     },
 
     async logExecution(controlId: number, data: ControlExecutionCreate): Promise<ControlExecution> {
