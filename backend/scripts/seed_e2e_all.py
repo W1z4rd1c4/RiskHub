@@ -17,6 +17,7 @@ from scripts.seed_e2e_approvals import seed_approvals
 from scripts.seed_e2e_activity_logs import seed_activity_logs
 from scripts.seed_e2e_resolved_approvals import seed_resolved_approvals
 from scripts.seed_e2e_sensitive_approvals import seed_sensitive_approvals
+from scripts.seed_e2e_permission_actions import seed_permission_actions
 
 
 async def seed_e2e_all():
@@ -60,6 +61,10 @@ async def seed_e2e_all():
     print("\n8️⃣  Seeding Sensitive Field Approvals...")
     await seed_sensitive_approvals()
     
+    # Step 9: Seed permission-gated actions (Phase 179-10)
+    print("\n9️⃣  Seeding Permission-Gated Actions...")
+    await seed_permission_actions()
+    
     # Summary
     print("\n" + "="*60)
     print("✅ E2E TEST DATA SEEDING COMPLETE")
@@ -71,6 +76,9 @@ async def seed_e2e_all():
     print("   • 5 E2E pending approval requests")
     print("   • 4 E2E resolved approval requests")
     print("   • 7 E2E sensitive field approval requests")
+    print("   • 2 E2E delete permission approvals")
+    print("   • 3 E2E control execution logs")
+    print("   • 9 E2E KRI value history entries")
     print("   • 13 E2E activity log entries")
     print("\n💡 All entities prefixed with 'E2E-' for isolation")
     return 0
