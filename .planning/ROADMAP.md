@@ -602,7 +602,7 @@ Plans:
 - [x] 179-08: Resolved Approval Data (APPROVED/REJECTED/CANCELLED for workflow tests)
 - [x] 179-09: Sensitive Field Approval Data (pending approvals for owner/dept changes)
 - [x] 179-10: Permission-Gated Action Data (delete approvals, control executions, KRI corrections)
-- [ ] 179-11: Deterministic Cross-Department Scenarios (known user-entity ownership)
+- [x] 179-11: Deterministic Cross-Department Scenarios (known user-entity ownership)
 
 ### Phase 180: E2E Business Logic Testing
 **Goal**: Comprehensive E2E test suite covering all business logic defined in docs/BUSINESS_LOGIC.md
