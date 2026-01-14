@@ -190,9 +190,9 @@ async def capture_snapshot_metrics(
         risks_without_kri_query = risks_without_kri_query.where(Risk.department_id.in_(department_ids))
     risks_without_kri = await db.scalar(risks_without_kri_query)
     
-    # Active risks (current state)
+    # Active risks (current state) - only count active, not emerging
     active_conditions = [
-        Risk.status.in_([RiskStatus.active.value, RiskStatus.monitoring.value]),
+        Risk.status == RiskStatus.active.value,
     ]
     if department_ids is not None:
         active_conditions.append(Risk.department_id.in_(department_ids))

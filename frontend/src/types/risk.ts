@@ -7,11 +7,10 @@ export const RiskTypeCodes = {
     OPERATIONAL: 'operational',
 } as const;
 
-export type RiskStatus = 'active' | 'monitoring' | 'closed' | 'archived';
+export type RiskStatus = 'active' | 'emerging' | 'archived';
 export const RiskStatus = {
     ACTIVE: 'active' as RiskStatus,
-    MONITORING: 'monitoring' as RiskStatus,
-    CLOSED: 'closed' as RiskStatus,
+    EMERGING: 'emerging' as RiskStatus,
     ARCHIVED: 'archived' as RiskStatus,
 };
 
