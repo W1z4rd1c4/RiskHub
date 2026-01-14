@@ -269,10 +269,12 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                     return; // Stay on form, don't navigate
                 }
             } else {
-                await riskApi.createRisk(formData as RiskCreate);
+                const newRisk = await riskApi.createRisk(formData as RiskCreate);
+                navigate(`/risks/${newRisk.id}`);
+                return;
             }
 
-            navigate('/risks');
+            navigate(`/risks/${initialData?.id}`);
         } catch (err: unknown) {
             console.error('Error saving risk:', err);
             const message = err instanceof Error ? err.message : 'Failed to save risk. Please check your input.';

@@ -433,13 +433,12 @@ export function RisksPage() {
                 <div className="flex gap-4 items-center">
                     <ThemedSelect
                         value={statusFilter}
-                        onValueChange={(v) => { setStatusFilter(v as RiskStatus | ''); setRisks([]); setCurrentPage(1); }}
-                        placeholder={t('filters.all_statuses')}
-                        allowEmpty
-                        emptyLabel={t('filters.all_statuses')}
+                        onValueChange={(v) => { setStatusFilter(v as RiskStatus); setRisks([]); setCurrentPage(1); }}
+                        placeholder={t('status.active')}
                         options={[
                             { value: 'active', label: t('status.active') },
                             { value: 'emerging', label: t('status.emerging') },
+                            { value: 'archived', label: t('status.archived') },
                         ]}
                     />
                     <ThemedSelect

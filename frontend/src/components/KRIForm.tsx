@@ -151,10 +151,12 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                     return; // Stay on form, don't navigate
                 }
             } else {
-                await kriApi.createKRI(formData as KRICreate);
+                const newKRI = await kriApi.createKRI(formData as KRICreate);
+                navigate(`/kris/${newKRI.id}`);
+                return;
             }
 
-            navigate('/kris');
+            navigate(`/kris/${kriId}`);
         } catch (err: unknown) {
             console.error('Error saving KRI:', err);
             const message = err instanceof Error ? err.message : 'Failed to save KRI.';

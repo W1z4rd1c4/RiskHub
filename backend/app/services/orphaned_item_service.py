@@ -46,7 +46,7 @@ async def _create_orphan(
         item_id=item_id,
         previous_owner_id=previous_owner_id,
         status="pending",
-        orphaned_at=orphaned_at or datetime.now(UTC),
+        orphaned_at=orphaned_at or datetime.utcnow(),
     )
     db.add(orphan)
     logger.info(f"Flagged orphaned {item_type}: id={item_id}")
@@ -229,7 +229,7 @@ class OrphanedItemService:
                 item_id=risk.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.now(UTC)
+                orphaned_at=datetime.utcnow()
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -268,7 +268,7 @@ class OrphanedItemService:
                 item_id=control.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.now(UTC)
+                orphaned_at=datetime.utcnow()
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -314,7 +314,7 @@ class OrphanedItemService:
                 item_id=kri.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.now(UTC)
+                orphaned_at=datetime.utcnow()
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -353,7 +353,7 @@ class OrphanedItemService:
                 item_id=control.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.now(UTC)
+                orphaned_at=datetime.utcnow()
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -546,7 +546,7 @@ class OrphanedItemService:
         
         # Mark orphan as resolved
         orphan.status = "resolved"
-        orphan.resolved_at = datetime.now(UTC)
+        orphan.resolved_at = datetime.utcnow()
         orphan.resolved_by_id = resolved_by_id
         orphan.new_owner_id = new_owner_id
         
