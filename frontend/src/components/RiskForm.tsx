@@ -29,6 +29,7 @@ import {
     IMPACT_DESCRIPTIONS,
     formatFinancialRange
 } from '@/constants/riskScoreDescriptions';
+import { parseUpdateResult } from '@/lib/approvalUi';
 
 interface RiskFormProps {
     initialData?: Risk;
@@ -257,12 +258,12 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
 
             if (isEdit && initialData) {
                 const result = await riskApi.updateRisk(initialData.id, formData as RiskUpdate);
-                // Check for 202 approval-queued response
-                if (result && typeof result === 'object' && 'approval_id' in result) {
-                    const approvalResult = result as { approval_id: number; message?: string };
+                // Use standardized helper to check for 202 approval-queued response
+                const parsed = parseUpdateResult(result);
+                if (parsed.kind === 'approval') {
                     setApprovalQueued({
-                        id: approvalResult.approval_id,
-                        message: approvalResult.message || 'Your changes have been submitted for approval.',
+                        id: parsed.approvalId,
+                        message: parsed.message,
                     });
                     setIsSubmitting(false);
                     return; // Stay on form, don't navigate

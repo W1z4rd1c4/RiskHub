@@ -12,6 +12,7 @@ import {
     Clock,
     CheckCircle
 } from 'lucide-react';
+import { parseUpdateResult } from '@/lib/approvalUi';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
 import { userApi } from '@/services/userApi';
@@ -139,12 +140,12 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
 
             if (isEdit && kriId) {
                 const result = await kriApi.updateKRI(kriId, formData);
-                // Check for 202 approval-queued response
-                if (result && typeof result === 'object' && 'approval_id' in result) {
-                    const approvalResult = result as { approval_id: number; message?: string };
+                // Use standardized helper to check for 202 approval-queued response
+                const parsed = parseUpdateResult(result);
+                if (parsed.kind === 'approval') {
                     setApprovalQueued({
-                        id: approvalResult.approval_id,
-                        message: approvalResult.message || 'Your changes have been submitted for approval.',
+                        id: parsed.approvalId,
+                        message: parsed.message,
                     });
                     setIsSubmitting(false);
                     return; // Stay on form, don't navigate

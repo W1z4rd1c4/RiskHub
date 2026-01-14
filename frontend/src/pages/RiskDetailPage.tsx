@@ -24,6 +24,7 @@ import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab'
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 import { useTranslation } from 'react-i18next';
 import { isApprovalCreatedResponse } from '@/types/approval';
+import { parseUpdateResult } from '@/lib/approvalUi';
 
 type TabView = 'overview' | 'history';
 
@@ -197,11 +198,11 @@ export function RiskDetailPage() {
         try {
             if (selectedKRI) {
                 const result = await kriApi.updateKRI(selectedKRI.id, data as KRIUpdate);
-                // Check for 202 approval-queued response
-                if (result && typeof result === 'object' && 'approval_id' in result) {
-                    const approvalResult = result as { approval_id: number; message?: string };
+                // Use standardized helper to check for 202 approval-queued response
+                const parsed = parseUpdateResult(result);
+                if (parsed.kind === 'approval') {
                     setApprovalMessage(
-                        `KRI edit submitted for approval (ID: ${approvalResult.approval_id}). Changes will not be applied until approved.`
+                        `KRI edit submitted for approval (ID: ${parsed.approvalId}). Changes will not be applied until approved.`
                     );
                     setIsKRIModalOpen(false);
                     return; // Don't refresh data - changes aren't applied yet
