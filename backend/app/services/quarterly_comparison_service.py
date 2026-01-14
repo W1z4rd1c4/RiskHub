@@ -107,7 +107,7 @@ async def get_quarter_period_metrics(
     
     Returns only the 6 period-based metrics:
         - new_risks: Risks created in period
-        - closed_risks: Risks closed in period
+        - archived_risks: Risks archived in period
         - audit_activity: Control executions in period
         - failed_audits: Failed control executions in period
         - unaudited_controls: Active controls with no executions in period
