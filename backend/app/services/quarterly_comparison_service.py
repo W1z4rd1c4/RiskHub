@@ -125,16 +125,17 @@ async def get_quarter_period_metrics(
         select(func.count(Risk.id)).where(*risk_conditions)
     )
     
-    # Risks closed in period (end-exclusive: [start, end))
-    closed_conditions = [
+    # Risks archived in period (end-exclusive: [start, end))
+    # Note: 'closed' status was merged into 'archived' in Phase 2.2
+    archived_conditions = [
         Risk.updated_at >= start,
         Risk.updated_at < end,
-        Risk.status == RiskStatus.closed.value,
+        Risk.status == RiskStatus.archived.value,
     ]
     if dept_ids is not None:
-        closed_conditions.append(Risk.department_id.in_(dept_ids))
-    closed_risks = await db.scalar(
-        select(func.count(Risk.id)).where(*closed_conditions)
+        archived_conditions.append(Risk.department_id.in_(dept_ids))
+    archived_risks = await db.scalar(
+        select(func.count(Risk.id)).where(*archived_conditions)
     )
     
     # Audit activity: control executions in period (end-exclusive: [start, end))
@@ -188,7 +189,7 @@ async def get_quarter_period_metrics(
     
     return {
         "new_risks": new_risks or 0,
-        "closed_risks": closed_risks or 0,
+        "archived_risks": archived_risks or 0,
         "audit_activity": audit_activity or 0,
         "failed_audits": failed_audits or 0,
         "unaudited_controls": unaudited_controls or 0,
@@ -333,7 +334,7 @@ async def build_quarterly_comparison(
             "last_quarter": last_quarter_label,
             "last_quarter_snapshot_available": snapshot_available,
             "period_metrics": [
-                "new_risks", "closed_risks", "audit_activity",
+                "new_risks", "archived_risks", "audit_activity",
                 "failed_audits", "unaudited_controls", "activity_volume"
             ],
             "snapshot_metrics": list(snapshot_metric_names),

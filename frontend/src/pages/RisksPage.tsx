@@ -46,7 +46,7 @@ export function RisksPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('');
+    const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('active');
     const [typeFilter, setTypeFilter] = useState<string>('');
     const [priorityFilter, setPriorityFilter] = useState<boolean | undefined>(undefined);
     const [currentPage, setCurrentPage] = useState(1);
@@ -192,8 +192,7 @@ export function RisksPage() {
     const getStatusColor = (status: RiskStatus) => {
         switch (status) {
             case 'active': return 'text-emerald-400 bg-emerald-400/10';
-            case 'monitoring': return 'text-amber-400 bg-amber-400/10';
-            case 'closed': return 'text-slate-400 bg-slate-400/10';
+            case 'emerging': return 'text-amber-400 bg-amber-400/10';
             case 'archived': return 'text-rose-400 bg-rose-400/10';
             default: return 'text-slate-400 bg-slate-400/10';
         }
@@ -440,8 +439,7 @@ export function RisksPage() {
                         emptyLabel={t('filters.all_statuses')}
                         options={[
                             { value: 'active', label: t('status.active') },
-                            { value: 'monitoring', label: t('status.mitigated') },
-                            { value: 'closed', label: t('status.closed') },
+                            { value: 'emerging', label: t('status.emerging') },
                         ]}
                     />
                     <ThemedSelect
