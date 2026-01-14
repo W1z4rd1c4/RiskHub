@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
     Save,
     X,
@@ -13,7 +13,9 @@ import {
     Link as LinkIcon,
     Target,
     Search,
-    Plus
+    Plus,
+    Clock,
+    CheckCircle
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { StepIndicator } from '@/components/ui/StepIndicator';
@@ -53,6 +55,9 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Approval-queued state for edit flows (HTTP 202)
+    const [approvalQueued, setApprovalQueued] = useState<{ id: number; message: string } | null>(null);
 
     // Lookup data
     const [users, setUsers] = useState<UserLookupItem[]>([]);
@@ -244,11 +249,22 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
         try {
             setIsSubmitting(true);
             setError(null);
+            setApprovalQueued(null);
 
             let controlId = initialData?.id;
 
             if (isEdit && initialData) {
-                await controlApi.updateControl(initialData.id, formData as ControlUpdate);
+                const result = await controlApi.updateControl(initialData.id, formData as ControlUpdate);
+                // Check for 202 approval-queued response
+                if (result && typeof result === 'object' && 'approval_id' in result) {
+                    const approvalResult = result as { approval_id: number; message?: string };
+                    setApprovalQueued({
+                        id: approvalResult.approval_id,
+                        message: approvalResult.message || 'Your changes have been submitted for approval.',
+                    });
+                    setIsSubmitting(false);
+                    return; // Stay on form, don't navigate
+                }
             } else {
                 const newControl = await controlApi.createControl(formData as ControlCreate);
                 controlId = newControl.id;
@@ -331,6 +347,37 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
             />
 
             <div className="glass-card min-h-[400px] flex flex-col">
+                {/* Approval-queued banner */}
+                {approvalQueued && (
+                    <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                        <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                            <p className="text-amber-200 text-sm font-medium">
+                                Submitted for approval (ID: {approvalQueued.id})
+                            </p>
+                            <p className="text-amber-400/80 text-xs mt-1">
+                                {approvalQueued.message}
+                            </p>
+                            <div className="mt-3 flex gap-3">
+                                <Link
+                                    to="/approvals"
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-100 transition-colors"
+                                >
+                                    <CheckCircle className="h-3.5 w-3.5" />
+                                    Go to Approvals
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => setApprovalQueued(null)}
+                                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {error && (
                     <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-400 text-sm font-medium">
                         <AlertCircle className="h-5 w-5" />
