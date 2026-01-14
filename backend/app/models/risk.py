@@ -12,10 +12,14 @@ class RiskType(str, PyEnum):
 
 
 class RiskStatus(str, PyEnum):
-    """Status of the risk."""
+    """Status of the risk.
+    
+    - active: Current identified risks under management (shown in dashboards)
+    - emerging: Market/country risks being monitored (excluded from dashboards)
+    - archived: Soft-deleted risks (approved deletion)
+    """
     active = "active"
-    monitoring = "monitoring"
-    closed = "closed"
+    emerging = "emerging"
     archived = "archived"
 
 
