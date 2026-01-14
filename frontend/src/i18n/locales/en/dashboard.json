@@ -56,7 +56,7 @@
     },
     "quarterly": {
         "new_risks": "New Risks",
-        "closed_risks": "Closed Risks",
+        "archived_risks": "Archived Risks",
         "active_risks": "Active Risks",
         "priority_risks": "Priority Risks",
         "kri_breaches": "KRI Breaches",

@@ -18,8 +18,7 @@ class RiskTypeEnum(str, Enum):
 class RiskStatusEnum(str, Enum):
     """Status of the risk."""
     active = "active"
-    monitoring = "monitoring"
-    closed = "closed"
+    emerging = "emerging"
     archived = "archived"
 
 

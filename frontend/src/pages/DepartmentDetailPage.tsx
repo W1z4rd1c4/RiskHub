@@ -39,7 +39,7 @@ const riskColumns: Column<RiskSummary>[] = [
         sortable: true,
         render: (risk) => (
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${risk.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
-                risk.status === 'monitoring' ? 'bg-blue-500/20 text-blue-400' :
+                risk.status === 'emerging' ? 'bg-amber-500/20 text-amber-400' :
                     'bg-slate-500/20 text-slate-400'
                 }`}>
                 {risk.status}

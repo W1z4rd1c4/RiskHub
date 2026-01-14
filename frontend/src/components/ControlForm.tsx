@@ -286,6 +286,8 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
 
             if (onSuccess && controlId) {
                 onSuccess(controlId);
+            } else if (controlId) {
+                navigate(`/controls/${controlId}`);
             } else {
                 navigate('/controls');
             }

@@ -11,7 +11,7 @@ export const mockControls = [
 
 export const mockRisks = [
     { id: 1, process: 'User Authentication', category: 'IT', net_score: 12, status: 'active', is_priority: true },
-    { id: 2, process: 'Data Backup', category: 'Operations', net_score: 6, status: 'monitoring', is_priority: false },
+    { id: 2, process: 'Data Backup', category: 'Operations', net_score: 6, status: 'emerging', is_priority: false },
 ];
 
 export const mockDashboard = {
