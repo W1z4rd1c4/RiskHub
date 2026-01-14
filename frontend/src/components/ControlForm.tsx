@@ -811,6 +811,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
 
                     {currentStep < steps.length - 1 ? (
                         <button
+                            key="next-step"
                             type="button"
                             onClick={nextStep}
                             className="btn-primary"
@@ -819,6 +820,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                         </button>
                     ) : (
                         <button
+                            key="submit"
                             type="submit"
                             disabled={isSubmitting}
                             className="btn-primary"
