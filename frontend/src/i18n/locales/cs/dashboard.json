@@ -56,7 +56,7 @@
     },
     "quarterly": {
         "new_risks": "Nová rizika",
-        "closed_risks": "Uzavřená rizika",
+        "archived_risks": "Archivovaná rizika",
         "active_risks": "Aktivní rizika",
         "priority_risks": "Prioritní rizika",
         "kri_breaches": "Překročení KRI",

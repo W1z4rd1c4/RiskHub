@@ -232,8 +232,7 @@ export function RiskDetailPage() {
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'active': return 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5';
-            case 'monitoring': return 'text-amber-400 border-amber-400/20 bg-amber-400/5';
-            case 'closed': return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
+            case 'emerging': return 'text-amber-400 border-amber-400/20 bg-amber-400/5';
             case 'archived': return 'text-rose-400 border-rose-400/20 bg-rose-400/5';
             default: return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
         }

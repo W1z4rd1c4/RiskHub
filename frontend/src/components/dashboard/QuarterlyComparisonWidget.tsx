@@ -33,7 +33,7 @@ const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'];
 const METRIC_COLORS: Record<string, { positive: string; negative: string }> = {
     // Row 1: Risk Posture
     new_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    closed_risks: { positive: 'text-emerald-400', negative: 'text-rose-400' },
+    archived_risks: { positive: 'text-emerald-400', negative: 'text-rose-400' },
     active_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
     priority_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
     kri_breaches: { positive: 'text-rose-400', negative: 'text-emerald-400' },
@@ -98,7 +98,7 @@ export function QuarterlyComparisonWidget() {
     // Metric labels with translations
     const metricLabels: Record<string, string> = useMemo(() => ({
         new_risks: t('quarterly.new_risks', 'New Risks'),
-        closed_risks: t('quarterly.closed_risks', 'Closed Risks'),
+        archived_risks: t('quarterly.archived_risks', 'Archived Risks'),
         active_risks: t('quarterly.active_risks', 'Active Risks'),
         priority_risks: t('quarterly.priority_risks', 'Priority Risks'),
         kri_breaches: t('quarterly.kri_breaches', 'KRI Breaches'),
