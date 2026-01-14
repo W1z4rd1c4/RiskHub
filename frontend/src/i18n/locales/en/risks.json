@@ -45,9 +45,8 @@
     },
     "status": {
         "active": "Active",
-        "mitigated": "Mitigated",
-        "accepted": "Accepted",
-        "closed": "Closed"
+        "emerging": "Emerging",
+        "archived": "Archived"
     },
     "tabs": {
         "overview": "Overview",

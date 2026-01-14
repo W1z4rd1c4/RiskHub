@@ -45,9 +45,8 @@
     },
     "status": {
         "active": "Aktivní",
-        "mitigated": "Zmírněno",
-        "accepted": "Akceptováno",
-        "closed": "Uzavřeno"
+        "emerging": "Vznikající",
+        "archived": "Archivované"
     },
     "tabs": {
         "overview": "Přehled",
