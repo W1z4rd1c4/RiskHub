@@ -59,6 +59,7 @@
 | Complex permission logic | ✅ Moved to services (Phase 250) |
 | Duplicate approval code | ✅ Consolidated to `approval_helpers.py` (Phase 250) |
 | `Record<string, unknown>` types | ✅ Replaced with explicit types (Phase 251) |
+| Hardcoded strings | ✅ i18n wired (Phase 20-16) |
 
 ## Data Integrity ✅
 
@@ -74,8 +75,19 @@
 | Azure AD/Entra ID integration | AD Emulator is placeholder |
 | Real-time updates (WebSocket) | Polling only |
 | PDF chart exports | Text/table only |
-| Multi-language support | English default, Czech planned |
-| **KRI period visibility** | Users should see which period they're submitting for |
+
+## E2E Test Coverage (Phase 180)
+
+31 Playwright specs covering:
+
+- ✅ Authentication and authorization
+- ✅ CRUD operations for controls, risks, KRIs
+- ✅ Activity logging and change tracking
+- ✅ Approval workflows (tiered, self-approval, status-flow)
+- ✅ Cross-department access scenarios
+- ✅ Entity ownership rules
+- ✅ Sensitive field protection
+- ✅ Settings isolation (theme/language per user)
 
 ## Phase 153 Audit Findings (2026-01-11)
 
@@ -125,6 +137,14 @@
 - ✅ Approval workflow edge cases - cancel, tiered fields
 - ✅ KRI period semantics - non-privileged submit for closed periods only
 
+## Recent Remediation (Phase 154+)
+
+- ✅ Cross-department access for control owners, KRI owners
+- ✅ Link management access via entity ownership
+- ✅ Approval-queued UX with 202 detection helper
+- ✅ Control frequency "continuous" support
+- ✅ i18n wiring for Czech localization
+
 ## Recent Remediation (Phase 250 - Code Simplification)
 
 - ✅ Extracted data-fetching hooks (`useDepartmentDetail`, `useUsersPageFilters`)
@@ -145,6 +165,7 @@
 - ✅ Simplified `LinkManagementDialog` with `LinkSearchPanel` and `ExistingLinksPanel`
 - ✅ Replaced `Record<string, unknown>` with explicit `SearchResultItem`, `ExistingLinkItem`
 - ✅ Added shared hooks: `useDebouncedValue`, `usePendingApprovalIds`
+- ✅ Added theme-aware charting: `useChartTheme` hook
 - ✅ Removed ~1000+ lines of duplicated/complex code across 10 plans
 
-*Updated: 2026-01-10*
+*Updated: 2026-01-14*
