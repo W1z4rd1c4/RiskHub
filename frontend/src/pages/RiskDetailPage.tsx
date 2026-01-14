@@ -196,14 +196,23 @@ export function RiskDetailPage() {
         if (!risk) return;
         try {
             if (selectedKRI) {
-                await kriApi.updateKRI(selectedKRI.id, data as KRIUpdate);
+                const result = await kriApi.updateKRI(selectedKRI.id, data as KRIUpdate);
+                // Check for 202 approval-queued response
+                if (result && typeof result === 'object' && 'approval_id' in result) {
+                    const approvalResult = result as { approval_id: number; message?: string };
+                    setApprovalMessage(
+                        `KRI edit submitted for approval (ID: ${approvalResult.approval_id}). Changes will not be applied until approved.`
+                    );
+                    setIsKRIModalOpen(false);
+                    return; // Don't refresh data - changes aren't applied yet
+                }
             } else {
                 await kriApi.createKRI(data as KRICreate);
             }
             await fetchData();
         } catch (err) {
             console.error('KRI Save failed:', err);
-            alert('Failed to save KRI.');
+            setApprovalMessage('Failed to save KRI. Please try again.');
         }
     };
 
@@ -264,8 +273,8 @@ export function RiskDetailPage() {
             {/* Approval/Error Message Banner */}
             {approvalMessage && (
                 <div className={`p-4 rounded-xl border flex items-start gap-3 ${approvalMessage.includes('Failed')
-                        ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                        : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                     }`}>
                     <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                     <div>
