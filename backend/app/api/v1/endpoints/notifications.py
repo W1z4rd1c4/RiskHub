@@ -127,15 +127,16 @@ async def update_notification_preferences(
     return NotificationPreferences(**{**defaults.model_dump(), **new_prefs})
 
 
-@router.post("/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/{notification_id}/read")
 async def mark_as_read(
     notification_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
-):
+) -> dict[str, int]:
     """
     Mark a single notification as read.
     Only the notification owner can mark it as read.
+    Returns the updated unread count for immediate UI sync.
     """
     result = await db.execute(
         select(Notification).where(Notification.id == notification_id)
@@ -151,6 +152,16 @@ async def mark_as_read(
     
     notification.is_read = True
     await db.commit()
+    
+    # Return current unread count for UI sync
+    count_result = await db.execute(
+        select(func.count()).where(
+            Notification.user_id == current_user.id,
+            Notification.is_read == False
+        )
+    )
+    unread_count = count_result.scalar() or 0
+    return {"unread_count": unread_count}
 
 
 @router.post("/read-all", status_code=status.HTTP_204_NO_CONTENT)

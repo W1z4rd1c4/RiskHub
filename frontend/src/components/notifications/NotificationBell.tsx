@@ -97,7 +97,7 @@ export function NotificationBell() {
             const fetchNotifications = async () => {
                 setLoading(true);
                 try {
-                    const response = await notificationsApi.list({ limit: 5, unread_only: false });
+                    const response = await notificationsApi.list({ limit: 10, unread_only: false });
                     setNotifications(response.items);
                     setUnreadCount(response.unread_count);
                 } catch (error) {
@@ -122,19 +122,24 @@ export function NotificationBell() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleNotificationClick = async (notification: Notification) => {
-        // Mark as read
+    // Mark notification as read (shared by click and hover)
+    const markAsRead = async (notification: Notification) => {
         if (!notification.is_read) {
             try {
-                await notificationsApi.markAsRead(notification.id);
+                const { unread_count } = await notificationsApi.markAsRead(notification.id);
                 setNotifications(prev =>
                     prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
                 );
-                setUnreadCount(prev => Math.max(0, prev - 1));
+                setUnreadCount(unread_count);  // Server-authoritative count
             } catch (error) {
                 console.error('Failed to mark as read:', error);
             }
         }
+    };
+
+    const handleNotificationClick = async (notification: Notification) => {
+        // Mark as read on click
+        await markAsRead(notification);
 
         // Navigate to resource
         const path = getResourcePath(notification.resource_type, notification.resource_id);
@@ -190,7 +195,7 @@ export function NotificationBell() {
                     </div>
 
                     {/* Notification List */}
-                    <div className="max-h-80 overflow-y-auto">
+                    <div className="max-h-[40rem] overflow-y-auto">
                         {loading ? (
                             <div className="p-4 text-center text-slate-400">{t('loading.generic')}</div>
                         ) : notifications.length === 0 ? (
@@ -204,6 +209,7 @@ export function NotificationBell() {
                                     <button
                                         key={notification.id}
                                         onClick={() => handleNotificationClick(notification)}
+                                        onMouseEnter={() => markAsRead(notification)}
                                         className={`w-full text-left px-4 py-3 hover:bg-white/5 transition-colors ${!notification.is_read ? 'bg-accent/5' : ''
                                             }`}
                                     >
