@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
     ArrowLeft,
     Building2,
@@ -13,6 +14,7 @@ import {
     XCircle,
     MinusCircle,
     Target,
+    TrendingDown,
 } from 'lucide-react';
 import { SortableTable, Pagination, type Column } from '@/components/tables';
 import {
@@ -30,12 +32,36 @@ import type { KeyRiskIndicator } from '@/types/kri';
 // Column Definitions
 // ─────────────────────────────────────────────────────────────────────────────
 
-const riskColumns: Column<RiskSummary>[] = [
-    { key: 'process', label: 'Process', sortable: true },
-    { key: 'category', label: 'Category', sortable: true },
+const getRiskColumns = (t: (key: string, fallback?: string) => string): Column<RiskSummary>[] => [
+    {
+        key: 'name',
+        label: t('common:labels.risk_name', 'Risk Name'),
+        sortable: true,
+        render: (risk) => <span className="font-medium text-white">{risk.name}</span>,
+    },
+    {
+        key: 'description',
+        label: t('common:labels.description', 'Description'),
+        sortable: false,
+        render: (risk) => (
+            <span className="text-slate-400 text-xs line-clamp-2 max-w-xs">
+                {risk.description || '—'}
+            </span>
+        ),
+    },
+    { key: 'process', label: t('common:labels.process', 'Process'), sortable: true },
+    { key: 'category', label: t('common:labels.category', 'Category'), sortable: true },
+    {
+        key: 'risk_type',
+        label: t('common:labels.type', 'Type'),
+        sortable: true,
+        render: (risk) => (
+            <span className="text-slate-400 capitalize">{risk.risk_type || '—'}</span>
+        ),
+    },
     {
         key: 'status',
-        label: 'Status',
+        label: t('common:labels.status', 'Status'),
         sortable: true,
         render: (risk) => (
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${risk.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
@@ -48,41 +74,64 @@ const riskColumns: Column<RiskSummary>[] = [
     },
     {
         key: 'gross_score',
-        label: 'Gross',
+        label: t('common:labels.gross', 'Gross'),
         sortable: true,
         render: (risk) => (
-            <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${risk.gross_score >= 16 ? 'border-rose-500 text-rose-400' :
-                risk.gross_score >= 10 ? 'border-orange-500 text-orange-400' :
-                    risk.gross_score >= 5 ? 'border-amber-500 text-amber-400' :
-                        'border-emerald-500 text-emerald-400'
+            <span className={`text-sm font-black ${risk.gross_score >= 16 ? 'text-rose-400' :
+                risk.gross_score >= 10 ? 'text-orange-400' :
+                    risk.gross_score >= 5 ? 'text-amber-400' :
+                        'text-emerald-400'
                 }`}>
                 {risk.gross_score}
-            </div>
+            </span>
         ),
     },
     {
         key: 'net_score',
-        label: 'Net',
+        label: t('common:labels.net', 'Net'),
         sortable: true,
         render: (risk) => (
-            <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${risk.net_score >= 16 ? 'border-rose-500 text-rose-400' :
-                risk.net_score >= 10 ? 'border-orange-500 text-orange-400' :
-                    risk.net_score >= 5 ? 'border-amber-500 text-amber-400' :
-                        'border-emerald-500 text-emerald-400'
+            <span className={`text-sm font-black ${risk.net_score >= 16 ? 'text-rose-400' :
+                risk.net_score >= 10 ? 'text-orange-400' :
+                    risk.net_score >= 5 ? 'text-amber-400' :
+                        'text-emerald-400'
                 }`}>
                 {risk.net_score}
-            </div>
+            </span>
         ),
     },
 ];
 
-const controlColumns: Column<ControlSummary>[] = [
-    { key: 'name', label: 'Control Name', sortable: true },
-    { key: 'control_form', label: 'Form', sortable: true },
-    { key: 'frequency', label: 'Frequency', sortable: true },
+const getControlColumns = (t: (key: string, fallback?: string) => string): Column<ControlSummary>[] => [
+    {
+        key: 'name',
+        label: t('common:labels.name', 'Name'),
+        sortable: true,
+        render: (control) => <span className="font-medium text-white">{control.name}</span>,
+    },
+    {
+        key: 'description',
+        label: t('common:labels.description', 'Description'),
+        sortable: false,
+        render: (control) => (
+            <span className="text-slate-400 text-xs line-clamp-2 max-w-xs">
+                {control.description || '—'}
+            </span>
+        ),
+    },
+    {
+        key: 'control_owner_name',
+        label: t('common:labels.owner', 'Owner'),
+        sortable: true,
+        render: (control) => (
+            <span className="text-slate-300">{control.control_owner_name || '—'}</span>
+        ),
+    },
+    { key: 'control_form', label: t('common:labels.form', 'Form'), sortable: true },
+    { key: 'frequency', label: t('common:labels.frequency', 'Frequency'), sortable: true },
     {
         key: 'status',
-        label: 'Status',
+        label: t('common:labels.status', 'Status'),
         sortable: true,
         render: (control) => (
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${control.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
@@ -92,41 +141,57 @@ const controlColumns: Column<ControlSummary>[] = [
             </span>
         ),
     },
-    {
-        key: 'risk_level',
-        label: 'Risk Level',
-        sortable: true,
-        render: (control) => (
-            <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${control.risk_level >= 4 ? 'border-rose-500 text-rose-400' :
-                control.risk_level >= 3 ? 'border-amber-500 text-amber-400' :
-                    'border-emerald-500 text-emerald-400'
-                }`}>
-                {control.risk_level}/5
-            </div>
-        ),
-    },
 ];
 
-const kriColumns: Column<KeyRiskIndicator>[] = [
+const getKriColumns = (t: (key: string, fallback?: string) => string): Column<KeyRiskIndicator>[] => [
     {
         key: 'metric_name',
-        label: 'Metric',
+        label: t('common:labels.name', 'Name'),
         sortable: true,
         render: (kri) => <span className="font-medium text-white">{kri.metric_name}</span>,
     },
     {
-        key: 'current_value',
-        label: 'Value',
+        key: 'description',
+        label: t('common:labels.description', 'Description'),
+        sortable: false,
+        render: (kri) => (
+            <span className="text-slate-400 text-xs line-clamp-2 max-w-xs">
+                {kri.description || '—'}
+            </span>
+        ),
+    },
+    {
+        key: 'reporting_owner_name',
+        label: t('common:labels.owner', 'Owner'),
         sortable: true,
         render: (kri) => (
-            <span className={`font-black ${kri.breach_status !== 'within' ? 'text-rose-400' : 'text-white'}`}>
-                {kri.current_value.toLocaleString('cs-CZ')} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
+            <span className="text-slate-300">{kri.reporting_owner_name || kri.risk_owner_name || '—'}</span>
+        ),
+    },
+    {
+        key: 'lower_limit',
+        label: t('common:labels.limits', 'Limits'),
+        sortable: false,
+        render: (kri) => (
+            <span className="text-slate-400 text-xs font-mono">
+                {kri.lower_limit.toLocaleString()} – {kri.upper_limit.toLocaleString()} {kri.unit}
+            </span>
+        ),
+    },
+    {
+        key: 'current_value',
+        label: t('common:labels.value', 'Value'),
+        sortable: true,
+        render: (kri) => (
+            <span className={`text-sm font-black ${kri.breach_status !== 'within' ? 'text-rose-400' : 'text-emerald-400'
+                }`}>
+                {kri.current_value.toLocaleString()} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
             </span>
         ),
     },
     {
         key: 'breach_status',
-        label: 'Status',
+        label: t('common:labels.status', 'Status'),
         sortable: true,
         render: (kri) => (
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${kri.breach_status === 'within' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
@@ -135,14 +200,22 @@ const kriColumns: Column<KeyRiskIndicator>[] = [
             </span>
         ),
     },
+    {
+        key: 'frequency',
+        label: t('common:labels.frequency', 'Frequency'),
+        sortable: true,
+        render: (kri) => (
+            <span className="text-slate-400 capitalize">{kri.frequency || '—'}</span>
+        ),
+    },
 ];
 
-const userColumns: Column<DeptUser>[] = [
-    { key: 'name', label: 'Name', sortable: true, render: (u) => <span className="text-white font-medium">{u.name}</span> },
-    { key: 'email', label: 'Email', sortable: true },
+const getUserColumns = (t: (key: string, fallback?: string) => string): Column<DeptUser>[] => [
+    { key: 'name', label: t('common:labels.name', 'Name'), sortable: true, render: (u) => <span className="text-white font-medium">{u.name}</span> },
+    { key: 'email', label: t('common:labels.email', 'Email'), sortable: true },
     {
         key: 'role_name',
-        label: 'Role',
+        label: t('common:labels.role', 'Role'),
         sortable: true,
         render: (u) => <span className="px-2 py-0.5 rounded-md bg-white/10 text-slate-300 text-[10px] uppercase font-bold">{u.role_name || 'Unknown'}</span>
     },
@@ -175,9 +248,12 @@ export function DepartmentDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
+    const { t } = useTranslation(['common', 'dashboard']);
+
     // UI state (kept in page for tab/pagination control)
     const [activeTab, setActiveTab] = useState<TabView>('risks');
     const [riskFilter, setRiskFilter] = useState<'all' | 'high'>('all');
+    const [kriFilter, setKriFilter] = useState<'all' | 'breach'>('all');
     const [riskPage, setRiskPage] = useState(1);
     const [controlPage, setControlPage] = useState(1);
     const [kriPage, setKriPage] = useState(1);
@@ -187,6 +263,11 @@ export function DepartmentDetailPage() {
     useEffect(() => {
         setRiskPage(1);
     }, [riskFilter, id]);
+
+    // Reset KRI page when filter changes
+    useEffect(() => {
+        setKriPage(1);
+    }, [kriFilter, id]);
 
     const departmentId = id ? Number(id) : undefined;
 
@@ -222,7 +303,21 @@ export function DepartmentDetailPage() {
         setControlPage(1);
         setKriPage(1);
         setUserPage(1);
+        setKriFilter('all');
+        setRiskFilter('all');
     };
+
+    // Compute breach count from kris (or from department if available)
+    const getKriBreachCount = () => {
+        if (!department) return 0;
+        // Use kris array if on kris tab, otherwise estimate from department
+        return kris.filter(k => k.breach_status !== 'within').length;
+    };
+
+    // Filter KRIs based on kriFilter state
+    const filteredKris = kriFilter === 'breach'
+        ? kris.filter(k => k.breach_status !== 'within')
+        : kris;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Render: Loading State
@@ -269,7 +364,7 @@ export function DepartmentDetailPage() {
         <div className="space-y-4">
             <SortableTable
                 data={risks}
-                columns={riskColumns}
+                columns={getRiskColumns(t)}
                 keyExtractor={(risk) => risk.id}
                 onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
                 emptyMessage={riskFilter === 'high' ? 'No high-risk items found.' : 'No risks found for this department.'}
@@ -290,7 +385,7 @@ export function DepartmentDetailPage() {
         <div className="space-y-4">
             <SortableTable
                 data={controls}
-                columns={controlColumns}
+                columns={getControlColumns(t)}
                 keyExtractor={(control) => control.id}
                 onRowClick={(control) => navigate(`/controls/${control.id}`)}
                 emptyMessage="No controls found for this department."
@@ -310,11 +405,13 @@ export function DepartmentDetailPage() {
     const renderKrisTab = () => (
         <div className="space-y-4">
             <SortableTable
-                data={kris}
-                columns={kriColumns}
+                data={filteredKris}
+                columns={getKriColumns(t)}
                 keyExtractor={(kri) => kri.id}
                 onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
-                emptyMessage="No KRIs found for this department."
+                emptyMessage={kriFilter === 'breach'
+                    ? t('common:empty.no_kris_breach', 'No KRIs are currently in breach.')
+                    : t('common:empty.no_kris_department', 'No KRIs found for this department.')}
             />
             {kriTotalPages > 1 && (
                 <Pagination
@@ -332,7 +429,7 @@ export function DepartmentDetailPage() {
         <div className="space-y-4">
             <SortableTable
                 data={users}
-                columns={userColumns}
+                columns={getUserColumns(t)}
                 keyExtractor={(u) => u.id}
                 onRowClick={(u) => navigate(`/users/${u.id}`)}
                 emptyMessage="No users found for this department."
@@ -424,14 +521,14 @@ export function DepartmentDetailPage() {
             </div>
 
             {/* Stats Row */}
-            <div className="grid grid-cols-5 gap-6">
+            <div className="grid grid-cols-6 gap-4">
                 <div
                     onClick={() => { setActiveTab('risks'); setRiskFilter('all'); }}
                     className={`glass-card cursor-pointer hover:bg-white/5 transition-all group ${activeTab === 'risks' && riskFilter === 'all' ? 'border-accent/50 bg-accent/5' : ''}`}
                 >
                     <div className="flex items-center gap-3 mb-2">
                         <ShieldAlert className="h-5 w-5 text-amber-400 group-hover:scale-110 transition-transform" />
-                        <p className="text-xs text-slate-500 uppercase tracking-wider">Total Risks</p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('common:labels.risk', 'Risks')}</p>
                     </div>
                     <p className="text-3xl font-black text-white">{department.risk_count}</p>
                 </div>
@@ -441,13 +538,13 @@ export function DepartmentDetailPage() {
                 >
                     <div className="flex items-center gap-3 mb-2">
                         <Shield className="h-5 w-5 text-emerald-400 group-hover:scale-110 transition-transform" />
-                        <p className="text-xs text-slate-500 uppercase tracking-wider">Total Controls</p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('common:labels.control', 'Controls')}</p>
                     </div>
                     <p className="text-3xl font-black text-white">{department.control_count}</p>
                 </div>
                 <div
-                    onClick={() => setActiveTab('kris')}
-                    className={`glass-card cursor-pointer hover:bg-white/5 transition-all group ${activeTab === 'kris' ? 'border-accent/50 bg-accent/5' : ''}`}
+                    onClick={() => { setActiveTab('kris'); setKriFilter('all'); }}
+                    className={`glass-card cursor-pointer hover:bg-white/5 transition-all group ${activeTab === 'kris' && kriFilter === 'all' ? 'border-accent/50 bg-accent/5' : ''}`}
                 >
                     <div className="flex items-center gap-3 mb-2">
                         <Target className="h-5 w-5 text-accent group-hover:scale-110 transition-transform" />
@@ -456,12 +553,23 @@ export function DepartmentDetailPage() {
                     <p className="text-3xl font-black text-white">{department.kri_count}</p>
                 </div>
                 <div
+                    onClick={() => { setActiveTab('kris'); setKriFilter('breach'); }}
+                    className={`glass-card cursor-pointer hover:bg-white/5 transition-all group ${activeTab === 'kris' && kriFilter === 'breach' ? 'border-rose-500/50 bg-rose-500/5' : ''}`}
+                    title={t('dashboard:kri_breaches', 'KRI Breaches')}
+                >
+                    <div className="flex items-center gap-3 mb-2">
+                        <TrendingDown className="h-5 w-5 text-rose-400 group-hover:scale-110 transition-transform" />
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:kri_breaches', 'KRI Breaches')}</p>
+                    </div>
+                    <p className="text-3xl font-black text-rose-400">{getKriBreachCount()}</p>
+                </div>
+                <div
                     onClick={() => setActiveTab('users')}
                     className={`glass-card cursor-pointer hover:bg-white/5 transition-all group ${activeTab === 'users' ? 'border-accent/50 bg-accent/5' : ''}`}
                 >
                     <div className="flex items-center gap-3 mb-2">
                         <Users className="h-5 w-5 text-blue-400 group-hover:scale-110 transition-transform" />
-                        <p className="text-xs text-slate-500 uppercase tracking-wider">Active Users</p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:active_users', 'Active Users')}</p>
                     </div>
                     <p className="text-3xl font-black text-white">{department.user_count}</p>
                 </div>
@@ -472,7 +580,7 @@ export function DepartmentDetailPage() {
                 >
                     <div className="flex items-center gap-3 mb-2">
                         <AlertCircle className="h-5 w-5 text-rose-400 group-hover:scale-110 transition-transform" />
-                        <p className="text-xs text-slate-500 uppercase tracking-wider">High Risk</p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:high_risk', 'High Risk')}</p>
                     </div>
                     <p className="text-3xl font-black text-rose-400">{department.risk_distribution.critical + department.risk_distribution.high}</p>
                 </div>

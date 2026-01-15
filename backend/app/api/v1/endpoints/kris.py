@@ -172,13 +172,23 @@ async def list_overdue_kris(
     
     overdue = await KRIHistoryService.get_overdue_kris(db)
     
-    # Filter by explicit department_id parameter if provided
+    # Compute user's allowed departments FIRST (RBAC)
+    dept_ids = get_user_department_ids(current_user)
+    
+    # Validate department_id filter against user's access scope
     if department_id is not None:
+        # Privileged users (dept_ids=None) can filter any department
+        if dept_ids is None:
+            filtered = [item for item in overdue if item.get("department_id") == department_id]
+            return filtered
+        # Non-privileged: only allow filtering within their own departments
+        if department_id not in dept_ids:
+            # Return empty to avoid leaking department existence (match existing patterns)
+            return []
         filtered = [item for item in overdue if item.get("department_id") == department_id]
         return filtered
     
-    # Filter by department access (RBAC)
-    dept_ids = get_user_department_ids(current_user)
+    # No explicit filter: apply department scoping
     if dept_ids is not None:
         filtered = [item for item in overdue if item.get("department_id") in dept_ids]
         return filtered
@@ -202,13 +212,23 @@ async def list_due_soon_kris(
     
     due_soon = await KRIHistoryService.get_due_soon_kris(db)
     
-    # Filter by explicit department_id parameter if provided
+    # Compute user's allowed departments FIRST (RBAC)
+    dept_ids = get_user_department_ids(current_user)
+    
+    # Validate department_id filter against user's access scope
     if department_id is not None:
+        # Privileged users (dept_ids=None) can filter any department
+        if dept_ids is None:
+            filtered = [item for item in due_soon if item.get("department_id") == department_id]
+            return filtered
+        # Non-privileged: only allow filtering within their own departments
+        if department_id not in dept_ids:
+            # Return empty to avoid leaking department existence (match existing patterns)
+            return []
         filtered = [item for item in due_soon if item.get("department_id") == department_id]
         return filtered
     
-    # Filter by department access (RBAC)
-    dept_ids = get_user_department_ids(current_user)
+    # No explicit filter: apply department scoping
     if dept_ids is not None:
         filtered = [item for item in due_soon if item.get("department_id") in dept_ids]
         return filtered

@@ -118,5 +118,8 @@
         "meeting_mode": "Meeting Mode",
         "executive_summary": "Executive Summary",
         "quarterly_metrics": "Quarterly Metrics"
-    }
+    },
+    "kri_breaches": "KRI Breaches",
+    "active_users": "Active Users",
+    "high_risk": "High Risk"
 }
