@@ -16,9 +16,10 @@ export const notificationsApi = {
 
     /**
      * Mark a single notification as read.
+     * Returns the updated unread count for UI sync.
      */
     markAsRead: (id: number) =>
-        apiClient.post<void>(`/notifications/${id}/read`, {}),
+        apiClient.post<{ unread_count: number }>(`/notifications/${id}/read`, {}),
 
     /**
      * Mark all notifications as read.
