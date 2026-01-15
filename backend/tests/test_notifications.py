@@ -74,7 +74,7 @@ async def test_mark_as_read(
     auth_client: AsyncClient,
     test_user,
 ):
-    """Test marking a notification as read."""
+    """Test marking a notification as read returns updated unread count."""
     notification = await NotificationService.create_notification(
         db=db_session,
         user_id=test_user.id,
@@ -84,11 +84,14 @@ async def test_mark_as_read(
     )
     await db_session.commit()
     
-    # Mark as read
+    # Mark as read - now returns 200 with unread_count
     response = await auth_client.post(f"/api/v1/notifications/{notification.id}/read")
-    assert response.status_code == 204
+    assert response.status_code == 200
+    data = response.json()
+    assert "unread_count" in data
+    assert data["unread_count"] == 0  # Should be 0 after marking the only notification as read
     
-    # Verify unread count is now 0
+    # Verify via separate endpoint too
     count_response = await auth_client.get("/api/v1/notifications/unread/count")
     assert count_response.json()["count"] == 0
 
