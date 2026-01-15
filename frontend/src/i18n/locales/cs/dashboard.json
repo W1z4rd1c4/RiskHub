@@ -118,5 +118,8 @@
         "meeting_mode": "Režim schůze",
         "executive_summary": "Manažerský přehled",
         "quarterly_metrics": "Čtvrtletní metriky"
-    }
+    },
+    "kri_breaches": "Porušení KRI",
+    "active_users": "Aktivní uživatelé",
+    "high_risk": "Vysoké riziko"
 }

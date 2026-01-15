@@ -510,6 +510,7 @@ async def list_department_controls(
         ControlSummary(
             id=c.id,
             name=c.name,
+            description=c.description,
             department_id=c.department_id,
             department_name=c.department.name if c.department else None,
             frequency=ControlFrequencyEnum(c.frequency),
@@ -549,23 +550,33 @@ async def list_department_kris(
                 Risk.status != RiskStatus.archived.value
             )
         )
-        .options(joinedload(KeyRiskIndicator.risk).joinedload(Risk.department))
+        .options(
+            joinedload(KeyRiskIndicator.risk).joinedload(Risk.department),
+            joinedload(KeyRiskIndicator.risk).joinedload(Risk.owner),
+            joinedload(KeyRiskIndicator.reporting_owner),
+        )
         .offset(skip)
         .limit(limit)
     )
     
     result = await db.execute(query)
-    kris = result.scalars().all()
+    kris = result.scalars().unique().all()
     
     # Map to response with metadata (same logic as in kris.py)
     items = []
     for k in kris:
         res = KRIResponse.model_validate(k)
+        # Add owner info
+        if k.reporting_owner:
+            res.reporting_owner_name = k.reporting_owner.name
         if k.risk:
             res.risk_category = k.risk.category
             res.risk_process = k.risk.process
+            if k.risk.owner:
+                res.risk_owner_name = k.risk.owner.name
             if k.risk.department:
                 res.department_name = k.risk.department.name
         items.append(res)
         
     return items
+
