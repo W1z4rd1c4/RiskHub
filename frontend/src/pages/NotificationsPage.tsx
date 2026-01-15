@@ -104,11 +104,11 @@ export function NotificationsPage() {
         // Mark as read
         if (!notification.is_read) {
             try {
-                await notificationsApi.markAsRead(notification.id);
+                const { unread_count } = await notificationsApi.markAsRead(notification.id);
                 setNotifications(prev =>
                     prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
                 );
-                setUnreadCount(prev => Math.max(0, prev - 1));
+                setUnreadCount(unread_count);  // Server-authoritative count
             } catch (error) {
                 console.error('Failed to mark as read:', error);
             }
