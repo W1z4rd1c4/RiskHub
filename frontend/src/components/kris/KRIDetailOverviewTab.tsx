@@ -78,7 +78,7 @@ export function KRIDetailOverviewTab({
                     </div>
                     <div className="flex items-center justify-between py-2 border-b border-white/5">
                         <span className="text-xs text-slate-500 flex items-center gap-1"><User className="h-3 w-3" /> Owner</span>
-                        <span className="text-sm font-bold text-white">{kri.reporting_owner_name || '(Risk Owner)'}</span>
+                        <span className="text-sm font-bold text-white">{kri.reporting_owner_name || linkedRisk?.owner?.name || '—'}</span>
                     </div>
                     {kri.last_period_end && (
                         <div className="flex items-center justify-between py-2 border-b border-white/5">
