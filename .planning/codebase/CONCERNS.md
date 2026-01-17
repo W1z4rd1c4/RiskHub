@@ -1,87 +1,98 @@
 # Concerns & Technical Debt
 
-## Security - Critical (Penetration Test 2026-01-08)
+## Security Status
 
-| Issue | Risk | Status |
-|-------|------|--------|
-| Webhook user injection | `/directory/webhook` skips sig verify when `WEBHOOK_SECRET` empty | 🔴 Open |
-| Default SECRET_KEY | Production MUST override via environment | ⚠️ Config check at startup |
-| OpenAPI docs exposed | `/docs` and `/openapi.json` publicly accessible | 🔴 Open |
-| DB port exposed | Port 5432 in docker-compose.yml | ⚠️ Dev only |
+### Critical Issues (from Penetration Test 2026-01-08)
+
+| Issue | Risk | Current Status |
+|-------|------|----------------|
+| Webhook signature bypass | `/directory/webhook` skips verify when `WEBHOOK_SECRET` empty | 🔴 Open |
+| Default SECRET_KEY | Production MUST override | ⚠️ Startup check added |
+| OpenAPI docs exposed | `/docs`, `/openapi.json` public | 🔴 Open |
+| DB port exposed | 5432 in docker-compose | ⚠️ Dev only |
 | Rate limiting bypass | Disabled when `DEBUG=true` | ⚠️ Dev only |
-| Demo login endpoint | Works in debug mode (`/auth/demo-login/{id}`) | ⚠️ Dev only |
+| Demo login endpoint | `/auth/demo-login/{id}` works in debug | ⚠️ Dev only |
 
-## Security - Low Severity
+### Low Severity Issues
 
 | Issue | Description |
 |-------|-------------|
-| Null byte DoS | Email with null byte causes 500 error |
-| Excel formula injection | Cell values starting with `=+@-` not sanitized |
+| Null byte DoS | Email with null byte → 500 error |
+| Excel formula injection | Cells starting with `=+@-` not sanitized |
 | Verbose Pydantic errors | Reveal field names, types, constraints |
 | JWT in localStorage | No httpOnly cookie option |
-| No token refresh | Tokens expire, require re-login |
+| No token refresh | Tokens expire → re-login required |
 
-## Security - Verified Secure ✅
+### Verified Secure ✅
 
-- Production startup fails if `SECRET_KEY` not set and `DEBUG=false`
-- `MOCK_AUTH_ENABLED` blocked in production
-- All API endpoints require valid JWT
-- SQL injection prevented (SQLAlchemy parameterized queries)
-- JWT `alg: none` attack blocked
-- Path traversal blocked
-- Security headers (CSP, X-Frame-Options, HSTS, XSS protection)
-- Race conditions on approvals blocked
-- XSS payloads safely rendered (React escapes)
-- IDOR blocked (cross-department access denied)
-- Privilege escalation blocked (cannot modify own role)
-
-## Reliability
-
-| Concern | Impact |
+| Control | Status |
 |---------|--------|
-| APScheduler in-process | Multi-worker deployments can double-run jobs |
-| No external log aggregation | Only file-based rotation |
-| No health check alerting | Manual monitoring required |
+| Production SECRET_KEY check | Startup fails if not set + `DEBUG=false` |
+| Mock auth blocked in production | `MOCK_AUTH_ENABLED` rejected |
+| All endpoints require JWT | Verified |
+| SQL injection prevention | SQLAlchemy parameterized queries |
+| JWT `alg: none` blocked | Verified |
+| Path traversal blocked | Verified |
+| Security headers | CSP, X-Frame-Options, HSTS, XSS |
+| Approval race conditions | Partial unique index |
+| XSS prevention | React escapes by default |
+| IDOR blocked | Cross-department access denied |
+| Privilege escalation blocked | Cannot modify own role |
 
-## Deployment
+## Reliability Concerns
+
+| Concern | Impact | Mitigation |
+|---------|--------|------------|
+| APScheduler in-process | Multi-worker → double-run jobs | Single worker mode |
+| No external log aggregation | Only file-based rotation | SIEM-ready JSON format |
+| No health check alerting | Manual monitoring required | `/health` endpoint |
+| Database connection pooling | Connection limits under load | asyncpg pool tuning |
+
+## Deployment Notes
 
 | Item | Note |
 |------|------|
-| `.env.example` | All required vars documented, manual copy needed |
-| Docker builds | Slow on Apple Silicon (arm64 compilation) |
-| AD Emulator | Needs separate database initialization |
+| `.env.example` | All required vars documented |
+| Apple Silicon builds | Slow arm64 compilation |
+| AD Emulator init | Needs separate database |
+| Migration ordering | Enum values case-sensitive |
 
-## Code Quality ✅
+## Code Quality (Resolved) ✅
 
-| Item | Status |
-|------|--------|
-| Large page components | ✅ Addressed via hooks + subcomponents (Phase 250-251) |
-| Complex permission logic | ✅ Moved to services (Phase 250) |
-| Duplicate approval code | ✅ Consolidated to `approval_helpers.py` (Phase 250) |
-| `Record<string, unknown>` types | ✅ Replaced with explicit types (Phase 251) |
-| Hardcoded strings | ✅ i18n wired (Phase 20-16) |
+| Issue | Resolution |
+|-------|------------|
+| Large page components | Extracted to hooks + subcomponents (Phase 250-251) |
+| Complex permission logic | Moved to services (Phase 250) |
+| Duplicate approval code | Consolidated to `approval_helpers.py` |
+| `Record<string, unknown>` types | Replaced with explicit interfaces |
+| Hardcoded strings | i18n wired (Phase 20-16) |
 
 ## Data Integrity ✅
 
-- Activity log writes in same transaction as business changes
-- `name` column on Risk/Control enforces NOT NULL
-- Historical snapshots for quarterly metric accuracy
-- KRI history preserves all submitted values
+| Control | Implementation |
+|---------|----------------|
+| Activity log atomicity | Same transaction as business changes |
+| NOT NULL constraints | `name` column on Risk/Control enforced |
+| Historical snapshots | Quarterly metric accuracy preserved |
+| KRI history | All submitted values preserved |
+| Soft deletes | `status='archived'` pattern |
 
 ## Known Feature Gaps
 
-| Gap | Status |
-|-----|--------|
+| Gap | Notes |
+|-----|-------|
 | Azure AD/Entra ID integration | AD Emulator is placeholder |
-| Real-time updates (WebSocket) | Polling only |
+| Real-time updates | Polling only (no WebSocket) |
 | PDF chart exports | Text/table only |
+| Email notifications | In-app only |
+| Mobile app | Web responsive only |
 
 ## E2E Test Coverage (Phase 180)
 
-31 Playwright specs covering:
+44 Playwright specs covering:
 
 - ✅ Authentication and authorization
-- ✅ CRUD operations for controls, risks, KRIs
+- ✅ CRUD operations (controls, risks, KRIs)
 - ✅ Activity logging and change tracking
 - ✅ Approval workflows (tiered, self-approval, status-flow)
 - ✅ Cross-department access scenarios
@@ -89,83 +100,65 @@
 - ✅ Sensitive field protection
 - ✅ Settings isolation (theme/language per user)
 
-## Phase 153 Audit Findings (2026-01-11)
+## Historical Audit Findings (Phase 153)
 
-### Critical (Data Integrity / Production Breaking)
+### Critical (Previously Found)
 
-| Issue | Location | Impact |
-|-------|----------|--------|
-| DB enum case mismatch (ApprovalStatus) | `a9b8c7d6e5f4_add_pending_privileged` L21 adds `'pending_privileged'` (lowercase), indexes use uppercase | Query failures, status mismatches |
-| Notification enum drift (APPROVAL_CANCELLED) | DB enum missing, model defines it, service emits it | 500 on cancellation notifications |
-| Logging config kwargs mismatch | `main.py` L95-98 passes `app_rotation_size_mb`, function expects `rotation_size_mb` | Silent config failure |
-| datetime.utcnow() inconsistency | `approvals.py`, `approval_execution_service.py` | Timezone-naive vs aware comparison issues |
+| Issue | Location | Resolution |
+|-------|----------|------------|
+| DB enum case mismatch | Migration L21 | ✅ Fixed |
+| Notification enum drift | APPROVAL_CANCELLED | ✅ Added to DB |
+| Logging config kwargs | main.py L95-98 | ✅ Fixed |
+| datetime.utcnow() | Various | ✅ Using `datetime.now(UTC)` |
 
-### High (Major Feature Bugs)
+### High Priority (Previously Found)
 
-| Issue | Location | Impact |
-|-------|----------|--------|
-| KRI delete missing reason param | FE `kriApi.ts` L36, BE requires `reason` query | 422 on all KRI deletes |
-| KRI pagination mismatch (skip vs page) | FE sends `skip`, BE expects `page/size` | Wrong pagination results |
-| Dashboard KRI dept filter ignored | FE passes `department_id`, BE signature doesn't accept it | Filter silently ignored |
-| Approvals cancel button missing `pending_privileged` | `ApprovalsPage.tsx` L307 only checks `'pending'` | Can't cancel tiered approvals |
-| Sidebar duplicate activity log routes | `/audit-trail` (L47) + `/activity-log` (L103) | Duplicate nav items or dead pages |
-| KRI permission mismatch | FE checks `kri:record`, BE enforces `kri:submit` | Permission denied unexpectedly |
-| Activity Log risk picker truncated | FE requests 200, BE caps at 100 | Truncated picker options |
-| Edit/delete 202 response typed as entity | `riskApi.ts`, `kriApi.ts`, `controlApi.ts` | Runtime type mismatches |
-| KRI PENDING_PRIVILEGED missing in checks | `kris.py` delete/update only check PENDING | Duplicate approvals possible |
+| Issue | Resolution |
+|-------|------------|
+| KRI delete missing reason | ✅ Added `reason` query param |
+| KRI pagination mismatch | ✅ Unified to page/size |
+| Dashboard KRI dept filter | ✅ Added parameter |
+| Approvals cancel button | ✅ Added `pending_privileged` |
+| KRI permission mismatch | ✅ Aligned to `kri:submit` |
+| 202 response typing | ✅ `parseUpdateResult()` helper |
 
-### Medium (Correctness / Performance)
+## Remediation History
 
-| Issue | Location | Impact |
-|-------|----------|--------|
-| Migration nullable=False without default | `597c3ba51f80_add_tiered_approval_fields.py` L26 | Fails on non-empty DB |
-| Risk ID generator limit(10) | `risks.py` L64 | Can miss higher numbers if >10 risks |
-| Approval cancel logged as DELETE | `approvals.py` L489 | Wrong activity type in audit trail |
-| Cross-department owner update blocked | `risks.py` update_risk | Risk owners can't edit cross-dept risks |
+### Phase 151-152
 
-### Low (Polish / Dev Ergonomics)
+- ✅ Risk ID generation → atomic retry
+- ✅ Approval duplication → partial unique index
+- ✅ Sensitive field None handling
+- ✅ Approval edge cases
 
-| Issue | Location | Impact |
-|-------|----------|--------|
-| Report downloads broken if VITE_API_URL missing | `reportApi.ts` L51 | Dev-only issue |
+### Phase 154+
 
-## Recent Remediation (Phase 151-152)
+- ✅ Cross-department access (control/KRI owners)
+- ✅ Link management access via ownership
+- ✅ 202 approval UX helper
+- ✅ Control frequency "continuous"
+- ✅ Czech localization
 
-- ✅ Risk ID generation - atomic retry pattern
-- ✅ Approval request duplication - partial unique index
-- ✅ Sensitive field detection - None value handling
-- ✅ Approval workflow edge cases - cancel, tiered fields
-- ✅ KRI period semantics - non-privileged submit for closed periods only
+### Phase 250-251 (Code Simplification)
 
-## Recent Remediation (Phase 154+)
+- ✅ Extracted 8 data-fetching hooks
+- ✅ Consolidated approval patterns
+- ✅ Simplified service layer (helpers)
+- ✅ Extracted schemas to modules
+- ✅ Created reusable UI components
+- ✅ Theme-aware charting
+- ✅ Removed ~1000+ lines of duplication
 
-- ✅ Cross-department access for control owners, KRI owners
-- ✅ Link management access via entity ownership
-- ✅ Approval-queued UX with 202 detection helper
-- ✅ Control frequency "continuous" support
-- ✅ i18n wiring for Czech localization
+## Open Action Items
 
-## Recent Remediation (Phase 250 - Code Simplification)
+| Priority | Action | Owner |
+|----------|--------|-------|
+| High | Secure OpenAPI docs in production | DevOps |
+| High | Add webhook signature validation | Backend |
+| Medium | Add httpOnly cookie option for JWT | Security |
+| Medium | Implement token refresh | Backend |
+| Low | Sanitize Excel formula injection | Backend |
+| Low | Add real-time updates (WebSocket) | Future |
 
-- ✅ Extracted data-fetching hooks (`useDepartmentDetail`, `useUsersPageFilters`)
-- ✅ Consolidated approval patterns (`create_approval_request_with_audit` helper)
-- ✅ Simplified service layer (`_already_flagged`, `_create_orphan`, `_get_item_details`)
-- ✅ Extracted schemas from endpoint files to `schemas/riskhub.py`, `schemas/admin.py`
-- ✅ Created reusable `StepIndicator` component
-- ✅ Removed duplicate code across 10 plans
-
-## Recent Remediation (Phase 251 - Code Simplification 2)
-
-- ✅ Extracted `useActivityLogPageState` hook for Activity Log page
-- ✅ Created `ActivityLogFilterBar` presentational component
-- ✅ Simplified reports endpoints with streaming helpers
-- ✅ Refactored admin endpoints with extracted schemas
-- ✅ Simplified departments endpoint with scope/pagination helpers
-- ✅ Extracted KRI detail tabs (`KRIDetailOverviewTab`, `KRIDetailHistoryTab`)
-- ✅ Simplified `LinkManagementDialog` with `LinkSearchPanel` and `ExistingLinksPanel`
-- ✅ Replaced `Record<string, unknown>` with explicit `SearchResultItem`, `ExistingLinkItem`
-- ✅ Added shared hooks: `useDebouncedValue`, `usePendingApprovalIds`
-- ✅ Added theme-aware charting: `useChartTheme` hook
-- ✅ Removed ~1000+ lines of duplicated/complex code across 10 plans
-
-*Updated: 2026-01-14*
+---
+*Updated: 2026-01-17*
