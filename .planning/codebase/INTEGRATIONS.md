@@ -4,153 +4,258 @@
 
 ### RiskHub Database
 
-- **Type**: PostgreSQL 16
-- **Connection**: Via docker-compose (`riskhub` database)
-- **Driver**: asyncpg (async) + psycopg2-binary (migrations)
-- **Migrations**: Alembic in `backend/alembic/`
+| Property | Value |
+|----------|-------|
+| Type | PostgreSQL 16 |
+| Database | `riskhub` |
+| Driver (async) | asyncpg ≥0.29 |
+| Driver (sync) | psycopg2-binary (migrations only) |
+| Connection Pool | async_sessionmaker, expire_on_commit=False |
+| Migrations | Alembic in `backend/alembic/` (39 versions) |
 
 ### AD Emulator Database
 
-- **Type**: PostgreSQL 16
-- **Database**: `ad_emulator_db` (separate from RiskHub)
-- **Purpose**: Directory user storage for sync testing
+| Property | Value |
+|----------|-------|
+| Type | PostgreSQL 16 |
+| Database | `ad_emulator_db` |
+| Purpose | Directory user storage for sync testing |
+| Isolation | Separate from RiskHub, shared PostgreSQL container |
 
 ## Internal Services
 
-### AD Emulator API
+### AD Emulator API Integration
 
-- **Client**: `ADEmulatorClient` in `backend/app/integrations/ad_emulator.py`
-- **Transport**: HTTP (httpx)
-- **Purpose**: Fetch directory users for sync to RiskHub
-- **Webhook**: `/api/v1/directory/webhook` for push updates
+| Property | Value |
+|----------|-------|
+| Module | `backend/app/integrations/ad_emulator.py` |
+| Client | `ADEmulatorClient` (httpx) |
+| Endpoint | `http://ad_emulator_backend:8001` |
+| Webhook | `/api/v1/directory/webhook` (push updates) |
+| Sync | `/api/v1/directory/sync` (pull full directory) |
 
 ### Report Export Service
 
-- **Module**: `backend/app/services/report_service.py`
-- **Translation**: `backend/app/services/report_translations.py` (locale-aware)
-- **PDF**: reportlab library
-- **Excel**: openpyxl library
-- **Exports**: Controls, Risks, Audit Trail, Activity Log
-- **Helpers**: `_stream_pdf()`, `_stream_excel()` for unified streaming
+| Component | Details |
+|-----------|---------|
+| Module | `backend/app/services/report_service.py` (24KB) |
+| Translations | `report_translations.py` (7.7KB) |
+| PDF Library | reportlab |
+| Excel Library | openpyxl |
+| Exports | Controls, Risks, Audit Trail, Activity Log |
+| Helpers | `_stream_pdf()`, `_stream_excel()` |
 
 ### Notification Service
 
-- **Module**: `backend/app/services/notification_service.py`
-- **Scheduler**: APScheduler (in-process)
-- **Types**: KRI deadlines, approval requests, overdue alerts
+| Component | Details |
+|-----------|---------|
+| Module | `backend/app/services/notification_service.py` (9KB) |
+| Scheduler | APScheduler 3.11 (in-process) |
+| Types | 8 notification types |
+| Persistence | `notifications` table |
+
+### Notification Types
+
+| Type | Trigger |
+|------|---------|
+| `APPROVAL_PENDING` | New approval request created |
+| `APPROVAL_RESOLVED` | Approval approved/rejected |
+| `APPROVAL_CANCELLED` | Approval cancelled |
+| `KRI_DUE_SOON` | 7 days before period end |
+| `KRI_DUE_TOMORROW` | 1 day before period end |
+| `KRI_OVERDUE` | After reporting grace period |
+| `KRI_NEAR_BREACH` | Value at 80% of limit |
+| `KRI_BREACH_DETECTED` | Value exceeds limit |
 
 ### Approval Execution Service
 
-- **Module**: `backend/app/services/approval_execution_service.py`
-- **Purpose**: Centralized approval workflow execution
-- **Helper**: `create_approval_request_with_audit()` in `approval_helpers.py`
-
-### Quarterly Comparison Service
-
-- **Module**: `backend/app/services/quarterly_comparison_service.py`
-- **Purpose**: Period-based metrics calculation for QoQ comparisons
+| Component | Details |
+|-----------|---------|
+| Module | `backend/app/services/approval_execution_service.py` (25KB) |
+| Purpose | Centralized approval workflow execution |
+| Helper | `create_approval_request_with_audit()` in `approval_helpers.py` |
+| Flow | PENDING → (primary) → PENDING_PRIVILEGED → (privileged) → APPROVED |
 
 ### KRI Services
 
-- **History**: `backend/app/services/kri_history_service.py`
-- **Deadlines**: `backend/app/services/kri_deadline_service.py`
-- **Purpose**: KRI value tracking and deadline notifications
+| Module | Size | Purpose |
+|--------|------|---------|
+| `kri_history_service.py` | 18KB | Value historization, period management |
+| `kri_deadline_service.py` | 15KB | Deadline notifications, overdue tracking |
+
+### Quarterly Comparison Service
+
+| Component | Details |
+|-----------|---------|
+| Module | `backend/app/services/quarterly_comparison_service.py` (12KB) |
+| Purpose | Period-based metrics calculation |
+| Output | QoQ comparisons for dashboards |
 
 ### Orphaned Item Service
 
-- **Module**: `backend/app/services/orphaned_item_service.py`
-- **Purpose**: Governance tracking for entities missing owners/departments
+| Component | Details |
+|-----------|---------|
+| Module | `backend/app/services/orphaned_item_service.py` (23KB) |
+| Purpose | Governance tracking for entities missing owners/departments |
+| Resolution | Manual assignment via governance page |
 
 ### Directory Sync Service
 
-- **Module**: `backend/app/services/directory_sync_service.py`
-- **Purpose**: Synchronize AD Emulator users to RiskHub user database
+| Component | Details |
+|-----------|---------|
+| Module | `backend/app/services/directory_sync_service.py` (26KB) |
+| Purpose | Synchronize AD Emulator users to RiskHub |
+| Mode | Push (webhook) or Pull (manual sync) |
 
 ## Auth & Identity
 
 ### JWT Authentication
 
-- **Library**: python-jose (HS256)
-- **Flow**: Login → JWT → Bearer token in headers
-- **Expiry**: Configurable (no refresh token flow)
+| Property | Value |
+|----------|-------|
+| Library | python-jose (HS256) |
+| Flow | Login → JWT → Bearer header |
+| Expiry | Configurable (default 24h) |
+| Storage | localStorage (frontend) |
+| Refresh | Not implemented (re-login required) |
 
-### Mock Auth (Development)
+### Mock Auth (Development Only)
 
-- **Header**: `X-Mock-User-Id`
-- **Config**: `MOCK_AUTH_ENABLED=true` (blocked in production)
-- **Purpose**: Testing without login
+| Property | Value |
+|----------|-------|
+| Header | `X-Mock-User-Id` |
+| Config | `MOCK_AUTH_ENABLED=true` |
+| Blocked | In production (`DEBUG=false`) |
 
 ### RBAC Permissions
 
-- **Implementation**: `backend/app/core/permissions.py`
-- **Permissions**: 11+ granular (`risks:read`, `controls:write`, `kri:submit`, etc.)
-- **Access Scope**: Global, Department, Manager levels
+| Category | Details |
+|----------|---------|
+| Implementation | `backend/app/core/permissions.py` (446 lines) |
+| Permission Count | 11+ granular (resource:action) |
+| Access Scopes | GLOBAL, DEPARTMENT, MANAGER |
+| Tables | `roles`, `permissions`, `role_permissions` |
+
+### Permission Matrix
+
+| Resource | Actions |
+|----------|---------|
+| risks | read, write, delete |
+| controls | read, write, delete, execute |
+| kri | read, write, submit, delete |
+| users | read, write |
+| approvals | read, write |
+| activity_log | read |
+| reports | read |
+| departments | read, write |
+| riskhub | read, write (CRO only) |
 
 ## Frontend-to-Backend
 
 ### API Client
 
-- **Location**: `frontend/src/services/apiClient.ts`
-- **Transport**: Axios with interceptors
-- **Auth**: Bearer token from localStorage
-- **Error Handling**: Centralized error parsing + 202 approval detection
+| Property | Value |
+|----------|-------|
+| Location | `frontend/src/services/apiClient.ts` |
+| Library | Axios 1.13 |
+| Auth | Bearer token from localStorage |
+| Error Handling | Centralized parsing + 202 detection |
 
-### Approval UX Helper
+### 202 Approval Detection
 
-- **Location**: `frontend/src/lib/approvalUi.ts`
-- **Purpose**: Unified handling for HTTP 202 "approval created" responses
-- **Pattern**: Detects `ApprovalCreatedResponse` and returns structured result
+```typescript
+// frontend/src/lib/approvalUi.ts
+interface ApprovalCreatedResponse {
+  approval_created: true;
+  approval_id: number;
+  message: string;
+}
+
+export function parseUpdateResult(result, t): ParseResult {
+  if (result.approval_created) {
+    return { approvalCreated: true, toast: result.message };
+  }
+  return { approvalCreated: false, entity: result };
+}
+```
 
 ### API Services (20 modules)
 
-| Service | Endpoints |
-|---------|-----------|
-| authApi | Login, demo |
-| riskApi | Risk CRUD |
-| controlApi | Control CRUD |
-| kriApi | KRI values + history |
-| dashboardApi | Stats + widgets |
-| userApi | User management |
-| accessApi | Permission matrix |
-| adminApi | System health, logs |
-| approvalsApi | Workflow |
-| departmentApi | Org structure |
-| reportApi | PDF/Excel exports |
-| riskHubApi | Config + risk types |
-| activityLogApi | Audit trail |
-| lookupApi | Scoped pickers |
-| preferencesApi | User settings |
-| executionApi | Control executions |
-| notificationsApi | Alerts |
-| orphanedItemsApi | Governance orphans |
-| directoryApi | AD sync |
+| Service | Endpoints | Size |
+|---------|-----------|------|
+| authApi | Login, demo, logout | 1.6KB |
+| riskApi | CRUD, linking | 2.0KB |
+| controlApi | CRUD, executions, linking | 2.3KB |
+| kriApi | CRUD, history, values | 2.4KB |
+| dashboardApi | Stats, charts, metrics | 3.4KB |
+| userApi | User management | 1.6KB |
+| accessApi | Permission matrix | 1.9KB |
+| adminApi | Health, logs, system | 3.4KB |
+| approvalsApi | Workflow queue | 1.0KB |
+| departmentApi | Org structure | 2.8KB |
+| reportApi | PDF/Excel downloads | 4.5KB |
+| riskHubApi | Config, risk types | 6.1KB |
+| activityLogApi | Audit queries | 0.9KB |
+| lookupApi | Scoped pickers | 0.9KB |
+| preferencesApi | User settings | 0.6KB |
+| executionApi | Control executions | 1.6KB |
+| notificationsApi | Alerts | 1.4KB |
+| orphanedItemsApi | Governance | 0.7KB |
+| directoryApi | AD sync | 0.5KB |
 
 ## Internationalization (i18n)
 
 ### Configuration
 
-- **Location**: `frontend/src/i18n/`
-- **Library**: i18next 25.7 + react-i18next 16.5
-- **Detection**: i18next-browser-languagedetector
+| Property | Value |
+|----------|-------|
+| Location | `frontend/src/i18n/` |
+| Library | i18next 25.7 + react-i18next 16.5 |
+| Detection | i18next-browser-languagedetector |
+| Fallback | English (en) |
+| Namespaces | 10 per locale |
 
 ### Locales
 
-- **Languages**: English (en), Czech (cs)
-- **Namespaces**: 10 files per locale
-- **Persistence**: User preference synced to backend
+| Locale | Files | Coverage |
+|--------|-------|----------|
+| English (en) | 10 JSON files (~25KB) | 100% |
+| Czech (cs) | 10 JSON files (~30KB) | 100% |
+
+### Namespace Files
+
+| Namespace | Content |
+|-----------|---------|
+| admin | Admin console, system logs |
+| approvals | Approval workflow |
+| auth | Login, authentication |
+| common | Shared strings, errors |
+| controls | Control management |
+| dashboard | Dashboard widgets |
+| kris | KRI management |
+| navigation | Menu, sidebar |
+| risks | Risk register |
+| settings | User preferences |
 
 ## Logging & Monitoring
 
 ### Structured Logging
 
-- **Library**: structlog + python-json-logger
-- **Format**: JSON (SIEM-ready)
-- **Context**: request_id, user_id, client_ip
+| Property | Value |
+|----------|-------|
+| Library | structlog + python-json-logger |
+| Format | JSON (SIEM-ready) |
+| Context | request_id, user_id, client_ip, path |
+| Rotation | Size-based (configurable) |
 
-### Audit Trail
+### Activity Audit Trail
 
-- **Table**: `activity_log`
-- **Integrity**: SHA-256 hash chain
-- **Admin Access**: `/admin/logs/audit`
+| Property | Value |
+|----------|-------|
+| Table | `activity_logs` |
+| Integrity | SHA-256 hash chain (optional) |
+| Immutability | SQLAlchemy event blocks UPDATE/DELETE |
+| Admin Access | `/admin/logs/audit` |
 
-*Updated: 2026-01-14*
+---
+*Updated: 2026-01-17*
