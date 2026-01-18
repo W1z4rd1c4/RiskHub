@@ -93,9 +93,17 @@ _CACHE_TTL_SECONDS = 60  # 1 minute cache
 
 
 class ConfigDefaults:
-    """Default values for global configuration keys."""
-    # Risk thresholds
-    HIGH_RISK_MIN_NET_SCORE = 15  # net_score >= this = critical/high risk
+    """Default values for global configuration keys.
+    
+    These values must match the seeded defaults in migration 74f4ad1b68cb_add_risk_hub_tables.py:
+    - medium_risk_min_net_score = 5
+    - high_risk_min_net_score = 10
+    - critical_risk_min_net_score = 16
+    """
+    # Risk thresholds (must match seeded values)
+    MEDIUM_RISK_MIN_NET_SCORE = 5   # net_score >= 5 = medium risk
+    HIGH_RISK_MIN_NET_SCORE = 10    # net_score >= 10 = high risk
+    CRITICAL_RISK_MIN_NET_SCORE = 16  # net_score >= 16 = critical risk
     TOTAL_ASSETS_VALUE = 10_000_000_000  # 10B CZK - used for financial loss calculations
     
     # Notification timing (days)
@@ -106,6 +114,44 @@ class ConfigDefaults:
     
     # Breach thresholds
     NEAR_BREACH_THRESHOLD = 0.80  # 80% towards limit = near breach
+
+
+async def get_risk_thresholds(db: "AsyncSession") -> tuple[int, int, int]:
+    """
+    Get risk classification thresholds from GlobalConfig.
+    
+    Returns:
+        Tuple of (medium, high, critical) threshold values.
+        A risk is classified as:
+        - critical: net_score >= critical
+        - high: net_score >= high and < critical
+        - medium: net_score >= medium and < high
+        - low: net_score < medium
+    """
+    medium = await get_config_int(db, "medium_risk_min_net_score", ConfigDefaults.MEDIUM_RISK_MIN_NET_SCORE)
+    high = await get_config_int(db, "high_risk_min_net_score", ConfigDefaults.HIGH_RISK_MIN_NET_SCORE)
+    critical = await get_config_int(db, "critical_risk_min_net_score", ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE)
+    return medium, high, critical
+
+
+def build_risk_level_ranges(medium: int, high: int, critical: int) -> dict[str, tuple[int, int]]:
+    """
+    Build RISK_LEVEL_RANGES dict from thresholds.
+    
+    Args:
+        medium: Minimum net_score for medium classification
+        high: Minimum net_score for high classification
+        critical: Minimum net_score for critical classification
+        
+    Returns:
+        Dict mapping level name to (min_score, max_score) inclusive range.
+    """
+    return {
+        "critical": (critical, 25),
+        "high": (high, critical - 1),
+        "medium": (medium, high - 1),
+        "low": (1, medium - 1),
+    }
 
 
 async def get_config_value(
