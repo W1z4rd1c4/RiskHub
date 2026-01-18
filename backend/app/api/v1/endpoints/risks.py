@@ -44,6 +44,11 @@ async def generate_risk_id_code(db: AsyncSession, process: str) -> str:
     Format: {PROCESS_ABBR}-R{NN} where NN is zero-padded sequence number.
     Example: CLAI-R01, CLAI-R02, UNDE-R01
     
+    Note: Uses length-aware ordering to handle codes past 99 correctly.
+    Lexicographic sorting makes "R99" > "R100" (because '9' > '1'), so we
+    order by length DESC first to ensure longer codes (R100+) come before
+    shorter ones (R99 and below).
+    
     Args:
         db: Database session
         process: The process name to derive prefix from
@@ -56,12 +61,13 @@ async def generate_risk_id_code(db: AsyncSession, process: str) -> str:
     prefix = f"{process_abbr}-R"
     pattern = f"{prefix}%"
     
-    # Find existing codes with this prefix, ordered descending
+    # Find existing codes with this prefix
+    # Order by length DESC first (so R100 comes before R99), then by code DESC
     result = await db.execute(
         select(Risk.risk_id_code)
         .where(Risk.risk_id_code.like(pattern))
-        .order_by(Risk.risk_id_code.desc())
-        .limit(100)
+        .order_by(func.length(Risk.risk_id_code).desc(), Risk.risk_id_code.desc())
+        .limit(20)
     )
     existing_codes = [row[0] for row in result.all()]
     
