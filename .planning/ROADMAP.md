@@ -61,7 +61,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 155: Approval Edit UX** — Approval UX improvements (0/1)
 - [ ] **Phase 156: Audit** — Additional audit phase (1/8)
 - [ ] **Phase 157: Business Logic Compliance** — Fix BUSINESS_LOGIC.md discrepancies (0/6)
-- [ ] **Phase 158: Audit** — Full-app audit findings → 10 independent fix plans (8/10)
+- [x] **Phase 158: Audit** — Full-app audit findings → 10 independent fix plans (10/10)
 - [ ] **Phase 179: E2E Test Data** — E2E test data seeding (11/12)
 - [ ] **Phase 180: E2E Business Logic** — E2E business logic tests (9/10)
 - [ ] **Phase 200: Entity Naming Enforcement** — Mandatory naming (9/10)
@@ -727,7 +727,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 155. Approval Edit UX | 0/1 | ⏸️ Planned | - |
 | 156. Audit | 1/8 | ⏳ In progress | - |
 | 157. Business Logic Compliance | 0/6 | ⏸️ Planned | - |
-| 158. Audit | 0/10 | ⏸️ Planned | - |
+| 158. Audit | 10/10 | ✅ Complete | 2026-01-19 |
 | 179. E2E Test Data | 11/12 | ⏳ In progress | - |
 | 180. E2E Business Logic | 9/10 | ⏳ In progress | - |
 | 200. Entity Naming | 9/10 | ⏳ In progress | - |
