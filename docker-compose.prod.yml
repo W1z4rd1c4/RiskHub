@@ -26,7 +26,10 @@ services:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - CORS_ORIGINS=${CORS_ORIGINS:-["https://riskhub.example.com"]}
       - AD_EMULATOR_URL=${AD_EMULATOR_URL:-}
+      # WEBHOOK_SECRET is required for AD webhook integration - code rejects webhooks if empty
       - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+      # ENABLE_SCHEDULER: Set to 'true' on exactly ONE backend instance to avoid duplicate jobs
+      - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-false}
     volumes:
       - backend_logs:/app/logs
     restart: unless-stopped

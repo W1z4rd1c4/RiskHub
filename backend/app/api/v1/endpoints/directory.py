@@ -41,11 +41,20 @@ def _verify_webhook_signature(payload: bytes, signature: str | None, secret: str
         
     Raises:
         HTTPException: 401 if signature is invalid or missing
+        HTTPException: 500 if secret not configured in production
     """
+    settings = get_settings()
     if not secret:
-        # No secret configured - dev mode, skip verification but warn
-        logger.warning("WEBHOOK_SECRET not configured - skipping signature verification (INSECURE)")
-        return
+        # No secret configured - only allow in debug mode
+        if settings.debug:
+            logger.warning("WEBHOOK_SECRET not configured - skipping signature verification (DEBUG ONLY)")
+            return
+        # Production mode with no secret = reject (fail-closed)
+        logger.error("WEBHOOK_SECRET not configured in production mode - rejecting webhook")
+        raise HTTPException(
+            status_code=500,
+            detail="Webhook secret not configured (required in production)"
+        )
     
     if not signature:
         raise HTTPException(
