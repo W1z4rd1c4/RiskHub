@@ -24,17 +24,18 @@ from app.models.kri_history import KRIValueHistory
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.api import deps
 from app.core.permissions import get_user_department_ids
+from app.models.global_config import ConfigDefaults, build_risk_level_ranges
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Risk level score ranges
-RISK_LEVEL_RANGES = {
-    "critical": (15, 25),  # scores 15-25
-    "high": (10, 14),       # scores 10-14
-    "medium": (5, 9),       # scores 5-9
-    "low": (1, 4),          # scores 1-4
-}
+# Default risk level score ranges (fallback, uses ConfigDefaults)
+# For dynamic thresholds, use get_risk_level_ranges_async() in endpoint handlers
+RISK_LEVEL_RANGES = build_risk_level_ranges(
+    ConfigDefaults.MEDIUM_RISK_MIN_NET_SCORE,
+    ConfigDefaults.HIGH_RISK_MIN_NET_SCORE,
+    ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE,
+)
 
 
 def build_risk_level_condition(risk_level: str):
@@ -152,8 +153,9 @@ async def get_dashboard_summary(
         if count > 0:
             risks_by_status[status.value] = count
     
-    # Critical risks (net_score >= 15)
-    critical_conditions = [Risk.net_score >= 15] + risk_conditions
+    # Critical risks (net_score >= critical threshold)
+    critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
+    critical_conditions = [Risk.net_score >= critical_threshold] + risk_conditions
     critical_result = await db.execute(
         select(func.count(Risk.id)).where(and_(*critical_conditions))
     )
@@ -234,10 +236,11 @@ async def get_department_metrics(
         risk_count_result = await db.execute(risk_query)
         risk_count = risk_count_result.scalar() or 0
         
-        # High risk count (net_score >= 12, exclude archived by default)
+        # High risk count (net_score >= high threshold, exclude archived by default)
+        high_threshold = ConfigDefaults.HIGH_RISK_MIN_NET_SCORE
         high_risk_query = select(func.count(Risk.id)).where(
             Risk.department_id == dept.id,
-            Risk.net_score >= 12
+            Risk.net_score >= high_threshold
         )
         if not include_archived:
             high_risk_query = high_risk_query.where(Risk.status != RiskStatus.archived.value)
@@ -548,11 +551,12 @@ async def get_risk_trends(
 
         # Query risk counts grouped by month
         period_expr = func.to_char(Risk.created_at, 'YYYY-MM')
+        critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
         query = select(
             period_expr.label('period'),
             func.count(Risk.id).label('total_new'),
             func.sum(
-                case((Risk.net_score >= 15, 1), else_=0)
+                case((Risk.net_score >= critical_threshold, 1), else_=0)
             ).label('critical_new')
         )
         
