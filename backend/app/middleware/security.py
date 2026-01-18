@@ -25,6 +25,7 @@ class RateLimitState:
     """Tracks rate limit state for an IP/endpoint combination."""
     requests: list = field(default_factory=list)
     blocked_until: float = 0.0
+    last_seen: float = 0.0  # For TTL-based eviction
 
 
 @dataclass
@@ -76,19 +77,36 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "max-age=31536000; includeSubDomains; preload"
             )
         
-        # Content Security Policy
-        csp_directives = [
-            "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  # React needs this
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-            "font-src 'self' https://fonts.gstatic.com",
-            "img-src 'self' data: https: blob:",
-            "connect-src 'self' http://localhost:* https://*",
-            "frame-ancestors 'none'",
-            "form-action 'self'",
-            "base-uri 'self'",
-            "object-src 'none'",
-        ]
+        # Content Security Policy - tighter in production
+        if self.settings.debug:
+            # Development: permissive for HMR, dev tools
+            csp_directives = [
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  # React HMR needs this
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                "font-src 'self' https://fonts.gstatic.com",
+                "img-src 'self' data: https: blob:",
+                "connect-src 'self' http://localhost:* https://*",  # Dev servers
+                "frame-ancestors 'none'",
+                "form-action 'self'",
+                "base-uri 'self'",
+                "object-src 'none'",
+            ]
+        else:
+            # Production: tight CSP (no unsafe-eval, restricted connect-src)
+            csp_directives = [
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-inline'",  # React prod build doesn't need eval
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                "font-src 'self' https://fonts.gstatic.com",
+                "img-src 'self' data: https: blob:",
+                "connect-src 'self'",  # Only same-origin API calls
+                "frame-ancestors 'none'",
+                "form-action 'self'",
+                "base-uri 'self'",
+                "object-src 'none'",
+                "upgrade-insecure-requests",  # Force HTTPS for all resources
+            ]
         
         if self.csp_report_uri:
             csp_directives.append(f"report-uri {self.csp_report_uri}")
@@ -106,7 +124,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     per endpoint pattern.
     """
     
-    # Default rate limits: (requests, window_seconds)
     DEFAULT_LIMITS = {
         "/api/v1/auth/login": (5, 60),        # 5 attempts per minute
         "/api/v1/auth/demo-login": (10, 60),  # 10 demo logins per minute
@@ -114,24 +131,55 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         "default": (200, 60),                 # 200 requests per minute for other endpoints
     }
     
+    # Trusted proxy CIDRs - only trust XFF from these sources
+    # Configure via environment or override in production
+    TRUSTED_PROXIES = {
+        "127.0.0.1",      # Loopback
+        "::1",            # IPv6 loopback
+        "10.0.0.0/8",     # Private networks (Docker, K8s)
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+    }
+    
+    # Memory bounds
+    MAX_STATE_KEYS = 10000  # Maximum unique IP:path combinations
+    STATE_TTL_SECONDS = 600  # Evict entries not seen in 10 minutes
+    
     def __init__(
         self, 
         app, 
         limits: Dict[str, Tuple[int, int]] | None = None,
-        enabled: bool = True
+        enabled: bool = True,
+        trusted_proxies: set[str] | None = None
     ):
         super().__init__(app)
         self.limits = limits or self.DEFAULT_LIMITS
         self.enabled = enabled
-        self.state: Dict[str, RateLimitState] = defaultdict(RateLimitState)
+        self.state: Dict[str, RateLimitState] = {}
         self.settings = get_settings()
+        self.trusted_proxies = trusted_proxies or self.TRUSTED_PROXIES
+        self._last_eviction = time.time()
+    
+    def _is_trusted_proxy(self, ip: str) -> bool:
+        """Check if an IP is in the trusted proxy list."""
+        # Simple string match for now (could use ipaddress module for CIDR)
+        for trusted in self.trusted_proxies:
+            if ip == trusted or (ip.startswith(trusted.split('/')[0]) if '/' in trusted else False):
+                return True
+        return False
     
     def _get_client_ip(self, request: Request) -> str:
-        """Extract client IP, handling reverse proxy headers."""
+        """Extract client IP, only trusting XFF from trusted proxies."""
+        peer_ip = request.client.host if request.client else "unknown"
+        
+        # Only trust X-Forwarded-For if request comes from trusted proxy
+        if not self._is_trusted_proxy(peer_ip):
+            return peer_ip
+        
         forwarded = request.headers.get("X-Forwarded-For", "")
         if forwarded:
             return forwarded.split(",")[0].strip()
-        return request.client.host if request.client else "unknown"
+        return peer_ip
     
     def _get_limit_for_path(self, path: str) -> Tuple[int, int]:
         """Get rate limit for a path, falling back to default."""
@@ -145,6 +193,27 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         cutoff = now - window
         state.requests = [ts for ts in state.requests if ts > cutoff]
     
+    def _evict_stale_entries(self, now: float):
+        """Remove stale entries to bound memory growth."""
+        # Only run eviction every 60 seconds to avoid overhead
+        if now - self._last_eviction < 60:
+            return
+        self._last_eviction = now
+        
+        cutoff = now - self.STATE_TTL_SECONDS
+        stale_keys = [k for k, v in self.state.items() if v.last_seen < cutoff]
+        for key in stale_keys:
+            del self.state[key]
+        
+        # If still over limit, evict oldest entries
+        if len(self.state) > self.MAX_STATE_KEYS:
+            sorted_keys = sorted(self.state.keys(), key=lambda k: self.state[k].last_seen)
+            for key in sorted_keys[:len(self.state) - self.MAX_STATE_KEYS]:
+                del self.state[key]
+        
+        if stale_keys:
+            logger.debug("rate_limit_eviction", evicted=len(stale_keys), remaining=len(self.state))
+    
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
@@ -152,14 +221,23 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if not self.enabled or self.settings.debug:
             return await call_next(request)
         
+        now = time.time()
+        
+        # Periodically evict stale entries to bound memory
+        self._evict_stale_entries(now)
+        
         client_ip = self._get_client_ip(request)
         path = request.url.path
         max_requests, window = self._get_limit_for_path(path)
         
         # Create unique key for IP + endpoint
         key = f"{client_ip}:{path}"
+        
+        # Get or create state (plain dict, not defaultdict)
+        if key not in self.state:
+            self.state[key] = RateLimitState()
         state = self.state[key]
-        now = time.time()
+        state.last_seen = now  # Update for TTL tracking
         
         # Check if currently blocked
         if state.blocked_until > now:
