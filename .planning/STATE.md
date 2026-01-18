@@ -5,11 +5,13 @@
 **Building:** Enterprise risk management platform for insurance companies with control catalogs, dashboards, and AD integration.
 
 **Core requirements:**
+
 - Control catalog with 13-point data structure
 - Role-based access via Active Directory/Entra ID
 - Real-time dashboards for executives and departments
 
 **Constraints:**
+
 - React + Python FastAPI stack
 - On-premise deployment (Docker/K8s)
 - English default with Czech language option
@@ -17,45 +19,52 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Phase:** 17 Production Deployment (In Progress - 1/15 plans)
-**Current Plan:** 17-00 Admin Console Robustness (Completed)
-**Next Plan:** 17-01 Docker Scaffolding
+**Active Phases:** Multiple in progress (see Progress Summary)
+**Documentation Status:** Reconciled with phase folders (2026-01-18)
 
 ## Progress Summary
 
 | Phase | Status | Completed |
 |-------|--------|-----------|
-| 1-6.1 | ✅ Complete | 2025-12-26 |
-| 7 User Management | ✅ Complete (8/8) | 2025-12-29 |
+| 1-5 Foundation/Catalog/Dashboards | ✅ Complete | 2025-12-25 |
+| 6-6.1 Risk Appetite & KRI | ⏳ In progress (2/3) | - |
+| 7 User Management | ⏳ In progress (13/17) | - |
 | 8 Permission Filtering | ✅ Complete (8/8) | 2025-12-28 |
-| 9 Notification System | ✅ Complete (5/5) | 2025-12-28 |
-| 10 Historization | ⏳ In progress (4/5) | 2025-12-31 |
-| 11 Historical Visualization | ✅ Complete (5/5) | 2025-12-31 |
-| 12 Compliance Governance | ✅ Complete (6/6) | 2026-01-04 |
-| 13 Issue & Remediation | ⏳ Planned | - |
-| 14 Risk Assessments | ⏳ Planned | - |
-| 15 Security Hardening | ⏳ Planned | - |
-| 16 Enterprise Testing | ⏳ Planned | - |
-| 17 Production Deployment | ⏳ In progress (5/14) | - |
-| 85 Workflow & Users | ✅ Complete (6/6) | 2026-01-01 |
-| 90 AD Emulator (Integrated) | ✅ Complete (10/10) | 2025-12-29 |
-| 99 Data Migration & Standalone AD | ✅ Complete (8/8) | 2026-01-04 |
-| 100 Marketing Presentation | ✅ Complete (3/3) | 2025-12-29 |
-| 151 Audit Resolution | ⏳ In progress (11/18) | - |
-| 152 Audit Resolution 2 | ✅ Complete (8/8) | 2026-01-10 |
-| 70 Risk Hub Fixes | ✅ Complete (70-07) | 2026-01-03 |
+| 9 Notification System | ✅ Complete (7/7) | 2025-12-28 |
+| 10 Historization | ⏳ In progress (4/5) | - |
+| 11 Historical Visualization | ⏳ In progress (4/5) | - |
+| 12 Compliance Governance | ✅ Complete (7/7) | 2026-01-04 |
+| 12.1 Compliance Review | ✅ Complete (10/10) | 2026-01-04 |
+| 15 Settings Page | ✅ Complete (5/5) | 2026-01-07 |
+| 17 Production Deploy | ⏳ In progress (8/15) | - |
+| 20 Czech Localization | ✅ Complete (16/12) | - |
+| 25 User Settings | ✅ Complete (5/5) | 2026-01-11 |
+| 70 Risk Hub | ⏳ In progress (8/12) | - |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
-| 72 Risk Hub Resolution | ⏳ In progress (4/5) | - |
-| 200 Entity Naming Enforcement | ✅ Complete (10/10) | 2026-01-05 |
+| 72 Risk Hub Resolution | ✅ Complete (12/12) | 2026-01-05 |
+| 85 Workflow & Users | ✅ Complete (6/6) | 2026-01-01 |
+| 90 AD Emulator | ⏳ In progress (2/3) | - |
+| 90 AD Integration | ⏳ In progress (11/12) | - |
+| 99 Data Migration | ✅ Complete (8/8) | 2026-01-04 |
+| 100 Marketing | ✅ Complete (3/3) | 2025-12-29 |
+| 150 Audit | ⏳ In progress (8/11) | - |
+| 151 Audit Resolution | ✅ Complete (19/19) | 2026-01-10 |
+| 152 Audit Resolution 2 | ✅ Complete (8/8) | 2026-01-10 |
+| 153 Audit Resolution 3 | ✅ Complete (12/12) | 2026-01-10 |
+| 154 Workflow Bug Sweep | ✅ Complete (5/5) | 2026-01-14 |
+| 156 Audit | ⏳ In progress (1/8) | - |
+| 157 Business Logic Compliance | ⏸️ Planned (0/6) | - |
+| 158 Audit | ⏸️ Planned (0/10) | - |
+| 179 E2E Test Data | ⏳ In progress (11/12) | - |
+| 180 E2E Business Logic | ⏳ In progress (9/10) | - |
+| 200 Entity Naming | ⏳ In progress (9/10) | - |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
-| 25 User-Specific Settings | ✅ Complete (5/5) | 2026-01-11 |
-| 179 E2E Test Data | ✅ Complete (6/6) | 2026-01-13 |
-
 
 ## Session Context
 
 ### Phase 17 Progress
+
 - ✅ **17-04**: E2E Regression Suite (Playwright, full coverage)
 - ✅ **17-05**: Performance & Load Testing
   - Verified system performance for 30 users (5 concurrent sessions)
@@ -64,6 +73,7 @@
   - Created `docs/PERFORMANCE_BASELINE.md`
 
 ### Phase 11 Progress
+
 - ✅ **11-01**: History components (HistoryTimeline, HistoryTrendChart, HistoryChangeCard)
 - ✅ **11-02**: KRI detail page integration with history visualization
 - ✅ **11-03**: HistoryComparisonPanel for side-by-side KRI value comparison
@@ -71,11 +81,13 @@
 - ✅ **11-05**: Audit trail PDF/Excel exports with RBAC + filters
 
 ### Recent Enhancements (2025-12-31)
+
 - **Linked Risk Card Redesign**: Expanded KRI detail page risk card to full-width with process, description, department, and owner details
 - **Department Breaching KRI Badge**: Added amber "BREACHED" count badge to department cards for KRIs outside limits
 - **Audit Trail Exports**: PDF/Excel downloads from Audit Trail page with result filtering
 
 ### Phase 85 Progress
+
 - ✅ **85-01**: User access map (roles x tabs, backend + frontend gating)
 - ✅ **85-02**: Backend access management model + APIs (access scope, access endpoints)
 - ✅ **85-03**: Frontend access management UI (types, API client, PermissionMatrix, AccessEditModal, UsersPage upgrade)
@@ -85,6 +97,7 @@
 - ✅ **85-06**: Control owner edit permissions (Control Owner edits → Risk Owner approval)
 
 ### Phase 12 Progress
+
 - ✅ **12-01**: Activity Log Backend (model, API, tampering protection)
 - ✅ **12-02**: Activity Log Frontend (new tab with filters and search)
 - ✅ **12-03**: Dashboard Risk Committee (executive summary, meeting mode)
@@ -99,6 +112,7 @@
   - Created /admin/logs/audit and /admin/logs/config endpoints
 
 ### Phase 12.1 Progress
+
 - ✅ **12.1-06**: Risk Committee access control remediation (dept head access scoped; admin console-only)
 - ✅ **12.1-07**: Activity Log backend remediation (schema contract, diffs, governance logging, integrity, tests)
 - ✅ **12.1-08**: Activity Log frontend remediation (permission gating, admin-console-only, view modes, diff rendering, tests)
@@ -106,6 +120,7 @@
 - ✅ **12.1-10**: SIEM & Logging remediation (admin endpoints, middleware fix, rotation config, verification tooling)
 
 ### Phase 72 Progress
+
 - ✅ **72-01**: Backend risk type integration + risk count accuracy
 - ✅ **72-02**: Global config thresholds + notification settings integration
 - ✅ **72-03**: Cross-department Owner Access + Notification Fan-out
@@ -120,6 +135,7 @@
 - ✅ **72-12**: Naming cleanup for approval threshold helpers (`is_critical_risk_*` semantics)
 
 ### Phase 99 Progress
+
 - ✅ **99-01**: Migrated 83 risks from Registr_Rizik_2022.xlsx
 - ✅ **99-02**: Migrated 21 controls with 62 risk links
 - ✅ **99-03**: Migrated 67 KRIs with risk matching
@@ -157,11 +173,13 @@
 ## Accumulated Context
 
 ### Roadmap Evolution
+
 - Phase 90 (Integrated AD) superseded by Phase 99
 - AD Emulator will be standalone app communicating with RiskHub via HTTP
 - RiskHub will fetch directory users from AD Emulator, not store internally
 
 ### AD Emulator Architecture
+
 - **AD Emulator Backend**: Port 8001, FastAPI, separate PostgreSQL database
 - **AD Emulator Frontend**: Port 5174, React/Vite, purple/violet branding
 - **RiskHub Integration**: HTTP client to fetch from AD Emulator, sync to local users
@@ -169,14 +187,13 @@
 ## Continuity
 
 ### Last Action
-- Completed Plan 154-05: E2E Test Coverage. Added 5 new tests across `control-owner-access.spec.ts` and `status-flow.spec.ts` to cover control-side linking and approval-queued UX. All 23 backend tests pass. Phase 154 fully closed.
+
+- Reconciled ROADMAP.md and STATE.md with actual phase folder contents (2026-01-18). Fixed plan counts and completion statuses for all 49 phases using PLAN.md/SUMMARY.md files as source of truth.
 
 ### Next Step
-- Continue with Phase 180 Business Logic Verification or start new feature work.
 
-
+- Continue with planned work. Phase 157 (Business Logic Compliance) has 6 plans ready.
 
 ---
-*Updated: 2026-01-14*
 
-
+*Updated: 2026-01-18*
