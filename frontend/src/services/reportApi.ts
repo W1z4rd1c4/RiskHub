@@ -1,4 +1,4 @@
-
+import { apiClient } from './apiClient';
 
 interface ReportFilters {
     departmentId?: number | null;
@@ -45,23 +45,16 @@ function buildAuditQueryString(filters: AuditTrailFilters): string {
     return query ? `?${query}` : '';
 }
 
+/**
+ * Download a file from the API using apiClient's shared base URL logic.
+ * This ensures requests work correctly whether VITE_API_URL is set or not.
+ */
 async function downloadFile(url: string, defaultFilename: string): Promise<void> {
-    const token = localStorage.getItem('access_token');
     try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}${url}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`Download failed: ${response.statusText}`);
-        }
-
-        const blob = await response.blob();
+        const { blob, headers } = await apiClient.getBlob(url);
 
         // Get filename from Content-Disposition header if available
-        const contentDisposition = response.headers.get('Content-Disposition');
+        const contentDisposition = headers.get('Content-Disposition');
         let filename = defaultFilename;
         if (contentDisposition) {
             const match = contentDisposition.match(/filename="?([^"]+)"?/);
@@ -142,4 +135,3 @@ export const reportApi = {
         await downloadFile(url, 'placeholder-xlsx-001.xlsx');
     }
 };
-

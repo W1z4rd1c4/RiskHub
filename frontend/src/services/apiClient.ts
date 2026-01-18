@@ -119,6 +119,52 @@ class ApiClient {
     delete<T>(endpoint: string, options?: RequestOptions) {
         return this.request<T>(endpoint, { ...options, method: 'DELETE' });
     }
+
+    /**
+     * Download a binary blob from the API.
+     * Uses the same base URL and auth logic as other requests.
+     */
+    async getBlob(endpoint: string, options: RequestOptions = {}): Promise<{ blob: Blob; headers: Headers }> {
+        const { params, ...init } = options;
+
+        // Build URL with query params (same logic as request())
+        const baseOrigin = this.baseUrl.startsWith('/') ? window.location.origin : '';
+        const url = new URL(`${baseOrigin}${this.baseUrl}${endpoint}`);
+        if (params) {
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined) {
+                    if (Array.isArray(value)) {
+                        value.forEach(v => url.searchParams.append(key, String(v)));
+                    } else {
+                        url.searchParams.append(key, String(value));
+                    }
+                }
+            });
+        }
+
+        // Prepare headers with Authorization (same logic as request())
+        const headers = new Headers(init.headers);
+        const token = localStorage.getItem('access_token');
+        if (token) {
+            headers.set('Authorization', `Bearer ${token}`);
+        }
+
+        const config: RequestInit = { ...init, method: 'GET', headers };
+
+        const response = await fetch(url.toString(), config);
+
+        if (response.status === 401) {
+            localStorage.removeItem('access_token');
+            window.location.href = '/login';
+            throw new Error('Unauthorized');
+        }
+
+        if (!response.ok) {
+            throw new Error(`Download failed: ${response.statusText}`);
+        }
+
+        return { blob: await response.blob(), headers: response.headers };
+    }
 }
 
 export const apiClient = new ApiClient(API_URL);
