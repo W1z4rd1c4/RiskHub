@@ -271,7 +271,11 @@ async def _apply_edit_risk_control(
     approval: ApprovalRequest,
     current_user: User,
 ) -> None:
-    """Apply pending_changes to Risk or Control."""
+    """Apply pending_changes to Risk or Control.
+    
+    For risks: also recomputes derived scores (gross_score, net_score) if probability/impact changed.
+    For controls: also sets updated_by_id for audit attribution.
+    """
     changes = approval.pending_changes
     if not changes:
         return
@@ -285,6 +289,23 @@ async def _apply_edit_risk_control(
                 if hasattr(risk, field):
                     setattr(risk, field, vals.get("new"))
                     applied_changes[field] = vals
+            
+            # Recompute derived scores if probability/impact changed
+            gross_inputs_changed = any(k in applied_changes for k in ("gross_probability", "gross_impact"))
+            net_inputs_changed = any(k in applied_changes for k in ("net_probability", "net_impact"))
+            
+            if gross_inputs_changed:
+                old_gross_score = risk.gross_score
+                risk.gross_score = risk.gross_probability * risk.gross_impact
+                if risk.gross_score != old_gross_score:
+                    applied_changes["gross_score"] = {"old": old_gross_score, "new": risk.gross_score}
+            
+            if net_inputs_changed:
+                old_net_score = risk.net_score
+                risk.net_score = risk.net_probability * risk.net_impact
+                if risk.net_score != old_net_score:
+                    applied_changes["net_score"] = {"old": old_net_score, "new": risk.net_score}
+            
             if applied_changes:
                 await log_activity(
                     db,
@@ -307,7 +328,10 @@ async def _apply_edit_risk_control(
                 if hasattr(control, field):
                     setattr(control, field, vals.get("new"))
                     applied_changes[field] = vals
+            
+            # Set audit attribution for control edits
             if applied_changes:
+                control.updated_by_id = current_user.id
                 await log_activity(
                     db,
                     entity_type=ActivityEntityType.CONTROL,
