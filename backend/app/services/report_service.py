@@ -254,7 +254,9 @@ def generate_risks_pdf(risks: list["Risk"], locale: str = 'en') -> bytes:
         
         # Summary
         elements.append(Spacer(1, 24))
-        high_risks = sum(1 for r in risks if r.net_probability * r.net_impact >= 16)
+        from app.models.global_config import ConfigDefaults
+        critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
+        high_risks = sum(1 for r in risks if r.net_probability * r.net_impact >= critical_threshold)
         critical_label = t('critical_risks') if locale == 'cs' else 'High/Critical'
         elements.append(Paragraph(f"{t('total')} {t('risks')}: {len(risks)} | {critical_label}: {high_risks}", styles['Normal']))
     
