@@ -6,7 +6,8 @@
 
 | Issue | Risk | Current Status |
 |-------|------|----------------|
-| Webhook signature bypass | `/directory/webhook` skips verify when `WEBHOOK_SECRET` empty | 🔴 Open |
+| Webhook signature bypass | `/directory/webhook` skips verify when `WEBHOOK_SECRET` empty | ✅ Fixed (158-10) - fails closed in production |
+| Admin assignable as entity owner | `/users/lookup` returns admins, no validation on risk/control owner_id | 🔴 Open |
 | Default SECRET_KEY | Production MUST override | ⚠️ Startup check added |
 | OpenAPI docs exposed | `/docs`, `/openapi.json` public | 🔴 Open |
 | DB port exposed | 5432 in docker-compose | ⚠️ Dev only |
