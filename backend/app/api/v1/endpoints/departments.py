@@ -23,18 +23,18 @@ from app.schemas.kri import KRIResponse
 from app.api import deps
 from app.core.permissions import get_user_department_ids, check_department_access
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from app.models.global_config import ConfigDefaults, build_risk_level_ranges
 
 
 router = APIRouter()
 
 
-# Risk level score ranges
-RISK_LEVEL_RANGES = {
-    "critical": (16, 25),
-    "high": (10, 15),
-    "medium": (5, 9),
-    "low": (1, 4),
-}
+# Risk level score ranges (uses ConfigDefaults for consistency)
+RISK_LEVEL_RANGES = build_risk_level_ranges(
+    ConfigDefaults.MEDIUM_RISK_MIN_NET_SCORE,
+    ConfigDefaults.HIGH_RISK_MIN_NET_SCORE,
+    ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE,
+)
 
 
 # ---------------------------------------------------------------------------

@@ -311,9 +311,11 @@ async def download_summary_pdf(
     risks = risks_result.scalars().all()
     
     # Calculate metrics
+    from app.models.global_config import ConfigDefaults
     total_controls = len(controls)
     total_risks = len(risks)
-    critical_risks = sum(1 for r in risks if r.net_probability * r.net_impact >= 16)
+    critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
+    critical_risks = sum(1 for r in risks if r.net_probability * r.net_impact >= critical_threshold)
     avg_net_score = sum(r.net_probability * r.net_impact for r in risks) / len(risks) if risks else 0
     
     controls_by_status = {}
