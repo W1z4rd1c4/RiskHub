@@ -1,6 +1,6 @@
 """Approval request model for tracking deletion and edit approval workflows."""
 from enum import Enum as PyEnum
-from datetime import datetime
+from datetime import datetime, UTC
 from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, Enum as SQLEnum, Index, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
@@ -107,6 +107,5 @@ class ApprovalRequest(Base):
 
 
 # Import for type hints
-from datetime import UTC
 from app.models.user import User
 
