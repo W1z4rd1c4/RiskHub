@@ -54,7 +54,7 @@
 | 154 Workflow Bug Sweep | ✅ Complete (5/5) | 2026-01-14 |
 | 156 Audit | ⏳ In progress (1/8) | - |
 | 157 Business Logic Compliance | ⏸️ Planned (0/6) | - |
-| 158 Audit | ⏸️ Planned (0/10) | - |
+| 158 Audit | ⏳ In progress (8/10) | - |
 | 179 E2E Test Data | ⏳ In progress (11/12) | - |
 | 180 E2E Business Logic | ⏳ In progress (9/10) | - |
 | 200 Entity Naming | ⏳ In progress (9/10) | - |
