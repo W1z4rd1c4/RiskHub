@@ -49,6 +49,7 @@ export default function LoginPage() {
     };
 
     const AccountButton = ({ account }: { account: typeof DEMO_ACCOUNTS.privileged[0] }) => {
+        // Static class mappings for hover states - Tailwind can scan these
         const colorClasses = {
             rose: 'hover:border-rose-400/50 hover:bg-rose-400/5',
             purple: 'hover:border-purple-400/50 hover:bg-purple-400/5',
@@ -61,6 +62,19 @@ export default function LoginPage() {
             pink: 'hover:border-pink-400/50 hover:bg-pink-400/5',
         };
 
+        // Static badge class mappings - prevents Tailwind purge issues
+        const badgeClasses = {
+            rose: 'bg-rose-400/10 border-rose-400/20 text-rose-400',
+            purple: 'bg-purple-400/10 border-purple-400/20 text-purple-400',
+            violet: 'bg-violet-400/10 border-violet-400/20 text-violet-400',
+            amber: 'bg-amber-400/10 border-amber-400/20 text-amber-400',
+            emerald: 'bg-emerald-400/10 border-emerald-400/20 text-emerald-400',
+            sky: 'bg-sky-400/10 border-sky-400/20 text-sky-400',
+            teal: 'bg-teal-400/10 border-teal-400/20 text-teal-400',
+            indigo: 'bg-indigo-400/10 border-indigo-400/20 text-indigo-400',
+            pink: 'bg-pink-400/10 border-pink-400/20 text-pink-400',
+        };
+
         return (
             <button
                 onClick={() => handleDemoLogin(account.id)}
@@ -68,7 +82,7 @@ export default function LoginPage() {
                 className={`w-full p-3 flex items-center justify-between bg-white/[0.03] border border-white/10 rounded-xl transition-all group disabled:opacity-50 ${colorClasses[account.color as keyof typeof colorClasses]}`}
             >
                 <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full bg-${account.color}-400/10 border border-${account.color}-400/20 flex items-center justify-center text-${account.color}-400 text-xs font-bold`}>
+                    <div className={`w-8 h-8 rounded-full border flex items-center justify-center text-xs font-bold ${badgeClasses[account.color as keyof typeof badgeClasses]}`}>
                         {account.name.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div className="text-left">
