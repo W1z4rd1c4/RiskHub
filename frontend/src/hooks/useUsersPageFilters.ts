@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { AccessUserRead } from '@/types/access';
-import type { UserRead } from '@/types/user';
+import type { UserLookup } from '@/types/user';
 
 // Permission filter options
 export const permissionResources = [
@@ -45,17 +45,17 @@ export interface UsersPageFiltersState {
     hasPermFilters: boolean;
     resetPermissionFilters: () => void;
     filteredAccessUsers: AccessUserRead[];
-    filteredFallbackUsers: UserRead[];
+    filteredDirectoryUsers: UserLookup[];
 }
 
 interface UseUsersPageFiltersProps {
     accessUsers: AccessUserRead[];
-    fallbackUsers: UserRead[];
+    directoryUsers: UserLookup[];
 }
 
 export function useUsersPageFilters({
     accessUsers,
-    fallbackUsers,
+    directoryUsers,
 }: UseUsersPageFiltersProps): UsersPageFiltersState {
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState('all');
@@ -82,15 +82,15 @@ export function useUsersPageFilters({
         });
     }, [accessUsers, searchTerm, roleFilter, scopeFilter, permResourceFilter, permActionFilter]);
 
-    // Filter logic for fallback mode
-    const filteredFallbackUsers = useMemo(() => {
-        return fallbackUsers.filter(user => {
+    // Filter logic for directory mode (read-only, simpler filtering)
+    const filteredDirectoryUsers = useMemo(() => {
+        return directoryUsers.filter(user => {
             const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 user.email.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesRole = roleFilter === 'all' || user.role.name === roleFilter;
+            const matchesRole = roleFilter === 'all' || user.role_name === roleFilter;
             return matchesSearch && matchesRole;
         });
-    }, [fallbackUsers, searchTerm, roleFilter]);
+    }, [directoryUsers, searchTerm, roleFilter]);
 
     return {
         searchTerm,
@@ -106,6 +106,6 @@ export function useUsersPageFilters({
         hasPermFilters,
         resetPermissionFilters,
         filteredAccessUsers,
-        filteredFallbackUsers,
+        filteredDirectoryUsers,
     };
 }
