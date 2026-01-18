@@ -10,7 +10,7 @@ import {
 import { accessApi } from '@/services/accessApi';
 import { userApi } from '@/services/userApi';
 import type { AccessUserRead } from '@/types/access';
-import type { UserRead } from '@/types/user';
+import type { UserLookup } from '@/types/user';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useNavigate } from 'react-router-dom';
 import { AccessEditModal } from '@/components/access/AccessEditModal';
@@ -22,16 +22,16 @@ import { UsersTable } from '@/components/access/UsersTable';
 export function UsersPage() {
     const { t } = useTranslation('admin');
     const [users, setUsers] = useState<AccessUserRead[]>([]);
-    const [fallbackUsers, setFallbackUsers] = useState<UserRead[]>([]);
+    const [directoryUsers, setDirectoryUsers] = useState<UserLookup[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<AccessUserRead | null>(null);
     const [isAccessMode, setIsAccessMode] = useState(false);
 
-    // Confirm dialog state for user status toggle
+    // Confirm dialog state for user status toggle (only used in access mode)
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-    const [userToToggle, setUserToToggle] = useState<AccessUserRead | UserRead | null>(null);
+    const [userToToggle, setUserToToggle] = useState<AccessUserRead | null>(null);
     const [isToggling, setIsToggling] = useState(false);
 
     const { canManageUsers, canManageAccess, user: currentUser } = usePermissions();
@@ -42,7 +42,7 @@ export function UsersPage() {
 
     const filters = useUsersPageFilters({
         accessUsers: users,
-        fallbackUsers: fallbackUsers,
+        directoryUsers: directoryUsers,
     });
 
     useEffect(() => {
@@ -66,19 +66,9 @@ export function UsersPage() {
                 setUsers(data);
                 setIsAccessMode(true); // Enable access mode to show permissions
             } else {
-                // Non-privileged get scoped user lookup (read-only)
+                // Non-privileged get scoped user lookup (read-only directory view)
                 const data = await userApi.listVisibleUsers();
-                // Map to UserRead-like structure for display
-                setFallbackUsers(data.map(u => ({
-                    ...u,
-                    is_active: true, // Lookup only returns active by default
-                    role: { name: u.role_name || 'Unknown', display_name: u.role_name || 'Unknown' },
-                    manager_name: null,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                    access_scope: 'manager', // Placeholder
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                })) as any[]);
+                setDirectoryUsers(data);
                 setIsAccessMode(false);
             }
         } catch (error) {
@@ -88,7 +78,7 @@ export function UsersPage() {
         }
     };
 
-    const handleToggleClick = (user: AccessUserRead | UserRead) => {
+    const handleToggleClick = (user: AccessUserRead) => {
         setUserToToggle(user);
         setConfirmDialogOpen(true);
     };
@@ -120,13 +110,13 @@ export function UsersPage() {
 
     // Compute display values
     const displayUsers = isAccessMode ? filters.filteredAccessUsers : [];
-    const displayFallbackUsers = !isAccessMode ? filters.filteredFallbackUsers : [];
+    const displayDirectoryUsers = !isAccessMode ? filters.filteredDirectoryUsers : [];
 
     // Stats
-    const totalCount = isAccessMode ? users.length : fallbackUsers.length;
+    const totalCount = isAccessMode ? users.length : directoryUsers.length;
     const activeCount = isAccessMode
         ? users.filter(u => u.is_active).length
-        : fallbackUsers.filter(u => u.is_active).length;
+        : directoryUsers.length; // Directory only shows active users
     const privilegedCount = isAccessMode
         ? users.filter(u => u.access_scope === 'global' && u.role.name !== 'admin').length
         : 0;
@@ -216,7 +206,7 @@ export function UsersPage() {
                     isAccessMode={isAccessMode}
                     isLoading={isLoading}
                     accessUsers={displayUsers}
-                    fallbackUsers={displayFallbackUsers}
+                    directoryUsers={displayDirectoryUsers}
                     expandedUserId={expandedUserId}
                     onToggleExpand={(userId) => setExpandedUserId(expandedUserId === userId ? null : userId)}
                     canManageAccess={canManageAccess}

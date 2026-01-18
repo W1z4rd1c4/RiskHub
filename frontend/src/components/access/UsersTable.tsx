@@ -13,7 +13,7 @@ import {
     Server
 } from 'lucide-react';
 import type { AccessUserRead } from '@/types/access';
-import type { UserRead } from '@/types/user';
+import type { UserLookup } from '@/types/user';
 import { cn } from '@/lib/utils';
 import { PermissionChips, PermissionMatrix } from '@/components/access/PermissionMatrix';
 
@@ -29,20 +29,20 @@ interface UsersTableProps {
     isAccessMode: boolean;
     isLoading: boolean;
     accessUsers: AccessUserRead[];
-    fallbackUsers: UserRead[];
+    directoryUsers: UserLookup[];
     expandedUserId: number | null;
     onToggleExpand: (userId: number) => void;
     canManageAccess: boolean;
     canManageUsers: boolean;
     onEditAccess: (user: AccessUserRead) => void;
-    onToggleStatus: (user: AccessUserRead | UserRead) => void;
+    onToggleStatus: (user: AccessUserRead) => void;
 }
 
 export function UsersTable({
     isAccessMode,
     isLoading,
     accessUsers,
-    fallbackUsers,
+    directoryUsers,
     expandedUserId,
     onToggleExpand,
     canManageAccess,
@@ -289,8 +289,8 @@ export function UsersTable({
                                 )}
                             </React.Fragment>
                         ))
-                    ) : !isAccessMode && fallbackUsers.length > 0 ? (
-                        fallbackUsers.map((user) => (
+                    ) : !isAccessMode && directoryUsers.length > 0 ? (
+                        directoryUsers.map((user) => (
                             <tr key={user.id} className="group hover:bg-white/5 transition-colors">
                                 <td className="py-4 px-4">
                                     <div className="flex items-center gap-3">
@@ -310,22 +310,17 @@ export function UsersTable({
                                     <div className="space-y-1">
                                         <p className="text-sm text-white flex items-center gap-1.5">
                                             <Shield className="h-3.5 w-3.5 text-purple-400" />
-                                            {user.role.display_name}
+                                            {user.role_name || 'Unknown'}
                                         </p>
                                         <p className="text-xs text-slate-500 flex items-center gap-1.5">
                                             <Building2 className="h-3.5 w-3.5 text-slate-500" />
-                                            {user.manager_name ? `Report to: ${user.manager_name}` : 'Top Level'}
+                                            {user.department_name || t('access.table.no_department')}
                                         </p>
                                     </div>
                                 </td>
                                 <td className="py-4 px-4">
-                                    <span className={cn(
-                                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium",
-                                        user.is_active
-                                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                            : "bg-rose-500/10 text-rose-500 border border-rose-500/20"
-                                    )}>
-                                        {user.is_active ? 'Active' : 'Inactive'}
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                        {t('access.status.active')}
                                     </span>
                                 </td>
                                 <td className="py-4 px-4 text-right">
