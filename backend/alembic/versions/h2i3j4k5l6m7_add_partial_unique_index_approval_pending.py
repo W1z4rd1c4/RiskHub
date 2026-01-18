@@ -25,7 +25,7 @@ def upgrade() -> None:
     op.execute("""
         CREATE UNIQUE INDEX IF NOT EXISTS ux_approval_pending 
         ON approval_requests (resource_type, resource_id, action_type) 
-        WHERE status = 'PENDING' OR status = 'PENDING_PRIVILEGED'
+        WHERE status = 'PENDING' OR status = 'pending_privileged'
     """)
 
 
