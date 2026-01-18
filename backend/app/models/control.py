@@ -19,6 +19,7 @@ class ControlFrequency(str, PyEnum):
     quarterly = "quarterly"
     annually = "annually"
     ad_hoc = "ad_hoc"
+    continuous = "continuous"
 
 
 class ControlStatus(str, PyEnum):
