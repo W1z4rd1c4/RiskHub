@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { UserRead, UserCreate, UserUpdate, Role } from '../types/user';
+import type { UserRead, UserCreate, UserUpdate, Role, UserLookup } from '../types/user';
 
 export const userApi = {
     async listUsers(skip = 0, limit = 100, departmentId?: number, roleId?: number) {
@@ -35,7 +35,7 @@ export const userApi = {
      * Returns users visible to the current user based on their access scope.
      */
     async listVisibleUsers(params?: { q?: string; include_inactive?: boolean; department_id?: number; skip?: number; limit?: number }) {
-        return apiClient.get<{ id: number; name: string; email: string; role_name?: string; department_id?: number; department_name?: string; manager_id?: number }[]>('/users/lookup', { params });
+        return apiClient.get<UserLookup[]>('/users/lookup', { params });
     },
 
     async listRoles() {

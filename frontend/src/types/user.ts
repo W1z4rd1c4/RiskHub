@@ -46,3 +46,17 @@ export interface UserBrief {
     role_display_name: string;
     permissions: string[];
 }
+
+/**
+ * User lookup entry from /users/lookup endpoint.
+ * Used for read-only directory view by non-privileged users.
+ */
+export interface UserLookup {
+    id: number;
+    name: string;
+    email: string;
+    role_name?: string;
+    department_id?: number;
+    department_name?: string;
+    manager_id?: number;
+}

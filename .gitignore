@@ -126,5 +126,6 @@ backend/logs/
 REPO.TXT
 repo_export/
 
-# Platform Team agent orchestration
-.agent/
+
+# Codex
+.codex/
