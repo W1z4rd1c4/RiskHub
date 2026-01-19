@@ -62,6 +62,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 156: Audit** — Additional audit phase (1/8)
 - [ ] **Phase 157: Business Logic Compliance** — Fix BUSINESS_LOGIC.md discrepancies (0/6)
 - [x] **Phase 158: Audit** — Full-app audit findings → 10 independent fix plans (10/10)
+- [ ] **Phase 159: Audit Fixes** — Fix Phase 158 code review findings (0/10)
 - [ ] **Phase 179: E2E Test Data** — E2E test data seeding (11/12)
 - [ ] **Phase 180: E2E Business Logic** — E2E business logic tests (9/10)
 - [ ] **Phase 200: Entity Naming Enforcement** — Mandatory naming (9/10)
@@ -676,6 +677,26 @@ Plans:
 - [ ] 158-09: Fix Tailwind dynamic class purge in LoginPage
 - [ ] 158-10: Production hardening (fail-closed webhooks, scheduler singleton, rate limiting, CSP)
 
+### Phase 159: Audit Fixes
+
+**Goal**: Fix code review findings from Phase 158 including test reliability, security, and polish items.
+**Depends on**: Phase 158 (Audit)
+**Research**: None (issues already analyzed in code review)
+**Plans**: 10 plans
+
+Plans:
+
+- [ ] 159-01: PostgreSQL-only test assertions + dialect-aware skips
+- [ ] 159-02: Risk ID generation test regression fix (DB-backed)
+- [ ] 159-03: Security CIDR matching fix (ipaddress module)
+- [ ] 159-04: Department high risk threshold consistency
+- [ ] 159-05: Approval field whitelist (prevent arbitrary writes)
+- [ ] 159-06: Migration duplicate cancellation audit fields
+- [ ] 159-07: Webhook sync error response codes
+- [ ] 159-08: Nginx CSP connect-src cleanup
+- [ ] 159-09: API client code cleanup
+- [ ] 159-10: Test infrastructure documentation
+
 ## Progress
 
 **Execution Order:**
@@ -728,6 +749,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 156. Audit | 1/8 | ⏳ In progress | - |
 | 157. Business Logic Compliance | 0/6 | ⏸️ Planned | - |
 | 158. Audit | 10/10 | ✅ Complete | 2026-01-19 |
+| 159. Audit Fixes | 0/10 | ⏸️ Planned | - |
 | 179. E2E Test Data | 11/12 | ⏳ In progress | - |
 | 180. E2E Business Logic | 9/10 | ⏳ In progress | - |
 | 200. Entity Naming | 9/10 | ⏳ In progress | - |
