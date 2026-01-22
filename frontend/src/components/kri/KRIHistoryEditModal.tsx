@@ -94,6 +94,11 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                            {/* CRO Approval Warning */}
+                            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-amber-400 flex-shrink-0" />
+                                <span className="text-xs font-medium text-amber-400">{t('correction.warning')}</span>
+                            </div>
                             {result && (
                                 <div className={`p-4 rounded-lg flex items-center gap-3 ${result.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
                                     {result.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
