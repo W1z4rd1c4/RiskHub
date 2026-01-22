@@ -105,5 +105,20 @@
             "reporting_owner_default": "Risk Owner (Default)",
             "correction_reason": "Explain why this correction is needed..."
         }
+    },
+    "correction": {
+        "title": "Correct KRI Value",
+        "current_value": "Current Value",
+        "new_value": "Corrected Value",
+        "reason": "Correction Reason",
+        "reason_placeholder": "Explain why this value needs correction...",
+        "warning": "Value corrections require CRO approval",
+        "submit": "Submit Correction",
+        "success": "Correction submitted for approval"
+    },
+    "overdue": {
+        "badge": "Overdue",
+        "days_overdue": "{{days}} days overdue",
+        "last_submission": "Last submission: {{date}}"
     }
 }
