@@ -60,7 +60,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 154: Workflow Bug Sweep** — Workflow bug fixes (5/5)
 - [ ] **Phase 155: Approval Edit UX** — Approval UX improvements (0/1)
 - [ ] **Phase 156: Audit** — Additional audit phase (1/8)
-- [ ] **Phase 157: Business Logic Compliance** — Fix BUSINESS_LOGIC.md discrepancies (0/6)
+- [x] **Phase 157: Business Logic Compliance** — Fix BUSINESS_LOGIC.md discrepancies (6/6)
 - [x] **Phase 158: Audit** — Full-app audit findings → 10 independent fix plans (10/10)
 - [ ] **Phase 159: Audit Fixes** — Fix Phase 158 code review findings (0/10)
 - [ ] **Phase 179: E2E Test Data** — E2E test data seeding (11/12)
@@ -646,16 +646,18 @@ Plans:
 **Goal**: Fix discrepancies between implementation and docs/BUSINESS_LOGIC.md identified during deep code review
 **Depends on**: None (independent fixes)
 **Research**: None (already researched during deep review)
+**Status**: ✅ Complete
+**Completed**: 2026-01-22
 **Plans**: 6 plans
 
 Plans:
 
-- [ ] 157-01: Approval Cancellation Permission Fix (privileged users can cancel per §5.5)
-- [ ] 157-02: KRI History Correction CRO Approval (enforce per §5.3)
-- [ ] 157-03: Complete 151-13 KRI Value Correction UI + Overdue Badges
-- [ ] 157-04: Complete 151-19 Approval Workflow Edge Cases & Activity Logging
-- [ ] 157-05: Seed File Role Consistency (align control_owner → employee per §1.1)
-- [ ] 157-06: E2E Business Logic Test Coverage (accelerate Phase 180)
+- [x] 157-01: Approval Cancellation Permission Fix (privileged users can cancel per §5.5)
+- [x] 157-02: KRI History Correction CRO Approval (enforce per §5.3)
+- [x] 157-03: Complete 151-13 KRI Value Correction UI + Overdue Badges
+- [x] 157-04: Complete 151-19 Approval Workflow Edge Cases & Activity Logging
+- [x] 157-05: Seed File Role Consistency (align control_owner → employee per §1.1)
+- [x] 157-06: E2E Business Logic Test Coverage (accelerate Phase 180)
 
 ### Phase 158: Audit
 
@@ -747,7 +749,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 154. Workflow Bug Sweep | 5/5 | ✅ Complete | 2026-01-14 |
 | 155. Approval Edit UX | 0/1 | ⏸️ Planned | - |
 | 156. Audit | 1/8 | ⏳ In progress | - |
-| 157. Business Logic Compliance | 0/6 | ⏸️ Planned | - |
+| 157. Business Logic Compliance | 6/6 | ✅ Complete | 2026-01-22 |
 | 158. Audit | 10/10 | ✅ Complete | 2026-01-19 |
 | 159. Audit Fixes | 0/10 | ⏸️ Planned | - |
 | 179. E2E Test Data | 11/12 | ⏳ In progress | - |
