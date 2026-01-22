@@ -40,7 +40,7 @@ export default function LoginPage() {
 
             const data = await response.json();
             localStorage.setItem('access_token', data.access_token);
-            window.location.href = '/dashboard';
+            window.location.href = '/';
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Login failed');
         } finally {
