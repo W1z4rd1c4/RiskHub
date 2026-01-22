@@ -138,6 +138,7 @@ async def create_risk_type(
         entity_name=risk_type.display_name,
         description=f"Created risk type: {risk_type.display_name}"
     )
+    await db.commit()  # Persist activity log
     
     return RiskTypeRead(
         id=risk_type.id,
@@ -197,6 +198,7 @@ async def update_risk_type(
         entity_name=risk_type.display_name,
         description=f"Updated risk type: {risk_type.display_name}"
     )
+    await db.commit()  # Persist activity log
     
     return RiskTypeRead(
         id=risk_type.id,
@@ -253,6 +255,7 @@ async def delete_risk_type(
         entity_name=risk_type.display_name,
         description=f"Deleted risk type: {risk_type.display_name} (affecting {risk_type.risk_count} risks)"
     )
+    await db.commit()  # Persist activity log
     
     return {"status": "deleted", "id": id, "affected_risks": risk_type.risk_count}
 
@@ -290,6 +293,7 @@ async def restore_risk_type(
         entity_name=risk_type.display_name,
         description=f"Restored risk type: {risk_type.display_name}"
     )
+    await db.commit()  # Persist activity log
     
     return RiskTypeRead(
         id=risk_type.id,
