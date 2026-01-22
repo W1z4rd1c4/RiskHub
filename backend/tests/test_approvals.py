@@ -552,3 +552,171 @@ async def test_kri_approval_cross_department_denied(
     data = admin_resp.json()
     # Verify resource_name uses metric_name, not non-existent 'name'
     assert data["resource_name"] == "Cross-Department KRI Metric"
+
+
+# ============================================================
+# §5.5 Privileged Cancellation Tests - Plan 157-01
+# ============================================================
+
+@pytest.mark.asyncio
+async def test_privileged_user_cro_can_cancel_other_users_pending_request(
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+):
+    """Test CRO can cancel another user's pending request per §5.5."""
+    # Employee creates a request
+    create_response = await client_employee.post(
+        "/api/v1/approvals",
+        json={
+            "resource_type": "risk",
+            "resource_id": test_risk.id,
+            "reason": "Employee request to delete"
+        }
+    )
+    assert create_response.status_code == 201
+    approval_id = create_response.json()["id"]
+    
+    # CRO cancels it
+    cancel_response = await client_cro.post(f"/api/v1/approvals/{approval_id}/cancel")
+    assert cancel_response.status_code == 200
+    assert cancel_response.json()["status"] == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_privileged_user_risk_manager_can_cancel_other_users_pending_request(
+    client_risk_manager: AsyncClient,
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+):
+    """Test Risk Manager can cancel another user's pending request per §5.5."""
+    # Employee creates a request
+    create_response = await client_employee.post(
+        "/api/v1/approvals",
+        json={
+            "resource_type": "risk",
+            "resource_id": test_risk.id,
+            "reason": "Employee request"
+        }
+    )
+    assert create_response.status_code == 201
+    approval_id = create_response.json()["id"]
+    
+    # Risk Manager cancels it
+    cancel_response = await client_risk_manager.post(f"/api/v1/approvals/{approval_id}/cancel")
+    assert cancel_response.status_code == 200
+    assert cancel_response.json()["status"] == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_non_privileged_cannot_cancel_other_users_request(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_role_employee: Role,
+):
+    """Test non-privileged user cannot cancel other user's request per §5.5."""
+    from app.models import User, Department, Risk
+    from app.models.user import AccessScope
+    from app.models.risk import RiskStatus as RiskStatusEnum
+    
+    # Create a department and two employees in the same department
+    dept = Department(name="Dept Cancel Test", code="CANCEL-TEST")
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+    
+    user_a = User(
+        name="User A",
+        email="user-cancel-a@test.com",
+        role_id=test_role_employee.id,
+        department_id=dept.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    user_b = User(
+        name="User B",
+        email="user-cancel-b@test.com",
+        role_id=test_role_employee.id,
+        department_id=dept.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add_all([user_a, user_b])
+    await db_session.commit()
+    await db_session.refresh(user_a)
+    await db_session.refresh(user_b)
+    
+    # Create a risk in the same department as the employees
+    risk_in_dept = Risk(
+        risk_id_code="RISK-CANCEL-TEST",
+        name="Risk for Cancel Test",
+        process="Cancel test process",
+        description="Risk in same department as employees",
+        category="Test",
+        department_id=dept.id,
+        owner_id=user_a.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=3,
+        status=RiskStatusEnum.active.value,
+    )
+    db_session.add(risk_in_dept)
+    await db_session.commit()
+    await db_session.refresh(risk_in_dept)
+    
+    # User A creates request (now in same department as risk)
+    create_response = await client.post(
+        "/api/v1/approvals",
+        headers={"X-Mock-User-Id": str(user_a.id)},
+        json={
+            "resource_type": "risk",
+            "resource_id": risk_in_dept.id,
+            "reason": "User A's request"
+        }
+    )
+    assert create_response.status_code == 201
+    approval_id = create_response.json()["id"]
+    
+    # User B tries to cancel → 403
+    cancel_response = await client.post(
+        f"/api/v1/approvals/{approval_id}/cancel",
+        headers={"X-Mock-User-Id": str(user_b.id)},
+    )
+    assert cancel_response.status_code == 403
+    assert "privileged" in cancel_response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_privileged_user_cannot_cancel_already_resolved(
+    client_cro: AsyncClient,
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+):
+    """Test privileged user cannot cancel an already approved/rejected request."""
+    # Create request
+    create_response = await auth_client.post(
+        "/api/v1/approvals",
+        json={
+            "resource_type": "risk",
+            "resource_id": test_risk.id,
+            "reason": "Test request"
+        }
+    )
+    assert create_response.status_code == 201
+    approval_id = create_response.json()["id"]
+    
+    # Admin approves it
+    await auth_client.post(
+        f"/api/v1/approvals/{approval_id}/approve",
+        json={"resolution_notes": "Approved"}
+    )
+    
+    # CRO tries to cancel → 400
+    cancel_response = await client_cro.post(f"/api/v1/approvals/{approval_id}/cancel")
+    assert cancel_response.status_code == 400
+    assert "cannot cancel" in cancel_response.json()["detail"].lower()
