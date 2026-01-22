@@ -912,6 +912,11 @@ async def correct_history_entry(
             raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
         
         # Create approval request with history entry info
+        # §5.3: KRI corrections ALWAYS require CRO approval (privileged)
+        # Tier 1: Risk Owner approves first
+        # Tier 2: CRO (privileged) approves second
+        primary_approver_id = kri.risk.owner_id if kri.risk else None
+        
         pending_changes = {
             "history_entry_id": entry_id,
             "old_value": entry.value,
@@ -929,6 +934,8 @@ async def correct_history_entry(
             action_type=ApprovalActionType.EDIT,
             pending_changes=pending_changes,
             status=ApprovalStatus.PENDING,
+            primary_approver_id=primary_approver_id,
+            requires_privileged_approval=True,  # §5.3: Corrections ALWAYS require CRO
         )
         
         from app.core.approval_helpers import create_approval_request_with_audit
@@ -944,9 +951,11 @@ async def correct_history_entry(
         return JSONResponse(
             status_code=202,
             content={
-                "message": "History correction requires approval",
+                "message": "History correction requires approval (CRO approval required per §5.3)",
                 "approval_id": approval.id,
                 "action_type": "edit",
+                "primary_approver_id": primary_approver_id,
+                "requires_privileged_approval": True,
                 "pending_changes": pending_changes
             }
         )
