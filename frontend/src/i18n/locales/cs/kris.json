@@ -105,5 +105,20 @@
             "reporting_owner_default": "Vlastník rizika (výchozí)",
             "correction_reason": "Vysvětlete, proč je tato oprava potřebná..."
         }
+    },
+    "correction": {
+        "title": "Opravit hodnotu KRI",
+        "current_value": "Aktuální hodnota",
+        "new_value": "Opravená hodnota",
+        "reason": "Důvod opravy",
+        "reason_placeholder": "Vysvětlete, proč je tato oprava potřebná...",
+        "warning": "Opravy hodnot vyžadují schválení CRO",
+        "submit": "Odeslat opravu",
+        "success": "Oprava odeslána ke schválení"
+    },
+    "overdue": {
+        "badge": "Opožděno",
+        "days_overdue": "{{days}} dní po termínu",
+        "last_submission": "Poslední odeslání: {{date}}"
     }
 }
