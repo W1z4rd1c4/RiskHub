@@ -39,47 +39,42 @@ async def validate_risk_type(db: AsyncSession, risk_type_code: str) -> None:
 
 async def generate_risk_id_code(db: AsyncSession, process: str) -> str:
     """
-    Generate a unique risk_id_code using atomic MAX + 1 pattern.
+    Generate a unique risk_id_code by finding max existing suffix and incrementing.
     
     Format: {PROCESS_ABBR}-R{NN} where NN is zero-padded sequence number.
     Example: CLAI-R01, CLAI-R02, UNDE-R01
     
-    Note: Uses length-aware ordering to handle codes past 99 correctly.
-    Lexicographic sorting makes "R99" > "R100" (because '9' > '1'), so we
-    order by length DESC first to ensure longer codes (R100+) come before
-    shorter ones (R99 and below).
+    This function fetches ALL codes matching the prefix and computes max in Python,
+    avoiding lexicographic ordering issues (e.g., "R99" > "R100" in string sort).
     
     Args:
         db: Database session
         process: The process name to derive prefix from
         
     Returns:
-        Unique risk_id_code string
+        Unique risk_id_code string (e.g., "CLAI-R102")
     """
     # Generate process abbreviation from first 4 alpha characters
     process_abbr = ''.join(c for c in process.upper() if c.isalpha())[:4] or "RISK"
     prefix = f"{process_abbr}-R"
     pattern = f"{prefix}%"
     
-    # Find existing codes with this prefix
-    # Order by length DESC first (so R100 comes before R99), then by code DESC
+    # Fetch ALL existing codes with this prefix (no limit - we need true max)
     result = await db.execute(
         select(Risk.risk_id_code)
         .where(Risk.risk_id_code.like(pattern))
-        .order_by(func.length(Risk.risk_id_code).desc(), Risk.risk_id_code.desc())
-        .limit(20)
     )
     existing_codes = [row[0] for row in result.all()]
     
     # Extract max number from existing codes
     max_num = 0
     for code in existing_codes:
-        # Extract number after prefix (e.g., "CLAI-R05" -> 5)
+        # Extract number after prefix (e.g., "CLAI-R05" -> 5, "CLAI-R100" -> 100)
         suffix = code[len(prefix):]
         if suffix.isdigit():
             max_num = max(max_num, int(suffix))
     
-    # Return next ID
+    # Return next ID (zero-padded to at least 2 digits)
     return f"{prefix}{max_num + 1:02d}"
 
 

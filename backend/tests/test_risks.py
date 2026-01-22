@@ -179,3 +179,42 @@ async def test_risk_not_found(auth_client: AsyncClient, test_user: User):
     response = await auth_client.get("/api/v1/risks/99999")
     
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_generate_risk_id_code_r100_plus(db_session, test_department, test_user, seed_risk_types):
+    """
+    Regression test: generate_risk_id_code should correctly handle R100+ codes.
+    
+    The old implementation used limit(20) which could miss the true max if >20 codes
+    existed. This test creates R98, R99, R100, R101 and verifies the generator returns R102.
+    """
+    from app.api.v1.endpoints.risks import generate_risk_id_code
+    from app.models import Risk
+    
+    # Create risks with high-numbered codes for "Test" process (prefix = "TEST-R")
+    for num in [98, 99, 100, 101]:
+        risk = Risk(
+            risk_id_code=f"TEST-R{num:02d}" if num < 100 else f"TEST-R{num}",
+            name=f"Test Risk {num}",
+            process="Test",
+            description=f"Risk number {num}",
+            department_id=test_department.id,
+            owner_id=test_user.id,
+            risk_type="operational",
+            category="Test",
+            gross_probability=2,
+            gross_impact=2,
+            gross_score=4,
+            net_probability=1,
+            net_impact=1,
+            net_score=1,
+            status="active",
+        )
+        db_session.add(risk)
+    await db_session.commit()
+    
+    # Generate next ID - should be TEST-R102, not TEST-R100 (lexicographic bug)
+    next_code = await generate_risk_id_code(db_session, process="Test")
+    
+    assert next_code == "TEST-R102", f"Expected TEST-R102 but got {next_code}"
