@@ -21,8 +21,9 @@
 | Null byte DoS | Email with null byte → 500 error |
 | Excel formula injection | Cells starting with `=+@-` not sanitized |
 | Verbose Pydantic errors | Reveal field names, types, constraints |
-| JWT in localStorage | No httpOnly cookie option |
+| JWT in localStorage | No httpOnly cookie option (156-08 deferred) |
 | No token refresh | Tokens expire → re-login required |
+| Mixed timezone datetimes | Backend has inconsistent tz-aware/naive handling (156-08 deferred) |
 
 ### Verified Secure ✅
 
@@ -161,5 +162,20 @@
 | Low | Sanitize Excel formula injection | Backend |
 | Low | Add real-time updates (WebSocket) | Future |
 
+## Risk Hub Config Integration Issues (Phase 156 Audit)
+
+| Issue | Severity | Description |
+|-------|----------|-------------|
+| Dashboard static thresholds | Medium | `dashboard.py` uses `ConfigDefaults` at module load; changing Risk Hub thresholds requires app restart |
+| ApprovalScenario unused | Medium | 6 approval scenarios seeded but never queried — approvals are hardcoded in endpoints |
+| Approval toggles orphaned | Medium | `require_edit_approval_priority`, `require_delete_approval`, `secondary_approval_priority` — 0 references |
+| KRI timing key mismatch | Low | Seeded `kri_reminder_days_before` but service looks for `advance_reminder_days` |
+| Missing KRI config seeds | Low | `near_breach_threshold`, `duplicate_lookback_days`, `reporting_grace_days` not seeded |
+| `get_risk_thresholds()` unused | Low | Function exists in `global_config.py` but not called outside tests |
+
+### What DOES Work ✅
+
+- `high_risk_min_net_score` — Used by `is_high_risk_for_approval_async()` in `approval_helpers.py`, `controls.py`
+
 ---
-*Updated: 2026-01-17*
+*Updated: 2026-01-22*
