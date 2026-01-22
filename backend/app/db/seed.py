@@ -19,7 +19,7 @@ ROLES = [
     {"name": "compliance", "display_name": "Compliance Officer", "description": "Regulatory compliance, policy controls"},
     {"name": "internal_audit", "display_name": "Internal Audit", "description": "Read-only audit access, verification rights", "is_system": True},
     {"name": "department_head", "display_name": "Department Head", "description": "Department control catalog ownership"},
-    {"name": "control_owner", "display_name": "Control Owner", "description": "Specific control management and execution"},
+    {"name": "employee", "display_name": "Employee", "description": "Department member with basic access"},
     {"name": "viewer", "display_name": "Viewer", "description": "Read-only dashboard access", "is_system": True},
 ]
 
@@ -48,7 +48,7 @@ PERMISSIONS = [
 #   - cro: has *:* (includes kri:submit)
 #   - risk_manager: granted kri:submit explicitly
 #   - department_head: granted kri:submit explicitly
-#   - control_owner: does NOT have kri:submit (must be reporting owner to submit)
+#   - employee: does NOT have kri:submit (must be reporting owner to submit)
 ROLE_PERMISSIONS = {
     "admin": ["users:*", "activity_log:read", "departments:read"],
     "cro": ["*:*"],
@@ -57,7 +57,7 @@ ROLE_PERMISSIONS = {
     "compliance": ["controls:read", "controls:write", "risks:read", "reports:read"],
     "internal_audit": ["controls:read", "risks:read", "departments:read", "reports:read"],
     "department_head": ["controls:read", "controls:write", "risks:read", "departments:read", "reports:read", "kri:submit", "activity_log:read"],
-    "control_owner": ["controls:read", "controls:write", "risks:read"],  # No kri:submit - must be reporting owner
+    "employee": ["controls:read", "risks:read", "departments:read", "reports:read"],  # Read-only dept access per §4.2
     "viewer": ["controls:read", "risks:read", "departments:read", "reports:read"],
 }
 
@@ -84,9 +84,9 @@ TEST_USERS = [
     {"email": "fin.head@riskhub.local", "name": "Martin Procházka", "role": "department_head", "department": "FIN", "access_scope": "department"},
     {"email": "it.head@riskhub.local", "name": "Tomáš Novotný", "role": "department_head", "department": "IT", "access_scope": "department"},
     # Employees (control owners under department heads)
-    {"email": "ops.analyst@riskhub.local", "name": "Jana Horáková", "role": "control_owner", "department": "OPS", "access_scope": "department"},
-    {"email": "fin.analyst@riskhub.local", "name": "Lukáš Dvořák", "role": "control_owner", "department": "FIN", "access_scope": "department"},
-    {"email": "it.analyst@riskhub.local", "name": "Barbora Němcová", "role": "control_owner", "department": "IT", "access_scope": "department"},
+    {"email": "ops.analyst@riskhub.local", "name": "Jana Horáková", "role": "employee", "department": "OPS", "access_scope": "department"},
+    {"email": "fin.analyst@riskhub.local", "name": "Lukáš Dvořák", "role": "employee", "department": "FIN", "access_scope": "department"},
+    {"email": "it.analyst@riskhub.local", "name": "Barbora Němcová", "role": "employee", "department": "IT", "access_scope": "department"},
 ]
 
 # Sample controls based on DEFINICIA KONTROL
