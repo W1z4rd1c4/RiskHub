@@ -475,8 +475,12 @@ async def cancel_request(
     if not approval:
         raise HTTPException(status_code=404, detail="Approval request not found")
     
-    if approval.requested_by_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the requester can cancel their request")
+    # §5.5: Request creator OR privileged users can cancel PENDING/PENDING_PRIVILEGED requests
+    is_requester = approval.requested_by_id == current_user.id
+    is_privileged = can_resolve_approvals(current_user)
+    
+    if not is_requester and not is_privileged:
+        raise HTTPException(status_code=403, detail="Only the requester or privileged users can cancel requests")
     
     if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
         raise HTTPException(status_code=400, detail=f"Cannot cancel request with status: {approval.status.value}")
@@ -486,8 +490,12 @@ async def cancel_request(
     approval.resolved_by_id = current_user.id
     approval.resolved_at = datetime.now(UTC)
     
-    # Log activity for cancellation
+    # Log activity for cancellation - distinguish self vs privileged
     department_id = await _get_approval_department_id(db, approval)
+    if is_requester:
+        cancel_description = "Approval request cancelled by requester"
+    else:
+        cancel_description = f"Approval request cancelled by {current_user.name} (privileged)"
     await log_activity(
         db,
         entity_type=ActivityEntityType.APPROVAL,
@@ -496,7 +504,7 @@ async def cancel_request(
         action=ActivityAction.CANCEL,
         actor=current_user,
         department_id=department_id,
-        description="Approval request cancelled by requester",
+        description=cancel_description,
     )
     
     # Notify approvers about cancellation
