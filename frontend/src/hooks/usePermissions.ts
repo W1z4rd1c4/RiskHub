@@ -32,8 +32,9 @@ export function usePermissions() {
         canCreateKRIs: hasPermission('risks', 'write'),
         canEditKRIs: hasPermission('risks', 'write'),
         canDeleteKRIs: hasPermission('risks', 'delete'),
-        // KRI value recording - requires kri:submit OR risks:write OR approvals:write
-        canRecordKRI: hasPermission('kri', 'submit') || hasPermission('risks', 'write') || hasPermission('approvals', 'write'),
+        // KRI value recording - requires kri:submit permission only
+        // Note: KRIDetailPage also allows reporting owners to record (checked in component)
+        canRecordKRI: hasPermission('kri', 'submit'),
         // Approvals permission for workflow management
         canResolveApprovals: hasPermission('approvals', 'write'),
         // Access management permissions
