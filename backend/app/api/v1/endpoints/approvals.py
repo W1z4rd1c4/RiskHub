@@ -357,7 +357,23 @@ async def approve_request(
             await db.rollback()
             raise HTTPException(status_code=500, detail=f"Database error during approval: {str(e)}")
     else:
-        # PENDING → PENDING_PRIVILEGED: Notify privileged users
+        # PENDING → PENDING_PRIVILEGED: Log escalation and notify privileged users
+        from app.services.approval_execution_service import get_approval_department_id
+        
+        # Log ESCALATE activity for audit trail
+        department_id = await get_approval_department_id(db, approval)
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.APPROVAL,
+            entity_id=approval.id,
+            entity_name=approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}",
+            action=ActivityAction.ESCALATE,
+            actor=current_user,
+            department_id=department_id,
+            changes={"status": {"old": previous_status.value, "new": approval.status.value}},
+            description=f"Escalated to privileged approval by {current_user.name}",
+        )
+        
         try:
             await NotificationService.notify_approvers(db, approval)
         except Exception as e:

@@ -15,6 +15,7 @@ class ActivityAction(str, PyEnum):
     ARCHIVE = "archive"
     APPROVE = "approve"
     REJECT = "reject"
+    ESCALATE = "escalate"  # Approval escalated to privileged tier
     STATUS_CHANGE = "status_change"
     LINK = "link"
     UNLINK = "unlink"
