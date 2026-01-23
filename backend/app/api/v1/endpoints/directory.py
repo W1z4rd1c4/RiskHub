@@ -178,15 +178,13 @@ async def receive_webhook(
             orphaned_count=orphaned_count,
         )
         
-    except Exception as e:
-        error_msg = str(e)
-        logger.error(f"Webhook processing failed: {error_msg}")
+    except ValueError as e:
+        # Validation/business logic error - 400 (don't retry)
+        logger.warning(f"Webhook validation failed: {e}")
+        raise HTTPException(status_code=400, detail="Invalid webhook data")
         
-        # Return 200 even on failure (webhook acknowledged) but indicate error
-        return WebhookResponse(
-            status="failed",
-            action=None,
-            orphaned_count=0,
-            error=error_msg,
-        )
-
+    except Exception as e:
+        # Processing error - 500 (retry)
+        # Note: sync_single_user is idempotent (upsert pattern) so retries are safe
+        logger.exception("Webhook processing failed")
+        raise HTTPException(status_code=500, detail="Webhook processing failed")
