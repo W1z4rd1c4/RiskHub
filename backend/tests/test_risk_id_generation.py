@@ -40,19 +40,24 @@ async def test_generate_risk_id_handles_r99_r100_boundary():
     This is a regression test for the lexicographic ordering bug where
     "CLAI-R99" > "CLAI-R100" in string sorting, causing the generator
     to stall at R99.
+    
+    The mock data is intentionally UNSORTED to verify the generator
+    doesn't rely on any particular DB row ordering.
     """
-    # Mock DB session with existing codes including R99 and R100
+    # Mock DB session with UNSORTED codes (arbitrary order to catch ordering bugs)
     db = AsyncMock()
     db.execute = AsyncMock(return_value=FakeResult([
-        "CLAI-R100",  # Should be first after length-aware sorting
-        "CLAI-R99",
-        "CLAI-R98",
+        "CLAI-R09",   # Low number first
+        "CLAI-R100",  # Highest, but not first or last
+        "CLAI-R99",   # Second highest, after R100
+        "CLAI-R10",   # Low number last
     ]))
     
     result = await generate_risk_id_code(db, "Claims")
     
-    # Should return R101, not R100 (would happen with lexicographic bug)
+    # Should return R101 (max=100, so next=101)
     assert result == "CLAI-R101", f"Expected CLAI-R101 but got {result}"
+
 
 
 @pytest.mark.asyncio
