@@ -46,7 +46,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
         } finally {
             setIsLoading(false);
         }
-    }, [isOpen, probability, impact, filters, filters.departmentId, riskType]);
+    }, [isOpen, probability, impact, filters, riskType]);
 
     useEffect(() => {
         fetchRisks();
