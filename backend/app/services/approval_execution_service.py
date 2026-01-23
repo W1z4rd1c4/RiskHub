@@ -31,6 +31,31 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Field Whitelists for Approval Edits
+# ---------------------------------------------------------------------------
+
+# Security: Only these fields can be modified via approval pending_changes.
+# Prevents injection of id, created_at, created_by_id, etc.
+EDITABLE_FIELDS = {
+    "risk": {
+        "name", "description", "process", "category", "risk_type",
+        "gross_probability", "gross_impact", "net_probability", "net_impact",
+        "owner_id", "department_id", "status", "mitigations",
+    },
+    "control": {
+        "name", "description", "frequency", "control_type", "effectiveness",
+        "control_form", "risk_level", "owner_id", "department_id", "is_active",
+        "status", "control_owner_id",
+    },
+    "kri": {
+        "metric_name", "description", "upper_limit", "lower_limit",
+        "current_value", "target_value", "reporting_owner_id",
+        "measurement_unit", "reporting_frequency",
+    },
+}
+
+
+# ---------------------------------------------------------------------------
 # Loading
 # ---------------------------------------------------------------------------
 
@@ -315,11 +340,23 @@ async def _apply_edit_risk_control(
         result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
         risk = result.scalar_one_or_none()
         if risk:
+            allowed_fields = EDITABLE_FIELDS.get("risk", set())
             applied_changes: dict = {}
+            rejected_fields: list[str] = []
+            
             for field, vals in changes.items():
+                if field not in allowed_fields:
+                    rejected_fields.append(field)
+                    continue
                 if hasattr(risk, field):
                     setattr(risk, field, vals.get("new"))
                     applied_changes[field] = vals
+            
+            # Log rejected fields (security audit, no values logged)
+            if rejected_fields:
+                logger.warning(
+                    f"Approval #{approval.id}: Rejected non-whitelisted fields for risk: {rejected_fields}"
+                )
             
             # Recompute derived scores if probability/impact changed
             gross_inputs_changed = any(k in applied_changes for k in ("gross_probability", "gross_impact"))
@@ -354,11 +391,23 @@ async def _apply_edit_risk_control(
         result = await db.execute(select(Control).where(Control.id == approval.resource_id))
         control = result.scalar_one_or_none()
         if control:
+            allowed_fields = EDITABLE_FIELDS.get("control", set())
             applied_changes: dict = {}
+            rejected_fields: list[str] = []
+            
             for field, vals in changes.items():
+                if field not in allowed_fields:
+                    rejected_fields.append(field)
+                    continue
                 if hasattr(control, field):
                     setattr(control, field, vals.get("new"))
                     applied_changes[field] = vals
+            
+            # Log rejected fields (security audit, no values logged)
+            if rejected_fields:
+                logger.warning(
+                    f"Approval #{approval.id}: Rejected non-whitelisted fields for control: {rejected_fields}"
+                )
             
             # Set audit attribution for control edits
             if applied_changes:
