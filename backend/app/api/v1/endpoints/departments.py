@@ -102,10 +102,13 @@ async def _count_risks_by_dept(db: AsyncSession) -> dict[int, int]:
 
 
 async def _count_high_risks_by_dept(db: AsyncSession) -> dict[int, int]:
-    """Non-archived risk count with net_score >= 16 ('critical' level) per department."""
+    """Non-archived risk count with net_score >= HIGH_RISK_MIN_NET_SCORE per department.
+    
+    Uses ConfigDefaults.HIGH_RISK_MIN_NET_SCORE (10) for consistency with dashboard.
+    """
     result = await db.execute(
         select(Risk.department_id, func.count(Risk.id))
-        .where(and_(Risk.status != RiskStatus.archived.value, Risk.net_score >= 16))
+        .where(and_(Risk.status != RiskStatus.archived.value, Risk.net_score >= ConfigDefaults.HIGH_RISK_MIN_NET_SCORE))
         .group_by(Risk.department_id)
     )
     return dict(result.all())
