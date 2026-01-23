@@ -633,15 +633,26 @@ async def _apply_kri_generic_edit(
     from app.services.kri_history_service import KRIHistoryService
 
     value_change = changes.get("current_value")
+    allowed_fields = EDITABLE_FIELDS.get("kri", set())
     applied_changes: dict = {}
+    rejected_fields: list[str] = []
 
-    # Apply non-value field changes
+    # Apply non-value field changes with whitelist enforcement
     for field, vals in changes.items():
         if field == "current_value":
+            continue  # Handled separately by KRIHistoryService
+        if field not in allowed_fields:
+            rejected_fields.append(field)
             continue
         if hasattr(kri, field):
             setattr(kri, field, vals.get("new"))
             applied_changes[field] = vals
+
+    # Log rejected fields (security audit, no values logged)
+    if rejected_fields:
+        logger.warning(
+            f"Approval #{approval_id}: Rejected non-whitelisted fields for KRI: {rejected_fields}"
+        )
 
     # Handle optional value recording
     if value_change is not None:
