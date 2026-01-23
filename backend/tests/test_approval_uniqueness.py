@@ -2,6 +2,13 @@
 
 Verifies that the ux_approval_pending partial unique index correctly prevents
 duplicate PENDING/PENDING_PRIVILEGED approvals for the same (resource_type, resource_id, action_type).
+
+NOTE: Some tests require PostgreSQL and are skipped on SQLite because:
+
+1. pg_indexes system table doesn't exist in SQLite
+2. Partial unique indexes are created by Alembic migrations, not Base.metadata.create_all
+
+To run full test suite, use a PostgreSQL test database with migrations applied.
 """
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -15,13 +22,20 @@ from app.models.approval_request import (
 )
 
 
+@pytest.mark.postgres
 @pytest.mark.asyncio
 async def test_duplicate_pending_approval_blocked_at_db_level(db_session, test_user):
     """Test that database blocks duplicate pending approvals for same resource/action.
     
     This tests the ux_approval_pending partial unique index directly.
     The index should prevent two PENDING approvals for the same triple.
+    
+    Requires PostgreSQL: partial unique index is created by migrations, not metadata.create_all.
     """
+    dialect_name = db_session.bind.dialect.name
+    if dialect_name != "postgresql":
+        pytest.skip(f"Requires PostgreSQL partial unique index (current: {dialect_name})")
+    
     # Create first pending approval
     approval1 = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
@@ -57,9 +71,17 @@ async def test_duplicate_pending_approval_blocked_at_db_level(db_session, test_u
     await db_session.rollback()
 
 
+@pytest.mark.postgres
 @pytest.mark.asyncio
 async def test_pending_privileged_also_blocked(db_session, test_user):
-    """Test that PENDING_PRIVILEGED status is also covered by uniqueness constraint."""
+    """Test that PENDING_PRIVILEGED status is also covered by uniqueness constraint.
+    
+    Requires PostgreSQL: partial unique index is created by migrations, not metadata.create_all.
+    """
+    dialect_name = db_session.bind.dialect.name
+    if dialect_name != "postgresql":
+        pytest.skip(f"Requires PostgreSQL partial unique index (current: {dialect_name})")
+    
     # Create PENDING_PRIVILEGED approval
     approval1 = ApprovalRequest(
         resource_type=ApprovalResourceType.CONTROL,
@@ -126,9 +148,17 @@ async def test_different_action_types_allowed(db_session, test_user):
     assert edit_approval.id is not None
 
 
+@pytest.mark.postgres
 @pytest.mark.asyncio
-async def test_resolved_approval_allows_new_pending(db_session, test_user, privileged_user):
-    """Test that after resolving an approval, a new pending one can be created."""
+async def test_resolved_approval_allows_new_pending(db_session, test_user, test_user_cro):
+    """Test that after resolving an approval, a new pending one can be created.
+    
+    Requires PostgreSQL: partial unique index is created by migrations, not metadata.create_all.
+    """
+    dialect_name = db_session.bind.dialect.name
+    if dialect_name != "postgresql":
+        pytest.skip(f"Requires PostgreSQL partial unique index (current: {dialect_name})")
+    
     # Create and resolve first approval
     approval1 = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
@@ -144,7 +174,7 @@ async def test_resolved_approval_allows_new_pending(db_session, test_user, privi
     
     # Resolve it (APPROVED status is not in the pending queue)
     approval1.status = ApprovalStatus.APPROVED
-    approval1.resolved_by_id = privileged_user.id
+    approval1.resolved_by_id = test_user_cro.id
     await db_session.commit()
     
     # Now we should be able to create new pending approval for same resource/action
@@ -163,9 +193,20 @@ async def test_resolved_approval_allows_new_pending(db_session, test_user, privi
     assert approval2.id is not None
 
 
+
+@pytest.mark.postgres
 @pytest.mark.asyncio
 async def test_index_exists_in_database(db_session):
-    """Verify the ux_approval_pending index actually exists in the database."""
+    """Verify the ux_approval_pending index actually exists in the database.
+    
+    This test requires PostgreSQL because:
+    - It queries pg_indexes (PostgreSQL system table)
+    - Partial unique indexes are created by Alembic migrations, not metadata.create_all
+    """
+    dialect_name = db_session.bind.dialect.name
+    if dialect_name != "postgresql":
+        pytest.skip(f"Requires PostgreSQL (current: {dialect_name})")
+    
     result = await db_session.execute(text("""
         SELECT indexname, indexdef 
         FROM pg_indexes 
@@ -180,3 +221,4 @@ async def test_index_exists_in_database(db_session):
     # Verify the predicate covers all pending statuses
     assert "pending" in index_def
     assert "unique" in index_def
+
