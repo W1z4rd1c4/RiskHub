@@ -7,9 +7,10 @@ This middleware implements:
 3. Account lockout after failed login attempts
 """
 import time
+import ipaddress
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple, Union
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
@@ -159,13 +160,46 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.settings = get_settings()
         self.trusted_proxies = trusted_proxies or self.TRUSTED_PROXIES
         self._last_eviction = time.time()
+        
+        # Parse CIDR networks once at init for efficiency
+        self._trusted_networks: List[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]] = []
+        for proxy in self.trusted_proxies:
+            try:
+                # Handle both single IPs and CIDR notation
+                if '/' in proxy:
+                    network = ipaddress.ip_network(proxy, strict=False)
+                else:
+                    # Single IP -> /32 (IPv4) or /128 (IPv6)
+                    addr = ipaddress.ip_address(proxy)
+                    prefix = 32 if addr.version == 4 else 128
+                    network = ipaddress.ip_network(f"{proxy}/{prefix}", strict=False)
+                self._trusted_networks.append(network)
+            except ValueError as e:
+                logger.warning("invalid_trusted_proxy_config", entry=proxy, error=str(e))
     
-    def _is_trusted_proxy(self, ip: str) -> bool:
-        """Check if an IP is in the trusted proxy list."""
-        # Simple string match for now (could use ipaddress module for CIDR)
-        for trusted in self.trusted_proxies:
-            if ip == trusted or (ip.startswith(trusted.split('/')[0]) if '/' in trusted else False):
-                return True
+    def _is_trusted_proxy(self, ip_str: str) -> bool:
+        """
+        Check if an IP is in the trusted proxy list using proper CIDR matching.
+        
+        Args:
+            ip_str: The IP address to check (e.g., "10.0.0.5")
+            
+        Returns:
+            True if ip_str is in any trusted network, False otherwise
+        """
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            return False  # Invalid IP format
+        
+        for network in self._trusted_networks:
+            try:
+                if ip in network:
+                    return True
+            except TypeError:
+                # IPv4 address in IPv6 network or vice versa
+                continue
+        
         return False
     
     def _get_client_ip(self, request: Request) -> str:
