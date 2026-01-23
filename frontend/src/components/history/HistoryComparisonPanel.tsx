@@ -2,7 +2,7 @@
  * HistoryComparisonPanel - Side-by-side comparison of two KRI history entries.
  * Shows deltas, breach status changes, and formatted diffs.
  */
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { HistoryChangeCard } from './HistoryChangeCard';
@@ -30,22 +30,27 @@ export function HistoryComparisonPanel({
         );
     }, [entries]);
 
-    // Initialize with two most recent entries
-    const [leftId, setLeftId] = useState<number | null>(null);
-    const [rightId, setRightId] = useState<number | null>(null);
+    const entryIds = useMemo(() => new Set(sortedEntries.map((e) => e.id)), [sortedEntries]);
 
-    useEffect(() => {
-        if (sortedEntries.length >= 2) {
-            setLeftId(sortedEntries[1].id); // Previous
-            setRightId(sortedEntries[0].id); // Latest
-        } else if (sortedEntries.length === 1) {
-            setLeftId(sortedEntries[0].id);
-            setRightId(null);
-        } else {
-            setLeftId(null);
-            setRightId(null);
-        }
-    }, [sortedEntries]);
+    const defaultLeftId =
+        sortedEntries.length >= 2 ? sortedEntries[1].id :
+            sortedEntries.length === 1 ? sortedEntries[0].id :
+                null;
+
+    const defaultRightId = sortedEntries.length >= 1 ? sortedEntries[0].id : null;
+
+    const [selectedLeftId, setSelectedLeftId] = useState<number | null>(null);
+    const [selectedRightId, setSelectedRightId] = useState<number | null>(null);
+
+    const leftId =
+        selectedLeftId !== null && entryIds.has(selectedLeftId)
+            ? selectedLeftId
+            : defaultLeftId;
+
+    const rightId =
+        selectedRightId !== null && entryIds.has(selectedRightId)
+            ? selectedRightId
+            : defaultRightId;
 
     const leftEntry = sortedEntries.find(e => e.id === leftId);
     const rightEntry = sortedEntries.find(e => e.id === rightId);
@@ -159,7 +164,7 @@ export function HistoryComparisonPanel({
                     {/* Left selector (previous/baseline) */}
                     <ThemedSelect
                         value={leftId?.toString() ?? ''}
-                        onValueChange={(v) => setLeftId(v ? parseInt(v) : null)}
+                        onValueChange={(v) => setSelectedLeftId(v ? parseInt(v) : null)}
                         className="min-w-[180px]"
                         options={sortedEntries.map(entry => ({ value: entry.id.toString(), label: formatOptionLabel(entry) }))}
                     />
@@ -169,7 +174,7 @@ export function HistoryComparisonPanel({
                     {/* Right selector (current/target) */}
                     <ThemedSelect
                         value={rightId?.toString() ?? ''}
-                        onValueChange={(v) => setRightId(v ? parseInt(v) : null)}
+                        onValueChange={(v) => setSelectedRightId(v ? parseInt(v) : null)}
                         className="min-w-[180px]"
                         options={sortedEntries.map(entry => ({ value: entry.id.toString(), label: formatOptionLabel(entry) }))}
                     />
@@ -200,4 +205,3 @@ export function HistoryComparisonPanel({
         </div>
     );
 }
-

@@ -13,35 +13,72 @@ interface OrphanQuickViewModalProps {
     orphan: OrphanedItem | null;
 }
 
+interface ItemDetails {
+    description?: string;
+    control_form?: string;
+    frequency?: string;
+    status?: string;
+    category?: string;
+}
+
 export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickViewModalProps) {
-    const [itemDetails, setItemDetails] = useState<any>(null);
+    const [itemDetails, setItemDetails] = useState<ItemDetails | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
 
+    const orphanItemType = orphan?.item_type;
+    const orphanItemId = orphan?.item_id;
+
+    const handleClose = () => {
+        setItemDetails(null);
+        setIsInitialized(false);
+        onClose();
+    };
+
     useEffect(() => {
-        if (!isOpen || !orphan) {
-            setItemDetails(null);
-            setIsInitialized(false);
+        if (!isOpen || orphanItemType == null || orphanItemId == null) {
             return;
         }
 
+        let cancelled = false;
+        let resetTimeout: ReturnType<typeof setTimeout> | null = null;
+        let initTimeout: ReturnType<typeof setTimeout> | null = null;
+
+        resetTimeout = setTimeout(() => {
+            if (cancelled) return;
+            setItemDetails(null);
+            setIsInitialized(false);
+        }, 0);
+
         const fetchDetails = async () => {
             try {
-                if (orphan.item_type === 'control') {
-                    const control = await controlApi.getControl(orphan.item_id);
-                    setItemDetails(control);
-                } else if (orphan.item_type === 'risk') {
-                    const risk = await riskApi.getRisk(orphan.item_id);
-                    setItemDetails(risk);
+                if (orphanItemType === 'control') {
+                    const control = await controlApi.getControl(orphanItemId);
+                    if (cancelled) return;
+                    setItemDetails(control as ItemDetails);
+                } else if (orphanItemType === 'risk') {
+                    const risk = await riskApi.getRisk(orphanItemId);
+                    if (cancelled) return;
+                    setItemDetails(risk as ItemDetails);
                 }
                 // Small delay for smooth entry
-                setTimeout(() => setIsInitialized(true), 150);
+                initTimeout = setTimeout(() => {
+                    if (!cancelled) setIsInitialized(true);
+                }, 150);
             } catch (err) {
                 console.error('Failed to fetch item details:', err);
+                initTimeout = setTimeout(() => {
+                    if (!cancelled) setIsInitialized(true);
+                }, 0);
             }
         };
 
         fetchDetails();
-    }, [isOpen, orphan]);
+        return () => {
+            cancelled = true;
+            if (resetTimeout) clearTimeout(resetTimeout);
+            if (initTimeout) clearTimeout(initTimeout);
+        };
+    }, [isOpen, orphanItemType, orphanItemId]);
 
     if (!orphan) return null;
 
@@ -70,7 +107,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-                        onClick={onClose}
+                        onClick={handleClose}
                     />
 
                     <motion.div
@@ -90,7 +127,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                                 </p>
                             </div>
                             <button
-                                onClick={onClose}
+                                onClick={handleClose}
                                 className="p-2 glass rounded-lg text-slate-500 hover:text-white transition-colors"
                             >
                                 <X className="h-5 w-5" />
@@ -202,7 +239,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                                 System Audit View
                             </span>
                             <button
-                                onClick={onClose}
+                                onClick={handleClose}
                                 className="px-6 py-2.5 text-xs font-black uppercase tracking-widest text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 active:scale-95 shadow-sm"
                             >
                                 Close Preview
