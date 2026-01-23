@@ -146,7 +146,8 @@ async def receive_webhook(
         payload_dict = json.loads(body)
         payload = WebhookPayload(**payload_dict)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid payload: {str(e)}")
+        logger.warning(f"Webhook payload parse failed: {e}")
+        raise HTTPException(status_code=400, detail="Invalid webhook payload")
     
     logger.info(
         f"Received webhook: {payload.event_type} for user {payload.data.external_id} "
