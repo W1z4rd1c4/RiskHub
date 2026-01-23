@@ -5,7 +5,7 @@
  * These tests verify the UI behavior when an edit requires approval.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { parseUpdateResult, getApprovalBannerMessage } from '@/lib/approvalUi';
 import { isApprovalCreatedResponse } from '@/types/approval';
 

@@ -9,6 +9,7 @@ import { departmentApi } from '@/services/departmentApi';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
 import type { RiskSummary } from '@/types/risk';
+import type { UserRead } from '@/types/user';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -38,7 +39,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
     const [selectedRiskId, setSelectedRiskId] = useState<number | null>(null);
     const [allDepartments, setAllDepartments] = useState<DepartmentSummary[]>([]);
     const [allRisks, setAllRisks] = useState<RiskSummary[]>([]);
-    const [linkedRisks, setLinkedRisks] = useState<any[]>([]);
+    const [linkedRisks, setLinkedRisks] = useState<import('@/types/control').ControlRiskLink[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -86,12 +87,13 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                 initializeData();
             }
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- initializeData is stable, orphan?.id is the key dependency
     }, [isOpen, orphan?.id]);
 
     const initializeData = async () => {
         try {
             // Fetch everything in parallel
-            const promises: Promise<any>[] = [
+            const promises: Promise<unknown>[] = [
                 loadUsers(),
                 loadDepartments()
             ];
@@ -132,7 +134,8 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
 
     const loadUsers = async () => {
         const activeUsers = await userApi.listUsers(0, 100);
-        setUsers(activeUsers.filter((u: any) => u.is_active).map((u: any) => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setUsers(activeUsers.filter((u: UserRead) => u.is_active).map((u: any) => ({
             id: u.id,
             name: u.name,
             email: u.email,
@@ -155,9 +158,9 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
             });
             onResolved();
             onClose();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to resolve orphan:', err);
-            setError(err?.message || 'Failed to assign owner');
+            setError(err instanceof Error ? err.message : 'Failed to assign owner');
         } finally {
             setIsSubmitting(false);
         }

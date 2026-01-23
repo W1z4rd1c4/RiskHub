@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useTranslation } from 'react-i18next';
@@ -32,9 +32,13 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
         ? items
         : items.filter(item => item.item_type === filter);
 
+    // Memoize the current time to avoid calling Date.now() on every render
+    // eslint-disable-next-line react-hooks/purity, react-hooks/exhaustive-deps -- Intentional: refresh timestamp when items change
+    const now = useMemo(() => Date.now(), [items]);
+
     const isOld = (dateStr: string) => {
         const date = new Date(dateStr);
-        const daysDiff = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
+        const daysDiff = (now - date.getTime()) / (1000 * 60 * 60 * 24);
         return daysDiff > 7;
     };
 

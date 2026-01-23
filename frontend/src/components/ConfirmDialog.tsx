@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -66,15 +66,19 @@ export function ConfirmDialog({
     const styles = variantStyles[variant];
     const IconComponent = styles.icon;
 
+    const handleClose = useCallback(() => {
+        setInputValue('');
+        onClose();
+    }, [onClose]);
+
     // Use translations for defaults
     const resolvedConfirmLabel = confirmLabel ?? t('actions.confirm');
     const resolvedCancelLabel = cancelLabel ?? t('actions.cancel');
     const resolvedInputPlaceholder = inputPlaceholder ?? t('labels.notes');
 
-    // Reset input when dialog opens/closes
+    // Focus handling
     useEffect(() => {
         if (isOpen) {
-            setInputValue('');
             // Focus input if present, otherwise focus confirm button
             setTimeout(() => {
                 if (showInput && inputRef.current) {
@@ -90,15 +94,16 @@ export function ConfirmDialog({
     useEffect(() => {
         const handleEscape = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isOpen) {
-                onClose();
+                handleClose();
             }
         };
         document.addEventListener('keydown', handleEscape);
         return () => document.removeEventListener('keydown', handleEscape);
-    }, [isOpen, onClose]);
+    }, [isOpen, handleClose]);
 
     const handleConfirm = () => {
         onConfirm(showInput ? inputValue : undefined);
+        setInputValue('');
     };
 
     const isConfirmDisabled = isLoading || (showInput && inputRequired && !inputValue.trim());
@@ -114,7 +119,7 @@ export function ConfirmDialog({
                         exit={{ opacity: 0 }}
                         transition={{ duration: 0.2 }}
                         className="confirm-dialog-backdrop fixed inset-0 backdrop-blur-sm z-[100]"
-                        onClick={onClose}
+                        onClick={handleClose}
                     />
 
                     {/* Dialog */}
@@ -136,7 +141,7 @@ export function ConfirmDialog({
                                     <p className="text-sm text-slate-400 mt-1 leading-relaxed whitespace-pre-wrap">{message}</p>
                                 </div>
                                 <button
-                                    onClick={onClose}
+                                    onClick={handleClose}
                                     className="p-1.5 text-slate-500 hover:text-white hover:bg-white/10 rounded-lg transition-all"
                                 >
                                     <X className="h-4 w-4" />
@@ -165,7 +170,7 @@ export function ConfirmDialog({
                             {/* Actions */}
                             <div className="confirm-dialog-actions flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5">
                                 <button
-                                    onClick={onClose}
+                                    onClick={handleClose}
                                     disabled={isLoading}
                                     className="px-4 py-2.5 text-sm font-semibold text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-all disabled:opacity-50"
                                 >
