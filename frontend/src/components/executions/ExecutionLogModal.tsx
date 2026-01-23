@@ -46,8 +46,8 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
             });
             onSuccess?.();
             onClose();
-        } catch (err: any) {
-            setError(err.message || 'Failed to log execution');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to log execution');
         } finally {
             setIsSubmitting(false);
         }

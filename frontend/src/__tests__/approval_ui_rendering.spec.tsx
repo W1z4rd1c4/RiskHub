@@ -8,14 +8,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { RiskForm } from '@/components/RiskForm';
 import { ControlForm } from '@/components/ControlForm';
-import { KRIForm } from '@/components/KRIForm';
+// KRIForm import omitted - not used in current tests
 import type { Risk } from '@/types/risk';
 import type { Control } from '@/types/control';
-import type { KeyRiskIndicator } from '@/types/kri';
+// KeyRiskIndicator type import omitted - not used in current tests
 
 // Mock i18next
 vi.mock('react-i18next', () => ({
@@ -119,10 +119,8 @@ const createMockControl = (overrides?: Partial<Control>): Control => ({
 });
 
 describe('RiskForm UI - Approval Response Handling', () => {
-    let mockNavigate: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
-        mockNavigate = vi.fn();
         vi.mocked(riskApi.updateRisk).mockReset();
     });
 

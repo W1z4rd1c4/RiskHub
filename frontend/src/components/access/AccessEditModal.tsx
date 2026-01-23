@@ -57,6 +57,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
             setSelectedScope(user.access_scope);
             loadData();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData is stable, user?.id is the key dependency
     }, [isOpen, user?.id]);
 
     const loadData = async () => {
@@ -101,9 +102,9 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
             await accessApi.updateAccessUser(user.id, update);
             onSaved();
             onClose();
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Failed to update user access:', err);
-            setError(err?.message || 'Failed to update access settings');
+            setError(err instanceof Error ? err.message : 'Failed to update access settings');
         } finally {
             setIsSubmitting(false);
         }
