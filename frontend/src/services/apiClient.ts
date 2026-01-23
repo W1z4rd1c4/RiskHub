@@ -1,12 +1,9 @@
-
-
 // Use relative URL for nginx proxy (enables LAN access)
 // In development, VITE_API_URL can override for direct backend connection
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
 interface RequestOptions extends RequestInit {
     params?: Record<string, string | number | boolean | undefined | string[] | number[]>;
-
 }
 
 class ApiClient {
