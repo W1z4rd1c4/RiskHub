@@ -22,10 +22,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Normalize lowercase pending_privileged to uppercase PENDING_PRIVILEGED.
+    """Normalize approval status and clean up duplicates with complete audit trail.
     
-    Also cleans up any duplicates that may have been created while the
-    unique index was missing, keeping the earliest created_at.
+    Audit trail for cancelled duplicates:
+    - status: CANCELLED
+    - resolved_at: Migration run timestamp (CURRENT_TIMESTAMP)
+    - resolved_by_id: NULL (indicates system/migration action, not user)
+    - resolution_notes: Explains the automated cancellation
     """
     # Step 1: Normalize lowercase status to uppercase
     op.execute("""
@@ -35,7 +38,7 @@ def upgrade() -> None:
     """)
     
     # Step 2: Clean up duplicates if any exist
-    # Keep the earliest created_at, cancel the rest
+    # Keep the earliest created_at, cancel the rest with complete audit trail
     # This is a safety measure - the index should prevent duplicates going forward
     op.execute("""
         WITH duplicates AS (
@@ -49,6 +52,7 @@ def upgrade() -> None:
         )
         UPDATE approval_requests
         SET status = 'CANCELLED',
+            resolved_at = CURRENT_TIMESTAMP,
             resolution_notes = 'Auto-cancelled: duplicate pending approval cleaned up during migration o9p0q1r2s3t4'
         WHERE id IN (SELECT id FROM duplicates WHERE rn > 1)
     """)
