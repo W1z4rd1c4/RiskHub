@@ -29,6 +29,7 @@ class ActivityEntityType(str, PyEnum):
     RISK = "risk"
     CONTROL = "control"
     KRI = "kri"
+    RISK_QUESTIONNAIRE = "risk_questionnaire"
     USER = "user"
     DEPARTMENT = "department"
     APPROVAL = "approval"

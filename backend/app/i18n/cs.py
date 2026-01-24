@@ -62,6 +62,15 @@ MESSAGES = {
         'breach_detected': 'Zjištěno překročení limitu',
         'control_execution_due': 'Kontrola k provedení',
         'control_overdue': 'Provedení kontroly je opožděno',
+
+        'questionnaire_sent_title': 'Dotazník odeslán',
+        'questionnaire_sent_message': "Byl vám odeslán dotazník k hodnocení rizika '{risk_name}'. Termín {due_date}.",
+        'questionnaire_due_soon_title': 'Blížící se termín dotazníku',
+        'questionnaire_due_soon_message': "Dotazník k hodnocení rizika '{risk_name}' má termín {due_date}.",
+        'questionnaire_overdue_title': 'Dotazník po termínu',
+        'questionnaire_overdue_message': "Dotazník k hodnocení rizika '{risk_name}' měl termín {due_date}.",
+        'questionnaire_submitted_title': 'Dotazník odeslán',
+        'questionnaire_submitted_message': "{actor_name} odeslal(a) dotazník k hodnocení rizika '{risk_name}'.",
     },
     
     # Activity log action descriptions

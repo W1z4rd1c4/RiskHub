@@ -118,14 +118,17 @@ backend/*.db
 # Temporary/Test artifacts
 *.json
 !frontend/src/i18n/locales/**/*.json
+
+# Codex / agent local tooling (keep local-only; install via scripts/setup-dev.sh)
+.agent/
+.codex/
 *.txt
 frontend/test-results/
+frontend/playwright-report/
+frontend/.playwright-browsers/
 backend/logs/
 
 # NotebookLM export files
 REPO.TXT
 repo_export/
 
-
-# Codex
-.codex/

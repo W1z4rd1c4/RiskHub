@@ -27,6 +27,13 @@ from app.schemas.notification import (
     NotificationBase, NotificationCreate, NotificationRead, NotificationListResponse,
     NotificationPreferences, NotificationPreferencesUpdate,
 )
+from app.schemas.risk_questionnaire import (
+    RiskQuestionnaireStatusEnum,
+    RiskQuestionnaireListItemRead,
+    RiskQuestionnaireRead,
+    RiskQuestionnaireDraftUpdate,
+    RiskQuestionnaireSubmit,
+)
 from app.schemas.directory_user import (
     DirectoryUserCreate, DirectoryUserUpdate, DirectoryUserRead,
 )
@@ -56,9 +63,14 @@ __all__ = [
     "NotificationTypeEnum",
     "NotificationBase", "NotificationCreate", "NotificationRead", "NotificationListResponse",
     "NotificationPreferences", "NotificationPreferencesUpdate",
+    # Risk questionnaires
+    "RiskQuestionnaireStatusEnum",
+    "RiskQuestionnaireListItemRead",
+    "RiskQuestionnaireRead",
+    "RiskQuestionnaireDraftUpdate",
+    "RiskQuestionnaireSubmit",
     # Directory emulator schemas
     "DirectoryUserCreate", "DirectoryUserUpdate", "DirectoryUserRead",
     "DirectorySyncPreview", "DirectorySyncLogRead", "DirectoryUserDiff",
 ]
-
 

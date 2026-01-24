@@ -6,6 +6,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.db.session import async_session_maker
 from app.services.kri_deadline_service import KRIDeadlineService
+from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,17 @@ async def run_kri_check():
         logger.error(f"KRI deadline check failed: {e}")
 
 
+async def run_questionnaire_check():
+    """Background job: Check questionnaire deadlines and generate notifications."""
+    logger.info("Starting scheduled questionnaire deadline check...")
+    try:
+        async with get_db_context() as db:
+            result = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db)
+            logger.info(f"Questionnaire deadline check complete: {result}")
+    except Exception as e:
+        logger.error(f"Questionnaire deadline check failed: {e}")
+
+
 def setup_scheduler():
     """Configure scheduled jobs."""
     # Daily KRI check at 8:00 AM
@@ -42,6 +54,14 @@ def setup_scheduler():
         CronTrigger(hour=8, minute=0),
         id="kri_deadline_check",
         name="Daily KRI Deadline Check",
+        replace_existing=True,
+    )
+    # Daily questionnaire check at 8:05 AM
+    scheduler.add_job(
+        run_questionnaire_check,
+        CronTrigger(hour=8, minute=5),
+        id="questionnaire_deadline_check",
+        name="Daily Questionnaire Deadline Check",
         replace_existing=True,
     )
     logger.info("Scheduler configured: KRI deadline check scheduled for 8:00 AM daily")
