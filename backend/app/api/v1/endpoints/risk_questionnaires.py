@@ -84,6 +84,7 @@ def _serialize_list_item(q: RiskQuestionnaire) -> RiskQuestionnaireListItemRead:
     return RiskQuestionnaireListItemRead(
         id=q.id,
         risk_id=q.risk_id,
+        risk_name=getattr(getattr(q, "risk", None), "name", None),
         assigned_to_user_id=q.assigned_to_user_id,
         sent_by_user_id=q.sent_by_user_id,
         status=q.status.value if hasattr(q.status, "value") else q.status,
@@ -115,6 +116,7 @@ async def list_questionnaires_for_risk(
     result = await db.execute(
         select(RiskQuestionnaire)
         .options(
+            selectinload(RiskQuestionnaire.risk),
             selectinload(RiskQuestionnaire.assigned_to_user),
             selectinload(RiskQuestionnaire.sent_by_user),
             selectinload(RiskQuestionnaire.submitted_by_user),
@@ -218,6 +220,7 @@ async def get_questionnaire_inbox(
         select(RiskQuestionnaire)
         .join(Risk, Risk.id == RiskQuestionnaire.risk_id)
         .options(
+            selectinload(RiskQuestionnaire.risk),
             selectinload(RiskQuestionnaire.assigned_to_user),
             selectinload(RiskQuestionnaire.sent_by_user),
             selectinload(RiskQuestionnaire.submitted_by_user),

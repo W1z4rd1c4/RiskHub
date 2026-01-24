@@ -14,6 +14,7 @@ class RiskQuestionnaireStatusEnum(str, Enum):
 class RiskQuestionnaireListItemRead(BaseModel):
     id: int
     risk_id: int
+    risk_name: str | None = None
     assigned_to_user_id: int
     sent_by_user_id: int
     status: RiskQuestionnaireStatusEnum
@@ -41,4 +42,3 @@ class RiskQuestionnaireDraftUpdate(BaseModel):
 
 class RiskQuestionnaireSubmit(BaseModel):
     answers: dict[str, object]
-

@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { approvalsApi } from '@/services/approvalsApi';
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
+import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 export function Sidebar() {
@@ -32,7 +33,7 @@ export function Sidebar() {
     const { user, logout } = useAuth();
     const { canManageAccess, canViewActivityLog } = usePermissions();
     const { t } = useTranslation('navigation');
-    const [pendingCount, setPendingCount] = useState(0);
+    const [workflowCount, setWorkflowCount] = useState(0);
     const [orphanCount, setOrphanCount] = useState(0);
 
     // Navigation items with translation keys
@@ -49,16 +50,19 @@ export function Sidebar() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [approvalsRes, orphansRes] = await Promise.all([
+                const [approvalsRes, orphansRes, questionnaireInbox] = await Promise.all([
                     approvalsApi.getPendingCount(),
-                    orphanedItemsApi.getOrphanStats()
+                    orphanedItemsApi.getOrphanStats(),
+                    riskQuestionnairesApi.inbox(),
                 ]);
-                setPendingCount(approvalsRes.count);
+                setWorkflowCount(approvalsRes.count + questionnaireInbox.length);
                 setOrphanCount(orphansRes.total_count);
             } catch (error) {
                 console.error('Failed to fetch counts:', error);
             }
         };
+
+        if (!user) return;
 
         // Fetch immediately on mount
         fetchData();
@@ -66,7 +70,7 @@ export function Sidebar() {
         // Then poll every 60 seconds
         const interval = setInterval(fetchData, 60000);
         return () => clearInterval(interval);
-    }, []); // Only fetch once on mount + polling
+    }, [user?.id]); // Fetch on login/user change + polling
 
     const handleLogout = () => {
         logout();
@@ -77,7 +81,7 @@ export function Sidebar() {
         name: t('sidebar.approvals'),
         href: '/approvals',
         icon: ClipboardCheck,
-        badge: pendingCount > 0 ? pendingCount : undefined
+        badge: workflowCount > 0 ? workflowCount : undefined
     };
 
     // Access Management visible to admins, privileged users, and department heads
@@ -217,4 +221,3 @@ export function Sidebar() {
         </aside>
     );
 }
-
