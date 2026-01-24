@@ -20,7 +20,7 @@
 
 **Milestone:** v1.0 MVP
 **Active Phases:** Multiple in progress (see Progress Summary)
-**Documentation Status:** Reconciled with phase folders (2026-01-18)
+**Documentation Status:** Reconciled with phase folders (2026-01-23)
 
 ## Progress Summary
 
@@ -53,8 +53,9 @@
 | 153 Audit Resolution 3 | ✅ Complete (12/12) | 2026-01-10 |
 | 154 Workflow Bug Sweep | ✅ Complete (5/5) | 2026-01-14 |
 | 156 Audit | ⏳ In progress (1/8) | - |
-| 157 Business Logic Compliance | ⏸️ Planned (0/6) | - |
+| 157 Business Logic Compliance | ✅ Complete (6/6) | 2026-01-22 |
 | 158 Audit | ✅ Complete (10/10) | 2026-01-19 |
+| 159 Audit Fixes | ✅ Complete (10/10) | 2026-01-23 |
 | 179 E2E Test Data | ⏳ In progress (11/12) | - |
 | 180 E2E Business Logic | ⏳ In progress (9/10) | - |
 | 200 Entity Naming | ⏳ In progress (9/10) | - |
@@ -77,7 +78,7 @@
 - ✅ **11-01**: History components (HistoryTimeline, HistoryTrendChart, HistoryChangeCard)
 - ✅ **11-02**: KRI detail page integration with history visualization
 - ✅ **11-03**: HistoryComparisonPanel for side-by-side KRI value comparison
-- ✅ **11-04**: Dashboard widgets (RiskTrendChart, KRIBreachHistoryChart)
+- ⏳ **11-04**: Dashboard widgets (RiskTrendChart, KRIBreachHistoryChart)
 - ✅ **11-05**: Audit trail PDF/Excel exports with RBAC + filters
 
 ### Recent Enhancements (2025-12-31)
@@ -92,7 +93,6 @@
 - ✅ **85-02**: Backend access management model + APIs (access scope, access endpoints)
 - ✅ **85-03**: Frontend access management UI (types, API client, PermissionMatrix, AccessEditModal, UsersPage upgrade)
 - ✅ **85-04**: KRI workflow improvements (weekly reminders, CRO due-soon visibility, all-edit approvals)
-- ✅ **85-05**: Owner-based KRI permissions (tiered approval with Risk Owner)
 - ✅ **85-05**: Owner-based KRI permissions (tiered approval with Risk Owner)
 - ✅ **85-06**: Control owner edit permissions (Control Owner edits → Risk Owner approval)
 
@@ -188,12 +188,12 @@
 
 ### Last Action
 
-- Reconciled ROADMAP.md and STATE.md with actual phase folder contents (2026-01-18). Fixed plan counts and completion statuses for all 49 phases using PLAN.md/SUMMARY.md files as source of truth.
+- Reconciled ROADMAP.md and STATE.md with actual phase folder contents (2026-01-23). Updated plan counts and completion statuses using PLAN.md/SUMMARY.md files as source of truth.
 
 ### Next Step
 
-- Continue with planned work. Phase 157 (Business Logic Compliance) has 6 plans ready.
+- Continue with planned work on remaining in-progress phases (17 Production Deploy, 150 Audit, 179 E2E Test Data, 180 E2E Business Logic, 200 Entity Naming).
 
 ---
 
-*Updated: 2026-01-18*
+*Updated: 2026-01-23*
