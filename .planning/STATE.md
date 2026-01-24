@@ -37,6 +37,7 @@
 | 12.1 Compliance Review | ✅ Complete (10/10) | 2026-01-04 |
 | 14 Risk Assessments | ✅ Complete (7/7) | 2026-01-24 |
 | 15 Settings Page | ✅ Complete (5/5) | 2026-01-07 |
+| 16 Risk Assessment Polish | ✅ Complete (3/3) | 2026-01-24 |
 | 17 Production Deploy | ⏳ In progress (8/15) | - |
 | 20 Czech Localization | ✅ Complete (16/12) | - |
 | 25 User Settings | ✅ Complete (5/5) | 2026-01-11 |

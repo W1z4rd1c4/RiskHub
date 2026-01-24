@@ -3,6 +3,7 @@ from datetime import datetime, UTC
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -21,6 +22,38 @@ from app.schemas.riskhub import (
 )
 
 router = APIRouter()
+
+async def _ensure_total_assets_value_config(db: AsyncSession) -> None:
+    """
+    Ensure the `total_assets_value` config exists.
+
+    This key is used across the UI (financial loss ranges). In some dev environments
+    migrations may be skipped/reset; this guard inserts the default row if missing
+    so the Risk Hub "System Settings" UI can always display it.
+    """
+    result = await db.execute(select(GlobalConfig).where(GlobalConfig.key == "total_assets_value"))
+    existing = result.scalar_one_or_none()
+    if existing:
+        return
+
+    db.add(
+        GlobalConfig(
+            key="total_assets_value",
+            value="10000000000",
+            value_type="int",
+            category="risk_thresholds",
+            display_name="Total Assets Value",
+            description="Company total asset value used to calculate financial loss thresholds for risk impact levels",
+            min_value=1000000,
+            max_value=None,
+            is_editable=True,
+        )
+    )
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Another request may have inserted it concurrently.
+        await db.rollback()
 
 
 # ============================================================================
@@ -326,6 +359,8 @@ async def list_all_configs(
     List all configs grouped by category.
     CRO only.
     """
+
+    await _ensure_total_assets_value_config(db)
     
     result = await db.execute(
         select(GlobalConfig)
@@ -367,6 +402,9 @@ async def list_config_category(
     List configs for a specific category.
     CRO only.
     """
+
+    if category == "risk_thresholds":
+        await _ensure_total_assets_value_config(db)
     
     result = await db.execute(
         select(GlobalConfig)
@@ -607,6 +645,9 @@ async def get_public_config(
             status_code=403,
             detail=f"Config key '{key}' is not publicly accessible"
         )
+
+    if key == "total_assets_value":
+        await _ensure_total_assets_value_config(db)
     
     result = await db.execute(
         select(GlobalConfig).where(GlobalConfig.key == key)
@@ -1330,4 +1371,3 @@ async def restore_department(
         risk_count=0,
         control_count=0
     )
-

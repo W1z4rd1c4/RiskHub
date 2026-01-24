@@ -38,6 +38,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 13: Issue & Remediation Management** — Findings and Action Plans (PLANNED)
 - [x] **Phase 14: Risk Assessments** — Campaigns and questionnaires (7/7)
 - [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (5/5)
+- [x] **Phase 16: Risk Assessment Polish** — Review, reminders, reporting (3/3)
 - [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing (8/15)
 - [ ] **Phase 18: Vendor Risk Management** — Third-party risk assessments (DEFERRED, 0/0)
 - [ ] **Phase 19: Polish & Deploy** — Advanced audit workflows (0/6)
@@ -384,6 +385,19 @@ Plans:
 **Deferred to future phase:**
 
 - Delegation settings (out-of-office approval routing) — see Phase 15.1
+
+### Phase 16: Risk Assessment Polish (NEW)
+
+**Goal**: Improve risk assessment questionnaire operations with review/clarification workflow, configurable reminders, and reporting.
+**Depends on**: Phase 14
+**Status**: Complete
+**Plans**: 3 plans
+
+Plans:
+
+- [x] 16-01: Review flow + template v2 (compare vs last cycle, changes, clarification + likelihood/loss)
+- [x] 16-02: Reminders (2 days before due + overdue Mondays)
+- [x] 16-03: Reporting (export + risk detail assessment summary)
 
 ### Phase 20: Czech Localization
 

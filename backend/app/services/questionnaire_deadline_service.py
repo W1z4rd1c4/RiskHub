@@ -1,6 +1,6 @@
 """Questionnaire deadline checking service for generating notifications."""
 import logging
-from datetime import datetime, timedelta, UTC, date
+from datetime import datetime, timedelta, UTC
 
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,7 @@ from app.i18n import t
 from app.models import RiskQuestionnaire, User
 from app.models.notification import Notification, NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
+from app.models.global_config import ConfigDefaults, get_config_int
 from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ class QuestionnaireDeadlineService:
     DUPLICATE_LOOKBACK_DAYS = 7
 
     @staticmethod
-    async def check_questionnaire_deadlines(db: AsyncSession) -> dict[str, int]:
+    async def check_questionnaire_deadlines(db: AsyncSession, *, now: datetime | None = None) -> dict[str, int]:
         results = {
             "due_soon": 0,
             "overdue": 0,
@@ -29,9 +30,20 @@ class QuestionnaireDeadlineService:
             "notifications_created": 0,
         }
 
-        now = datetime.now(UTC)
-        today = date.today()
-        target_due_date = (today + timedelta(days=7))
+        now = now or datetime.now(UTC)
+        today = now.date()
+
+        pre_due_days = await get_config_int(
+            db,
+            "questionnaire_pre_due_reminder_days",
+            ConfigDefaults.QUESTIONNAIRE_PRE_DUE_REMINDER_DAYS,
+        )
+        overdue_weekday = await get_config_int(
+            db,
+            "questionnaire_overdue_reminder_weekday",
+            ConfigDefaults.QUESTIONNAIRE_OVERDUE_REMINDER_WEEKDAY,
+        )
+        target_due_date = today + timedelta(days=pre_due_days)
 
         stmt = (
             select(RiskQuestionnaire)
@@ -55,7 +67,7 @@ class QuestionnaireDeadlineService:
                 due_date_str = q.due_at.date().isoformat()
                 risk_name = q.risk.name if q.risk else "Risk"
 
-                # Due soon: due date is 7 days from today
+                # Pre-due reminder: due date is N days from today
                 if q.due_at.date() == target_due_date:
                     if not await QuestionnaireDeadlineService._check_duplicate_notification(
                         db,
@@ -63,6 +75,7 @@ class QuestionnaireDeadlineService:
                         resource_id=q.risk_id,
                         notification_type=NotificationType.QUESTIONNAIRE_DUE_SOON,
                         lookback_days=QuestionnaireDeadlineService.DUPLICATE_LOOKBACK_DAYS,
+                        now=now,
                     ):
                         created = await NotificationService.create_notification(
                             db=db,
@@ -77,19 +90,21 @@ class QuestionnaireDeadlineService:
                             ),
                             resource_type="risk",
                             resource_id=q.risk_id,
+                            created_at=now,
                         )
                         if created:
                             results["notifications_created"] += 1
                             results["due_soon"] += 1
 
-                # Overdue: due date passed; send weekly at most (duplicate lookback)
-                if q.due_at < now:
+                # Overdue: due date passed; send on configured weekday (default Monday), deduped weekly.
+                if q.due_at < now and today.weekday() == overdue_weekday:
                     if not await QuestionnaireDeadlineService._check_duplicate_notification(
                         db,
                         resource_type="risk",
                         resource_id=q.risk_id,
                         notification_type=NotificationType.QUESTIONNAIRE_OVERDUE,
                         lookback_days=7,
+                        now=now,
                     ):
                         created = await NotificationService.create_notification(
                             db=db,
@@ -104,6 +119,7 @@ class QuestionnaireDeadlineService:
                             ),
                             resource_type="risk",
                             resource_id=q.risk_id,
+                            created_at=now,
                         )
                         if created:
                             results["notifications_created"] += 1
@@ -124,8 +140,9 @@ class QuestionnaireDeadlineService:
         resource_id: int,
         notification_type: NotificationType,
         lookback_days: int,
+        now: datetime,
     ) -> bool:
-        cutoff_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=lookback_days)
+        cutoff_date = (now - timedelta(days=lookback_days)).replace(tzinfo=None)
         stmt = (
             select(Notification)
             .where(
@@ -141,4 +158,3 @@ class QuestionnaireDeadlineService:
         result = await db.execute(stmt)
         existing = result.scalar_one_or_none()
         return existing is not None
-

@@ -58,6 +58,12 @@
     "questionnaires": {
         "title": "Risk Assessment",
         "subtitle": "Questionnaire history and current status for this risk.",
+        "assessment_summary_title": "Assessment Summary",
+        "assessment_summary_empty": "No submitted assessment yet.",
+        "assessment_summary_submitted_at": "Submitted",
+        "assessment_summary_changed_count": "Changed vs last cycle",
+        "assessment_summary_likelihood": "Likelihood (12m)",
+        "assessment_summary_worst_case_impact": "Worst-case impact",
         "send": "Send questionnaire",
         "send_success": "Questionnaire sent.",
         "send_open_exists": "An open questionnaire already exists. Opening it.",
@@ -79,6 +85,21 @@
         "required": "Required",
         "readonly_hint": "Read-only: you are not assigned to submit this questionnaire.",
         "validation_missing": "Please answer all required questions.",
+        "compare_toggle": "Compare to last cycle",
+        "no_previous_cycle": "No previous cycle available.",
+        "changed": "Changed",
+        "previous": "Previous",
+        "request_clarification": "Request clarification",
+        "clarification": "Clarification",
+        "clarification_open": "Open",
+        "clarification_request_label": "Clarification request",
+        "clarification_request_placeholder": "What needs clarification?",
+        "clarification_optional_questions": "Optional: highlight questions",
+        "clarification_requested_by": "Requested by",
+        "clarification_response": "Response",
+        "clarification_response_placeholder": "Write a response...",
+        "clarification_responded_by": "Responded by",
+        "respond": "Respond",
         "meta": {
             "sent": "Sent",
             "due": "Due",
@@ -101,6 +122,12 @@
             "kris": "KRIs",
             "outlook": "Outlook"
         },
+        "helpers": {
+            "risk_assessment": {
+                "q11_likelihood_12m": "1 (unlikely) to 5 (extreme) — likelihood the risk materializes within the next 12 months.",
+                "q12_worst_case_impact": "1 (none) to 5 (extreme) — worst-case financial impact level."
+            }
+        },
         "questions": {
             "risk_assessment": {
                 "q1_description_changed": "Has the risk description or scope changed since last review?",
@@ -113,6 +140,8 @@
                 "q8_outlook_trend": "Expected trend over the next quarter",
                 "q9_mitigation_actions": "Proposed mitigation actions or next steps",
                 "q10_support_needed": "Any support needed from Risk Management / CRO?",
+                "q11_likelihood_12m": "Likelihood (next 12 months) — 1 to 5",
+                "q12_worst_case_impact": "Worst-case financial impact — 1 to 5",
                 "options": {
                     "trend": {
                         "up": "Increasing risk",

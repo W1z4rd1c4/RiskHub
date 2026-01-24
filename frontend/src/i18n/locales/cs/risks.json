@@ -58,6 +58,12 @@
     "questionnaires": {
         "title": "Hodnocení rizika",
         "subtitle": "Historie dotazníků a aktuální stav pro toto riziko.",
+        "assessment_summary_title": "Souhrn hodnocení",
+        "assessment_summary_empty": "Zatím žádné odevzdané hodnocení.",
+        "assessment_summary_submitted_at": "Odevzdáno",
+        "assessment_summary_changed_count": "Změny oproti minulému cyklu",
+        "assessment_summary_likelihood": "Pravděpodobnost (12m)",
+        "assessment_summary_worst_case_impact": "Nejhorší dopad",
         "send": "Odeslat dotazník",
         "send_success": "Dotazník byl odeslán.",
         "send_open_exists": "Otevřený dotazník již existuje. Otevírám ho.",
@@ -79,6 +85,21 @@
         "required": "Povinné",
         "readonly_hint": "Pouze pro čtení: nemáte oprávnění tento dotazník odevzdat.",
         "validation_missing": "Vyplňte prosím všechny povinné otázky.",
+        "compare_toggle": "Porovnat s minulým cyklem",
+        "no_previous_cycle": "Není k dispozici předchozí cyklus.",
+        "changed": "Změněno",
+        "previous": "Předtím",
+        "request_clarification": "Požádat o upřesnění",
+        "clarification": "Upřesnění",
+        "clarification_open": "Otevřené",
+        "clarification_request_label": "Žádost o upřesnění",
+        "clarification_request_placeholder": "Co je potřeba upřesnit?",
+        "clarification_optional_questions": "Volitelné: označte otázky",
+        "clarification_requested_by": "Požádal(a)",
+        "clarification_response": "Odpověď",
+        "clarification_response_placeholder": "Napište odpověď…",
+        "clarification_responded_by": "Odpověděl(a)",
+        "respond": "Odpovědět",
         "meta": {
             "sent": "Odesláno",
             "due": "Termín",
@@ -101,6 +122,12 @@
             "kris": "KRI",
             "outlook": "Výhled"
         },
+        "helpers": {
+            "risk_assessment": {
+                "q11_likelihood_12m": "1 (nepravděpodobné) až 5 (extrémní) — pravděpodobnost materializace rizika v příštích 12 měsících.",
+                "q12_worst_case_impact": "1 (žádný) až 5 (extrémní) — úroveň nejhoršího finančního dopadu."
+            }
+        },
         "questions": {
             "risk_assessment": {
                 "q1_description_changed": "Změnil se od poslední revize popis nebo rozsah rizika?",
@@ -113,6 +140,8 @@
                 "q8_outlook_trend": "Očekávaný trend v příštím čtvrtletí",
                 "q9_mitigation_actions": "Navrhovaná mitigace nebo další kroky",
                 "q10_support_needed": "Je potřeba podpora od Risk Managementu / CRO?",
+                "q11_likelihood_12m": "Pravděpodobnost (12 měsíců) — 1 až 5",
+                "q12_worst_case_impact": "Nejhorší finanční dopad — 1 až 5",
                 "options": {
                     "trend": {
                         "up": "Riziko roste",

@@ -170,6 +170,8 @@ async def test_submit_permissions_and_post_submit_immutability(
                 "risk_assessment.q4_controls_effective": True,
                 "risk_assessment.q8_outlook_trend": "stable",
                 "risk_assessment.q9_mitigation_actions": "none",
+                "risk_assessment.q11_likelihood_12m": 3,
+                "risk_assessment.q12_worst_case_impact": 3,
             }
         },
     )
@@ -210,6 +212,8 @@ async def test_submit_permissions_and_post_submit_immutability(
                 "risk_assessment.q4_controls_effective": True,
                 "risk_assessment.q8_outlook_trend": "up",
                 "risk_assessment.q9_mitigation_actions": "monitor",
+                "risk_assessment.q11_likelihood_12m": 3,
+                "risk_assessment.q12_worst_case_impact": 3,
             }
         },
     )
@@ -255,6 +259,8 @@ async def test_inbox_returns_only_actionable_items(
                 "risk_assessment.q4_controls_effective": True,
                 "risk_assessment.q8_outlook_trend": "stable",
                 "risk_assessment.q9_mitigation_actions": "none",
+                "risk_assessment.q11_likelihood_12m": 3,
+                "risk_assessment.q12_worst_case_impact": 3,
             }
         },
     )
@@ -263,4 +269,3 @@ async def test_inbox_returns_only_actionable_items(
     inbox_emp_after = await client_employee.get("/api/v1/questionnaires/inbox")
     emp_ids_after = {q["id"] for q in inbox_emp_after.json()}
     assert q1_id not in emp_ids_after
-

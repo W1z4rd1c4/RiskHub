@@ -32,8 +32,16 @@ class RiskQuestionnaireListItemRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RiskQuestionnairePreviousSubmissionRead(BaseModel):
+    id: int
+    submitted_at: datetime
+    template_version: str
+    answers: dict[str, object] | None = None
+
+
 class RiskQuestionnaireRead(RiskQuestionnaireListItemRead):
     answers: dict[str, object] | None = None
+    previous_submission: RiskQuestionnairePreviousSubmissionRead | None = None
 
 
 class RiskQuestionnaireDraftUpdate(BaseModel):
@@ -42,3 +50,32 @@ class RiskQuestionnaireDraftUpdate(BaseModel):
 
 class RiskQuestionnaireSubmit(BaseModel):
     answers: dict[str, object]
+
+
+class RiskQuestionnaireClarificationCreate(BaseModel):
+    section_key: str
+    request_message: str
+    question_keys: list[str] | None = None
+
+
+class RiskQuestionnaireClarificationRespond(BaseModel):
+    response_message: str
+
+
+class RiskQuestionnaireClarificationRead(BaseModel):
+    id: int
+    questionnaire_id: int
+    section_key: str
+    question_keys: list[str] | None = None
+
+    request_message: str
+    requested_by_user_id: int
+    requested_by_user_name: str | None = None
+    requested_at: datetime
+
+    response_message: str | None = None
+    responded_by_user_id: int | None = None
+    responded_by_user_name: str | None = None
+    responded_at: datetime | None = None
+
+    model_config = {"from_attributes": True}

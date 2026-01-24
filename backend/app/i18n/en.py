@@ -71,6 +71,8 @@ MESSAGES = {
         'questionnaire_overdue_message': "Your risk assessment questionnaire for '{risk_name}' was due on {due_date}.",
         'questionnaire_submitted_title': 'Questionnaire submitted',
         'questionnaire_submitted_message': "{actor_name} submitted the risk assessment questionnaire for '{risk_name}'.",
+        'questionnaire_clarification_requested_title': 'Clarification requested',
+        'questionnaire_clarification_requested_message': "A clarification was requested for your risk assessment questionnaire for '{risk_name}'.",
     },
     
     # Activity log action descriptions
