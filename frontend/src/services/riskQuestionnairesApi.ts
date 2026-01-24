@@ -7,6 +7,9 @@ import type {
 } from '@/types/riskQuestionnaire';
 
 export const riskQuestionnairesApi = {
+    inbox: () =>
+        apiClient.get<RiskQuestionnaireListItem[]>(`/questionnaires/inbox`),
+
     listForRisk: (riskId: number) =>
         apiClient.get<RiskQuestionnaireListItem[]>(`/risks/${riskId}/questionnaires`),
 
@@ -26,4 +29,3 @@ export const riskQuestionnairesApi = {
             answers,
         } satisfies RiskQuestionnaireSubmit),
 };
-

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
@@ -16,13 +17,18 @@ import { approvalsApi } from '../services/approvalsApi';
 import type { ApprovalRequest, ApprovalActionType, ApprovalStatus } from '../types/approval';
 import { usePermissions } from '../hooks/usePermissions';
 import { cn } from '@/lib/utils';
+import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
+import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 
 export default function ApprovalsPage() {
     const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
+    const [questionnaires, setQuestionnaires] = useState<RiskQuestionnaireListItem[]>([]);
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState<'pending' | 'all' | 'mine'>('pending');
+    const [questionnairesLoading, setQuestionnairesLoading] = useState(false);
+    const [filter, setFilter] = useState<'pending' | 'all' | 'mine' | 'risk_assessment'>('pending');
     const { canResolveApprovals: canResolve, user } = usePermissions();
     const { t } = useTranslation('approvals');
+    const navigate = useNavigate();
 
     // Dialog State
     const [selectedApproval, setSelectedApproval] = useState<ApprovalRequest | null>(null);
@@ -65,8 +71,27 @@ export default function ApprovalsPage() {
     };
 
     useEffect(() => {
+        if (filter === 'risk_assessment') return;
         fetchApprovals();
     }, [filter, canResolve]);
+
+    const fetchQuestionnaires = async () => {
+        try {
+            setQuestionnairesLoading(true);
+            const items = await riskQuestionnairesApi.inbox();
+            setQuestionnaires(items);
+        } catch (error) {
+            console.error('Failed to fetch questionnaire inbox:', error);
+        } finally {
+            setQuestionnairesLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (filter !== 'risk_assessment') return;
+        fetchQuestionnaires();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchQuestionnaires is stable enough for this page
+    }, [filter]);
 
     const handleResolve = async () => {
         if (isSubmitting) return; // Guard against double-submit
@@ -140,6 +165,22 @@ export default function ApprovalsPage() {
         }
     };
 
+    const questionnaireStatusBadge = (q: RiskQuestionnaireListItem) => {
+        const overdue = q.status !== 'submitted' && new Date(q.due_at).getTime() < Date.now();
+        if (overdue) return 'text-rose-400 border-rose-400/20 bg-rose-400/5';
+        if (q.status === 'sent') return 'text-amber-400 border-amber-400/20 bg-amber-400/5';
+        if (q.status === 'in_progress') return 'text-accent border-accent/20 bg-accent/5';
+        return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
+    };
+
+    const questionnaireStatusLabel = (q: RiskQuestionnaireListItem) => {
+        const overdue = q.status !== 'submitted' && new Date(q.due_at).getTime() < Date.now();
+        if (overdue) return 'Overdue';
+        if (q.status === 'sent') return 'Pending';
+        if (q.status === 'in_progress') return 'In progress';
+        return q.status;
+    };
+
     return (
         <div className="space-y-8 p-8">
             {/* Header */}
@@ -149,7 +190,7 @@ export default function ApprovalsPage() {
             </div>
 
             {/* Filters */}
-            {error && (
+            {filter !== 'risk_assessment' && error && (
                 <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-3 rounded-xl flex items-center gap-2 mb-4">
                     <X className="h-5 w-5" />
                     <span>{error}</span>
@@ -182,6 +223,17 @@ export default function ApprovalsPage() {
                     {t('tabs.mine')}
                 </button>
                 <button
+                    onClick={() => setFilter('risk_assessment')}
+                    className={cn(
+                        "px-4 py-2 text-sm font-bold rounded-xl transition-all",
+                        filter === 'risk_assessment'
+                            ? "bg-accent text-white shadow-lg shadow-accent/20"
+                            : "text-slate-400 hover:text-white hover:bg-white/5"
+                    )}
+                >
+                    {t('tabs.risk_assessment', 'Risk Assessment')}
+                </button>
+                <button
                     onClick={() => setFilter('all')}
                     className={cn(
                         "px-4 py-2 text-sm font-bold rounded-xl transition-all",
@@ -194,20 +246,85 @@ export default function ApprovalsPage() {
                 </button>
             </div>
 
-            {/* List */}
-            {loading ? (
-                <div className="flex items-center justify-center py-20">
-                    <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                </div>
-            ) : approvals.length === 0 ? (
-                <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
-                    <CheckCircle2 className="h-12 w-12 text-slate-700 mx-auto mb-4" />
-                    <h3 className="text-lg font-bold text-white mb-2">{t('empty_state.all_caught_up')}</h3>
-                    <p className="text-slate-500 max-w-sm mx-auto">{t('empty_state.no_matching')}</p>
-                </div>
+            {filter === 'risk_assessment' ? (
+                <>
+                    {questionnairesLoading ? (
+                        <div className="flex items-center justify-center py-20">
+                            <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    ) : questionnaires.length === 0 ? (
+                        <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
+                            <CheckCircle2 className="h-12 w-12 text-slate-700 mx-auto mb-4" />
+                            <h3 className="text-lg font-bold text-white mb-2">{t('empty_state.all_caught_up')}</h3>
+                            <p className="text-slate-500 max-w-sm mx-auto">{t('empty_state.no_questionnaires')}</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {questionnaires.map(q => (
+                                <motion.div
+                                    key={q.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="glass-card p-0 overflow-hidden"
+                                >
+                                    <div className="p-6 flex flex-col lg:flex-row lg:items-center gap-6">
+                                        <div className="flex flex-col gap-2 min-w-[140px]">
+                                            <span
+                                                className={cn(
+                                                    "px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest border w-fit",
+                                                    questionnaireStatusBadge(q)
+                                                )}
+                                            >
+                                                {questionnaireStatusLabel(q)}
+                                            </span>
+                                            <div className="text-xs text-slate-500">
+                                                Due {new Date(q.due_at).toLocaleDateString()}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-base font-bold text-white mb-1 truncate">
+                                                {q.risk_name ?? `Risk #${q.risk_id}`}
+                                            </h3>
+                                            <div className="flex items-center gap-4 text-xs text-slate-500">
+                                                <span className="flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    Sent {new Date(q.sent_at).toLocaleDateString()}
+                                                </span>
+                                                <span>by <span className="text-accent">{q.sent_by_user_name ?? q.sent_by_user_id}</span></span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => navigate(`/risks/${q.risk_id}`)}
+                                                className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 hover:border-white/20 transition-all text-sm"
+                                            >
+                                                Open
+                                            </button>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
+                </>
             ) : (
-                <div className="space-y-4">
-                    {approvals.map(approval => (
+                <>
+                    {/* List */}
+                    {loading ? (
+                        <div className="flex items-center justify-center py-20">
+                            <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    ) : approvals.length === 0 ? (
+                        <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
+                            <CheckCircle2 className="h-12 w-12 text-slate-700 mx-auto mb-4" />
+                            <h3 className="text-lg font-bold text-white mb-2">{t('empty_state.all_caught_up')}</h3>
+                            <p className="text-slate-500 max-w-sm mx-auto">{t('empty_state.no_matching')}</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {approvals.map(approval => (
                         <motion.div
                             key={approval.id}
                             initial={{ opacity: 0, y: 10 }}
@@ -345,6 +462,8 @@ export default function ApprovalsPage() {
                         </motion.div>
                     ))}
                 </div>
+            )}
+                </>
             )}
 
             {/* Resolution Dialog */}
