@@ -20,6 +20,7 @@ class NotificationType(str, PyEnum):
     QUESTIONNAIRE_DUE_SOON = "questionnaire_due_soon"
     QUESTIONNAIRE_OVERDUE = "questionnaire_overdue"
     QUESTIONNAIRE_SUBMITTED = "questionnaire_submitted"
+    QUESTIONNAIRE_CLARIFICATION_REQUESTED = "questionnaire_clarification_requested"
 
 
 class Notification(Base):

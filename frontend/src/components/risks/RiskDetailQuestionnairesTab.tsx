@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, FileText, Send, UserX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Risk } from '@/types/risk';
-import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
+import type { RiskQuestionnaireDetail as RiskQuestionnaireDetailType, RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
+import { formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import { RiskQuestionnaireDetail } from './RiskQuestionnaireDetail';
+import { getRiskOwnerReassessmentQuestionKeys } from './riskQuestionnaireQuestions';
 
 interface RiskDetailQuestionnairesTabProps {
     risk: Risk;
@@ -32,13 +35,52 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [latestSubmitted, setLatestSubmitted] = useState<RiskQuestionnaireDetailType | null>(null);
+    const [latestSubmittedLoading, setLatestSubmittedLoading] = useState(false);
 
     const canSend = user?.role === 'risk_manager' || user?.role === 'cro';
+
+    const { totalAssets } = useTotalAssetsValue();
 
     const openItem = useMemo(
         () => items.find(i => i.status === 'sent' || i.status === 'in_progress') ?? null,
         [items]
     );
+
+    const latestSubmittedItem = useMemo(() => {
+        const submitted = items.filter(i => i.status === 'submitted' && i.submitted_at);
+        if (!submitted.length) return null;
+        return submitted.sort((a, b) => {
+            const aTime = new Date(a.submitted_at as string).getTime();
+            const bTime = new Date(b.submitted_at as string).getTime();
+            return bTime - aTime;
+        })[0];
+    }, [items]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadLatest = async () => {
+            if (!latestSubmittedItem) {
+                setLatestSubmitted(null);
+                return;
+            }
+            setLatestSubmittedLoading(true);
+            try {
+                const detail = await riskQuestionnairesApi.get(latestSubmittedItem.id, { includePrevious: true });
+                if (cancelled) return;
+                setLatestSubmitted(detail);
+            } catch {
+                if (cancelled) return;
+                setLatestSubmitted(null);
+            } finally {
+                if (!cancelled) setLatestSubmittedLoading(false);
+            }
+        };
+        loadLatest();
+        return () => {
+            cancelled = true;
+        };
+    }, [latestSubmittedItem?.id]);
 
     const statusBadge = (status: string, overdue: boolean) => {
         if (overdue) {
@@ -117,6 +159,34 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
         }
     };
 
+    const normalizeForCompare = (value: unknown): unknown => {
+        if (value === undefined || value === null) return null;
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            return trimmed === '' ? null : trimmed;
+        }
+        return value;
+    };
+
+    const changedCount = useMemo(() => {
+        if (!latestSubmitted?.previous_submission?.answers) return null;
+        const current = (latestSubmitted.answers ?? {}) as Record<string, unknown>;
+        const prev = (latestSubmitted.previous_submission.answers ?? {}) as Record<string, unknown>;
+        const keys = getRiskOwnerReassessmentQuestionKeys(latestSubmitted.template_version);
+        let count = 0;
+        for (const key of keys) {
+            const prevValue = normalizeForCompare(prev[key]);
+            if (prevValue === null) continue;
+            const curValue = normalizeForCompare(current[key]);
+            if (curValue !== prevValue) count += 1;
+        }
+        return count;
+    }, [latestSubmitted]);
+
+    const latestLikelihood = (latestSubmitted?.answers?.['risk_assessment.q11_likelihood_12m'] ?? null) as number | null;
+    const latestWorstCaseImpact = (latestSubmitted?.answers?.['risk_assessment.q12_worst_case_impact'] ?? null) as number | null;
+    const worstCaseRange = latestWorstCaseImpact ? formatFinancialRange(latestWorstCaseImpact, totalAssets) : '';
+
     return (
         <div className="glass-card !p-0 overflow-hidden">
             {message && (
@@ -178,6 +248,54 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                                 {t('risks:questionnaires.owner_required', 'Owner required')}
                             </p>
                         )}
+                    </div>
+                )}
+            </div>
+
+            <div className="p-6 border-b border-white/5 bg-white/[0.02]">
+                <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-3">
+                    {t('risks:questionnaires.assessment_summary_title', 'Assessment Summary')}
+                </h4>
+
+                {latestSubmittedLoading ? (
+                    <div className="text-sm text-slate-400">{t('loading.generic')}</div>
+                ) : !latestSubmitted ? (
+                    <div className="text-sm text-slate-500">
+                        {t('risks:questionnaires.assessment_summary_empty', 'No submitted assessment yet.')}
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                                {t('risks:questionnaires.assessment_summary_submitted_at', 'Submitted')}
+                            </p>
+                            <p className="text-sm text-white">{formatDate(latestSubmitted.submitted_at)}</p>
+                        </div>
+
+                        <div className="space-y-1">
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                                {t('risks:questionnaires.assessment_summary_changed_count', 'Changed vs last cycle')}
+                            </p>
+                            <p className="text-sm text-white">
+                                {changedCount === null ? '—' : `${changedCount}`}
+                            </p>
+                        </div>
+
+                        <div className="space-y-1">
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                                {t('risks:questionnaires.assessment_summary_likelihood', 'Likelihood (12m)')}
+                            </p>
+                            <p className="text-sm text-white">{latestLikelihood ?? '—'}</p>
+                        </div>
+
+                        <div className="space-y-1">
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                                {t('risks:questionnaires.assessment_summary_worst_case_impact', 'Worst-case impact')}
+                            </p>
+                            <p className="text-sm text-white">
+                                {latestWorstCaseImpact ? `${latestWorstCaseImpact}${worstCaseRange ? ` • ${worstCaseRange}` : ''}` : '—'}
+                            </p>
+                        </div>
                     </div>
                 )}
             </div>
@@ -251,4 +369,3 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
         </div>
     );
 }
-

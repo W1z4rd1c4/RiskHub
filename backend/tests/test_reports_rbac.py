@@ -176,6 +176,7 @@ class TestReportDepartmentScoping:
         assert response.status_code == 200
 
 
+
 class TestReportExcelEndpoints:
     """Test Excel export endpoints have same RBAC as PDF."""
 
@@ -200,6 +201,7 @@ class TestReportExcelEndpoints:
         response = await auth_client.get("/api/v1/reports/risks/excel")
         assert response.status_code == 200
         assert "spreadsheetml" in response.headers["content-type"]
+
 
     @pytest.mark.asyncio
     async def test_employee_cannot_export_cross_department_excel(

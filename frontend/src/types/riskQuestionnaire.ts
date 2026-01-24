@@ -21,6 +21,14 @@ export interface RiskQuestionnaireListItem {
 
 export interface RiskQuestionnaireDetail extends RiskQuestionnaireListItem {
     answers?: Record<string, unknown> | null;
+    previous_submission?: RiskQuestionnairePreviousSubmission | null;
+}
+
+export interface RiskQuestionnairePreviousSubmission {
+    id: number;
+    submitted_at: string;
+    template_version: string;
+    answers?: Record<string, unknown> | null;
 }
 
 export interface RiskQuestionnaireDraftUpdate {
@@ -29,4 +37,29 @@ export interface RiskQuestionnaireDraftUpdate {
 
 export interface RiskQuestionnaireSubmit {
     answers: Record<string, unknown>;
+}
+
+export interface RiskQuestionnaireClarification {
+    id: number;
+    questionnaire_id: number;
+    section_key: string;
+    question_keys?: string[] | null;
+    request_message: string;
+    requested_by_user_id: number;
+    requested_by_user_name?: string | null;
+    requested_at: string;
+    response_message?: string | null;
+    responded_by_user_id?: number | null;
+    responded_by_user_name?: string | null;
+    responded_at?: string | null;
+}
+
+export interface RiskQuestionnaireClarificationCreate {
+    section_key: string;
+    request_message: string;
+    question_keys?: string[] | null;
+}
+
+export interface RiskQuestionnaireClarificationRespond {
+    response_message: string;
 }

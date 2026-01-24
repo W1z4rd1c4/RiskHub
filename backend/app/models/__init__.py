@@ -8,7 +8,7 @@ from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.approval_request import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
 from app.models.notification import Notification, NotificationType
-from app.models.risk_questionnaire import RiskQuestionnaire, RiskQuestionnaireStatus
+from app.models.risk_questionnaire import RiskQuestionnaire, RiskQuestionnaireStatus, RiskQuestionnaireClarification
 from app.models.directory_user import DirectoryUser
 from app.models.directory_sync_log import DirectorySyncLog, DirectorySyncStatus
 from app.models.orphaned_item import OrphanedItem
@@ -30,7 +30,7 @@ __all__ = [
     "KRIValueHistory",
     "ApprovalRequest", "ApprovalStatus", "ApprovalResourceType", "ApprovalActionType",
     "Notification", "NotificationType",
-    "RiskQuestionnaire", "RiskQuestionnaireStatus",
+    "RiskQuestionnaire", "RiskQuestionnaireStatus", "RiskQuestionnaireClarification",
     "DirectoryUser",
     "DirectorySyncLog", "DirectorySyncStatus",
     "OrphanedItem",
