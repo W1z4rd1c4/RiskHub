@@ -4,6 +4,7 @@
     "tabs": {
         "pending": "Pending Queue",
         "mine": "My Requests",
+        "risk_assessment": "Risk Assessment",
         "history": "History",
         "approved": "Approved",
         "rejected": "Rejected",
@@ -77,7 +78,8 @@
         "no_history": "No approval history",
         "no_requests": "No approval requests",
         "all_caught_up": "All Caught Up",
-        "no_matching": "There are no approval requests matching your current filter."
+        "no_matching": "There are no approval requests matching your current filter.",
+        "no_questionnaires": "There are no open questionnaires assigned to you right now."
     },
     "labels": {
         "proposed_changes": "Proposed Changes",
