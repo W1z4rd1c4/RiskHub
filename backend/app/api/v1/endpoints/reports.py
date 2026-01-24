@@ -33,7 +33,7 @@ from app.services.report_service import (
     generate_risks_excel,
     generate_dashboard_summary_pdf,
     generate_audit_trail_pdf,
-    generate_audit_trail_excel
+    generate_audit_trail_excel,
 )
 
 router = APIRouter()
@@ -380,4 +380,3 @@ async def download_audit_trail_excel(
     executions = result_set.scalars().all()
     
     return _stream_excel("audit-trail", generate_audit_trail_excel(list(executions)))
-

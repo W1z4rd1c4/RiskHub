@@ -111,6 +111,10 @@ class ConfigDefaults:
     REPORTING_GRACE_DAYS = 15  # Days after period end for reporting
     OVERDUE_REMINDER_WEEKS = 1  # Weeks between overdue reminders
     DUPLICATE_LOOKBACK_DAYS = 7  # Days to check for duplicate notifications
+
+    # Questionnaire reminders (Phase 16)
+    QUESTIONNAIRE_PRE_DUE_REMINDER_DAYS = 2  # due_at.date() == today + N
+    QUESTIONNAIRE_OVERDUE_REMINDER_WEEKDAY = 0  # Monday=0 ... Sunday=6
     
     # Breach thresholds
     NEAR_BREACH_THRESHOLD = 0.80  # 80% towards limit = near breach
@@ -248,4 +252,3 @@ if TYPE_CHECKING:
 
 # Import for type hints
 from app.models.user import User
-

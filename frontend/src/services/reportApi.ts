@@ -133,5 +133,5 @@ export const reportApi = {
     async downloadAuditTrailExcel(filters: AuditTrailFilters = {}): Promise<void> {
         const url = `/reports/audit-trail/excel${buildAuditQueryString(filters)}`;
         await downloadFile(url, 'audit-trail.xlsx');
-    }
+    },
 };

@@ -4,6 +4,9 @@ import type {
     RiskQuestionnaireDetail,
     RiskQuestionnaireDraftUpdate,
     RiskQuestionnaireSubmit,
+    RiskQuestionnaireClarification,
+    RiskQuestionnaireClarificationCreate,
+    RiskQuestionnaireClarificationRespond,
 } from '@/types/riskQuestionnaire';
 
 export const riskQuestionnairesApi = {
@@ -16,8 +19,10 @@ export const riskQuestionnairesApi = {
     sendForRisk: (riskId: number) =>
         apiClient.post<RiskQuestionnaireDetail>(`/risks/${riskId}/questionnaires/send`, {}),
 
-    get: (questionnaireId: number) =>
-        apiClient.get<RiskQuestionnaireDetail>(`/questionnaires/${questionnaireId}`),
+    get: (questionnaireId: number, options: { includePrevious?: boolean } = {}) =>
+        apiClient.get<RiskQuestionnaireDetail>(`/questionnaires/${questionnaireId}`, {
+            params: options.includePrevious ? { include_previous: true } : undefined,
+        }),
 
     saveDraft: (questionnaireId: number, answers: Record<string, unknown>) =>
         apiClient.patch<RiskQuestionnaireDetail>(`/questionnaires/${questionnaireId}/draft`, {
@@ -28,4 +33,16 @@ export const riskQuestionnairesApi = {
         apiClient.post<RiskQuestionnaireDetail>(`/questionnaires/${questionnaireId}/submit`, {
             answers,
         } satisfies RiskQuestionnaireSubmit),
+
+    listClarifications: (questionnaireId: number) =>
+        apiClient.get<RiskQuestionnaireClarification[]>(`/questionnaires/${questionnaireId}/clarifications`),
+
+    createClarification: (questionnaireId: number, payload: RiskQuestionnaireClarificationCreate) =>
+        apiClient.post<RiskQuestionnaireClarification>(`/questionnaires/${questionnaireId}/clarifications`, payload),
+
+    respondClarification: (questionnaireId: number, clarificationId: number, payload: RiskQuestionnaireClarificationRespond) =>
+        apiClient.post<RiskQuestionnaireClarification>(
+            `/questionnaires/${questionnaireId}/clarifications/${clarificationId}/respond`,
+            payload
+        ),
 };

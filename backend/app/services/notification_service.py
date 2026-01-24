@@ -26,6 +26,7 @@ class NotificationService:
         resource_type: str | None = None,
         resource_id: int | None = None,
         skip_preference_check: bool = False,
+        created_at: datetime | None = None,
     ) -> Notification | None:
         """
         Create a single notification for a user.
@@ -60,7 +61,7 @@ class NotificationService:
             message=message,
             resource_type=resource_type,
             resource_id=resource_id,
-            created_at=datetime.now(UTC),
+            created_at=created_at or datetime.now(UTC),
         )
         db.add(notification)
         await db.flush()  # Get ID without committing

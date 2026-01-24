@@ -74,6 +74,8 @@ async def audit_trail_test_data(db_session: AsyncSession, test_user, test_depart
     return {"control": control, "risk": risk, "exe_passed": exe_passed, "exe_failed": exe_failed}
 
 
+
+
 @pytest.mark.asyncio
 async def test_download_audit_trail_pdf(
     auth_client: AsyncClient,
@@ -121,3 +123,4 @@ async def test_audit_trail_department_scoping(
     response = await auth_client.get(f"/api/v1/reports/audit-trail/pdf?department_id={test_department.id}")
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
+

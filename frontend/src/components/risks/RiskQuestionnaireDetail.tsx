@@ -5,12 +5,14 @@ import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import type { Risk } from '@/types/risk';
-import type { RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
+import type { RiskQuestionnaireClarification, RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { IMPACT_DESCRIPTIONS, PROBABILITY_DESCRIPTIONS, formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import { cn } from '@/lib/utils';
-import { RISK_OWNER_REASSESSMENT_V1 } from './riskQuestionnaireQuestions';
+import { getRiskOwnerReassessmentTemplate } from './riskQuestionnaireQuestions';
 
 interface RiskQuestionnaireDetailProps {
     isOpen: boolean;
@@ -26,6 +28,9 @@ function isMissingAnswer(value: unknown): boolean {
     return false;
 }
 
+const LIKELIHOOD_12M_KEY = 'risk_assessment.q11_likelihood_12m';
+const WORST_CASE_IMPACT_KEY = 'risk_assessment.q12_worst_case_impact';
+
 export function RiskQuestionnaireDetail({
     isOpen,
     onClose,
@@ -35,6 +40,7 @@ export function RiskQuestionnaireDetail({
 }: RiskQuestionnaireDetailProps) {
     const { t } = useTranslation(['common', 'risks']);
     const { user } = useAuth();
+    const { totalAssets } = useTotalAssetsValue();
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -42,6 +48,14 @@ export function RiskQuestionnaireDetail({
     const [questionnaire, setQuestionnaire] = useState<RiskQuestionnaireDetail | null>(null);
     const [answers, setAnswers] = useState<Record<string, unknown>>({});
     const [missingKeys, setMissingKeys] = useState<string[]>([]);
+    const [compareMode, setCompareMode] = useState(false);
+    const [clarifications, setClarifications] = useState<RiskQuestionnaireClarification[]>([]);
+    const [clarificationsLoading, setClarificationsLoading] = useState(false);
+    const [requestingSectionKey, setRequestingSectionKey] = useState<string | null>(null);
+    const [requestMessage, setRequestMessage] = useState('');
+    const [requestQuestionKeys, setRequestQuestionKeys] = useState<string[]>([]);
+    const [respondingClarificationId, setRespondingClarificationId] = useState<number | null>(null);
+    const [responseMessage, setResponseMessage] = useState('');
 
     const isOverdue = useMemo(() => {
         if (!questionnaire) return false;
@@ -60,6 +74,18 @@ export function RiskQuestionnaireDetail({
 
     const isEditable = canSubmit && questionnaire?.status !== 'submitted';
 
+    const defaultCompareMode = false;
+
+    const templateVersion = questionnaire?.template_version ?? 'v1';
+    const template = useMemo(() => getRiskOwnerReassessmentTemplate(templateVersion), [templateVersion]);
+    const templateQuestionKeys = useMemo(
+        () => new Set(template.flatMap(s => s.questions).map(q => q.key)),
+        [template]
+    );
+
+    const canRequestClarification = user?.role === 'cro' || user?.role === 'risk_manager';
+    const isRiskOwner = !!user && questionnaire?.assigned_to_user_id === user.id;
+
     useEffect(() => {
         let cancelled = false;
 
@@ -69,11 +95,12 @@ export function RiskQuestionnaireDetail({
             setMissingKeys([]);
             setLoading(true);
             try {
-                const data = await riskQuestionnairesApi.get(questionnaireId);
+                const data = await riskQuestionnairesApi.get(questionnaireId, { includePrevious: defaultCompareMode });
                 if (cancelled) return;
                 setQuestionnaire(data);
                 const nextAnswers = (data.answers ?? {}) as Record<string, unknown>;
                 setAnswers(nextAnswers);
+                setCompareMode(defaultCompareMode);
             } catch (e) {
                 if (cancelled) return;
                 setError(e instanceof Error ? e.message : t('errors.generic'));
@@ -88,8 +115,50 @@ export function RiskQuestionnaireDetail({
         };
     }, [isOpen, questionnaireId, t]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const loadPreviousIfNeeded = async () => {
+            if (!isOpen || !questionnaireId) return;
+            if (!compareMode) return;
+            if (questionnaire?.previous_submission !== undefined) return;
+            try {
+                const data = await riskQuestionnairesApi.get(questionnaireId, { includePrevious: true });
+                if (cancelled) return;
+                setQuestionnaire(prev => (prev ? { ...prev, previous_submission: data.previous_submission } : data));
+            } catch {
+                // best-effort
+            }
+        };
+        loadPreviousIfNeeded();
+        return () => {
+            cancelled = true;
+        };
+    }, [compareMode, isOpen, questionnaire?.previous_submission, questionnaireId]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadClarifications = async () => {
+            if (!isOpen || !questionnaireId) return;
+            setClarificationsLoading(true);
+            try {
+                const data = await riskQuestionnairesApi.listClarifications(questionnaireId);
+                if (cancelled) return;
+                setClarifications(data);
+            } catch {
+                if (cancelled) return;
+                setClarifications([]);
+            } finally {
+                if (!cancelled) setClarificationsLoading(false);
+            }
+        };
+        loadClarifications();
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, questionnaireId]);
+
     const validate = () => {
-        const required = RISK_OWNER_REASSESSMENT_V1.flatMap(s => s.questions).filter(q => q.required);
+        const required = template.flatMap(s => s.questions).filter(q => q.required);
         const missing = required
             .filter(q => isMissingAnswer(answers[q.key]))
             .map(q => q.key);
@@ -131,9 +200,40 @@ export function RiskQuestionnaireDetail({
         }
     };
 
+    const formatLikelihoodOptionLabel = (level: number): string => {
+        const meta = PROBABILITY_DESCRIPTIONS[level];
+        if (!meta) return String(level);
+        return `${level} — ${meta.label} — ${meta.description}`;
+    };
+
+    const formatWorstCaseImpactOptionLabel = (level: number): string => {
+        const meta = IMPACT_DESCRIPTIONS[level];
+        if (!meta) return String(level);
+        const range = formatFinancialRange(level, totalAssets);
+        return `${level} — ${meta.label} — ${meta.description}. Loss: ${range}`;
+    };
+
+    const likelihoodOptions = [1, 2, 3, 4, 5].map(level => ({
+        value: String(level),
+        label: formatLikelihoodOptionLabel(level),
+    }));
+
+    const worstCaseImpactOptions = [1, 2, 3, 4, 5].map(level => ({
+        value: String(level),
+        label: formatWorstCaseImpactOptionLabel(level),
+    }));
+
     const renderAnswer = (key: string, value: unknown) => {
         if (value === undefined || value === null) return t('labels.unknown', 'Unknown');
         if (typeof value === 'boolean') return value ? t('actions.yes') : t('actions.no');
+        if (key === LIKELIHOOD_12M_KEY) {
+            const level = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseInt(value, 10) : NaN;
+            if (Number.isFinite(level)) return formatLikelihoodOptionLabel(level);
+        }
+        if (key === WORST_CASE_IMPACT_KEY) {
+            const level = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseInt(value, 10) : NaN;
+            if (Number.isFinite(level)) return formatWorstCaseImpactOptionLabel(level);
+        }
         if (typeof value === 'string') {
             // Handle select option translation keys
             if (value.startsWith('risk_assessment.options.')) {
@@ -144,9 +244,85 @@ export function RiskQuestionnaireDetail({
         return String(value);
     };
 
+    const normalizeForCompare = (value: unknown): unknown => {
+        if (value === undefined || value === null) return null;
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            return trimmed === '' ? null : trimmed;
+        }
+        return value;
+    };
+
+    const getPreviousAnswer = (key: string): unknown => {
+        const prevAnswers = (questionnaire?.previous_submission?.answers ?? {}) as Record<string, unknown>;
+        return prevAnswers[key];
+    };
+
+    const isChanged = (key: string): boolean => {
+        if (!compareMode) return false;
+        if (!templateQuestionKeys.has(key)) return false;
+        const prev = normalizeForCompare(getPreviousAnswer(key));
+        if (prev === null) return false;
+        const cur = normalizeForCompare(answers[key]);
+        return cur !== prev;
+    };
+
+    const hasPreviousCycle = questionnaire?.previous_submission !== null;
+    const previousCycleLoaded = questionnaire?.previous_submission !== undefined;
+
+    const sectionClarifications = useMemo(() => {
+        const grouped = new Map<string, RiskQuestionnaireClarification[]>();
+        for (const c of clarifications) {
+            const list = grouped.get(c.section_key) ?? [];
+            list.push(c);
+            grouped.set(c.section_key, list);
+        }
+        return grouped;
+    }, [clarifications]);
+
+    const handleRequestClarification = async (sectionKey: string) => {
+        if (!questionnaire) return;
+        setError(null);
+        try {
+            await riskQuestionnairesApi.createClarification(questionnaire.id, {
+                section_key: sectionKey,
+                request_message: requestMessage.trim(),
+                question_keys: requestQuestionKeys.length ? requestQuestionKeys : undefined,
+            });
+            const data = await riskQuestionnairesApi.listClarifications(questionnaire.id);
+            setClarifications(data);
+            setRequestingSectionKey(null);
+            setRequestMessage('');
+            setRequestQuestionKeys([]);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : t('errors.generic'));
+        }
+    };
+
+    const handleRespondClarification = async (clarificationId: number) => {
+        if (!questionnaire) return;
+        setError(null);
+        try {
+            await riskQuestionnairesApi.respondClarification(questionnaire.id, clarificationId, {
+                response_message: responseMessage.trim(),
+            });
+            const data = await riskQuestionnairesApi.listClarifications(questionnaire.id);
+            setClarifications(data);
+            setRespondingClarificationId(null);
+            setResponseMessage('');
+        } catch (e) {
+            setError(e instanceof Error ? e.message : t('errors.generic'));
+        }
+    };
+
     const close = () => {
         setError(null);
         setMissingKeys([]);
+        setRequestingSectionKey(null);
+        setRequestMessage('');
+        setRequestQuestionKeys([]);
+        setRespondingClarificationId(null);
+        setResponseMessage('');
         onClose();
     };
 
@@ -204,6 +380,18 @@ export function RiskQuestionnaireDetail({
                                                 <span className="mx-2 opacity-30">•</span>
                                                 <span>{t('risks:questionnaire.meta.sender', 'Sender')}:</span>
                                                 <span className="text-slate-300">{questionnaire.sent_by_user_name ?? questionnaire.sent_by_user_id}</span>
+                                                <span className="mx-2 opacity-30">•</span>
+                                                <button
+                                                    onClick={() => setCompareMode(v => !v)}
+                                                    className={cn(
+                                                        "text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border transition-all",
+                                                        compareMode
+                                                            ? "bg-accent/15 border-accent/30 text-accent hover:bg-accent/20"
+                                                            : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
+                                                    )}
+                                                >
+                                                    {t('risks:questionnaire.compare_toggle', 'Compare to last cycle')}
+                                                </button>
                                             </div>
                                         </div>
                                     )}
@@ -235,11 +423,178 @@ export function RiskQuestionnaireDetail({
                                     </div>
                                 ) : questionnaire ? (
                                     <div className="space-y-6">
-                                        {RISK_OWNER_REASSESSMENT_V1.map(section => (
+                                        {compareMode && previousCycleLoaded && !hasPreviousCycle && (
+                                            <div className="text-xs text-slate-500">
+                                                {t('risks:questionnaire.no_previous_cycle', 'No previous cycle available.')}
+                                            </div>
+                                        )}
+
+                                        {template.map(section => (
                                             <section key={section.titleKey} className="space-y-3">
-                                                <h4 className="text-xs font-black text-white uppercase tracking-widest">
-                                                    {t(`risks:${section.titleKey}`, section.titleKey)}
-                                                </h4>
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <h4 className="text-xs font-black text-white uppercase tracking-widest">
+                                                        {t(`risks:${section.titleKey}`, section.titleKey)}
+                                                    </h4>
+                                                    {canRequestClarification && questionnaire.status === 'submitted' && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setRequestingSectionKey(section.titleKey);
+                                                                setRequestMessage('');
+                                                                setRequestQuestionKeys([]);
+                                                            }}
+                                                            className="text-[10px] font-black uppercase tracking-widest text-accent hover:text-accent/80"
+                                                        >
+                                                            {t('risks:questionnaire.request_clarification', 'Request clarification')}
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {requestingSectionKey === section.titleKey && (
+                                                    <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-3">
+                                                        <p className="text-xs font-bold text-slate-300">
+                                                            {t('risks:questionnaire.clarification_request_label', 'Clarification request')}
+                                                        </p>
+                                                        <textarea
+                                                            value={requestMessage}
+                                                            onChange={(e) => setRequestMessage(e.target.value)}
+                                                            rows={3}
+                                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-accent/50 transition-all resize-none"
+                                                            placeholder={t('risks:questionnaire.clarification_request_placeholder', 'What needs clarification?')}
+                                                        />
+                                                        <div className="space-y-2">
+                                                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                                                                {t('risks:questionnaire.clarification_optional_questions', 'Optional: highlight questions')}
+                                                            </p>
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                                {section.questions.map(q => {
+                                                                    const label = t(`risks:questionnaire.questions.${q.key}`, q.key);
+                                                                    const checked = requestQuestionKeys.includes(q.key);
+                                                                    return (
+                                                                        <label key={q.key} className="flex items-start gap-2 text-xs text-slate-300">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={checked}
+                                                                                onChange={(e) => {
+                                                                                    const next = e.target.checked
+                                                                                        ? [...requestQuestionKeys, q.key]
+                                                                                        : requestQuestionKeys.filter(k => k !== q.key);
+                                                                                    setRequestQuestionKeys(next);
+                                                                                }}
+                                                                            />
+                                                                            <span className="leading-snug">{label}</span>
+                                                                        </label>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <button
+                                                                onClick={() => setRequestingSectionKey(null)}
+                                                                className="px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                                                            >
+                                                                {t('common:actions.cancel')}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRequestClarification(section.titleKey)}
+                                                                disabled={requestMessage.trim() === ''}
+                                                                className={cn(
+                                                                    "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all",
+                                                                    "bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50",
+                                                                    requestMessage.trim() === '' && "opacity-50 cursor-not-allowed"
+                                                                )}
+                                                            >
+                                                                {t('common:actions.submit')}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {clarificationsLoading ? null : (sectionClarifications.get(section.titleKey)?.length ?? 0) > 0 ? (
+                                                    <div className="space-y-2">
+                                                        {sectionClarifications.get(section.titleKey)!.map(c => {
+                                                            const open = !c.response_message;
+                                                            return (
+                                                                <div key={c.id} className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-2">
+                                                                    <div className="flex items-center justify-between gap-3">
+                                                                        <p className="text-xs font-bold text-slate-300">
+                                                                            {t('risks:questionnaire.clarification', 'Clarification')}
+                                                                        </p>
+                                                                        {open && (
+                                                                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
+                                                                                {t('risks:questionnaire.clarification_open', 'Open')}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <p className="text-sm text-white whitespace-pre-wrap">{c.request_message}</p>
+                                                                    <p className="text-[10px] text-slate-500">
+                                                                        {t('risks:questionnaire.clarification_requested_by', 'Requested by')}{' '}
+                                                                        {c.requested_by_user_name ?? c.requested_by_user_id} •{' '}
+                                                                        {new Date(c.requested_at).toLocaleString()}
+                                                                    </p>
+
+                                                                    {c.response_message ? (
+                                                                        <div className="mt-3 border-t border-white/10 pt-3 space-y-1">
+                                                                            <p className="text-xs font-bold text-slate-300">
+                                                                                {t('risks:questionnaire.clarification_response', 'Response')}
+                                                                            </p>
+                                                                            <p className="text-sm text-white whitespace-pre-wrap">{c.response_message}</p>
+                                                                            {c.responded_at && (
+                                                                                <p className="text-[10px] text-slate-500">
+                                                                                    {t('risks:questionnaire.clarification_responded_by', 'Responded by')}{' '}
+                                                                                    {c.responded_by_user_name ?? c.responded_by_user_id} •{' '}
+                                                                                    {new Date(c.responded_at).toLocaleString()}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : isRiskOwner ? (
+                                                                        <div className="mt-3 border-t border-white/10 pt-3 space-y-2">
+                                                                            {respondingClarificationId !== c.id ? (
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        setRespondingClarificationId(c.id);
+                                                                                        setResponseMessage('');
+                                                                                    }}
+                                                                                    className="text-xs text-accent hover:text-accent/80 font-bold"
+                                                                                >
+                                                                                    {t('risks:questionnaire.respond', 'Respond')}
+                                                                                </button>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <textarea
+                                                                                        value={responseMessage}
+                                                                                        onChange={(e) => setResponseMessage(e.target.value)}
+                                                                                        rows={3}
+                                                                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-accent/50 transition-all resize-none"
+                                                                                        placeholder={t('risks:questionnaire.clarification_response_placeholder', 'Write a response...')}
+                                                                                    />
+                                                                                    <div className="flex items-center justify-end gap-2">
+                                                                                        <button
+                                                                                            onClick={() => setRespondingClarificationId(null)}
+                                                                                            className="px-3 py-1.5 rounded-xl border border-white/10 bg-white/5 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                                                                                        >
+                                                                                            {t('common:actions.cancel')}
+                                                                                        </button>
+                                                                                        <button
+                                                                                            onClick={() => handleRespondClarification(c.id)}
+                                                                                            disabled={responseMessage.trim() === ''}
+                                                                                            className={cn(
+                                                                                                "px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all",
+                                                                                                "bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50",
+                                                                                                responseMessage.trim() === '' && "opacity-50 cursor-not-allowed"
+                                                                                            )}
+                                                                                        >
+                                                                                            {t('common:actions.submit')}
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : null}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : null}
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     {section.questions.map(q => {
@@ -248,6 +603,8 @@ export function RiskQuestionnaireDetail({
                                                         const required = q.required;
                                                         const missing = missingKeys.includes(q.key);
                                                         const spanFullWidth = q.type === 'textarea';
+                                                        const changed = isChanged(q.key);
+                                                        const helperText = q.helperTextKey ? t(`risks:${q.helperTextKey}`, '') : '';
 
                                                         if (!isEditable) {
                                                             return (
@@ -259,6 +616,11 @@ export function RiskQuestionnaireDetail({
                                                                         <p className="text-xs font-bold text-slate-300">
                                                                             {label}
                                                                         </p>
+                                                                        {changed && (
+                                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent">
+                                                                                {t('risks:questionnaire.changed', 'Changed')}
+                                                                            </span>
+                                                                        )}
                                                                         {required && (
                                                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                                                                                 {t('risks:questionnaire.required', 'Required')}
@@ -268,6 +630,14 @@ export function RiskQuestionnaireDetail({
                                                                     <div className="p-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white">
                                                                         {renderAnswer(q.key, value)}
                                                                     </div>
+                                                                    {changed && (
+                                                                        <div className="text-xs text-slate-500">
+                                                                            {t('risks:questionnaire.previous', 'Previous')}: {renderAnswer(q.key, getPreviousAnswer(q.key))}
+                                                                        </div>
+                                                                    )}
+                                                                    {helperText && (
+                                                                        <div className="text-xs text-slate-500">{helperText}</div>
+                                                                    )}
                                                                 </div>
                                                             );
                                                         }
@@ -281,12 +651,40 @@ export function RiskQuestionnaireDetail({
                                                                     <p className={cn("text-xs font-bold", missing ? "text-rose-400" : "text-slate-300")}>
                                                                         {label}
                                                                     </p>
+                                                                    {changed && (
+                                                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent">
+                                                                            {t('risks:questionnaire.changed', 'Changed')}
+                                                                        </span>
+                                                                    )}
                                                                     {required && (
                                                                         <span className={cn("text-[10px] font-black uppercase tracking-widest", missing ? "text-rose-400" : "text-slate-500")}>
                                                                             {t('risks:questionnaire.required', 'Required')}
                                                                         </span>
                                                                     )}
                                                                 </div>
+
+                                                                {helperText && (
+                                                                    <div className="text-xs text-slate-500">{helperText}</div>
+                                                                )}
+
+                                                                {(q.key === LIKELIHOOD_12M_KEY || q.key === WORST_CASE_IMPACT_KEY) && (
+                                                                    <ThemedSelect
+                                                                        value={typeof value === 'number' ? String(value) : ''}
+                                                                        onValueChange={(v) => {
+                                                                            setAnswers(prev => ({
+                                                                                ...prev,
+                                                                                [q.key]: v === '' ? undefined : Number.parseInt(v, 10),
+                                                                            }));
+                                                                        }}
+                                                                        placeholder={t('common:actions.select')}
+                                                                        allowEmpty
+                                                                        emptyLabel={t('common:labels.none')}
+                                                                        className={cn(
+                                                                            missing && "border-rose-500/40 focus:border-rose-500/60 focus:ring-rose-500/30"
+                                                                        )}
+                                                                        options={q.key === LIKELIHOOD_12M_KEY ? likelihoodOptions : worstCaseImpactOptions}
+                                                                    />
+                                                                )}
 
                                                                 {q.type === 'boolean' && (
                                                                     <ThemedSelect
@@ -327,11 +725,20 @@ export function RiskQuestionnaireDetail({
                                                                     />
                                                                 )}
 
-                                                                {q.type === 'number' && (
+                                                                {q.type === 'number' && q.key !== LIKELIHOOD_12M_KEY && q.key !== WORST_CASE_IMPACT_KEY && (
                                                                     <input
                                                                         type="number"
+                                                                        min={1}
+                                                                        max={5}
+                                                                        step={1}
                                                                         value={typeof value === 'number' ? String(value) : ''}
-                                                                        onChange={(e) => setAnswers(prev => ({ ...prev, [q.key]: Number(e.target.value) }))}
+                                                                        onChange={(e) => {
+                                                                            const raw = e.target.value;
+                                                                            setAnswers(prev => ({
+                                                                                ...prev,
+                                                                                [q.key]: raw === '' ? undefined : Number.parseInt(raw, 10),
+                                                                            }));
+                                                                        }}
                                                                         className={cn(
                                                                             "w-full bg-white/5 border rounded-xl px-4 py-2.5 text-white outline-none transition-all",
                                                                             missing ? "border-rose-500/40 focus:border-rose-500/60" : "border-white/10 focus:border-accent/50"
@@ -349,6 +756,12 @@ export function RiskQuestionnaireDetail({
                                                                             missing ? "border-rose-500/40 focus:border-rose-500/60" : "border-white/10 focus:border-accent/50"
                                                                         )}
                                                                     />
+                                                                )}
+
+                                                                {changed && (
+                                                                    <div className="text-xs text-slate-500">
+                                                                        {t('risks:questionnaire.previous', 'Previous')}: {renderAnswer(q.key, getPreviousAnswer(q.key))}
+                                                                    </div>
                                                                 )}
                                                             </div>
                                                         );
