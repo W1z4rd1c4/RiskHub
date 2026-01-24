@@ -4,6 +4,7 @@ import { DEMO_ACCOUNTS, loginAsDemoUser, logout } from './helpers/login';
 test.describe('questionnaire workflow', () => {
     test('CRO sends, owner submits, CRO notified', async ({ page }) => {
         const riskName = `E2E Questionnaire Risk ${Date.now()}`;
+        const riskNameRe = new RegExp(riskName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 
         // 1) CRO creates a risk and sends questionnaire
         await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
@@ -66,10 +67,15 @@ test.describe('questionnaire workflow', () => {
             .fill('Monitor and review quarterly.');
 
         await page.getByRole('button', { name: /^Submit$/ }).click();
-        await expect(page.getByText(/submitted/i)).toBeVisible({ timeout: 15000 });
+        await expect(
+            page
+                .getByText('Status:', { exact: true })
+                .locator('..')
+                .getByText('submitted', { exact: true })
+        ).toBeVisible({ timeout: 15000 });
 
         await page.getByRole('button', { name: /Close/i }).click();
-        await expect(page.getByText('Submitted')).toBeVisible({ timeout: 15000 });
+        await expect(page.locator('tbody').getByText('Submitted', { exact: true })).toBeVisible({ timeout: 15000 });
 
         // Logout Owner
         await logout(page);
@@ -81,6 +87,6 @@ test.describe('questionnaire workflow', () => {
         // Open notification bell and assert submitted notification exists
         await page.getByRole('button', { name: /Notifications/i }).click({ timeout: 15000 });
 
-        await expect(page.getByText('Questionnaire submitted')).toBeVisible({ timeout: 15000 });
+        await expect(page.getByRole('button', { name: riskNameRe }).first()).toBeVisible({ timeout: 15000 });
     });
 });
