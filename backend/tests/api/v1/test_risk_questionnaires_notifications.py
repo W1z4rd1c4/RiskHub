@@ -1,7 +1,7 @@
 """
 Tests for questionnaire notifications and reminder service.
 """
-from datetime import datetime, timedelta, UTC, date, time
+from datetime import datetime, timedelta, UTC, time
 
 import pytest
 import pytest_asyncio
@@ -14,6 +14,14 @@ from app.models.risk import RiskStatus
 from app.models.notification import Notification, NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
+from app.models.global_config import clear_config_cache
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    clear_config_cache()
+    yield
+    clear_config_cache()
 
 
 @pytest_asyncio.fixture
@@ -86,6 +94,8 @@ async def test_submit_creates_questionnaire_submitted_notification_for_rm_cro(
                 "risk_assessment.q4_controls_effective": True,
                 "risk_assessment.q8_outlook_trend": "risk_assessment.options.trend.stable",
                 "risk_assessment.q9_mitigation_actions": "none",
+                "risk_assessment.q11_likelihood_12m": 3,
+                "risk_assessment.q12_worst_case_impact": 3,
             }
         },
     )
@@ -109,9 +119,9 @@ async def test_deadline_service_due_soon_and_duplicate_prevention(
 ):
     from app.models import RiskQuestionnaire
 
-    target_due_date = date.today() + timedelta(days=7)
-    due_at = datetime.combine(target_due_date, time(hour=12), tzinfo=UTC)
-    now = datetime.now(UTC)
+    now = datetime(2026, 1, 19, 10, 0, 0, tzinfo=UTC)  # Monday (deterministic)
+    assert now.weekday() == 0
+    due_at = datetime.combine(now.date() + timedelta(days=2), time(hour=12), tzinfo=UTC)
 
     q = RiskQuestionnaire(
         risk_id=risk_owned_by_employee.id,
@@ -129,10 +139,10 @@ async def test_deadline_service_due_soon_and_duplicate_prevention(
     db_session.add(q)
     await db_session.commit()
 
-    result1 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session)
+    result1 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session, now=now)
     assert result1["due_soon"] == 1
 
-    result2 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session)
+    result2 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session, now=now)
     assert result2["due_soon"] == 0
 
 
@@ -143,8 +153,11 @@ async def test_deadline_service_overdue_and_duplicate_prevention(
     risk_owned_by_employee: Risk,
 ):
     from app.models import RiskQuestionnaire
+    from app.models.global_config import GlobalConfig
 
-    now = datetime.now(UTC)
+    now_monday = datetime(2026, 1, 19, 10, 0, 0, tzinfo=UTC)
+    now_tuesday = now_monday + timedelta(days=1)
+    now_next_tuesday = now_tuesday + timedelta(days=7)
     q = RiskQuestionnaire(
         risk_id=risk_owned_by_employee.id,
         assigned_to_user_id=test_user_employee.id,
@@ -153,17 +166,40 @@ async def test_deadline_service_overdue_and_duplicate_prevention(
         template_key="risk_owner_reassessment",
         template_version="v1",
         answers=None,
-        sent_at=now - timedelta(days=10),
-        due_at=now - timedelta(days=1),
+        sent_at=now_monday - timedelta(days=10),
+        due_at=now_monday - timedelta(days=1),
         submitted_at=None,
         submitted_by_user_id=None,
     )
     db_session.add(q)
     await db_session.commit()
 
-    result1 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session)
+    result1 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session, now=now_monday)
     assert result1["overdue"] == 1
 
-    result2 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session)
+    result2 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session, now=now_monday)
     assert result2["overdue"] == 0
 
+    # Not Monday -> no overdue reminder
+    result3 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session, now=now_tuesday)
+    assert result3["overdue"] == 0
+
+    # Configurable weekday (e.g., Tuesday)
+    db_session.add(
+        GlobalConfig(
+            key="questionnaire_overdue_reminder_weekday",
+            value="1",
+            value_type="int",
+            category="notifications",
+            display_name="Questionnaire Overdue Reminder Weekday",
+            description="Test override",
+            min_value=0,
+            max_value=6,
+            is_editable=True,
+        )
+    )
+    await db_session.commit()
+    clear_config_cache()
+
+    result4 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session, now=now_next_tuesday)
+    assert result4["overdue"] == 1

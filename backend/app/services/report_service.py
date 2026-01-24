@@ -619,4 +619,3 @@ def generate_audit_trail_excel(executions: list) -> bytes:
     wb.save(buffer)
     buffer.seek(0)
     return buffer.getvalue()
-

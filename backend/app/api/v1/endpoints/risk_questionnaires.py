@@ -8,13 +8,16 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.db.session import get_db
-from app.models import Risk, User, RiskQuestionnaire
+from app.models import Risk, User, RiskQuestionnaire, RiskQuestionnaireClarification
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.schemas.risk_questionnaire import (
     RiskQuestionnaireListItemRead,
     RiskQuestionnaireRead,
     RiskQuestionnaireDraftUpdate,
     RiskQuestionnaireSubmit,
+    RiskQuestionnaireClarificationCreate,
+    RiskQuestionnaireClarificationRead,
+    RiskQuestionnaireClarificationRespond,
 )
 from app.core.permissions import check_department_access, get_user_department_ids
 from app.core.activity_logger import log_activity
@@ -29,7 +32,8 @@ from app.services.risk_questionnaire_service import (
     can_submit_questionnaire,
     create_questionnaire_instance,
     find_open_questionnaire_for_risk,
-    validate_submit_answers_v1,
+    get_previous_submitted_questionnaire,
+    validate_submit_answers,
 )
 
 router = APIRouter(prefix="/questionnaires")
@@ -102,7 +106,48 @@ def _serialize_list_item(q: RiskQuestionnaire) -> RiskQuestionnaireListItemRead:
 
 def _serialize_read(q: RiskQuestionnaire) -> RiskQuestionnaireRead:
     base = _serialize_list_item(q).model_dump()
-    return RiskQuestionnaireRead(**base, answers=q.answers)
+    return RiskQuestionnaireRead(**base, answers=q.answers, previous_submission=None)
+
+
+def _serialize_previous_submission(q: RiskQuestionnaire | None) -> dict | None:
+    if q is None or q.submitted_at is None:
+        return None
+    return {
+        "id": q.id,
+        "submitted_at": q.submitted_at,
+        "template_version": q.template_version,
+        "answers": q.answers,
+    }
+
+
+def _serialize_read_with_previous(
+    q: RiskQuestionnaire,
+    *,
+    previous_submission: RiskQuestionnaire | None,
+) -> RiskQuestionnaireRead:
+    base = _serialize_list_item(q).model_dump()
+    return RiskQuestionnaireRead(
+        **base,
+        answers=q.answers,
+        previous_submission=_serialize_previous_submission(previous_submission),
+    )
+
+
+def _serialize_clarification(c: RiskQuestionnaireClarification) -> RiskQuestionnaireClarificationRead:
+    return RiskQuestionnaireClarificationRead(
+        id=c.id,
+        questionnaire_id=c.questionnaire_id,
+        section_key=c.section_key,
+        question_keys=c.question_keys,
+        request_message=c.request_message,
+        requested_by_user_id=c.requested_by_user_id,
+        requested_by_user_name=getattr(getattr(c, "requested_by_user", None), "name", None),
+        requested_at=c.requested_at,
+        response_message=c.response_message,
+        responded_by_user_id=c.responded_by_user_id,
+        responded_by_user_name=getattr(getattr(c, "responded_by_user", None), "name", None),
+        responded_at=c.responded_at,
+    )
 
 
 @risk_router.get("/{risk_id}/questionnaires", response_model=list[RiskQuestionnaireListItemRead])
@@ -248,6 +293,7 @@ async def get_questionnaire_inbox(
 @router.get("/{questionnaire_id}", response_model=RiskQuestionnaireRead)
 async def get_questionnaire(
     questionnaire_id: int,
+    include_previous: bool = False,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> RiskQuestionnaireRead:
@@ -259,7 +305,10 @@ async def get_questionnaire(
         await db.commit()
         await db.refresh(questionnaire)
 
-    return _serialize_read(questionnaire)
+    previous = None
+    if include_previous:
+        previous = await get_previous_submitted_questionnaire(db, questionnaire=questionnaire)
+    return _serialize_read_with_previous(questionnaire, previous_submission=previous)
 
 
 @router.patch("/{questionnaire_id}/draft", response_model=RiskQuestionnaireRead)
@@ -295,11 +344,15 @@ async def submit_questionnaire(
     if questionnaire.status not in (RiskQuestionnaireStatus.sent, RiskQuestionnaireStatus.in_progress):
         raise HTTPException(status_code=409, detail="Questionnaire has already been submitted")
 
-    missing = validate_submit_answers_v1(payload.answers)
-    if missing:
+    missing, invalid = validate_submit_answers(template_version=questionnaire.template_version, answers=payload.answers)
+    if missing or invalid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"message": "Missing required questionnaire answers", "missing": sorted(missing)},
+            detail={
+                "message": "Missing or invalid questionnaire answers",
+                "missing": sorted(missing),
+                "invalid": invalid,
+            },
         )
 
     questionnaire.answers = payload.answers
@@ -346,3 +399,129 @@ async def submit_questionnaire(
     await db.commit()
     await db.refresh(questionnaire)
     return _serialize_read(questionnaire)
+
+
+@router.post("/{questionnaire_id}/clarifications", response_model=RiskQuestionnaireClarificationRead, status_code=201)
+async def create_questionnaire_clarification(
+    questionnaire_id: int,
+    payload: RiskQuestionnaireClarificationCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> RiskQuestionnaireClarificationRead:
+    if not can_send_questionnaire(current_user):
+        raise HTTPException(status_code=403, detail="Only Risk Manager or CRO can request clarifications")
+
+    questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
+    if questionnaire.status != RiskQuestionnaireStatus.submitted:
+        raise HTTPException(status_code=409, detail="Clarifications can only be requested for submitted questionnaires")
+
+    clarification = RiskQuestionnaireClarification(
+        questionnaire_id=questionnaire.id,
+        section_key=payload.section_key,
+        question_keys=payload.question_keys,
+        request_message=payload.request_message,
+        requested_by_user_id=current_user.id,
+    )
+    db.add(clarification)
+    await db.flush()
+
+    # Notify assignee (Risk Owner)
+    assignee = questionnaire.assigned_to_user
+    if assignee:
+        locale = assignee.preferred_language or "en"
+        await NotificationService.create_notification(
+            db=db,
+            user_id=assignee.id,
+            notification_type=NotificationType.QUESTIONNAIRE_CLARIFICATION_REQUESTED,
+            title=t("notifications.questionnaire_clarification_requested_title", locale=locale),
+            message=t(
+                "notifications.questionnaire_clarification_requested_message",
+                locale=locale,
+                risk_name=questionnaire.risk.name if questionnaire.risk else "Risk",
+            ),
+            resource_type="risk",
+            resource_id=questionnaire.risk_id,
+        )
+
+    await db.commit()
+
+    result = await db.execute(
+        select(RiskQuestionnaireClarification)
+        .options(
+            selectinload(RiskQuestionnaireClarification.requested_by_user),
+            selectinload(RiskQuestionnaireClarification.responded_by_user),
+        )
+        .where(RiskQuestionnaireClarification.id == clarification.id)
+    )
+    clarification = result.scalar_one()
+    return _serialize_clarification(clarification)
+
+
+@router.get("/{questionnaire_id}/clarifications", response_model=list[RiskQuestionnaireClarificationRead])
+async def list_questionnaire_clarifications(
+    questionnaire_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> list[RiskQuestionnaireClarificationRead]:
+    questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
+
+    result = await db.execute(
+        select(RiskQuestionnaireClarification)
+        .options(
+            selectinload(RiskQuestionnaireClarification.requested_by_user),
+            selectinload(RiskQuestionnaireClarification.responded_by_user),
+        )
+        .where(RiskQuestionnaireClarification.questionnaire_id == questionnaire.id)
+        .order_by(RiskQuestionnaireClarification.requested_at.asc())
+    )
+    items = result.scalars().all()
+    return [_serialize_clarification(c) for c in items]
+
+
+@router.post(
+    "/{questionnaire_id}/clarifications/{clarification_id}/respond",
+    response_model=RiskQuestionnaireClarificationRead,
+)
+async def respond_to_questionnaire_clarification(
+    questionnaire_id: int,
+    clarification_id: int,
+    payload: RiskQuestionnaireClarificationRespond,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+) -> RiskQuestionnaireClarificationRead:
+    questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
+    if questionnaire.assigned_to_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the Risk Owner can respond to clarifications")
+
+    result = await db.execute(
+        select(RiskQuestionnaireClarification)
+        .options(
+            selectinload(RiskQuestionnaireClarification.requested_by_user),
+            selectinload(RiskQuestionnaireClarification.responded_by_user),
+        )
+        .where(
+            RiskQuestionnaireClarification.id == clarification_id,
+            RiskQuestionnaireClarification.questionnaire_id == questionnaire.id,
+        )
+    )
+    clarification = result.scalar_one_or_none()
+    if clarification is None:
+        raise HTTPException(status_code=404, detail="Clarification not found")
+    if clarification.response_message is not None:
+        raise HTTPException(status_code=409, detail="Clarification has already been responded to")
+
+    clarification.response_message = payload.response_message
+    clarification.responded_by_user_id = current_user.id
+    clarification.responded_at = datetime.now(UTC)
+    await db.commit()
+
+    result = await db.execute(
+        select(RiskQuestionnaireClarification)
+        .options(
+            selectinload(RiskQuestionnaireClarification.requested_by_user),
+            selectinload(RiskQuestionnaireClarification.responded_by_user),
+        )
+        .where(RiskQuestionnaireClarification.id == clarification.id)
+    )
+    clarification = result.scalar_one()
+    return _serialize_clarification(clarification)

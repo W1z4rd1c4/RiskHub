@@ -71,6 +71,8 @@ MESSAGES = {
         'questionnaire_overdue_message': "Dotazník k hodnocení rizika '{risk_name}' měl termín {due_date}.",
         'questionnaire_submitted_title': 'Dotazník odeslán',
         'questionnaire_submitted_message': "{actor_name} odeslal(a) dotazník k hodnocení rizika '{risk_name}'.",
+        'questionnaire_clarification_requested_title': 'Žádost o upřesnění',
+        'questionnaire_clarification_requested_message': "Byla požádána o upřesnění k vašemu dotazníku hodnocení rizika '{risk_name}'.",
     },
     
     # Activity log action descriptions
