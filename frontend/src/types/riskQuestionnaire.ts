@@ -3,6 +3,7 @@ export type RiskQuestionnaireStatus = 'sent' | 'in_progress' | 'submitted';
 export interface RiskQuestionnaireListItem {
     id: number;
     risk_id: number;
+    risk_name?: string | null;
     assigned_to_user_id: number;
     sent_by_user_id: number;
     status: RiskQuestionnaireStatus;
@@ -29,4 +30,3 @@ export interface RiskQuestionnaireDraftUpdate {
 export interface RiskQuestionnaireSubmit {
     answers: Record<string, unknown>;
 }
-

@@ -4,6 +4,7 @@
     "tabs": {
         "pending": "Fronta čekajících",
         "mine": "Moje žádosti",
+        "risk_assessment": "Hodnocení rizik",
         "history": "Historie",
         "approved": "Schválené",
         "rejected": "Zamítnuté",
@@ -77,7 +78,8 @@
         "no_history": "Žádná historie schvalování",
         "no_requests": "Žádné žádosti o schválení",
         "all_caught_up": "Vše zpracováno",
-        "no_matching": "Neexistují žádné žádosti odpovídající aktuálnímu filtru."
+        "no_matching": "Neexistují žádné žádosti odpovídající aktuálnímu filtru.",
+        "no_questionnaires": "Momentálně nemáte žádné otevřené dotazníky k vyplnění."
     },
     "labels": {
         "proposed_changes": "Navrhované změny",
