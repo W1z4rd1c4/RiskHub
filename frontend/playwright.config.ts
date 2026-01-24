@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const ciChromiumChannel = process.platform === 'darwin' ? 'chrome' : undefined;
+
 export default defineConfig({
     testDir: './e2e',
     fullyParallel: true,
@@ -43,6 +45,8 @@ export default defineConfig({
             use: {
                 ...devices['Desktop Chrome'],
                 headless: true,
+                // macOS: prefer installed Chrome for stable headless runs.
+                ...(ciChromiumChannel ? { channel: ciChromiumChannel } : {}),
             },
         },
     ],
@@ -57,4 +61,3 @@ export default defineConfig({
     /* Global setup for health checks */
     globalSetup: './e2e/setup/global-setup.ts',
 });
-

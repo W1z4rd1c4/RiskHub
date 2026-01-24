@@ -317,6 +317,47 @@ async def test_user_cro(db_session: AsyncSession, test_department: Department, t
 
 
 @pytest_asyncio.fixture
+async def test_role_department_head(db_session: AsyncSession) -> Role:
+    """Create a department head role."""
+    role = Role(name="department_head", display_name="Department Head", description="Department head role")
+    db_session.add(role)
+    await db_session.commit()
+    return role
+
+
+@pytest_asyncio.fixture
+async def test_user_department_head(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_role_department_head: Role,
+) -> User:
+    """Create a department head user."""
+    user = User(
+        name="Test Department Head",
+        email="depthead@test.com",
+        department_id=test_department.id,
+        role_id=test_role_department_head.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
+    from app.models import Role, RolePermission
+    result = await db_session.execute(
+        select(User)
+        .options(
+            selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
+            selectinload(User.department),
+        )
+        .where(User.id == user.id)
+    )
+    return result.scalar_one()
+
+
+@pytest_asyncio.fixture
 async def test_risk(db_session: AsyncSession, test_department: Department, test_user_cro: User) -> Risk:
     """Create a test risk."""
     risk = Risk(
@@ -448,4 +489,29 @@ async def client_cro(db_session: AsyncSession, test_user_cro: User) -> AsyncGene
     async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
         yield ac
     
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client_department_head(
+    db_session: AsyncSession,
+    test_user_department_head: User,
+) -> AsyncGenerator[AsyncClient, None]:
+    """Client for department head user using header-based mock auth."""
+    from app.core.config import get_settings, Settings
+
+    def override_settings():
+        return Settings(mock_auth_enabled=True, debug=True)
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_settings] = override_settings
+
+    transport = ASGITransport(app=app)
+    headers = {"X-Mock-User-Id": str(test_user_department_head.id)}
+    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+        yield ac
+
     app.dependency_overrides.clear()
