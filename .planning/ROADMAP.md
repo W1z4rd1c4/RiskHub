@@ -62,7 +62,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 156: Audit** — Additional audit phase (1/8)
 - [x] **Phase 157: Business Logic Compliance** — Fix BUSINESS_LOGIC.md discrepancies (6/6)
 - [x] **Phase 158: Audit** — Full-app audit findings → 10 independent fix plans (10/10)
-- [ ] **Phase 159: Audit Fixes** — Fix Phase 158 code review findings (0/10)
+- [x] **Phase 159: Audit Fixes** — Fix Phase 158 code review findings (10/10)
 - [ ] **Phase 179: E2E Test Data** — E2E test data seeding (11/12)
 - [ ] **Phase 180: E2E Business Logic** — E2E business logic tests (9/10)
 - [ ] **Phase 200: Entity Naming Enforcement** — Mandatory naming (9/10)
@@ -96,7 +96,7 @@ Plans:
 
 - [x] 02-01: Database schema for controls, risks, and control-risk linkage
 - [x] 02-02: API endpoints for control and risk management
-- [x] 02-03: Control catalog UI with forms and validation
+- [ ] 02-03: Control catalog UI with forms and validation
 
 ### Phase 2.1: Risk Register
 
@@ -132,7 +132,7 @@ Plans:
 
 Plans:
 
-- [x] 03.1-01: Interactive filters, clickable risk matrix, department views, category charts
+- [ ] 03.1-01: Interactive filters, clickable risk matrix, department views, category charts
 
 ### Phase 3.2: List View Enhancements
 
@@ -181,39 +181,35 @@ Plans:
 - [x] 05-01: Backend API testing with pytest
 - [x] 05-02: Frontend component/integration testing with Vitest
 
-### Phase 6: Risk Appetite (COMPLETE)
+### Phase 6: Risk Appetite
 
 **Goal**: Implement Key Risk Indicators (KRIs) linked to Risks with limit monitoring
 **Depends on**: Phase 5
 **Source**: OS 18 Gap Analysis + Register rizik - limity - Q3.xlsx
-**Plans**: 3 plans
-**Completed**: 2025-12-26
+**Plans**: 2 plans
 
 Plans:
 
 - [x] 06-01: Backend (KRI schema, API, seed script)
-- [x] 06-02: Frontend (KRI UI, gauges, dashboard widget)
-- [x] 06-03: Data Migration (Import Registr_Rizik_2022 + Link KRIs)
+- [ ] 06-02: Frontend (KRI UI, gauges, dashboard widget)
 
 ### Phase 6.1: KRI Management Tab (COMPLETE)
 
 **Goal**: Create dedicated KRI management page with full CRUD like Risks and Controls
 **Depends on**: Phase 6
-**Plans**: 2 plans
+**Plans**: 1 plan
 **Completed**: 2025-12-26
 
 Plans:
 
 - [x] 06.1-01: KRI list page, detail page, create/edit forms, navigation
-- [x] 06.1-02: Department view integration (KRI tab and counts)
 
-### Phase 7: User Management & RBAC (COMPLETE)
+### Phase 7: User Management & RBAC
 
 **Goal**: Implement comprehensive user management with role-based access control and department hierarchy
 **Depends on**: Phase 6.1
 **Research**: Unlikely (standard RBAC patterns)
-**Plans**: 7 plans
-**Completed**: 2025-12-27
+**Plans**: 17 plans
 
 Plans:
 
@@ -223,7 +219,17 @@ Plans:
 - [x] 07-04: Permission filtering for all endpoints (risks, controls, KRIs, dashboard)
 - [x] 07-05: Seed script for sample users with different roles
 - [x] 07-06: Security Fixes & Permission Hardening (Deep Check Results)
-- [x] 07-07: Phase 7 Audit Remediation (API methods, password updates, auth fixes)
+- [ ] 07-07: Phase 7 Audit Remediation (API methods, password updates, auth fixes)
+- [x] 07-08: Report Endpoint Department Scoping
+- [x] 07-09: Execution Endpoint Department Scoping
+- [ ] 07-10: Dynamic Role Selection in User Forms
+- [ ] 07-11: KRI Permission Enforcement
+- [ ] 07-12: Permission Model Consistency & Null Department Handling
+- [x] 07-13: Directory Webhook Authentication (CRITICAL)
+- [x] 07-14: Production Security Defaults (HIGH)
+- [x] 07-15: Control-Trends Department Filter Fix (MEDIUM)
+- [x] 07-16: Approval Request Resource Access Check (MEDIUM)
+- [x] 07-17: Verify Export Department Filtering (MEDIUM)
 
 ### Phase 8: Permission-Based Data Filtering (COMPLETE)
 
@@ -249,7 +255,7 @@ Plans:
 **Goal**: Implement notification system for KRI reporting deadlines and approval workflows
 **Depends on**: Phase 8
 **Research**: Unlikely (used APScheduler)
-**Plans**: 5 plans
+**Plans**: 7 plans
 **Completed**: 2025-12-28
 
 Plans:
@@ -259,6 +265,8 @@ Plans:
 - [x] 09-03: Notification API endpoints (list, mark read, unread count)
 - [x] 09-04: Frontend notification UI (bell icon, dropdown panel, page)
 - [x] 09-05: Background task scheduler for KRI breach checking
+- [x] 09-06: Notification preferences (backend model, API, migration)
+- [x] 09-07: Notifications settings tab (frontend UI + API wiring)
 
 ### Phase 10: Historization Schema & API
 
@@ -287,7 +295,7 @@ Plans:
 - [x] 11-01: Frontend history components (timeline, change cards, trend charts)
 - [x] 11-02: Add history tabs to detail pages (risks, controls, KRIs)
 - [x] 11-03: Historical comparison view (side-by-side diff between dates)
-- [x] 11-04: Dashboard historical widgets (risk trends, breach history)
+- [ ] 11-04: Dashboard historical widgets (risk trends, breach history)
 - [x] 11-05: Audit report generation (PDF/Excel export of audit trail)
 
 ### Phase 12: Compliance Governance
@@ -295,14 +303,15 @@ Plans:
 **Goal**: Implement Activity Log for system-wide change tracking and Risk Committee dashboard enhancements
 **Depends on**: Phase 11
 **Source**: OS 18 Gap Analysis + User Requirements
-**Status**: Planning
-**Plans**: 3 plans
+**Status**: ✅ Complete
+**Plans**: 7 plans
 
 Plans:
 
 - [x] 12-01: Activity Log Backend (model, API, tampering protection)
 - [x] 12-02: Activity Log Frontend (new tab with filters and search)
 - [x] 12-03: Dashboard Risk Committee (executive summary, meeting mode)
+- [x] 12-04: Proposed Metrics (CRO Perspective)
 - [x] 12-05: Backend Structured Logging (structlog, context injection)
 - [x] 12-06: Audit Log Separation & Rotation (file handlers, splitting streams)
 - [x] 12-07: SIEM Documentation & Verification (Option A: Forwarding guide)
@@ -345,13 +354,17 @@ Plans:
 **Goal**: Launch risk assessment campaigns and surveys to business owners.
 **Depends on**: Phase 13
 **Status**: Planned
-**Plans**: 3 plans
+**Plans**: 7 plans
 
 Plans:
 
-- [ ] 14-01: Assessment Template Builder (questions, scoring logic)
-- [ ] 14-02: Campaign Management (launch assessments, track completions)
-- [ ] 14-03: Assessment Response UI & Scoring Engine
+- [ ] 14-01: Questionnaire schema + models
+- [ ] 14-02: Questionnaire API + RBAC
+- [ ] 14-03: Notifications + reminders + activity logging
+- [ ] 14-04: Risk detail tab + questionnaire history grid
+- [ ] 14-05: Questionnaire detail + submission form (v1 questions)
+- [ ] 14-06: CRO batch send in Risk Hub
+- [ ] 14-07: End-to-end verification (tests + Playwright)
 
 ### Phase 15: Settings Page
 
@@ -377,19 +390,22 @@ Plans:
 **Goal**: Implement full Czech language support for the RiskHub application including UI, API messages, reports, and documentation.
 **Depends on**: Phase 15 (Settings Page with localization placeholder)
 **Status**: Planned
-**Plans**: 9 plans
+**Plans**: 12 plans
 
 Plans:
 
-- [ ] 20-01: i18n Infrastructure Setup (react-i18next, translation file structure, language switching)
-- [ ] 20-02: Frontend Core Components Translation (layout, navigation, common UI)
-- [ ] 20-03: Risk, Control, and KRI Page Translation (domain terminology)
-- [ ] 20-04: Dashboard, Approvals, and Admin Pages Translation
-- [ ] 20-05: Backend API Messages Translation (errors, validation, activity log)
-- [ ] 20-06: PDF/Excel Report Translation (export documents in Czech)
-- [ ] 20-07: Administrator Documentation Translation (7 docs → docs/admin-cs/)
-- [ ] 20-08: End-User Documentation Translation (8 docs → docs/user-cs/)
-- [ ] 20-09: Localization Integration and Verification (testing, glossary, dev docs)
+- [x] 20-01: i18n Infrastructure Setup (react-i18next, translation file structure, language switching)
+- [x] 20-02: Frontend Core Components Translation (layout, navigation, common UI)
+- [x] 20-03: Risk, Control, and KRI Page Translation (domain terminology)
+- [x] 20-04: Dashboard, Approvals, and Admin Pages Translation
+- [x] 20-05: Backend API Messages Translation (errors, validation, activity log)
+- [x] 20-06: PDF/Excel Report Translation (export documents in Czech)
+- [x] 20-07: Administrator Documentation Translation (7 docs → docs/admin-cs/)
+- [x] 20-08: End-User Documentation Translation (8 docs → docs/user-cs/)
+- [x] 20-09: Localization Integration and Verification (testing, glossary, dev docs)
+- [x] 20-10: Remaining UI Translation Summary
+- [x] 20-11: Translate remaining hardcoded strings (forms, admin panels, dashboards)
+- [x] 20-16: Runtime Message Localization
 
 ### Phase 25: User-Specific Settings
 
@@ -400,11 +416,11 @@ Plans:
 
 Plans:
 
-- [ ] 25-00: Backend Preferences Storage (User model columns, migration, API endpoints)
-- [ ] 25-01: Frontend Sync Infrastructure (API client, storage utils, AuthContext sync)
-- [ ] 25-02: Theme Context Refactoring (server sync, multi-tab sync, simplify)
-- [ ] 25-03: Language Context Refactoring (server sync, i18n trigger, simplify)
-- [ ] 25-04: Verification & E2E Testing (settings-isolation.spec.ts, data-testid)
+- [x] 25-00: Backend Preferences Storage (User model columns, migration, API endpoints)
+- [x] 25-01: Frontend Sync Infrastructure (API client, storage utils, AuthContext sync)
+- [x] 25-02: Theme Context Refactoring (server sync, multi-tab sync, simplify)
+- [x] 25-03: Language Context Refactoring (server sync, i18n trigger, simplify)
+- [x] 25-04: Verification & E2E Testing (settings-isolation.spec.ts, data-testid)
 
 ### Phase 17: Production Deployment & Enterprise Integration
 
@@ -454,16 +470,16 @@ Plans:
 Plans:
 
 - [x] 17-00: Admin Console Robustness Fixes (Active Users Timezone Logic)
-- [ ] 17-01: Docker Scaffolding (multi-stage builds, Compose, health checks)
-- [ ] 17-02: Production Hardening (CORS, CSP, secrets, rate limiting)
-- [ ] 17-03: Automated Security Scanning (SAST, dependency scanning, secrets detection)
-- [ ] 17-04: End-to-End Regression Suite (Playwright full coverage)
-- [ ] 17-05: Performance & Load Testing (Locust, benchmarks)
+- [x] 17-01: Docker Scaffolding (multi-stage builds, Compose, health checks)
+- [x] 17-02: Production Hardening (CORS, CSP, secrets, rate limiting)
+- [x] 17-03: Automated Security Scanning (SAST, dependency scanning, secrets detection)
+- [x] 17-04: End-to-End Regression Suite (Playwright full coverage)
+- [x] 17-05: Performance & Load Testing (Locust, benchmarks)
 - [ ] 17-06: VM Deployment Scripts (systemd, nginx, install scripts)
 - [ ] 17-07: Azure Deployment (Bicep templates, App Service, CI/CD)
 - [ ] 17-08: Technical Deployment Documentation (IT/DevOps guides)
-- [ ] 17-09: Administrator Guide (CRO/Admin configuration)
-- [ ] 17-10: End-User Guide (Risk manager documentation)
+- [x] 17-09: Administrator Guide (CRO/Admin configuration)
+- [x] 17-10: End-User Guide (Risk manager documentation)
 - [ ] 17-11: Azure AD/Entra SSO (MSAL integration, token validation)
 - [ ] 17-12: AD User Directory Lookup (Graph API, user import)
 - [ ] 17-13: Session Management (refresh tokens, sliding sessions, force logout)
@@ -527,12 +543,12 @@ Plans:
 - [x] 72-04: Risk Hub CRUD hardening + public-config gating + tests
 - [x] 72-05: Frontend alignment with Risk Hub config (risk types, thresholds, approvals)
 - [x] 72-06: Granular permissions for KRI submission + execution logging (`kri:submit`, `controls:execute`)
-- [ ] 72-07: Full-modality permission independence + documentation reconciliation
-- [ ] 72-08: Full-modality cleanup (RBAC enforcement, migration convergence, repo hygiene)
+- [x] 72-07: Full-modality permission independence + documentation reconciliation
+- [x] 72-08: Full-modality cleanup (RBAC enforcement, migration convergence, repo hygiene)
 - [x] 72-09: Backend threshold propagation cleanup (reports + approvals)
-- [ ] 72-10: Public endpoints for thresholds + risk types (non-CRO)
-- [ ] 72-11: Frontend public-config consumption + dynamic type display
-- [ ] 72-12: Naming cleanup for approval threshold helpers (`is_critical_risk_*` semantics)
+- [x] 72-10: Public endpoints for thresholds + risk types (non-CRO)
+- [x] 72-11: Frontend public-config consumption + dynamic type display
+- [x] 72-12: Naming cleanup for approval threshold helpers (`is_critical_risk_*` semantics)
 
 ### Phase 85: Workflow & Users
 
@@ -571,6 +587,7 @@ Plans:
 - [x] 90-12: AD Emulator Role Awareness (Dept Head vs Employee)
 - [x] 90-13: Empty Department Cleanup (hide empty depts & move legacy items)
 - [x] 90-14: Uncategorised Items Governance (auto-flag uncat items as orphans)
+- [ ] 90-15: Governance UI Redesign & KRI Orphans
 
 ### Phase 99: Data Migration & AD Emulator Standalone
 
@@ -587,6 +604,7 @@ Plans:
 - [x] 99-04: AD Emulator standalone backend (separate FastAPI app in /AD Emulator)
 - [x] 99-05: AD Emulator standalone frontend (separate React app with premium design)
 - [x] 99-06: RiskHub integration with external AD Emulator (HTTP sync)
+- [x] 99-07: AD Emulator integration hardening (external_id, sync reliability, frontend polish)
 - [x] 99-08: Risk naming improvement from descriptions
 
 ### Phase 100: Marketing Presentation
@@ -607,20 +625,28 @@ Plans:
 **Goal**: Systematically review RiskHub backend and frontend for bugs and logic issues (exclude AD Emulator).
 **Depends on**: None
 **Research**: None
-**Plans**: 3 plans
+**Plans**: 11 plans
 
 Plans:
 
-- [ ] 150-01: Backend auth/permissions audit
+- [x] 150-01: Backend auth/permissions audit
 - [x] 150-02: Backend domain/services audit
 - [x] 150-03: Frontend audit + consolidation
+- [ ] 150-04: Webhook + Mock Auth Hardening
+- [x] 150-05: KRI Approval + Orphan Timestamp Fixes
+- [x] 150-06: Department Detail Pagination + Enum Alignment
+- [x] 150-07: Frontend Lint Cleanup
+- [x] 150-08: Backend Limits + Approval Fixes
+- [x] 150-09: Department Detail Pagination
+- [ ] 150-10: Backend Counts + Lookup Scoping
+- [ ] 150-11: Department Detail Pagination Reset
 
 ### Phase 151: Audit Resolution
 
 **Goal**: Resolve Phase 150 audit findings across RiskHub backend and frontend.
 **Depends on**: Phase 150
 **Research**: None
-**Plans**: 13 plans
+**Plans**: 19 plans
 
 Plans:
 
@@ -632,14 +658,17 @@ Plans:
 - [x] 151-06: Execution enum alignment + risk list fixes
 - [x] 151-07: Frontend pagination and grouped view completeness
 - [x] 151-08: KRI historization corrections (calendar periods + approvals + notifications)
+- [x] 151-09: KRI Overdue + Correction UI
+- [x] 151-10: Access Guardrails + Scoped User Lookup
 - [x] 151-11: Frontend access gating + scoped user pickers
 - [x] 151-12: KRI value submission approval (open-period recording)
-- [ ] 151-13: KRI value correction UI + overdue badges
+- [x] 151-13: KRI value correction UI + overdue badges
+- [x] 151-14: Frontend Audit Fixes
 - [x] 151-15: Robust Risk ID generation (atomic retry pattern)
 - [x] 151-16: Approval Request DB-level constraints (partial unique index)
 - [x] 151-17: Sensitive field detection refinement (None values + owner semantics)
 - [x] 151-18: Production security guardrails & concurrency verification tests
-- [ ] 151-19: Approval workflow edge cases & activity logging
+- [x] 151-19: Approval workflow edge cases & activity logging
 
 ### Phase 157: Business Logic Compliance
 
@@ -668,36 +697,38 @@ Plans:
 
 Plans:
 
-- [ ] 158-01: Fix ApprovalRequest model import crash (UTC import order) + regression test
-- [ ] 158-02: Approval-applied EDIT parity (Risk score recompute + Control audit attribution) + tests
-- [ ] 158-03: Restore approval DB uniqueness + converge enum/index drift + tests
-- [ ] 158-04: Fix Risk ID generator past 99 + tests
-- [ ] 158-05: Unify risk thresholds via GlobalConfig (backend + frontend) + tests
-- [ ] 158-06: Add `continuous` to backend ControlFrequency enum (+ optional dashboard test)
-- [ ] 158-07: Fix report downloads without `VITE_API_URL` + align frontend base URL conventions
-- [ ] 158-08: Replace UsersPage fallback with true read-only directory mode
-- [ ] 158-09: Fix Tailwind dynamic class purge in LoginPage
-- [ ] 158-10: Production hardening (fail-closed webhooks, scheduler singleton, rate limiting, CSP)
+- [x] 158-01: Fix ApprovalRequest model import crash (UTC import order) + regression test
+- [x] 158-02: Approval-applied EDIT parity (Risk score recompute + Control audit attribution) + tests
+- [x] 158-03: Restore approval DB uniqueness + converge enum/index drift + tests
+- [x] 158-04: Fix Risk ID generator past 99 + tests
+- [x] 158-05: Unify risk thresholds via GlobalConfig (backend + frontend) + tests
+- [x] 158-06: Add `continuous` to backend ControlFrequency enum (+ optional dashboard test)
+- [x] 158-07: Fix report downloads without `VITE_API_URL` + align frontend base URL conventions
+- [x] 158-08: Replace UsersPage fallback with true read-only directory mode
+- [x] 158-09: Fix Tailwind dynamic class purge in LoginPage
+- [x] 158-10: Production hardening (fail-closed webhooks, scheduler singleton, rate limiting, CSP)
 
 ### Phase 159: Audit Fixes
 
 **Goal**: Fix code review findings from Phase 158 including test reliability, security, and polish items.
 **Depends on**: Phase 158 (Audit)
 **Research**: None (issues already analyzed in code review)
+**Status**: ✅ Complete
+**Completed**: 2026-01-23
 **Plans**: 10 plans
 
 Plans:
 
-- [ ] 159-01: PostgreSQL-only test assertions + dialect-aware skips
-- [ ] 159-02: Risk ID generation test regression fix (DB-backed)
-- [ ] 159-03: Security CIDR matching fix (ipaddress module)
-- [ ] 159-04: Department high risk threshold consistency
-- [ ] 159-05: Approval field whitelist (prevent arbitrary writes)
-- [ ] 159-06: Migration duplicate cancellation audit fields
-- [ ] 159-07: Webhook sync error response codes
-- [ ] 159-08: Nginx CSP connect-src cleanup
-- [ ] 159-09: API client code cleanup
-- [ ] 159-10: Test infrastructure documentation
+- [x] 159-01: PostgreSQL-only test assertions + dialect-aware skips
+- [x] 159-02: Risk ID generation test regression fix (DB-backed)
+- [x] 159-03: Security CIDR matching fix (ipaddress module)
+- [x] 159-04: Department high risk threshold consistency
+- [x] 159-05: Approval field whitelist (prevent arbitrary writes)
+- [x] 159-06: Migration duplicate cancellation audit fields
+- [x] 159-07: Webhook sync error response codes
+- [x] 159-08: Nginx CSP connect-src cleanup
+- [x] 159-09: API client code cleanup
+- [x] 159-10: Test infrastructure documentation
 
 ## Progress
 
@@ -751,7 +782,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 156. Audit | 1/8 | ⏳ In progress | - |
 | 157. Business Logic Compliance | 6/6 | ✅ Complete | 2026-01-22 |
 | 158. Audit | 10/10 | ✅ Complete | 2026-01-19 |
-| 159. Audit Fixes | 0/10 | ⏸️ Planned | - |
+| 159. Audit Fixes | 10/10 | ✅ Complete | 2026-01-23 |
 | 179. E2E Test Data | 11/12 | ⏳ In progress | - |
 | 180. E2E Business Logic | 9/10 | ⏳ In progress | - |
 | 200. Entity Naming | 9/10 | ⏳ In progress | - |
@@ -763,10 +794,11 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 **Goal**: Create comprehensive insurance risk data (risks, controls, KRIs) with cross-department ownership to enable E2E tests that currently skip due to missing data.
 **Depends on**: Phase 180 (E2E Business Logic Testing)
 **Research**: None (data based on Slavia Pojišťovna insurance operations research)
-**Plans**: 11 plans
+**Plans**: 12 plans
 
 Plans:
 
+- [ ] 179-00: E2E Test Data Overview
 - [x] 179-01: Foundation & User Verification (validate demo users, create ID mappings)
 - [x] 179-02: Cross-Department Risk Data (15 risks with cross-dept ownership per §2.1, §7.1)
 - [x] 179-03: Cross-Department Control Data (12 controls with risk links per §2.2, §7.2)
@@ -784,19 +816,20 @@ Plans:
 **Goal**: Comprehensive E2E test suite covering all business logic defined in docs/BUSINESS_LOGIC.md
 **Depends on**: Phase 5 (Automated Testing), Phase 8 (Permission Filtering)
 **Research**: None
-**Plans**: 9 plans
+**Plans**: 10 plans
 
 Plans:
 
 - [x] 180-01: E2E Infrastructure & Role-Based Access (fixtures, helpers, POMs, §1 tests)
-- [ ] 180-02: Entity Ownership & Department Relationships (§2, §3 tests)
-- [ ] 180-03: Permission Matrix & CRUD Operations (§4 tests)
-- [ ] 180-04: Approval Workflows - Full Lifecycle (§5 tests)
-- [ ] 180-05: Sensitive Field Rules (§6 tests)
-- [ ] 180-06: Cross-Department Access (§7 tests)
-- [ ] 180-07: Activity Logging & Audit Trail (§9 tests)
-- [ ] 180-08: Suite Integration & Full Regression (CI config, docs)
-- [ ] 180-09: E2E Test Data Verification (verify Phase 179 data enables tests)
+- [x] 180-02: Entity Ownership & Department Relationships (§2, §3 tests)
+- [x] 180-03: Permission Matrix & CRUD Operations (§4 tests)
+- [x] 180-04: Approval Workflows - Full Lifecycle (§5 tests)
+- [x] 180-05: Sensitive Field Rules (§6 tests)
+- [x] 180-06: Cross-Department Access (§7 tests)
+- [x] 180-07: Activity Logging & Audit Trail (§9 tests)
+- [x] 180-08: Suite Integration & Full Regression (CI config, docs)
+- [x] 180-09: E2E Test Data Verification (verify Phase 179 data enables tests)
+- [ ] 180-10: E2E Test Updates for Deterministic Scenarios (use Phase 179 seeded data)
 
 ### Phase 200: Entity Naming Enforcement
 
@@ -815,5 +848,5 @@ Plans:
 - [x] 200-06: KRI Naming Consistency (UI/UX)
 - [x] 200-07: Control Naming Consistency (UI/UX)
 - [ ] 200-08: Export & Reporting Updates
-- [ ] 200-09: Verification & Regression Testing
-- [ ] 200-10: Final Cleanup & Documentation
+- [x] 200-09: Verification & Regression Testing
+- [x] 200-10: Final Cleanup & Documentation
