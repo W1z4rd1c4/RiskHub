@@ -20,7 +20,7 @@
 
 **Milestone:** v1.0 MVP
 **Active Phases:** Multiple in progress (see Progress Summary)
-**Documentation Status:** Reconciled with phase folders (2026-01-23)
+**Documentation Status:** Reconciled with phase folders (2026-01-24)
 
 ## Progress Summary
 
@@ -35,6 +35,7 @@
 | 11 Historical Visualization | ⏳ In progress (4/5) | - |
 | 12 Compliance Governance | ✅ Complete (7/7) | 2026-01-04 |
 | 12.1 Compliance Review | ✅ Complete (10/10) | 2026-01-04 |
+| 14 Risk Assessments | ✅ Complete (7/7) | 2026-01-24 |
 | 15 Settings Page | ✅ Complete (5/5) | 2026-01-07 |
 | 17 Production Deploy | ⏳ In progress (8/15) | - |
 | 20 Czech Localization | ✅ Complete (16/12) | - |
@@ -196,4 +197,4 @@
 
 ---
 
-*Updated: 2026-01-23*
+*Updated: 2026-01-24*
