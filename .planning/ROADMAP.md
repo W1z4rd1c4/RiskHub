@@ -36,7 +36,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 12: Compliance Governance** — Risk Committee dashboard & Activity Logs (7/7)
 - [x] **Phase 12.1: Compliance Governance Review** — Phase 12 audit (10/10)
 - [ ] **Phase 13: Issue & Remediation Management** — Findings and Action Plans (PLANNED)
-- [ ] **Phase 14: Risk Assessments** — Campaigns and questionnaires (PLANNED)
+- [x] **Phase 14: Risk Assessments** — Campaigns and questionnaires (7/7)
 - [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (5/5)
 - [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing (8/15)
 - [ ] **Phase 18: Vendor Risk Management** — Third-party risk assessments (DEFERRED, 0/0)
@@ -349,22 +349,22 @@ Plans:
 - [ ] 13-02: Remediation Plan workflow (assignments, due dates, progress tracking)
 - [ ] 13-03: Findings Dashboard & Reporting (open issues, aging analysis)
 
-### Phase 14: Risk Assessments (NEW)
+### Phase 14: Risk Assessments
 
 **Goal**: Launch risk assessment campaigns and surveys to business owners.
 **Depends on**: Phase 13
-**Status**: Planned
+**Status**: ✅ Complete
 **Plans**: 7 plans
 
 Plans:
 
-- [ ] 14-01: Questionnaire schema + models
-- [ ] 14-02: Questionnaire API + RBAC
-- [ ] 14-03: Notifications + reminders + activity logging
-- [ ] 14-04: Risk detail tab + questionnaire history grid
-- [ ] 14-05: Questionnaire detail + submission form (v1 questions)
-- [ ] 14-06: CRO batch send in Risk Hub
-- [ ] 14-07: End-to-end verification (tests + Playwright)
+- [x] 14-01: Questionnaire schema + models
+- [x] 14-02: Questionnaire API + RBAC
+- [x] 14-03: Notifications + reminders + activity logging
+- [x] 14-04: Risk detail tab + questionnaire history grid
+- [x] 14-05: Questionnaire detail + submission form (v1 questions)
+- [x] 14-06: CRO batch send in Risk Hub
+- [x] 14-07: End-to-end verification (tests + Playwright)
 
 ### Phase 15: Settings Page
 
