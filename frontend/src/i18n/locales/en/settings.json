@@ -41,6 +41,7 @@
         "subtitle": "Choose which notifications you want to receive",
         "section_approval": "Approval Notifications",
         "section_kri": "KRI Notifications",
+        "section_questionnaires": "Questionnaire Notifications",
         "approval_pending": "New approval requests",
         "approval_pending_desc": "When a new request needs your approval",
         "approval_resolved": "Request resolutions",
@@ -57,6 +58,14 @@
         "kri_near_breach_desc": "When KRI values approach threshold limits",
         "kri_breach_detected": "KRI breach alerts",
         "kri_breach_detected_desc": "When KRI values exceed limits",
+        "questionnaire_sent": "Questionnaire sent",
+        "questionnaire_sent_desc": "When a risk assessment questionnaire is sent to you",
+        "questionnaire_due_soon": "Questionnaire due soon",
+        "questionnaire_due_soon_desc": "Reminder when your questionnaire is due in 7 days",
+        "questionnaire_overdue": "Questionnaire overdue",
+        "questionnaire_overdue_desc": "When your questionnaire is past its due date",
+        "questionnaire_submitted": "Questionnaire submitted",
+        "questionnaire_submitted_desc": "When a risk assessment questionnaire is submitted",
         "persistence_note": "Your preferences are saved automatically and synced across devices."
     },
     "localization": {

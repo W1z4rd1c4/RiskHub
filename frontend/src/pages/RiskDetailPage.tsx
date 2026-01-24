@@ -7,6 +7,7 @@ import {
     Star,
     AlertTriangle,
     History,
+    FileText,
     Target,
     AlertCircle,
     XCircle
@@ -22,11 +23,12 @@ import { useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
+import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
 import { useTranslation } from 'react-i18next';
 import { isApprovalCreatedResponse } from '@/types/approval';
 import { parseUpdateResult } from '@/lib/approvalUi';
 
-type TabView = 'overview' | 'history';
+type TabView = 'overview' | 'history' | 'assessment';
 
 export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -358,7 +360,8 @@ export function RiskDetailPage() {
                         : 'text-slate-500 hover:text-white'
                         }`}
                 >
-                    <Target className="h-4 w-4 inline mr-2" />Overview
+                    <Target className="h-4 w-4 inline mr-2" />
+                    {t('risks:tabs.overview', 'Overview')}
                 </button>
                 <button
                     onClick={() => setActiveTab('history')}
@@ -367,7 +370,18 @@ export function RiskDetailPage() {
                         : 'text-slate-500 hover:text-white'
                         }`}
                 >
-                    <History className="h-4 w-4 inline mr-2" />KRI History
+                    <History className="h-4 w-4 inline mr-2" />
+                    {t('risks:tabs.history', 'KRI History')}
+                </button>
+                <button
+                    onClick={() => setActiveTab('assessment')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'assessment'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <FileText className="h-4 w-4 inline mr-2" />
+                    {t('risks:tabs.assessment', 'Risk Assessment')}
                 </button>
             </div>
 
@@ -408,6 +422,11 @@ export function RiskDetailPage() {
                     loading={isHistoryLoading}
                     hasKRIs={!!(risk.kris && risk.kris.length > 0)}
                 />
+            )}
+
+            {/* Risk Assessment Tab */}
+            {activeTab === 'assessment' && (
+                <RiskDetailQuestionnairesTab risk={risk} />
             )}
 
             {risk && (

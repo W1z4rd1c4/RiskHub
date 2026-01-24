@@ -85,6 +85,7 @@ export interface RiskSummary {
     is_priority: boolean;
     department_id?: number;
     department_name?: string;
+    owner_id?: number;
     kri_count?: number;
     has_breach?: boolean;
     control_count?: number;

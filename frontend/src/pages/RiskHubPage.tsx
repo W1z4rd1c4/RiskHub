@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Command, Palette, Settings2, ShieldCheck, Shield, Building } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { RolesPanel, DepartmentsPanel, RiskTypesPanel, SystemSettingsPanel, ApprovalScenariosPanel } from '@/components/riskhub';
+import { RolesPanel, DepartmentsPanel, RiskTypesPanel, SystemSettingsPanel, ApprovalScenariosPanel, RiskQuestionnairesPanel } from '@/components/riskhub';
 import { cn } from '@/lib/utils';
 
 const tabs = [
@@ -12,6 +12,7 @@ const tabs = [
     { id: 'approvals', label: 'Approval Rules', icon: ShieldCheck },
     { id: 'roles', label: 'Roles', icon: Shield },
     { id: 'departments', label: 'Departments', icon: Building },
+    { id: 'questionnaires', label: 'Questionnaires', icon: Command },
 ] as const;
 
 type TabId = typeof tabs[number]['id'];
@@ -28,6 +29,7 @@ export function RiskHubPage() {
         'approvals': t('riskhub.tabs.approval_rules', 'Approval Rules'),
         'roles': t('riskhub.tabs.roles', 'Roles'),
         'departments': t('riskhub.tabs.departments', 'Departments'),
+        'questionnaires': t('riskhub.tabs.questionnaires', 'Questionnaires'),
     };
 
     // Only CRO can access Risk Hub
@@ -81,6 +83,7 @@ export function RiskHubPage() {
                 {activeTab === 'approvals' && <ApprovalScenariosPanel />}
                 {activeTab === 'roles' && <RolesPanel />}
                 {activeTab === 'departments' && <DepartmentsPanel />}
+                {activeTab === 'questionnaires' && <RiskQuestionnairesPanel />}
             </div>
 
             {/* Footer Note */}

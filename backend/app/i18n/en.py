@@ -62,6 +62,15 @@ MESSAGES = {
         'breach_detected': 'Limit breach detected',
         'control_execution_due': 'Control execution due',
         'control_overdue': 'Control execution is overdue',
+
+        'questionnaire_sent_title': 'Questionnaire sent',
+        'questionnaire_sent_message': "A risk assessment questionnaire for '{risk_name}' was sent to you. Due {due_date}.",
+        'questionnaire_due_soon_title': 'Questionnaire due soon',
+        'questionnaire_due_soon_message': "Your risk assessment questionnaire for '{risk_name}' is due on {due_date}.",
+        'questionnaire_overdue_title': 'Questionnaire overdue',
+        'questionnaire_overdue_message': "Your risk assessment questionnaire for '{risk_name}' was due on {due_date}.",
+        'questionnaire_submitted_title': 'Questionnaire submitted',
+        'questionnaire_submitted_message': "{actor_name} submitted the risk assessment questionnaire for '{risk_name}'.",
     },
     
     # Activity log action descriptions

@@ -5,11 +5,16 @@
 export type NotificationType =
     | 'approval_pending'
     | 'approval_resolved'
+    | 'approval_cancelled'
     | 'kri_due_soon'
     | 'kri_due_tomorrow'
     | 'kri_overdue'
     | 'kri_near_breach'
-    | 'kri_breach_detected';
+    | 'kri_breach_detected'
+    | 'questionnaire_sent'
+    | 'questionnaire_due_soon'
+    | 'questionnaire_overdue'
+    | 'questionnaire_submitted';
 
 export interface Notification {
     id: number;
@@ -46,7 +51,10 @@ export interface NotificationPreferences {
     kri_overdue: boolean;
     kri_near_breach: boolean;
     kri_breach_detected: boolean;
+    questionnaire_sent: boolean;
+    questionnaire_due_soon: boolean;
+    questionnaire_overdue: boolean;
+    questionnaire_submitted: boolean;
 }
 
 export type NotificationPreferencesUpdate = Partial<NotificationPreferences>;
-

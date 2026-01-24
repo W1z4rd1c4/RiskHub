@@ -23,6 +23,9 @@ export const riskApi = {
         min_net_score?: number;
         sort_by?: string;
         sort_order?: 'asc' | 'desc';
+        process?: string;
+        category?: string;
+        include_archived?: boolean;
     }): Promise<RiskListResponse> {
         return apiClient.get<RiskListResponse>('/risks', { params });
     },
