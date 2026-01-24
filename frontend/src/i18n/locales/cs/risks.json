@@ -52,7 +52,76 @@
         "overview": "Přehled",
         "controls": "Kontroly",
         "kris": "KRI",
-        "history": "Historie"
+        "history": "Historie",
+        "assessment": "Hodnocení rizika"
+    },
+    "questionnaires": {
+        "title": "Hodnocení rizika",
+        "subtitle": "Historie dotazníků a aktuální stav pro toto riziko.",
+        "send": "Odeslat dotazník",
+        "send_success": "Dotazník byl odeslán.",
+        "send_open_exists": "Otevřený dotazník již existuje. Otevírám ho.",
+        "send_requires_owner": "Pro odeslání dotazníku nastavte vlastníka rizika.",
+        "owner_required": "Vyžaduje vlastníka",
+        "open": "Otevřít",
+        "current_due": "Termín",
+        "empty": "Pro toto riziko zatím nebyl odeslán žádný dotazník.",
+        "columns": {
+            "sent_at": "Odesláno",
+            "due_at": "Termín",
+            "submitted_at": "Odevzdáno",
+            "sent_by": "Odeslal(a)",
+            "submitted_by": "Odevzdal(a)"
+        }
+    },
+    "questionnaire": {
+        "title": "Dotazník k hodnocení rizika",
+        "required": "Povinné",
+        "readonly_hint": "Pouze pro čtení: nemáte oprávnění tento dotazník odevzdat.",
+        "validation_missing": "Vyplňte prosím všechny povinné otázky.",
+        "meta": {
+            "sent": "Odesláno",
+            "due": "Termín",
+            "status": "Stav",
+            "assignee": "Řešitel",
+            "sender": "Odesílatel"
+        },
+        "status": {
+            "sent": "Čeká",
+            "in_progress": "Rozpracováno",
+            "submitted": "Odevzdáno",
+            "overdue": "Po termínu"
+        },
+        "actions": {
+            "save": "Uložit průběžně"
+        },
+        "sections": {
+            "risk_changes": "Změny rizika",
+            "controls": "Kontroly",
+            "kris": "KRI",
+            "outlook": "Výhled"
+        },
+        "questions": {
+            "risk_assessment": {
+                "q1_description_changed": "Změnil se od poslední revize popis nebo rozsah rizika?",
+                "q2_new_triggers": "Jsou nějaké nové spouštěče, příčiny nebo faktory, které bychom měli zachytit?",
+                "q3_recent_incidents": "Došlo v poslední době k incidentům, near-miss nebo ztrátám souvisejícím s tímto rizikem?",
+                "q4_controls_effective": "Jsou stávající kontroly stále efektivní?",
+                "q5_control_gaps": "Existují mezery nebo selhání kontrol, případně plánované změny?",
+                "q6_kri_changes": "Jaká KRI by měla být přidána, odebrána nebo upravena?",
+                "q7_kri_breaches": "Došlo v poslední době k překročení limitů KRI nebo varovným signálům?",
+                "q8_outlook_trend": "Očekávaný trend v příštím čtvrtletí",
+                "q9_mitigation_actions": "Navrhovaná mitigace nebo další kroky",
+                "q10_support_needed": "Je potřeba podpora od Risk Managementu / CRO?",
+                "options": {
+                    "trend": {
+                        "up": "Riziko roste",
+                        "stable": "Stabilní",
+                        "down": "Riziko klesá"
+                    }
+                }
+            }
+        }
     },
     "matrix": {
         "title": "Riziková matice",

@@ -52,7 +52,76 @@
         "overview": "Overview",
         "controls": "Controls",
         "kris": "KRIs",
-        "history": "History"
+        "history": "History",
+        "assessment": "Risk Assessment"
+    },
+    "questionnaires": {
+        "title": "Risk Assessment",
+        "subtitle": "Questionnaire history and current status for this risk.",
+        "send": "Send questionnaire",
+        "send_success": "Questionnaire sent.",
+        "send_open_exists": "An open questionnaire already exists. Opening it.",
+        "send_requires_owner": "Set a risk owner to send a questionnaire.",
+        "owner_required": "Owner required",
+        "open": "Open",
+        "current_due": "Due",
+        "empty": "No questionnaires have been sent for this risk yet.",
+        "columns": {
+            "sent_at": "Sent",
+            "due_at": "Due",
+            "submitted_at": "Submitted",
+            "sent_by": "Sent by",
+            "submitted_by": "Submitted by"
+        }
+    },
+    "questionnaire": {
+        "title": "Risk Assessment Questionnaire",
+        "required": "Required",
+        "readonly_hint": "Read-only: you are not assigned to submit this questionnaire.",
+        "validation_missing": "Please answer all required questions.",
+        "meta": {
+            "sent": "Sent",
+            "due": "Due",
+            "status": "Status",
+            "assignee": "Assignee",
+            "sender": "Sender"
+        },
+        "status": {
+            "sent": "Pending",
+            "in_progress": "In progress",
+            "submitted": "Submitted",
+            "overdue": "Overdue"
+        },
+        "actions": {
+            "save": "Save progress"
+        },
+        "sections": {
+            "risk_changes": "Risk changes",
+            "controls": "Controls",
+            "kris": "KRIs",
+            "outlook": "Outlook"
+        },
+        "questions": {
+            "risk_assessment": {
+                "q1_description_changed": "Has the risk description or scope changed since last review?",
+                "q2_new_triggers": "Any new triggers, causes, or drivers we should capture?",
+                "q3_recent_incidents": "Any recent incidents, near misses, or losses related to this risk?",
+                "q4_controls_effective": "Are the existing controls still effective?",
+                "q5_control_gaps": "Any control gaps, failures, or planned changes?",
+                "q6_kri_changes": "Any KRIs that should be added, removed, or adjusted?",
+                "q7_kri_breaches": "Have there been any recent KRI breaches or warning signals?",
+                "q8_outlook_trend": "Expected trend over the next quarter",
+                "q9_mitigation_actions": "Proposed mitigation actions or next steps",
+                "q10_support_needed": "Any support needed from Risk Management / CRO?",
+                "options": {
+                    "trend": {
+                        "up": "Increasing risk",
+                        "stable": "Stable",
+                        "down": "Decreasing risk"
+                    }
+                }
+            }
+        }
     },
     "matrix": {
         "title": "Risk Matrix",

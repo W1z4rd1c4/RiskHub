@@ -136,6 +136,13 @@ export function NotificationSettings() {
         { key: 'kri_breach_detected', labelKey: 'notifications.kri_breach_detected', descKey: 'notifications.kri_breach_detected_desc' },
     ];
 
+    const questionnaireSettings: { key: keyof NotificationPreferences; labelKey: string; descKey: string }[] = [
+        { key: 'questionnaire_sent', labelKey: 'notifications.questionnaire_sent', descKey: 'notifications.questionnaire_sent_desc' },
+        { key: 'questionnaire_due_soon', labelKey: 'notifications.questionnaire_due_soon', descKey: 'notifications.questionnaire_due_soon_desc' },
+        { key: 'questionnaire_overdue', labelKey: 'notifications.questionnaire_overdue', descKey: 'notifications.questionnaire_overdue_desc' },
+        { key: 'questionnaire_submitted', labelKey: 'notifications.questionnaire_submitted', descKey: 'notifications.questionnaire_submitted_desc' },
+    ];
+
     return (
         <div className="space-y-8">
             <div>
@@ -181,6 +188,30 @@ export function NotificationSettings() {
                 </div>
                 <div className="space-y-1">
                     {kriSettings.map(({ key, labelKey, descKey }) => (
+                        <ToggleItem
+                            key={key}
+                            label={t(labelKey, key)}
+                            description={t(descKey, '')}
+                            checked={preferences[key]}
+                            onChange={(value) => handleToggle(key, value)}
+                            loading={updating === key}
+                        />
+                    ))}
+                </div>
+            </section>
+
+            {/* Questionnaire Notifications Section */}
+            <section className="bg-white/5 rounded-xl p-6">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                        <Bell className="h-4 w-4 text-emerald-400" />
+                    </div>
+                    <h4 className="text-md font-semibold text-slate-200">
+                        {t('notifications.section_questionnaires', 'Questionnaire Notifications')}
+                    </h4>
+                </div>
+                <div className="space-y-1">
+                    {questionnaireSettings.map(({ key, labelKey, descKey }) => (
                         <ToggleItem
                             key={key}
                             label={t(labelKey, key)}

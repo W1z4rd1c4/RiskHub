@@ -14,6 +14,10 @@ class NotificationTypeEnum(str, Enum):
     kri_overdue = "kri_overdue"
     kri_near_breach = "kri_near_breach"
     kri_breach_detected = "kri_breach_detected"
+    questionnaire_sent = "questionnaire_sent"
+    questionnaire_due_soon = "questionnaire_due_soon"
+    questionnaire_overdue = "questionnaire_overdue"
+    questionnaire_submitted = "questionnaire_submitted"
 
 
 class NotificationBase(BaseModel):
@@ -61,6 +65,10 @@ class NotificationPreferences(BaseModel):
     kri_overdue: bool = True
     kri_near_breach: bool = True
     kri_breach_detected: bool = True
+    questionnaire_sent: bool = True
+    questionnaire_due_soon: bool = True
+    questionnaire_overdue: bool = True
+    questionnaire_submitted: bool = True
     
     model_config = {"from_attributes": True}
 
@@ -75,4 +83,8 @@ class NotificationPreferencesUpdate(BaseModel):
     kri_overdue: bool | None = None
     kri_near_breach: bool | None = None
     kri_breach_detected: bool | None = None
+    questionnaire_sent: bool | None = None
+    questionnaire_due_soon: bool | None = None
+    questionnaire_overdue: bool | None = None
+    questionnaire_submitted: bool | None = None
 
