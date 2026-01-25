@@ -47,6 +47,56 @@
         "ownership": "Ownership",
         "classification": "Classification"
     },
+    "tabs": {
+        "risk_factors": "Risk Factors",
+        "linked_risks": "Linked Risks",
+        "linked_controls": "Linked Controls"
+    },
+    "risk_categories": {
+        "regulatory_legal": "Regulatory & Legal",
+        "info_security_data": "Information Security & Data",
+        "cyber_supply_chain": "Cyber / Supply Chain",
+        "operational_continuity": "Operational Continuity (BCP/DR)",
+        "service_quality": "Service Quality",
+        "financial": "Financial",
+        "strategic_reputational": "Strategic & Reputational",
+        "governance_oversight": "Governance & Oversight",
+        "technology_lockin": "Technology Lock-in",
+        "human_factor": "Human Factor",
+        "concentration": "Concentration Risk"
+    },
+    "risk_factors": {
+        "subtitle": "Record qualitative third‑party risk factors (no scoring in MVP).",
+        "empty": "No risk factors yet.",
+        "confirm_delete": "Delete this risk factor?",
+        "actions": {
+            "add": "Add risk factor",
+            "edit": "Edit risk factor",
+            "save": "Save"
+        },
+        "fields": {
+            "category": "Category",
+            "description": "Description",
+            "description_placeholder": "Describe the factor and any notes/evidence..."
+        }
+    },
+    "links": {
+        "actions": {
+            "manage": "Manage links"
+        },
+        "dialogs": {
+            "link_risks_title": "Link Risks to Vendor",
+            "link_controls_title": "Link Controls to Vendor"
+        },
+        "risks": {
+            "subtitle": "Connect the vendor to enterprise risks in the Risk Register.",
+            "empty": "No linked risks yet."
+        },
+        "controls": {
+            "subtitle": "Assign controls that mitigate vendor exposure.",
+            "empty": "No linked controls yet."
+        }
+    },
     "form": {
         "sections": {
             "identity": "Identity",
@@ -104,4 +154,3 @@
         "score_required": "Risk score (1–5) is required"
     }
 }
-

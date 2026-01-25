@@ -26,6 +26,7 @@ import { ExistingLinksPanel, type ExistingLinkItem } from './linking/ExistingLin
 
 interface LinkManagementDialogProps {
     mode: 'control-to-risk' | 'risk-to-control';
+    title?: string;
     existingLinks: ExistingLinkItem[];
     onLink: (targetId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<void>;
     onUnlink: (targetId: number) => Promise<void>;
@@ -41,6 +42,7 @@ interface LinkManagementDialogProps {
 
 export function LinkManagementDialog({
     mode,
+    title,
     existingLinks,
     onLink,
     onUnlink,
@@ -219,7 +221,7 @@ export function LinkManagementDialog({
                                     <LinkIcon className="h-5 w-5 text-accent" />
                                 </div>
                                 <h2 className="text-xl font-black text-white uppercase tracking-tight">
-                                    {!showSearch ? 'Manage existing connections' : (mode === 'control-to-risk' ? 'Link Risks to Control' : 'Link Controls to Risk')}
+                                    {title ?? (!showSearch ? 'Manage existing connections' : (mode === 'control-to-risk' ? 'Link Risks to Control' : 'Link Controls to Risk'))}
                                 </h2>
                             </div>
                             <button
