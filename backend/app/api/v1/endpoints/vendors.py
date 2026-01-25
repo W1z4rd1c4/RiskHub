@@ -11,24 +11,12 @@ from app.db.session import get_db
 from app.models import User, Vendor
 from app.schemas.vendor import VendorCreate, VendorUpdate, VendorRead, VendorListResponse, VendorStatusEnum, VendorTypeEnum
 from app.api import deps
-from app.core.permissions import get_user_department_ids, check_department_access
+from app.core.permissions import get_user_department_ids, check_department_access, can_read_vendor, is_vendor_owner
 from app.core.security import require_permission, check_permission
 from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter()
-
-
-def _can_read_vendor(vendor: Vendor, user: User) -> bool:
-    if vendor.department_id is None:
-        return get_user_department_ids(user) is None
-
-    dept_ids = get_user_department_ids(user)
-    if dept_ids is None:
-        return True
-    if vendor.department_id in dept_ids:
-        return True
-    return vendor.outsourcing_owner_user_id == user.id
 
 
 @router.get("", response_model=VendorListResponse)
@@ -198,7 +186,7 @@ async def get_vendor(
     if not vendor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
-    if not _can_read_vendor(vendor, current_user):
+    if not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
     return {
@@ -224,10 +212,10 @@ async def update_vendor(
         .where(Vendor.id == vendor_id)
     )
     vendor = result.scalar_one_or_none()
-    if not vendor or not _can_read_vendor(vendor, current_user):
+    if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
-    is_owner = vendor.outsourcing_owner_user_id == current_user.id
+    is_owner = is_vendor_owner(vendor, current_user)
     can_write = check_permission(current_user, "vendors", "write")
     if not can_write and not is_owner:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
@@ -290,7 +278,7 @@ async def archive_vendor(
         .where(Vendor.id == vendor_id)
     )
     vendor = result.scalar_one_or_none()
-    if not vendor or not _can_read_vendor(vendor, current_user):
+    if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
     changes = build_change_set(vendor, {"status": "inactive"})

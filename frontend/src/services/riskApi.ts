@@ -8,6 +8,7 @@ import type {
     ControlEffectiveness,
     RiskListResponse
 } from '@/types/risk';
+import type { Vendor } from '@/types/vendor';
 import type { ApprovalCreatedResponse } from '@/types/approval';
 
 export const riskApi = {
@@ -59,5 +60,9 @@ export const riskApi = {
 
     async unlinkControl(riskId: number, controlId: number): Promise<void> {
         return apiClient.delete<void>(`/risks/${riskId}/controls/${controlId}`);
+    },
+
+    async getLinkedVendors(riskId: number): Promise<Vendor[]> {
+        return apiClient.get<Vendor[]>(`/risks/${riskId}/vendors`);
     },
 };
