@@ -17,6 +17,7 @@ import { kriApi } from '@/services/kriApi';
 import type { Risk, RiskControlLink, ControlEffectiveness } from '@/types/risk';
 import type { KeyRiskIndicator, KRICreate, KRIUpdate, OverdueKRI } from '@/types/kri';
 import type { HistoryTimelineItem } from '@/types/history';
+import type { Vendor } from '@/types/vendor';
 import { PermissionGate } from '@/components/PermissionGate';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
@@ -37,6 +38,7 @@ export function RiskDetailPage() {
     const { getColor, getDisplayName } = useRiskTypes();
     const [risk, setRisk] = useState<Risk | null>(null);
     const [linkedControls, setLinkedControls] = useState<RiskControlLink[]>([]);
+    const [linkedVendors, setLinkedVendors] = useState<Vendor[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
@@ -66,13 +68,15 @@ export function RiskDetailPage() {
         try {
             setIsLoading(true);
             const riskId = parseInt(id);
-            const [riskData, controlsData, overdueData] = await Promise.all([
+            const [riskData, controlsData, vendorsData, overdueData] = await Promise.all([
                 riskApi.getRisk(riskId),
                 riskApi.getLinkedControls(riskId),
+                riskApi.getLinkedVendors(riskId),
                 kriApi.getOverdue()
             ]);
             setRisk(riskData);
             setLinkedControls(controlsData);
+            setLinkedVendors(vendorsData);
             setOverdueKRIs(overdueData);
             setError(null);
         } catch (err) {
@@ -390,6 +394,7 @@ export function RiskDetailPage() {
                 <RiskDetailOverviewTab
                     risk={risk}
                     linkedControls={linkedControls}
+                    linkedVendors={linkedVendors}
                     overdueKRIs={overdueKRIs}
                     getColor={getColor}
                     getDisplayName={getDisplayName}
@@ -405,6 +410,7 @@ export function RiskDetailPage() {
                     onUnlinkControl={handleUnlinkControl}
                     onOpenCreateControl={() => setIsCreateDialogOpen(true)}
                     onNavigateToControl={(controlId) => navigate(`/controls/${controlId}`)}
+                    onNavigateToVendor={(vendorId) => navigate(`/vendors/${vendorId}`)}
                     onRefreshData={fetchData}
                     isLinkDialogOpen={isLinkDialogOpen}
                     setIsLinkDialogOpen={setIsLinkDialogOpen}
