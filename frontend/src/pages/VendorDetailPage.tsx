@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Edit, XCircle, Building2, User, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Edit, XCircle, Building2, User, ShieldAlert, AlertTriangle, Link2, CheckSquare } from 'lucide-react';
 import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';
 import { VendorForm } from '@/components/VendorForm';
 import { PermissionGate } from '@/components/PermissionGate';
 import { useAuth } from '@/contexts/AuthContext';
+import { VendorRiskFactorsTab } from '@/components/vendors/VendorRiskFactorsTab';
+import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
+import { VendorLinkedControlsTab } from '@/components/vendors/VendorLinkedControlsTab';
 
 type VendorDetailMode = 'view' | 'edit' | 'new';
+type VendorTabView = 'risk_factors' | 'linked_risks' | 'linked_controls';
 
 interface VendorDetailPageProps {
     mode?: VendorDetailMode;
@@ -31,6 +35,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const [vendor, setVendor] = useState<Vendor | null>(null);
     const [isLoading, setIsLoading] = useState(mode !== 'new');
     const [error, setError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<VendorTabView>('risk_factors');
 
     const fetchVendor = useCallback(async () => {
         if (!id) return;
@@ -242,7 +247,62 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     {vendor.status !== 'active' && badge(t(`status.${vendor.status}`, vendor.status), 'text-slate-300 bg-white/5 border-white/10')}
                 </div>
             </section>
+
+            <div className="flex items-center gap-2 border-b border-white/10">
+                <button
+                    onClick={() => setActiveTab('risk_factors')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'risk_factors'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <AlertTriangle className="h-4 w-4 inline mr-2" />
+                    {t('tabs.risk_factors', 'Risk Factors')}
+                </button>
+                <button
+                    onClick={() => setActiveTab('linked_risks')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'linked_risks'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <Link2 className="h-4 w-4 inline mr-2" />
+                    {t('tabs.linked_risks', 'Linked Risks')}
+                </button>
+                <button
+                    onClick={() => setActiveTab('linked_controls')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'linked_controls'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <CheckSquare className="h-4 w-4 inline mr-2" />
+                    {t('tabs.linked_controls', 'Linked Controls')}
+                </button>
+            </div>
+
+            {activeTab === 'risk_factors' && (
+                <VendorRiskFactorsTab
+                    vendorId={vendor.id}
+                    canEdit={canEdit}
+                />
+            )}
+
+            {activeTab === 'linked_risks' && (
+                <VendorLinkedRisksTab
+                    vendorId={vendor.id}
+                    canEdit={canEdit}
+                    onNavigateToRisk={(riskId) => navigate(`/risks/${riskId}`)}
+                />
+            )}
+
+            {activeTab === 'linked_controls' && (
+                <VendorLinkedControlsTab
+                    vendorId={vendor.id}
+                    canEdit={canEdit}
+                    onNavigateToControl={(controlId) => navigate(`/controls/${controlId}`)}
+                />
+            )}
         </div>
     );
 }
-
