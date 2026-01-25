@@ -14,7 +14,18 @@ export type NotificationType =
     | 'questionnaire_sent'
     | 'questionnaire_due_soon'
     | 'questionnaire_overdue'
-    | 'questionnaire_submitted';
+    | 'questionnaire_submitted'
+    | 'questionnaire_clarification_requested'
+    | 'vendor_assessment_submitted'
+    | 'vendor_assessment_committee_recommended'
+    | 'vendor_assessment_decided'
+    | 'vendor_reassessment_due_soon'
+    | 'vendor_reassessment_overdue'
+    | 'vendor_sla_due_soon'
+    | 'vendor_sla_due_tomorrow'
+    | 'vendor_sla_overdue'
+    | 'vendor_sla_near_breach'
+    | 'vendor_sla_breach_detected';
 
 export interface Notification {
     id: number;
@@ -55,6 +66,17 @@ export interface NotificationPreferences {
     questionnaire_due_soon: boolean;
     questionnaire_overdue: boolean;
     questionnaire_submitted: boolean;
+    questionnaire_clarification_requested: boolean;
+    vendor_assessment_submitted: boolean;
+    vendor_assessment_committee_recommended: boolean;
+    vendor_assessment_decided: boolean;
+    vendor_reassessment_due_soon: boolean;
+    vendor_reassessment_overdue: boolean;
+    vendor_sla_due_soon: boolean;
+    vendor_sla_due_tomorrow: boolean;
+    vendor_sla_overdue: boolean;
+    vendor_sla_near_breach: boolean;
+    vendor_sla_breach_detected: boolean;
 }
 
 export type NotificationPreferencesUpdate = Partial<NotificationPreferences>;
