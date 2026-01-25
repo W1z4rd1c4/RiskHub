@@ -9,6 +9,8 @@ export { KRIDetailPage } from './KRIDetailPage';
 export { KRINewPage } from './KRIForms';
 export { DepartmentsPage } from './DepartmentsPage';
 export { DepartmentDetailPage } from './DepartmentDetailPage';
+export { VendorsPage } from './VendorsPage';
+export { VendorDetailPage } from './VendorDetailPage';
 export { SettingsPage } from './SettingsPage';
 export { HeroPage } from './HeroPage';
 export { ControlDetailPage } from './ControlDetailPage';
@@ -24,4 +26,3 @@ export { ActivityLogPage } from './ActivityLogPage';
 export { RiskHubPage } from './RiskHubPage';
 export { AdminConsolePage } from './AdminConsolePage';
 export { DocumentationPage } from './DocumentationPage';
-
