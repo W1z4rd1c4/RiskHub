@@ -33,6 +33,9 @@ PERMISSIONS = [
     {"resource": "risks", "action": "read", "description": "View risks"},
     {"resource": "risks", "action": "write", "description": "Create/edit risks"},
     {"resource": "risks", "action": "delete", "description": "Delete risks"},
+    {"resource": "vendors", "action": "read", "description": "View vendors"},
+    {"resource": "vendors", "action": "write", "description": "Create/edit vendors"},
+    {"resource": "vendors", "action": "delete", "description": "Archive vendors"},
     {"resource": "vendor_contracts", "action": "read", "description": "View vendor contracts and DORA clauses"},
     {"resource": "vendor_contracts", "action": "write", "description": "Create/edit vendor contracts and DORA clauses"},
     {"resource": "departments", "action": "read", "description": "View departments"},
@@ -54,13 +57,13 @@ PERMISSIONS = [
 ROLE_PERMISSIONS = {
     "admin": ["users:*", "activity_log:read", "departments:read"],
     "cro": ["*:*"],
-    "risk_manager": ["controls:*", "risks:*", "departments:read", "reports:*", "users:read", "approvals:write", "activity_log:read", "kri:submit"],
-    "actuarial": ["controls:read", "controls:write", "risks:read", "reports:read"],
-    "compliance": ["controls:read", "controls:write", "risks:read", "reports:read", "vendor_contracts:*"],
-    "internal_audit": ["controls:read", "risks:read", "departments:read", "reports:read"],
-    "department_head": ["controls:read", "controls:write", "risks:read", "departments:read", "reports:read", "kri:submit", "activity_log:read"],
-    "employee": ["controls:read", "risks:read", "departments:read", "reports:read"],  # Read-only dept access per §4.2
-    "viewer": ["controls:read", "risks:read", "departments:read", "reports:read"],
+    "risk_manager": ["controls:*", "risks:*", "vendors:*", "departments:read", "reports:*", "users:read", "approvals:write", "activity_log:read", "kri:submit"],
+    "actuarial": ["controls:read", "controls:write", "risks:read", "vendors:read", "reports:read"],
+    "compliance": ["controls:read", "controls:write", "risks:read", "vendors:read", "reports:read", "vendor_contracts:*"],
+    "internal_audit": ["controls:read", "risks:read", "vendors:read", "departments:read", "reports:read"],
+    "department_head": ["controls:read", "controls:write", "risks:read", "vendors:read", "vendors:write", "departments:read", "reports:read", "kri:submit", "activity_log:read"],
+    "employee": ["controls:read", "risks:read", "vendors:read", "departments:read", "reports:read"],  # Read-only dept access per §4.2
+    "viewer": ["controls:read", "risks:read", "vendors:read", "departments:read", "reports:read"],
 }
 
 # Sample departments
