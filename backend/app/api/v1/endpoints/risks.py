@@ -7,14 +7,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models import User, Risk, Control, ControlRiskLink, KeyRiskIndicator, RiskTypeConfig
+from app.models import User, Risk, Control, ControlRiskLink, KeyRiskIndicator, RiskTypeConfig, Vendor, VendorRiskLink
 from app.schemas.risk import (
     RiskCreate, RiskUpdate, RiskRead, RiskSummary, RiskListResponse,
     RiskStatusEnum,
     ControlRiskLinkFromRisk, ControlRiskLinkRead, ControlEffectivenessEnum,
 )
 from app.api import deps
-from app.core.permissions import get_user_department_ids, check_department_access, is_control_owner
+from app.core.permissions import get_user_department_ids, check_department_access, is_control_owner, can_read_vendor
 from app.core.security import require_permission, check_permission
 from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -869,3 +869,64 @@ async def unlink_risk_from_control(
     
     await db.delete(link)
     await db.commit()
+
+
+# ============== Risk-Vendor Linking Endpoints (Phase 18) ==============
+
+@router.get("/{risk_id}/vendors", response_model=list[dict])
+async def list_risk_vendors(
+    risk_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """
+    List vendors linked to this risk.
+
+    - Caller must be authorized to access the risk (same patterns as risk-control linking)
+    - Returned vendors are filtered by vendor visibility rules to avoid leaking existence
+    - If caller lacks vendors:read permission, returns an empty list
+    """
+    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
+
+    if not check_permission(current_user, "vendors", "read"):
+        return []
+
+    result = await db.execute(select(Risk).where(Risk.id == risk_id))
+    risk = result.scalar_one_or_none()
+    if not risk:
+        raise HTTPException(status_code=404, detail="Risk not found")
+
+    has_access = False
+    if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
+        has_access = True
+    elif await is_risk_control_owner(db, current_user.id, risk_id):
+        has_access = True
+    else:
+        try:
+            check_department_access(risk.department_id, current_user)
+            has_access = True
+        except HTTPException:
+            pass
+
+    if not has_access:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    result = await db.execute(
+        select(Vendor)
+        .join(VendorRiskLink, Vendor.id == VendorRiskLink.vendor_id)
+        .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
+        .where(VendorRiskLink.risk_id == risk_id)
+        .order_by(asc(Vendor.name))
+    )
+    linked_vendors = result.scalars().all()
+
+    visible_vendors = [v for v in linked_vendors if can_read_vendor(v, current_user)]
+
+    return [
+        {
+            **{c.name: getattr(v, c.name) for c in Vendor.__table__.columns},
+            "department_name": v.department.name if v.department else None,
+            "outsourcing_owner_name": v.outsourcing_owner.name if v.outsourcing_owner else None,
+        }
+        for v in visible_vendors
+    ]
