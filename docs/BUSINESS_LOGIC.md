@@ -39,6 +39,9 @@
 | `admin` | Administrator | System | ❌ **No business data** | ✅ | ❌ |
 | `viewer` | Viewer | System | ❌ Read-only | ❌ | ❌ |
 
+> [!NOTE]
+> Some deployments do not use a separate `legal` role. For Vendor Risk Management (Phase 18), contract governance is modeled as a capability permission (`vendor_contracts:*`) and is typically granted to `compliance`.
+
 ### 1.2 Access Scopes
 
 Each user has an `access_scope` that determines data visibility:
@@ -206,6 +209,11 @@ Each user has an `access_scope` that determines data visibility:
 | `users:read` | View user list | Admin, CRO |
 | `users:write` | Create/edit users | Admin only |
 | `activity_log:read` | View activity log | Risk Manager, Compliance, Admin |
+| `vendors:read` | View vendors (Vendor Risk Management) | Governance + business users (scoped) |
+| `vendors:write` | Create/edit vendors | Outsourcing Owners, Risk Manager, Department Head |
+| `vendors:delete` | Archive vendors | Privileged users only |
+| `vendor_contracts:read` | View vendor contracts + DORA clauses | Compliance, CRO |
+| `vendor_contracts:write` | Create/edit vendor contracts + DORA clauses | Compliance, CRO |
 
 ### 4.2 Role-Permission Grid
 
@@ -467,6 +475,20 @@ User requests action (DELETE or EDIT sensitive field)
 | Department Member | `controls:execute` | Department controls only |
 | Privileged User | `controls:execute` | All controls |
 
+### 8.6 Notification Types (Stable Keys)
+
+Notification types are stable string keys shared across backend model, backend API schemas, and frontend TypeScript unions.
+
+**Core types:**
+- Approval workflow: `approval_pending`, `approval_resolved`, `approval_cancelled`
+- KRI deadlines/breaches: `kri_due_soon`, `kri_due_tomorrow`, `kri_overdue`, `kri_near_breach`, `kri_breach_detected`
+- Questionnaires: `questionnaire_sent`, `questionnaire_due_soon`, `questionnaire_overdue`, `questionnaire_submitted`, `questionnaire_clarification_requested`
+
+**Vendor Risk Management (Phase 18):**
+- Assessments: `vendor_assessment_submitted`, `vendor_assessment_committee_recommended`, `vendor_assessment_decided`
+- Reassessments: `vendor_reassessment_due_soon`, `vendor_reassessment_overdue`
+- SLA monitoring: `vendor_sla_due_soon`, `vendor_sla_due_tomorrow`, `vendor_sla_overdue`, `vendor_sla_near_breach`, `vendor_sla_breach_detected`
+
 ---
 
 ## 9. Activity Logging & Audit Trail
@@ -482,6 +504,11 @@ All significant actions are logged to the `activity_logs` table for audit compli
 | KRI | CREATE, UPDATE, ARCHIVE |
 | KRI_VALUE | CREATE (value submission), UPDATE (value correction) |
 | APPROVAL | CREATE, APPROVE, REJECT, CANCEL |
+| VENDOR | CREATE, UPDATE, ARCHIVE |
+| VENDOR_ASSESSMENT | CREATE, UPDATE, STATUS_CHANGE |
+| VENDOR_INCIDENT | CREATE, UPDATE, STATUS_CHANGE |
+| VENDOR_SLA | CREATE, UPDATE, STATUS_CHANGE |
+| VENDOR_REMEDIATION | CREATE, UPDATE, STATUS_CHANGE |
 
 ### 9.2 Change Tracking
 
