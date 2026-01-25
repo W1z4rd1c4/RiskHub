@@ -10,6 +10,9 @@ from app.models.approval_request import ApprovalRequest, ApprovalStatus, Approva
 from app.models.notification import Notification, NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaire, RiskQuestionnaireStatus, RiskQuestionnaireClarification
 from app.models.vendor import Vendor, VendorStatus, VendorType, VendorReplaceability
+from app.models.vendor_risk_factor import VendorRiskFactor
+from app.models.vendor_risk_link import VendorRiskLink
+from app.models.vendor_control_link import VendorControlLink
 from app.models.directory_user import DirectoryUser
 from app.models.directory_sync_log import DirectorySyncLog, DirectorySyncStatus
 from app.models.orphaned_item import OrphanedItem
@@ -33,6 +36,9 @@ __all__ = [
     "Notification", "NotificationType",
     "RiskQuestionnaire", "RiskQuestionnaireStatus", "RiskQuestionnaireClarification",
     "Vendor", "VendorStatus", "VendorType", "VendorReplaceability",
+    "VendorRiskFactor",
+    "VendorRiskLink",
+    "VendorControlLink",
     "DirectoryUser",
     "DirectorySyncLog", "DirectorySyncStatus",
     "OrphanedItem",
