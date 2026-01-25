@@ -21,6 +21,16 @@ class NotificationType(str, PyEnum):
     QUESTIONNAIRE_OVERDUE = "questionnaire_overdue"
     QUESTIONNAIRE_SUBMITTED = "questionnaire_submitted"
     QUESTIONNAIRE_CLARIFICATION_REQUESTED = "questionnaire_clarification_requested"
+    VENDOR_ASSESSMENT_SUBMITTED = "vendor_assessment_submitted"
+    VENDOR_ASSESSMENT_COMMITTEE_RECOMMENDED = "vendor_assessment_committee_recommended"
+    VENDOR_ASSESSMENT_DECIDED = "vendor_assessment_decided"
+    VENDOR_REASSESSMENT_DUE_SOON = "vendor_reassessment_due_soon"
+    VENDOR_REASSESSMENT_OVERDUE = "vendor_reassessment_overdue"
+    VENDOR_SLA_DUE_SOON = "vendor_sla_due_soon"
+    VENDOR_SLA_DUE_TOMORROW = "vendor_sla_due_tomorrow"
+    VENDOR_SLA_OVERDUE = "vendor_sla_overdue"
+    VENDOR_SLA_NEAR_BREACH = "vendor_sla_near_breach"
+    VENDOR_SLA_BREACH_DETECTED = "vendor_sla_breach_detected"
 
 
 class Notification(Base):
