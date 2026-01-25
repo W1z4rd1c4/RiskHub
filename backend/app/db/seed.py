@@ -33,6 +33,8 @@ PERMISSIONS = [
     {"resource": "risks", "action": "read", "description": "View risks"},
     {"resource": "risks", "action": "write", "description": "Create/edit risks"},
     {"resource": "risks", "action": "delete", "description": "Delete risks"},
+    {"resource": "vendor_contracts", "action": "read", "description": "View vendor contracts and DORA clauses"},
+    {"resource": "vendor_contracts", "action": "write", "description": "Create/edit vendor contracts and DORA clauses"},
     {"resource": "departments", "action": "read", "description": "View departments"},
     {"resource": "departments", "action": "write", "description": "Create/edit departments"},
     {"resource": "reports", "action": "read", "description": "View and export reports"},
@@ -54,7 +56,7 @@ ROLE_PERMISSIONS = {
     "cro": ["*:*"],
     "risk_manager": ["controls:*", "risks:*", "departments:read", "reports:*", "users:read", "approvals:write", "activity_log:read", "kri:submit"],
     "actuarial": ["controls:read", "controls:write", "risks:read", "reports:read"],
-    "compliance": ["controls:read", "controls:write", "risks:read", "reports:read"],
+    "compliance": ["controls:read", "controls:write", "risks:read", "reports:read", "vendor_contracts:*"],
     "internal_audit": ["controls:read", "risks:read", "departments:read", "reports:read"],
     "department_head": ["controls:read", "controls:write", "risks:read", "departments:read", "reports:read", "kri:submit", "activity_log:read"],
     "employee": ["controls:read", "risks:read", "departments:read", "reports:read"],  # Read-only dept access per §4.2
