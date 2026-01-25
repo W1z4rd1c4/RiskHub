@@ -9,6 +9,7 @@ from app.models.kri_history import KRIValueHistory
 from app.models.approval_request import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
 from app.models.notification import Notification, NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaire, RiskQuestionnaireStatus, RiskQuestionnaireClarification
+from app.models.vendor import Vendor, VendorStatus, VendorType, VendorReplaceability
 from app.models.directory_user import DirectoryUser
 from app.models.directory_sync_log import DirectorySyncLog, DirectorySyncStatus
 from app.models.orphaned_item import OrphanedItem
@@ -31,6 +32,7 @@ __all__ = [
     "ApprovalRequest", "ApprovalStatus", "ApprovalResourceType", "ApprovalActionType",
     "Notification", "NotificationType",
     "RiskQuestionnaire", "RiskQuestionnaireStatus", "RiskQuestionnaireClarification",
+    "Vendor", "VendorStatus", "VendorType", "VendorReplaceability",
     "DirectoryUser",
     "DirectorySyncLog", "DirectorySyncStatus",
     "OrphanedItem",

@@ -81,6 +81,13 @@ class User(Base):
         foreign_keys="Risk.owner_id",
         back_populates="owner"
     )
+
+    # Vendor relationships (Phase 18)
+    owned_vendors: Mapped[list["Vendor"]] = relationship(
+        "Vendor",
+        foreign_keys="Vendor.outsourcing_owner_user_id",
+        back_populates="outsourcing_owner",
+    )
     
     # Notification relationship
     notifications: Mapped[list["Notification"]] = relationship(
@@ -106,4 +113,4 @@ from app.models.control import Control
 from app.models.control_execution import ControlExecution
 from app.models.risk import Risk
 from app.models.notification import Notification
-
+from app.models.vendor import Vendor
