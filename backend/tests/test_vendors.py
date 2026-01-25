@@ -15,6 +15,8 @@ async def _grant(db_session: AsyncSession, role: Role, resource: str, action: st
 
     db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
     await db_session.commit()
+    # Ensure subsequent request-scoped loads see updated role->permissions in the same session.
+    db_session.expire(role, ["permissions"])
 
 
 @pytest.mark.asyncio
@@ -174,4 +176,3 @@ async def test_vendor_create_requires_vendors_write(
         },
     )
     assert resp.status_code == 201
-

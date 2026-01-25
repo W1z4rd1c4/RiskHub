@@ -232,7 +232,7 @@ async def update_vendor(
     if not can_write and not is_owner:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
 
-    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    updates = {field: getattr(payload, field) for field in payload.model_fields_set}
     if not updates:
         return {
             **{c.name: getattr(vendor, c.name) for c in Vendor.__table__.columns},
@@ -311,4 +311,3 @@ async def archive_vendor(
     )
     await db.commit()
     return None
-
