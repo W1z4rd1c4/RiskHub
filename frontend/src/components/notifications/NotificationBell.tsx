@@ -32,6 +32,24 @@ function getNotificationIcon(type: NotificationType) {
             return <AlertCircle className="h-4 w-4 text-rose-400" />;
         case 'questionnaire_submitted':
             return <CheckCircle className="h-4 w-4 text-emerald-400" />;
+        case 'questionnaire_clarification_requested':
+            return <AlertTriangle className="h-4 w-4 text-orange-400" />;
+        case 'vendor_assessment_submitted':
+        case 'vendor_assessment_decided':
+            return <CheckCircle className="h-4 w-4 text-emerald-400" />;
+        case 'vendor_assessment_committee_recommended':
+            return <AlertTriangle className="h-4 w-4 text-orange-400" />;
+        case 'vendor_reassessment_due_soon':
+        case 'vendor_sla_due_soon':
+        case 'vendor_sla_due_tomorrow':
+            return <Clock className="h-4 w-4 text-amber-400" />;
+        case 'vendor_reassessment_overdue':
+        case 'vendor_sla_overdue':
+            return <AlertCircle className="h-4 w-4 text-rose-400" />;
+        case 'vendor_sla_near_breach':
+            return <AlertTriangle className="h-4 w-4 text-orange-400" />;
+        case 'vendor_sla_breach_detected':
+            return <AlertCircle className="h-4 w-4 text-rose-500" />;
         default:
             return <Bell className="h-4 w-4 text-slate-400" />;
     }
@@ -68,6 +86,8 @@ function getResourcePath(resourceType?: string, resourceId?: number): string | n
             return `/controls/${resourceId}`;
         case 'kri':
             return `/kris/${resourceId}`;
+        case 'vendor':
+            return `/vendors/${resourceId}`;
         case 'approval':
             return '/approvals';
         default:

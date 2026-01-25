@@ -18,6 +18,17 @@ class NotificationTypeEnum(str, Enum):
     questionnaire_due_soon = "questionnaire_due_soon"
     questionnaire_overdue = "questionnaire_overdue"
     questionnaire_submitted = "questionnaire_submitted"
+    questionnaire_clarification_requested = "questionnaire_clarification_requested"
+    vendor_assessment_submitted = "vendor_assessment_submitted"
+    vendor_assessment_committee_recommended = "vendor_assessment_committee_recommended"
+    vendor_assessment_decided = "vendor_assessment_decided"
+    vendor_reassessment_due_soon = "vendor_reassessment_due_soon"
+    vendor_reassessment_overdue = "vendor_reassessment_overdue"
+    vendor_sla_due_soon = "vendor_sla_due_soon"
+    vendor_sla_due_tomorrow = "vendor_sla_due_tomorrow"
+    vendor_sla_overdue = "vendor_sla_overdue"
+    vendor_sla_near_breach = "vendor_sla_near_breach"
+    vendor_sla_breach_detected = "vendor_sla_breach_detected"
 
 
 class NotificationBase(BaseModel):
@@ -69,6 +80,17 @@ class NotificationPreferences(BaseModel):
     questionnaire_due_soon: bool = True
     questionnaire_overdue: bool = True
     questionnaire_submitted: bool = True
+    questionnaire_clarification_requested: bool = True
+    vendor_assessment_submitted: bool = True
+    vendor_assessment_committee_recommended: bool = True
+    vendor_assessment_decided: bool = True
+    vendor_reassessment_due_soon: bool = True
+    vendor_reassessment_overdue: bool = True
+    vendor_sla_due_soon: bool = True
+    vendor_sla_due_tomorrow: bool = True
+    vendor_sla_overdue: bool = True
+    vendor_sla_near_breach: bool = True
+    vendor_sla_breach_detected: bool = True
     
     model_config = {"from_attributes": True}
 
@@ -87,4 +109,14 @@ class NotificationPreferencesUpdate(BaseModel):
     questionnaire_due_soon: bool | None = None
     questionnaire_overdue: bool | None = None
     questionnaire_submitted: bool | None = None
-
+    questionnaire_clarification_requested: bool | None = None
+    vendor_assessment_submitted: bool | None = None
+    vendor_assessment_committee_recommended: bool | None = None
+    vendor_assessment_decided: bool | None = None
+    vendor_reassessment_due_soon: bool | None = None
+    vendor_reassessment_overdue: bool | None = None
+    vendor_sla_due_soon: bool | None = None
+    vendor_sla_due_tomorrow: bool | None = None
+    vendor_sla_overdue: bool | None = None
+    vendor_sla_near_breach: bool | None = None
+    vendor_sla_breach_detected: bool | None = None
