@@ -47,6 +47,56 @@
         "ownership": "Vlastnictví",
         "classification": "Klasifikace"
     },
+    "tabs": {
+        "risk_factors": "Rizikové faktory",
+        "linked_risks": "Navázaná rizika",
+        "linked_controls": "Navázané kontroly"
+    },
+    "risk_categories": {
+        "regulatory_legal": "Regulatorní & právní",
+        "info_security_data": "Informační bezpečnost & data",
+        "cyber_supply_chain": "Kyber / dodavatelský řetězec",
+        "operational_continuity": "Provozní kontinuita (BCP/DR)",
+        "service_quality": "Kvalita služby",
+        "financial": "Finanční",
+        "strategic_reputational": "Strategické & reputační",
+        "governance_oversight": "Governance & dohled",
+        "technology_lockin": "Technologický lock‑in",
+        "human_factor": "Lidský faktor",
+        "concentration": "Koncentrační riziko"
+    },
+    "risk_factors": {
+        "subtitle": "Kvalitativní faktory rizika dodavatele (bez skórování v MVP).",
+        "empty": "Zatím nejsou evidované rizikové faktory.",
+        "confirm_delete": "Smazat tento rizikový faktor?",
+        "actions": {
+            "add": "Přidat rizikový faktor",
+            "edit": "Upravit rizikový faktor",
+            "save": "Uložit"
+        },
+        "fields": {
+            "category": "Kategorie",
+            "description": "Popis",
+            "description_placeholder": "Popište faktor a případné poznámky / důkazy..."
+        }
+    },
+    "links": {
+        "actions": {
+            "manage": "Spravovat vazby"
+        },
+        "dialogs": {
+            "link_risks_title": "Navázat rizika na dodavatele",
+            "link_controls_title": "Navázat kontroly na dodavatele"
+        },
+        "risks": {
+            "subtitle": "Propojte dodavatele s riziky v Registru rizik.",
+            "empty": "Zatím nejsou navázaná rizika."
+        },
+        "controls": {
+            "subtitle": "Přiřaďte kontroly, které mitigují expozici na dodavatele.",
+            "empty": "Zatím nejsou navázané kontroly."
+        }
+    },
     "form": {
         "sections": {
             "identity": "Identita",
@@ -104,4 +154,3 @@
         "score_required": "Skóre rizika (1–5) je povinné"
     }
 }
-
