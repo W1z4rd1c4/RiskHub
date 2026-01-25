@@ -76,7 +76,26 @@ class Vendor(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
+    risk_factors: Mapped[list["VendorRiskFactor"]] = relationship(
+        "VendorRiskFactor",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    risk_links: Mapped[list["VendorRiskLink"]] = relationship(
+        "VendorRiskLink",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    control_links: Mapped[list["VendorControlLink"]] = relationship(
+        "VendorControlLink",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+
 
 from app.models.department import Department
 from app.models.user import User
+from app.models.vendor_risk_factor import VendorRiskFactor
+from app.models.vendor_risk_link import VendorRiskLink
+from app.models.vendor_control_link import VendorControlLink
 
