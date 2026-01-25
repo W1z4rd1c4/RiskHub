@@ -31,6 +31,12 @@ from app.schemas.vendor import (
     VendorStatusEnum, VendorTypeEnum, VendorReplaceabilityEnum,
     VendorBase, VendorCreate, VendorUpdate, VendorRead, VendorListResponse,
 )
+from app.schemas.vendor_risk_factor import (
+    VendorRiskCategoryKey,
+    VendorRiskFactorCreate,
+    VendorRiskFactorUpdate,
+    VendorRiskFactorRead,
+)
 from app.schemas.risk_questionnaire import (
     RiskQuestionnaireStatusEnum,
     RiskQuestionnaireListItemRead,
@@ -70,6 +76,8 @@ __all__ = [
     # Vendor schemas
     "VendorStatusEnum", "VendorTypeEnum", "VendorReplaceabilityEnum",
     "VendorBase", "VendorCreate", "VendorUpdate", "VendorRead", "VendorListResponse",
+    "VendorRiskCategoryKey",
+    "VendorRiskFactorCreate", "VendorRiskFactorUpdate", "VendorRiskFactorRead",
     # Risk questionnaires
     "RiskQuestionnaireStatusEnum",
     "RiskQuestionnaireListItemRead",
