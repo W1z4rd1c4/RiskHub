@@ -28,6 +28,7 @@ class Department(Base):
     users: Mapped[list["User"]] = relationship("User", back_populates="department", foreign_keys="User.department_id")
     controls: Mapped[list["Control"]] = relationship("Control", back_populates="department")
     risks: Mapped[list["Risk"]] = relationship("Risk", back_populates="department")
+    vendors: Mapped[list["Vendor"]] = relationship("Vendor", back_populates="department")
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
@@ -38,4 +39,4 @@ class Department(Base):
 from app.models.user import User
 from app.models.control import Control
 from app.models.risk import Risk
-
+from app.models.vendor import Vendor
