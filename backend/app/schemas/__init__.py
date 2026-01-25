@@ -27,6 +27,10 @@ from app.schemas.notification import (
     NotificationBase, NotificationCreate, NotificationRead, NotificationListResponse,
     NotificationPreferences, NotificationPreferencesUpdate,
 )
+from app.schemas.vendor import (
+    VendorStatusEnum, VendorTypeEnum, VendorReplaceabilityEnum,
+    VendorBase, VendorCreate, VendorUpdate, VendorRead, VendorListResponse,
+)
 from app.schemas.risk_questionnaire import (
     RiskQuestionnaireStatusEnum,
     RiskQuestionnaireListItemRead,
@@ -63,6 +67,9 @@ __all__ = [
     "NotificationTypeEnum",
     "NotificationBase", "NotificationCreate", "NotificationRead", "NotificationListResponse",
     "NotificationPreferences", "NotificationPreferencesUpdate",
+    # Vendor schemas
+    "VendorStatusEnum", "VendorTypeEnum", "VendorReplaceabilityEnum",
+    "VendorBase", "VendorCreate", "VendorUpdate", "VendorRead", "VendorListResponse",
     # Risk questionnaires
     "RiskQuestionnaireStatusEnum",
     "RiskQuestionnaireListItemRead",
@@ -73,4 +80,3 @@ __all__ = [
     "DirectoryUserCreate", "DirectoryUserUpdate", "DirectoryUserRead",
     "DirectorySyncPreview", "DirectorySyncLogRead", "DirectoryUserDiff",
 ]
-
