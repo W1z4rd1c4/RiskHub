@@ -40,7 +40,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (5/5)
 - [x] **Phase 16: Risk Assessment Polish** — Review, reminders, reporting (3/3)
 - [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing (8/15)
-- [ ] **Phase 18: Vendor Risk Management** — Third-party risk assessments (DEFERRED, 0/0)
+- [ ] **Phase 18: Vendor Risk Management** — Third-party risk assessments (DEFERRED, 0/11)
 - [ ] **Phase 19: Polish & Deploy** — Advanced audit workflows (0/6)
 - [x] **Phase 20: Czech Localization** — Full i18n infrastructure (16/12 — overdelivered)
 - [x] **Phase 25: User-Specific Settings** — Theme/language persistence (5/5)
@@ -322,7 +322,7 @@ Plans:
 **Goal**: Review Phase 12 implementation for scope alignment, authorization gaps, data leakage risks, and operational readiness.
 **Depends on**: Phase 12
 **Status**: In progress
-**Plans**: 10 plans
+**Plans**: 11 plans
 
 Plans:
 
@@ -501,7 +501,7 @@ Plans:
 
 ### Phase 18: Vendor Risk Management (DEFERRED)
 
-**Goal**: Third-party risk assessments, scoring, supply chain visualization, and specialized DORA compliance tracking.
+**Goal**: Comprehensive third‑party risk management (TPRM): vendor catalog, due diligence + assessments/scoring, monitoring, exit/BCP artifacts, reporting, supply chain visibility, and specialized DORA tracking.
 **Depends on**: Phase 17
 **Status**: Deferred for future release
 **Vision**:
@@ -510,12 +510,21 @@ Plans:
 2. **Assessments**: Questionnaires, scoring, and response tracking.
 3. **Supply Chain**: Dependency visualization and fourth-party risk.
 4. **DORA Compliance**: Specialized, exhaustive scope for DORA-relevant vendors (ICT, Cloud).
-**Plans**: 2 plans
+**Plans**: 11 plans
 
 Plans:
 
-- [ ] 18-01: Vendor database and hierarchical tiering system
-- [ ] 18-02: Assessment workflows, DORA compliance layer, and tracking
+- [ ] 18-01: Vendor catalog + ownership (outsourcing owner) + manual classification
+- [ ] 18-02: Vendor risk taxonomy + risk factors + linkage to Risk Register
+- [ ] 18-03: Due diligence workflow (questionnaires, evidence, committee recommendation)
+- [ ] 18-04: Reassessment scheduling + reminders (annual vs 3-year cadence)
+- [ ] 18-05: Concentration risk + dependency/supply-chain modeling (4th parties)
+- [ ] 18-06: Contract controls + DORA clause tracking (templates, evidence, status)
+- [ ] 18-07: Exit strategy + contingency plan / BCP artifacts and statuses
+- [ ] 18-08: Monitoring + incidents + remediation actions (audit trail)
+- [ ] 18-09: Reporting (annual management report) + exports (incl. DORA register)
+- [ ] 18-10: Optional third‑party signal integrations (public registry, cyber rating, sanctions)
+- [ ] 18-11: Dashboard + Risk Committee integration (vendors, reassessments, SLA breaches)
 
 ### Phase 19: Advanced Audit Workflows (DEFERRED)
 
