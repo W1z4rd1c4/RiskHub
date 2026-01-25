@@ -1,0 +1,107 @@
+{
+    "title": "Dodavatelé",
+    "subtitle": "Katalog dodavatelů třetích stran",
+    "labels": {
+        "loading": "Načítání...",
+        "unassigned": "Bez oddělení"
+    },
+    "actions": {
+        "new": "Nový dodavatel",
+        "edit": "Upravit",
+        "save": "Uložit",
+        "create": "Vytvořit",
+        "cancel": "Zrušit"
+    },
+    "filters": {
+        "search_placeholder": "Hledat dodavatele...",
+        "all_statuses": "Všechny stavy",
+        "all_types": "Všechny typy"
+    },
+    "columns": {
+        "name": "Dodavatel",
+        "department": "Oddělení",
+        "owner": "Vlastník",
+        "type": "Typ",
+        "risk_score": "Skóre rizika",
+        "status": "Stav"
+    },
+    "status": {
+        "active": "Aktivní",
+        "inactive": "Neaktivní"
+    },
+    "type": {
+        "ict": "ICT",
+        "outsourcing": "Outsourcing",
+        "professional_services": "Profesionální služby",
+        "partner": "Partner",
+        "other": "Jiné"
+    },
+    "flags": {
+        "supports_core_function": "Podporuje důležitou klíčovou funkci",
+        "dora_relevant": "DORA relevantní",
+        "significant_vendor": "Významný dodavatel",
+        "has_alternatives": "Má alternativní poskytovatele"
+    },
+    "detail": {
+        "overview": "Přehled",
+        "ownership": "Vlastnictví",
+        "classification": "Klasifikace"
+    },
+    "form": {
+        "sections": {
+            "identity": "Identita",
+            "ownership": "Vlastnictví a rozsah",
+            "classification": "Klasifikace"
+        },
+        "name": "Název dodavatele",
+        "name_placeholder": "Acme Cloud Ltd.",
+        "legal_name": "Právní název",
+        "registration_id": "IČ / Registrace",
+        "country": "Země",
+        "website": "Web",
+        "description": "Popis",
+        "department": "Oddělení",
+        "department_placeholder": "Vyberte oddělení",
+        "owner": "Vlastník outsourcingu",
+        "owner_placeholder": "Vyberte vlastníka",
+        "process": "Proces",
+        "process_placeholder": "IT",
+        "subprocess": "Podproces",
+        "subprocess_placeholder": "Cloud Operations",
+        "risk_score": "Skóre rizika (1–5)",
+        "status": "Stav",
+        "flags": "Příznaky",
+        "vendor_type": {
+            "label": "Typ dodavatele",
+            "ict": "ICT",
+            "outsourcing": "Outsourcing",
+            "professional_services": "Profesionální služby",
+            "partner": "Partner",
+            "other": "Jiné"
+        },
+        "replaceability": {
+            "label": "Nahraditelnost",
+            "placeholder": "Vybrat",
+            "easy": "Snadná",
+            "medium": "Střední",
+            "hard": "Obtížná"
+        }
+    },
+    "empty_state": {
+        "no_vendors": "Žádní dodavatelé nebyli nalezeni"
+    },
+    "errors": {
+        "title": "Chyba",
+        "try_again": "Zkusit znovu",
+        "load_failed": "Nepodařilo se načíst dodavatele",
+        "save_failed": "Nepodařilo se uložit dodavatele",
+        "not_found": "Nenalezeno",
+        "vendor_not_found": "Dodavatel nebyl nalezen",
+        "name_required": "Název dodavatele je povinný",
+        "process_required": "Proces je povinný",
+        "department_required": "Oddělení je povinné",
+        "owner_required": "Vlastník outsourcingu je povinný",
+        "score_required": "Skóre rizika (1–5) je povinné"
+    }
+}
+

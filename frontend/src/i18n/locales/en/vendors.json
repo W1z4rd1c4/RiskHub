@@ -1,0 +1,107 @@
+{
+    "title": "Vendors",
+    "subtitle": "Third-party vendor catalog",
+    "labels": {
+        "loading": "Loading...",
+        "unassigned": "Unassigned"
+    },
+    "actions": {
+        "new": "New Vendor",
+        "edit": "Edit",
+        "save": "Save",
+        "create": "Create",
+        "cancel": "Cancel"
+    },
+    "filters": {
+        "search_placeholder": "Search vendors...",
+        "all_statuses": "All statuses",
+        "all_types": "All types"
+    },
+    "columns": {
+        "name": "Vendor",
+        "department": "Department",
+        "owner": "Owner",
+        "type": "Type",
+        "risk_score": "Risk Score",
+        "status": "Status"
+    },
+    "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+    },
+    "type": {
+        "ict": "ICT",
+        "outsourcing": "Outsourcing",
+        "professional_services": "Professional services",
+        "partner": "Partner",
+        "other": "Other"
+    },
+    "flags": {
+        "supports_core_function": "Supports core function",
+        "dora_relevant": "DORA relevant",
+        "significant_vendor": "Significant vendor",
+        "has_alternatives": "Has alternative providers"
+    },
+    "detail": {
+        "overview": "Overview",
+        "ownership": "Ownership",
+        "classification": "Classification"
+    },
+    "form": {
+        "sections": {
+            "identity": "Identity",
+            "ownership": "Ownership & Scope",
+            "classification": "Classification"
+        },
+        "name": "Vendor Name",
+        "name_placeholder": "Acme Cloud Ltd.",
+        "legal_name": "Legal Name",
+        "registration_id": "Registration ID",
+        "country": "Country",
+        "website": "Website",
+        "description": "Description",
+        "department": "Department",
+        "department_placeholder": "Select department",
+        "owner": "Outsourcing Owner",
+        "owner_placeholder": "Select owner",
+        "process": "Process",
+        "process_placeholder": "IT",
+        "subprocess": "Subprocess",
+        "subprocess_placeholder": "Cloud Operations",
+        "risk_score": "Risk Score (1–5)",
+        "status": "Status",
+        "flags": "Flags",
+        "vendor_type": {
+            "label": "Vendor Type",
+            "ict": "ICT",
+            "outsourcing": "Outsourcing",
+            "professional_services": "Professional services",
+            "partner": "Partner",
+            "other": "Other"
+        },
+        "replaceability": {
+            "label": "Replaceability",
+            "placeholder": "Select",
+            "easy": "Easy",
+            "medium": "Medium",
+            "hard": "Hard"
+        }
+    },
+    "empty_state": {
+        "no_vendors": "No vendors found"
+    },
+    "errors": {
+        "title": "Error",
+        "try_again": "Try again",
+        "load_failed": "Failed to load vendors",
+        "save_failed": "Failed to save vendor",
+        "not_found": "Not found",
+        "vendor_not_found": "Vendor not found",
+        "name_required": "Vendor name is required",
+        "process_required": "Process is required",
+        "department_required": "Department is required",
+        "owner_required": "Outsourcing owner is required",
+        "score_required": "Risk score (1–5) is required"
+    }
+}
+

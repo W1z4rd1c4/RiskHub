@@ -7,6 +7,7 @@ import {
     ClipboardList,
     ShieldAlert,
     Target,
+    Handshake,
     Building2,
     Settings,
     Shield,
@@ -42,6 +43,7 @@ export function Sidebar() {
         { name: t('sidebar.controls'), href: '/controls', icon: ClipboardList },
         { name: t('sidebar.risks'), href: '/risks', icon: ShieldAlert },
         { name: t('sidebar.kris'), href: '/kris', icon: Target },
+        { name: t('sidebar.vendors'), href: '/vendors', icon: Handshake },
         { name: t('sidebar.departments'), href: '/departments', icon: Building2 },
         { name: t('sidebar.governance'), href: '/governance', icon: Scale },
         { name: t('sidebar.settings'), href: '/settings', icon: Settings },
@@ -130,21 +132,25 @@ export function Sidebar() {
     // Everyone else sees the full business navigation
     const isAdmin = user?.role === 'admin';
 
+    const dashboardItem = navigationWithBadges.find((i) => i.href === '/');
+    const settingsItem = navigationWithBadges.find((i) => i.href === '/settings');
+    const businessItems = navigationWithBadges.filter((i) => i.href !== '/' && i.href !== '/settings');
+
     const filteredNavigation = isAdmin
         ? [
             // Admin-only navigation (no business data)
-            navigationWithBadges[6], // Settings (index 6, not 7)
+            ...(settingsItem ? [settingsItem] : []),
             ...(userManagementItem ? [userManagementItem] : []),
             ...(adminConsoleItem ? [adminConsoleItem] : []),
             ...(documentationItem ? [documentationItem] : []),
         ]
         : [
             // Business user navigation
-            navigationWithBadges[0], // Dashboard
+            ...(dashboardItem ? [dashboardItem] : []),
             workflowItem,
-            ...navigationWithBadges.slice(1, 6), // Controls, Risks, Risk Appetite, Departments, Governance
+            ...businessItems, // Controls, Risks, KRIs, Vendors, Departments, Governance
             ...(canViewActivityLog ? [activityLogItem] : []),
-            navigationWithBadges[6], // Settings
+            ...(settingsItem ? [settingsItem] : []),
             ...(userManagementItem ? [userManagementItem] : []),
             ...(riskHubItem ? [riskHubItem] : []),
         ];

@@ -19,6 +19,8 @@ import {
   KRIDetailPage,
   DepartmentsPage,
   DepartmentDetailPage,
+  VendorsPage,
+  VendorDetailPage,
   SettingsPage,
   HeroPage,
   AuditTrailPage,
@@ -105,6 +107,10 @@ function App() {
                 <Route path="kris/:id" element={<KRIDetailPage />} />
                 <Route path="departments" element={<DepartmentsPage />} />
                 <Route path="departments/:id" element={<DepartmentDetailPage />} />
+                <Route path="vendors" element={<VendorsPage />} />
+                <Route path="vendors/new" element={<VendorDetailPage mode="new" />} />
+                <Route path="vendors/:id" element={<VendorDetailPage />} />
+                <Route path="vendors/:id/edit" element={<VendorDetailPage mode="edit" />} />
                 <Route path="audit-trail" element={<AuditTrailPage />} />
                 <Route path="activity-log" element={<ActivityLogPage />} />
                 <Route path="users" element={<UsersPage />} />
@@ -129,4 +135,3 @@ function App() {
 }
 
 export default App;
-
