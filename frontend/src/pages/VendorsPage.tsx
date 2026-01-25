@@ -60,7 +60,11 @@ export function VendorsPage() {
             setError(null);
         } catch (err) {
             console.error('Error fetching vendors:', err);
-            setError(t('errors.load_failed', 'Failed to load vendors'));
+            const message =
+                err instanceof Error
+                    ? err.message
+                    : t('errors.load_failed', 'Failed to load vendors');
+            setError(message || t('errors.load_failed', 'Failed to load vendors'));
         } finally {
             setIsLoading(false);
         }
