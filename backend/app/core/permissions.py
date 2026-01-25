@@ -121,6 +121,31 @@ def get_scope_label(user: User) -> str:
     return "dept"
 
 
+def can_read_vendor(vendor, current_user: User) -> bool:
+    """
+    Vendor visibility rule (Phase 18):
+    - Unassigned vendors (department_id is None): privileged users only
+    - Privileged users: all vendors
+    - Dept-scoped users: vendors in their department(s) OR where they are outsourcing owner
+    """
+    vendor_dept_id = getattr(vendor, "department_id", None)
+    vendor_owner_id = getattr(vendor, "outsourcing_owner_user_id", None)
+
+    if vendor_dept_id is None:
+        return is_privileged_user(current_user)
+
+    dept_ids = get_user_department_ids(current_user)
+    if dept_ids is None:
+        return True
+    if vendor_dept_id in dept_ids:
+        return True
+    return bool(vendor_owner_id == current_user.id)
+
+
+def is_vendor_owner(vendor, current_user: User) -> bool:
+    return bool(getattr(vendor, "outsourcing_owner_user_id", None) == current_user.id)
+
+
 # ============================================================================
 # 2. Permission Evaluation
 # ============================================================================
