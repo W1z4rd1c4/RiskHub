@@ -38,7 +38,7 @@ DORA-relevant vendors can be identified both manually (flag when adding) and aut
 </essential>
 
 <decisions>
-## Locked Implementation Decisions (A–D)
+## Locked Implementation Decisions (A–G)
 
 **A) Vendor classification rules**
 - **Vendor risk scoring is simple:** single `vendor.risk_score_1_5` (1–5), fully manual.
@@ -59,13 +59,30 @@ DORA-relevant vendors can be identified both manually (flag when adding) and aut
 - **No file uploads in Phase 18 MVP.** Evidence is stored as an `evidence_reference` string (URL/path), same spirit as Controls evidence usage.
 - **Evidence requirement:** follow the “controls” approach — evidence is supported and encouraged but not universally hard-required at input time.
 - **Simplicity:** a single evidence text field (no typed evidence taxonomy in MVP).
-- **Immutability:** once an assessment is submitted/decided, its evidence references are frozen (immutable snapshot).
+- **Immutability:** once an assessment is submitted, its `answers_json` + `evidence_reference` are frozen (immutable snapshot). Workflow metadata (`reviewed_at`, `decision_at`, reviewer/decider IDs, recommendation fields) remains writable as the workflow progresses.
 
 **D) Risk Register integration**
 - **No automatic enterprise Risk creation** for every vendor. Vendor module is separate.
 - **Linking:** vendors can be linked to **multiple** enterprise Risks (many-to-many).
 - **Controls:** vendors can have assigned Controls (references/mitigations), but they do **not** automatically change `vendor.risk_score_1_5` in MVP.
 - **SLA:** vendors track SLA similarly to KRI (time series + breach tracking + reminders). SLA breaches do not automatically change vendor score in MVP.
+
+**E) Notifications + deep linking**
+- Vendor-related notifications always store `resource_type="vendor"` and `resource_id=<vendor_id>`.
+- Frontend routing is derived from `notification.type` (not extra DB fields), e.g. `/vendors/:id?tab=sla|schedule|assessments`.
+
+**F) Auditability + roles**
+- **Activity log:** Phase 18 follows existing RiskHub audit patterns (see `docs/BUSINESS_LOGIC.md` §9 and existing `risk_questionnaire` / `kri_value` entity types):
+  - Add distinct `ActivityEntityType` values for VRM sub-entities (at minimum: `vendor`, `vendor_assessment`, `vendor_incident`, `vendor_sla`, `vendor_remediation`) so Activity Log filtering remains meaningful.
+  - Use `entity_id` = the sub-entity’s own ID (e.g., `VendorAssessment.id`), and scope by `department_id = vendor.department_id`.
+- **Roles:** Phase 18 assumes “legal” responsibilities are handled by the Compliance Officer role in this deployment.
+  - Implement this as a permission capability: `vendor_contracts:read|write` granted to `compliance` (Plan 18-00).
+  - Avoid adding a separate `legal` role unless a specific customer requires it.
+
+**G) Approvals (explicitly deferred)**
+- Phase 18 v1 does **not** extend the ApprovalRequest workflow to Vendors.
+- Vendor CRUD is governed by RBAC (`vendors:*`) + department scoping + outsourcing-owner exception, and by the Vendor Assessment workflow (Plan 18-03) for governance decisions.
+- If later required, approvals for vendor deletion / sensitive fields will be implemented as a follow-up plan (new ApprovalResourceType values, UI integration, and BUSINESS_LOGIC update).
 
 </decisions>
 
