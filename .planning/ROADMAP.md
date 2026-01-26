@@ -40,7 +40,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (5/5)
 - [x] **Phase 16: Risk Assessment Polish** — Review, reminders, reporting (3/3)
 - [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing (8/15)
-- [ ] **Phase 18: Vendor Risk Management** — Third-party risk assessments (DEFERRED, 0/11)
+- [ ] **Phase 18: Vendor Risk Management** — Third-party risk assessments (DEFERRED, 0/12)
 - [ ] **Phase 19: Polish & Deploy** — Advanced audit workflows (0/6)
 - [x] **Phase 20: Czech Localization** — Full i18n infrastructure (16/12 — overdelivered)
 - [x] **Phase 25: User-Specific Settings** — Theme/language persistence (5/5)
@@ -510,10 +510,11 @@ Plans:
 2. **Assessments**: Questionnaires, scoring, and response tracking.
 3. **Supply Chain**: Dependency visualization and fourth-party risk.
 4. **DORA Compliance**: Specialized, exhaustive scope for DORA-relevant vendors (ICT, Cloud).
-**Plans**: 11 plans
+**Plans**: 12 plans
 
 Plans:
 
+- [ ] 18-00: Phase 18 plumbing (RBAC seed parity + notifications schema alignment)
 - [ ] 18-01: Vendor catalog + ownership (outsourcing owner) + manual classification
 - [ ] 18-02: Vendor risk taxonomy + risk factors + linkage to Risk Register
 - [ ] 18-03: Due diligence workflow (questionnaires, evidence, committee recommendation)
