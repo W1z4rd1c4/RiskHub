@@ -37,7 +37,7 @@ export function KRIDetailPage() {
     const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<KRIHistoryEntry | null>(null);
 
     // Permissions
-    const { canRecordKRI } = usePermissions();
+    const { canRecordKRI, user } = usePermissions();
 
     useEffect(() => {
         if (id) fetchKRI(parseInt(id));
@@ -195,7 +195,7 @@ export function KRIDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {canRecordKRI && (
+                    {(canRecordKRI || (!!kri && !!user?.id && kri.reporting_owner_id === user.id)) && (
                         <Button onClick={() => setIsValueModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500">
                             <Plus className="h-4 w-4 mr-1" /> Record Value
                         </Button>

@@ -11,6 +11,7 @@ export { DepartmentsPage } from './DepartmentsPage';
 export { DepartmentDetailPage } from './DepartmentDetailPage';
 export { VendorsPage } from './VendorsPage';
 export { VendorDetailPage } from './VendorDetailPage';
+export { VendorReportsPage } from './VendorReportsPage';
 export { SettingsPage } from './SettingsPage';
 export { HeroPage } from './HeroPage';
 export { ControlDetailPage } from './ControlDetailPage';

@@ -20,12 +20,27 @@ from app.services.report_translations import get_report_translator
 if TYPE_CHECKING:
     from app.models.control import Control
     from app.models.risk import Risk
+    from app.schemas.vendor_reports import VendorAnnualReportData, VendorDoraRegisterRow
 
 
 # Color scheme matching the frontend
 ACCENT_COLOR = colors.HexColor("#00d4aa")
 DARK_BG = colors.HexColor("#0f172a")
 HEADER_BG = colors.HexColor("#1e293b")
+
+
+def count_high_risks(risks, high_threshold: int) -> int:
+    """Count risks with net_probability * net_impact >= high_threshold.
+
+    Used by threshold propagation tests and report summaries.
+    """
+    total = 0
+    for r in risks:
+        prob = getattr(r, "net_probability", 0) or 0
+        impact = getattr(r, "net_impact", 0) or 0
+        if (prob * impact) >= high_threshold:
+            total += 1
+    return total
 
 
 def generate_controls_pdf(controls: list["Control"], locale: str = 'en') -> bytes:
@@ -260,6 +275,245 @@ def generate_risks_pdf(risks: list["Risk"], locale: str = 'en') -> bytes:
         critical_label = t('critical_risks') if locale == 'cs' else 'High/Critical'
         elements.append(Paragraph(f"{t('total')} {t('risks')}: {len(risks)} | {critical_label}: {high_risks}", styles['Normal']))
     
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+# =============================================================================
+# Vendor Reports (Phase 18-09)
+# =============================================================================
+
+
+def generate_vendor_annual_report_excel(report: "VendorAnnualReportData") -> bytes:
+    wb = Workbook()
+
+    ws = wb.active
+    ws.title = "Vendors"
+
+    headers = [
+        "Vendor ID",
+        "Name",
+        "Legal Name",
+        "Vendor Type",
+        "Department",
+        "Owner",
+        "Process",
+        "Subprocess",
+        "Supports Core Function",
+        "DORA Relevant",
+        "Significant Vendor",
+        "Risk Score (1-5)",
+        "Last Decision",
+        "Next Reassessment Due",
+        "Cadence (months)",
+        "Major Breaches (count)",
+        "Major Incidents (count)",
+        "Major Items (preview)",
+    ]
+
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center")
+
+    for v in report.vendors:
+        ws.append(
+            [
+                v.vendor_id,
+                v.name,
+                v.legal_name or "",
+                v.vendor_type,
+                v.department_name or "",
+                v.outsourcing_owner_name or "",
+                v.process,
+                v.subprocess or "",
+                bool(v.supports_important_core_insurance_function),
+                bool(v.dora_relevant),
+                bool(v.is_significant_vendor),
+                v.risk_score_1_5,
+                v.last_decided_at.isoformat() if v.last_decided_at else "",
+                v.next_reassessment_due_at.isoformat() if v.next_reassessment_due_at else "",
+                v.reassessment_cadence_months,
+                v.major_breaches_count,
+                v.major_incidents_count,
+                "; ".join(v.major_items_preview or []),
+            ]
+        )
+
+    ws2 = wb.create_sheet("Process Evaluation")
+    ws2.append(["Year", report.process_evaluation.year])
+    ws2.append(["Generated At", report.generated_at.isoformat()])
+    ws2.append(["Total Active Vendors", report.process_evaluation.total_active_vendors])
+    ws2.append(["Overdue Reassessments", report.process_evaluation.overdue_reassessments_count])
+    ws2.append(["Missing Exit Plans", report.process_evaluation.missing_exit_plans_count])
+    ws2.append(["Missing Contingency Plans", report.process_evaluation.missing_contingency_plans_count])
+    ws2.append(["Major Breaches (count)", report.process_evaluation.major_breaches_count])
+    ws2.append(["Major Incidents (count)", report.process_evaluation.major_incidents_count])
+
+    for row in ws2.iter_rows(min_row=1, max_col=2):
+        for cell in row:
+            cell.border = Border(
+                left=Side(style="thin"),
+                right=Side(style="thin"),
+                top=Side(style="thin"),
+                bottom=Side(style="thin"),
+            )
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def generate_vendor_dora_register_excel(rows: list["VendorDoraRegisterRow"]) -> bytes:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "DORA Register"
+
+    headers = [
+        "vendor_id",
+        "name",
+        "legal_name",
+        "registration_id",
+        "vendor_type",
+        "dora_relevant",
+        "is_significant_vendor",
+        "supports_important_core_insurance_function",
+        "risk_score_1_5",
+        "outsourcing_owner_user_id",
+        "outsourcing_owner_name",
+        "department_id",
+        "department_name",
+        "process",
+        "subprocess",
+        "last_decided_at",
+        "next_reassessment_due_at",
+        "reassessment_cadence_months",
+        "replaceability",
+        "has_alternative_providers",
+    ]
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center")
+
+    for r in rows:
+        ws.append(
+            [
+                r.vendor_id,
+                r.name,
+                r.legal_name or "",
+                r.registration_id or "",
+                r.vendor_type,
+                bool(r.dora_relevant),
+                bool(r.is_significant_vendor),
+                bool(r.supports_important_core_insurance_function),
+                r.risk_score_1_5,
+                r.outsourcing_owner_user_id or "",
+                r.outsourcing_owner_name or "",
+                r.department_id or "",
+                r.department_name or "",
+                r.process,
+                r.subprocess or "",
+                r.last_decided_at.isoformat() if r.last_decided_at else "",
+                r.next_reassessment_due_at.isoformat() if r.next_reassessment_due_at else "",
+                r.reassessment_cadence_months,
+                r.replaceability or "",
+                bool(r.has_alternative_providers),
+            ]
+        )
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def generate_vendor_annual_report_pdf(report: "VendorAnnualReportData", locale: str = "en") -> bytes:
+    t = get_report_translator(locale)
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=20 * mm,
+        leftMargin=20 * mm,
+        topMargin=20 * mm,
+        bottomMargin=20 * mm,
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "CustomTitle",
+        parent=styles["Heading1"],
+        fontSize=20,
+        spaceAfter=12,
+        textColor=DARK_BG,
+        alignment=TA_CENTER,
+    )
+    subtitle_style = ParagraphStyle(
+        "CustomSubtitle",
+        parent=styles["Normal"],
+        fontSize=10,
+        spaceAfter=16,
+        textColor=colors.gray,
+        alignment=TA_CENTER,
+    )
+
+    elements = []
+    elements.append(Paragraph(f"RiskHub - {t('vendor_management_report') if locale == 'cs' else 'Vendor Management Report'}", title_style))
+    elements.append(Paragraph(f"{t('generated_on')}: {report.generated_at.strftime('%Y-%m-%d %H:%M')}", subtitle_style))
+
+    pe = report.process_evaluation
+    elements.append(Paragraph(f"Year: {pe.year}", styles["Normal"]))
+    elements.append(Spacer(1, 8))
+    elements.append(Paragraph(f"Total active vendors: {pe.total_active_vendors}", styles["Normal"]))
+    elements.append(Paragraph(f"Overdue reassessments: {pe.overdue_reassessments_count}", styles["Normal"]))
+    elements.append(Paragraph(f"Missing exit plans: {pe.missing_exit_plans_count}", styles["Normal"]))
+    elements.append(Paragraph(f"Missing contingency plans: {pe.missing_contingency_plans_count}", styles["Normal"]))
+    elements.append(Paragraph(f"Major breaches: {pe.major_breaches_count}", styles["Normal"]))
+    elements.append(Paragraph(f"Major incidents: {pe.major_incidents_count}", styles["Normal"]))
+    elements.append(Spacer(1, 16))
+
+    table_data = [["Vendor", "Owner", "Risk", "Last Review", "Major Items"]]
+    for v in report.vendors[:40]:
+        table_data.append(
+            [
+                v.name,
+                v.outsourcing_owner_name or "",
+                f"{v.risk_score_1_5}/5",
+                v.last_decided_at.strftime("%Y-%m-%d") if v.last_decided_at else "",
+                "; ".join(v.major_items_preview or []),
+            ]
+        )
+
+    table = Table(table_data, colWidths=[120, 90, 40, 70, 140])
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), HEADER_BG),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 9),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 10),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.white),
+                ("TEXTCOLOR", (0, 1), (-1, -1), DARK_BG),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 1), (-1, -1), 8),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.lightgrey),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]
+        )
+    )
+    elements.append(table)
+
+    if len(report.vendors) > 40:
+        elements.append(Spacer(1, 12))
+        elements.append(Paragraph(f"Showing first 40 of {len(report.vendors)} vendors.", styles["Normal"]))
+
     doc.build(elements)
     buffer.seek(0)
     return buffer.getvalue()

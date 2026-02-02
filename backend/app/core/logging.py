@@ -86,6 +86,9 @@ def get_log_settings() -> tuple[int, int, int, int]:
 def configure_logging(
     log_level: str = "INFO",
     json_console: bool = True,
+    # Backward-compatible aliases (apply to both app + audit when set)
+    rotation_size_mb: int | None = None,
+    retention_count: int | None = None,
     app_rotation_size_mb: int | None = None,
     app_retention_count: int | None = None,
     audit_rotation_size_mb: int | None = None,
@@ -114,6 +117,18 @@ def configure_logging(
     
     # Get rotation settings (separate for app and audit handlers)
     default_app_size, default_app_count, default_audit_size, default_audit_count = get_log_settings()
+
+    # If legacy aliases are provided, apply them unless per-handler overrides are set.
+    if rotation_size_mb is not None:
+        if app_rotation_size_mb is None:
+            app_rotation_size_mb = rotation_size_mb
+        if audit_rotation_size_mb is None:
+            audit_rotation_size_mb = rotation_size_mb
+    if retention_count is not None:
+        if app_retention_count is None:
+            app_retention_count = retention_count
+        if audit_retention_count is None:
+            audit_retention_count = retention_count
     
     # App handler settings
     app_size_bytes = (app_rotation_size_mb * 1024 * 1024) if app_rotation_size_mb else default_app_size
