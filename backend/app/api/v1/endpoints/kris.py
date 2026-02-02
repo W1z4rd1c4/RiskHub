@@ -501,7 +501,8 @@ async def delete_kri(
         from datetime import datetime, UTC
         # Archive instead of hard delete (preserves audit trail + history)
         kri.is_archived = True
-        kri.archived_at = datetime.now(UTC)
+        # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
+        kri.archived_at = datetime.now(UTC).replace(tzinfo=None)
         kri.archived_by_id = current_user.id
         
         # Log activity as ARCHIVE (not DELETE - record is preserved)
