@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Activity, Calendar, Plus, Save, Trash2, User as UserIcon, X } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { userApi } from '@/services/userApi';
@@ -381,13 +381,15 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
 
                     <ConfirmDialog
                         isOpen={isDeleteDialogOpen}
+                        onClose={() => setIsDeleteDialogOpen(false)}
+                        onConfirm={() => {
+                            void archive();
+                        }}
                         title={t('sla.confirm_archive_title', 'Archive SLA?')}
                         message={t('sla.confirm_archive_message', 'This will archive the SLA. You can still view it when including archived items.')}
-                        confirmText={t('sla.actions.archive', 'Archive')}
-                        cancelText={t('actions.cancel', 'Cancel')}
-                        onConfirm={archive}
-                        onCancel={() => setIsDeleteDialogOpen(false)}
-                        confirmButtonClass="bg-rose-500 hover:bg-rose-600"
+                        confirmLabel={t('sla.actions.archive', 'Archive')}
+                        cancelLabel={t('actions.cancel', 'Cancel')}
+                        variant="danger"
                         isLoading={isDeleting}
                     />
                 </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { AlertTriangle, Loader2, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { vendorRiskFactorApi } from '@/services/vendorRiskFactorApi';
@@ -33,12 +33,16 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
     );
 
     const grouped = useMemo(() => {
-        const groups: Record<VendorRiskCategoryKey, VendorRiskFactor[]> = Object.fromEntries(
-            vendorRiskCategoryKeys.map((k) => [k, []]),
-        ) as Record<VendorRiskCategoryKey, VendorRiskFactor[]>;
+        const groups = vendorRiskCategoryKeys.reduce(
+            (acc, key) => {
+                acc[key] = [];
+                return acc;
+            },
+            {} as Record<VendorRiskCategoryKey, VendorRiskFactor[]>,
+        );
+
         for (const factor of factors) {
-            const key = factor.category_key;
-            if (key in groups) groups[key as VendorRiskCategoryKey].push(factor);
+            groups[factor.category_key].push(factor);
         }
         return groups;
     }, [factors]);
@@ -265,4 +269,3 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
         </section>
     );
 }
-

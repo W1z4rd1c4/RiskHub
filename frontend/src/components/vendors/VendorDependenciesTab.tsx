@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { AlertTriangle, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import type { Vendor } from '@/types/vendor';
 import type { VendorDependenciesResponse, VendorRelationshipType } from '@/types/vendorDependency';
@@ -315,4 +315,3 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
         </section>
     );
 }
-

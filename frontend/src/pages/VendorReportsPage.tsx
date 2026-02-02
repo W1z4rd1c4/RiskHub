@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { vendorReportApi } from '@/services/vendorReportApi';
 import { useAuth } from '@/contexts/AuthContext';
@@ -102,4 +102,3 @@ export function VendorReportsPage() {
         </PermissionGate>
     );
 }
-

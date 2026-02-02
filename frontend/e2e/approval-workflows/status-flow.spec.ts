@@ -291,11 +291,6 @@ test.describe('Approval Status Flow', () => {
                     await page.waitForTimeout(1000);
                     const pageContent = await page.textContent('body');
 
-                    // If approval was required, should see approval-related message
-                    const hasApprovalMessage = pageContent?.toLowerCase().includes('approval') ||
-                        pageContent?.toLowerCase().includes('submitted') ||
-                        pageContent?.toLowerCase().includes('pending');
-
                     // Page should NOT claim edit was applied if approval required
                     // (either shows approval message OR navigates to detail page with success)
                     // This validates the 202 UX fix

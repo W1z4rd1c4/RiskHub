@@ -1,5 +1,5 @@
 import { Search, Filter, Crown, Key } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 import { permissionResources, permissionActions } from '@/hooks/useUsersPageFilters';

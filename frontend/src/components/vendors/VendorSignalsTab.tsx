@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { AlertTriangle, Loader2, RefreshCcw, Radar } from 'lucide-react';
 import { vendorSignalApi } from '@/services/vendorSignalApi';
 import type { VendorExternalSignal } from '@/types/vendorSignal';
@@ -147,4 +147,3 @@ export function VendorSignalsTab({ vendorId, canRefresh }: VendorSignalsTabProps
         </section>
     );
 }
-

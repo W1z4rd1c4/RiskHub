@@ -20,7 +20,7 @@ function formatNumber(val: number): string {
     return Math.round(val).toLocaleString('cs-CZ');
 }
 
-export function buildHistoryChartData(history: KRIHistoryEntry[]): HistoryTrendPoint[] {
+function buildHistoryChartData(history: KRIHistoryEntry[]): HistoryTrendPoint[] {
     if (!history.length) return [];
     const sorted = [...history].sort((a, b) => new Date(a.period_end).getTime() - new Date(b.period_end).getTime());
     return sorted.map(entry => ({
@@ -30,7 +30,7 @@ export function buildHistoryChartData(history: KRIHistoryEntry[]): HistoryTrendP
     }));
 }
 
-export function buildTimelineItems(history: KRIHistoryEntry[]): HistoryTimelineItem[] {
+function buildTimelineItems(history: KRIHistoryEntry[]): HistoryTimelineItem[] {
     if (!history.length) return [];
     const sorted = [...history].sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime());
     return sorted.map(entry => ({

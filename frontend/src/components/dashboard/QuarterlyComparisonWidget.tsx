@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus, Calendar, AlertTriangle, HelpCircle, RefreshCw } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { dashboardApi } from '@/services/dashboardApi';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 

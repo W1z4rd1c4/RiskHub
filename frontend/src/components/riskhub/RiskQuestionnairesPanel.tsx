@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle, FileText, RefreshCw, Send } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { departmentApi } from '@/services/departmentApi';
 import { riskApi } from '@/services/riskApi';
 import { apiClient } from '@/services/apiClient';
@@ -327,4 +327,3 @@ export function RiskQuestionnairesPanel() {
         </div>
     );
 }
-

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { Plus, Search, RefreshCw, AlertCircle, Building2, User, ChevronRight } from 'lucide-react';
 import { vendorApi } from '@/services/vendorApi';
 import type { Vendor, VendorStatus, VendorType } from '@/types/vendor';

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Bell, AlertTriangle, RefreshCw } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { NotificationPreferences } from '@/types/notification';
 import { cn } from '@/lib/utils';

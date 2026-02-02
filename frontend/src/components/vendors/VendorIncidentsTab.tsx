@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { AlertOctagon, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { vendorIncidentApi } from '@/services/vendorIncidentApi';
@@ -189,4 +189,3 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
         </section>
     );
 }
-

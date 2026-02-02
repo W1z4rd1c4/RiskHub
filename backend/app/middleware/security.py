@@ -97,7 +97,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             # Production: tight CSP (no unsafe-eval, restricted connect-src)
             csp_directives = [
                 "default-src 'self'",
-                "script-src 'self' 'unsafe-inline'",  # React prod build doesn't need eval
+                "script-src 'self'",
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                 "font-src 'self' https://fonts.gstatic.com",
                 "img-src 'self' data: https: blob:",

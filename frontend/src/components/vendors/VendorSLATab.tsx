@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { Activity, BadgeCheck, Clock, Loader2, Plus, RefreshCcw } from 'lucide-react';
 import { vendorSlaApi } from '@/services/vendorSlaApi';
 import type { VendorSLA } from '@/types/vendorSla';
