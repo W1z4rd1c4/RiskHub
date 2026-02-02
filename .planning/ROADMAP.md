@@ -17,18 +17,18 @@ Building an enterprise risk management platform for insurance companies, startin
 - Decimal phases (2.1, 2.2): Urgent insertions
 
 - [x] **Phase 1: Foundation** — Project scaffolding, auth, and database setup (4/4)
-- [x] **Phase 2: Control Catalog** — 13-point control structure and CRUD operations (2/3)
+- [x] **Phase 2: Control Catalog** — 13-point control structure and CRUD operations (3/3)
 - [x] **Phase 2.1: Risk Register** — Risk Register UI with visualization (2/2)
-- [ ] **Phase 2.2: Risk Status Enhancement** — Risk status improvements (0/1)
+- [x] **Phase 2.2: Risk Status Enhancement** — Risk status improvements (1/1)
 - [x] **Phase 3: Dashboards** — Executive and department-level dashboards (2/2)
-- [ ] **Phase 3.1: Interactive Dashboards** — Filters, drill-downs, exploration (0/1)
+- [x] **Phase 3.1: Interactive Dashboards** — Filters, drill-downs, exploration (1/1)
 - [x] **Phase 3.2: List View Enhancements** — Grouped views, sorting, pagination (1/1)
 - [x] **Phase 3.3: Department Page** — Department detail pages (1/1)
 - [x] **Phase 4: Reporting** — PDF/Excel exports and audit trails (2/2)
 - [x] **Phase 5: Automated Testing** — Backend and frontend test coverage (2/2)
-- [ ] **Phase 6: Risk Appetite** — Key Risk Indicators with limit monitoring (1/2)
+- [x] **Phase 6: Risk Appetite** — Key Risk Indicators with limit monitoring (2/2)
 - [x] **Phase 6.1: KRI Management Tab** — KRI management page (1/1)
-- [ ] **Phase 7: User Management & RBAC** — Role-based access and department hierarchy (13/17)
+- [x] **Phase 7: User Management & RBAC** — Role-based access and department hierarchy (17/17)
 - [x] **Phase 8: Permission-Based Filtering** — Data filtering and approval workflows (8/8)
 - [x] **Phase 9: Notification System** — KRI deadlines and approval notifications (7/7)
 - [ ] **Phase 10: Historization** — Historical tracking and audit trails (4/5)
@@ -97,7 +97,7 @@ Plans:
 
 - [x] 02-01: Database schema for controls, risks, and control-risk linkage
 - [x] 02-02: API endpoints for control and risk management
-- [ ] 02-03: Control catalog UI with forms and validation
+- [x] 02-03: Control catalog UI with forms and validation
 
 ### Phase 2.1: Risk Register
 
@@ -133,7 +133,7 @@ Plans:
 
 Plans:
 
-- [ ] 03.1-01: Interactive filters, clickable risk matrix, department views, category charts
+- [x] 03.1-01: Interactive filters, clickable risk matrix, department views, category charts
 
 ### Phase 3.2: List View Enhancements
 
@@ -192,7 +192,7 @@ Plans:
 Plans:
 
 - [x] 06-01: Backend (KRI schema, API, seed script)
-- [ ] 06-02: Frontend (KRI UI, gauges, dashboard widget)
+- [x] 06-02: Frontend (KRI UI, gauges, dashboard widget)
 
 ### Phase 6.1: KRI Management Tab (COMPLETE)
 
@@ -220,12 +220,12 @@ Plans:
 - [x] 07-04: Permission filtering for all endpoints (risks, controls, KRIs, dashboard)
 - [x] 07-05: Seed script for sample users with different roles
 - [x] 07-06: Security Fixes & Permission Hardening (Deep Check Results)
-- [ ] 07-07: Phase 7 Audit Remediation (API methods, password updates, auth fixes)
+- [x] 07-07: Phase 7 Audit Remediation (API methods, password updates, auth fixes)
 - [x] 07-08: Report Endpoint Department Scoping
 - [x] 07-09: Execution Endpoint Department Scoping
-- [ ] 07-10: Dynamic Role Selection in User Forms
-- [ ] 07-11: KRI Permission Enforcement
-- [ ] 07-12: Permission Model Consistency & Null Department Handling
+- [x] 07-10: Dynamic Role Selection in User Forms
+- [x] 07-11: KRI Permission Enforcement
+- [x] 07-12: Permission Model Consistency & Null Department Handling
 - [x] 07-13: Directory Webhook Authentication (CRITICAL)
 - [x] 07-14: Production Security Defaults (HIGH)
 - [x] 07-15: Control-Trends Department Filter Fix (MEDIUM)
@@ -763,18 +763,18 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | ✅ Complete | 2025-12-25 |
-| 2. Control Catalog | 2/3 | ✅ Complete | 2025-12-25 |
+| 2. Control Catalog | 3/3 | ✅ Complete | 2025-12-25 |
 | 2.1 Risk Register | 2/2 | ✅ Complete | 2025-12-25 |
-| 2.2 Risk Status Enhancement | 0/1 | ⏸️ Open | - |
+| 2.2 Risk Status Enhancement | 1/1 | ✅ Complete | - |
 | 3. Dashboards | 2/2 | ✅ Complete | 2025-12-25 |
-| 3.1 Interactive Dashboards | 0/1 | ⏸️ Open | - |
+| 3.1 Interactive Dashboards | 1/1 | ✅ Complete | - |
 | 3.2 List Enhancements | 1/1 | ✅ Complete | 2025-12-25 |
 | 3.3 Department Page | 1/1 | ✅ Complete | 2025-12-25 |
 | 4. Reporting | 2/2 | ✅ Complete | 2025-12-25 |
 | 5. Automated Testing | 2/2 | ✅ Complete | 2025-12-25 |
-| 6. Risk Appetite | 1/2 | ⏳ In progress | - |
+| 6. Risk Appetite | 2/2 | ✅ Complete | - |
 | 6.1 KRI Management | 1/1 | ✅ Complete | 2025-12-26 |
-| 7. User Management & RBAC | 13/17 | ⏳ In progress | - |
+| 7. User Management & RBAC | 17/17 | ✅ Complete | - |
 | 8. Permission Filtering | 8/8 | ✅ Complete | 2025-12-28 |
 | 8-05. Testing Concerns | 1/1 | ✅ Complete | - |
 | 9. Notification System | 7/7 | ✅ Complete | 2025-12-28 |
