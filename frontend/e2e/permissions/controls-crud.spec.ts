@@ -10,7 +10,7 @@
  */
 import { test, expect } from '../fixtures/auth.fixture';
 import { ControlsPage } from '../pages/ControlsPage';
-import { waitForDataLoad, waitForToast } from '../helpers/wait';
+import { waitForDataLoad } from '../helpers/wait';
 
 test.describe('Control CRUD Permissions', () => {
     test.describe('controls:read - View Controls', () => {

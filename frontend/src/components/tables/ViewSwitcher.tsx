@@ -2,7 +2,7 @@
  * ViewSwitcher - Tab-style view mode selector.
  */
 import { cn } from '@/lib/utils';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 export type ViewMode = 'all' | 'category' | 'department' | 'process' | 'risk_type' | 'risk';
 
@@ -50,4 +50,3 @@ export function ViewSwitcher({ value, onChange, className, exclude = [] }: ViewS
         </div>
     );
 }
-

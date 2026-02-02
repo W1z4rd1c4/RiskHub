@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { Save, X, AlertCircle } from 'lucide-react';
 import { vendorApi } from '@/services/vendorApi';
 import { lookupApi } from '@/services/lookupApi';
@@ -48,6 +48,12 @@ function scoreColor(score: number): string {
 export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: VendorFormProps) {
     const { t } = useTranslation('vendors');
     const { totalAssets } = useTotalAssetsValue();
+
+    type VendorFlagKey =
+        | 'supports_important_core_insurance_function'
+        | 'dora_relevant'
+        | 'is_significant_vendor'
+        | 'has_alternative_providers';
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -397,15 +403,15 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                         <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.flags', 'Flags')}</label>
                         <div className="space-y-2">
                             {[
-                                { key: 'supports_important_core_insurance_function', label: t('flags.supports_core_function', 'Supports important core insurance function') },
-                                { key: 'dora_relevant', label: t('flags.dora_relevant', 'DORA relevant') },
-                                { key: 'is_significant_vendor', label: t('flags.significant_vendor', 'Significant vendor') },
-                                { key: 'has_alternative_providers', label: t('flags.has_alternatives', 'Has alternative providers') },
-                            ].map(({ key, label }) => (
+                                { key: 'supports_important_core_insurance_function' as const, label: t('flags.supports_core_function', 'Supports important core insurance function') },
+                                { key: 'dora_relevant' as const, label: t('flags.dora_relevant', 'DORA relevant') },
+                                { key: 'is_significant_vendor' as const, label: t('flags.significant_vendor', 'Significant vendor') },
+                                { key: 'has_alternative_providers' as const, label: t('flags.has_alternatives', 'Has alternative providers') },
+                            ].map(({ key, label }: { key: VendorFlagKey; label: string }) => (
                                 <label key={key} className="flex items-center gap-2 text-sm text-slate-300">
                                     <input
                                         type="checkbox"
-                                        checked={!!(formData as any)[key]}
+                                        checked={!!formData[key]}
                                         onChange={(e) => handleChange(key as keyof Vendor, e.target.checked)}
                                         className="accent-accent"
                                     />
@@ -443,4 +449,3 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
         </form>
     );
 }
-

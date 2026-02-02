@@ -4,7 +4,7 @@ import { Palette, Plus, Edit, Trash2, RotateCcw, AlertCircle } from 'lucide-reac
 import { riskHubApi } from '@/services/riskHubApi';
 import type { RiskType, RiskTypeCreate, RiskTypeUpdate } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 interface RiskTypeModalProps {
     isOpen: boolean;

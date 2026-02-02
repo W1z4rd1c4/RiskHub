@@ -5,7 +5,7 @@ import { X, Edit3, AlertCircle, CheckCircle } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { Button } from '@/components/ui/button';
 import type { KRIHistoryEntry, KRIHistoryEdit } from '@/types/kri';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 interface KRIHistoryEditModalProps {
     isOpen: boolean;
@@ -48,8 +48,8 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
                 onSuccess();
                 onClose();
             }, 1500);
-        } catch (err: any) {
-            setError(err?.response?.data?.detail || 'Failed to submit correction request.');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to submit correction request.');
         } finally {
             setIsSubmitting(false);
         }

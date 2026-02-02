@@ -25,7 +25,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { isApprovalCreatedResponse } from '@/types/approval';
 import { parseUpdateResult } from '@/lib/approvalUi';
 

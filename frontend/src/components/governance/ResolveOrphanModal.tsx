@@ -13,7 +13,7 @@ import type { UserRead } from '@/types/user';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 interface ResolveOrphanModalProps {
     isOpen: boolean;

@@ -30,7 +30,7 @@ import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { RiskQuickViewModal } from '@/components/RiskQuickViewModal';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { isApprovalCreatedResponse } from '@/types/approval';
 
 type TabView = 'overview' | 'history';

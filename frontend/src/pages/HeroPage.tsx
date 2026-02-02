@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Shield, ArrowRight, Zap, BarChart3, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 export function HeroPage() {
     const navigate = useNavigate();

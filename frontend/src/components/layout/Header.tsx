@@ -1,5 +1,5 @@
 import { Bell, Search, LogOut } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -52,4 +52,3 @@ export function Header() {
         </header>
     );
 }
-

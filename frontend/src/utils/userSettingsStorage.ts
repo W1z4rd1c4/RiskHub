@@ -12,6 +12,30 @@ import i18n from '@/i18n';
 export const THEME_KEY = 'riskhub-theme';
 export const LANGUAGE_KEY = 'riskhub-language';
 
+function dispatchSyntheticStorageEvent(key: string, newValue: string) {
+    if (typeof window === 'undefined') return;
+
+    try {
+        window.dispatchEvent(
+            new StorageEvent('storage', {
+                key,
+                oldValue: null,
+                newValue,
+                storageArea: localStorage,
+            }),
+        );
+    } catch {
+        // Some environments (notably jsdom) can reject StorageEventInit.storageArea.
+        // Fall back to a plain Event with the StorageEvent-like fields defined.
+        const event = new Event('storage');
+        Object.defineProperty(event, 'key', { value: key });
+        Object.defineProperty(event, 'oldValue', { value: null });
+        Object.defineProperty(event, 'newValue', { value: newValue });
+        Object.defineProperty(event, 'storageArea', { value: localStorage });
+        window.dispatchEvent(event);
+    }
+}
+
 // ============================================================================
 // Local Storage Helpers (for immediate UI response)
 // ============================================================================
@@ -52,18 +76,8 @@ export async function syncPreferencesFromServer(): Promise<UserPreferences> {
     // Always dispatch synthetic storage events so same-tab listeners (ThemeContext) update.
     // Native StorageEvent only fires for OTHER tabs, not the current one.
     // We dispatch unconditionally because on login, localStorage was cleared.
-    window.dispatchEvent(new StorageEvent('storage', {
-        key: THEME_KEY,
-        oldValue: null,
-        newValue: prefs.theme,
-        storageArea: localStorage,
-    }));
-    window.dispatchEvent(new StorageEvent('storage', {
-        key: LANGUAGE_KEY,
-        oldValue: null,
-        newValue: prefs.language,
-        storageArea: localStorage,
-    }));
+    dispatchSyntheticStorageEvent(THEME_KEY, prefs.theme);
+    dispatchSyntheticStorageEvent(LANGUAGE_KEY, prefs.language);
 
     // Also update i18n instance if language differs
     if (i18n.language !== prefs.language) {

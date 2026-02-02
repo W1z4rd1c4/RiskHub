@@ -67,6 +67,14 @@ interface UseActivityLogPageStateReturn {
     refresh: () => void;
 }
 
+interface UseActivityLogPageStateOptions {
+    /**
+     * When false, the hook becomes inert and does not make any API calls.
+     * This enables permission-gated pages to still satisfy rules-of-hooks.
+     */
+    enabled?: boolean;
+}
+
 /**
  * Consolidated state management hook for ActivityLogPage.
  * 
@@ -77,7 +85,11 @@ interface UseActivityLogPageStateReturn {
  * - Fetching entries + total with correct pagination
  * - Loading lookup data (users/departments/risks) for selectors
  */
-export function useActivityLogPageState(): UseActivityLogPageStateReturn {
+export function useActivityLogPageState(
+    options: UseActivityLogPageStateOptions = {},
+): UseActivityLogPageStateReturn {
+    const enabled = options.enabled ?? true;
+
     // View mode state
     const [viewMode, setViewModeInternal] = useState<ViewMode>('chronological');
 
@@ -114,6 +126,16 @@ export function useActivityLogPageState(): UseActivityLogPageStateReturn {
     // Filter options
     const [actions, setActions] = useState<string[]>([]);
 
+    // If the hook is disabled, ensure we don't show stale loading/error state.
+    useEffect(() => {
+        if (!enabled) {
+            setIsLoading(false);
+            setErrorType(null);
+            setEntries([]);
+            setTotal(0);
+        }
+    }, [enabled]);
+
     // setViewMode wrapper: reset selectors when changing mode
     const setViewMode = useCallback((mode: ViewMode) => {
         setViewModeInternal(mode);
@@ -132,6 +154,7 @@ export function useActivityLogPageState(): UseActivityLogPageStateReturn {
 
     // Load filter options and lookup data for view modes
     useEffect(() => {
+        if (!enabled) return;
         const loadOptions = async () => {
             try {
                 const [acts, usersData, deptsData, risksData] = await Promise.all([
@@ -149,7 +172,7 @@ export function useActivityLogPageState(): UseActivityLogPageStateReturn {
             }
         };
         loadOptions();
-    }, []);
+    }, [enabled]);
 
     // Build entity types based on tab and view mode
     const getEntityTypes = useCallback((): string[] | undefined => {
@@ -174,6 +197,7 @@ export function useActivityLogPageState(): UseActivityLogPageStateReturn {
 
     // Fetch entries 
     const fetchEntries = useCallback(async () => {
+        if (!enabled) return;
         setIsLoading(true);
         setErrorType(null);
         try {
@@ -215,12 +239,27 @@ export function useActivityLogPageState(): UseActivityLogPageStateReturn {
         } finally {
             setIsLoading(false);
         }
-    }, [page, limit, debouncedSearch, activeTab, action, dateFrom, dateTo, viewMode, selectedActorId, selectedDepartmentId, selectedRiskId, getEntityTypes]);
+    }, [
+        enabled,
+        page,
+        limit,
+        debouncedSearch,
+        activeTab,
+        action,
+        dateFrom,
+        dateTo,
+        viewMode,
+        selectedActorId,
+        selectedDepartmentId,
+        selectedRiskId,
+        getEntityTypes,
+    ]);
 
     // Auto-fetch on dependency changes
     useEffect(() => {
+        if (!enabled) return;
         fetchEntries();
-    }, [fetchEntries]);
+    }, [enabled, fetchEntries]);
 
     return {
         // View mode

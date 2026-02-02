@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Shield, Building2, User, Loader2, Check, Crown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { accessApi } from '@/services/accessApi';
 import { departmentApi } from '@/services/departmentApi';
 import { userApi } from '@/services/userApi';

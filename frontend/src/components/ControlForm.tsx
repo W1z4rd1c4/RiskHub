@@ -18,7 +18,7 @@ import {
     CheckCircle
 } from 'lucide-react';
 import { parseUpdateResult } from '@/lib/approvalUi';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { controlApi } from '@/services/controlApi';
 import { lookupApi } from '@/services/lookupApi';

@@ -37,7 +37,7 @@ repos:
     rev: 1.7.8
     hooks:
       - id: bandit
-        args: ["-c", "backend/.bandit", "-r", "backend/app"]
+        args: ["--ini", "backend/.bandit", "-r", "backend/app"]
         files: ^backend/
 
   # Secrets detection - Gitleaks

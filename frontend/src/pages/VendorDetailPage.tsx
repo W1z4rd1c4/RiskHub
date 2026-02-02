@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { ArrowLeft, Edit, XCircle, Building2, User, ShieldAlert, AlertTriangle, Link2, CheckSquare, ClipboardList, CalendarClock, FileCheck2, Shield, AlertOctagon, ClipboardCheck, Activity, Radar } from 'lucide-react';
 import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';

@@ -1,5 +1,5 @@
 import { User, Mail, Building, Shield, Key } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 interface ProfileSettingsProps {
     user: {

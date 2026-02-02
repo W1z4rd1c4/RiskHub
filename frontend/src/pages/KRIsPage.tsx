@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { Plus, Search, RefreshCw, AlertTriangle, CheckCircle, ChevronRight, User, Shield, Building2 } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { PermissionGate } from '@/components/PermissionGate';

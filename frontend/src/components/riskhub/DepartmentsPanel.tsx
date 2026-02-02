@@ -6,7 +6,7 @@ import { accessApi } from '@/services/accessApi';
 import type { DepartmentHubCreate, DepartmentHubUpdate, DepartmentHubRead } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 interface DepartmentModalProps {
     isOpen: boolean;
@@ -189,8 +189,8 @@ export function DepartmentsPanel() {
             try {
                 await deleteMutation.mutateAsync(deleteConfirm.id);
                 setDeleteConfirm(null);
-            } catch (error: any) {
-                alert(error.response?.data?.detail || "Failed to delete department");
+            } catch (error: unknown) {
+                alert(error instanceof Error ? error.message : "Failed to delete department");
             }
         }
     };

@@ -3,7 +3,7 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { ACTION_LABELS } from '@/types/activityLog';
 import type { ViewMode } from '@/hooks/useActivityLogPageState';
 import type { UserLookupItem } from '@/services/lookupApi';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 export interface ActivityLogFilterBarProps {
     // Search filter
