@@ -27,8 +27,8 @@
 | Phase | Status | Completed |
 |-------|--------|-----------|
 | 1-5 Foundation/Catalog/Dashboards | ✅ Complete | 2025-12-25 |
-| 6-6.1 Risk Appetite & KRI | ⏳ In progress (2/3) | - |
-| 7 User Management | ⏳ In progress (13/17) | - |
+| 6-6.1 Risk Appetite & KRI | ✅ Complete (3/3) | - |
+| 7 User Management | ✅ Complete (17/17) | - |
 | 8 Permission Filtering | ✅ Complete (8/8) | 2025-12-28 |
 | 9 Notification System | ✅ Complete (7/7) | 2025-12-28 |
 | 10 Historization | ⏳ In progress (4/5) | - |
@@ -66,6 +66,11 @@
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
 
 ## Session Context
+
+### Planning Hygiene (2026-02-02)
+
+- Backfilled missing summaries for executed plans: `02-03`, `2.2`, `03.1-01`, `06-02`, `07-07`, `07-10`, `07-11`, `07-12`.
+- Reconciled `.planning/ROADMAP.md` and `.planning/STATE.md` to reflect these as complete.
 
 ### Phase 17 Progress
 
