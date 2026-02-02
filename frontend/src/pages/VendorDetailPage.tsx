@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Edit, XCircle, Building2, User, ShieldAlert, AlertTriangle, Link2, CheckSquare } from 'lucide-react';
+import { ArrowLeft, Edit, XCircle, Building2, User, ShieldAlert, AlertTriangle, Link2, CheckSquare, ClipboardList, CalendarClock, FileCheck2, Shield, AlertOctagon, ClipboardCheck, Activity, Radar } from 'lucide-react';
 import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';
 import { VendorForm } from '@/components/VendorForm';
@@ -10,9 +10,30 @@ import { useAuth } from '@/contexts/AuthContext';
 import { VendorRiskFactorsTab } from '@/components/vendors/VendorRiskFactorsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
 import { VendorLinkedControlsTab } from '@/components/vendors/VendorLinkedControlsTab';
+import { VendorAssessmentsTab } from '@/components/vendors/VendorAssessmentsTab';
+import { VendorScheduleTab } from '@/components/vendors/VendorScheduleTab';
+import { VendorContractControlsTab } from '@/components/vendors/VendorContractControlsTab';
+import { VendorResilienceTab } from '@/components/vendors/VendorResilienceTab';
+import { VendorDependenciesTab } from '@/components/vendors/VendorDependenciesTab';
+import { VendorIncidentsTab } from '@/components/vendors/VendorIncidentsTab';
+import { VendorRemediationTab } from '@/components/vendors/VendorRemediationTab';
+import { VendorSLATab } from '@/components/vendors/VendorSLATab';
+import { VendorSignalsTab } from '@/components/vendors/VendorSignalsTab';
 
 type VendorDetailMode = 'view' | 'edit' | 'new';
-type VendorTabView = 'risk_factors' | 'linked_risks' | 'linked_controls';
+type VendorTabView =
+    | 'risk_factors'
+    | 'linked_risks'
+    | 'linked_controls'
+    | 'assessments'
+    | 'schedule'
+    | 'contract_controls'
+    | 'resilience'
+    | 'dependencies'
+    | 'incidents'
+    | 'remediation'
+    | 'sla'
+    | 'signals';
 
 interface VendorDetailPageProps {
     mode?: VendorDetailMode;
@@ -29,6 +50,7 @@ function badge(text: string, className: string) {
 export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { t } = useTranslation('vendors');
     const { user, hasPermission } = useAuth();
 
@@ -36,6 +58,35 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const [isLoading, setIsLoading] = useState(mode !== 'new');
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<VendorTabView>('risk_factors');
+
+    const selectTab = (tab: VendorTabView) => {
+        setActiveTab(tab);
+        const next = new URLSearchParams(searchParams);
+        next.set('tab', tab);
+        setSearchParams(next, { replace: true });
+    };
+
+    useEffect(() => {
+        const raw = searchParams.get('tab');
+        if (!raw) return;
+        const allowed: Set<string> = new Set([
+            'risk_factors',
+            'linked_risks',
+            'linked_controls',
+            'assessments',
+            'schedule',
+            'contract_controls',
+            'resilience',
+            'dependencies',
+            'incidents',
+            'remediation',
+            'sla',
+            'signals',
+        ]);
+        if (allowed.has(raw)) {
+            setActiveTab(raw as VendorTabView);
+        }
+    }, [searchParams]);
 
     const fetchVendor = useCallback(async () => {
         if (!id) return;
@@ -250,7 +301,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
 
             <div className="flex items-center gap-2 border-b border-white/10">
                 <button
-                    onClick={() => setActiveTab('risk_factors')}
+                    onClick={() => selectTab('risk_factors')}
                     className={`px-6 py-3 font-bold transition-all ${activeTab === 'risk_factors'
                         ? 'text-accent border-b-2 border-accent'
                         : 'text-slate-500 hover:text-white'
@@ -260,7 +311,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     {t('tabs.risk_factors', 'Risk Factors')}
                 </button>
                 <button
-                    onClick={() => setActiveTab('linked_risks')}
+                    onClick={() => selectTab('linked_risks')}
                     className={`px-6 py-3 font-bold transition-all ${activeTab === 'linked_risks'
                         ? 'text-accent border-b-2 border-accent'
                         : 'text-slate-500 hover:text-white'
@@ -270,7 +321,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     {t('tabs.linked_risks', 'Linked Risks')}
                 </button>
                 <button
-                    onClick={() => setActiveTab('linked_controls')}
+                    onClick={() => selectTab('linked_controls')}
                     className={`px-6 py-3 font-bold transition-all ${activeTab === 'linked_controls'
                         ? 'text-accent border-b-2 border-accent'
                         : 'text-slate-500 hover:text-white'
@@ -278,6 +329,96 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                 >
                     <CheckSquare className="h-4 w-4 inline mr-2" />
                     {t('tabs.linked_controls', 'Linked Controls')}
+                </button>
+                <button
+                    onClick={() => selectTab('assessments')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'assessments'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <ClipboardList className="h-4 w-4 inline mr-2" />
+                    {t('tabs.assessments', 'Assessments')}
+                </button>
+                <button
+                    onClick={() => selectTab('schedule')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'schedule'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <CalendarClock className="h-4 w-4 inline mr-2" />
+                    {t('tabs.schedule', 'Schedule')}
+                </button>
+                <button
+                    onClick={() => selectTab('contract_controls')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'contract_controls'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <FileCheck2 className="h-4 w-4 inline mr-2" />
+                    {t('tabs.contract_controls', 'Contract Controls')}
+                </button>
+                <button
+                    onClick={() => selectTab('resilience')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'resilience'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <Shield className="h-4 w-4 inline mr-2" />
+                    {t('tabs.resilience', 'Resilience')}
+                </button>
+                <button
+                    onClick={() => selectTab('dependencies')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'dependencies'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <AlertTriangle className="h-4 w-4 inline mr-2" />
+                    {t('tabs.dependencies', 'Dependencies')}
+                </button>
+                <button
+                    onClick={() => selectTab('incidents')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'incidents'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <AlertOctagon className="h-4 w-4 inline mr-2" />
+                    {t('tabs.incidents', 'Incidents')}
+                </button>
+                <button
+                    onClick={() => selectTab('remediation')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'remediation'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <ClipboardCheck className="h-4 w-4 inline mr-2" />
+                    {t('tabs.remediation', 'Remediation')}
+                </button>
+                <button
+                    onClick={() => selectTab('sla')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'sla'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <Activity className="h-4 w-4 inline mr-2" />
+                    {t('tabs.sla', 'SLA')}
+                </button>
+                <button
+                    onClick={() => selectTab('signals')}
+                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'signals'
+                        ? 'text-accent border-b-2 border-accent'
+                        : 'text-slate-500 hover:text-white'
+                        }`}
+                >
+                    <Radar className="h-4 w-4 inline mr-2" />
+                    {t('tabs.signals', 'Signals')}
                 </button>
             </div>
 
@@ -301,6 +442,69 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     vendorId={vendor.id}
                     canEdit={canEdit}
                     onNavigateToControl={(controlId) => navigate(`/controls/${controlId}`)}
+                />
+            )}
+
+            {activeTab === 'assessments' && (
+                <VendorAssessmentsTab
+                    vendor={vendor}
+                    canEdit={canEdit}
+                />
+            )}
+
+            {activeTab === 'schedule' && (
+                <VendorScheduleTab
+                    vendorId={vendor.id}
+                    canEdit={canEdit}
+                />
+            )}
+
+            {activeTab === 'contract_controls' && (
+                <VendorContractControlsTab
+                    vendorId={vendor.id}
+                    canEdit={canEditByOwnership || hasPermission('vendor_contracts', 'write')}
+                />
+            )}
+
+            {activeTab === 'resilience' && (
+                <VendorResilienceTab
+                    vendorId={vendor.id}
+                    canEdit={canEdit}
+                />
+            )}
+
+            {activeTab === 'dependencies' && (
+                <VendorDependenciesTab
+                    vendor={vendor}
+                    canEdit={canEdit}
+                />
+            )}
+
+            {activeTab === 'incidents' && (
+                <VendorIncidentsTab
+                    vendorId={vendor.id}
+                    canEdit={canEdit}
+                />
+            )}
+
+            {activeTab === 'remediation' && (
+                <VendorRemediationTab
+                    vendorId={vendor.id}
+                    canEdit={canEdit}
+                />
+            )}
+
+            {activeTab === 'sla' && (
+                <VendorSLATab
+                    vendorId={vendor.id}
+                    canEditVendor={canEdit}
+                />
+            )}
+
+            {activeTab === 'signals' && (
+                <VendorSignalsTab
+                    vendorId={vendor.id}
+                    canRefresh={canEdit}
                 />
             )}
         </div>

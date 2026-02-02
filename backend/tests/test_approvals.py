@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Tests for approval request endpoints."""
 import pytest
 from datetime import datetime, UTC, date

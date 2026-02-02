@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Building2, Clock, Star, Activity } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, Building2, Clock, Star, Activity, Handshake, BellRing } from 'lucide-react';
 import { dashboardApi } from '@/services/dashboardApi';
 import { QuarterlyComparisonWidget } from './QuarterlyComparisonWidget';
 
@@ -30,6 +31,54 @@ interface CommitteeSummary {
         total_exposure: number;
         risk_count: number;
     }>;
+    critical_vendors: Array<{
+        id: number;
+        name: string;
+        process: string;
+        subprocess?: string | null;
+        risk_score_1_5: number;
+        supports_important_core_insurance_function: boolean;
+        dora_relevant: boolean;
+        is_significant_vendor: boolean;
+        next_reassessment_due_at?: string | null;
+        outsourcing_owner_name: string;
+        department_name: string;
+    }>;
+    vendor_alerts: {
+        overdue_reassessments: {
+            count: number;
+            items: Array<{
+                id: number;
+                name: string;
+                next_reassessment_due_at?: string | null;
+                department_name: string;
+            }>;
+        };
+        sla_breaches: {
+            count: number;
+            items: Array<{
+                vendor_id: number;
+                vendor_name: string;
+                sla_id: number;
+                metric_name: string;
+                breach_status: string;
+                last_reported_at?: string | null;
+                department_name: string;
+            }>;
+        };
+        major_incidents_30d: {
+            count: number;
+            items: Array<{
+                vendor_id: number;
+                vendor_name: string;
+                incident_id: number;
+                incident_type: string;
+                summary: string;
+                occurred_at?: string | null;
+                department_name: string;
+            }>;
+        };
+    };
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -60,7 +109,14 @@ function getRiskScoreColor(score: number): string {
     return 'text-emerald-400';
 }
 
+function getVendorRiskColor(score: number): string {
+    if (score >= 4) return 'text-rose-400';
+    if (score >= 3) return 'text-amber-400';
+    return 'text-emerald-400';
+}
+
 export function RiskCommitteeSection() {
+    const navigate = useNavigate();
     const [summary, setSummary] = useState<CommitteeSummary | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -172,11 +228,142 @@ export function RiskCommitteeSection() {
                     )}
                 </motion.div>
 
-                {/* Department Exposure */}
+                {/* Critical Vendors */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="glass-card"
+                >
+                    <div className="flex items-center gap-2 mb-6">
+                        <Handshake className="h-5 w-5 text-blue-400" />
+                        <h3 className="text-lg font-bold text-white">Critical Vendors</h3>
+                    </div>
+
+                    {summary.critical_vendors.length === 0 ? (
+                        <p className="text-slate-500 text-sm">No vendors in scope</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {summary.critical_vendors.map((v) => (
+                                <button
+                                    key={v.id}
+                                    onClick={() => navigate(`/vendors/${v.id}?tab=schedule`)}
+                                    className="w-full text-left bg-white/5 rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors"
+                                >
+                                    <div className="flex items-center justify-between mb-2">
+                                        <p className="text-sm font-bold text-white truncate">{v.name}</p>
+                                        <span className={`text-sm font-black ${getVendorRiskColor(v.risk_score_1_5)}`}>
+                                            {v.risk_score_1_5}/5
+                                        </span>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 uppercase tracking-widest">
+                                        {v.department_name} · {v.process}{v.subprocess ? ` / ${v.subprocess}` : ''}
+                                    </p>
+                                    {v.next_reassessment_due_at && (
+                                        <p className="text-xs text-slate-500 mt-2">
+                                            Next reassessment: {new Date(v.next_reassessment_due_at).toLocaleDateString()}
+                                        </p>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </motion.div>
+
+                {/* Vendor Alerts */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
+                    className="glass-card"
+                >
+                    <div className="flex items-center gap-2 mb-6">
+                        <BellRing className="h-5 w-5 text-amber-400" />
+                        <h3 className="text-lg font-bold text-white">Vendor Alerts</h3>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-sm font-bold text-white">Overdue reassessments</p>
+                                <span className="text-sm font-black text-rose-400">{summary.vendor_alerts.overdue_reassessments.count}</span>
+                            </div>
+                            {summary.vendor_alerts.overdue_reassessments.items.length === 0 ? (
+                                <p className="text-xs text-slate-500">None</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {summary.vendor_alerts.overdue_reassessments.items.slice(0, 3).map((v) => (
+                                        <button
+                                            key={v.id}
+                                            onClick={() => navigate(`/vendors/${v.id}?tab=schedule`)}
+                                            className="w-full text-left flex items-center justify-between text-xs text-slate-200 hover:text-white"
+                                        >
+                                            <span className="truncate">{v.name}</span>
+                                            {v.next_reassessment_due_at && (
+                                                <span className="text-slate-500 font-mono">
+                                                    {new Date(v.next_reassessment_due_at).toLocaleDateString()}
+                                                </span>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-sm font-bold text-white">SLA breaches</p>
+                                <span className="text-sm font-black text-rose-400">{summary.vendor_alerts.sla_breaches.count}</span>
+                            </div>
+                            {summary.vendor_alerts.sla_breaches.items.length === 0 ? (
+                                <p className="text-xs text-slate-500">None</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {summary.vendor_alerts.sla_breaches.items.slice(0, 3).map((s) => (
+                                        <button
+                                            key={s.sla_id}
+                                            onClick={() => navigate(`/vendors/${s.vendor_id}?tab=sla`)}
+                                            className="w-full text-left flex items-center justify-between text-xs text-slate-200 hover:text-white"
+                                        >
+                                            <span className="truncate">{s.vendor_name}: {s.metric_name}</span>
+                                            <span className="text-rose-300 font-black">{s.breach_status}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-white/5 rounded-xl p-4 border border-white/5">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-sm font-bold text-white">Major incidents (30d)</p>
+                                <span className="text-sm font-black text-rose-400">{summary.vendor_alerts.major_incidents_30d.count}</span>
+                            </div>
+                            {summary.vendor_alerts.major_incidents_30d.items.length === 0 ? (
+                                <p className="text-xs text-slate-500">None</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {summary.vendor_alerts.major_incidents_30d.items.slice(0, 3).map((i) => (
+                                        <button
+                                            key={i.incident_id}
+                                            onClick={() => navigate(`/vendors/${i.vendor_id}?tab=incidents`)}
+                                            className="w-full text-left text-xs text-slate-200 hover:text-white"
+                                        >
+                                            <span className="font-bold">{i.vendor_name}</span>: {i.summary}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </motion.div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+                {/* Department Exposure */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 }}
                     className="glass-card"
                 >
                     <div className="flex items-center gap-2 mb-6">

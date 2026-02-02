@@ -18,6 +18,8 @@ from app.models.control_execution import ControlExecution, ExecutionResult
 from app.models.orphaned_item import OrphanedItem
 from app.models.approval_request import ApprovalRequest, ApprovalStatus, ApprovalResourceType
 from app.models.activity_log import ActivityLog
+from app.models.vendor import Vendor
+from app.models.vendor_sla import VendorSLA
 
 
 def get_quarter_label(dt: datetime) -> str:
@@ -199,6 +201,31 @@ async def capture_snapshot_metrics(
     active_risks = await db.scalar(
         select(func.count(Risk.id)).where(*active_conditions)
     )
+
+    # Vendor snapshot metrics (Phase 18-11)
+    vendor_conditions = [Vendor.status == "active"]
+    if department_ids is not None:
+        vendor_conditions.append(Vendor.department_id.in_(department_ids))
+    active_vendors = await db.scalar(select(func.count(Vendor.id)).where(*vendor_conditions))
+
+    overdue_vendor_reassessments = await db.scalar(
+        select(func.count(Vendor.id)).where(
+            *vendor_conditions,
+            Vendor.next_reassessment_due_at.isnot(None),
+            Vendor.next_reassessment_due_at < func.now(),
+        )
+    )
+
+    vendor_sla_breaches_query = select(func.count(VendorSLA.id)).where(
+        VendorSLA.is_archived == False,
+        or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit),
+    )
+    if department_ids is not None:
+        vendor_sla_breaches_query = vendor_sla_breaches_query.join(Vendor, VendorSLA.vendor_id == Vendor.id).where(
+            Vendor.department_id.in_(department_ids),
+            Vendor.status == "active",
+        )
+    vendor_sla_breaches = await db.scalar(vendor_sla_breaches_query)
     
     return {
         "priority_risks": priority_count or 0,
@@ -210,6 +237,9 @@ async def capture_snapshot_metrics(
         "overdue_kris": overdue_kris or 0,
         "risks_without_kri": risks_without_kri or 0,
         "active_risks": active_risks or 0,
+        "active_vendors": active_vendors or 0,
+        "overdue_vendor_reassessments": overdue_vendor_reassessments or 0,
+        "vendor_sla_breaches": vendor_sla_breaches or 0,
     }
 
 

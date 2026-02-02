@@ -470,6 +470,12 @@ async def client_risk_manager(db_session: AsyncSession, test_user_risk_manager: 
     app.dependency_overrides.clear()
 
 
+@pytest.fixture
+def auth_headers(test_user: User) -> dict:
+    """Convenience headers for mock-authenticated requests using the default test user."""
+    return {"X-Mock-User-Id": str(test_user.id)}
+
+
 @pytest_asyncio.fixture(scope="function")
 async def client_cro(db_session: AsyncSession, test_user_cro: User) -> AsyncGenerator[AsyncClient, None]:
     """Client for CRO user using header-based mock auth."""

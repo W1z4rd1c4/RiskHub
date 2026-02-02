@@ -87,7 +87,7 @@ async def test_get_risk(auth_client: AsyncClient, test_user: User, test_departme
             "gross_impact": 3,
             "net_probability": 3,
             "net_impact": 2,
-            "status": "monitoring",
+            "status": "active",
         },
     )
     risk_id = create_response.json()["id"]
