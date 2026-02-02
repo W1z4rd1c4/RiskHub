@@ -41,7 +41,7 @@ export interface RecentLogEntry {
     user_id: number | null;
     client_ip: string | null;
     feature: string | null;
-    extra: Record<string, any>;
+    extra: Record<string, unknown>;
 }
 
 export interface RecentLogsResponse {

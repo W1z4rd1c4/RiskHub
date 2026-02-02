@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { BookOpen, FileText, ChevronLeft, ArrowRight } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { useAuth } from '@/contexts/AuthContext';
 import { adminApi } from '@/services/adminApi';
 import type { DocumentationEntry } from '@/services/adminApi';

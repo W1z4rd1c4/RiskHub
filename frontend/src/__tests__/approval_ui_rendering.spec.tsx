@@ -18,18 +18,23 @@ import type { Control } from '@/types/control';
 // KeyRiskIndicator type import omitted - not used in current tests
 
 // Mock i18next
-vi.mock('react-i18next', () => ({
-    useTranslation: () => ({
-        t: (key: string) => key,
-        i18n: { language: 'en', changeLanguage: vi.fn() }
-    }),
-}));
+vi.mock('react-i18next', async () => {
+    const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next');
+    return {
+        ...actual,
+        useTranslation: () => ({
+            t: (key: string) => key,
+            i18n: { language: 'en', changeLanguage: vi.fn() },
+        }),
+    };
+});
 
 // Mock the API modules
 vi.mock('@/services/riskApi', () => ({
     riskApi: {
         updateRisk: vi.fn(),
         createRisk: vi.fn(),
+        getRisks: vi.fn().mockResolvedValue({ items: [], total: 0 }),
     },
 }));
 

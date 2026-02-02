@@ -12,7 +12,7 @@ import {
 import { useDashboardFilters, type RiskLevel } from '../../contexts/DashboardFilterContext';
 import { lookupApi } from '../../services/lookupApi';
 import { ThemedSelect } from '../ui/ThemedSelect';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 interface Department {
     id: number;

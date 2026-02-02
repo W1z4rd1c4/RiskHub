@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { User, Palette, Globe, BookOpen, Bell } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { ProfileSettings, AppearanceSettings, LocalizationSettings, DocumentationSettings, NotificationSettings } from '@/components/settings';
@@ -81,4 +81,3 @@ export function SettingsPage() {
         </div>
     );
 }
-

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, AlertTriangle, XCircle, MinusCircle, Loader2 } from 'lucide-react';
 import { executionApi } from '@/services/executionApi';
 import type { ControlExecutionCreate } from '@/services/executionApi';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 interface ExecutionLogModalProps {
     isOpen: boolean;

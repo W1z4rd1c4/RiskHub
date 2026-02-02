@@ -15,7 +15,7 @@ import { departmentApi } from '@/services/departmentApi';
 import type { UserCreate, Role } from '@/types/user';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 export function UserNewPage() {
     const navigate = useNavigate();

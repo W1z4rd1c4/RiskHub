@@ -1,5 +1,5 @@
 import { Globe, Check, CheckCircle } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 import { useLanguage } from '@/i18n/hooks';
 import type { SupportedLanguage } from '@/i18n';

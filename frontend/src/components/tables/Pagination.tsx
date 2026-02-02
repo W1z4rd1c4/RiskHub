@@ -2,7 +2,7 @@
  * Pagination - Page navigation with "Page X of Y" display.
  */
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 
 interface PaginationProps {

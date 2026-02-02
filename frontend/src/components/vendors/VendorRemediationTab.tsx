@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { CheckCircle2, ClipboardCheck, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { vendorIncidentApi } from '@/services/vendorIncidentApi';
 import type { VendorRemediationAction, VendorRemediationStatus } from '@/types/vendorIncident';
@@ -161,4 +161,3 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
         </section>
     );
 }
-

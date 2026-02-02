@@ -14,7 +14,7 @@ import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
 import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
 import type { Risk } from '@/types/risk';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 type TabView = 'overview' | 'history';
 

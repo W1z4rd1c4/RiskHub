@@ -14,7 +14,7 @@ import {
     Clock,
     CheckCircle
 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { riskApi } from '@/services/riskApi';
 import { lookupApi } from '@/services/lookupApi';

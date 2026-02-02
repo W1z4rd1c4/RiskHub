@@ -42,6 +42,11 @@ export const mockAuthUser = {
     scope_label: 'all',
 };
 
+let mockPreferences: { theme: 'light' | 'dark' | 'riskhub'; language: 'en' | 'cs' } = {
+    theme: 'riskhub',
+    language: 'en',
+};
+
 export const mockRiskHubRiskTypes = [
     {
         id: 1,
@@ -213,6 +218,15 @@ export const handlers = [
     // Auth
     http.get('*/api/v1/auth/me', () => {
         return HttpResponse.json(mockAuthUser);
+    }),
+    // Preferences
+    http.get('*/api/v1/preferences', () => {
+        return HttpResponse.json(mockPreferences);
+    }),
+    http.put('*/api/v1/preferences', async ({ request }) => {
+        const body = (await request.json().catch(() => ({}))) as Partial<typeof mockPreferences>;
+        mockPreferences = { ...mockPreferences, ...body };
+        return HttpResponse.json(mockPreferences);
     }),
     // Users
     http.get('*/api/v1/users/lookup', () => {

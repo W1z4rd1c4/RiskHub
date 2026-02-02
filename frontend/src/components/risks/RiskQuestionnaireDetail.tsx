@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, Calendar, Clock, FileText, Save, Send, X } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import type { Risk } from '@/types/risk';

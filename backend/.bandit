@@ -14,10 +14,6 @@ exclude_dirs = tests,alembic/versions,__pycache__,.pytest_cache
 # Targets to scan
 targets = app
 
-# Report format
-format = json
-output = bandit-report.json
-
 # Severity levels to report (all by default)
 # severity = all
 

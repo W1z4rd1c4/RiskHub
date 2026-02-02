@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, ArrowRight, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { kriApi } from '@/services/kriApi';
 import type { OverdueKRI } from '@/types/kri';
