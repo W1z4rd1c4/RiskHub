@@ -1,181 +1,56 @@
-# Concerns & Technical Debt
+# Codebase Concerns
 
-## Security Status
+**Analysis Date:** 2026-02-02
 
-### Critical Issues (from Penetration Test 2026-01-08)
+## Tech Debt
 
-| Issue | Risk | Current Status |
-|-------|------|----------------|
-| Webhook signature bypass | `/directory/webhook` skips verify when `WEBHOOK_SECRET` empty | ✅ Fixed (158-10) - fails closed in production |
-| Admin assignable as entity owner | `/users/lookup` returns admins, no validation on risk/control owner_id | 🔴 Open |
-| Default SECRET_KEY | Production MUST override | ⚠️ Startup check added |
-| OpenAPI docs exposed | `/docs`, `/openapi.json` public | 🔴 Open |
-| DB port exposed | 5432 in docker-compose | ⚠️ Dev only |
-| Rate limiting bypass | Disabled when `DEBUG=true` | ⚠️ Dev only |
-| Demo login endpoint | `/auth/demo-login/{id}` works in debug | ⚠️ Dev only |
+**Mixed timestamp semantics (naive vs timezone-aware):**
+- Issue: DB columns across models/migrations mix `TIMESTAMP WITHOUT TIME ZONE` and `TIMESTAMP WITH TIME ZONE`, while code frequently uses `datetime.now(UTC)`.
+- Why: historical migrations/models evolved inconsistently; some code compensates with `.replace(tzinfo=None)`.
+- Impact: runtime 500s possible when asyncpg receives tz-aware datetime for a naive column (example: approvals reject/approve flow).
+- Fix approach:
+  - Preferred long-term: standardize to timezone-aware columns + `DateTime(timezone=True)` models.
+  - Short-term/compat: ensure writes to naive columns strip tzinfo consistently (see recent changes in approvals/KRI archive).
 
-### Low Severity Issues
+**Permission/role drift between seed paths:**
+- Issue: there are multiple seeding sources (`backend/app/db/seed.py`, `backend/scripts/seed_demo.py`, `backend/scripts/seed_roles_permissions.py`) that can diverge from `docs/BUSINESS_LOGIC.md`.
+- Impact: UI/behavior mismatches depending on which seeding path is used (demo vs app seed vs tests).
+- Fix approach: converge to a single source of truth and/or add tests asserting permissions for demo users.
 
-| Issue | Description |
-|-------|-------------|
-| Null byte DoS | Email with null byte → 500 error |
-| Excel formula injection | Cells starting with `=+@-` not sanitized |
-| Verbose Pydantic errors | Reveal field names, types, constraints |
-| JWT in localStorage | No httpOnly cookie option (156-08 deferred) |
-| No token refresh | Tokens expire → re-login required |
-| Mixed timezone datetimes | Backend has inconsistent tz-aware/naive handling (156-08 deferred) |
+## Known Bugs
 
-### Verified Secure ✅
+**Approval resolve endpoints can 500 on timestamp mismatch (Postgres):**
+- Symptoms: UI shows “Request failed with status 500” when approving/rejecting.
+- Root cause: tz-aware datetime being written to naive timestamp columns (DBAPIError from asyncpg).
+- Mitigation: standardize writes or migrate columns to `timestamptz`.
 
-| Control | Status |
-|---------|--------|
-| Production SECRET_KEY check | Startup fails if not set + `DEBUG=false` |
-| Mock auth blocked in production | `MOCK_AUTH_ENABLED` rejected |
-| All endpoints require JWT | Verified |
-| SQL injection prevention | SQLAlchemy parameterized queries |
-| JWT `alg: none` blocked | Verified |
-| Path traversal blocked | Verified |
-| Security headers | CSP, X-Frame-Options, HSTS, XSS |
-| Approval race conditions | Partial unique index |
-| XSS prevention | React escapes by default |
-| IDOR blocked | Cross-department access denied |
-| Privilege escalation blocked | Cannot modify own role |
+## Security Considerations
 
-## Reliability Concerns
+**MOCK_AUTH_ENABLED bypass:**
+- Risk: `X-Mock-User-Id` header allows impersonation.
+- Current mitigation: guarded to debug mode; production guard in `backend/app/main.py`.
+- Recommendation: ensure prod deploy never sets `DEBUG=true` and does not expose the demo login endpoint.
 
-| Concern | Impact | Mitigation |
-|---------|--------|------------|
-| APScheduler in-process | Multi-worker → double-run jobs | Single worker mode |
-| No external log aggregation | Only file-based rotation | SIEM-ready JSON format |
-| No health check alerting | Manual monitoring required | `/health` endpoint |
-| Database connection pooling | Connection limits under load | asyncpg pool tuning |
+## Performance Bottlenecks
 
-## Deployment Notes
+**Potential N+1 query risks:**
+- Some endpoints rely on relationship loading strategies; keep an eye on list endpoints and dashboard aggregation paths.
+- Recommendation: use SQLAlchemy eager loading (`selectinload/joinedload`) consistently on high-traffic endpoints.
 
-| Item | Note |
-|------|------|
-| `.env.example` | All required vars documented |
-| Apple Silicon builds | Slow arm64 compilation |
-| AD Emulator init | Needs separate database |
-| Migration ordering | Enum values case-sensitive |
+## Fragile Areas
 
-## Code Quality (Resolved) ✅
+**Approval execution side effects:**
+- `backend/app/services/approval_execution_service.py` performs multi-entity writes and logs; changes can have broad effects.
+- Safe modification: add/extend tests in `backend/tests/test_approval_*` for any workflow changes.
 
-| Issue | Resolution |
-|-------|------------|
-| Large page components | Extracted to hooks + subcomponents (Phase 250-251) |
-| Complex permission logic | Moved to services (Phase 250) |
-| Duplicate approval code | Consolidated to `approval_helpers.py` |
-| `Record<string, unknown>` types | Replaced with explicit interfaces |
-| Hardcoded strings | i18n wired (Phase 20-16) |
+## Test Coverage Gaps
 
-## Data Integrity ✅
-
-| Control | Implementation |
-|---------|----------------|
-| Activity log atomicity | Same transaction as business changes |
-| NOT NULL constraints | `name` column on Risk/Control enforced |
-| Historical snapshots | Quarterly metric accuracy preserved |
-| KRI history | All submitted values preserved |
-| Soft deletes | `status='archived'` pattern |
-
-## Known Feature Gaps
-
-| Gap | Notes |
-|-----|-------|
-| Azure AD/Entra ID integration | AD Emulator is placeholder |
-| Real-time updates | Polling only (no WebSocket) |
-| PDF chart exports | Text/table only |
-| Email notifications | In-app only |
-| Mobile app | Web responsive only |
-
-## E2E Test Coverage (Phase 180)
-
-44 Playwright specs covering:
-
-- ✅ Authentication and authorization
-- ✅ CRUD operations (controls, risks, KRIs)
-- ✅ Activity logging and change tracking
-- ✅ Approval workflows (tiered, self-approval, status-flow)
-- ✅ Cross-department access scenarios
-- ✅ Entity ownership rules
-- ✅ Sensitive field protection
-- ✅ Settings isolation (theme/language per user)
-
-## Historical Audit Findings (Phase 153)
-
-### Critical (Previously Found)
-
-| Issue | Location | Resolution |
-|-------|----------|------------|
-| DB enum case mismatch | Migration L21 | ✅ Fixed |
-| Notification enum drift | APPROVAL_CANCELLED | ✅ Added to DB |
-| Logging config kwargs | main.py L95-98 | ✅ Fixed |
-| datetime.utcnow() | Various | ✅ Using `datetime.now(UTC)` |
-
-### High Priority (Previously Found)
-
-| Issue | Resolution |
-|-------|------------|
-| KRI delete missing reason | ✅ Added `reason` query param |
-| KRI pagination mismatch | ✅ Unified to page/size |
-| Dashboard KRI dept filter | ✅ Added parameter |
-| Approvals cancel button | ✅ Added `pending_privileged` |
-| KRI permission mismatch | ✅ Aligned to `kri:submit` |
-| 202 response typing | ✅ `parseUpdateResult()` helper |
-
-## Remediation History
-
-### Phase 151-152
-
-- ✅ Risk ID generation → atomic retry
-- ✅ Approval duplication → partial unique index
-- ✅ Sensitive field None handling
-- ✅ Approval edge cases
-
-### Phase 154+
-
-- ✅ Cross-department access (control/KRI owners)
-- ✅ Link management access via ownership
-- ✅ 202 approval UX helper
-- ✅ Control frequency "continuous"
-- ✅ Czech localization
-
-### Phase 250-251 (Code Simplification)
-
-- ✅ Extracted 8 data-fetching hooks
-- ✅ Consolidated approval patterns
-- ✅ Simplified service layer (helpers)
-- ✅ Extracted schemas to modules
-- ✅ Created reusable UI components
-- ✅ Theme-aware charting
-- ✅ Removed ~1000+ lines of duplication
-
-## Open Action Items
-
-| Priority | Action | Owner |
-|----------|--------|-------|
-| High | Secure OpenAPI docs in production | DevOps |
-| High | Add webhook signature validation | Backend |
-| Medium | Add httpOnly cookie option for JWT | Security |
-| Medium | Implement token refresh | Backend |
-| Low | Sanitize Excel formula injection | Backend |
-| Low | Add real-time updates (WebSocket) | Future |
-
-## Risk Hub Config Integration Issues (Phase 156 Audit)
-
-| Issue | Severity | Description |
-|-------|----------|-------------|
-| Dashboard static thresholds | Medium | `dashboard.py` uses `ConfigDefaults` at module load; changing Risk Hub thresholds requires app restart |
-| ApprovalScenario unused | Medium | 6 approval scenarios seeded but never queried — approvals are hardcoded in endpoints |
-| Approval toggles orphaned | Medium | `require_edit_approval_priority`, `require_delete_approval`, `secondary_approval_priority` — 0 references |
-| KRI timing key mismatch | Low | Seeded `kri_reminder_days_before` but service looks for `advance_reminder_days` |
-| Missing KRI config seeds | Low | `near_breach_threshold`, `duplicate_lookback_days`, `reporting_grace_days` not seeded |
-| `get_risk_thresholds()` unused | Low | Function exists in `global_config.py` but not called outside tests |
-
-### What DOES Work ✅
-
-- `high_risk_min_net_score` — Used by `is_high_risk_for_approval_async()` in `approval_helpers.py`, `controls.py`
+**Timezone behavior against real Postgres:**
+- Many tests run on SQLite; timezone/enum differences may slip through.
+- Recommendation: keep (or add) at least one CI job running the critical approval flows against Postgres (marker `postgres`).
 
 ---
-*Updated: 2026-01-22*
+
+*Concerns audit: 2026-02-02*
+*Update as issues are fixed or new ones discovered*
+
