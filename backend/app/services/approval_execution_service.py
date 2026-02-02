@@ -167,12 +167,14 @@ def apply_status_transition(
             # Privileged user bypasses tiered approval
             approval.status = ApprovalStatus.APPROVED
             approval.resolved_by_id = current_user.id
-            approval.resolved_at = datetime.now(UTC)
+            # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
+            approval.resolved_at = datetime.now(UTC).replace(tzinfo=None)
             approval.resolution_notes = resolution_notes
             return True
         elif is_primary_approver:
             # Primary approver approving
-            approval.primary_approved_at = datetime.now(UTC)
+            # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
+            approval.primary_approved_at = datetime.now(UTC).replace(tzinfo=None)
             if approval.requires_privileged_approval:
                 # Move to PENDING_PRIVILEGED
                 approval.status = ApprovalStatus.PENDING_PRIVILEGED
@@ -182,7 +184,8 @@ def apply_status_transition(
                 # No privileged approval needed, finalize
                 approval.status = ApprovalStatus.APPROVED
                 approval.resolved_by_id = current_user.id
-                approval.resolved_at = datetime.now(UTC)
+                # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
+                approval.resolved_at = datetime.now(UTC).replace(tzinfo=None)
                 approval.resolution_notes = resolution_notes
                 return True
 
@@ -190,9 +193,11 @@ def apply_status_transition(
         # Privileged user finalizing after primary approval
         approval.status = ApprovalStatus.APPROVED
         approval.privileged_approver_id = current_user.id
-        approval.privileged_approved_at = datetime.now(UTC)
+        # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
+        approval.privileged_approved_at = datetime.now(UTC).replace(tzinfo=None)
         approval.resolved_by_id = current_user.id
-        approval.resolved_at = datetime.now(UTC)
+        # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
+        approval.resolved_at = datetime.now(UTC).replace(tzinfo=None)
         approval.resolution_notes = (
             (approval.resolution_notes or "") + f"\nPrivileged approval: {resolution_notes}"
         )
@@ -297,7 +302,8 @@ async def _apply_delete_side_effects(
         
         old_is_archived = kri.is_archived
         kri.is_archived = True
-        kri.archived_at = datetime.now(UTC)
+        # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
+        kri.archived_at = datetime.now(UTC).replace(tzinfo=None)
         kri.archived_by_id = current_user.id
         department_id = await get_approval_department_id(db, approval)
         await log_activity(
