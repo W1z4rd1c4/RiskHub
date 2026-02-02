@@ -1,164 +1,91 @@
 # Technology Stack
 
-## Core Technologies
+**Analysis Date:** 2026-02-02
 
-| Layer | Technology | Version |
-|-------|------------|---------|
-| Languages | Python 3.12+ (backend), TypeScript 5.9 (frontend) | |
-| Backend | FastAPI (async) | ≥0.109 |
-| Frontend | React + Vite | 19.2 / 7.2 |
-| Database | PostgreSQL | 16 |
-| ORM | SQLAlchemy 2 (async with asyncpg) | ≥2.0.25 |
-| AD Emulator | Standalone FastAPI + React app | |
+## Languages
 
-## Backend (RiskHub API)
+**Primary:**
+- Python 3.12+ — Backend API (`backend/app/`)
+- TypeScript ~5.8 — Frontend UI (`frontend/src/`)
 
-### Core Framework
+**Secondary:**
+- JavaScript — Frontend tooling/config (`frontend/*.js`)
+- SQL — Alembic migrations (`backend/alembic/versions/`)
+- Shell/Make — Local dev orchestration (`Makefile`, `dev.sh`)
 
-- **FastAPI** ≥0.109, **Pydantic 2**, **Uvicorn**
-- Async-first architecture with `asyncpg` driver
+## Runtime
 
-### Database & ORM
+**Environment:**
+- Python 3.12 (Docker image `python:3.12-slim`) — Backend runtime (`backend/Dockerfile`)
+- Node.js 20 (Docker image `node:20-alpine`) — Frontend build (`frontend/Dockerfile`)
+- Nginx (Docker image `nginx:alpine`) — Frontend static hosting (`frontend/Dockerfile`, `frontend/nginx.conf`)
+- PostgreSQL 16 — Primary DB (`docker-compose.yml`)
 
-- **SQLAlchemy 2** async with `async_sessionmaker`
-- **asyncpg** ≥0.29 for PostgreSQL connections
-- **psycopg2-binary** for Alembic migrations (sync driver)
-- **Alembic** ≥1.13 with 39 migration files
+**Package Manager:**
+- Backend: `pip` via `backend/requirements.txt`
+- Frontend: `npm` (lockfile `frontend/package-lock.json`)
 
-### Authentication & Security
+## Frameworks
 
-- **python-jose** (JWT HS256) with configurable expiry
-- **passlib** + **bcrypt** 4.1.3 (pinned for compatibility)
-- Security headers middleware: CSP, HSTS, X-Frame-Options, XSS protection
-- Rate limiting middleware (disabled in debug mode)
+**Core:**
+- FastAPI (async) — API server (`backend/app/main.py`, `backend/app/api/v1/router.py`)
+- SQLAlchemy 2 (async) + asyncpg — ORM/data access (`backend/app/db/session.py`)
+- Alembic — DB migrations (`backend/alembic/`)
+- React 19 + React Router 7 — SPA (`frontend/src/App.tsx`)
+- Vite — dev/build (`frontend/vite.config.ts`)
 
-### Scheduling & Background Jobs
+**Testing:**
+- pytest + pytest-asyncio + httpx — backend tests (`backend/tests/`)
+- Vitest + Testing Library + MSW — frontend unit/integration tests (`frontend/src/**/__tests__`, `frontend/src/test/mocks/`)
+- Playwright — E2E tests (`frontend/e2e/`, `frontend/playwright.config.ts`)
 
-- **APScheduler** 3.11 (in-process scheduler)
-- KRI deadline notifications, reminder jobs
+**Build/Dev:**
+- Tailwind CSS + PostCSS — styling (`frontend/tailwind.config.js`, `frontend/postcss.config.js`)
+- ESLint + typescript-eslint — frontend lint (`frontend/eslint.config.js`)
+- Black + Ruff + Bandit + Gitleaks — repo hygiene (`.pre-commit-config.yaml`)
 
-### Logging & Observability
+## Key Dependencies
 
-- **structlog** ≥24.1.0 (JSON SIEM-ready)
-- **python-json-logger** ≥2.0.0
-- Request context injection: request_id, user_id, client_ip
-- Rotating file handlers with configurable size/count
+**Critical (backend):**
+- `fastapi`, `uvicorn` — HTTP API runtime
+- `sqlalchemy[asyncio]`, `asyncpg` — DB access
+- `pydantic`, `pydantic-settings` — schema + config (`backend/app/core/config.py`)
+- `python-jose`, `passlib[bcrypt]` — JWT auth + password hashing (`backend/app/core/security.py`)
+- `structlog`, `python-json-logger` — structured logging (`backend/app/core/logging.py`, `backend/logs/`)
 
-### Reporting & Export
+**Critical (frontend):**
+- `react`, `react-router-dom` — app shell + routing
+- `@tanstack/react-query` — data fetching/caching (used across pages/hooks)
+- `tailwindcss` — utility styling
+- `@playwright/test`, `vitest` — test runners
 
-- **reportlab** ≥4.0.0 (PDF generation)
-- **openpyxl** ≥3.1.0 (Excel generation)
-- Locale-aware report translations
-
-### Testing
-
-- **pytest** ≥8.0.0, **pytest-asyncio** ≥0.23.0
-- **httpx** ≥0.27.0 (async HTTP client for tests)
-- **pytest-cov** ≥4.1.0
-- 41 test files in `backend/tests/`
-
-### Security Scanning
-
-- **bandit** ≥1.7.8 (Python SAST)
-- **pip-audit** ≥2.7.0 (dependency vulnerabilities)
-- **pre-commit** ≥3.7.0
-
-## Frontend (RiskHub UI)
-
-### Core Framework
-
-- **React** 19.2, **React Router** 7.11
-- **Vite** 7.2, **TypeScript** 5.9
-- ES Modules (`"type": "module"`)
-
-### Build & Tooling
-
-- **PostCSS** + **Autoprefixer**
-- **ESLint** 9 + **typescript-eslint** 8
-- Import alias: `@` → `src/`
-
-### Styling
-
-- **Tailwind CSS** 3.4 + **tailwindcss-animate**
-- **class-variance-authority**, **clsx**, **tailwind-merge**
-
-### UI Components
-
-- **Radix UI**: Label, Select, Slot, Tabs
-- **lucide-react** 0.562 (icons)
-- **Framer Motion** 12 (animations)
-- **shadcn/ui** patterns
-
-### Data Fetching & State
-
-- **@tanstack/react-query** 5 (data caching)
-- **Axios** 1.13 (HTTP client)
-- React Contexts: AuthContext, DashboardFilterContext, ThemeContext
-
-### Charts & Visualization
-
-- **Recharts** 3.6
-- **date-fns** 4 (date formatting)
-
-### Internationalization
-
-- **i18next** 25.7 + **react-i18next** 16.5
-- **i18next-browser-languagedetector** 8.2
-- 2 locales (en, cs) × 10 namespace files each
-
-### Markdown Rendering
-
-- **react-markdown** 10.1 + **remark-gfm** 4.0
-
-### Testing
-
-- **Vitest** 4 (unit tests, jsdom)
-- **Testing Library** (React 16, jest-dom 6, user-event 14)
-- **MSW** 2.12 (API mocking)
-- **Playwright** 1.57 (E2E tests)
-
-## AD Emulator
-
-### Backend
-
-- **FastAPI** + **SQLAlchemy** async + **Alembic**
-- Port 8001, separate `ad_emulator_db` database
-
-### Frontend
-
-- **React** 19.2 + **Vite** 7.2
-- **Tailwind CSS** 4.1 (purple branding)
-- Port 5174
-
-### Purpose
-
-- Stand-in Active Directory for RiskHub sync testing
-- Simulates user directory with department mappings
-
-## DevOps & Infrastructure
-
-| Tool | Purpose |
-|------|---------|
-| **docker-compose** | PostgreSQL + full stack orchestration |
-| **docker-compose.prod.yml** | Production configuration |
-| **Makefile** | Dev command shortcuts |
-| **GitHub Actions** | CI/CD workflows |
-| **pre-commit** | gitleaks, bandit, pip-audit hooks |
-| **gitleaks** | Secrets detection |
+**Infrastructure:**
+- Docker Compose — local multi-service dev (`docker-compose.yml`, `docker-compose.prod.yml`)
 
 ## Configuration
 
-### Environment Variables
+**Environment:**
+- Root `.env.example` for production-like config
+- `backend/.env.example` and `frontend/.env.example` for local dev defaults
+- Backend settings via Pydantic `Settings` (`backend/app/core/config.py`)
 
-- Documented in `.env.example` (3.7KB)
-- Required: `DATABASE_URL`, `SECRET_KEY`
-- Optional: `MOCK_AUTH_ENABLED`, `DEBUG`, `CORS_ORIGINS`
+**Build:**
+- Frontend proxy routes `/api` → `http://localhost:8000` for dev (`frontend/vite.config.ts`)
+- Frontend API base URL defaults to relative `/api/v1` (`frontend/src/services/apiClient.ts`)
 
-### Global Config (Database)
+## Platform Requirements
 
-- Runtime configuration via `global_config` table
-- TTL-cached with 60s expiry
-- Categories: risk_thresholds, notifications, approvals
+**Development:**
+- Docker (for Postgres via `docker-compose up -d db`)
+- Python 3.12 environment for backend (`make dev`, `make test`)
+- Node.js 20+ for frontend (`make dev-full`, `npm run dev`)
+
+**Production:**
+- Docker Compose / Docker runtime for `db`, `backend`, `frontend`
+- Backend expects strong `SECRET_KEY`, `DATABASE_URL`, and locked-down `MOCK_AUTH_ENABLED=false` (see `.env.example`)
 
 ---
-*Updated: 2026-01-17*
+
+*Stack analysis: 2026-02-02*
+*Update after major dependency changes*
+
