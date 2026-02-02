@@ -13,6 +13,47 @@ export function useTypedTranslation<NS extends Namespace = 'common'>(ns?: NS) {
     return useI18nextTranslation(ns);
 }
 
+type TranslationOptions = Record<string, unknown> & {
+    defaultValue?: string;
+    ns?: string | string[];
+};
+
+export type SafeTFunction = {
+    (key: string): string;
+    (key: string, options: TranslationOptions): string;
+    (key: string, defaultValue: string): string;
+    (key: string, defaultValue: string, options: TranslationOptions): string;
+};
+
+/**
+ * Repo-wide translation hook.
+ *
+ * Why this exists:
+ * - The codebase uses multiple `t()` call shapes, including `t(key, fallbackString)`
+ *   and `t(key, fallbackString, options)`.
+ * - react-i18next's `t` overloads + TS can sometimes hit internal compiler errors
+ *   (we observed this in `npm run build`).
+ *
+ * This wrapper normalizes those call shapes to the object-form `defaultValue`,
+ * while keeping behavior identical.
+ */
+export function useTranslation<NS extends Namespace = 'common'>(
+    ns?: NS | readonly NS[],
+    options?: unknown,
+) {
+    const result = useI18nextTranslation(ns as any, options as any);
+    const rawT = result.t as unknown as (key: string, options?: TranslationOptions) => string;
+
+    const t: SafeTFunction = ((key: string, arg2?: string | TranslationOptions, arg3?: TranslationOptions) => {
+        if (typeof arg2 === 'string') {
+            return rawT(key, { defaultValue: arg2, ...(arg3 ?? {}) });
+        }
+        return rawT(key, arg2);
+    }) as SafeTFunction;
+
+    return { ...result, t };
+}
+
 /**
  * Hook for locale-aware date formatting.
  * Uses the current i18n language for Intl.DateTimeFormat.
@@ -185,6 +226,5 @@ export function useLanguage() {
     );
 }
 
-// Re-export the standard useTranslation for convenience
-export { useI18nextTranslation as useTranslation };
-
+// Re-export the raw react-i18next hook for cases that need full typing surface.
+export { useI18nextTranslation as useI18nextTranslation };

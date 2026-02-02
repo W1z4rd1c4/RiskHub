@@ -9,7 +9,7 @@
  */
 import { test, expect } from '../fixtures/auth.fixture';
 import { RisksPage } from '../pages/RisksPage';
-import { waitForDataLoad, waitForToast } from '../helpers/wait';
+import { waitForDataLoad } from '../helpers/wait';
 
 test.describe('Risk CRUD Permissions', () => {
     test.describe('risks:read - View Risks', () => {

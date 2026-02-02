@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 

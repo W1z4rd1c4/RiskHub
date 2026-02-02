@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, FileText, Send, UserX } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import type { Risk } from '@/types/risk';
 import type { RiskQuestionnaireDetail as RiskQuestionnaireDetailType, RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';

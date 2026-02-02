@@ -3,7 +3,7 @@
  * Uses theme-aware colors via useChartTheme hook.
  */
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
 import { useChartTheme } from '@/hooks/useChartTheme';
 

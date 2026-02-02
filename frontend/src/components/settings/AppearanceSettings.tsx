@@ -1,5 +1,5 @@
 import { Sun, Moon, Sparkles, Check } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { useTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
 
@@ -99,4 +99,3 @@ export function AppearanceSettings() {
         </div>
     );
 }
-

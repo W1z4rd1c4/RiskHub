@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Trash2, Calendar, Activity, Plus, User } from 'lucide-react';
-import type { KeyRiskIndicator, KRIUpdate, KRICreate } from '@/types/kri';
+import { KRIFrequencies, type KRIFrequency, type KeyRiskIndicator, type KRIUpdate, type KRICreate } from '@/types/kri';
 import { userApi } from '@/services/userApi';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 interface KRIModalProps {
     risk_id: number;
@@ -78,7 +78,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
     const handleSave = async () => {
         try {
             setIsSaving(true);
-            const { current_value, ...rest } = formData;
+            const { current_value: _currentValue, ...rest } = formData;
             const data = isCreate ? { ...formData, risk_id } as KRICreate : rest as KRIUpdate;
             await onSave(data);
             onClose();
@@ -206,7 +206,11 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                     </label>
                                     <ThemedSelect
                                         value={formData.frequency || 'quarterly'}
-                                        onValueChange={(v) => setFormData({ ...formData, frequency: v as any })}
+                                        onValueChange={(v) => {
+                                            if ((KRIFrequencies as readonly string[]).includes(v)) {
+                                                setFormData({ ...formData, frequency: v as KRIFrequency });
+                                            }
+                                        }}
                                         className="w-full"
                                         options={[
                                             { value: 'daily', label: 'Daily' },

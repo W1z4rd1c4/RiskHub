@@ -4,7 +4,7 @@ import { Shield, Plus, Edit, Trash2, RotateCcw, AlertCircle, Users } from 'lucid
 import { riskHubApi } from '@/services/riskHubApi';
 import type { RoleHubCreate, RoleHubUpdate, RoleHubRead, PermissionRead } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 interface RoleModalProps {
     isOpen: boolean;
@@ -77,8 +77,8 @@ function RoleModal({ isOpen, onClose, role, allPermissions, permissionsLoading, 
                 });
             }
             onClose();
-        } catch (err: any) {
-            setError(err.response?.data?.detail || err.message || 'Failed to save');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to save');
         } finally {
             setSaving(false);
         }
@@ -251,8 +251,8 @@ export function RolesPanel() {
             try {
                 await deleteMutation.mutateAsync(deleteConfirm.id);
                 setDeleteConfirm(null);
-            } catch (error: any) {
-                alert(error.response?.data?.detail || "Failed to delete role");
+            } catch (error: unknown) {
+                alert(error instanceof Error ? error.message : "Failed to delete role");
             }
         }
     };

@@ -19,10 +19,10 @@ pre-commit run --all-files
 ### Run Individual Scans
 
 ```bash
-# Python SAST (Bandit)
-cd backend
-pip install bandit
-bandit -c .bandit -r app
+	# Python SAST (Bandit)
+	cd backend
+	pip install bandit
+	bandit --ini .bandit -r app
 
 # Python Dependency Scan (pip-audit)
 pip install pip-audit
@@ -105,6 +105,14 @@ Document accepted risks in `.gitleaks.toml` and `backend/.bandit`:
 - Include justification
 - Set review date
 - Require approval
+
+## Accepted Risks
+
+### CVE-2024-23342 (`ecdsa`, transitive via `python-jose`)
+
+RiskHub uses symmetric JWT signing/verification (`HS256`) only (see `backend/app/core/security.py`), so ECDSA signing/verification code paths are not exercised by the application.
+
+Re-evaluate this acceptance if RiskHub introduces any ECDSA/ECDH-based algorithms (e.g., `ES256`/`ES384`/`ES512`) or other features that rely on `ecdsa`.
 
 ---
 

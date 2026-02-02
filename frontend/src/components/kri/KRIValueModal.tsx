@@ -38,7 +38,8 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
 
             // Check if response indicates approval required (202 Accepted)
             // The API returns 202 for non-privileged submissions that need approval
-            if (response && (response as any).status === 202) {
+            const maybeStatus = response as unknown as { status?: number };
+            if (maybeStatus.status === 202) {
                 setSubmitResult('pending_approval');
             } else {
                 setSubmitResult('success');
@@ -48,14 +49,9 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
                     onClose();
                 }, 1500);
             }
-        } catch (err: any) {
-            // Check for 202 status in axios response
-            if (err.response?.status === 202) {
-                setSubmitResult('pending_approval');
-            } else {
-                console.error('Record value failed:', err);
-                setError(err.response?.data?.detail || err.message || 'Failed to record value');
-            }
+        } catch (err: unknown) {
+            console.error('Record value failed:', err);
+            setError(err instanceof Error ? err.message : 'Failed to record value');
         } finally {
             setIsSaving(false);
         }
@@ -229,4 +225,3 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
         document.body
     );
 }
-

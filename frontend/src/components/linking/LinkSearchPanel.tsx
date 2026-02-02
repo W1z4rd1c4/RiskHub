@@ -13,7 +13,7 @@ import {
     Link as LinkIcon,
 } from 'lucide-react';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 // ---------------------------------------------------------------------------
 // Types

@@ -22,7 +22,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useActivityLogPageState, type ActiveTab } from '@/hooks/useActivityLogPageState';
 import { ActivityLogFilterBar } from '@/components/activity-log/ActivityLogFilterBar';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 // ─────────────────────────────────────────────────────────────
 // Helper functions for rendering
@@ -106,6 +106,7 @@ const TABS: { id: ActiveTab; label: string }[] = [
 export function ActivityLogPage() {
     const { canViewActivityLog } = usePermissions();
     const { t } = useTranslation('common');
+    const state = useActivityLogPageState({ enabled: canViewActivityLog });
 
     // Permission gate - early return if user lacks permission
     // This prevents any API calls from being made
@@ -122,9 +123,6 @@ export function ActivityLogPage() {
             </div>
         );
     }
-
-    // All state management delegated to the hook
-    const state = useActivityLogPageState();
 
     return (
         <div className="flex flex-col gap-6">

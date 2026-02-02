@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { CheckCircle2, ClipboardList, Loader2, Plus, Save, Send, ShieldCheck, UserCheck, XCircle } from 'lucide-react';
 import type { Vendor } from '@/types/vendor';
 import type { VendorAssessment, VendorAssessmentStatus, VendorCommitteeRecommendation } from '@/types/vendorAssessment';
@@ -469,4 +469,3 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
         </section>
     );
 }
-

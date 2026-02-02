@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 
 export function UserDetailPage() {
     const { id } = useParams<{ id: string }>();

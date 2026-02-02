@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '@/i18n/hooks';
 import { Loader2, Save, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { vendorResilienceApi } from '@/services/vendorResilienceApi';
 import type { VendorResilience, VendorPlanStatus } from '@/types/vendorResilience';
@@ -367,4 +367,3 @@ export function VendorResilienceTab({ vendorId, canEdit }: VendorResilienceTabPr
         </section>
     );
 }
-
