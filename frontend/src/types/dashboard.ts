@@ -7,6 +7,12 @@ export interface DashboardSummary {
     risks_by_status: Record<string, number>;
     critical_risks_count: number;
     average_net_risk_score: number;
+
+    // Vendor metrics (Phase 18-11)
+    total_vendors?: number;
+    high_risk_vendors_count?: number;
+    overdue_vendor_reassessments_count?: number;
+    breached_vendor_slas_count?: number;
 }
 
 export interface DepartmentMetrics {
@@ -56,4 +62,3 @@ export interface DashboardFilters {
     controlStatus: string | null;
     controlForm: string | null;
 }
-

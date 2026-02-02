@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from typing import Optional
+from datetime import datetime, UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, or_, func, asc, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from pydantic import BaseModel, Field
 
 from app.db.session import get_db
 from app.models import User, Vendor
@@ -15,6 +17,7 @@ from app.core.permissions import get_user_department_ids, check_department_acces
 from app.core.security import require_permission, check_permission
 from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services.vendor_reassessment_service import VendorReassessmentService
 
 router = APIRouter()
 
@@ -142,6 +145,9 @@ async def create_vendor(
     check_department_access(payload.department_id, current_user)
 
     vendor = Vendor(**payload.model_dump())
+    cadence = 12 if vendor.supports_important_core_insurance_function else 36
+    vendor.reassessment_cadence_months = cadence
+    vendor.next_reassessment_due_at = VendorReassessmentService.compute_next_due(base=datetime.now(UTC), cadence_months=cadence)
     db.add(vendor)
     await db.commit()
     await db.refresh(vendor)
@@ -229,6 +235,15 @@ async def update_vendor(
         }
 
     restricted_fields = {"department_id", "outsourcing_owner_user_id", "status"}
+    restricted_fields |= {
+        "reassessment_cadence_months",
+        "next_reassessment_due_at",
+        "last_assessed_at",
+        "last_decided_at",
+        "last_reassessment_reminded_at",
+        "reassessment_triggered_reason",
+        "reassessment_triggered_at",
+    }
     if not can_write and (restricted_fields & set(updates.keys())):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to change governance fields")
 
@@ -240,6 +255,18 @@ async def update_vendor(
         if hasattr(value, "value"):
             value = value.value
         setattr(vendor, field, value)
+
+    if can_write and "supports_important_core_insurance_function" in updates:
+        if "reassessment_cadence_months" not in updates:
+            vendor.reassessment_cadence_months = 12 if vendor.supports_important_core_insurance_function else 36
+        if "next_reassessment_due_at" not in updates:
+            base = vendor.last_decided_at or vendor.created_at or datetime.now(UTC)
+            if getattr(base, "tzinfo", None) is None:
+                base = base.replace(tzinfo=UTC)
+            vendor.next_reassessment_due_at = VendorReassessmentService.compute_next_due(
+                base=base,
+                cadence_months=vendor.reassessment_cadence_months,
+            )
 
     await db.commit()
     await db.refresh(vendor)
@@ -255,6 +282,66 @@ async def update_vendor(
         changes=changes,
     )
     await db.commit()
+
+    return {
+        **{c.name: getattr(vendor, c.name) for c in Vendor.__table__.columns},
+        "department_name": vendor.department.name if vendor.department else None,
+        "outsourcing_owner_name": vendor.outsourcing_owner.name if vendor.outsourcing_owner else None,
+    }
+
+
+class VendorTriggerReassessmentPayload(BaseModel):
+    reason: str = Field(..., max_length=50)
+
+
+@router.post("/{vendor_id}/trigger-reassessment", response_model=VendorRead)
+async def trigger_vendor_reassessment(
+    vendor_id: int,
+    payload: VendorTriggerReassessmentPayload,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    if not check_permission(current_user, "vendors", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+
+    result = await db.execute(
+        select(Vendor)
+        .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
+        .where(Vendor.id == vendor_id)
+    )
+    vendor = result.scalar_one_or_none()
+    if not vendor or not can_read_vendor(vendor, current_user):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+    is_owner = is_vendor_owner(vendor, current_user)
+    can_write = check_permission(current_user, "vendors", "write")
+    if not can_write and not is_owner:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+
+    now = datetime.now(UTC)
+    updates = {
+        "next_reassessment_due_at": now,
+        "reassessment_triggered_reason": payload.reason,
+        "reassessment_triggered_at": now,
+    }
+    changes = build_change_set(vendor, updates)
+    vendor.next_reassessment_due_at = now
+    vendor.reassessment_triggered_reason = payload.reason
+    vendor.reassessment_triggered_at = now
+
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.VENDOR,
+        entity_id=vendor.id,
+        entity_name=vendor.name,
+        action=ActivityAction.UPDATE,
+        actor=current_user,
+        department_id=vendor.department_id,
+        changes=changes,
+        description=f"Triggered vendor reassessment for {vendor.name}",
+    )
+    await db.commit()
+    await db.refresh(vendor)
 
     return {
         **{c.name: getattr(vendor, c.name) for c in Vendor.__table__.columns},

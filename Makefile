@@ -46,6 +46,13 @@ dev-full: db
 	@echo "Starting frontend..."
 	cd frontend && npm run dev
 
+# Start DB + backend + frontend for LAN access (frontend binds 0.0.0.0)
+dev-full-lan: db
+	@echo "Starting backend in background..."
+	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
+	@echo "Starting frontend (LAN)..."
+	cd frontend && npm run dev -- --host
+
 # Start all services via Docker
 docker:
 	docker-compose up -d

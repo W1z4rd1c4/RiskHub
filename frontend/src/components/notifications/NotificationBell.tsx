@@ -76,7 +76,30 @@ function formatTimeAgo(dateString: string): string {
 /**
  * Get navigation path for notification resource.
  */
-function getResourcePath(resourceType?: string, resourceId?: number): string | null {
+function vendorTabForNotification(type: NotificationType): string | null {
+    if (type === 'vendor_reassessment_due_soon' || type === 'vendor_reassessment_overdue') return 'schedule';
+    if (
+        type === 'vendor_sla_due_soon' ||
+        type === 'vendor_sla_due_tomorrow' ||
+        type === 'vendor_sla_overdue' ||
+        type === 'vendor_sla_near_breach' ||
+        type === 'vendor_sla_breach_detected'
+    ) {
+        return 'sla';
+    }
+    if (
+        type === 'vendor_assessment_submitted' ||
+        type === 'vendor_assessment_committee_recommended' ||
+        type === 'vendor_assessment_decided'
+    ) {
+        return 'assessments';
+    }
+    return null;
+}
+
+function getResourcePath(notification: Notification): string | null {
+    const resourceType = notification.resource_type;
+    const resourceId = notification.resource_id;
     if (!resourceType || !resourceId) return null;
 
     switch (resourceType) {
@@ -87,7 +110,7 @@ function getResourcePath(resourceType?: string, resourceId?: number): string | n
         case 'kri':
             return `/kris/${resourceId}`;
         case 'vendor':
-            return `/vendors/${resourceId}`;
+            return `/vendors/${resourceId}${vendorTabForNotification(notification.type) ? `?tab=${vendorTabForNotification(notification.type)}` : ''}`;
         case 'approval':
             return '/approvals';
         default:
@@ -171,7 +194,7 @@ export function NotificationBell() {
         await markAsRead(notification);
 
         // Navigate to resource
-        const path = getResourcePath(notification.resource_type, notification.resource_id);
+        const path = getResourcePath(notification);
         if (path) {
             navigate(path);
         }

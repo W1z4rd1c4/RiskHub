@@ -37,5 +37,8 @@ export const vendorApi = {
     async deleteVendor(id: number): Promise<void> {
         return apiClient.delete<void>(`/vendors/${id}`);
     },
-};
 
+    async triggerReassessment(id: number, reason: string): Promise<Vendor> {
+        return apiClient.post<Vendor>(`/vendors/${id}/trigger-reassessment`, { reason });
+    },
+};

@@ -21,6 +21,7 @@ import {
   DepartmentDetailPage,
   VendorsPage,
   VendorDetailPage,
+  VendorReportsPage,
   SettingsPage,
   HeroPage,
   AuditTrailPage,
@@ -111,6 +112,7 @@ function App() {
                 <Route path="vendors/new" element={<VendorDetailPage mode="new" />} />
                 <Route path="vendors/:id" element={<VendorDetailPage />} />
                 <Route path="vendors/:id/edit" element={<VendorDetailPage mode="edit" />} />
+                <Route path="vendor-reports" element={<VendorReportsPage />} />
                 <Route path="audit-trail" element={<AuditTrailPage />} />
                 <Route path="activity-log" element={<ActivityLogPage />} />
                 <Route path="users" element={<UsersPage />} />

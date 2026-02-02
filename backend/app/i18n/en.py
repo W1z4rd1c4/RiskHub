@@ -73,6 +73,29 @@ MESSAGES = {
         'questionnaire_submitted_message': "{actor_name} submitted the risk assessment questionnaire for '{risk_name}'.",
         'questionnaire_clarification_requested_title': 'Clarification requested',
         'questionnaire_clarification_requested_message': "A clarification was requested for your risk assessment questionnaire for '{risk_name}'.",
+
+        'vendor_assessment_submitted_title': 'Vendor assessment submitted',
+        'vendor_assessment_submitted_message': "{actor_name} submitted due diligence for vendor '{vendor_name}'.",
+        'vendor_assessment_committee_recommended_title': 'Vendor assessment recommendation',
+        'vendor_assessment_committee_recommended_message': "A committee recommendation was recorded for vendor '{vendor_name}'.",
+        'vendor_assessment_decided_title': 'Vendor assessment decision',
+        'vendor_assessment_decided_message': "Decision '{decision}' was recorded for vendor '{vendor_name}'.",
+
+        'vendor_reassessment_due_soon_title': 'Vendor reassessment due soon',
+        'vendor_reassessment_due_soon_message': "Vendor '{vendor_name}' should be reassessed by {due_date}.",
+        'vendor_reassessment_overdue_title': 'Vendor reassessment overdue',
+        'vendor_reassessment_overdue_message': "Vendor '{vendor_name}' reassessment is overdue since {due_date}.",
+
+        'vendor_sla_due_soon_title': 'Vendor SLA due soon',
+        'vendor_sla_due_soon_message': "SLA '{sla_name}' for vendor '{vendor_name}' is due by {due_date}.",
+        'vendor_sla_due_tomorrow_title': 'Vendor SLA due tomorrow',
+        'vendor_sla_due_tomorrow_message': "SLA '{sla_name}' for vendor '{vendor_name}' is due by {due_date}.",
+        'vendor_sla_overdue_title': 'Vendor SLA overdue',
+        'vendor_sla_overdue_message': "SLA '{sla_name}' for vendor '{vendor_name}' is overdue since {due_date}.",
+        'vendor_sla_near_breach_title': 'Vendor SLA near breach',
+        'vendor_sla_near_breach_message': "SLA '{sla_name}' for vendor '{vendor_name}' is approaching the limit.",
+        'vendor_sla_breach_detected_title': 'Vendor SLA breached',
+        'vendor_sla_breach_detected_message': "SLA '{sla_name}' for vendor '{vendor_name}' breached the limit.",
     },
     
     # Activity log action descriptions

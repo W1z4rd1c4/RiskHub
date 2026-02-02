@@ -482,7 +482,7 @@ export function ControlDetailPage() {
                             <History className="h-4 w-4 text-accent" />
                             Execution Audit Trail
                         </h3>
-                        <PermissionGate resource="controls" action="write">
+                        <PermissionGate resource="controls" action="execute">
                             <button
                                 onClick={() => setIsLogModalOpen(true)}
                                 className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2 group-hover:shadow-[0_0_15px_rgba(30,132,255,0.2)]"

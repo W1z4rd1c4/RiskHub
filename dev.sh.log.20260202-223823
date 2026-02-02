@@ -1,0 +1,6 @@
+[0;32m======================================[0m
+[0;32m RiskHub Development Environment[0m
+[0;32m======================================[0m
+
+[1;33mStarting PostgreSQL database...[0m
+unable to get image 'postgres:16': Cannot connect to the Docker daemon at unix:///Users/stefanlesnak/.docker/run/docker.sock. Is the docker daemon running?

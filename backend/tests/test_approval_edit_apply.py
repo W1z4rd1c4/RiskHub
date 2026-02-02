@@ -23,6 +23,8 @@ async def test_approval_edit_risk_recomputes_gross_score(db_session, test_depart
     risk = Risk(
         name="Test Risk for Approval Edit",
         risk_id_code="TST-001",
+        process="Test Process",
+        risk_type="operational",
         description="Test description",
         department_id=test_department.id,
         owner_id=test_user_cro.id,
@@ -71,6 +73,8 @@ async def test_approval_edit_risk_recomputes_net_score(db_session, test_departme
     risk = Risk(
         name="Test Risk Net Score",
         risk_id_code="TST-002",
+        process="Test Process",
+        risk_type="operational",
         description="Test description",
         department_id=test_department.id,
         owner_id=test_user_cro.id,
@@ -117,9 +121,9 @@ async def test_approval_edit_control_sets_updated_by_id(db_session, test_departm
         name="Test Control for Approval Edit",
         description="Original description",
         department_id=test_department.id,
-        owner_id=test_user_risk_manager.id,
+        control_owner_id=test_user_risk_manager.id,
         status="active",
-        form="preventive",
+        control_form="manual",
         frequency="monthly",
         updated_by_id=None,  # Not set initially
     )
@@ -158,6 +162,8 @@ async def test_approval_edit_risk_no_score_change_when_no_probability_impact(db_
     risk = Risk(
         name="Test Risk No Score Change",
         risk_id_code="TST-003",
+        process="Test Process",
+        risk_type="operational",
         description="Original",
         department_id=test_department.id,
         owner_id=test_user_cro.id,

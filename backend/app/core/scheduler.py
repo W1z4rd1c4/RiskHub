@@ -7,6 +7,11 @@ from apscheduler.triggers.cron import CronTrigger
 from app.db.session import async_session_maker
 from app.services.kri_deadline_service import KRIDeadlineService
 from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
+from app.services.vendor_reassessment_service import VendorReassessmentService
+from app.services.vendor_sla_deadline_service import VendorSLADeadlineService
+from app.services.vendor_signal_service import VendorSignalService
+from app.models.vendor import Vendor
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +51,58 @@ async def run_questionnaire_check():
         logger.error(f"Questionnaire deadline check failed: {e}")
 
 
+async def run_vendor_reassessment_check():
+    """Background job: Check vendor reassessment deadlines and generate notifications."""
+    logger.info("Starting scheduled vendor reassessment check...")
+    try:
+        async with get_db_context() as db:
+            result = await VendorReassessmentService.check_vendor_reassessments(db)
+            logger.info(f"Vendor reassessment check complete: {result}")
+    except Exception as e:
+        logger.error(f"Vendor reassessment check failed: {e}")
+
+
+async def run_vendor_sla_check():
+    """Background job: Check vendor SLA deadlines/breaches and generate notifications."""
+    logger.info("Starting scheduled vendor SLA check...")
+    try:
+        async with get_db_context() as db:
+            result = await VendorSLADeadlineService.check_vendor_sla_deadlines(db)
+            logger.info(f"Vendor SLA check complete: {result}")
+    except Exception as e:
+        logger.error(f"Vendor SLA check failed: {e}")
+
+
+async def run_vendor_signal_refresh():
+    """Background job: Refresh optional external vendor signals."""
+    logger.info("Starting scheduled vendor signal refresh...")
+    try:
+        from app.core.config import get_settings
+
+        settings = get_settings()
+        if not getattr(settings, "vendor_signals_public_registry_base_url", None):
+            logger.info("Vendor signal refresh skipped (no public registry base URL configured)")
+            return
+
+        async with get_db_context() as db:
+            vendors = (
+                await db.execute(
+                    select(Vendor)
+                    .where(Vendor.status == "active")
+                    .where(Vendor.registration_id.isnot(None))
+                    .limit(200)
+                )
+            ).scalars().all()
+
+            refreshed = 0
+            for v in vendors:
+                await VendorSignalService.refresh_vendor_signals(db, vendor=v, force=False)
+                refreshed += 1
+            logger.info(f"Vendor signal refresh complete: refreshed={refreshed}")
+    except Exception as e:
+        logger.error(f"Vendor signal refresh failed: {e}")
+
+
 def setup_scheduler():
     """Configure scheduled jobs."""
     # Daily KRI check at 8:00 AM
@@ -62,6 +119,30 @@ def setup_scheduler():
         CronTrigger(hour=8, minute=5),
         id="questionnaire_deadline_check",
         name="Daily Questionnaire Deadline Check",
+        replace_existing=True,
+    )
+    # Daily vendor reassessment check at 8:10 AM
+    scheduler.add_job(
+        run_vendor_reassessment_check,
+        CronTrigger(hour=8, minute=10),
+        id="vendor_reassessment_check",
+        name="Daily Vendor Reassessment Check",
+        replace_existing=True,
+    )
+    # Daily vendor SLA check at 8:15 AM
+    scheduler.add_job(
+        run_vendor_sla_check,
+        CronTrigger(hour=8, minute=15),
+        id="vendor_sla_check",
+        name="Daily Vendor SLA Check",
+        replace_existing=True,
+    )
+    # Daily vendor signals refresh at 8:20 AM (optional connectors)
+    scheduler.add_job(
+        run_vendor_signal_refresh,
+        CronTrigger(hour=8, minute=20),
+        id="vendor_signal_refresh",
+        name="Daily Vendor External Signal Refresh",
         replace_existing=True,
     )
     logger.info("Scheduler configured: KRI deadline check scheduled for 8:00 AM daily")

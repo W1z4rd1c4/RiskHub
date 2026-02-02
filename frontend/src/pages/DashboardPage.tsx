@@ -11,7 +11,8 @@ import {
     RefreshCw,
     ShieldAlert,
     FileText,
-    Users
+    Users,
+    Handshake
 } from 'lucide-react';
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -179,6 +180,15 @@ export function DashboardPage() {
             trend: t('stats.calculated'),
             path: '/risks',
         },
+        {
+            title: t('stats.vendors', 'Vendors'),
+            value: summary?.total_vendors ?? 0,
+            icon: Handshake,
+            color: 'text-blue-400',
+            bg: 'bg-blue-400/10',
+            trend: t('stats.live'),
+            path: '/vendors',
+        },
     ];
 
     return (
@@ -239,7 +249,7 @@ export function DashboardPage() {
                         variants={container}
                         initial="hidden"
                         animate="show"
-                        className="grid gap-6 md:grid-cols-2 lg:grid-cols-4"
+                        className="grid gap-6 md:grid-cols-2 lg:grid-cols-5"
                     >
                         {stats.map((stat) => (
                             <motion.div
