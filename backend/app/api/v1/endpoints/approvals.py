@@ -435,7 +435,8 @@ async def reject_request(
     # Update approval status
     approval.status = ApprovalStatus.REJECTED
     approval.resolved_by_id = current_user.id
-    approval.resolved_at = datetime.now(UTC)
+    # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
+    approval.resolved_at = datetime.now(UTC).replace(tzinfo=None)
     approval.resolution_notes = resolve_data.resolution_notes
     
     department_id = await _get_approval_department_id(db, approval)
@@ -504,7 +505,8 @@ async def cancel_request(
     # Update status
     approval.status = ApprovalStatus.CANCELLED
     approval.resolved_by_id = current_user.id
-    approval.resolved_at = datetime.now(UTC)
+    # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
+    approval.resolved_at = datetime.now(UTC).replace(tzinfo=None)
     
     # Log activity for cancellation - distinguish self vs privileged
     department_id = await _get_approval_department_id(db, approval)
