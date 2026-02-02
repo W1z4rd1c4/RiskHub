@@ -114,13 +114,14 @@ async def test_healthy_kri_no_notification(
     db_session: AsyncSession,
     test_kri_healthy,
 ):
-    """Test that a healthy KRI does not create notifications."""
+    """Healthy KRI should not trigger breach/near-breach notifications."""
     result = await KRIDeadlineService.check_kri_deadlines(db_session)
     
-    # Check no notification was created for this KRI
+    # Deadline reminders are time-dependent; assert only breach-related notifications are absent.
     stmt = select(Notification).where(
         Notification.resource_type == "kri",
         Notification.resource_id == test_kri_healthy.id,
+        Notification.type.in_([NotificationType.KRI_NEAR_BREACH, NotificationType.KRI_BREACH_DETECTED]),
     )
     notifications = (await db_session.execute(stmt)).scalars().all()
     assert len(notifications) == 0
@@ -264,4 +265,3 @@ async def test_deadline_service_constants():
     assert KRIDeadlineService.REPORTING_GRACE_DAYS == 15
     assert KRIDeadlineService.ADVANCE_REMINDER_DAYS == 7
     assert KRIDeadlineService.OVERDUE_REMINDER_WEEKS == 1  # Weekly reminders
-

@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     # AD Emulator Integration
     ad_emulator_url: str = "http://localhost:8001/api/v1"
     webhook_secret: str = ""  # Required in production for webhook signature verification
+
+    # Optional vendor external signals (Phase 18-10)
+    vendor_signals_public_registry_base_url: str | None = None  # e.g., https://registry.example.com/api
     
     model_config = {
         "env_file": ".env",

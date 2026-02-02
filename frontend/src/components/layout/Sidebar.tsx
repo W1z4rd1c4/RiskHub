@@ -32,7 +32,7 @@ export function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
-    const { canManageAccess, canViewActivityLog } = usePermissions();
+    const { canManageAccess, canViewActivityLog, hasPermission } = usePermissions();
     const { t } = useTranslation('navigation');
     const [workflowCount, setWorkflowCount] = useState(0);
     const [orphanCount, setOrphanCount] = useState(0);
@@ -43,7 +43,7 @@ export function Sidebar() {
         { name: t('sidebar.controls'), href: '/controls', icon: ClipboardList },
         { name: t('sidebar.risks'), href: '/risks', icon: ShieldAlert },
         { name: t('sidebar.kris'), href: '/kris', icon: Target },
-        { name: t('sidebar.vendors'), href: '/vendors', icon: Handshake },
+        ...(hasPermission('vendors', 'read') ? [{ name: t('sidebar.vendors'), href: '/vendors', icon: Handshake }] : []),
         { name: t('sidebar.departments'), href: '/departments', icon: Building2 },
         { name: t('sidebar.governance'), href: '/governance', icon: Scale },
         { name: t('sidebar.settings'), href: '/settings', icon: Settings },

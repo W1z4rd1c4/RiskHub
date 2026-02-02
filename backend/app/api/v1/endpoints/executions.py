@@ -110,10 +110,10 @@ async def create_execution(
     *,
     db: AsyncSession = Depends(get_db),
     execution_in: schemas.ControlExecutionCreate,
-    current_user: User = Depends(require_permission("controls", "write")),
+    current_user: User = Depends(require_permission("controls", "execute")),
 ) -> Any:
     """
-    Log a new control execution. Requires controls:write permission and department access.
+    Log a new control execution. Requires controls:execute permission and department access.
     """
     # Verify control exists and load department
     control_result = await db.execute(
