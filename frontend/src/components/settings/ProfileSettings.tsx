@@ -39,58 +39,6 @@ function groupPermissions(permissions: string[]): Record<string, string[]> {
     return grouped;
 }
 
-// Expand *:* wildcard into role-specific meaningful permissions
-function expandWildcardPermissions(permissions: string[], role: string): string[] {
-    // If user doesn't have *:*, return as-is
-    if (!permissions.includes('*:*')) {
-        return permissions;
-    }
-
-    // Remove the wildcard
-    const filtered = permissions.filter(p => p !== '*:*');
-
-    // Admin role = system administration only (not business/GRC)
-    // Per BUSINESS_LOGIC.md: admin has users:*, activity_log:read, departments:read
-    if (role === 'admin') {
-        return [
-            ...filtered,
-            'users:read',
-            'users:write',
-            'departments:read',
-            'activity_log:read',
-            'admin:config',
-            'admin:logs',
-            'admin:sessions',
-        ];
-    }
-
-    // CRO and risk-related roles = full GRC permissions
-    if (['cro', 'ceo', 'cfo', 'coo', 'risk_manager', 'compliance', 'legal', 'internal_audit', 'actuarial'].includes(role)) {
-        return [
-            ...filtered,
-            'risks:read',
-            'risks:write',
-            'risks:delete',
-            'controls:read',
-            'controls:write',
-            'controls:delete',
-            'controls:execute',
-            'kris:read',
-            'kris:write',
-            'kris:delete',
-            'kri:submit',
-            'approvals:read',
-            'approvals:approve',
-            'departments:read',
-            'reports:read',
-            'reports:export',
-        ];
-    }
-
-    // Fallback: show the wildcard as-is
-    return permissions;
-}
-
 // Get icon color based on resource
 function getResourceColor(resource: string): string {
     const colors: Record<string, string> = {
@@ -122,34 +70,23 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
         'controls:write': t('permissions.controls_write', 'Create & Edit Controls'),
         'controls:delete': t('permissions.controls_delete', 'Delete Controls'),
         'controls:execute': t('permissions.controls_execute', 'Log Control Executions'),
-        'kris:read': t('permissions.kris_read', 'View KRIs'),
-        'kris:write': t('permissions.kris_write', 'Create & Edit KRIs'),
-        'kris:delete': t('permissions.kris_delete', 'Delete KRIs'),
         'kri:submit': t('permissions.kri_submit', 'Submit KRI Values'),
         'approvals:read': t('permissions.approvals_read', 'View Approvals'),
-        'approvals:approve': t('permissions.approvals_approve', 'Approve/Reject Requests'),
+        'approvals:write': t('permissions.approvals_write', 'Manage Approvals'),
         'users:read': t('permissions.users_read', 'View Users'),
         'users:write': t('permissions.users_write', 'Manage Users'),
         'activity_log:read': t('permissions.activity_log_read', 'View Activity Log'),
         'departments:read': t('permissions.departments_read', 'View Departments'),
-        'departments:write': t('permissions.departments_write', 'Manage Departments'),
         'reports:read': t('permissions.reports_read', 'View Reports'),
-        'reports:export': t('permissions.reports_export', 'Export Reports'),
         'vendors:read': t('permissions.vendors_read', 'View Vendors'),
         'vendors:write': t('permissions.vendors_write', 'Create & Edit Vendors'),
         'vendors:delete': t('permissions.vendors_delete', 'Archive Vendors'),
-        'vendor_contracts:read': t('permissions.vendor_contracts_read', 'View Vendor Contracts'),
         'vendor_contracts:write': t('permissions.vendor_contracts_write', 'Edit Vendor Contracts'),
-        'admin:config': t('permissions.admin_config', 'System Configuration'),
-        'admin:logs': t('permissions.admin_logs', 'View System Logs'),
-        'admin:sessions': t('permissions.admin_sessions', 'Manage Active Sessions'),
-        'admin:*': t('permissions.admin_all', 'Full Admin Access'),
         '*:*': t('permissions.super_admin', 'Super Admin (All Permissions)'),
     };
 
-    const rawPermissions = user.effective_permissions || user.permissions || [];
-    const expandedPermissions = expandWildcardPermissions(rawPermissions, user.role);
-    const groupedPermissions = groupPermissions(expandedPermissions);
+    const effectivePermissions = user.effective_permissions ?? user.permissions ?? [];
+    const groupedPermissions = groupPermissions(effectivePermissions);
 
     return (
         <div className="space-y-8">
@@ -228,6 +165,11 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                     {t('profile.your_permissions', 'Your Permissions')}
                 </h3>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+                    {effectivePermissions.includes('*:*') && (
+                        <div className="mb-4 px-3 py-2 rounded-lg border border-yellow-500/20 bg-yellow-500/10 text-yellow-300 text-sm font-medium">
+                            {t('profile.all_permissions', 'All permissions')} <span className="font-mono">(*:*)</span>
+                        </div>
+                    )}
                     {Object.keys(groupedPermissions).length === 0 ? (
                         <p className="text-slate-400 text-center py-4">No permissions assigned</p>
                     ) : (

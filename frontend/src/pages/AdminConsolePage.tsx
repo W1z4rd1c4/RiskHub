@@ -8,6 +8,7 @@ import {
     UserX, Shield, FileDown, Settings2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthz } from '@/authz/useAuthz';
 import { adminApi, type LogConfig } from '@/services/adminApi';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -566,7 +567,8 @@ function SessionsPanel() {
 
 export function AdminConsolePage() {
     const { t } = useTranslation('admin');
-    const { user, isLoading } = useAuth();
+    const { isLoading } = useAuth();
+    const authz = useAuthz();
     const [activeTab, setActiveTab] = useState<TabId>('health');
 
     // Wait for auth to load before checking role
@@ -575,7 +577,7 @@ export function AdminConsolePage() {
     }
 
     // Only Admin can access Admin Console
-    if (user?.role !== 'admin') {
+    if (!authz.canViewAdminConsole) {
         return <Navigate to="/" replace />;
     }
 

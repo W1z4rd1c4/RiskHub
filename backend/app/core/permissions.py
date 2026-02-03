@@ -13,6 +13,7 @@ from fastapi import HTTPException, status
 
 from app.models import User
 from app.models.user import AccessScope
+from app.models.role import RoleType
 
 
 # ============================================================================
@@ -249,6 +250,14 @@ def can_manage_users(user: User) -> bool:
     """Check if user can create/edit/delete users."""
     return is_privileged_user(user) and has_permission(user, "users", "write")
 
+def is_role(user: User, role: RoleType) -> bool:
+    return bool(getattr(getattr(user, "role", None), "name", None) == role)
+
+
+def has_any_role(user: User, roles: set[RoleType]) -> bool:
+    role_name = getattr(getattr(user, "role", None), "name", None)
+    return bool(role_name in roles)
+
 
 # ============================================================================
 # 3. Approval and Committee Access Helpers
@@ -272,11 +281,11 @@ def can_view_risk_committee(user: User) -> bool:
     - Department Heads can view the committee dashboard, scoped to their department(s).
     """
     role_name = getattr(getattr(user, "role", None), "name", None)
-    if role_name == "admin":
+    if role_name == RoleType.ADMIN:
         return False
     if is_privileged_user(user):
         return True
-    return role_name == "department_head"
+    return role_name == RoleType.DEPARTMENT_HEAD
 
 
 # ============================================================================

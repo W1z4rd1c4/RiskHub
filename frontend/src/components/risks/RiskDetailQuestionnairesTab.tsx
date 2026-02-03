@@ -4,7 +4,7 @@ import { useTranslation } from '@/i18n/hooks';
 import type { Risk } from '@/types/risk';
 import type { RiskQuestionnaireDetail as RiskQuestionnaireDetailType, RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuthz } from '@/authz/useAuthz';
 import { cn } from '@/lib/utils';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { formatFinancialRange } from '@/constants/riskScoreDescriptions';
@@ -27,7 +27,7 @@ function isOverdue(item: RiskQuestionnaireListItem): boolean {
 
 export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTabProps) {
     const { t } = useTranslation(['common', 'risks']);
-    const { user } = useAuth();
+    const authz = useAuthz();
 
     const [items, setItems] = useState<RiskQuestionnaireListItem[]>([]);
     const [loading, setLoading] = useState(false);
@@ -38,7 +38,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
     const [latestSubmitted, setLatestSubmitted] = useState<RiskQuestionnaireDetailType | null>(null);
     const [latestSubmittedLoading, setLatestSubmittedLoading] = useState(false);
 
-    const canSend = user?.role === 'risk_manager' || user?.role === 'cro';
+    const canSend = authz.canSendRiskQuestionnaires;
 
     const { totalAssets } = useTotalAssetsValue();
 

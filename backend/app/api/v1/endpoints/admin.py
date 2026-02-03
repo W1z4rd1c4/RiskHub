@@ -24,6 +24,7 @@ from app.schemas.admin import (
     SnapshotResponse,
     SnapshotListItem,
 )
+from app.models.role import RoleType
 
 router = APIRouter()
 
@@ -39,7 +40,7 @@ def require_platform_admin(current_user: User = Depends(get_current_user)) -> Us
     Raises HTTPException 403 if the user is not an admin.
     Returns the validated admin user for use in endpoints.
     """
-    if current_user.role.name.lower() != "admin":
+    if not current_user.role or current_user.role.name != RoleType.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
 
@@ -550,11 +551,11 @@ async def get_documentation(
         return filename.replace("-", " ").replace("_", " ").replace(".md", "").title()
     
     documents = []
-    role = current_user.role.name.lower()
+    role = current_user.role.name if current_user.role else ""
     
     # Define visibility based on role
-    can_see_admin = role in ["admin", "cro"]
-    can_see_manager = role in ["admin", "cro", "risk_manager", "department_head"]
+    can_see_admin = role in {RoleType.ADMIN, RoleType.CRO}
+    can_see_manager = role in {RoleType.ADMIN, RoleType.CRO, RoleType.RISK_MANAGER, RoleType.DEPARTMENT_HEAD}
     
     # Admin docs (CRO and Admin only)
     if can_see_admin and admin_dir.exists():
@@ -780,4 +781,3 @@ async def get_quarterly_snapshot(
         metrics=snapshot.metrics,
         message=f"Snapshot for {snapshot.quarter}",
     )
-

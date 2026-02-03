@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from '@/i18n/hooks';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { useAuthz } from '@/authz/useAuthz';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { MainLayout } from '@/components/layout';
@@ -65,10 +66,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
  * - All others → Dashboard
  */
 function RoleBasedIndex() {
-  const { user } = useAuth();
+  const authz = useAuthz();
 
   // System Admin should see Admin Console, not the Dashboard
-  if (user?.role === 'admin') {
+  if (authz.canViewAdminConsole) {
     return <Navigate to="/admin" replace />;
   }
 

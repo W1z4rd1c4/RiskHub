@@ -26,6 +26,7 @@ from app.schemas.vendor_sla import (
     VendorSLAHistoryResponse,
     VendorSLAValueCreate,
 )
+from app.api.mappers.vendor_sla import sla_to_read
 from app.services.kri_history_service import KRIHistoryService
 from app.services.notification_service import NotificationService
 from app.services.vendor_sla_history_service import VendorSLAHistoryService
@@ -79,13 +80,6 @@ async def _check_duplicate_notification(
     return result.scalar_one_or_none() is not None
 
 
-def _sla_read(sla: VendorSLA) -> dict:
-    return {
-        **{c.name: getattr(sla, c.name) for c in VendorSLA.__table__.columns},
-        "breach_status": sla.breach_status,
-    }
-
-
 async def _get_sla_or_404(db: AsyncSession, sla_id: int) -> VendorSLA:
     result = await db.execute(
         select(VendorSLA)
@@ -135,7 +129,7 @@ async def list_vendor_slas(
 
     slas = (await db.execute(stmt)).scalars().all()
     visible = [s for s in slas if _can_read_sla(s, current_user)]
-    return [_sla_read(s) for s in visible]
+    return [sla_to_read(s) for s in visible]
 
 
 @router.post("/vendor-slas", response_model=VendorSLARead, status_code=status.HTTP_201_CREATED)
@@ -183,7 +177,7 @@ async def create_vendor_sla(
     )
     await db.commit()
     await db.refresh(sla)
-    return _sla_read(sla)
+    return sla_to_read(sla)
 
 
 @router.get("/vendor-slas/{sla_id}", response_model=VendorSLARead)
@@ -197,7 +191,7 @@ async def get_vendor_sla(
     sla = await _get_sla_or_404(db, sla_id)
     if not _can_read_sla(sla, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor SLA not found")
-    return _sla_read(sla)
+    return sla_to_read(sla)
 
 
 @router.put("/vendor-slas/{sla_id}", response_model=VendorSLARead)
@@ -238,7 +232,7 @@ async def update_vendor_sla(
 
     await db.commit()
     await db.refresh(sla)
-    return _sla_read(sla)
+    return sla_to_read(sla)
 
 
 @router.delete("/vendor-slas/{sla_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -373,7 +367,7 @@ async def record_vendor_sla_value(
 
     await db.commit()
     await db.refresh(sla)
-    return _sla_read(sla)
+    return sla_to_read(sla)
 
 
 @router.get("/vendor-slas/{sla_id}/history", response_model=VendorSLAHistoryResponse)
@@ -416,7 +410,7 @@ async def vendor_slas_due_soon(
         period_end = current_period_end if (sla.last_period_end and sla.last_period_end >= latest_closed_end) else latest_closed_end
         due = VendorSLAHistoryService.due_date(period_end)
         if _is_due_soon(due=due, today=today):
-            due_soon.append(_sla_read(sla))
+            due_soon.append(sla_to_read(sla))
     return due_soon
 
 
@@ -440,5 +434,5 @@ async def vendor_slas_overdue(
         period_end = current_period_end if (sla.last_period_end and sla.last_period_end >= latest_closed_end) else latest_closed_end
         due = VendorSLAHistoryService.due_date(period_end)
         if due < today:
-            overdue.append(_sla_read(sla))
+            overdue.append(sla_to_read(sla))
     return overdue

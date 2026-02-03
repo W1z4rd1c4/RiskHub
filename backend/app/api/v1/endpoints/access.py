@@ -15,7 +15,9 @@ from app.schemas.access import AccessUserRead, AccessUserUpdate, RoleWithPermiss
 
 router = APIRouter()
 
-ADMIN_PRIVILEGED_ROLES = {"admin", "cro"}
+from app.models.role import RoleType
+
+ADMIN_PRIVILEGED_ROLES: set[RoleType] = {RoleType.ADMIN, RoleType.CRO}
 
 
 def _require_privileged(user: User) -> None:
