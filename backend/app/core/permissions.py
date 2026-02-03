@@ -173,6 +173,70 @@ def has_permission(user: User, resource: str, action: str) -> bool:
     return False
 
 
+def can_access_department_id(user: User, dept_id: int | None) -> bool:
+    """
+    Department visibility rule:
+    - Privileged users (global scope): can access any department, including unassigned (None)
+    - Department-scoped users: can access only their department(s); unassigned (None) is not accessible
+    """
+    dept_ids = get_user_department_ids(user)
+    if dept_ids is None:
+        return True
+    if dept_id is None:
+        return False
+    return dept_id in dept_ids
+
+
+def redact_name_if_no_access(name: str | None, allowed: bool) -> str | None:
+    return name if allowed else None
+
+
+async def can_read_risk_id(db, user: User, risk_id: int) -> bool:
+    """
+    Risk visibility rule:
+    - Must have risks:read permission
+    - Must be in-scope by department OR be a KRI reporting owner OR control owner on the risk
+    """
+    if not has_permission(user, "risks", "read"):
+        return False
+
+    if await is_risk_kri_reporting_owner(db, user.id, risk_id):
+        return True
+    if await is_risk_control_owner(db, user.id, risk_id):
+        return True
+
+    from sqlalchemy import select
+    from app.models import Risk
+
+    row = (await db.execute(select(Risk.id, Risk.department_id).where(Risk.id == risk_id))).one_or_none()
+    if row is None:
+        return False
+    _, dept_id = row
+    return can_access_department_id(user, dept_id)
+
+
+async def can_read_control_id(db, user: User, control_id: int) -> bool:
+    """
+    Control visibility rule:
+    - Must have controls:read permission
+    - Must be in-scope by department OR be the control owner
+    """
+    if not has_permission(user, "controls", "read"):
+        return False
+
+    if await is_control_owner(db, user.id, control_id):
+        return True
+
+    from sqlalchemy import select
+    from app.models import Control
+
+    row = (await db.execute(select(Control.id, Control.department_id).where(Control.id == control_id))).one_or_none()
+    if row is None:
+        return False
+    _, dept_id = row
+    return can_access_department_id(user, dept_id)
+
+
 def get_effective_permissions(user: User) -> list[str]:
     """Return sorted list of effective permissions (resource:action)."""
     if not user.role or not user.role.permissions:

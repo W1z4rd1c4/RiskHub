@@ -15,6 +15,7 @@ from app.models import (
     VendorControlLink,
     VendorRiskLink,
 )
+from app.models.user import AccessScope
 
 
 async def _grant(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:
@@ -259,20 +260,128 @@ async def test_vendor_linked_entities_filter_invisible_and_prevent_unlink(
         ]
     )
     await db_session.commit()
+    vendor_id = vendor.id
+    risk_hidden_id = risk_hidden.id
+    control_hidden_id = control_hidden.id
+    db_session.expire_all()
 
-    resp = await client_employee.get(f"/api/v1/vendors/{vendor.id}/linked-risks")
+    resp = await client_employee.get(f"/api/v1/vendors/{vendor_id}/linked-risks")
     assert resp.status_code == 200
     assert [r["risk_id_code"] for r in resp.json()] == ["IT-R001"]
 
-    resp = await client_employee.get(f"/api/v1/vendors/{vendor.id}/linked-controls")
+    resp = await client_employee.get(f"/api/v1/vendors/{vendor_id}/linked-controls")
     assert resp.status_code == 200
     assert [c["name"] for c in resp.json()] == ["Visible Control"]
 
-    resp = await client_employee.delete(f"/api/v1/vendors/{vendor.id}/linked-risks/{risk_hidden.id}")
+    resp = await client_employee.delete(f"/api/v1/vendors/{vendor_id}/linked-risks/{risk_hidden_id}")
     assert resp.status_code == 404
 
-    resp = await client_employee.delete(f"/api/v1/vendors/{vendor.id}/linked-controls/{control_hidden.id}")
+    resp = await client_employee.delete(f"/api/v1/vendors/{vendor_id}/linked-controls/{control_hidden_id}")
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_vendor_linked_risks_requires_risks_read(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+):
+    role = Role(name="vendor_only", display_name="Vendor Only", description="Vendors read only")
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    perm = Permission(resource="vendors", action="read", description="Read vendors")
+    db_session.add(perm)
+    await db_session.commit()
+    await db_session.refresh(perm)
+    db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+    await db_session.commit()
+
+    user = User(
+        name="Vendor User",
+        email="vendor-only@test.com",
+        department_id=test_department.id,
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    vendor = Vendor(
+        name="Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=user.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    resp = await client.get(f"/api/v1/vendors/{vendor.id}/linked-risks", headers={"X-Mock-User-Id": str(user.id)})
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_vendor_linked_controls_requires_controls_read(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+):
+    role = Role(name="vendor_only", display_name="Vendor Only", description="Vendors read only")
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    perm = Permission(resource="vendors", action="read", description="Read vendors")
+    db_session.add(perm)
+    await db_session.commit()
+    await db_session.refresh(perm)
+    db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+    await db_session.commit()
+
+    user = User(
+        name="Vendor User",
+        email="vendor-only-controls@test.com",
+        department_id=test_department.id,
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    vendor = Vendor(
+        name="Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=user.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    resp = await client.get(f"/api/v1/vendors/{vendor.id}/linked-controls", headers={"X-Mock-User-Id": str(user.id)})
+    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -357,4 +466,3 @@ async def test_risk_vendors_endpoint_filters_invisible_vendors(
     assert "Visible Vendor" in names
     assert "Cross Dept Owned Vendor" in names
     assert "Hidden Vendor" not in names
-

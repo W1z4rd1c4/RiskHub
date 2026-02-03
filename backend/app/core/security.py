@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Iterable
 import os
 import logging
 from datetime import datetime, timedelta, UTC
@@ -12,6 +12,7 @@ from passlib.context import CryptContext
 from app.db.session import get_db
 from app.models import User, Role, RolePermission
 from app.core.config import get_settings
+from app.core.permissions import has_permission
 
 settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -115,23 +116,33 @@ async def get_current_user(
 
 
 def check_permission(user: User, resource: str, action: str) -> bool:
-    if not user.role or not user.role.permissions:
-        return False
-    
-    for role_perm in user.role.permissions:
-        perm = role_perm.permission
-        if perm.resource == resource and perm.action == action:
-            return True
-        # Wildcard permissions
-        if perm.resource == "*" or perm.action == "*":
-            if perm.resource == "*" and perm.action == action:
-                return True
-            if perm.action == "*" and perm.resource == resource:
-                return True
-            if perm.resource == "*" and perm.action == "*":
-                return True
-    
-    return False
+    """
+    Backwards-compatible permission check.
+
+    Canonical permission evaluation lives in app.core.permissions.has_permission.
+    """
+    return has_permission(user, resource, action)
+
+
+def forbid(detail: str) -> None:
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+
+
+def require_any_permission(permissions: Iterable[tuple[str, str]]):
+    """FastAPI dependency factory for requiring any one of the provided permissions."""
+    from app.api import deps
+
+    perms = list(permissions)
+    if not perms:
+        raise ValueError("require_any_permission() requires at least one (resource, action) pair")
+
+    async def permission_checker(current_user: User = Depends(deps.get_current_user)) -> User:
+        if not any(check_permission(current_user, resource, action) for resource, action in perms):
+            required = ", ".join(f"{r}:{a}" for r, a in perms)
+            forbid(f"Permission denied: requires one of [{required}]")
+        return current_user
+
+    return permission_checker
 
 
 def require_permission(resource: str, action: str):
@@ -143,10 +154,7 @@ def require_permission(resource: str, action: str):
         current_user: User = Depends(deps.get_current_user),
     ) -> User:
         if not check_permission(current_user, resource, action):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Permission denied: {resource}:{action}",
-            )
+            forbid(f"Permission denied: {resource}:{action}")
         return current_user
     
     return permission_checker

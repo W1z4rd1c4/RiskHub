@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models import Risk, User
 from app.models.risk import RiskStatus
-from app.api import deps
 from app.core.permissions import get_user_department_ids
+from app.core.security import require_permission
 
 router = APIRouter()
 
@@ -14,7 +14,7 @@ router = APIRouter()
 @router.get("/risk-filters")
 async def get_risk_filters(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ):
     """Get unique values for risk filters (processes, categories).
     

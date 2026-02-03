@@ -27,7 +27,7 @@ router = APIRouter(prefix="/kris", tags=["Key Risk Indicators"])
 @router.get("", response_model=KRIListResponse)
 async def list_kris(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     risk_id: Optional[int] = Query(None, description="Filter by risk ID"),
     breach_only: bool = Query(False, description="Only return breached KRIs"),
     include_archived: bool = Query(False, description="Include archived KRIs (privileged only)"),
@@ -113,7 +113,7 @@ async def list_kris(
 @router.get("/breaches", response_model=list[KRIResponse])
 async def list_breaches(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department ID"),
     include_archived: bool = Query(False, description="Include archived KRIs/risks (privileged only)"),
 ):
@@ -160,7 +160,7 @@ async def list_breaches(
 @router.get("/overdue", response_model=list[dict])
 async def list_overdue_kris(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by specific department"),
 ):
     """
@@ -199,7 +199,7 @@ async def list_overdue_kris(
 @router.get("/due-soon", response_model=list[dict])
 async def list_due_soon_kris(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by specific department"),
 ):
     """
@@ -240,7 +240,7 @@ async def list_due_soon_kris(
 async def get_kri(
     kri_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     include_archived: bool = Query(False, description="Include archived KRI (privileged only)"),
 ):
     """Get a single KRI by ID."""
@@ -775,7 +775,7 @@ async def record_kri_value(
 async def get_kri_history(
     kri_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     from_date: Optional[date] = Query(None, description="Filter from date"),
     to_date: Optional[date] = Query(None, description="Filter to date"),
     page: int = Query(1, ge=1),

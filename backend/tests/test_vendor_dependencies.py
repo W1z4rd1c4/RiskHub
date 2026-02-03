@@ -178,12 +178,17 @@ async def test_vendor_dependencies_redacts_cross_scope_names(
     await db_session.commit()
     await db_session.refresh(role)
 
-    perm = Permission(resource="vendors", action="read", description="Read vendors")
-    db_session.add(perm)
+    perms = [
+        Permission(resource="vendors", action="read", description="Read vendors"),
+        Permission(resource="risks", action="read", description="Read risks"),
+        Permission(resource="departments", action="read", description="Read departments"),
+    ]
+    db_session.add_all(perms)
     await db_session.commit()
-    await db_session.refresh(perm)
+    for p in perms:
+        await db_session.refresh(p)
 
-    db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+    db_session.add_all([RolePermission(role_id=role.id, permission_id=p.id) for p in perms])
     await db_session.commit()
 
     scoped_user = User(
@@ -315,12 +320,16 @@ async def test_vendor_dependency_create_rejects_cross_scope_risk(
     await db_session.commit()
     await db_session.refresh(role)
 
-    perm = Permission(resource="vendors", action="read", description="Read vendors")
-    db_session.add(perm)
+    perms = [
+        Permission(resource="vendors", action="read", description="Read vendors"),
+        Permission(resource="risks", action="read", description="Read risks"),
+    ]
+    db_session.add_all(perms)
     await db_session.commit()
-    await db_session.refresh(perm)
+    for p in perms:
+        await db_session.refresh(p)
 
-    db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+    db_session.add_all([RolePermission(role_id=role.id, permission_id=p.id) for p in perms])
     await db_session.commit()
 
     scoped_user = User(
@@ -387,3 +396,111 @@ async def test_vendor_dependency_create_rejects_cross_scope_risk(
         },
     )
     assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_vendor_dependency_risk_name_redacts_without_risks_read(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+):
+    role = Role(name="vendor_rw_no_risk_read", display_name="Vendor RW", description="Vendors read/write; no risk read")
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    perms = [
+        Permission(resource="vendors", action="read", description="Read vendors"),
+        Permission(resource="vendors", action="write", description="Write vendors"),
+        Permission(resource="departments", action="read", description="Read departments"),
+    ]
+    db_session.add_all(perms)
+    await db_session.commit()
+    for p in perms:
+        await db_session.refresh(p)
+    db_session.add_all([RolePermission(role_id=role.id, permission_id=p.id) for p in perms])
+    await db_session.commit()
+
+    user = User(
+        name="Dept Vendor User",
+        email="vendor-user@test.com",
+        department_id=test_department.id,
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    vendor = Vendor(
+        name="Scoped Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=user.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    service = VendorService(vendor_id=vendor.id, service_name="Core processing")
+    db_session.add(service)
+    await db_session.commit()
+    await db_session.refresh(service)
+
+    risk = Risk(
+        risk_id_code="R-IN-001",
+        name="In-scope Risk",
+        process="Test Process",
+        description="Risk in dept 1",
+        category="Test Category",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    dep = VendorDependency(
+        vendor_service_id=service.id,
+        department_id=test_department.id,
+        risk_id=risk.id,
+        supported_function_name="Claims",
+    )
+    db_session.add(dep)
+    await db_session.commit()
+    vendor_id = vendor.id
+    user_id = user.id
+    db_session.expire_all()
+
+    resp = await client.get(f"/api/v1/vendors/{vendor_id}/dependencies", headers={"X-Mock-User-Id": str(user_id)})
+    assert resp.status_code == 200
+    deps = resp.json()["services"][0]["dependencies"]
+    assert deps
+    item = deps[0]
+    assert item["risk_id"] == risk.id
+    assert item["risk_name"] is None
+    assert item["department_id"] == test_department.id
+    assert item["department_name"] == test_department.name
+
+    resp = await client.post(
+        f"/api/v1/vendor-services/{service.id}/dependencies",
+        headers={"X-Mock-User-Id": str(user.id)},
+        json={"risk_id": risk.id, "department_id": test_department.id, "supported_function_name": "Payments"},
+    )
+    assert resp.status_code == 403

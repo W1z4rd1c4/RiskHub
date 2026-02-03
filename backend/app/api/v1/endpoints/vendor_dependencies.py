@@ -6,7 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.core.permissions import can_read_vendor, is_vendor_owner, get_user_department_ids
+from app.core.permissions import (
+    can_read_vendor,
+    is_vendor_owner,
+    get_user_department_ids,
+    has_permission,
+    can_access_department_id,
+    redact_name_if_no_access,
+)
 from app.core.security import require_permission, check_permission
 from app.db.session import get_db
 from app.models import Department, Risk, User, Vendor
@@ -29,27 +36,28 @@ from app.services.vendor_concentration_service import VendorConcentrationService
 
 router = APIRouter()
 
-def _can_access_department(current_user: User):
-    dept_ids = get_user_department_ids(current_user)
+def _dependency_read(dep: VendorDependency, *, current_user: User) -> VendorDependencyRead:
+    dept_name = None
+    if dep.department:
+        dept_allowed = has_permission(current_user, "departments", "read") and can_access_department_id(
+            current_user, dep.department_id
+        )
+        dept_name = redact_name_if_no_access(dep.department.name, dept_allowed)
 
-    def can_access(dept_id: int | None) -> bool:
-        if dept_ids is None:
-            return True
-        if dept_id is None:
-            return False
-        return dept_id in dept_ids
+    risk_name = None
+    if dep.risk:
+        risk_allowed = has_permission(current_user, "risks", "read") and can_access_department_id(
+            current_user, getattr(dep.risk, "department_id", None)
+        )
+        risk_name = redact_name_if_no_access(dep.risk.name, risk_allowed)
 
-    return can_access
-
-
-def _dependency_read(dep: VendorDependency, *, can_access_dept) -> VendorDependencyRead:
     return VendorDependencyRead(
         id=dep.id,
         vendor_service_id=dep.vendor_service_id,
         risk_id=dep.risk_id,
-        risk_name=dep.risk.name if dep.risk and can_access_dept(getattr(dep.risk, "department_id", None)) else None,
+        risk_name=risk_name,
         department_id=dep.department_id,
-        department_name=dep.department.name if dep.department and can_access_dept(dep.department_id) else None,
+        department_name=dept_name,
         supported_function_name=dep.supported_function_name,
         created_at=dep.created_at,
     )
@@ -126,7 +134,6 @@ async def get_vendor_dependencies(
     current_user: User = Depends(require_permission("vendors", "read")),
 ):
     vendor = await _get_vendor_or_404(db, vendor_id, current_user)
-    can_access_dept = _can_access_department(current_user)
 
     rels = (
         await db.execute(
@@ -158,7 +165,7 @@ async def get_vendor_dependencies(
 
     service_reads: list[VendorServiceRead] = []
     for s in services:
-        deps_read = [_dependency_read(d, can_access_dept=can_access_dept) for d in s.dependencies]
+        deps_read = [_dependency_read(d, current_user=current_user) for d in s.dependencies]
         service_reads.append(
             VendorServiceRead(
                 id=s.id,
@@ -283,7 +290,6 @@ async def update_vendor_service(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor service not found")
     vendor = await _get_vendor_or_404(db, service.vendor_id, current_user)
     _require_vendor_write(vendor, current_user)
-    can_access_dept = _can_access_department(current_user)
 
     if payload.service_name is not None:
         service.service_name = payload.service_name
@@ -302,7 +308,7 @@ async def update_vendor_service(
         )
     ).scalar_one()
 
-    deps_read = [_dependency_read(d, can_access_dept=can_access_dept) for d in service.dependencies]
+    deps_read = [_dependency_read(d, current_user=current_user) for d in service.dependencies]
 
     return VendorServiceRead(
         id=service.id,
@@ -347,7 +353,6 @@ async def create_vendor_dependency(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor service not found")
     vendor = await _get_vendor_or_404(db, service.vendor_id, current_user)
     _require_vendor_write(vendor, current_user)
-    can_access_dept = _can_access_department(current_user)
 
     if payload.department_id is not None:
         exists = (await db.execute(select(Department).where(Department.id == payload.department_id))).scalar_one_or_none()
@@ -355,6 +360,8 @@ async def create_vendor_dependency(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
 
     if payload.risk_id is not None:
+        if not has_permission(current_user, "risks", "read"):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
         risk = (await db.execute(select(Risk).where(Risk.id == payload.risk_id))).scalar_one_or_none()
         if not risk:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Risk not found")
@@ -377,7 +384,7 @@ async def create_vendor_dependency(
         await db.execute(select(VendorDependency).options(selectinload(VendorDependency.risk), selectinload(VendorDependency.department)).where(VendorDependency.id == dep.id))
     ).scalar_one()
 
-    return _dependency_read(dep, can_access_dept=can_access_dept)
+    return _dependency_read(dep, current_user=current_user)
 
 
 @router.delete("/vendor-dependencies/{dependency_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -1,18 +1,18 @@
 """
 Dashboard Schemas for Executive and Department-level Metrics
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
 class DashboardSummaryResponse(BaseModel):
     """Overview stats for executive dashboard."""
     total_controls: int = 0
-    controls_by_status: dict[str, int] = {}
-    controls_by_form: dict[str, int] = {}
-    controls_by_frequency: dict[str, int] = {}
+    controls_by_status: dict[str, int] = Field(default_factory=dict)
+    controls_by_form: dict[str, int] = Field(default_factory=dict)
+    controls_by_frequency: dict[str, int] = Field(default_factory=dict)
     total_risks: int = 0
-    risks_by_status: dict[str, int] = {}
+    risks_by_status: dict[str, int] = Field(default_factory=dict)
     critical_risks_count: int = 0  # net_score >= 15
     average_net_risk_score: float = 0.0
 
@@ -49,7 +49,7 @@ class RiskDistributionItem(BaseModel):
 
 class RiskDistributionResponse(BaseModel):
     """For heatmap/risk matrix visualization."""
-    distribution: list[RiskDistributionItem] = []
+    distribution: list[RiskDistributionItem] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 
