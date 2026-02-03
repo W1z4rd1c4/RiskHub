@@ -5,6 +5,9 @@ export const orphanedItemsApi = {
     getOrphanedItems: (params?: { item_type?: string; status?: string }) =>
         apiClient.get<OrphanedItem[]>('/orphaned-items/', { params }),
 
+    scanOrphans: () =>
+        apiClient.post<{ flagged: number }>('/orphaned-items/scan', {}),
+
     getOrphanStats: () =>
         apiClient.get<OrphanStats>('/orphaned-items/stats'),
 

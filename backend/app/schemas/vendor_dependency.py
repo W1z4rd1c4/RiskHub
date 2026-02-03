@@ -68,7 +68,7 @@ class VendorDependencyGraphNode(BaseModel):
     vendor_id: int
     vendor_name: str
     relationship_type: VendorRelationshipTypeEnum | None = None
-    children: list["VendorDependencyGraphNode"] = []
+    children: list["VendorDependencyGraphNode"] = Field(default_factory=list)
 
 
 VendorDependencyGraphNode.model_rebuild()
@@ -91,4 +91,3 @@ class VendorDependenciesResponse(BaseModel):
     services: list[VendorServiceRead]
     relationship_tree: VendorDependencyGraphNode
     concentration: VendorConcentrationSummary
-

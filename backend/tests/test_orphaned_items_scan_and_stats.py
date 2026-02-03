@@ -1,0 +1,155 @@
+import pytest
+
+from httpx import AsyncClient
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models import Department, Risk, Control, OrphanedItem, Role, User
+from app.models.user import AccessScope
+from app.models.risk import RiskStatus
+
+
+@pytest.mark.asyncio
+async def test_orphaned_items_list_does_not_scan_uncategorised(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+):
+    before = (await db_session.execute(select(func.count(OrphanedItem.id)))).scalar() or 0
+    resp = await auth_client.get("/api/v1/orphaned-items/")
+    assert resp.status_code == 200
+    after = (await db_session.execute(select(func.count(OrphanedItem.id)))).scalar() or 0
+    assert after == before
+
+
+@pytest.mark.asyncio
+async def test_orphaned_items_scan_creates_orphans_for_uncategorised(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    uncat = Department(name="Uncategorised", code="UNCAT", description="System")
+    db_session.add(uncat)
+    await db_session.commit()
+    await db_session.refresh(uncat)
+
+    risk = Risk(
+        risk_id_code="UNCAT-R001",
+        name="Uncat Risk",
+        process="Test",
+        description="",
+        category="Test",
+        department_id=uncat.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    control = Control(
+        name="Uncat Control",
+        description="",
+        data_source=None,
+        methodology_reference=None,
+        control_form="manual",
+        process_owner_position=None,
+        control_owner_id=test_user.id,
+        executor_position=None,
+        frequency="monthly",
+        risk_level=3,
+        output_description=None,
+        report_recipient=None,
+        documentation_location=None,
+        department_id=uncat.id,
+        status="draft",
+        created_by_id=test_user.id,
+        updated_by_id=test_user.id,
+    )
+    db_session.add_all([risk, control])
+    await db_session.commit()
+
+    resp = await auth_client.post("/api/v1/orphaned-items/scan")
+    assert resp.status_code == 200
+    assert resp.json()["flagged"] >= 2
+
+    count = (await db_session.execute(select(func.count(OrphanedItem.id)).where(OrphanedItem.status == "pending"))).scalar() or 0
+    assert count >= 2
+
+
+@pytest.mark.asyncio
+async def test_orphan_stats_are_scoped_by_department(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+):
+    dept2 = Department(name="Second Department", code="D2", description="Second")
+    role = Role(name="basic", display_name="Basic", description="No perms needed for stats")
+    db_session.add_all([dept2, role])
+    await db_session.commit()
+    await db_session.refresh(dept2)
+    await db_session.refresh(role)
+
+    user = User(
+        name="Dept User",
+        email="dept-user-orphans@test.com",
+        department_id=test_department.id,
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    risk_in = Risk(
+        risk_id_code="R-IN-001",
+        name="In Risk",
+        process="Test",
+        description="",
+        category="Test",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    risk_out = Risk(
+        risk_id_code="R-OUT-001",
+        name="Out Risk",
+        process="Test",
+        description="",
+        category="Test",
+        department_id=dept2.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add_all([risk_in, risk_out])
+    await db_session.commit()
+    await db_session.refresh(risk_in)
+    await db_session.refresh(risk_out)
+
+    db_session.add_all(
+        [
+            OrphanedItem(item_type="risk", item_id=risk_in.id, previous_owner_id=test_user.id, status="pending"),
+            OrphanedItem(item_type="risk", item_id=risk_out.id, previous_owner_id=test_user.id, status="pending"),
+        ]
+    )
+    await db_session.commit()
+
+    resp = await client.get("/api/v1/orphaned-items/stats", headers={"X-Mock-User-Id": str(user.id)})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["risk_count"] == 1
+    assert data["control_count"] == 0
+    assert data["total_count"] == 1
+

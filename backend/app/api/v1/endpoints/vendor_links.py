@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.core.permissions import can_read_vendor, is_vendor_owner, check_department_access, is_control_owner
+from app.core.permissions import can_read_vendor, is_vendor_owner, can_read_risk_id, can_read_control_id
 from app.core.security import check_permission
 from app.db.session import get_db
 from app.models import (
@@ -28,30 +28,11 @@ async def _get_vendor(db: AsyncSession, vendor_id: int) -> Vendor | None:
 
 
 async def _can_read_risk(db: AsyncSession, current_user: User, risk_id: int) -> bool:
-    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
-    if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
-        return True
-    if await is_risk_control_owner(db, current_user.id, risk_id):
-        return True
-    result = await db.execute(select(Risk.department_id).where(Risk.id == risk_id))
-    dept_id = result.scalar_one_or_none()
-    if dept_id is None:
-        return False
-    try:
-        check_department_access(dept_id, current_user)
-        return True
-    except HTTPException:
-        return False
+    return await can_read_risk_id(db, current_user, risk_id)
 
 
 async def _can_read_control(db: AsyncSession, current_user: User, control: Control) -> bool:
-    if await is_control_owner(db, current_user.id, control.id):
-        return True
-    try:
-        check_department_access(control.department_id, current_user)
-        return True
-    except HTTPException:
-        return False
+    return await can_read_control_id(db, current_user, control.id)
 
 
 @router.get("/vendors/{vendor_id}/linked-risks", response_model=list[LinkedRiskRead])
@@ -62,6 +43,8 @@ async def list_vendor_linked_risks(
 ):
     if not check_permission(current_user, "vendors", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+    if not check_permission(current_user, "risks", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
 
     vendor = await _get_vendor(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
@@ -101,6 +84,8 @@ async def link_vendor_to_risk(
 ):
     if not check_permission(current_user, "vendors", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+    if not check_permission(current_user, "risks", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
 
     vendor = await _get_vendor(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
@@ -137,6 +122,8 @@ async def unlink_vendor_from_risk(
 ):
     if not check_permission(current_user, "vendors", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+    if not check_permission(current_user, "risks", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
 
     vendor = await _get_vendor(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
@@ -171,6 +158,8 @@ async def list_vendor_linked_controls(
 ):
     if not check_permission(current_user, "vendors", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+    if not check_permission(current_user, "controls", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: controls:read")
 
     vendor = await _get_vendor(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
@@ -208,6 +197,8 @@ async def link_vendor_to_control(
 ):
     if not check_permission(current_user, "vendors", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+    if not check_permission(current_user, "controls", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: controls:read")
 
     vendor = await _get_vendor(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
@@ -248,6 +239,8 @@ async def unlink_vendor_from_control(
 ):
     if not check_permission(current_user, "vendors", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+    if not check_permission(current_user, "controls", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: controls:read")
 
     vendor = await _get_vendor(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):

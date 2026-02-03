@@ -4,7 +4,7 @@ Dashboard API endpoints for executive and department-level metrics.
 from typing import Optional, Literal
 import logging
 from datetime import datetime, UTC
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Response, HTTPException, status
 from sqlalchemy import select, func, and_, or_, cast, String, case, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,7 +24,8 @@ from app.schemas.dashboard import (
 from app.models.kri_history import KRIValueHistory
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.api import deps
-from app.core.permissions import get_user_department_ids
+from app.core.permissions import get_user_department_ids, has_permission
+from app.core.security import require_permission
 from app.models.global_config import ConfigDefaults, build_risk_level_ranges
 
 router = APIRouter()
@@ -50,7 +51,7 @@ def build_risk_level_condition(risk_level: str):
 @router.get("/summary", response_model=DashboardSummaryResponse)
 async def get_dashboard_summary(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
     control_status: Optional[str] = Query(None, description="Filter by control status"),
     control_form: Optional[str] = Query(None, description="Filter by control form"),
@@ -191,7 +192,7 @@ async def get_dashboard_summary(
     if vendor_scope_filter is not None:
         vendor_conditions.append(vendor_scope_filter)
 
-    if dept_ids is None or (dept_ids is not None and dept_ids):
+    if has_permission(current_user, "vendors", "read") and (dept_ids is None or (dept_ids is not None and dept_ids)):
         total_vendors = (await db.execute(select(func.count(Vendor.id)).where(and_(*vendor_conditions)))).scalar() or 0
         high_risk_vendors_count = (
             await db.execute(
@@ -239,7 +240,7 @@ async def get_dashboard_summary(
 @router.get("/departments", response_model=list[DepartmentMetrics])
 async def get_department_metrics(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter to specific department"),
     include_archived: bool = Query(False, description="Include archived items"),
 ):
@@ -355,7 +356,7 @@ async def get_department_metrics(
 @router.get("/risk-distribution", response_model=RiskDistributionResponse)
 async def get_risk_distribution(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
     risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(None, description="Filter by risk level"),
     risk_type: Literal["gross", "net"] = Query("net", description="Type of risk matrix: 'gross' or 'net'"),
@@ -420,7 +421,7 @@ async def get_risk_distribution(
 @router.get("/control-trends", response_model=list[ControlFrequencyTrend])
 async def get_control_trends(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     response: Response = None,
     department_id: Optional[int] = Query(None, description="Filter by department"),
     control_status: Optional[str] = Query(None, description="Filter by control status"),
@@ -512,7 +513,7 @@ async def get_risks_by_cell(
     probability: int = Query(..., ge=1, le=5, description="Probability value (1-5)"),
     impact: int = Query(..., ge=1, le=5, description="Impact value (1-5)"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
     risk_type: Literal["gross", "net"] = Query("net", description="Type of risk matrix: 'gross' or 'net'"),
     include_archived: bool = Query(False, description="Include archived risks"),
@@ -584,7 +585,7 @@ async def get_risks_by_cell(
 @router.get("/risk-trends", response_model=list[RiskTrendPoint])
 async def get_risk_trends(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
     include_archived: bool = Query(False, description="Include archived risks"),
 ):
@@ -643,7 +644,7 @@ async def get_risk_trends(
 @router.get("/kri-breach-trends", response_model=list[KRIBreachTrendPoint])
 async def get_kri_breach_trends(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
 ):
     """Get KRI breach trends by month (last 12 months)."""
@@ -725,6 +726,9 @@ async def get_quarterly_comparison(
         - compare_quarter: Quarter to compare against (e.g., '2025-Q4')
     """
     from app.services.quarterly_comparison_service import build_quarterly_comparison
+
+    if not has_permission(current_user, "risks", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
     
     try:
         return await build_quarterly_comparison(
@@ -757,6 +761,9 @@ async def get_available_periods(
     from datetime import datetime, timezone
     from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot
     from app.core.snapshot_service import get_quarter_label
+
+    if not has_permission(current_user, "risks", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
     
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     current_quarter_label = get_quarter_label(now)
@@ -802,6 +809,9 @@ async def get_committee_summary(
     from app.models.vendor_sla import VendorSLA
     from app.models.vendor_incident import VendorIncident
     from sqlalchemy.orm import joinedload
+
+    if not has_permission(current_user, "risks", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
 
     dept_ids = get_user_department_ids(current_user)
     
@@ -861,88 +871,98 @@ async def get_committee_summary(
     )
 
     # Vendor sections (Phase 18-11)
+    can_read_vendors = has_permission(current_user, "vendors", "read")
     vendor_scope_filter = None
     if dept_ids is not None:
         if not dept_ids:
             return {"critical_risks": [], "recent_activity": [], "department_exposure": [], "critical_vendors": [], "vendor_alerts": {}}
         vendor_scope_filter = Vendor.department_id.in_(dept_ids)
 
-    critical_vendors_query = (
-        select(Vendor)
-        .options(joinedload(Vendor.outsourcing_owner), joinedload(Vendor.department))
-        .where(Vendor.status == "active")
-    )
-    if vendor_scope_filter is not None:
-        critical_vendors_query = critical_vendors_query.where(vendor_scope_filter)
-    critical_vendors = await db.execute(
-        critical_vendors_query.order_by(Vendor.risk_score_1_5.desc(), Vendor.name.asc()).limit(5)
-    )
-
     now = datetime.now()
     thirty_days_ago = now - timedelta(days=30)
 
-    overdue_query = select(Vendor).options(joinedload(Vendor.outsourcing_owner), joinedload(Vendor.department)).where(
-        Vendor.status == "active",
-        Vendor.next_reassessment_due_at.isnot(None),
-        Vendor.next_reassessment_due_at < now,
-    )
-    if vendor_scope_filter is not None:
-        overdue_query = overdue_query.where(vendor_scope_filter)
-    overdue_vendors = (await db.execute(overdue_query.order_by(Vendor.next_reassessment_due_at.asc()).limit(10))).scalars().all()
-    overdue_total_query = select(func.count(Vendor.id)).where(
-        Vendor.status == "active",
-        Vendor.next_reassessment_due_at.isnot(None),
-        Vendor.next_reassessment_due_at < now,
-    )
-    if vendor_scope_filter is not None:
-        overdue_total_query = overdue_total_query.where(vendor_scope_filter)
-    overdue_total = (await db.execute(overdue_total_query)).scalar() or 0
+    critical_vendors: list[Vendor] = []
+    overdue_vendors: list[Vendor] = []
+    overdue_total = 0
+    breached_slas: list[VendorSLA] = []
+    sla_breach_total = 0
+    major_incidents: list[VendorIncident] = []
+    incident_total = 0
 
-    sla_breach_query = (
-        select(VendorSLA)
-        .options(joinedload(VendorSLA.vendor).joinedload(Vendor.department), joinedload(VendorSLA.vendor).joinedload(Vendor.outsourcing_owner))
-        .where(VendorSLA.is_archived == False)
-        .where(or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit))
-        .join(Vendor, VendorSLA.vendor_id == Vendor.id)
-        .where(Vendor.status == "active")
-    )
-    if vendor_scope_filter is not None:
-        sla_breach_query = sla_breach_query.where(vendor_scope_filter)
-    breached_slas = (await db.execute(sla_breach_query.order_by(VendorSLA.last_reported_at.desc()).limit(10))).scalars().all()
-    sla_breach_total_query = (
-        select(func.count(VendorSLA.id))
-        .join(Vendor, VendorSLA.vendor_id == Vendor.id)
-        .where(VendorSLA.is_archived == False)
-        .where(or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit))
-        .where(Vendor.status == "active")
-    )
-    if vendor_scope_filter is not None:
-        sla_breach_total_query = sla_breach_total_query.where(vendor_scope_filter)
-    sla_breach_total = (await db.execute(sla_breach_total_query)).scalar() or 0
+    if can_read_vendors:
+        critical_vendors_query = (
+            select(Vendor)
+            .options(joinedload(Vendor.outsourcing_owner), joinedload(Vendor.department))
+            .where(Vendor.status == "active")
+        )
+        if vendor_scope_filter is not None:
+            critical_vendors_query = critical_vendors_query.where(vendor_scope_filter)
+        critical_vendors = (
+            await db.execute(critical_vendors_query.order_by(Vendor.risk_score_1_5.desc(), Vendor.name.asc()).limit(5))
+        ).scalars().all()
 
-    incident_query = (
-        select(VendorIncident)
-        .options(joinedload(VendorIncident.vendor).joinedload(Vendor.department), joinedload(VendorIncident.vendor).joinedload(Vendor.outsourcing_owner))
-        .where(VendorIncident.is_major == True)
-        .where(or_(VendorIncident.occurred_at >= thirty_days_ago, and_(VendorIncident.occurred_at.is_(None), VendorIncident.created_at >= thirty_days_ago)))
-        .join(Vendor, VendorIncident.vendor_id == Vendor.id)
-        .where(Vendor.status == "active")
-        .order_by(desc(VendorIncident.occurred_at), desc(VendorIncident.created_at))
-        .limit(10)
-    )
-    if vendor_scope_filter is not None:
-        incident_query = incident_query.where(vendor_scope_filter)
-    major_incidents = (await db.execute(incident_query)).scalars().all()
-    incident_total_query = (
-        select(func.count(VendorIncident.id))
-        .join(Vendor, VendorIncident.vendor_id == Vendor.id)
-        .where(VendorIncident.is_major == True)
-        .where(or_(VendorIncident.occurred_at >= thirty_days_ago, and_(VendorIncident.occurred_at.is_(None), VendorIncident.created_at >= thirty_days_ago)))
-        .where(Vendor.status == "active")
-    )
-    if vendor_scope_filter is not None:
-        incident_total_query = incident_total_query.where(vendor_scope_filter)
-    incident_total = (await db.execute(incident_total_query)).scalar() or 0
+        overdue_query = select(Vendor).options(joinedload(Vendor.outsourcing_owner), joinedload(Vendor.department)).where(
+            Vendor.status == "active",
+            Vendor.next_reassessment_due_at.isnot(None),
+            Vendor.next_reassessment_due_at < now,
+        )
+        if vendor_scope_filter is not None:
+            overdue_query = overdue_query.where(vendor_scope_filter)
+        overdue_vendors = (await db.execute(overdue_query.order_by(Vendor.next_reassessment_due_at.asc()).limit(10))).scalars().all()
+        overdue_total_query = select(func.count(Vendor.id)).where(
+            Vendor.status == "active",
+            Vendor.next_reassessment_due_at.isnot(None),
+            Vendor.next_reassessment_due_at < now,
+        )
+        if vendor_scope_filter is not None:
+            overdue_total_query = overdue_total_query.where(vendor_scope_filter)
+        overdue_total = (await db.execute(overdue_total_query)).scalar() or 0
+
+        sla_breach_query = (
+            select(VendorSLA)
+            .options(joinedload(VendorSLA.vendor).joinedload(Vendor.department), joinedload(VendorSLA.vendor).joinedload(Vendor.outsourcing_owner))
+            .where(VendorSLA.is_archived == False)
+            .where(or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit))
+            .join(Vendor, VendorSLA.vendor_id == Vendor.id)
+            .where(Vendor.status == "active")
+        )
+        if vendor_scope_filter is not None:
+            sla_breach_query = sla_breach_query.where(vendor_scope_filter)
+        breached_slas = (await db.execute(sla_breach_query.order_by(VendorSLA.last_reported_at.desc()).limit(10))).scalars().all()
+        sla_breach_total_query = (
+            select(func.count(VendorSLA.id))
+            .join(Vendor, VendorSLA.vendor_id == Vendor.id)
+            .where(VendorSLA.is_archived == False)
+            .where(or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit))
+            .where(Vendor.status == "active")
+        )
+        if vendor_scope_filter is not None:
+            sla_breach_total_query = sla_breach_total_query.where(vendor_scope_filter)
+        sla_breach_total = (await db.execute(sla_breach_total_query)).scalar() or 0
+
+        incident_query = (
+            select(VendorIncident)
+            .options(joinedload(VendorIncident.vendor).joinedload(Vendor.department), joinedload(VendorIncident.vendor).joinedload(Vendor.outsourcing_owner))
+            .where(VendorIncident.is_major == True)
+            .where(or_(VendorIncident.occurred_at >= thirty_days_ago, and_(VendorIncident.occurred_at.is_(None), VendorIncident.created_at >= thirty_days_ago)))
+            .join(Vendor, VendorIncident.vendor_id == Vendor.id)
+            .where(Vendor.status == "active")
+            .order_by(desc(VendorIncident.occurred_at), desc(VendorIncident.created_at))
+            .limit(10)
+        )
+        if vendor_scope_filter is not None:
+            incident_query = incident_query.where(vendor_scope_filter)
+        major_incidents = (await db.execute(incident_query)).scalars().all()
+        incident_total_query = (
+            select(func.count(VendorIncident.id))
+            .join(Vendor, VendorIncident.vendor_id == Vendor.id)
+            .where(VendorIncident.is_major == True)
+            .where(or_(VendorIncident.occurred_at >= thirty_days_ago, and_(VendorIncident.occurred_at.is_(None), VendorIncident.created_at >= thirty_days_ago)))
+            .where(Vendor.status == "active")
+        )
+        if vendor_scope_filter is not None:
+            incident_total_query = incident_total_query.where(vendor_scope_filter)
+        incident_total = (await db.execute(incident_total_query)).scalar() or 0
 
     return {
         "critical_risks": [
@@ -993,7 +1013,7 @@ async def get_committee_summary(
                 "outsourcing_owner_name": v.outsourcing_owner.name if v.outsourcing_owner else "Unassigned",
                 "department_name": v.department.name if v.department else "Unassigned",
             }
-            for v in critical_vendors.scalars()
+            for v in critical_vendors
         ],
         "vendor_alerts": {
             "overdue_reassessments": {

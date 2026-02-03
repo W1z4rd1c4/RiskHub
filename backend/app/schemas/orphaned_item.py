@@ -53,6 +53,11 @@ class OrphanedItemStats(BaseModel):
     total_count: int
 
 
+class OrphanScanResponse(BaseModel):
+    """Response for orphan scan endpoint."""
+    flagged: int
+
+
 class OrphanedItemCreateInternal(BaseModel):
     """Internal schema for creating orphaned item records."""
     item_type: Literal["risk", "control"]

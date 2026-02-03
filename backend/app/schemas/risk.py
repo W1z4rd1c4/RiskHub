@@ -120,7 +120,7 @@ class RiskRead(RiskBase):
     net_score: int    # Computed: net_probability × net_impact
     owner: Optional[UserBriefForRisk] = None
     department: Optional[DepartmentBriefForRisk] = None
-    kris: list["KRIResponse"] = []
+    kris: list["KRIResponse"] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     

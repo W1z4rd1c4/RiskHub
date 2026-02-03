@@ -9,10 +9,10 @@ from app.db.session import get_db
 from app.models import User
 from app.services.orphaned_item_service import OrphanedItemService
 from app.schemas.orphaned_item import (
-    OrphanedItemRead,
     OrphanedItemDetail,
     OrphanedItemResolve,
     OrphanedItemStats,
+    OrphanScanResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,18 +43,27 @@ async def list_orphaned_items(
     """
     _require_admin_or_cro(current_user)
     
-    # Refresh orphans list by scanning Uncategorised department
-    try:
-        await OrphanedItemService.scan_uncategorised_items(db)
-    except Exception as e:
-        logger.error(f"Failed to scan uncategorised items: {e}")
-    
     orphans = await OrphanedItemService.get_pending_orphans_with_details(
         db=db,
         item_type=item_type,
         status=status,
     )
     return orphans
+
+
+@router.post("/scan", response_model=OrphanScanResponse)
+async def scan_orphaned_items(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """
+    Refresh orphan list by scanning the Uncategorised department.
+
+    Admin or CRO role required.
+    """
+    _require_admin_or_cro(current_user)
+    flagged = await OrphanedItemService.scan_uncategorised_items(db)
+    return OrphanScanResponse(flagged=flagged)
 
 
 @router.get("/stats", response_model=OrphanedItemStats)
@@ -68,7 +77,7 @@ async def get_orphan_stats(
     Returns counts by type and status for dashboard widgets.
     Any authenticated user can view stats.
     """
-    stats = await OrphanedItemService.get_orphan_stats(db)
+    stats = await OrphanedItemService.get_orphan_stats(db, current_user=current_user)
     return OrphanedItemStats(**stats)
 
 

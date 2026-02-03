@@ -14,7 +14,13 @@ from app.schemas.risk import (
     ControlRiskLinkFromRisk, ControlRiskLinkRead, ControlEffectivenessEnum,
 )
 from app.api import deps
-from app.core.permissions import get_user_department_ids, check_department_access, is_control_owner, can_read_vendor
+from app.core.permissions import (
+    get_user_department_ids,
+    check_department_access,
+    is_control_owner,
+    can_read_vendor,
+    can_read_risk_id,
+)
 from app.core.security import require_permission, check_permission
 from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -83,7 +89,7 @@ async def generate_risk_id_code(db: AsyncSession, process: str) -> str:
 @router.get("", response_model=RiskListResponse)
 async def list_risks(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     department_id: Optional[int] = None,
@@ -254,7 +260,7 @@ async def list_risks(
 async def get_risk(
     risk_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ):
     """Get a single risk with all relationships."""
     from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
@@ -282,7 +288,10 @@ async def get_risk(
         return risk
     
     # Otherwise verify department access
-    check_department_access(risk.department_id, current_user)
+    try:
+        check_department_access(risk.department_id, current_user)
+    except HTTPException:
+        raise HTTPException(status_code=404, detail="Risk not found")
     
     return risk
 
@@ -699,35 +708,19 @@ async def delete_risk(
 async def list_risk_controls(
     risk_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ):
     """List controls that mitigate this risk."""
-    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
-    
-    # Verify risk exists
-    result = await db.execute(
-        select(Risk).where(Risk.id == risk_id)
-    )
-    risk = result.scalar_one_or_none()
-    if not risk:
+    from app.core.permissions import can_access_department_id, get_control_ids_where_owner
+
+    if not check_permission(current_user, "controls", "read"):
+        raise HTTPException(status_code=403, detail="Permission denied: controls:read")
+
+    # Anti-enumeration: 404 if risk not found OR not visible by scope/ownership
+    if not await can_read_risk_id(db, current_user, risk_id):
         raise HTTPException(status_code=404, detail="Risk not found")
-    
-    # Allow access via ownership (same pattern as GET /risks/{id})
-    has_access = False
-    if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
-        has_access = True
-    elif await is_risk_control_owner(db, current_user.id, risk_id):
-        has_access = True
-    else:
-        # Fall back to department check
-        try:
-            check_department_access(risk.department_id, current_user)
-            has_access = True
-        except HTTPException:
-            pass
-    
-    if not has_access:
-        raise HTTPException(status_code=403, detail="Access denied")
+
+    owned_control_ids = set(await get_control_ids_where_owner(db, current_user.id))
     
     result = await db.execute(
         select(ControlRiskLink)
@@ -737,7 +730,14 @@ async def list_risk_controls(
         )
         .where(ControlRiskLink.risk_id == risk_id)
     )
-    return result.scalars().all()
+    links = result.scalars().all()
+    visible_links: list[ControlRiskLink] = []
+    for link in links:
+        if not link.control:
+            continue
+        if can_access_department_id(current_user, link.control.department_id) or (link.control.id in owned_control_ids):
+            visible_links.append(link)
+    return visible_links
 
 
 @router.post("/{risk_id}/controls", response_model=ControlRiskLinkRead, status_code=status.HTTP_201_CREATED)
@@ -877,7 +877,7 @@ async def unlink_risk_from_control(
 async def list_risk_vendors(
     risk_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ):
     """
     List vendors linked to this risk.
@@ -886,30 +886,12 @@ async def list_risk_vendors(
     - Returned vendors are filtered by vendor visibility rules to avoid leaking existence
     - If caller lacks vendors:read permission, returns an empty list
     """
-    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
-
     if not check_permission(current_user, "vendors", "read"):
         return []
 
-    result = await db.execute(select(Risk).where(Risk.id == risk_id))
-    risk = result.scalar_one_or_none()
-    if not risk:
+    # Anti-enumeration: 404 if risk not found OR not visible by scope/ownership
+    if not await can_read_risk_id(db, current_user, risk_id):
         raise HTTPException(status_code=404, detail="Risk not found")
-
-    has_access = False
-    if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
-        has_access = True
-    elif await is_risk_control_owner(db, current_user.id, risk_id):
-        has_access = True
-    else:
-        try:
-            check_department_access(risk.department_id, current_user)
-            has_access = True
-        except HTTPException:
-            pass
-
-    if not has_access:
-        raise HTTPException(status_code=403, detail="Access denied")
 
     result = await db.execute(
         select(Vendor)
