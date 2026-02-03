@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from '@/i18n/hooks';
 import {
@@ -33,6 +33,7 @@ const GovernancePage: React.FC = () => {
     const [stats, setStats] = useState<OrphanStats | null>(null);
     const [orphans, setOrphans] = useState<OrphanedItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const hasScannedRef = useRef(false);
     const [selectedOrphan, setSelectedOrphan] = useState<OrphanedItem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewingOrphan, setViewingOrphan] = useState<OrphanedItem | null>(null);
@@ -40,6 +41,16 @@ const GovernancePage: React.FC = () => {
 
     const fetchData = useCallback(async () => {
         try {
+            if (!hasScannedRef.current) {
+                hasScannedRef.current = true;
+                try {
+                    await orphanedItemsApi.scanOrphans();
+                } catch (err) {
+                    // Best-effort: non-admin users may receive 403. Ignore and proceed with reads.
+                    console.debug('Orphan scan skipped/failed:', err);
+                }
+            }
+
             const [statsData, orphansData] = await Promise.all([
                 orphanedItemsApi.getOrphanStats(),
                 orphanedItemsApi.getOrphanedItems({ status: 'pending' })
@@ -230,4 +241,3 @@ const GovernancePage: React.FC = () => {
 };
 
 export default GovernancePage;
-

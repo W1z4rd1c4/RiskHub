@@ -16,8 +16,16 @@ from app.models.risk import ControlRiskLink
 from app.schemas import execution as schemas
 from app.api import deps
 from app.models import User
-from app.core.permissions import get_user_department_ids, check_department_access, get_control_ids_where_owner, is_control_owner
-from app.core.security import require_permission
+from app.core.permissions import (
+    can_access_department_id,
+    get_control_ids_where_owner,
+    get_risk_ids_where_control_owner,
+    get_risk_ids_where_kri_reporting_owner,
+    get_user_department_ids,
+    check_department_access,
+    is_control_owner,
+)
+from app.core.security import require_permission, check_permission
 from sqlalchemy import or_
 
 router = APIRouter()
@@ -26,7 +34,7 @@ router = APIRouter()
 @router.get("", response_model=List[schemas.ControlExecution])
 async def read_executions(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("controls", "read")),
     skip: int = 0,
     limit: int = 100,
     control_id: Optional[int] = None,
@@ -84,8 +92,15 @@ async def read_executions(
     
     result_set = await db.execute(query)
     executions = result_set.scalars().all()
-    
+
     # Map relation data for the simplified schema
+    can_read_risks = check_permission(current_user, "risks", "read")
+    cross_dept_risk_ids: set[int] = set()
+    if can_read_risks:
+        reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, current_user.id)
+        control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
+        cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
+
     for exe in executions:
         exe.executed_by_name = exe.executed_by.name if exe.executed_by else "Unknown"
         exe.control_name = exe.control.name if exe.control else "Unknown"
@@ -94,10 +109,12 @@ async def read_executions(
             exe.control_owner_name = exe.control.control_owner.name if exe.control.control_owner else "Unassigned"
             # Get linked risk names (process + risk_id_code if available)
             exe.linked_risks = []
-            if exe.control.risk_links:
+            if can_read_risks and exe.control.risk_links:
                 for link in exe.control.risk_links:
-                    if link.risk:
-                        exe.linked_risks.append(link.risk.process) # Using Process as the main risk name equivalent based on user request context
+                    if not link.risk:
+                        continue
+                    if can_access_department_id(current_user, link.risk.department_id) or (link.risk.id in cross_dept_risk_ids):
+                        exe.linked_risks.append(link.risk.process)  # Using Process as the main risk name equivalent based on user request context
         else:
             exe.control_owner_name = "Unknown"
             exe.linked_risks = []

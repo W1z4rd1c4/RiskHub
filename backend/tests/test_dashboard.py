@@ -4,7 +4,7 @@ Tests for Dashboard API endpoints.
 from datetime import datetime, timedelta
 import pytest
 from httpx import AsyncClient
-from app.models import Role, Department
+from app.models import Role, Department, Permission, RolePermission
 from app.models.user import AccessScope
 
 
@@ -226,6 +226,14 @@ async def test_committee_summary_scoped_for_department_head(client: AsyncClient,
     await db_session.commit()
     await db_session.refresh(role)
 
+    perm = Permission(resource="risks", action="read", description="Read risks")
+    db_session.add(perm)
+    await db_session.commit()
+    await db_session.refresh(perm)
+    db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+    await db_session.commit()
+    db_session.expire(role, ["permissions"])
+
     dept_head = User(
         name="Dept Head",
         email="dept.head@example.com",
@@ -333,6 +341,14 @@ async def test_quarterly_comparison_scoped_for_department_head(client: AsyncClie
     db_session.add(role)
     await db_session.commit()
     await db_session.refresh(role)
+
+    perm = Permission(resource="risks", action="read", description="Read risks")
+    db_session.add(perm)
+    await db_session.commit()
+    await db_session.refresh(perm)
+    db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+    await db_session.commit()
+    db_session.expire(role, ["permissions"])
 
     dept_head = User(
         name="Dept Head 2",

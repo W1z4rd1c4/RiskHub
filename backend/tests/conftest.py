@@ -232,12 +232,16 @@ async def test_role_risk_manager(db_session: AsyncSession) -> Role:
     db_session.add(role)
     await db_session.commit()
     
-    # Permissions to resolve approvals
-    perm = Permission(resource="approvals", action="*", description="Manage approvals")
-    db_session.add(perm)
+    perms = [
+        Permission(resource="approvals", action="*", description="Manage approvals"),
+        Permission(resource="risks", action="read", description="Read risks"),
+    ]
+    db_session.add_all(perms)
     await db_session.commit()
-    
-    db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+    for p in perms:
+        await db_session.refresh(p)
+
+    db_session.add_all([RolePermission(role_id=role.id, permission_id=p.id) for p in perms])
     await db_session.commit()
     
     return role
@@ -321,6 +325,14 @@ async def test_role_department_head(db_session: AsyncSession) -> Role:
     """Create a department head role."""
     role = Role(name="department_head", display_name="Department Head", description="Department head role")
     db_session.add(role)
+    await db_session.commit()
+    # Dashboard and committee endpoints require risks:read.
+    from app.models import Permission, RolePermission
+    perm = Permission(resource="risks", action="read", description="Read risks")
+    db_session.add(perm)
+    await db_session.commit()
+    await db_session.refresh(perm)
+    db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
     await db_session.commit()
     return role
 

@@ -20,8 +20,8 @@ from app.schemas.department import (
 from app.schemas.risk import RiskSummary
 from app.schemas.control import ControlSummary
 from app.schemas.kri import KRIResponse
-from app.api import deps
 from app.core.permissions import get_user_department_ids, check_department_access
+from app.core.security import require_permission, check_permission
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.models.global_config import ConfigDefaults, build_risk_level_ranges
 
@@ -167,7 +167,7 @@ async def _sum_net_scores_by_dept(db: AsyncSession) -> dict[int, int]:
 @router.get("", response_model=list[DepartmentSummary])
 async def list_departments(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("departments", "read")),
 ):
     """
     List all departments with summary statistics.
@@ -224,7 +224,7 @@ async def list_departments(
 async def get_department(
     department_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("departments", "read")),
 ):
     """
     Get detailed department information with metrics.
@@ -411,7 +411,7 @@ async def get_department(
 async def list_department_risks(
     department_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("departments", "read")),
     skip: int = Query(0, ge=0),
     limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     status: Optional[str] = None,
@@ -424,6 +424,9 @@ async def list_department_risks(
     Excludes: Archived risks by default (explicit status param overrides).
     Pagination: skip/limit with MAX_PAGE_SIZE cap.
     """
+    if not check_permission(current_user, "risks", "read"):
+        raise HTTPException(status_code=403, detail="Permission denied: risks:read")
+
     await _assert_department_in_scope(department_id, db, current_user)
     
     # Load risks with their KRIs eagerly
@@ -477,7 +480,7 @@ async def list_department_risks(
 async def list_department_controls(
     department_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("departments", "read")),
     skip: int = Query(0, ge=0),
     limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     status: Optional[str] = None,
@@ -489,6 +492,9 @@ async def list_department_controls(
     Excludes: Archived controls by default (explicit status param overrides).
     Pagination: skip/limit with MAX_PAGE_SIZE cap.
     """
+    if not check_permission(current_user, "controls", "read"):
+        raise HTTPException(status_code=403, detail="Permission denied: controls:read")
+
     await _assert_department_in_scope(department_id, db, current_user)
     
     query = select(Control).where(Control.department_id == department_id)
@@ -530,7 +536,7 @@ async def list_department_controls(
 async def list_department_kris(
     department_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("departments", "read")),
     skip: int = Query(0, ge=0),
     limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
 ):
@@ -541,6 +547,9 @@ async def list_department_kris(
     Excludes: KRIs linked to archived risks.
     Pagination: skip/limit with MAX_PAGE_SIZE cap.
     """
+    if not check_permission(current_user, "risks", "read"):
+        raise HTTPException(status_code=403, detail="Permission denied: risks:read")
+
     await _assert_department_in_scope(department_id, db, current_user)
     
     # Query KRIs via Risk (exclude archived risks)
@@ -582,4 +591,3 @@ async def list_department_kris(
         items.append(res)
         
     return items
-
