@@ -15,7 +15,7 @@ import {
     Handshake
 } from 'lucide-react';
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuthz } from '@/authz/useAuthz';
 import { dashboardApi } from '@/services/dashboardApi';
 import { reportApi } from '@/services/reportApi';
 import type {
@@ -57,7 +57,7 @@ const item = {
 export function DashboardPage() {
     const navigate = useNavigate();
     const { filters } = useDashboardFilters();
-    const { user } = useAuth();
+    const authz = useAuthz();
     const { t } = useTranslation('dashboard');
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [deptMetrics, setDeptMetrics] = useState<DepartmentMetrics[]>([]);
@@ -76,8 +76,7 @@ export function DashboardPage() {
     // Risk Committee view state
     const [activeView, setActiveView] = useState<'overview' | 'committee'>('overview');
 
-    const isPrivileged = user?.access_scope === 'global' && user?.role !== 'admin';
-    const canViewCommittee = isPrivileged || user?.role === 'department_head';
+    const canViewCommittee = authz.canViewCommittee;
 
     const fetchData = useCallback(async () => {
         try {

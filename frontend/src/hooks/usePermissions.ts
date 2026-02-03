@@ -1,4 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthz } from '@/authz/useAuthz';
 
 /**
  * Permission helper hook.
@@ -8,12 +9,8 @@ import { useAuth } from '@/contexts/AuthContext';
  */
 export function usePermissions() {
     const { user, hasPermission } = useAuth();
-
-    // Admin/CRO roles have special privileges
-    const isAdminOrCro = user?.role === 'admin' || user?.role === 'cro';
-
-    // Privileged users have global access scope (can manage access)
-    const hasGlobalScope = user?.access_scope === 'global';
+    const authz = useAuthz();
+    const isAdminOrCro = authz.isPlatformAdmin || authz.isCRO;
 
     return {
         hasPermission,
@@ -38,14 +35,13 @@ export function usePermissions() {
         // Approvals permission for workflow management
         canResolveApprovals: hasPermission('approvals', 'write'),
         // Access management permissions
-        canManageAccess: hasGlobalScope,  // Users with global scope can view/edit access
+        canManageAccess: authz.canManageAccess,  // Users with global scope can view/edit access
         canManagePrivileged: isAdminOrCro,  // Only admin/CRO can toggle privileged status/roles
         // Activity Log: Admin is console-only and should not access business views
         // Even though admin has *:* permissions, we explicitly block them from Activity Log
-        canViewActivityLog: user?.role !== 'admin' && hasPermission('activity_log', 'read'),
+        canViewActivityLog: authz.canViewActivityLog,
         isAdmin: isAdminOrCro,
-        isPrivileged: hasGlobalScope,
+        isPrivileged: authz.hasGlobalScope,
         user,
     };
 }
-

@@ -30,6 +30,24 @@ from sqlalchemy import or_
 
 router = APIRouter()
 
+def _execution_to_schema(
+    exe: ControlExecutionModel,
+    *,
+    executed_by_name: str,
+    control_name: str,
+    control_owner_name: str,
+    linked_risks: list[str],
+) -> schemas.ControlExecution:
+    base = schemas.ControlExecution.model_validate(exe)
+    return base.model_copy(
+        update={
+            "executed_by_name": executed_by_name,
+            "control_name": control_name,
+            "control_owner_name": control_owner_name,
+            "linked_risks": linked_risks,
+        }
+    )
+
 
 @router.get("", response_model=List[schemas.ControlExecution])
 async def read_executions(
@@ -101,25 +119,34 @@ async def read_executions(
         control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
         cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
 
+    items: list[schemas.ControlExecution] = []
     for exe in executions:
-        exe.executed_by_name = exe.executed_by.name if exe.executed_by else "Unknown"
-        exe.control_name = exe.control.name if exe.control else "Unknown"
-        
+        executed_by_name = exe.executed_by.name if exe.executed_by else "Unknown"
+        control_name = exe.control.name if exe.control else "Unknown"
+
+        linked_risks: list[str] = []
         if exe.control:
-            exe.control_owner_name = exe.control.control_owner.name if exe.control.control_owner else "Unassigned"
-            # Get linked risk names (process + risk_id_code if available)
-            exe.linked_risks = []
+            control_owner_name = exe.control.control_owner.name if exe.control.control_owner else "Unassigned"
             if can_read_risks and exe.control.risk_links:
                 for link in exe.control.risk_links:
                     if not link.risk:
                         continue
                     if can_access_department_id(current_user, link.risk.department_id) or (link.risk.id in cross_dept_risk_ids):
-                        exe.linked_risks.append(link.risk.process)  # Using Process as the main risk name equivalent based on user request context
+                        linked_risks.append(link.risk.process)
         else:
-            exe.control_owner_name = "Unknown"
-            exe.linked_risks = []
-        
-    return executions
+            control_owner_name = "Unknown"
+
+        items.append(
+            _execution_to_schema(
+                exe,
+                executed_by_name=executed_by_name,
+                control_name=control_name,
+                control_owner_name=control_owner_name,
+                linked_risks=linked_risks,
+            )
+        )
+
+    return items
 
 
 @router.post("", response_model=schemas.ControlExecution, status_code=status.HTTP_201_CREATED)
@@ -172,21 +199,24 @@ async def create_execution(
     
     res = await db.execute(query)
     db_obj = res.scalar_one()
-    db_obj.executed_by_name = db_obj.executed_by.name if db_obj.executed_by else "Unknown"
-    db_obj.control_name = db_obj.control.name if db_obj.control else "Unknown"
-    
+    executed_by_name = db_obj.executed_by.name if db_obj.executed_by else "Unknown"
+    control_name = db_obj.control.name if db_obj.control else "Unknown"
+
+    linked_risks: list[str] = []
     if db_obj.control:
-        db_obj.control_owner_name = db_obj.control.control_owner.name if db_obj.control.control_owner else "Unassigned"
-        db_obj.linked_risks = []
+        control_owner_name = db_obj.control.control_owner.name if db_obj.control.control_owner else "Unassigned"
         if db_obj.control.risk_links:
-            for link in db_obj.control.risk_links:
-                if link.risk:
-                    db_obj.linked_risks.append(link.risk.process)
+            linked_risks = [link.risk.process for link in db_obj.control.risk_links if link.risk]
     else:
-        db_obj.control_owner_name = "Unknown"
-        db_obj.linked_risks = []
-    
-    return db_obj
+        control_owner_name = "Unknown"
+
+    return _execution_to_schema(
+        db_obj,
+        executed_by_name=executed_by_name,
+        control_name=control_name,
+        control_owner_name=control_owner_name,
+        linked_risks=linked_risks,
+    )
 
 
 @router.get("/{id}", response_model=schemas.ControlExecution)
@@ -219,18 +249,21 @@ async def read_execution(
         if not is_owner:
             check_department_access(db_obj.control.department_id, current_user)
         
-    db_obj.executed_by_name = db_obj.executed_by.name if db_obj.executed_by else "Unknown"
-    db_obj.control_name = db_obj.control.name if db_obj.control else "Unknown"
-    
+    executed_by_name = db_obj.executed_by.name if db_obj.executed_by else "Unknown"
+    control_name = db_obj.control.name if db_obj.control else "Unknown"
+
+    linked_risks: list[str] = []
     if db_obj.control:
-        db_obj.control_owner_name = db_obj.control.control_owner.name if db_obj.control.control_owner else "Unassigned"
-        db_obj.linked_risks = []
+        control_owner_name = db_obj.control.control_owner.name if db_obj.control.control_owner else "Unassigned"
         if db_obj.control.risk_links:
-            for link in db_obj.control.risk_links:
-                if link.risk:
-                    db_obj.linked_risks.append(link.risk.process)
+            linked_risks = [link.risk.process for link in db_obj.control.risk_links if link.risk]
     else:
-        db_obj.control_owner_name = "Unknown"
-        db_obj.linked_risks = []
-    
-    return db_obj
+        control_owner_name = "Unknown"
+
+    return _execution_to_schema(
+        db_obj,
+        executed_by_name=executed_by_name,
+        control_name=control_name,
+        control_owner_name=control_owner_name,
+        linked_risks=linked_risks,
+    )

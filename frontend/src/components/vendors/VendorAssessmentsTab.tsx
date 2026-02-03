@@ -5,7 +5,7 @@ import type { Vendor } from '@/types/vendor';
 import type { VendorAssessment, VendorAssessmentStatus, VendorCommitteeRecommendation } from '@/types/vendorAssessment';
 import { vendorAssessmentApi } from '@/services/vendorAssessmentApi';
 import { getVendorAssessmentTemplate, type VendorAssessmentSection } from './vendorAssessmentQuestions';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuthz } from '@/authz/useAuthz';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 interface VendorAssessmentsTabProps {
@@ -110,7 +110,7 @@ function renderInput(
 
 export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabProps) {
     const { t } = useTranslation('vendors');
-    const { user } = useAuth();
+    const authz = useAuthz();
 
     const [items, setItems] = useState<VendorAssessment[]>([]);
     const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -124,8 +124,8 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const isSecondLine = user?.role === 'risk_manager' || user?.role === 'compliance';
-    const isCRO = user?.role === 'cro';
+    const isSecondLine = authz.isSecondLine;
+    const isCRO = authz.isCRO;
 
     const template = useMemo(() => {
         if (!selected) return [];

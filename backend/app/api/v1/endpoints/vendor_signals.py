@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.core.permissions import can_read_vendor
 from app.core.security import require_permission, check_permission
+from app.core.pagination import MAX_VENDOR_SIGNALS
 from app.db.session import get_db
 from app.models import User, Vendor
 from app.models.vendor_external_signal import VendorExternalSignal
@@ -33,7 +34,7 @@ async def list_vendor_signals(
         select(VendorExternalSignal)
         .where(VendorExternalSignal.vendor_id == vendor_id)
         .order_by(desc(VendorExternalSignal.fetched_at), desc(VendorExternalSignal.id))
-        .limit(200)
+        .limit(MAX_VENDOR_SIGNALS)
     )
     rows = (await db.execute(stmt)).scalars().all()
     return [
@@ -83,4 +84,3 @@ async def refresh_vendor_signals(
         }
         for r in results
     ]
-
