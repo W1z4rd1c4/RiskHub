@@ -3,8 +3,9 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department, Risk, User
+from app.models import Department, Risk, User, Role
 from app.models.risk import RiskStatus as RiskStatusEnum
+from app.models.user import AccessScope
 
 
 @pytest.mark.asyncio
@@ -72,6 +73,33 @@ async def test_list_department_risks_with_min_net_score(
     assert len(data) == 1
     assert data[0]["risk_id_code"] == "RISK-HIGH-SCORE"
     assert data[0]["net_score"] >= 10
+
+
+@pytest.mark.asyncio
+async def test_departments_requires_departments_read_permission(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+):
+    role = Role(name="no_dept_read", display_name="No Dept Read", description="No departments:read")
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    user = User(
+        name="No Dept Read User",
+        email="nodeptread@test.com",
+        department_id=test_department.id,
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    resp = await client.get("/api/v1/departments", headers={"X-Mock-User-Id": str(user.id)})
+    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio

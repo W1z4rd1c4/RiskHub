@@ -11,6 +11,7 @@ from app.models.risk import Risk
 from app.models.control import Control
 from app.models.user import User
 from app.models.department import Department
+from app.core.permissions import get_user_department_ids
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ async def _create_orphan(
         item_id=item_id,
         previous_owner_id=previous_owner_id,
         status="pending",
-        orphaned_at=orphaned_at or datetime.utcnow(),
+        orphaned_at=orphaned_at or datetime.now(UTC).replace(tzinfo=None),
     )
     db.add(orphan)
     logger.info(f"Flagged orphaned {item_type}: id={item_id}")
@@ -229,7 +230,7 @@ class OrphanedItemService:
                 item_id=risk.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.utcnow()
+                orphaned_at=datetime.now(UTC).replace(tzinfo=None)
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -268,7 +269,7 @@ class OrphanedItemService:
                 item_id=control.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.utcnow()
+                orphaned_at=datetime.now(UTC).replace(tzinfo=None)
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -314,7 +315,7 @@ class OrphanedItemService:
                 item_id=kri.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.utcnow()
+                orphaned_at=datetime.now(UTC).replace(tzinfo=None)
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -353,7 +354,7 @@ class OrphanedItemService:
                 item_id=control.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.utcnow()
+                orphaned_at=datetime.now(UTC).replace(tzinfo=None)
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -390,36 +391,56 @@ class OrphanedItemService:
         return list(result.scalars().all())
     
     @staticmethod
-    async def get_orphan_stats(db: AsyncSession) -> dict:
+    async def get_orphan_stats(db: AsyncSession, current_user: User) -> dict:
         """
         Get statistics about orphaned items for the 4-bar layout.
         
         Returns:
             Dict matching OrphanedItemStats schema
         """
-        # Count pending orphans in the database by type
-        result = await db.execute(
-            select(
-                OrphanedItem.item_type,
-                func.count(OrphanedItem.id).label("count")
-            )
-            .where(OrphanedItem.status == "pending")
-            .group_by(OrphanedItem.item_type)
+        dept_ids = get_user_department_ids(current_user)
+        if dept_ids is not None and not dept_ids:
+            return {"risk_count": 0, "control_count": 0, "kri_count": 0, "total_count": 0}
+
+        risk_stmt = (
+            select(func.count(OrphanedItem.id))
+            .select_from(OrphanedItem)
+            .join(Risk, Risk.id == OrphanedItem.item_id)
+            .where(OrphanedItem.status == "pending", OrphanedItem.item_type == "risk")
         )
-        
-        counts = {"risk": 0, "control": 0, "kri": 0}
-        total = 0
-        for row in result:
-            if row.item_type in counts:
-                counts[row.item_type] = row.count
-                total += row.count
-        
-        return {
-            "risk_count": counts["risk"],
-            "control_count": counts["control"],
-            "kri_count": counts["kri"],
-            "total_count": total,
-        }
+        control_stmt = (
+            select(func.count(OrphanedItem.id))
+            .select_from(OrphanedItem)
+            .join(Control, Control.id == OrphanedItem.item_id)
+            .where(OrphanedItem.status == "pending", OrphanedItem.item_type == "control")
+        )
+
+        kri_stmt = (
+            select(func.count(OrphanedItem.id))
+            .select_from(OrphanedItem)
+            .where(OrphanedItem.status == "pending", OrphanedItem.item_type == "kri")
+        )
+
+        if dept_ids is not None:
+            risk_stmt = risk_stmt.where(Risk.department_id.in_(dept_ids))
+            control_stmt = control_stmt.where(Control.department_id.in_(dept_ids))
+
+            from app.models.key_risk_indicator import KeyRiskIndicator
+
+            kri_stmt = (
+                select(func.count(OrphanedItem.id))
+                .select_from(OrphanedItem)
+                .join(KeyRiskIndicator, KeyRiskIndicator.id == OrphanedItem.item_id)
+                .join(Risk, Risk.id == KeyRiskIndicator.risk_id)
+                .where(OrphanedItem.status == "pending", OrphanedItem.item_type == "kri", Risk.department_id.in_(dept_ids))
+            )
+
+        risk_count = (await db.execute(risk_stmt)).scalar() or 0
+        control_count = (await db.execute(control_stmt)).scalar() or 0
+        kri_count = (await db.execute(kri_stmt)).scalar() or 0
+        total = int(risk_count) + int(control_count) + int(kri_count)
+
+        return {"risk_count": int(risk_count), "control_count": int(control_count), "kri_count": int(kri_count), "total_count": total}
     
     @staticmethod
     async def resolve_orphan(
@@ -546,7 +567,7 @@ class OrphanedItemService:
         
         # Mark orphan as resolved
         orphan.status = "resolved"
-        orphan.resolved_at = datetime.utcnow()
+        orphan.resolved_at = datetime.now(UTC).replace(tzinfo=None)
         orphan.resolved_by_id = resolved_by_id
         orphan.new_owner_id = new_owner_id
         
@@ -638,4 +659,3 @@ class OrphanedItemService:
             "orphaned_at": orphan.orphaned_at,
             "status": orphan.status,
         }
-

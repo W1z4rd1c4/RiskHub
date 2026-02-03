@@ -112,7 +112,7 @@ def _apply_process_category_filters(query, process: str | None, category: str | 
 @router.get("", response_model=ControlListResponse)
 async def list_controls(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("controls", "read")),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     department_id: Optional[int] = None,
@@ -189,10 +189,27 @@ async def list_controls(
     controls = result.scalars().all()
     
     # Map to summary with department_name and risk info
+    from app.core.permissions import (
+        can_access_department_id,
+        get_risk_ids_where_control_owner,
+        get_risk_ids_where_kri_reporting_owner,
+    )
+
+    can_read_risks = check_permission(current_user, "risks", "read")
+    cross_dept_risk_ids: set[int] = set()
+    if can_read_risks:
+        reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, current_user.id)
+        control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
+        cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
+
     items = []
     for c in controls:
         # Get first linked risk for grouping purposes
         first_risk = c.risk_links[0].risk if c.risk_links else None
+
+        risk_visible = False
+        if first_risk and can_read_risks:
+            risk_visible = can_access_department_id(current_user, first_risk.department_id) or (first_risk.id in cross_dept_risk_ids)
         
         items.append(ControlSummary(
             id=c.id,
@@ -205,12 +222,12 @@ async def list_controls(
             status=ControlStatusEnum(c.status),
             control_form=ControlFormEnum(c.control_form),
             control_owner_name=c.control_owner.name if c.control_owner else None,
-            risk_type=first_risk.risk_type if first_risk else None,
-            risk_id_code=first_risk.risk_id_code if first_risk else None,
-            risk_description=first_risk.description if first_risk else None,
-            risk_name=first_risk.name if first_risk else None,
-            risk_owner_name=first_risk.owner.name if first_risk and first_risk.owner else None,
-            risk_department_name=first_risk.department.name if first_risk and first_risk.department else None,
+            risk_type=first_risk.risk_type if (first_risk and risk_visible) else None,
+            risk_id_code=first_risk.risk_id_code if (first_risk and risk_visible) else None,
+            risk_description=first_risk.description if (first_risk and risk_visible) else None,
+            risk_name=first_risk.name if (first_risk and risk_visible) else None,
+            risk_owner_name=first_risk.owner.name if (first_risk and risk_visible and first_risk.owner) else None,
+            risk_department_name=first_risk.department.name if (first_risk and risk_visible and first_risk.department) else None,
         ))
     
     return ControlListResponse(items=items, total=total, skip=skip, limit=limit)
@@ -220,7 +237,7 @@ async def list_controls(
 async def get_control(
     control_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("controls", "read")),
 ):
     """Get a single control with all relationships."""
     from app.core.permissions import is_control_owner
@@ -243,7 +260,10 @@ async def get_control(
         return control
     
     # Otherwise verify department access
-    check_department_access(control.department_id, current_user)
+    try:
+        check_department_access(control.department_id, current_user)
+    except HTTPException:
+        raise HTTPException(status_code=404, detail="Control not found")
     
     return control
 
@@ -708,7 +728,7 @@ async def log_execution(
 async def list_executions(
     control_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("controls", "read")),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
@@ -726,7 +746,10 @@ async def list_executions(
     # Verify access: department OR control owner
     is_owner = await is_control_owner(db, current_user.id, control_id)
     if not is_owner:
-        check_department_access(control.department_id, current_user)
+        try:
+            check_department_access(control.department_id, current_user)
+        except HTTPException:
+            raise HTTPException(status_code=404, detail="Control not found")
     
     result = await db.execute(
         select(ControlExecution)
@@ -745,10 +768,15 @@ async def list_executions(
 async def list_control_risks(
     control_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("controls", "read")),
 ):
     """List risks that this control mitigates."""
-    from app.core.permissions import is_control_owner
+    from app.core.permissions import (
+        can_access_department_id,
+        get_risk_ids_where_control_owner,
+        get_risk_ids_where_kri_reporting_owner,
+        is_control_owner,
+    )
     
     # Verify control exists
     result = await db.execute(
@@ -762,7 +790,10 @@ async def list_control_risks(
     is_owner = await is_control_owner(db, current_user.id, control_id)
     if not is_owner:
         # Fall back to department access check
-        check_department_access(control.department_id, current_user)
+        try:
+            check_department_access(control.department_id, current_user)
+        except HTTPException:
+            raise HTTPException(status_code=404, detail="Control not found")
     
     result = await db.execute(
         select(ControlRiskLink)
@@ -772,7 +803,28 @@ async def list_control_risks(
         )
         .where(ControlRiskLink.control_id == control_id)
     )
-    return result.scalars().all()
+    links = result.scalars().all()
+
+    can_read_risks = check_permission(current_user, "risks", "read")
+    if not can_read_risks:
+        for link in links:
+            link.risk = None
+        return links
+
+    reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, current_user.id)
+    control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
+    cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
+
+    for link in links:
+        if not link.risk:
+            continue
+        if can_access_department_id(current_user, link.risk.department_id):
+            continue
+        if link.risk.id in cross_dept_risk_ids:
+            continue
+        link.risk = None
+
+    return links
 
 
 
@@ -909,4 +961,3 @@ async def unlink_control_from_risk(
     
     await db.delete(link)
     await db.commit()
-

@@ -20,6 +20,7 @@ from app.schemas.risk_questionnaire import (
     RiskQuestionnaireClarificationRespond,
 )
 from app.core.permissions import check_department_access, get_user_department_ids
+from app.core.security import require_permission
 from app.core.activity_logger import log_activity
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.notification import NotificationType
@@ -154,7 +155,7 @@ def _serialize_clarification(c: RiskQuestionnaireClarification) -> RiskQuestionn
 async def list_questionnaires_for_risk(
     risk_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ) -> list[RiskQuestionnaireListItemRead]:
     await _get_risk_for_read(db, current_user, risk_id)
 
@@ -177,7 +178,7 @@ async def list_questionnaires_for_risk(
 async def send_questionnaire_for_risk(
     risk_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ) -> RiskQuestionnaireRead:
     if not can_send_questionnaire(current_user):
         raise HTTPException(status_code=403, detail="Only Risk Manager or CRO can send questionnaires")
@@ -250,7 +251,7 @@ async def send_questionnaire_for_risk(
 @router.get("/inbox", response_model=list[RiskQuestionnaireListItemRead])
 async def get_questionnaire_inbox(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ) -> list[RiskQuestionnaireListItemRead]:
     open_statuses = {RiskQuestionnaireStatus.sent, RiskQuestionnaireStatus.in_progress}
 
@@ -295,7 +296,7 @@ async def get_questionnaire(
     questionnaire_id: int,
     include_previous: bool = False,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ) -> RiskQuestionnaireRead:
     questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
 
@@ -316,7 +317,7 @@ async def update_questionnaire_draft(
     questionnaire_id: int,
     payload: RiskQuestionnaireDraftUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ) -> RiskQuestionnaireRead:
     questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
     if not can_submit_questionnaire(current_user, questionnaire.risk):
@@ -336,7 +337,7 @@ async def submit_questionnaire(
     questionnaire_id: int,
     payload: RiskQuestionnaireSubmit,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ) -> RiskQuestionnaireRead:
     questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
     if not can_submit_questionnaire(current_user, questionnaire.risk):
@@ -406,7 +407,7 @@ async def create_questionnaire_clarification(
     questionnaire_id: int,
     payload: RiskQuestionnaireClarificationCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ) -> RiskQuestionnaireClarificationRead:
     if not can_send_questionnaire(current_user):
         raise HTTPException(status_code=403, detail="Only Risk Manager or CRO can request clarifications")
@@ -461,7 +462,7 @@ async def create_questionnaire_clarification(
 async def list_questionnaire_clarifications(
     questionnaire_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ) -> list[RiskQuestionnaireClarificationRead]:
     questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
 
@@ -487,7 +488,7 @@ async def respond_to_questionnaire_clarification(
     clarification_id: int,
     payload: RiskQuestionnaireClarificationRespond,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_permission("risks", "read")),
 ) -> RiskQuestionnaireClarificationRead:
     questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
     if questionnaire.assigned_to_user_id != current_user.id:
