@@ -638,7 +638,7 @@ async def get_public_config(
     # CRO can read any key; non-CRO limited to allowlist
     from app.models.role import Role
     
-    is_cro = current_user.role and current_user.role.name.lower() == "cro"
+    is_cro = bool(current_user.role and current_user.role.name == RoleType.CRO)
     
     if not is_cro and key not in PUBLIC_CONFIG_ALLOWLIST:
         raise HTTPException(
@@ -861,7 +861,7 @@ async def update_role(
         raise HTTPException(status_code=404, detail="Role not found")
     
     # Core system roles are immutable
-    if role.name in {"cro", "admin", "viewer"}:
+    if role.name in {RoleType.CRO, RoleType.ADMIN, RoleType.VIEWER}:
         raise HTTPException(
             status_code=400,
             detail=f"The {role.display_name} role is a core system role and cannot be modified."
@@ -1048,12 +1048,9 @@ async def list_departments_hub(
 ) -> list[DepartmentHubRead]:
     """List all departments with stats. CRO only."""
     from app.models.department import Department
-    from app.models import Risk, Control
+    from app.models import Risk, Control, User
     
-    query = select(Department).options(
-        selectinload(Department.users),
-        selectinload(Department.manager)
-    ).order_by(Department.name)
+    query = select(Department).options(selectinload(Department.manager)).order_by(Department.name)
     
     if not include_inactive:
         query = query.where(Department.is_active == True)
@@ -1061,32 +1058,52 @@ async def list_departments_hub(
     result = await db.execute(query)
     departments = result.scalars().all()
     
-    # Get counts
-    dept_stats = []
-    for dept in departments:
-        risk_count_result = await db.execute(
-            select(func.count(Risk.id)).where(Risk.department_id == dept.id)
-        )
-        risk_count = risk_count_result.scalar() or 0
-        
-        control_count_result = await db.execute(
-            select(func.count(Control.id)).where(Control.department_id == dept.id)
-        )
-        control_count = control_count_result.scalar() or 0
-        
-        dept_stats.append(DepartmentHubRead(
+    dept_ids = [d.id for d in departments]
+    if not dept_ids:
+        return []
+
+    risk_counts = {
+        row[0]: row[1]
+        for row in (
+            await db.execute(select(Risk.department_id, func.count(Risk.id)).where(Risk.department_id.in_(dept_ids)).group_by(Risk.department_id))
+        ).all()
+    }
+    control_counts = {
+        row[0]: row[1]
+        for row in (
+            await db.execute(
+                select(Control.department_id, func.count(Control.id))
+                .where(Control.department_id.in_(dept_ids))
+                .group_by(Control.department_id)
+            )
+        ).all()
+    }
+    user_counts = {
+        row[0]: row[1]
+        for row in (
+            await db.execute(
+                select(User.department_id, func.count(User.id))
+                .where(User.department_id.in_(dept_ids))
+                .where(User.is_active == True)
+                .group_by(User.department_id)
+            )
+        ).all()
+    }
+
+    return [
+        DepartmentHubRead(
             id=dept.id,
             name=dept.name,
-            code=dept.code if hasattr(dept, 'code') else None,
+            code=dept.code if hasattr(dept, "code") else None,
             manager_id=dept.manager_id,
             manager_name=dept.manager.name if dept.manager else None,
             is_active=dept.is_active,
-            user_count=len([u for u in dept.users if u.is_active]),
-            risk_count=risk_count,
-            control_count=control_count
-        ))
-    
-    return dept_stats
+            user_count=user_counts.get(dept.id, 0),
+            risk_count=risk_counts.get(dept.id, 0),
+            control_count=control_counts.get(dept.id, 0),
+        )
+        for dept in departments
+    ]
 
 
 @router.post("/departments", response_model=DepartmentHubRead, status_code=201)

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.sql import case
 
 from app.db.session import get_db
 from app.models import Department, User, Risk, Control, ControlExecution, KeyRiskIndicator
@@ -22,8 +23,9 @@ from app.schemas.control import ControlSummary
 from app.schemas.kri import KRIResponse
 from app.core.permissions import get_user_department_ids, check_department_access
 from app.core.security import require_permission, check_permission
-from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, DEPARTMENT_RECENT_EXECUTIONS_LIMIT
 from app.models.global_config import ConfigDefaults, build_risk_level_ranges
+from app.api.mappers.risk import risk_to_summary
 
 
 router = APIRouter()
@@ -278,37 +280,53 @@ async def get_department(
     )
     kri_count = kri_count_result.scalar() or 0
 
-    # Risk distribution by level
-    risk_distribution = RiskDistribution()
+    # Risk distribution by level (single query, avoids N+1)
+    risk_distribution_columns = []
     for level, (min_score, max_score) in RISK_LEVEL_RANGES.items():
-        count_result = await db.execute(
-            select(func.count(Risk.id)).where(
-                and_(
-                    Risk.department_id == department_id,
-                    Risk.status != RiskStatus.archived.value,
-                    Risk.net_score >= min_score,
-                    Risk.net_score <= max_score
+        risk_distribution_columns.append(
+            func.sum(
+                case(
+                    (
+                        and_(
+                            Risk.net_score >= min_score,
+                            Risk.net_score <= max_score,
+                        ),
+                        1,
+                    ),
+                    else_=0,
                 )
+            ).label(level)
+        )
+
+    risk_distribution_stmt = (
+        select(*risk_distribution_columns)
+        .where(
+            and_(
+                Risk.department_id == department_id,
+                Risk.status != RiskStatus.archived.value,
             )
         )
-        setattr(risk_distribution, level, count_result.scalar() or 0)
+    )
+    risk_distribution_row = (await db.execute(risk_distribution_stmt)).one()
+    risk_distribution = RiskDistribution(
+        low=int(getattr(risk_distribution_row, "low") or 0),
+        medium=int(getattr(risk_distribution_row, "medium") or 0),
+        high=int(getattr(risk_distribution_row, "high") or 0),
+        critical=int(getattr(risk_distribution_row, "critical") or 0),
+    )
     
-    # Risk by status
-    risk_by_status = {}
-    for status in RiskStatus:
-        if status == RiskStatus.archived:
-            continue
-        count_result = await db.execute(
-            select(func.count(Risk.id)).where(
-                and_(
-                    Risk.department_id == department_id,
-                    Risk.status == status.value
-                )
+    # Risk by status (single grouped query)
+    risk_by_status_stmt = (
+        select(Risk.status, func.count(Risk.id))
+        .where(
+            and_(
+                Risk.department_id == department_id,
+                Risk.status != RiskStatus.archived.value,
             )
         )
-        count = count_result.scalar() or 0
-        if count > 0:
-            risk_by_status[status.value] = count
+        .group_by(Risk.status)
+    )
+    risk_by_status = {row[0]: row[1] for row in (await db.execute(risk_by_status_stmt)).all() if row[1] > 0}
 
     # Control stats
     control_stats = ControlStats(
@@ -319,49 +337,38 @@ async def get_department(
         by_frequency={}
     )
     
-    # Controls by status
-    for status in [ControlStatus.active, ControlStatus.inactive]:
-        count_result = await db.execute(
-            select(func.count(Control.id)).where(
-                and_(
-                    Control.department_id == department_id,
-                    Control.status == status.value
-                )
+    # Controls by status (single grouped query for the two statuses we expose)
+    control_status_stmt = (
+        select(Control.status, func.count(Control.id))
+        .where(
+            and_(
+                Control.department_id == department_id,
+                Control.status.in_([ControlStatus.active.value, ControlStatus.inactive.value]),
             )
         )
-        count = count_result.scalar() or 0
-        if status == ControlStatus.active:
-            control_stats.active = count
-        else:
-            control_stats.inactive = count
+        .group_by(Control.status)
+    )
+    status_counts = {row[0]: row[1] for row in (await db.execute(control_status_stmt)).all()}
+    control_stats.active = int(status_counts.get(ControlStatus.active.value, 0))
+    control_stats.inactive = int(status_counts.get(ControlStatus.inactive.value, 0))
     
-    # Controls by form
-    for form in ControlForm:
-        count_result = await db.execute(
-            select(func.count(Control.id)).where(
-                and_(
-                    Control.department_id == department_id,
-                    Control.control_form == form.value
-                )
-            )
-        )
-        count = count_result.scalar() or 0
-        if count > 0:
-            control_stats.by_form[form.value] = count
+    # Controls by form (single grouped query; preserves prior behavior including archived controls)
+    control_form_stmt = (
+        select(Control.control_form, func.count(Control.id))
+        .where(Control.department_id == department_id)
+        .group_by(Control.control_form)
+    )
+    control_stats.by_form = {row[0]: row[1] for row in (await db.execute(control_form_stmt)).all() if row[0] and row[1] > 0}
     
-    # Controls by frequency
-    for freq in ControlFrequency:
-        count_result = await db.execute(
-            select(func.count(Control.id)).where(
-                and_(
-                    Control.department_id == department_id,
-                    Control.frequency == freq.value
-                )
-            )
-        )
-        count = count_result.scalar() or 0
-        if count > 0:
-            control_stats.by_frequency[freq.value] = count
+    # Controls by frequency (single grouped query; preserves prior behavior including archived controls)
+    control_frequency_stmt = (
+        select(Control.frequency, func.count(Control.id))
+        .where(Control.department_id == department_id)
+        .group_by(Control.frequency)
+    )
+    control_stats.by_frequency = {
+        row[0]: row[1] for row in (await db.execute(control_frequency_stmt)).all() if row[0] and row[1] > 0
+    }
     
     # Recent executions
     exec_result = await db.execute(
@@ -373,7 +380,7 @@ async def get_department(
         )
         .where(Control.department_id == department_id)
         .order_by(ControlExecution.executed_at.desc())
-        .limit(10)
+        .limit(DEPARTMENT_RECENT_EXECUTIONS_LIMIT)
     )
     executions = exec_result.scalars().all()
     
@@ -434,7 +441,8 @@ async def list_department_risks(
         select(Risk)
         .options(
             selectinload(Risk.department),
-            selectinload(Risk.kris)  # Load KRIs for count and breach check
+            selectinload(Risk.kris),  # Load KRIs for count and breach check
+            selectinload(Risk.control_links),
         )
         .where(Risk.department_id == department_id)
     )
@@ -453,27 +461,7 @@ async def list_department_risks(
     result = await db.execute(query)
     risks = result.scalars().all()
     
-    # Build response with KRI metadata
-    items = []
-    for r in risks:
-        kris = r.kris if r.kris else []
-        kri_count = len(kris)
-        # Check if any KRI is in breach (outside limits)
-        has_breach = any(
-            k.current_value < k.lower_limit or k.current_value > k.upper_limit
-            for k in kris
-        )
-        
-        items.append({
-            **{c.name: getattr(r, c.name) for c in Risk.__table__.columns},
-            "department_name": r.department.name if r.department else None,
-            "gross_probability": r.gross_probability,
-            "gross_impact": r.gross_impact,
-            "kri_count": kri_count,
-            "has_breach": has_breach,
-        })
-    
-    return items
+    return [risk_to_summary(r) for r in risks]
 
 
 @router.get("/{department_id}/controls", response_model=list[ControlSummary])

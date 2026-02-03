@@ -24,6 +24,8 @@ from app.core.permissions import (
 from app.core.security import require_permission, check_permission
 from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.api.mappers.risk import risk_to_summary
+from app.api.mappers.vendor import vendor_to_read
 
 router = APIRouter()
 
@@ -235,25 +237,8 @@ async def list_risks(
     
     result = await db.execute(query)
     risks = result.scalars().all()
-    
-    # Build items with department_name and KRI summary populated
-    items = [
-        {
-            **{c.name: getattr(r, c.name) for c in Risk.__table__.columns},
-            "department_name": r.department.name if r.department else None,
-            "gross_probability": r.gross_probability,
-            "gross_impact": r.gross_impact,
-            "kri_count": len(r.kris),
-            "control_count": len(r.control_links),
-            "has_breach": any(
-                k.current_value < k.lower_limit or k.current_value > k.upper_limit 
-                for k in r.kris
-            )
-        }
-        for r in risks
-    ]
-    
-    return RiskListResponse(items=items, total=total, skip=skip, limit=limit)
+
+    return RiskListResponse(items=[risk_to_summary(r) for r in risks], total=total, skip=skip, limit=limit)
 
 
 @router.get("/{risk_id}", response_model=RiskRead)
@@ -905,10 +890,6 @@ async def list_risk_vendors(
     visible_vendors = [v for v in linked_vendors if can_read_vendor(v, current_user)]
 
     return [
-        {
-            **{c.name: getattr(v, c.name) for c in Vendor.__table__.columns},
-            "department_name": v.department.name if v.department else None,
-            "outsourcing_owner_name": v.outsourcing_owner.name if v.outsourcing_owner else None,
-        }
+        vendor_to_read(v).model_dump()
         for v in visible_vendors
     ]

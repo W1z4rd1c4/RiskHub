@@ -12,6 +12,7 @@ import { userApi } from '@/services/userApi';
 import type { AccessUserRead } from '@/types/access';
 import type { UserLookup } from '@/types/user';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuthz } from '@/authz/useAuthz';
 import { useNavigate } from 'react-router-dom';
 import { AccessEditModal } from '@/components/access/AccessEditModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -34,11 +35,12 @@ export function UsersPage() {
     const [userToToggle, setUserToToggle] = useState<AccessUserRead | null>(null);
     const [isToggling, setIsToggling] = useState(false);
 
-    const { canManageUsers, canManageAccess, user: currentUser } = usePermissions();
+    const { canManageUsers, user: currentUser } = usePermissions();
+    const authz = useAuthz();
     const navigate = useNavigate();
 
     // Department heads get access view but scoped to their department
-    const isDepartmentHead = currentUser?.role === 'department_head';
+    const isDepartmentHead = authz.isDepartmentHead;
 
     const filters = useUsersPageFilters({
         accessUsers: users,
@@ -50,12 +52,12 @@ export function UsersPage() {
         if (currentUser) {
             fetchUsers();
         }
-    }, [canManageAccess, isDepartmentHead, currentUser]);
+    }, [authz.canManageAccess, isDepartmentHead, currentUser]);
 
     const fetchUsers = async () => {
         try {
             setIsLoading(true);
-            if (canManageAccess) {
+            if (authz.canManageAccess) {
                 // Privileged users get full access data
                 const data = await accessApi.listAccessUsers();
                 setUsers(data);
@@ -209,7 +211,7 @@ export function UsersPage() {
                     directoryUsers={displayDirectoryUsers}
                     expandedUserId={expandedUserId}
                     onToggleExpand={(userId) => setExpandedUserId(expandedUserId === userId ? null : userId)}
-                    canManageAccess={canManageAccess}
+                    canManageAccess={authz.canManageAccess}
                     canManageUsers={canManageUsers}
                     onEditAccess={handleEditAccess}
                     onToggleStatus={handleToggleClick}

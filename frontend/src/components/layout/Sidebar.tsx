@@ -23,16 +23,19 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuthz } from '@/authz/useAuthz';
 import { approvalsApi } from '@/services/approvalsApi';
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { SIDEBAR_POLL_MS } from '@/config/constants';
 
 export function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
     const { canManageAccess, canViewActivityLog, hasPermission } = usePermissions();
+    const authz = useAuthz();
     const { t } = useTranslation('navigation');
     const [workflowCount, setWorkflowCount] = useState(0);
     const [orphanCount, setOrphanCount] = useState(0);
@@ -70,7 +73,7 @@ export function Sidebar() {
         fetchData();
 
         // Then poll every 60 seconds
-        const interval = setInterval(fetchData, 60000);
+        const interval = setInterval(fetchData, SIDEBAR_POLL_MS);
         return () => clearInterval(interval);
     }, [user?.id]); // Fetch on login/user change + polling
 
@@ -87,8 +90,7 @@ export function Sidebar() {
     };
 
     // Access Management visible to admins, privileged users, and department heads
-    const canViewUsers = canManageAccess || user?.role === 'department_head';
-    const userManagementItem = canViewUsers
+    const userManagementItem = authz.canViewUsersPage
         ? { name: t('sidebar.users'), href: '/users', icon: UsersIcon }
         : null;
 
@@ -109,20 +111,20 @@ export function Sidebar() {
     };
 
     // Risk Hub visible only to CRO
-    const riskHubItem = user?.role === 'cro' ? {
+    const riskHubItem = authz.canViewRiskHub ? {
         name: t('sidebar.risk_hub'),
         href: '/risk-hub',
         icon: Command,
     } : null;
 
     // Admin Console visible only to Admin
-    const adminConsoleItem = user?.role === 'admin' ? {
+    const adminConsoleItem = authz.canViewAdminConsole ? {
         name: t('sidebar.admin'),
         href: '/admin',
         icon: Server,
     } : null;
 
-    const documentationItem = user?.role === 'admin' ? {
+    const documentationItem = authz.canViewAdminConsole ? {
         name: t('sidebar.documentation'),
         href: '/admin/docs',
         icon: BookOpen,
@@ -130,7 +132,7 @@ export function Sidebar() {
 
     // Admin only sees: Settings, Access Management, Admin Console
     // Everyone else sees the full business navigation
-    const isAdmin = user?.role === 'admin';
+    const isAdmin = authz.isPlatformAdmin;
 
     const dashboardItem = navigationWithBadges.find((i) => i.href === '/');
     const settingsItem = navigationWithBadges.find((i) => i.href === '/settings');
