@@ -18,8 +18,17 @@ from app.core.security import require_permission, check_permission
 from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services.vendor_reassessment_service import VendorReassessmentService
+from app.api.mappers.vendor import vendor_list_response, vendor_to_read
 
 router = APIRouter()
+
+async def _get_vendor_with_deps(db: AsyncSession, vendor_id: int) -> Vendor | None:
+    result = await db.execute(
+        select(Vendor)
+        .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
+        .where(Vendor.id == vendor_id)
+    )
+    return result.scalar_one_or_none()
 
 
 @router.get("", response_model=VendorListResponse)
@@ -124,16 +133,7 @@ async def list_vendors(
     result = await db.execute(query)
     vendors = result.scalars().all()
 
-    items = [
-        {
-            **{c.name: getattr(v, c.name) for c in Vendor.__table__.columns},
-            "department_name": v.department.name if v.department else None,
-            "outsourcing_owner_name": v.outsourcing_owner.name if v.outsourcing_owner else None,
-        }
-        for v in vendors
-    ]
-
-    return VendorListResponse(items=items, total=total, skip=skip, limit=limit)
+    return vendor_list_response(vendors=vendors, total=total, skip=skip, limit=limit)
 
 
 @router.post("", response_model=VendorRead, status_code=status.HTTP_201_CREATED)
@@ -165,16 +165,10 @@ async def create_vendor(
     await db.commit()
 
     result = await db.execute(
-        select(Vendor)
-        .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
-        .where(Vendor.id == vendor.id)
+        select(Vendor).options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner)).where(Vendor.id == vendor.id)
     )
     vendor = result.scalar_one()
-    return {
-        **{c.name: getattr(vendor, c.name) for c in Vendor.__table__.columns},
-        "department_name": vendor.department.name if vendor.department else None,
-        "outsourcing_owner_name": vendor.outsourcing_owner.name if vendor.outsourcing_owner else None,
-    }
+    return vendor_to_read(vendor)
 
 
 @router.get("/{vendor_id}", response_model=VendorRead)
@@ -183,23 +177,14 @@ async def get_vendor(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("vendors", "read")),
 ):
-    result = await db.execute(
-        select(Vendor)
-        .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
-        .where(Vendor.id == vendor_id)
-    )
-    vendor = result.scalar_one_or_none()
+    vendor = await _get_vendor_with_deps(db, vendor_id)
     if not vendor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
     if not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
-    return {
-        **{c.name: getattr(vendor, c.name) for c in Vendor.__table__.columns},
-        "department_name": vendor.department.name if vendor.department else None,
-        "outsourcing_owner_name": vendor.outsourcing_owner.name if vendor.outsourcing_owner else None,
-    }
+    return vendor_to_read(vendor)
 
 
 @router.patch("/{vendor_id}", response_model=VendorRead)
@@ -212,12 +197,7 @@ async def update_vendor(
     if not check_permission(current_user, "vendors", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
 
-    result = await db.execute(
-        select(Vendor)
-        .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
-        .where(Vendor.id == vendor_id)
-    )
-    vendor = result.scalar_one_or_none()
+    vendor = await _get_vendor_with_deps(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
@@ -228,11 +208,7 @@ async def update_vendor(
 
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
     if not updates:
-        return {
-            **{c.name: getattr(vendor, c.name) for c in Vendor.__table__.columns},
-            "department_name": vendor.department.name if vendor.department else None,
-            "outsourcing_owner_name": vendor.outsourcing_owner.name if vendor.outsourcing_owner else None,
-        }
+        return vendor_to_read(vendor)
 
     restricted_fields = {"department_id", "outsourcing_owner_user_id", "status"}
     restricted_fields |= {
@@ -283,11 +259,10 @@ async def update_vendor(
     )
     await db.commit()
 
-    return {
-        **{c.name: getattr(vendor, c.name) for c in Vendor.__table__.columns},
-        "department_name": vendor.department.name if vendor.department else None,
-        "outsourcing_owner_name": vendor.outsourcing_owner.name if vendor.outsourcing_owner else None,
-    }
+    vendor = await _get_vendor_with_deps(db, vendor.id)
+    if not vendor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    return vendor_to_read(vendor)
 
 
 class VendorTriggerReassessmentPayload(BaseModel):
@@ -304,12 +279,7 @@ async def trigger_vendor_reassessment(
     if not check_permission(current_user, "vendors", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
 
-    result = await db.execute(
-        select(Vendor)
-        .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
-        .where(Vendor.id == vendor_id)
-    )
-    vendor = result.scalar_one_or_none()
+    vendor = await _get_vendor_with_deps(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
@@ -343,11 +313,10 @@ async def trigger_vendor_reassessment(
     await db.commit()
     await db.refresh(vendor)
 
-    return {
-        **{c.name: getattr(vendor, c.name) for c in Vendor.__table__.columns},
-        "department_name": vendor.department.name if vendor.department else None,
-        "outsourcing_owner_name": vendor.outsourcing_owner.name if vendor.outsourcing_owner else None,
-    }
+    vendor = await _get_vendor_with_deps(db, vendor.id)
+    if not vendor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    return vendor_to_read(vendor)
 
 
 @router.delete("/{vendor_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -359,12 +328,7 @@ async def archive_vendor(
     if not check_permission(current_user, "vendors", "delete"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:delete")
 
-    result = await db.execute(
-        select(Vendor)
-        .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
-        .where(Vendor.id == vendor_id)
-    )
-    vendor = result.scalar_one_or_none()
+    vendor = await _get_vendor_with_deps(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 

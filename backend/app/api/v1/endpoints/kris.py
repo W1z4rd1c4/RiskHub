@@ -18,6 +18,7 @@ from app.schemas.kri import (
 from app.api import deps
 from app.core.permissions import get_user_department_ids, check_department_access
 from app.core.security import require_permission
+from app.core.pagination import MAX_KRI_PAGE_SIZE
 from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
@@ -32,7 +33,7 @@ async def list_kris(
     breach_only: bool = Query(False, description="Only return breached KRIs"),
     include_archived: bool = Query(False, description="Include archived KRIs (privileged only)"),
     page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=1000),
+    size: int = Query(20, ge=1, le=MAX_KRI_PAGE_SIZE),
 ):
     """List all KRIs with optional filters."""
     from app.core.permissions import get_kri_ids_where_reporting_owner, can_resolve_approvals

@@ -1,0 +1,38 @@
+from __future__ import annotations
+
+from app.models import Risk
+from app.schemas.risk import RiskSummary
+
+
+def risk_to_summary(risk: Risk) -> RiskSummary:
+    """
+    Map a Risk ORM object to the RiskSummary schema.
+
+    This function is intentionally explicit to avoid accidental data leaks if the
+    Risk table changes (e.g. new columns). Endpoints should eager-load relationships
+    used here (department, kris, control_links) to keep this mapper pure.
+    """
+    kris = getattr(risk, "kris", None) or []
+    control_links = getattr(risk, "control_links", None) or []
+
+    return RiskSummary(
+        id=risk.id,
+        risk_id_code=risk.risk_id_code,
+        name=risk.name,
+        process=risk.process,
+        risk_type=risk.risk_type,
+        category=risk.category,
+        description=risk.description,
+        gross_score=risk.gross_score,
+        gross_probability=risk.gross_probability,
+        gross_impact=risk.gross_impact,
+        net_score=risk.net_score,
+        status=risk.status,
+        is_priority=bool(risk.is_priority),
+        department_id=risk.department_id,
+        department_name=risk.department.name if risk.department else None,
+        kri_count=len(kris),
+        control_count=len(control_links),
+        has_breach=any(k.current_value < k.lower_limit or k.current_value > k.upper_limit for k in kris),
+    )
+

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { Command, Palette, Settings2, ShieldCheck, Shield, Building } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuthz } from '@/authz/useAuthz';
 import { RolesPanel, DepartmentsPanel, RiskTypesPanel, SystemSettingsPanel, ApprovalScenariosPanel, RiskQuestionnairesPanel } from '@/components/riskhub';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,7 @@ type TabId = typeof tabs[number]['id'];
 
 export function RiskHubPage() {
     const { t } = useTranslation('admin');
-    const { user } = useAuth();
+    const authz = useAuthz();
     const [activeTab, setActiveTab] = useState<TabId>('risk-types');
 
     // Tab labels with translations
@@ -33,7 +33,7 @@ export function RiskHubPage() {
     };
 
     // Only CRO can access Risk Hub
-    if (user?.role !== 'cro') {
+    if (!authz.canViewRiskHub) {
         return <Navigate to="/" replace />;
     }
 

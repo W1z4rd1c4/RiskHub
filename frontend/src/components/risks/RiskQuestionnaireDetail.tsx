@@ -8,6 +8,7 @@ import type { Risk } from '@/types/risk';
 import type { RiskQuestionnaireClarification, RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAuthz } from '@/authz/useAuthz';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { IMPACT_DESCRIPTIONS, PROBABILITY_DESCRIPTIONS, formatFinancialRange } from '@/constants/riskScoreDescriptions';
@@ -40,6 +41,7 @@ export function RiskQuestionnaireDetail({
 }: RiskQuestionnaireDetailProps) {
     const { t } = useTranslation(['common', 'risks']);
     const { user } = useAuth();
+    const authz = useAuthz();
     const { totalAssets } = useTotalAssetsValue();
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -69,8 +71,8 @@ export function RiskQuestionnaireDetail({
             return user.id === risk.owner_id;
         }
         if (user.id === risk.owner_id) return true;
-        return user.role === 'department_head' && user.department_id === risk.department_id;
-    }, [risk.department_id, risk.owner_id, user]);
+        return authz.isDepartmentHead && user.department_id === risk.department_id;
+    }, [authz.isDepartmentHead, risk.department_id, risk.owner_id, user]);
 
     const isEditable = canSubmit && questionnaire?.status !== 'submitted';
 
@@ -83,7 +85,7 @@ export function RiskQuestionnaireDetail({
         [template]
     );
 
-    const canRequestClarification = user?.role === 'cro' || user?.role === 'risk_manager';
+    const canRequestClarification = authz.canRequestRiskClarification;
     const isRiskOwner = !!user && questionnaire?.assigned_to_user_id === user.id;
 
     useEffect(() => {

@@ -8,6 +8,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@/test/mocks/server';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
+import { buildAuthz } from '@/authz/policy';
 
 import { KRIDetailPage } from '@/pages/KRIDetailPage';
 import { ControlDetailPage } from '@/pages/ControlDetailPage';
@@ -38,6 +39,15 @@ const makeUser = (overrides: Partial<AuthMeUser>): AuthMeUser => ({
     scope_label: 'dept',
     ...overrides,
 });
+
+function makeHasPermission(perms: string[]) {
+    return (resource: string, action: string) =>
+        perms.some((perm) => {
+            const [permResource, permAction] = perm.split(':');
+            return (permResource === '*' || permResource === resource) &&
+                (permAction === '*' || permAction === action);
+        });
+}
 
 function renderWithRoute(route: string) {
     const queryClient = new QueryClient({
@@ -71,6 +81,52 @@ describe('RBAC UI gating', () => {
 
     afterEach(() => {
         localStorage.clear();
+    });
+
+    it('Authz policy: derives capabilities only from permissions + explicit role gates', () => {
+        const admin = makeUser({
+            role: 'admin',
+            access_scope: 'global',
+            effective_permissions: ['*:*'],
+        });
+        const adminAuthz = buildAuthz(admin, makeHasPermission(admin.effective_permissions));
+        expect(adminAuthz.canViewAdminConsole).toBe(true);
+        expect(adminAuthz.canViewRiskHub).toBe(false);
+        expect(adminAuthz.canViewActivityLog).toBe(false);
+        expect(adminAuthz.canManageAccess).toBe(true);
+        expect(adminAuthz.canReadRisks).toBe(true);
+
+        const cro = makeUser({
+            role: 'cro',
+            access_scope: 'global',
+            effective_permissions: ['risks:read'],
+        });
+        const croAuthz = buildAuthz(cro, makeHasPermission(cro.effective_permissions));
+        expect(croAuthz.canViewRiskHub).toBe(true);
+        expect(croAuthz.canViewAdminConsole).toBe(false);
+        expect(croAuthz.canReadRisks).toBe(true);
+
+        const deptHead = makeUser({
+            role: 'department_head',
+            access_scope: 'department',
+            department_id: 10,
+            effective_permissions: [],
+        });
+        const deptHeadAuthz = buildAuthz(deptHead, makeHasPermission(deptHead.effective_permissions));
+        expect(deptHeadAuthz.canViewDepartmentAccess).toBe(true);
+        expect(deptHeadAuthz.canManageAccess).toBe(false);
+        expect(deptHeadAuthz.canViewUsersPage).toBe(true);
+        expect(deptHeadAuthz.canReadRisks).toBe(false);
+
+        const employee = makeUser({
+            role: 'employee',
+            access_scope: 'department',
+            effective_permissions: ['users:read'],
+        });
+        const employeeAuthz = buildAuthz(employee, makeHasPermission(employee.effective_permissions));
+        expect(employeeAuthz.canViewUsersPage).toBe(true);
+        expect(employeeAuthz.canViewDepartmentAccess).toBe(false);
+        expect(employeeAuthz.canViewRiskHub).toBe(false);
     });
 
     it('KRI: approvals:write only (not reporting owner) hides "Record Value"', async () => {
