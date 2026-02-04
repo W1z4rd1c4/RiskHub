@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.core.permissions import can_read_vendor
+from app.core.permissions import can_read_vendor, can_read_vendor_id
 from app.core.security import require_permission, check_permission
 from app.core.activity_logger import log_activity, build_change_set
 from app.db.session import get_db
@@ -16,7 +16,7 @@ from app.i18n import t
 from app.models import User, Vendor
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.notification import Notification, NotificationType
-from app.models.role import Role, RoleType
+from app.models.role import Role, RolePermission, RoleType
 from app.models.vendor_sla import VendorSLA, VendorSLAFrequency
 from app.models.global_config import ConfigDefaults, get_config_float
 from app.schemas.vendor_sla import (
@@ -44,10 +44,11 @@ def _breach_status(current_value: float, lower: float, upper: float) -> str:
 
 async def _users_by_roles(db: AsyncSession, roles: set[RoleType]) -> list[User]:
     role_names = [r.value for r in roles]
+    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
     stmt = (
         select(User)
         .join(Role, User.role_id == Role.id)
-        .options(selectinload(User.role))
+        .options(permission_load)
         .where(User.is_active == True)
         .where(Role.name.in_(role_names))
     )
@@ -295,6 +296,7 @@ async def record_vendor_sla_value(
     now = payload.recorded_at or datetime.now(UTC)
     vendor = sla.vendor
     if vendor:
+        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
         breach = sla.breach_status
         if breach in ("above", "below"):
             if not await _check_duplicate_notification(
@@ -302,18 +304,22 @@ async def record_vendor_sla_value(
             ):
                 recipients: list[User] = []
                 if sla.reporting_owner_id:
-                    owner = (await db.execute(select(User).where(User.id == sla.reporting_owner_id))).scalar_one_or_none()
+                    owner = (
+                        await db.execute(select(User).options(permission_load).where(User.id == sla.reporting_owner_id))
+                    ).scalar_one_or_none()
                     if owner:
                         recipients.append(owner)
                 if vendor.outsourcing_owner_user_id and vendor.outsourcing_owner_user_id not in {u.id for u in recipients}:
                     v_owner = (
-                        await db.execute(select(User).where(User.id == vendor.outsourcing_owner_user_id))
+                        await db.execute(select(User).options(permission_load).where(User.id == vendor.outsourcing_owner_user_id))
                     ).scalar_one_or_none()
                     if v_owner:
                         recipients.append(v_owner)
                 recipients.extend(await _users_by_roles(db, {RoleType.RISK_MANAGER, RoleType.COMPLIANCE}))
 
                 for u in {u.id: u for u in recipients}.values():
+                    if not await can_read_vendor_id(db, u, vendor.id):
+                        continue
                     locale = getattr(u, "preferred_language", None) or "en"
                     await NotificationService.create_notification(
                         db=db,
@@ -346,7 +352,12 @@ async def record_vendor_sla_value(
                     ):
                         recipient_id = sla.reporting_owner_id or vendor.outsourcing_owner_user_id
                         if recipient_id:
-                            u = (await db.execute(select(User).where(User.id == recipient_id))).scalar_one_or_none()
+                            u = (
+                                await db.execute(select(User).options(permission_load).where(User.id == recipient_id))
+                            ).scalar_one_or_none()
+                            if u:
+                                if not await can_read_vendor_id(db, u, vendor.id):
+                                    u = None
                             if u:
                                 locale = getattr(u, "preferred_language", None) or "en"
                                 await NotificationService.create_notification(

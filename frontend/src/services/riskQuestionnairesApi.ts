@@ -24,6 +24,13 @@ export const riskQuestionnairesApi = {
             params: options.includePrevious ? { include_previous: true } : undefined,
         }),
 
+    open: (questionnaireId: number, options: { includePrevious?: boolean } = {}) =>
+        apiClient.post<RiskQuestionnaireDetail>(
+            `/questionnaires/${questionnaireId}/open`,
+            {},
+            { params: options.includePrevious ? { include_previous: true } : undefined }
+        ),
+
     saveDraft: (questionnaireId: number, answers: Record<string, unknown>) =>
         apiClient.patch<RiskQuestionnaireDetail>(`/questionnaires/${questionnaireId}/draft`, {
             answers,

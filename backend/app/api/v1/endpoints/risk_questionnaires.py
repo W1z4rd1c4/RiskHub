@@ -8,8 +8,9 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.db.session import get_db
-from app.models import Risk, User, RiskQuestionnaire, RiskQuestionnaireClarification
+from app.models import Risk, User, RiskQuestionnaire, RiskQuestionnaireClarification, Role, RolePermission
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
+from app.models.role import RoleType
 from app.schemas.risk_questionnaire import (
     RiskQuestionnaireListItemRead,
     RiskQuestionnaireRead,
@@ -19,7 +20,7 @@ from app.schemas.risk_questionnaire import (
     RiskQuestionnaireClarificationRead,
     RiskQuestionnaireClarificationRespond,
 )
-from app.core.permissions import check_department_access, get_user_department_ids
+from app.core.permissions import check_department_access, get_user_department_ids, can_read_risk_id
 from app.core.security import require_permission
 from app.core.activity_logger import log_activity
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -259,7 +260,7 @@ async def get_questionnaire_inbox(
 
     dept_clause = None
     role_name = getattr(getattr(current_user, "role", None), "name", None)
-    if role_name == "department_head" and current_user.department_id is not None:
+    if role_name == RoleType.DEPARTMENT_HEAD and current_user.department_id is not None:
         dept_clause = Risk.department_id == current_user.department_id
 
     query = (
@@ -300,8 +301,30 @@ async def get_questionnaire(
 ) -> RiskQuestionnaireRead:
     questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
 
+    previous = None
+    if include_previous:
+        previous = await get_previous_submitted_questionnaire(db, questionnaire=questionnaire)
+    return _serialize_read_with_previous(questionnaire, previous_submission=previous)
+
+
+@router.post("/{questionnaire_id}/open", response_model=RiskQuestionnaireRead)
+async def open_questionnaire(
+    questionnaire_id: int,
+    include_previous: bool = False,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("risks", "read")),
+) -> RiskQuestionnaireRead:
+    """
+    Explicitly transition a questionnaire from sent -> in_progress.
+
+    This preserves the "opening starts progress" UX without causing side effects on GET.
+    """
+    questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
     risk = questionnaire.risk
-    if questionnaire.status == RiskQuestionnaireStatus.sent and can_submit_questionnaire(current_user, risk):
+
+    if questionnaire.status == RiskQuestionnaireStatus.sent:
+        if not can_submit_questionnaire(current_user, risk):
+            raise HTTPException(status_code=403, detail="Not allowed to open this questionnaire")
         questionnaire.status = RiskQuestionnaireStatus.in_progress
         await db.commit()
         await db.refresh(questionnaire)
@@ -362,14 +385,22 @@ async def submit_questionnaire(
     questionnaire.submitted_at = datetime.now(UTC)
     questionnaire.submitted_by_user_id = current_user.id
 
-    # Notify RM/CRO recipients (localized per recipient)
-    all_users_result = await db.execute(select(User).options(selectinload(User.role)).where(User.is_active == True))
-    users = all_users_result.scalars().all()
-    recipients = [
-        u for u in users
-        if u.role and u.role.name in ("risk_manager", "cro") and u.id != current_user.id
-    ]
+    # Notify RM/CRO recipients (localized per recipient), filtered by visibility to avoid cross-scope leaks.
+    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+    recipients_stmt = (
+        select(User)
+        .join(Role, User.role_id == Role.id)
+        .where(
+            User.is_active == True,
+            User.id != current_user.id,
+            Role.name.in_([RoleType.RISK_MANAGER, RoleType.CRO]),
+        )
+        .options(permission_load)
+    )
+    recipients = (await db.execute(recipients_stmt)).scalars().all()
     for recipient in recipients:
+        if not await can_read_risk_id(db, recipient, questionnaire.risk_id):
+            continue
         locale = recipient.preferred_language or "en"
         await NotificationService.create_notification(
             db=db,

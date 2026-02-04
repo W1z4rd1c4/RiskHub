@@ -238,6 +238,60 @@ async def can_read_control_id(db, user: User, control_id: int) -> bool:
     return can_access_department_id(user, dept_id)
 
 
+async def can_read_vendor_id(db, user: User, vendor_id: int) -> bool:
+    """
+    Vendor visibility rule (Phase 18):
+    - Must have vendors:read permission
+    - Unassigned vendors (department_id is None): privileged users only
+    - Privileged users: all vendors
+    - Dept-scoped users: vendors in their department(s) OR where they are outsourcing owner
+    """
+    if not has_permission(user, "vendors", "read"):
+        return False
+
+    from sqlalchemy import select
+    from app.models import Vendor
+
+    row = (
+        await db.execute(
+            select(Vendor.id, Vendor.department_id, Vendor.outsourcing_owner_user_id).where(Vendor.id == vendor_id)
+        )
+    ).one_or_none()
+    if row is None:
+        return False
+
+    _, dept_id, owner_id = row
+
+    if dept_id is None:
+        return is_privileged_user(user)
+
+    dept_ids = get_user_department_ids(user)
+    if dept_ids is None:
+        return True
+    if dept_id in dept_ids:
+        return True
+    return bool(owner_id == user.id)
+
+
+async def can_read_kri_id(db, user: User, kri_id: int) -> bool:
+    """
+    KRI visibility rule:
+    - KRIs inherit from risks (they are risk sub-entities)
+    - Must have risks:read
+    - Must be able to read the linked risk by department/ownership rules
+    """
+    if not has_permission(user, "risks", "read"):
+        return False
+
+    from sqlalchemy import select
+    from app.models import KeyRiskIndicator
+
+    risk_id = (await db.execute(select(KeyRiskIndicator.risk_id).where(KeyRiskIndicator.id == kri_id))).scalar_one_or_none()
+    if risk_id is None:
+        return False
+    return await can_read_risk_id(db, user, risk_id)
+
+
 def get_effective_permissions(user: User) -> list[str]:
     """Return sorted list of effective permissions (resource:action)."""
     if not user.role or not user.role.permissions:

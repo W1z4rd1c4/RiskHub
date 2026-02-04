@@ -9,7 +9,7 @@ Pydantic models for admin console endpoints including:
 - Quarterly metric snapshots
 - Documentation access
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ============================================================================
@@ -95,7 +95,7 @@ class RecentLogEntry(BaseModel):
     user_id: int | None = None
     client_ip: str | None = None
     feature: str | None = None
-    extra: dict = {}
+    extra: dict = Field(default_factory=dict)
 
 
 class RecentLogsResponse(BaseModel):

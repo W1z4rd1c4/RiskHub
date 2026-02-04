@@ -1,14 +1,15 @@
 """Notification service for creating and managing in-app notifications."""
 import logging
 from datetime import datetime, UTC
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.notification import Notification, NotificationType
-from app.models.approval_request import ApprovalRequest
-from app.models.user import User
-from app.models.role import RoleType
+from app.models.approval_request import ApprovalRequest, ApprovalResourceType
+from app.models.user import User, AccessScope
+from app.models.role import Permission, Role, RolePermission
+from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id
 
 logger = logging.getLogger(__name__)
 
@@ -82,29 +83,44 @@ class NotificationService:
         Returns:
             List of created Notification objects
         """
-        # Find all users with approver roles (Risk Manager, CRO, Admin)
-        approver_roles = {RoleType.RISK_MANAGER, RoleType.CRO, RoleType.ADMIN}
-        
-        stmt = (
+        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+        candidates_stmt = (
             select(User)
-            .options(selectinload(User.role))
-            .where(User.is_active == True)
+            .join(Role, User.role_id == Role.id)
+            .join(RolePermission, RolePermission.role_id == Role.id)
+            .join(Permission, RolePermission.permission_id == Permission.id)
+            .where(
+                User.is_active == True,
+                User.access_scope == AccessScope.GLOBAL,  # only privileged approvers
+                or_(
+                    (Permission.resource.in_(("approvals", "*")) & Permission.action.in_(("write", "*"))),
+                ),
+            )
+            .options(permission_load)
+            .distinct()
         )
-        result = await db.execute(stmt)
-        all_users = result.scalars().all()
-        
-        # Filter to approvers only
-        approvers = [
-            u for u in all_users 
-            if u.role and u.role.name in approver_roles
-        ]
+        candidates = (await db.execute(candidates_stmt)).scalars().all()
         
         notifications = []
         action_label = "delete" if approval.action_type.value == "delete" else "edit"
         
-        for approver in approvers:
+        for approver in candidates:
             # Don't notify the requester themselves if they're an approver
             if approver.id == approval.requested_by_id:
+                continue
+
+            # Visibility filter: never notify users who can't see the referenced object (prevents cross-scope leaks).
+            visible = False
+            if approval.resource_type == ApprovalResourceType.RISK:
+                visible = await can_read_risk_id(db, approver, approval.resource_id)
+            elif approval.resource_type == ApprovalResourceType.CONTROL:
+                visible = await can_read_control_id(db, approver, approval.resource_id)
+            elif approval.resource_type == ApprovalResourceType.KRI:
+                visible = await can_read_kri_id(db, approver, approval.resource_id)
+            else:
+                visible = False
+
+            if not visible:
                 continue
                 
             try:
@@ -117,7 +133,8 @@ class NotificationService:
                     resource_type="approval",
                     resource_id=approval.id,
                 )
-                notifications.append(notification)
+                if notification:
+                    notifications.append(notification)
             except Exception as e:
                 logger.error(f"Failed to create notification for approver {approver.id}: {e}")
                 # Continue creating notifications for other approvers
@@ -187,29 +204,43 @@ class NotificationService:
         Returns:
             List of created Notification objects
         """
-        # Find all users with approver roles (Risk Manager, CRO, Admin)
-        approver_roles = {RoleType.RISK_MANAGER, RoleType.CRO, RoleType.ADMIN}
-        
-        stmt = (
+        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+        candidates_stmt = (
             select(User)
-            .options(selectinload(User.role))
-            .where(User.is_active == True)
+            .join(Role, User.role_id == Role.id)
+            .join(RolePermission, RolePermission.role_id == Role.id)
+            .join(Permission, RolePermission.permission_id == Permission.id)
+            .where(
+                User.is_active == True,
+                User.access_scope == AccessScope.GLOBAL,  # only privileged approvers
+                or_(
+                    (Permission.resource.in_(("approvals", "*")) & Permission.action.in_(("write", "*"))),
+                ),
+            )
+            .options(permission_load)
+            .distinct()
         )
-        result = await db.execute(stmt)
-        all_users = result.scalars().all()
-        
-        # Filter to approvers only
-        approvers = [
-            u for u in all_users 
-            if u.role and u.role.name in approver_roles
-        ]
+        candidates = (await db.execute(candidates_stmt)).scalars().all()
         
         notifications = []
         action_label = "delete" if approval.action_type.value == "delete" else "edit"
         
-        for approver in approvers:
+        for approver in candidates:
             # Don't notify the user who cancelled
             if approver.id == cancelled_by_user.id:
+                continue
+
+            visible = False
+            if approval.resource_type == ApprovalResourceType.RISK:
+                visible = await can_read_risk_id(db, approver, approval.resource_id)
+            elif approval.resource_type == ApprovalResourceType.CONTROL:
+                visible = await can_read_control_id(db, approver, approval.resource_id)
+            elif approval.resource_type == ApprovalResourceType.KRI:
+                visible = await can_read_kri_id(db, approver, approval.resource_id)
+            else:
+                visible = False
+
+            if not visible:
                 continue
                 
             try:

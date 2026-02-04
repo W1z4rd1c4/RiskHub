@@ -15,6 +15,7 @@ from app.models.notification import Notification, NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
 from app.models.global_config import clear_config_cache
+from app.models.user import AccessScope
 
 
 @pytest.fixture(autouse=True)
@@ -81,7 +82,29 @@ async def test_submit_creates_questionnaire_submitted_notification_for_rm_cro(
     test_user_cro: User,
     test_user_risk_manager: User,
     risk_owned_by_employee: Risk,
+    test_role_risk_manager,
 ):
+    # Create a dept-scoped risk manager in a different department. They should NOT be notified
+    # because they can't see the referenced risk.
+    from app.models import Department
+
+    other_dept = Department(name="Other Dept (Q notif)", code="QD2", description="Other dept for notif tests")
+    db_session.add(other_dept)
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+
+    rm_other_dept = User(
+        name="RM Other Dept",
+        email="rm_other_dept@test.com",
+        department_id=other_dept.id,
+        role_id=test_role_risk_manager.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(rm_other_dept)
+    await db_session.commit()
+    await db_session.refresh(rm_other_dept)
+
     send_resp = await client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send")
     assert send_resp.status_code == 201
     q_id = send_resp.json()["id"]
@@ -109,6 +132,14 @@ async def test_submit_creates_questionnaire_submitted_notification_for_rm_cro(
             )
         )
         assert res.scalar_one_or_none() is not None
+
+    res = await db_session.execute(
+        select(Notification).where(
+            Notification.user_id == rm_other_dept.id,
+            Notification.type == NotificationType.QUESTIONNAIRE_SUBMITTED,
+        )
+    )
+    assert res.scalar_one_or_none() is None
 
 
 @pytest.mark.asyncio

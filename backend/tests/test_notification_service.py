@@ -6,8 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.services.notification_service import NotificationService
-from app.models import User, ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
+from app.models import User, ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType, Risk
 from app.models.notification import Notification, NotificationType
+from app.models.risk import RiskStatus
+from app.models.user import AccessScope
+from app.models.role import Role, Permission, RolePermission
 
 
 @pytest.mark.asyncio
@@ -42,12 +45,32 @@ async def test_notify_approvers_creates_for_all_privileged(
     test_user_risk_manager: User,  # should get notification
     test_user_cro: User,  # should get notification
     test_user: User,  # admin - should get notification
+    test_department,
 ):
     """Test that notify_approvers creates notifications for all privileged users."""
+    risk = Risk(
+        risk_id_code="R-APP-NOTIF-001",
+        name="Approval Notification Risk",
+        process="Process",
+        description="desc",
+        category="Test",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
     # Create mock approval request
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
-        resource_id=1,
+        resource_id=risk.id,
         resource_name="R-001: Test Risk",
         action_type=ApprovalActionType.DELETE,
         requested_by_id=test_user_employee.id,
@@ -62,15 +85,125 @@ async def test_notify_approvers_creates_for_all_privileged(
     notifications = await NotificationService.notify_approvers(db_session, approval)
     await db_session.commit()
     
-    # Should create notifications for admin, CRO, and risk_manager (3 privileged users)
-    # But NOT for the requester (employee)
-    assert len(notifications) >= 1  # At least one approver should be notified
+    # Should create notifications for admin, CRO, and risk_manager (3 privileged users), but not the requester.
+    assert notifications
+    assert all(n is not None for n in notifications)
     
     # All notifications should be APPROVAL_PENDING type
     for n in notifications:
         assert n.type == NotificationType.APPROVAL_PENDING
         assert "delete request" in n.title.lower()
         assert "R-001: Test Risk" in n.message
+
+    notified_user_ids = {n.user_id for n in notifications}
+    assert test_user_employee.id not in notified_user_ids
+    assert test_user.id in notified_user_ids
+    assert test_user_cro.id in notified_user_ids
+    assert test_user_risk_manager.id in notified_user_ids
+
+
+@pytest.mark.asyncio
+async def test_notify_approvers_filters_recipients_without_risk_visibility(
+    db_session: AsyncSession,
+    test_user_employee: User,
+    test_user: User,
+    test_department,
+):
+    """
+    Approver candidates are selected by approvals:write and global scope, but recipients must
+    also be able to see the referenced object (e.g., risks:read for risk approvals).
+    """
+    # Create an approver-like user: global scope + approvals:write but no risks:read
+    role = Role(name="approver_no_risk_read", display_name="Approver (no risks)", description=None)
+    db_session.add(role)
+    await db_session.commit()
+
+    perm = Permission(resource="approvals", action="write", description="Approvals write")
+    db_session.add(perm)
+    await db_session.commit()
+    await db_session.refresh(perm)
+    db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+    await db_session.commit()
+
+    user = User(
+        name="Approver No Risk Read",
+        email="approver_no_risk@test.com",
+        department_id=test_department.id,
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    # Ensure role permissions are loaded for has_permission checks during visibility evaluation
+    user = (
+        await db_session.execute(
+            select(User)
+            .options(selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission))
+            .where(User.id == user.id)
+        )
+    ).scalar_one()
+
+    risk = Risk(
+        risk_id_code="R-APP-NOTIF-002",
+        name="Approval Notification Risk 2",
+        process="Process",
+        description="desc",
+        category="Test",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=risk.id,
+        resource_name="R-002: Test Risk",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Test edit request",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    await NotificationService.notify_approvers(db_session, approval)
+    await db_session.commit()
+
+    # Admin should be notified (has *:*)
+    admin_notif = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == test_user.id,
+                Notification.type == NotificationType.APPROVAL_PENDING,
+                Notification.resource_id == approval.id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert admin_notif is not None
+
+    # Approver without risks:read must not be notified for a risk approval.
+    blocked_notif = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == user.id,
+                Notification.type == NotificationType.APPROVAL_PENDING,
+                Notification.resource_id == approval.id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert blocked_notif is None
 
 
 @pytest.mark.asyncio
