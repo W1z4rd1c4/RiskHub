@@ -22,12 +22,17 @@ class LocalStorageMock {
 
 const ensureLocalStorage = () => {
     const target = typeof window !== 'undefined' ? window : globalThis;
-    if (!target.localStorage || typeof target.localStorage.getItem !== 'function') {
-        Object.defineProperty(target, 'localStorage', {
-            value: new LocalStorageMock(),
-            configurable: true,
-        });
+    // Avoid reading `target.localStorage` directly: in newer Node versions this can trigger
+    // the built-in WebStorage getter and emit warnings.
+    const descriptor = Object.getOwnPropertyDescriptor(target, 'localStorage');
+    if (descriptor && descriptor.configurable === false) {
+        return;
     }
+
+    Object.defineProperty(target, 'localStorage', {
+        value: new LocalStorageMock(),
+        configurable: true,
+    });
 };
 
 ensureLocalStorage();
@@ -37,8 +42,20 @@ afterEach(() => {
     }
 });
 
-// Optional: Setup MSW server for API mocking
-// import { server } from './src/test/mocks/server';
-// beforeAll(() => server.listen());
-// afterEach(() => server.resetHandlers());
-// afterAll(() => server.close());
+let mswServer:
+    | {
+        listen: (options?: unknown) => void;
+        resetHandlers: () => void;
+        close: () => void;
+    }
+    | null = null;
+
+beforeAll(async () => {
+    // Import MSW server lazily so our localStorage mock is installed first.
+    const mod = await import('./src/test/mocks/server');
+    mswServer = mod.server;
+    mswServer.listen({ onUnhandledRequest: 'error' });
+});
+
+afterEach(() => mswServer?.resetHandlers());
+afterAll(() => mswServer?.close());
