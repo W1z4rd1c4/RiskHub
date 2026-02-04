@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { RiskForm } from '@/components/RiskForm';
 import { ControlForm } from '@/components/ControlForm';
@@ -86,6 +86,23 @@ vi.mock('@/hooks/useRiskHubConfig', () => ({
 // Import the mocked modules to access them
 import { riskApi } from '@/services/riskApi';
 import { controlApi } from '@/services/controlApi';
+import { lookupApi } from '@/services/lookupApi';
+
+async function flushInitialFormEffects() {
+    await waitFor(() => {
+        expect(vi.mocked(lookupApi.getUsers)).toHaveBeenCalled();
+        expect(vi.mocked(lookupApi.getDepartments)).toHaveBeenCalled();
+        expect(vi.mocked(riskApi.getRisks)).toHaveBeenCalled();
+    });
+
+    const usersPromise = vi.mocked(lookupApi.getUsers).mock.results[0]?.value;
+    const departmentsPromise = vi.mocked(lookupApi.getDepartments).mock.results[0]?.value;
+    const risksPromise = vi.mocked(riskApi.getRisks).mock.results[0]?.value;
+
+    await act(async () => {
+        await Promise.all([usersPromise, departmentsPromise, risksPromise]);
+    });
+}
 
 // Helper to create mock data
 const createMockRisk = (overrides?: Partial<Risk>): Risk => ({
@@ -148,6 +165,8 @@ describe('RiskForm UI - Approval Response Handling', () => {
             </MemoryRouter>
         );
 
+        await flushInitialFormEffects();
+
         // Verify form renders in edit mode
         await waitFor(() => {
             const form = document.querySelector('form');
@@ -176,6 +195,8 @@ describe('RiskForm UI - Approval Response Handling', () => {
                 </Routes>
             </MemoryRouter>
         );
+
+        await flushInitialFormEffects();
 
         // The form should be ready for submission
         // Note: Full navigation testing requires more complex setup
@@ -206,6 +227,8 @@ describe('ControlForm UI - Approval Response Handling', () => {
                 <ControlForm initialData={mockControl} isEdit={true} />
             </MemoryRouter>
         );
+
+        await flushInitialFormEffects();
 
         // Check that form renders
         expect(screen.queryByRole('form') || document.querySelector('form')).toBeTruthy();

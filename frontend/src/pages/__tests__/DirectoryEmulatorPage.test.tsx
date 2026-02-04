@@ -1,15 +1,8 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, userEvent } from '@/test/utils';
-import { server } from '@/test/mocks/server';
 import { DirectoryEmulatorPage } from '../DirectoryEmulatorPage';
 
 describe('DirectoryEmulatorPage', () => {
-    beforeAll(() => server.listen());
-
-    afterEach(() => server.resetHandlers());
-
-    afterAll(() => server.close());
-
     beforeEach(() => {
         localStorage.setItem('access_token', 'test-token');
     });
