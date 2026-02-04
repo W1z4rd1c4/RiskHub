@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased
 
 from app.api import deps
 from app.core.permissions import (
@@ -15,6 +16,7 @@ from app.core.permissions import (
     redact_name_if_no_access,
 )
 from app.core.security import require_permission, check_permission
+from app.core.query_filters import vendor_visibility_clause
 from app.db.session import get_db
 from app.models import Department, Risk, User, Vendor
 from app.models.vendor_relationship import VendorRelationship, VendorRelationshipType
@@ -87,44 +89,61 @@ async def _build_relationship_tree(
     current_user: User,
     max_depth: int = 2,
 ) -> VendorDependencyGraphNode:
-    visited: set[int] = set()
-
-    async def children_for(vendor_id: int, depth: int) -> list[VendorDependencyGraphNode]:
-        if depth >= max_depth:
-            return []
-        if vendor_id in visited:
-            return []
-        visited.add(vendor_id)
-
-        rels = (
-            await db.execute(
-                select(VendorRelationship)
-                .options(selectinload(VendorRelationship.related_vendor))
-                .where(VendorRelationship.vendor_id == vendor_id)
-            )
-        ).scalars().all()
-
-        nodes: list[VendorDependencyGraphNode] = []
-        for rel in rels:
-            rv = rel.related_vendor
-            if not rv or not can_read_vendor(rv, current_user):
-                continue
-            nodes.append(
-                VendorDependencyGraphNode(
-                    vendor_id=rv.id,
-                    vendor_name=rv.name,
-                    relationship_type=rel.relationship_type.value,
-                    children=await children_for(rv.id, depth + 1),
-                )
-            )
-        return nodes
-
-    return VendorDependencyGraphNode(
+    root = VendorDependencyGraphNode(
         vendor_id=root_vendor.id,
         vendor_name=root_vendor.name,
         relationship_type=None,
-        children=await children_for(root_vendor.id, 0),
+        children=[],
     )
+
+    # Only one node instance per vendor_id is allowed to be "expanded" (children filled).
+    # This matches the old recursion behavior that used a global visited set.
+    expander_by_vendor_id: dict[int, VendorDependencyGraphNode] = {root_vendor.id: root}
+
+    to_expand: list[tuple[int, VendorDependencyGraphNode]] = [(root_vendor.id, root)]
+    related_alias = aliased(Vendor)
+
+    for depth in range(max_depth):
+        if not to_expand:
+            break
+
+        vendor_ids = [vid for vid, _ in to_expand]
+        stmt = (
+            select(VendorRelationship)
+            .join(related_alias, related_alias.id == VendorRelationship.related_vendor_id)
+            .options(selectinload(VendorRelationship.related_vendor))
+            .where(VendorRelationship.vendor_id.in_(vendor_ids))
+            .where(vendor_visibility_clause(current_user, related_alias))
+        )
+        rels = (await db.execute(stmt)).scalars().all()
+
+        rels_by_parent: dict[int, list[VendorRelationship]] = {}
+        for r in rels:
+            rels_by_parent.setdefault(r.vendor_id, []).append(r)
+
+        next_expand: list[tuple[int, VendorDependencyGraphNode]] = []
+        for parent_vendor_id, parent_node in to_expand:
+            for rel in rels_by_parent.get(parent_vendor_id, []):
+                rv = rel.related_vendor
+                if not rv:
+                    continue
+
+                child_node = VendorDependencyGraphNode(
+                    vendor_id=rv.id,
+                    vendor_name=rv.name,
+                    relationship_type=rel.relationship_type.value,
+                    children=[],
+                )
+                parent_node.children.append(child_node)
+
+                # Decide if this specific node instance becomes the expander for rv.id.
+                if depth + 1 < max_depth and rv.id not in expander_by_vendor_id:
+                    expander_by_vendor_id[rv.id] = child_node
+                    next_expand.append((rv.id, child_node))
+
+        to_expand = next_expand
+
+    return root
 
 
 @router.get("/vendors/{vendor_id}/dependencies", response_model=VendorDependenciesResponse)

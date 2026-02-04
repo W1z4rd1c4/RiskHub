@@ -84,6 +84,7 @@ async def test_vendor_reassessment_due_soon_and_overdue_notifications_are_dedupe
     owner_role = Role(name="employee", display_name="Employee", description="Owner role")
     db_session.add(owner_role)
     await db_session.commit()
+    await _grant(db_session, owner_role, "vendors", "read")
 
     owner = User(
         name="Owner",
@@ -148,4 +149,3 @@ async def test_vendor_reassessment_due_soon_and_overdue_notifications_are_dedupe
     notifications = (await db_session.execute(select(Notification))).scalars().all()
     assert sum(1 for n in notifications if n.type == NotificationType.VENDOR_REASSESSMENT_DUE_SOON) == 1
     assert sum(1 for n in notifications if n.type == NotificationType.VENDOR_REASSESSMENT_OVERDUE) == 1
-

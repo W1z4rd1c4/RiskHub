@@ -12,6 +12,7 @@ import {
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import type { OrphanStats, OrphanedItem } from '@/types/orphanedItem';
 import { OrphanedItemsTable, ResolveOrphanModal, OrphanQuickViewModal } from '@/components/governance';
+import { GOVERNANCE_POLL_MS } from '@/config/constants';
 
 const container = {
     hidden: { opacity: 0 },
@@ -66,7 +67,7 @@ const GovernancePage: React.FC = () => {
 
     useEffect(() => {
         fetchData();
-        const interval = setInterval(fetchData, 60000);
+        const interval = setInterval(fetchData, GOVERNANCE_POLL_MS);
         return () => clearInterval(interval);
     }, [fetchData]);
 
