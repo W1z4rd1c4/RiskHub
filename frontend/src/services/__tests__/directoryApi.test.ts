@@ -1,13 +1,8 @@
 /**
  * Tests for directory emulator API services.
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
-import { server } from '@/test/mocks/server';
+import { describe, it, expect } from 'vitest';
 import { directoryApi } from '../directoryApi';
-
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
 
 describe('directoryApi', () => {
     it('fetches directory sync history', async () => {

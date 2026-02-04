@@ -1,16 +1,10 @@
 /**
  * Tests for API services.
  */
-import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
-import { server } from '@/test/mocks/server';
+import { describe, it, expect } from 'vitest';
 import { controlApi } from '../controlApi';
 import { riskApi } from '../riskApi';
 import { executionApi } from '../executionApi';
-
-// Setup MSW
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
 
 describe('controlApi', () => {
     it('fetches controls list', async () => {
