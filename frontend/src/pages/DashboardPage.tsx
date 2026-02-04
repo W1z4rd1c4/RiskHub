@@ -38,6 +38,7 @@ import { KRIStatusWidget } from '@/components/dashboard/KRIStatusWidget';
 import { RiskTrendChart } from '@/components/dashboard/RiskTrendChart';
 import { KRIBreachHistoryChart } from '@/components/dashboard/KRIBreachHistoryChart';
 import { RiskCommitteeSection } from '@/components/dashboard/RiskCommitteeSection';
+import { DASHBOARD_POLL_MS } from '@/config/constants';
 
 const container = {
     hidden: { opacity: 0 },
@@ -108,7 +109,7 @@ export function DashboardPage() {
 
     useEffect(() => {
         fetchData();
-        const interval = setInterval(fetchData, 60000); // Auto-refresh every 60s
+        const interval = setInterval(fetchData, DASHBOARD_POLL_MS); // Auto-refresh
         return () => clearInterval(interval);
     }, [fetchData]);
 

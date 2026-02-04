@@ -27,6 +27,17 @@ from app.api import deps
 from app.core.permissions import get_user_department_ids, has_permission
 from app.core.security import require_permission
 from app.models.global_config import ConfigDefaults, build_risk_level_ranges
+from app.core.limits import (
+    DASHBOARD_CONTROL_TREND_WEEKS,
+    DASHBOARD_TREND_MONTHS,
+    DASHBOARD_TOP_CRITICAL_RISKS,
+    DASHBOARD_RECENT_ACTIVITY,
+    DASHBOARD_TOP_DEPARTMENT_EXPOSURE,
+    DASHBOARD_TOP_CRITICAL_VENDORS,
+    DASHBOARD_TOP_OVERDUE_VENDORS,
+    DASHBOARD_TOP_BREACHED_SLAS,
+    DASHBOARD_TOP_MAJOR_INCIDENTS,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -483,7 +494,7 @@ async def get_control_trends(
             period_expr
         ).order_by(
             desc(period_expr)
-        ).limit(8)
+        ).limit(DASHBOARD_CONTROL_TREND_WEEKS)
         
         result = await db.execute(trends_query)
         rows = result.all()
@@ -620,7 +631,7 @@ async def get_risk_trends(
         if conditions:
             query = query.where(and_(*conditions))
         
-        query = query.group_by(period_expr).order_by(desc(period_expr)).limit(12)
+        query = query.group_by(period_expr).order_by(desc(period_expr)).limit(DASHBOARD_TREND_MONTHS)
         
         result = await db.execute(query)
         rows = result.all()
@@ -686,7 +697,7 @@ async def get_kri_breach_trends(
             period_expr
         ).order_by(
             desc(period_expr)
-        ).limit(12)
+        ).limit(DASHBOARD_TREND_MONTHS)
         
         result = await db.execute(query)
         rows = result.all()
@@ -828,7 +839,7 @@ async def get_committee_summary(
             return {"critical_risks": [], "recent_activity": [], "department_exposure": []}
         critical_risks_query = critical_risks_query.where(Risk.department_id.in_(dept_ids))
     critical_risks = await db.execute(
-        critical_risks_query.order_by(Risk.is_priority.desc(), Risk.net_score.desc()).limit(5)
+        critical_risks_query.order_by(Risk.is_priority.desc(), Risk.net_score.desc()).limit(DASHBOARD_TOP_CRITICAL_RISKS)
     )
     
     # Recent significant changes (last 30 days)
@@ -838,7 +849,7 @@ async def get_committee_summary(
         .where(ActivityLog.created_at >= thirty_days_ago)
         .where(ActivityLog.action.in_(["create", "delete", "archive", "approve", "reject"]))
         .order_by(ActivityLog.created_at.desc())
-        .limit(10)
+        .limit(DASHBOARD_RECENT_ACTIVITY)
     )
     if dept_ids is not None:
         if not dept_ids:
@@ -860,7 +871,7 @@ async def get_committee_summary(
         .where(Risk.status == RiskStatus.active.value)
         .group_by(Department.id)
         .order_by(func.sum(Risk.net_score).desc())
-        .limit(5)
+        .limit(DASHBOARD_TOP_DEPARTMENT_EXPOSURE)
     )
     if dept_ids is not None:
         if not dept_ids:
@@ -898,7 +909,9 @@ async def get_committee_summary(
         if vendor_scope_filter is not None:
             critical_vendors_query = critical_vendors_query.where(vendor_scope_filter)
         critical_vendors = (
-            await db.execute(critical_vendors_query.order_by(Vendor.risk_score_1_5.desc(), Vendor.name.asc()).limit(5))
+            await db.execute(
+                critical_vendors_query.order_by(Vendor.risk_score_1_5.desc(), Vendor.name.asc()).limit(DASHBOARD_TOP_CRITICAL_VENDORS)
+            )
         ).scalars().all()
 
         overdue_query = select(Vendor).options(joinedload(Vendor.outsourcing_owner), joinedload(Vendor.department)).where(
@@ -908,7 +921,9 @@ async def get_committee_summary(
         )
         if vendor_scope_filter is not None:
             overdue_query = overdue_query.where(vendor_scope_filter)
-        overdue_vendors = (await db.execute(overdue_query.order_by(Vendor.next_reassessment_due_at.asc()).limit(10))).scalars().all()
+        overdue_vendors = (
+            await db.execute(overdue_query.order_by(Vendor.next_reassessment_due_at.asc()).limit(DASHBOARD_TOP_OVERDUE_VENDORS))
+        ).scalars().all()
         overdue_total_query = select(func.count(Vendor.id)).where(
             Vendor.status == "active",
             Vendor.next_reassessment_due_at.isnot(None),
@@ -928,7 +943,9 @@ async def get_committee_summary(
         )
         if vendor_scope_filter is not None:
             sla_breach_query = sla_breach_query.where(vendor_scope_filter)
-        breached_slas = (await db.execute(sla_breach_query.order_by(VendorSLA.last_reported_at.desc()).limit(10))).scalars().all()
+        breached_slas = (
+            await db.execute(sla_breach_query.order_by(VendorSLA.last_reported_at.desc()).limit(DASHBOARD_TOP_BREACHED_SLAS))
+        ).scalars().all()
         sla_breach_total_query = (
             select(func.count(VendorSLA.id))
             .join(Vendor, VendorSLA.vendor_id == Vendor.id)
@@ -948,7 +965,7 @@ async def get_committee_summary(
             .join(Vendor, VendorIncident.vendor_id == Vendor.id)
             .where(Vendor.status == "active")
             .order_by(desc(VendorIncident.occurred_at), desc(VendorIncident.created_at))
-            .limit(10)
+            .limit(DASHBOARD_TOP_MAJOR_INCIDENTS)
         )
         if vendor_scope_filter is not None:
             incident_query = incident_query.where(vendor_scope_filter)

@@ -6,10 +6,12 @@ from datetime import datetime
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department, Risk, User
+from app.models import Department, Risk, User, RiskQuestionnaire
 from app.models.risk import RiskStatus
+from app.models.risk_questionnaire import RiskQuestionnaireStatus
 
 
 @pytest_asyncio.fixture
@@ -269,3 +271,66 @@ async def test_inbox_returns_only_actionable_items(
     inbox_emp_after = await client_employee.get("/api/v1/questionnaires/inbox")
     emp_ids_after = {q["id"] for q in inbox_emp_after.json()}
     assert q1_id not in emp_ids_after
+
+
+@pytest.mark.asyncio
+async def test_get_questionnaire_no_side_effects(
+    db_session: AsyncSession,
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+    risk_owned_by_employee: Risk,
+):
+    send_resp = await client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send")
+    assert send_resp.status_code == 201
+    q_id = send_resp.json()["id"]
+
+    # GET should not mutate status (read-only)
+    resp = await client_employee.get(f"/api/v1/questionnaires/{q_id}")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "sent"
+
+    db_status = (
+        await db_session.execute(select(RiskQuestionnaire.status).where(RiskQuestionnaire.id == q_id))
+    ).scalar_one()
+    assert db_status == RiskQuestionnaireStatus.sent
+
+
+@pytest.mark.asyncio
+async def test_open_questionnaire_transitions_for_eligible_user_and_is_idempotent(
+    db_session: AsyncSession,
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+    risk_owned_by_employee: Risk,
+):
+    send_resp = await client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send")
+    assert send_resp.status_code == 201
+    q_id = send_resp.json()["id"]
+
+    # Eligible user can open: sent -> in_progress
+    resp = await client_employee.post(f"/api/v1/questionnaires/{q_id}/open")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "in_progress"
+
+    db_status = (
+        await db_session.execute(select(RiskQuestionnaire.status).where(RiskQuestionnaire.id == q_id))
+    ).scalar_one()
+    assert db_status == RiskQuestionnaireStatus.in_progress
+
+    # Idempotent: calling open again keeps in_progress
+    resp2 = await client_employee.post(f"/api/v1/questionnaires/{q_id}/open")
+    assert resp2.status_code == 200
+    assert resp2.json()["status"] == "in_progress"
+
+
+@pytest.mark.asyncio
+async def test_open_questionnaire_forbidden_for_ineligible_user(
+    client_cro: AsyncClient,
+    client_risk_manager: AsyncClient,
+    risk_owned_by_employee: Risk,
+):
+    send_resp = await client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send")
+    assert send_resp.status_code == 201
+    q_id = send_resp.json()["id"]
+
+    resp = await client_risk_manager.post(f"/api/v1/questionnaires/{q_id}/open")
+    assert resp.status_code == 403

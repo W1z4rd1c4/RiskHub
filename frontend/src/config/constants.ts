@@ -1,2 +1,7 @@
 export const SIDEBAR_POLL_MS = 60_000;
 
+export const DASHBOARD_POLL_MS = 60_000;
+export const GOVERNANCE_POLL_MS = 60_000;
+export const NOTIFICATIONS_POLL_MS = 60_000;
+
+export const NOTIFICATIONS_DROPDOWN_LIMIT = 10;
