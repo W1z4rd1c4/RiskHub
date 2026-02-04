@@ -88,34 +88,41 @@ export function RiskQuestionnaireDetail({
     const canRequestClarification = authz.canRequestRiskClarification;
     const isRiskOwner = !!user && questionnaire?.assigned_to_user_id === user.id;
 
-    useEffect(() => {
-        let cancelled = false;
+	    useEffect(() => {
+	        let cancelled = false;
 
-        const load = async () => {
-            if (!isOpen || !questionnaireId) return;
-            setError(null);
-            setMissingKeys([]);
-            setLoading(true);
-            try {
-                const data = await riskQuestionnairesApi.get(questionnaireId, { includePrevious: defaultCompareMode });
-                if (cancelled) return;
-                setQuestionnaire(data);
-                const nextAnswers = (data.answers ?? {}) as Record<string, unknown>;
-                setAnswers(nextAnswers);
-                setCompareMode(defaultCompareMode);
-            } catch (e) {
-                if (cancelled) return;
-                setError(e instanceof Error ? e.message : t('errors.generic'));
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        };
+	        const load = async () => {
+	            if (!isOpen || !questionnaireId) return;
+	            setError(null);
+	            setMissingKeys([]);
+	            setLoading(true);
+	            try {
+	                let data = await riskQuestionnairesApi.get(questionnaireId, { includePrevious: defaultCompareMode });
+	                if (canSubmit && data.status === 'sent') {
+	                    try {
+	                        data = await riskQuestionnairesApi.open(questionnaireId, { includePrevious: defaultCompareMode });
+	                    } catch {
+	                        // best-effort: keep the read-only view if open fails
+	                    }
+	                }
+	                if (cancelled) return;
+	                setQuestionnaire(data);
+	                const nextAnswers = (data.answers ?? {}) as Record<string, unknown>;
+	                setAnswers(nextAnswers);
+	                setCompareMode(defaultCompareMode);
+	            } catch (e) {
+	                if (cancelled) return;
+	                setError(e instanceof Error ? e.message : t('errors.generic'));
+	            } finally {
+	                if (!cancelled) setLoading(false);
+	            }
+	        };
 
         load();
-        return () => {
-            cancelled = true;
-        };
-    }, [isOpen, questionnaireId, t]);
+	        return () => {
+	            cancelled = true;
+	        };
+	    }, [canSubmit, isOpen, questionnaireId, t]);
 
     useEffect(() => {
         let cancelled = false;

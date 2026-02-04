@@ -11,7 +11,8 @@ from sqlalchemy.orm import selectinload
 from app.i18n import t
 from app.models import User, Vendor
 from app.models.notification import Notification, NotificationType
-from app.models.role import Role, RoleType
+from app.models.role import Role, RolePermission, RoleType
+from app.core.permissions import can_read_vendor_id
 from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
@@ -75,10 +76,11 @@ class VendorReassessmentService:
     @staticmethod
     async def _users_by_roles(db: AsyncSession, roles: set[RoleType]) -> list[User]:
         role_names = [r.value for r in roles]
+        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
         stmt = (
             select(User)
             .join(Role, User.role_id == Role.id)
-            .options(selectinload(User.role))
+            .options(permission_load)
             .where(User.is_active == True)
             .where(Role.name.in_(role_names))
         )
@@ -134,9 +136,12 @@ class VendorReassessmentService:
                 if not owner_id:
                     continue
 
-                owner_result = await db.execute(select(User).where(User.id == owner_id))
+                permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+                owner_result = await db.execute(select(User).options(permission_load).where(User.id == owner_id))
                 owner = owner_result.scalar_one_or_none()
                 if not owner or not owner.is_active:
+                    continue
+                if not await can_read_vendor_id(db, owner, vendor.id):
                     continue
 
                 locale = getattr(owner, "preferred_language", None) or "en"
@@ -172,6 +177,8 @@ class VendorReassessmentService:
 
                         for rm in risk_managers:
                             if rm.id == owner.id:
+                                continue
+                            if not await can_read_vendor_id(db, rm, vendor.id):
                                 continue
                             rm_locale = getattr(rm, "preferred_language", None) or "en"
                             created_rm = await NotificationService.create_notification(
@@ -225,6 +232,8 @@ class VendorReassessmentService:
                         for rm in risk_managers:
                             if rm.id == owner.id:
                                 continue
+                            if not await can_read_vendor_id(db, rm, vendor.id):
+                                continue
                             rm_locale = getattr(rm, "preferred_language", None) or "en"
                             created_rm = await NotificationService.create_notification(
                                 db=db,
@@ -252,4 +261,3 @@ class VendorReassessmentService:
 
         await db.commit()
         return results
-

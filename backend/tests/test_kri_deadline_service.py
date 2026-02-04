@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.kri_deadline_service import KRIDeadlineService
 from app.models.notification import Notification, NotificationType
 from app.models.key_risk_indicator import KeyRiskIndicator
+from app.models import Department, User
+from app.models.user import AccessScope
 
 
 @pytest_asyncio.fixture
@@ -162,6 +164,40 @@ async def test_check_returns_correct_counts(
     assert "notifications_created" in result
     
     assert result["total_kris_checked"] >= 3  # At least our 3 test KRIs
+
+
+@pytest.mark.asyncio
+async def test_breached_kri_does_not_notify_out_of_scope_risk_manager(
+    db_session: AsyncSession,
+    test_kri_breached: KeyRiskIndicator,
+    test_role_risk_manager,
+):
+    other_department = Department(name="Other Dept (KRI notif)", code="KRI2", description="Other dept")
+    db_session.add(other_department)
+    await db_session.commit()
+    await db_session.refresh(other_department)
+
+    rm_other_dept = User(
+        name="RM Other Dept",
+        email="rm_other_kri@test.com",
+        department_id=other_department.id,
+        role_id=test_role_risk_manager.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(rm_other_dept)
+    await db_session.commit()
+    await db_session.refresh(rm_other_dept)
+
+    await KRIDeadlineService.check_kri_deadlines(db_session)
+    stmt = select(Notification).where(
+        Notification.user_id == rm_other_dept.id,
+        Notification.resource_type == "kri",
+        Notification.resource_id == test_kri_breached.id,
+        Notification.type == NotificationType.KRI_BREACH_DETECTED,
+    )
+    notifications = (await db_session.execute(stmt)).scalars().all()
+    assert notifications == []
 
 
 # Frequency-based Reminder Tests

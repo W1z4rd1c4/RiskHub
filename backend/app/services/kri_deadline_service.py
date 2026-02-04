@@ -8,8 +8,9 @@ from sqlalchemy.orm import selectinload
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.notification import Notification, NotificationType
 from app.models.user import User
-from app.models.role import RoleType
+from app.models.role import Role, RolePermission, RoleType
 from app.models.global_config import ConfigDefaults, get_config_int, get_config_float
+from app.core.permissions import can_read_kri_id
 from app.services.kri_history_service import KRIHistoryService
 from app.services.notification_service import NotificationService
 
@@ -207,7 +208,10 @@ class KRIDeadlineService:
                         
                         # Also notify risk managers for escalation
                         for rm in risk_managers:
-                            if rm.id != owner_id:
+                            if rm.id == owner_id:
+                                continue
+                            if not await can_read_kri_id(db, rm, kri.id):
+                                continue
                                 await NotificationService.create_notification(
                                     db=db,
                                     user_id=rm.id,
@@ -290,13 +294,15 @@ class KRIDeadlineService:
     async def _get_risk_managers(db: AsyncSession) -> list[User]:
         """Get all users with Risk Manager, CRO, or Admin roles for escalation."""
         approver_roles = {RoleType.RISK_MANAGER, RoleType.CRO, RoleType.ADMIN}
-        
+
+        role_names = [r.value for r in approver_roles]
+        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
         stmt = (
             select(User)
-            .options(selectinload(User.role))
+            .join(Role, User.role_id == Role.id)
+            .options(permission_load)
             .where(User.is_active == True)
+            .where(Role.name.in_(role_names))
         )
         result = await db.execute(stmt)
-        all_users = result.scalars().all()
-        
-        return [u for u in all_users if u.role and u.role.name in approver_roles]
+        return result.scalars().all()

@@ -4,6 +4,7 @@ import { Bell, CheckCircle, AlertCircle, Clock, AlertTriangle, X } from 'lucide-
 import { useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
+import { NOTIFICATIONS_DROPDOWN_LIMIT, NOTIFICATIONS_POLL_MS } from '@/config/constants';
 
 /**
  * Get icon for notification type.
@@ -139,7 +140,7 @@ export function NotificationBell() {
         };
 
         fetchCount();
-        const interval = setInterval(fetchCount, 60000);
+        const interval = setInterval(fetchCount, NOTIFICATIONS_POLL_MS);
         return () => clearInterval(interval);
     }, []);
 
@@ -149,7 +150,7 @@ export function NotificationBell() {
             const fetchNotifications = async () => {
                 setLoading(true);
                 try {
-                    const response = await notificationsApi.list({ limit: 10, unread_only: false });
+                    const response = await notificationsApi.list({ limit: NOTIFICATIONS_DROPDOWN_LIMIT, unread_only: false });
                     setNotifications(response.items);
                     setUnreadCount(response.unread_count);
                 } catch (error) {
