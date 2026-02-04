@@ -101,8 +101,8 @@ i18n
             escapeValue: false, // React already escapes values
         },
 
-        // Enable debug mode in development
-        debug: import.meta.env.DEV,
+        // Enable debug mode in development (but keep tests quiet)
+        debug: import.meta.env.DEV && import.meta.env.MODE !== 'test',
 
         // Don't wait for translations to load (they're bundled)
         react: {
