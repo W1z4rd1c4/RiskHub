@@ -36,9 +36,16 @@ export function Sidebar() {
     const { user, logout } = useAuth();
     const { canManageAccess, canViewActivityLog, hasPermission } = usePermissions();
     const authz = useAuthz();
+    const isAdmin = authz.isPlatformAdmin;
     const { t } = useTranslation('navigation');
     const [workflowCount, setWorkflowCount] = useState(0);
     const [orphanCount, setOrphanCount] = useState(0);
+
+    // Badge polling gates:
+    // - Admin console should not poll business data.
+    // - Questionnaire inbox requires risks:read (backend enforces).
+    const canFetchQuestionnaireInbox = !isAdmin && hasPermission('risks', 'read');
+    const canFetchOrphanStats = !isAdmin && canManageAccess;
 
     // Navigation items with translation keys
     const navigation = [
@@ -53,29 +60,55 @@ export function Sidebar() {
     ];
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const [approvalsRes, orphansRes, questionnaireInbox] = await Promise.all([
-                    approvalsApi.getPendingCount(),
-                    orphanedItemsApi.getOrphanStats(),
-                    riskQuestionnairesApi.inbox(),
-                ]);
-                setWorkflowCount(approvalsRes.count + questionnaireInbox.length);
-                setOrphanCount(orphansRes.total_count);
-            } catch (error) {
-                console.error('Failed to fetch counts:', error);
+        let cancelled = false;
+
+        const logFetchError = (label: string, error: unknown) => {
+            const message = error instanceof Error ? error.message : String(error);
+            const isPermissionError = /permission denied|forbidden|unauthorized|\\b403\\b/i.test(message);
+            // We gate by permissions, so any remaining permission errors are expected mismatches
+            // (e.g., stale auth state). Avoid spamming console.error in those cases.
+            if (isPermissionError) {
+                console.debug(`[sidebar] badge fetch blocked (${label}):`, message);
+                return;
             }
+            console.error(`[sidebar] failed to fetch badge data (${label}):`, error);
         };
 
-        if (!user) return;
+        const fetchData = async () => {
+            const requests = await Promise.allSettled([
+                approvalsApi.getPendingCount(),
+                canFetchOrphanStats ? orphanedItemsApi.getOrphanStats() : Promise.resolve({ total_count: 0 }),
+                canFetchQuestionnaireInbox ? riskQuestionnairesApi.inbox() : Promise.resolve([]),
+            ]);
+
+            const [approvalsResult, orphansResult, inboxResult] = requests;
+
+            if (approvalsResult.status === 'rejected') logFetchError('approvals', approvalsResult.reason);
+            if (orphansResult.status === 'rejected') logFetchError('orphans', orphansResult.reason);
+            if (inboxResult.status === 'rejected') logFetchError('questionnaires', inboxResult.reason);
+
+            const approvalsCount = approvalsResult.status === 'fulfilled' ? approvalsResult.value.count : 0;
+            const orphanTotal = orphansResult.status === 'fulfilled' ? orphansResult.value.total_count : 0;
+            const inboxLength = inboxResult.status === 'fulfilled' ? inboxResult.value.length : 0;
+
+            if (cancelled) return;
+            setWorkflowCount(approvalsCount + inboxLength);
+            setOrphanCount(canFetchOrphanStats ? orphanTotal : 0);
+        };
+
+        // Only poll for authenticated, non-admin users. Admin console does not display business badges.
+        if (!user || isAdmin) return () => { cancelled = true; };
 
         // Fetch immediately on mount
         fetchData();
 
         // Then poll every 60 seconds
         const interval = setInterval(fetchData, SIDEBAR_POLL_MS);
-        return () => clearInterval(interval);
-    }, [user?.id]); // Fetch on login/user change + polling
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, [canFetchOrphanStats, canFetchQuestionnaireInbox, isAdmin, user?.id]); // Fetch on login/user change + polling
 
     const handleLogout = () => {
         logout();
@@ -132,8 +165,6 @@ export function Sidebar() {
 
     // Admin only sees: Settings, Access Management, Admin Console
     // Everyone else sees the full business navigation
-    const isAdmin = authz.isPlatformAdmin;
-
     const dashboardItem = navigationWithBadges.find((i) => i.href === '/');
     const settingsItem = navigationWithBadges.find((i) => i.href === '/settings');
     const businessItems = navigationWithBadges.filter((i) => i.href !== '/' && i.href !== '/settings');
