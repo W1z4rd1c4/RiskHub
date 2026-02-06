@@ -3,6 +3,22 @@
 
 services:
   # ==========================================================================
+  # Redis - Production (required for rate limiting + account lockout)
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: riskhub-redis
+    command: [ "redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}" ]
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep PONG" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ==========================================================================
   # Database - Production overrides
   # ==========================================================================
   db:
@@ -24,6 +40,7 @@ services:
       - DEBUG=false
       - MOCK_AUTH_ENABLED=false
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - REDIS_URL=${REDIS_URL:?REDIS_URL is required}
       - CORS_ORIGINS=${CORS_ORIGINS:-["https://riskhub.example.com"]}
       - AD_EMULATOR_URL=${AD_EMULATOR_URL:-}
       # WEBHOOK_SECRET is required for AD webhook integration - code rejects webhooks if empty
@@ -59,6 +76,7 @@ services:
 volumes:
   postgres_data:
   backend_logs:
+  redis_data:
 
 
 networks:
