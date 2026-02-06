@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     
     # CORS
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"]
+
+    # Trusted hosts (production hardening). If not provided, allowed hosts are derived from CORS origins.
+    allowed_hosts: list[str] | None = None
+
+    # Redis (required in production for multi-worker rate limiting and account lockout)
+    redis_url: str | None = None
     
     # AD Emulator Integration
     ad_emulator_url: str = "http://localhost:8001/api/v1"

@@ -42,6 +42,22 @@ services:
       - riskhub-network
 
   # ==========================================================================
+  # Redis (rate limiting / lockout in production; optional in dev)
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: riskhub-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - riskhub-network
+
+  # ==========================================================================
   # Backend API (FastAPI)
   # ==========================================================================
   backend:
@@ -54,6 +70,7 @@ services:
       - DEBUG=true
       - MOCK_AUTH_ENABLED=true
       - SECRET_KEY=dev-secret-key-not-for-production-use
+      - REDIS_URL=redis://redis:6379/0
       # LAN_HOST allows access from other devices. Set externally: LAN_HOST=192.168.x.x docker-compose up
       - CORS_ORIGINS=["http://localhost:80","http://localhost:5173","http://frontend:80","http://${LAN_HOST:-localhost}:80","http://${LAN_HOST:-localhost}:8000"]
       - AD_EMULATOR_URL=http://ad-emulator:8001/api/v1
@@ -64,6 +81,8 @@ services:
       - ./backend/logs:/app/logs
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/health" ]

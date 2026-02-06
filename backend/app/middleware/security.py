@@ -4,11 +4,10 @@ Security middleware for production hardening.
 This middleware implements:
 1. Security headers (CSP, HSTS, X-Frame-Options, etc.)
 2. Rate limiting for sensitive endpoints
-3. Account lockout after failed login attempts
 """
 import time
 import ipaddress
-from collections import defaultdict
+import uuid
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Union
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -27,14 +26,6 @@ class RateLimitState:
     requests: list = field(default_factory=list)
     blocked_until: float = 0.0
     last_seen: float = 0.0  # For TTL-based eviction
-
-
-@dataclass
-class LoginAttemptState:
-    """Tracks failed login attempts for an account."""
-    failed_attempts: int = 0
-    locked_until: float = 0.0
-    last_attempt: float = 0.0
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -146,18 +137,42 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     MAX_STATE_KEYS = 10000  # Maximum unique IP:path combinations
     STATE_TTL_SECONDS = 600  # Evict entries not seen in 10 minutes
     
+    _REDIS_LUA = """
+    local key = KEYS[1]
+    local now = tonumber(ARGV[1])
+    local member = ARGV[2]
+    local window = tonumber(ARGV[3])
+    local limit = tonumber(ARGV[4])
+    local expire = tonumber(ARGV[5])
+
+    redis.call('ZREMRANGEBYSCORE', key, 0, now - window)
+    local count = redis.call('ZCARD', key)
+    if count >= limit then
+      local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
+      local oldestTs = tonumber(oldest[2])
+      local retry = math.ceil((oldestTs + window - now) / 1000)
+      if retry < 0 then retry = 0 end
+      return {0, retry}
+    end
+
+    redis.call('ZADD', key, now, member)
+    redis.call('EXPIRE', key, expire)
+    return {1, 0}
+    """
+
     def __init__(
-        self, 
-        app, 
+        self,
+        app,
         limits: Dict[str, Tuple[int, int]] | None = None,
         enabled: bool = True,
-        trusted_proxies: set[str] | None = None
+        trusted_proxies: set[str] | None = None,
+        redis_key_prefix: str = "riskhub:rl",
     ):
         super().__init__(app)
         self.limits = limits or self.DEFAULT_LIMITS
         self.enabled = enabled
+        self.redis_key_prefix = redis_key_prefix
         self.state: Dict[str, RateLimitState] = {}
-        self.settings = get_settings()
         self.trusted_proxies = trusted_proxies or self.TRUSTED_PROXIES
         self._last_eviction = time.time()
         
@@ -251,8 +266,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
-        # Skip rate limiting in debug mode or if disabled
-        if not self.enabled or self.settings.debug:
+        # Skip rate limiting if disabled (debug mode disables it in app setup)
+        if not self.enabled:
             return await call_next(request)
         
         now = time.time()
@@ -263,6 +278,38 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         client_ip = self._get_client_ip(request)
         path = request.url.path
         max_requests, window = self._get_limit_for_path(path)
+
+        redis = getattr(request.app.state, "redis", None)
+        if redis is not None:
+            try:
+                allowed, retry_after = await self._check_redis(
+                    redis=redis,
+                    client_ip=client_ip,
+                    path=path,
+                    max_requests=max_requests,
+                    window_seconds=window,
+                )
+                if not allowed:
+                    logger.warning(
+                        "rate_limit_exceeded",
+                        client_ip=client_ip,
+                        path=path,
+                        limit=max_requests,
+                        window=window,
+                    )
+                    return JSONResponse(
+                        status_code=429,
+                        content={
+                            "detail": "Too many requests. Please try again later.",
+                            "retry_after": retry_after,
+                        },
+                        headers={"Retry-After": str(retry_after)},
+                    )
+                return await call_next(request)
+            except Exception as e:
+                # Fail open if Redis transiently fails after startup.
+                logger.warning("rate_limit_redis_error", client_ip=client_ip, path=path, error=str(e))
+                return await call_next(request)
         
         # Create unique key for IP + endpoint
         key = f"{client_ip}:{path}"
@@ -318,81 +365,29 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         
         return await call_next(request)
 
+    async def _check_redis(
+        self,
+        *,
+        redis,
+        client_ip: str,
+        path: str,
+        max_requests: int,
+        window_seconds: int,
+    ) -> tuple[bool, int]:
+        now_ms = int(time.time() * 1000)
+        window_ms = int(window_seconds * 1000)
+        expire_seconds = int(window_seconds + 5)
+        member = f"{now_ms}:{uuid.uuid4().hex}"
+        key = f"{self.redis_key_prefix}:{client_ip}:{path}"
 
-class AccountLockoutMiddleware:
-    """
-    Account lockout tracking for failed login attempts.
-    
-    This is not a traditional middleware but a utility class used by
-    the login endpoint to track and enforce account lockouts.
-    """
-    
-    # Lockout configuration
-    MAX_FAILED_ATTEMPTS = 5
-    LOCKOUT_DURATION_SECONDS = 900  # 15 minutes
-    ATTEMPT_WINDOW_SECONDS = 600    # 10 minutes - failed attempts expire after this
-    
-    def __init__(self):
-        self.accounts: Dict[str, LoginAttemptState] = defaultdict(LoginAttemptState)
-    
-    def is_locked(self, identifier: str) -> Tuple[bool, int]:
-        """
-        Check if an account is locked.
-        
-        Args:
-            identifier: Email or username
-            
-        Returns:
-            Tuple of (is_locked, seconds_remaining)
-        """
-        state = self.accounts.get(identifier)
-        if not state:
-            return False, 0
-        
-        now = time.time()
-        if state.locked_until > now:
-            return True, int(state.locked_until - now)
-        
-        return False, 0
-    
-    def record_failed_attempt(self, identifier: str) -> Tuple[bool, int]:
-        """
-        Record a failed login attempt.
-        
-        Args:
-            identifier: Email or username
-            
-        Returns:
-            Tuple of (is_now_locked, lockout_seconds if locked else attempts_remaining)
-        """
-        state = self.accounts[identifier]
-        now = time.time()
-        
-        # Reset if last attempt was outside the window
-        if state.last_attempt and (now - state.last_attempt) > self.ATTEMPT_WINDOW_SECONDS:
-            state.failed_attempts = 0
-        
-        state.failed_attempts += 1
-        state.last_attempt = now
-        
-        if state.failed_attempts >= self.MAX_FAILED_ATTEMPTS:
-            state.locked_until = now + self.LOCKOUT_DURATION_SECONDS
-            logger.warning(
-                "account_locked",
-                identifier=identifier,
-                failed_attempts=state.failed_attempts,
-                lockout_seconds=self.LOCKOUT_DURATION_SECONDS
-            )
-            return True, self.LOCKOUT_DURATION_SECONDS
-        
-        attempts_remaining = self.MAX_FAILED_ATTEMPTS - state.failed_attempts
-        return False, attempts_remaining
-    
-    def record_successful_login(self, identifier: str):
-        """Clear failed attempts after successful login."""
-        if identifier in self.accounts:
-            del self.accounts[identifier]
-
-
-# Global instance for account lockout tracking
-account_lockout = AccountLockoutMiddleware()
+        allowed, retry_after = await redis.eval(
+            self._REDIS_LUA,
+            1,
+            key,
+            now_ms,
+            member,
+            window_ms,
+            max_requests,
+            expire_seconds,
+        )
+        return bool(allowed), int(retry_after)
