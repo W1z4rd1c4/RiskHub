@@ -1,7 +1,11 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import get_settings
+from urllib.parse import urlparse
+
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+
+from app.core.config import get_settings, Settings
 from app.api.v1.router import api_router
 from app.core.scheduler import start_scheduler, stop_scheduler
 
@@ -10,33 +14,53 @@ from app.core.logging import configure_logging, get_logger
 configure_logging()
 logger = get_logger("main")
 
-settings = get_settings()
-
-# Production security checks
 INSECURE_SECRET = "your-secret-key-change-in-production-use-env-var"
-if not settings.debug and settings.secret_key == INSECURE_SECRET:
-    raise RuntimeError(
-        "FATAL: SECRET_KEY must be set via environment variable in production mode. "
-        "Set DEBUG=true for development or provide a secure SECRET_KEY."
-    )
-if settings.debug and settings.secret_key == INSECURE_SECRET:
-    logger.warning("placeholder_secret_key", message="Using placeholder SECRET_KEY in debug mode - DO NOT USE IN PRODUCTION")
 
-# Mock auth production guard
-import os
-if os.getenv("MOCK_AUTH_ENABLED", "false").lower() == "true":
-    if not settings.debug:
+
+def _derive_allowed_hosts(cors_origins: list[str]) -> list[str]:
+    hosts: set[str] = {"localhost", "127.0.0.1"}
+    for origin in cors_origins:
+        try:
+            parsed = urlparse(origin)
+            if parsed.hostname:
+                hosts.add(parsed.hostname)
+        except Exception:
+            continue
+    return sorted(hosts)
+
+
+def _validate_production_settings(settings: Settings) -> None:
+    # Production security checks
+    if not settings.debug and settings.secret_key == INSECURE_SECRET:
+        raise RuntimeError(
+            "FATAL: SECRET_KEY must be set via environment variable in production mode. "
+            "Set DEBUG=true for development or provide a secure SECRET_KEY."
+        )
+    if settings.debug and settings.secret_key == INSECURE_SECRET:
+        logger.warning(
+            "placeholder_secret_key",
+            message="Using placeholder SECRET_KEY in debug mode - DO NOT USE IN PRODUCTION",
+        )
+
+    # Mock auth production guard
+    if settings.mock_auth_enabled and not settings.debug:
         logger.critical(
             "mock_auth_production_error",
-            message="FATAL: MOCK_AUTH_ENABLED=true with DEBUG=false is forbidden. "
-                    "Disable mock auth for production deployment."
+            message="FATAL: MOCK_AUTH_ENABLED=true with DEBUG=false is forbidden. Disable mock auth for production deployment.",
         )
         raise RuntimeError("MOCK_AUTH_ENABLED cannot be true in non-debug mode")
-    else:
-        logger.warning(
-            "mock_auth_warning",
-            message="MOCK_AUTH_ENABLED=true - Development mode only"
-        )
+    if settings.mock_auth_enabled and settings.debug:
+        logger.warning("mock_auth_warning", message="MOCK_AUTH_ENABLED=true - Development mode only")
+
+    # Production hardening guardrails
+    if not settings.debug:
+        if not settings.cors_origins:
+            raise RuntimeError("FATAL: CORS_ORIGINS must be set to an explicit allowlist in production.")
+        if "*" in settings.cors_origins:
+            raise RuntimeError(
+                "FATAL: CORS_ORIGINS cannot include '*' when allow_credentials=true. "
+                "Set an explicit allowlist of origins."
+            )
 
 
 @asynccontextmanager
@@ -47,12 +71,47 @@ async def lifespan(app: FastAPI):
     
     # Apply log rotation settings from Risk Hub config
     await _apply_log_rotation_config()
-    
+
+    settings: Settings = app.state.settings
+
+    # Redis is required in production for multi-worker rate limiting & lockout.
+    if not settings.debug:
+        if not settings.redis_url:
+            raise RuntimeError("FATAL: REDIS_URL is required in production mode (DEBUG=false).")
+        try:
+            from redis.asyncio import Redis
+
+            redis = Redis.from_url(settings.redis_url, decode_responses=True)
+            await redis.ping()
+        except Exception as e:
+            raise RuntimeError(f"FATAL: Redis is required in production but is unreachable: {e}") from e
+        app.state.redis = redis
+    else:
+        app.state.redis = None
+
+    # Account lockout backend
+    from app.services.account_lockout_service import (
+        AccountLockoutService,
+        InMemoryAccountLockoutBackend,
+        RedisAccountLockoutBackend,
+    )
+    if app.state.redis is not None:
+        app.state.account_lockout = AccountLockoutService(RedisAccountLockoutBackend(app.state.redis))
+    else:
+        app.state.account_lockout = AccountLockoutService(InMemoryAccountLockoutBackend())
+
     start_scheduler()
     yield
     # Shutdown
     logger.info("shutdown", message="RiskHub application shutting down")
     stop_scheduler()
+
+    redis = getattr(app.state, "redis", None)
+    if redis is not None:
+        try:
+            await redis.aclose()
+        except Exception:
+            pass
 
 
 async def _apply_log_rotation_config():
@@ -107,50 +166,65 @@ async def _apply_log_rotation_config():
             message=f"Could not apply log rotation config from database: {e}"
         )
 
+def create_app(settings: Settings) -> FastAPI:
+    _validate_production_settings(settings)
 
-app = FastAPI(
-    title=settings.app_name,
-    version=settings.app_version,
-    description="Enterprise Risk Management Platform for Insurance Companies",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    lifespan=lifespan,
-)
+    app = FastAPI(
+        title=settings.app_name,
+        version=settings.app_version,
+        description="Enterprise Risk Management Platform for Insurance Companies",
+        docs_url="/docs" if settings.debug else None,
+        redoc_url="/redoc" if settings.debug else None,
+        openapi_url="/openapi.json" if settings.debug else None,
+        lifespan=lifespan,
+    )
+    app.state.settings = settings
+    # Defaults for transports/tests that don't run lifespan.
+    app.state.redis = None
+    from app.services.account_lockout_service import AccountLockoutService, InMemoryAccountLockoutBackend
+    app.state.account_lockout = AccountLockoutService(InMemoryAccountLockoutBackend())
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    # CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-# Logging context middleware (adds request_id, user_id, client_ip to logs)
-from app.middleware.logging_context import LoggingContextMiddleware
-app.add_middleware(LoggingContextMiddleware)
+    # Trusted host protection (production only)
+    if not settings.debug:
+        allowed_hosts = settings.allowed_hosts or _derive_allowed_hosts(settings.cors_origins)
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
 
-# Security headers middleware (CSP, HSTS, X-Frame-Options, etc.)
-from app.middleware.security import SecurityHeadersMiddleware, RateLimitMiddleware
-app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
+    # Logging context middleware (adds request_id, user_id, client_ip to logs)
+    from app.middleware.logging_context import LoggingContextMiddleware
+    app.add_middleware(LoggingContextMiddleware)
 
-# Rate limiting middleware (disabled in debug mode)
-app.add_middleware(RateLimitMiddleware, enabled=not settings.debug)
+    # Security headers middleware (CSP, HSTS, X-Frame-Options, etc.)
+    from app.middleware.security import SecurityHeadersMiddleware, RateLimitMiddleware
+    app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
 
-# Language detection middleware (Accept-Language header support)
-from app.middleware.language import LanguageMiddleware
-app.add_middleware(LanguageMiddleware)
+    # Rate limiting middleware (disabled in debug mode)
+    app.add_middleware(RateLimitMiddleware, enabled=not settings.debug)
 
-# Include API routes
-app.include_router(api_router, prefix="/api/v1")
+    # Language detection middleware (Accept-Language header support)
+    from app.middleware.language import LanguageMiddleware
+    app.add_middleware(LanguageMiddleware)
+
+    # Include API routes
+    app.include_router(api_router, prefix="/api/v1")
+
+    @app.get("/")
+    async def root():
+        """Root endpoint."""
+        base = {"name": settings.app_name, "version": settings.app_version}
+        if settings.debug:
+            base["docs"] = "/docs"
+        return base
+
+    return app
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "name": settings.app_name,
-        "version": settings.app_version,
-        "docs": "/docs"
-    }
-
+app = create_app(get_settings())

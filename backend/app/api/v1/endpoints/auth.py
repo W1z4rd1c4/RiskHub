@@ -1,5 +1,6 @@
 """Authentication endpoints for login, logout, and current user."""
 from fastapi import APIRouter, Depends, HTTPException, status
+from starlette.requests import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -11,13 +12,12 @@ from app.models import User, Role, RolePermission
 from app.core.security import verify_password, create_access_token
 from app.core.permissions import get_effective_permissions, get_scope_label
 from app.api import deps
-from app.middleware.security import account_lockout
 
 router = APIRouter()
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def login(credentials: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Authenticate user and return JWT token.
     
@@ -32,7 +32,8 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
         HTTPException: If credentials are invalid or user is inactive
     """
     # Check if account is locked due to too many failed attempts
-    is_locked, lockout_remaining = account_lockout.is_locked(credentials.email)
+    account_lockout = request.app.state.account_lockout
+    is_locked, lockout_remaining = await account_lockout.is_locked(credentials.email)
     if is_locked:
         raise HTTPException(
             status_code=429,
@@ -52,7 +53,7 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     
     if not user or not user.hashed_password:
         # Track failed attempt
-        is_now_locked, info = account_lockout.record_failed_attempt(credentials.email)
+        is_now_locked, info = await account_lockout.record_failed_attempt(credentials.email)
         
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -70,7 +71,7 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     
     if not verify_password(credentials.password, user.hashed_password):
         # Track failed attempt
-        is_now_locked, info = account_lockout.record_failed_attempt(credentials.email)
+        is_now_locked, info = await account_lockout.record_failed_attempt(credentials.email)
         
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -91,6 +92,9 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     
     # Create JWT token
     access_token = create_access_token(data={"sub": user.email, "user_id": user.id})
+
+    # Clear lockout tracking on successful login
+    await account_lockout.record_successful_login(credentials.email)
     
     effective_permissions = get_effective_permissions(user)
     scope_label = get_scope_label(user)
@@ -112,9 +116,6 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     from app.core.activity_logger import log_activity
     from app.models.activity_log import ActivityAction, ActivityEntityType
 
-    # Clear any failed login attempts on successful authentication
-    account_lockout.record_successful_login(credentials.email)
-    
     # Log successful login
     await log_activity(
         db=db,
