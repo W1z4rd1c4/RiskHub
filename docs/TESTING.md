@@ -152,6 +152,32 @@ export default defineConfig({
 | **KRIs** | `kris.spec.ts` | KRI values, breach alerts |
 | **Admin** | `admin.spec.ts` | Admin console, logs, health |
 
+### 3.4 Deterministic E2E Seed Workflow (Phase 179/180)
+
+E2E runs now assume deterministic fixture entities are present in the backend.
+
+Required flow for a fresh database:
+
+```bash
+cd backend
+venv/bin/python -m app.db.seed
+venv/bin/python -m scripts.seed_e2e_all
+```
+
+Key rules:
+
+- E2E seed scripts must not create users or departments.
+- Deterministic entities are the source of truth for E2E selectors (see `frontend/e2e/fixtures/e2e-data.ts`).
+- Global Playwright setup performs a preflight check and fails fast if required fixtures are missing.
+
+Preflight checks validate presence of deterministic entities across:
+
+- Risks (including archived pair)
+- Controls (including archived pair)
+- KRIs (including archived pair)
+- Vendors (including inactive archive semantics)
+- Vendor SLAs (including archived rows)
+
 ---
 
 ## 4. Test Fixtures & Patterns

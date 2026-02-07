@@ -17,6 +17,7 @@ export function KRIsPage() {
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [includeArchived, setIncludeArchived] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
@@ -30,7 +31,12 @@ export function KRIsPage() {
         try {
             // For 'all' view, use server-side pagination
             if (viewMode === 'all') {
-                const data = await kriApi.getKRIs({ page: currentPage, size: limit, include_archived: includeArchived });
+                const data = await kriApi.getKRIs({
+                    page: currentPage,
+                    size: limit,
+                    include_archived: includeArchived,
+                    search: debouncedSearch || undefined,
+                });
                 setKris(data.items || []);
                 setTotalCount(data.total || 0);
             } else {
@@ -41,7 +47,12 @@ export function KRIsPage() {
                 let total = 0;
 
                 do {
-                    const data = await kriApi.getKRIs({ page, size: pageSize, include_archived: includeArchived });
+                    const data = await kriApi.getKRIs({
+                        page,
+                        size: pageSize,
+                        include_archived: includeArchived,
+                        search: debouncedSearch || undefined,
+                    });
                     total = data.total || 0;
                     allKRIs = [...allKRIs, ...(data.items || [])];
                     page++;
@@ -55,7 +66,14 @@ export function KRIsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [viewMode, currentPage, includeArchived]);
+    }, [viewMode, currentPage, includeArchived, debouncedSearch]);
+
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => {
+            setDebouncedSearch(search.trim());
+        }, 300);
+        return () => window.clearTimeout(timeoutId);
+    }, [search]);
 
     const handleRestoreKRI = async (kriId: number, e: MouseEvent) => {
         e.stopPropagation();

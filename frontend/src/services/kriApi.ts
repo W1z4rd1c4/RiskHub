@@ -13,7 +13,7 @@ import type {
 } from '../types/kri';
 import type { ApprovalCreatedResponse } from '../types/approval';
 export const kriApi = {
-    async getKRIs(params?: { risk_id?: number; breach_only?: boolean; page?: number; size?: number; include_archived?: boolean }): Promise<KRIListResponse> {
+    async getKRIs(params?: { risk_id?: number; breach_only?: boolean; page?: number; size?: number; include_archived?: boolean; search?: string }): Promise<KRIListResponse> {
         return apiClient.get<KRIListResponse>('/kris', { params });
     },
 
