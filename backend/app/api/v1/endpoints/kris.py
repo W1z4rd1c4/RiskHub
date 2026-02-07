@@ -1,7 +1,7 @@
 """
 API endpoints for Key Risk Indicators.
 """
-from datetime import date
+from datetime import date, datetime, UTC
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, or_
@@ -31,20 +31,18 @@ async def list_kris(
     current_user: User = Depends(require_permission("risks", "read")),
     risk_id: Optional[int] = Query(None, description="Filter by risk ID"),
     breach_only: bool = Query(False, description="Only return breached KRIs"),
-    include_archived: bool = Query(False, description="Include archived KRIs (privileged only)"),
+    include_archived: bool = Query(False, description="Include archived KRIs"),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=MAX_KRI_PAGE_SIZE),
 ):
     """List all KRIs with optional filters."""
-    from app.core.permissions import get_kri_ids_where_reporting_owner, can_resolve_approvals
+    from app.core.permissions import get_kri_ids_where_reporting_owner
     
     # Apply department filtering via Risk join
     query = select(KeyRiskIndicator).join(Risk)
     
-    # Exclude archived KRIs by default (only privileged users can include them)
-    if include_archived and can_resolve_approvals(current_user):
-        pass  # Include all
-    else:
+    # Exclude archived KRIs by default
+    if not include_archived:
         query = query.where(KeyRiskIndicator.is_archived == False)
     
     dept_ids = get_user_department_ids(current_user)
@@ -116,20 +114,16 @@ async def list_breaches(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department ID"),
-    include_archived: bool = Query(False, description="Include archived KRIs/risks (privileged only)"),
+    include_archived: bool = Query(False, description="Include archived KRIs/risks"),
 ):
     """List only breached KRIs for dashboard widget. Excludes archived risks AND archived KRIs by default."""
     from app.models.risk import RiskStatus
-    from app.core.permissions import can_resolve_approvals
     
     # Apply department filtering via Risk join
     query = select(KeyRiskIndicator).join(Risk)
     
     # Exclude archived risks AND archived KRIs by default
-    # Only privileged users can include archived items
-    if include_archived and can_resolve_approvals(current_user):
-        pass  # Include all
-    else:
+    if not include_archived:
         query = query.where(
             Risk.status != RiskStatus.archived.value,
             KeyRiskIndicator.is_archived == False,
@@ -242,10 +236,10 @@ async def get_kri(
     kri_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
-    include_archived: bool = Query(False, description="Include archived KRI (privileged only)"),
+    include_archived: bool = Query(False, description="Include archived KRI"),
 ):
     """Get a single KRI by ID."""
-    from app.core.permissions import is_kri_reporting_owner, can_resolve_approvals
+    from app.core.permissions import is_kri_reporting_owner
     
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -258,10 +252,9 @@ async def get_kri(
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
     
-    # Check if archived - only privileged can access
-    if kri.is_archived:
-        if not (include_archived and can_resolve_approvals(current_user)):
-            raise HTTPException(status_code=404, detail="KRI not found")
+    # Archived KRIs are hidden unless explicitly requested
+    if kri.is_archived and not include_archived:
+        raise HTTPException(status_code=404, detail="KRI not found")
     
     # Allow access if user is reporting owner (cross-department)
     if await is_kri_reporting_owner(db, current_user.id, kri_id):
@@ -499,7 +492,6 @@ async def delete_kri(
     
     # Privileged users can archive immediately (no approval needed)
     if can_resolve_approvals(current_user):
-        from datetime import datetime, UTC
         # Archive instead of hard delete (preserves audit trail + history)
         kri.is_archived = True
         # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
@@ -558,6 +550,54 @@ async def delete_kri(
             "action_type": "delete"
         }
     )
+
+
+@router.post("/{kri_id}/restore", response_model=KRIResponse)
+async def restore_kri(
+    kri_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("risks", "delete")),
+):
+    """Restore an archived KRI."""
+    result = await db.execute(
+        select(KeyRiskIndicator)
+        .join(Risk)
+        .where(KeyRiskIndicator.id == kri_id)
+        .options(joinedload(KeyRiskIndicator.risk))
+    )
+    kri = result.scalar_one_or_none()
+
+    if not kri:
+        raise HTTPException(status_code=404, detail="KRI not found")
+
+    check_department_access(kri.risk.department_id, current_user)
+
+    if not kri.is_archived:
+        raise HTTPException(status_code=400, detail="KRI is not archived")
+
+    changes = build_change_set(
+        kri,
+        {"is_archived": False, "archived_at": None, "archived_by_id": None},
+    )
+    kri.is_archived = False
+    kri.archived_at = None
+    kri.archived_by_id = None
+
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.KRI,
+        entity_id=kri.id,
+        entity_name=f"{kri.metric_name}",
+        action=ActivityAction.UPDATE,
+        actor=current_user,
+        department_id=kri.risk.department_id,
+        changes=changes,
+        description=f"Restored KRI {kri.metric_name}",
+    )
+    await db.commit()
+    await db.refresh(kri)
+
+    return KRIResponse.model_validate(kri)
 
 
 # ============ HISTORY ENDPOINTS ============
@@ -777,6 +817,7 @@ async def get_kri_history(
     kri_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
+    include_archived: bool = Query(False, description="Include archived KRI"),
     from_date: Optional[date] = Query(None, description="Filter from date"),
     to_date: Optional[date] = Query(None, description="Filter to date"),
     page: int = Query(1, ge=1),
@@ -786,7 +827,7 @@ async def get_kri_history(
     from datetime import date
     from app.services.kri_history_service import KRIHistoryService
     from app.schemas.kri import KRIHistoryEntry
-    from app.core.permissions import can_resolve_approvals, is_kri_reporting_owner
+    from app.core.permissions import is_kri_reporting_owner
     
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -799,8 +840,8 @@ async def get_kri_history(
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
     
-    # Block access to archived KRIs for non-privileged users
-    if kri.is_archived and not can_resolve_approvals(current_user):
+    # Archived KRIs are hidden unless explicitly requested
+    if kri.is_archived and not include_archived:
         raise HTTPException(status_code=404, detail="KRI not found")
     
     # Allow access via ownership (cross-department) per BUSINESS_LOGIC.md §7.1

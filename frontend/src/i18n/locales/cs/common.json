@@ -26,6 +26,7 @@
         "yes": "Ano",
         "no": "Ne",
         "archive": "Archivovat",
+        "unarchive": "Obnovit z archivu",
         "view_all": "Zobrazit vše →",
         "add_control": "Přidat kontrolu",
         "mark_all_read": "Označit vše jako přečtené"
@@ -69,7 +70,8 @@
         "archive_reason_placeholder": "např. Kontrola již není potřebná, nahrazena novým procesem...",
         "control": "Kontrola",
         "risk": "Riziko",
-        "results": "výsledků"
+        "results": "výsledků",
+        "archived": "Archivované"
     },
     "errors": {
         "generic": "Došlo k chybě. Zkuste to prosím znovu.",
@@ -212,6 +214,7 @@
         "search_logs": "Hledat v záznamech...",
         "search_items": "Hledat položky...",
         "search_risks": "Hledat rizika...",
-        "search_controls": "Hledat kontroly..."
+        "search_controls": "Hledat kontroly...",
+        "include_archived": "Zobrazit archivované"
     }
 }

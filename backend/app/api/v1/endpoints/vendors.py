@@ -39,6 +39,7 @@ async def list_vendors(
     limit: int = Query(50, ge=1, le=100),
     search: Optional[str] = None,
     status_filter: Optional[VendorStatusEnum] = Query(None, alias="status"),
+    include_archived: bool = Query(False, description="Include archived vendors (inactive status)"),
     vendor_type: Optional[VendorTypeEnum] = None,
     dora_relevant: Optional[bool] = None,
     supports_important_core_insurance_function: Optional[bool] = None,
@@ -71,6 +72,8 @@ async def list_vendors(
 
     if status_filter is not None:
         base_query = base_query.where(Vendor.status == status_filter.value)
+    elif not include_archived:
+        base_query = base_query.where(Vendor.status == VendorStatusEnum.active.value)
     if vendor_type is not None:
         base_query = base_query.where(Vendor.vendor_type == vendor_type.value)
     if dora_relevant is not None:
@@ -350,3 +353,41 @@ async def archive_vendor(
     )
     await db.commit()
     return None
+
+
+@router.post("/{vendor_id}/restore", response_model=VendorRead)
+async def restore_vendor(
+    vendor_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    if not check_permission(current_user, "vendors", "delete"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:delete")
+
+    vendor = await _get_vendor_with_deps(db, vendor_id)
+    if not vendor or not can_read_vendor(vendor, current_user):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+    if vendor.status != VendorStatusEnum.inactive.value:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vendor is not archived")
+
+    changes = build_change_set(vendor, {"status": VendorStatusEnum.active.value})
+    vendor.status = VendorStatusEnum.active.value
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.VENDOR,
+        entity_id=vendor.id,
+        entity_name=vendor.name,
+        action=ActivityAction.UPDATE,
+        actor=current_user,
+        department_id=vendor.department_id,
+        changes=changes,
+        description=f"Restored vendor {vendor.name}",
+    )
+    await db.commit()
+    await db.refresh(vendor)
+
+    vendor = await _get_vendor_with_deps(db, vendor.id)
+    if not vendor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    return vendor_to_read(vendor)

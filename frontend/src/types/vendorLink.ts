@@ -6,6 +6,7 @@ export interface LinkedRisk {
     category?: string | null;
     department_id?: number | null;
     department_name?: string | null;
+    status?: string | null;
 }
 
 export interface LinkedControl {
@@ -15,4 +16,3 @@ export interface LinkedControl {
     department_name?: string | null;
     status?: string | null;
 }
-

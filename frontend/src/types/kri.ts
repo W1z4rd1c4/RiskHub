@@ -6,6 +6,9 @@ export type KRIFrequency = typeof KRIFrequencies[number];
 export interface KeyRiskIndicator {
     id: number;
     risk_id: number;
+    is_archived?: boolean;
+    archived_at?: string | null;
+    archived_by_id?: number | null;
     metric_name: string;
     description: string;
     current_value: number;
@@ -122,4 +125,3 @@ export interface DueSoonKRI {
     reporting_owner_name?: string;
     risk_id: number;
 }
-

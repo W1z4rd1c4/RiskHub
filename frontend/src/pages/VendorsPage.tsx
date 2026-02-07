@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { Plus, Search, RefreshCw, AlertCircle, Building2, User, ChevronRight } from 'lucide-react';
@@ -9,6 +9,7 @@ import { SortableTable, Pagination } from '@/components/tables';
 import type { Column, SortDirection } from '@/components/tables/SortableTable';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useAuth } from '@/contexts/AuthContext';
 
 function scorePill(score: number) {
     if (score >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
@@ -29,6 +30,7 @@ export function VendorsPage() {
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<VendorStatus | ''>('active');
+    const [includeArchived, setIncludeArchived] = useState(false);
     const [typeFilter, setTypeFilter] = useState<VendorType | ''>('');
     const [currentPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<string | null>(null);
@@ -38,6 +40,7 @@ export function VendorsPage() {
     const totalPages = Math.max(1, Math.ceil(totalCount / limit));
 
     const debouncedSearch = useDebouncedValue(search, 300);
+    const { hasPermission } = useAuth();
 
     const fetchVendors = useCallback(async () => {
         try {
@@ -45,11 +48,13 @@ export function VendorsPage() {
             if (shouldShowSkeleton) setIsLoading(true);
 
             const skip = (currentPage - 1) * limit;
+            const shouldIncludeArchived = includeArchived || statusFilter === 'inactive';
             const res = await vendorApi.getVendors({
                 skip,
                 limit,
                 search: debouncedSearch || undefined,
                 status: (statusFilter as VendorStatus) || undefined,
+                include_archived: shouldIncludeArchived,
                 vendor_type: (typeFilter as VendorType) || undefined,
                 sort_by: sortField || undefined,
                 sort_order: (sortDirection as 'asc' | 'desc') || undefined,
@@ -68,7 +73,17 @@ export function VendorsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, debouncedSearch, limit, sortDirection, sortField, statusFilter, t, typeFilter, vendors.length]);
+    }, [currentPage, debouncedSearch, limit, sortDirection, sortField, statusFilter, t, typeFilter, vendors.length, includeArchived]);
+
+    const handleRestoreVendor = async (vendorId: number, e: MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await vendorApi.restoreVendor(vendorId);
+            await fetchVendors();
+        } catch (err) {
+            console.error('Error restoring vendor:', err);
+        }
+    };
 
     useEffect(() => {
         fetchVendors();
@@ -143,11 +158,21 @@ export function VendorsPage() {
             key: 'id',
             label: '',
             sortable: false,
-            render: () => (
-                <ChevronRight className="h-4 w-4 text-slate-500 ml-auto" />
+            render: (vendor) => (
+                <div className="flex items-center justify-end gap-2">
+                    {vendor.status === 'inactive' && hasPermission('vendors', 'delete') && (
+                        <button
+                            onClick={(e) => handleRestoreVendor(vendor.id, e)}
+                            className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
+                        >
+                            {t('actions.unarchive', 'Unarchive')}
+                        </button>
+                    )}
+                    <ChevronRight className="h-4 w-4 text-slate-500 ml-auto" />
+                </div>
             )
         }
-    ], [t]);
+    ], [hasPermission, t]);
 
     const handleSort = (field: string, direction: SortDirection) => {
         setSortField(direction ? field : null);
@@ -190,7 +215,12 @@ export function VendorsPage() {
                 <div className="flex gap-4">
                     <ThemedSelect
                         value={statusFilter}
-                        onValueChange={(v) => { setStatusFilter(v as VendorStatus | ''); setCurrentPage(1); setVendors([]); }}
+                        onValueChange={(v) => {
+                            setStatusFilter(v as VendorStatus | '');
+                            if (v === 'inactive') setIncludeArchived(true);
+                            setCurrentPage(1);
+                            setVendors([]);
+                        }}
                         placeholder={t('filters.all_statuses', 'All statuses')}
                         allowEmpty
                         emptyLabel={t('filters.all_statuses', 'All statuses')}
@@ -213,6 +243,14 @@ export function VendorsPage() {
                             { value: 'other', label: t('type.other', 'Other') },
                         ]}
                     />
+                    <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold px-3">
+                        <input
+                            type="checkbox"
+                            checked={includeArchived}
+                            onChange={(e) => { setIncludeArchived(e.target.checked); setCurrentPage(1); setVendors([]); }}
+                        />
+                        {t('filters.include_archived', 'Include archived')}
+                    </label>
                     <button
                         onClick={() => { fetchVendors(); setVendors([]); }}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"

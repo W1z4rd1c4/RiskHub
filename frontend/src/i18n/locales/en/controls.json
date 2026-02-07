@@ -37,7 +37,9 @@
     },
     "status": {
         "active": "Active",
+        "draft": "Draft",
         "inactive": "Inactive",
+        "archived": "Archived",
         "under_review": "Under Review",
         "deprecated": "Deprecated"
     },
@@ -68,6 +70,7 @@
         "all_departments": "All Departments",
         "all_owners": "All Owners",
         "all_statuses": "All Statuses",
+        "include_archived": "Include archived",
         "overdue_only": "Overdue Only",
         "search_placeholder": "Search by name, description, risk or department..."
     },
@@ -92,6 +95,7 @@
     "actions": {
         "link_risk": "Link Risk",
         "unlink": "Unlink",
+        "unarchive": "Unarchive",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
     },
