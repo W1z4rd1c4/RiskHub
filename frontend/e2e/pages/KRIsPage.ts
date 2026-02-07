@@ -30,7 +30,13 @@ export class KRIsPage {
     }
 
     get createButton(): Locator {
-        return this.page.locator('button:has-text("New KRI"), button:has-text("Create"), a:has-text("New KRI")');
+        return this.page.locator(
+            'button:has-text("New KRI"), button:has-text("Nové KRI"), a:has-text("New KRI"), a:has-text("Nové KRI")',
+        );
+    }
+
+    get includeArchivedCheckbox(): Locator {
+        return this.page.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
     }
 
     get statusFilter(): Locator {
@@ -57,19 +63,27 @@ export class KRIsPage {
     // Actions
     async navigate(): Promise<void> {
         await this.page.goto('/kris');
-        await waitForDataLoad(this.page);
+        await this.waitForListReady();
+    }
+
+    async waitForListReady(timeout = 15000): Promise<void> {
+        await waitForDataLoad(this.page, timeout);
+        await Promise.race([
+            this.table.waitFor({ state: 'visible', timeout }),
+            this.gridView.first().waitFor({ state: 'visible', timeout }),
+        ]).catch(() => undefined);
     }
 
     async search(query: string): Promise<void> {
         await this.searchInput.fill(query);
         await this.page.waitForTimeout(500); // Debounce
-        await waitForDataLoad(this.page);
+        await this.waitForListReady();
     }
 
     async clearSearch(): Promise<void> {
         await this.searchInput.clear();
         await this.page.waitForTimeout(500);
-        await waitForDataLoad(this.page);
+        await this.waitForListReady();
     }
 
     async clickRow(index: number): Promise<void> {
@@ -88,13 +102,61 @@ export class KRIsPage {
         await this.clickRow(0);
     }
 
+    rowByText(text: string): Locator {
+        const tableRow = this.tableRows.filter({ hasText: text }).first();
+        return tableRow;
+    }
+
+    async openRowByText(text: string): Promise<void> {
+        await this.waitForListReady();
+        const row = this.rowByText(text);
+        await row.waitFor({ state: 'visible', timeout: 6000 }).catch(() => undefined);
+        const rowVisible = await row.isVisible().catch(() => false);
+        if (rowVisible) {
+            await row.click();
+        } else {
+            const card = this.cards.filter({ hasText: text }).first();
+            const cardVisible = await card.isVisible().catch(() => false);
+            if (!cardVisible) {
+                throw new Error(`KRI row not found for deterministic fixture: ${text}`);
+            }
+            await card.click();
+        }
+        await this.page.waitForURL(/.*kris\/\d+/);
+        await waitForDataLoad(this.page);
+    }
+
     async clickCreateButton(): Promise<void> {
         await this.createButton.click();
         await waitForDataLoad(this.page);
     }
 
-    async getRowCount(): Promise<number> {
+    async setIncludeArchived(enabled: boolean): Promise<void> {
+        const currentState = await this.includeArchivedCheckbox.isChecked();
+        if (currentState !== enabled) {
+            await this.includeArchivedCheckbox.click();
+            await this.waitForListReady();
+        }
+    }
+
+    async clickUnarchiveForRow(text: string): Promise<void> {
+        const row = this.rowByText(text);
+        const rowVisible = await row.isVisible().catch(() => false);
+        if (rowVisible) {
+            await row.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first().click();
+        } else {
+            await this.cards
+                .filter({ hasText: text })
+                .first()
+                .locator('button:has-text("Unarchive"), button:has-text("Obnov")')
+                .first()
+                .click();
+        }
         await waitForDataLoad(this.page);
+    }
+
+    async getRowCount(): Promise<number> {
+        await this.waitForListReady();
         const tableRowCount = await this.tableRows.count();
         if (tableRowCount > 0) return tableRowCount;
         return await this.cards.count();
@@ -117,7 +179,7 @@ export class KRIsPage {
     }
 
     async expectRowsLoaded(minRows = 1): Promise<void> {
-        await waitForDataLoad(this.page);
+        await this.waitForListReady();
         const count = await this.getRowCount();
         expect(count).toBeGreaterThanOrEqual(minRows);
     }

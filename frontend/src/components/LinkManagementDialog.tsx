@@ -230,6 +230,9 @@ export function LinkManagementDialog({
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        role="dialog"
+                        aria-modal="true"
+                        data-testid="link-management-dialog"
                         className="relative w-full max-w-2xl max-h-[90vh] bg-slate-900/95 backdrop-blur-xl rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-white/10"
                     >
                         {/* Header */}

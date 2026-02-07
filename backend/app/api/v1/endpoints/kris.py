@@ -30,6 +30,7 @@ async def list_kris(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
     risk_id: Optional[int] = Query(None, description="Filter by risk ID"),
+    search: Optional[str] = Query(None, description="Search by metric name"),
     breach_only: bool = Query(False, description="Only return breached KRIs"),
     include_archived: bool = Query(False, description="Include archived KRIs"),
     page: int = Query(1, ge=1),
@@ -61,6 +62,10 @@ async def list_kris(
     
     if risk_id:
         query = query.where(KeyRiskIndicator.risk_id == risk_id)
+
+    if search:
+        search_term = f"%{search.strip().lower()}%"
+        query = query.where(func.lower(KeyRiskIndicator.metric_name).like(search_term))
     
     # Apply breach filter BEFORE count and pagination
     if breach_only:

@@ -6,6 +6,7 @@
  */
 
 import { Page } from '@playwright/test';
+import { E2E_APPROVALS, E2E_REQUIRED_FIXTURES } from '../fixtures/e2e-data';
 
 const API_BASE = process.env.BACKEND_URL || 'http://localhost:8000';
 
@@ -47,21 +48,43 @@ interface CleanupIds {
 }
 
 /**
- * Get auth token for API calls by logging in as admin
+ * Get auth token for API calls by logging in as a privileged demo user.
  */
-async function getAdminToken(): Promise<string> {
-    const response = await fetch(`${API_BASE}/api/v1/auth/demo-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'admin@riskhub.local' }),
-    });
+async function getTokenForEmail(email: string, fallbackUserIds: number[] = []): Promise<string> {
+    // Prefer email-based demo login if available, then fallback to ID-based endpoint.
+    const candidates: Array<{ url: string; body?: Record<string, string> }> = [
+        {
+            url: `${API_BASE}/api/v1/auth/demo-login`,
+            body: { email },
+        },
+        ...fallbackUserIds.map((id) => ({ url: `${API_BASE}/api/v1/auth/demo-login/${id}` })),
+    ];
 
-    if (!response.ok) {
-        throw new Error(`Failed to get admin token: ${response.status}`);
+    for (const candidate of candidates) {
+        const response = await fetch(candidate.url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            ...(candidate.body ? { body: JSON.stringify(candidate.body) } : {}),
+        });
+
+        if (!response.ok) {
+            continue;
+        }
+
+        const data = await response.json() as { access_token?: string };
+        if (data.access_token) {
+            return data.access_token;
+        }
     }
 
-    const data = await response.json();
-    return data.access_token;
+    throw new Error(`Failed to get demo token for ${email} via all supported demo-login endpoints`);
+}
+
+/**
+ * Get auth token for API calls by logging in as a privileged demo user.
+ */
+async function getAdminToken(): Promise<string> {
+    return getTokenForEmail('risk.manager@riskhub.local', [3, 1]);
 }
 
 /**
@@ -221,4 +244,130 @@ export async function getTokenFromPage(page: Page): Promise<string | null> {
     return page.evaluate(() => {
         return localStorage.getItem('access_token');
     });
+}
+
+interface DeterministicPreflightResult {
+    ok: boolean;
+    missing: string[];
+    counts: {
+        risks: number;
+        controls: number;
+        kris: number;
+        vendors: number;
+        vendor_slas: number;
+        approvals_pending: number;
+        approvals_my_requests: number;
+    };
+}
+
+/**
+ * Validate that deterministic seed data required by Phase 179/180 exists.
+ * Fails fast on fresh DBs that were not seeded with E2E fixtures.
+ */
+export async function verifyDeterministicE2EData(): Promise<DeterministicPreflightResult> {
+    const riskManagerToken = await getTokenForEmail('risk.manager@riskhub.local', [3, 1]);
+    const employeeToken = await getTokenForEmail('ops.analyst@riskhub.local', [7]);
+    const riskManagerHeaders = { Authorization: `Bearer ${riskManagerToken}` };
+    const employeeHeaders = { Authorization: `Bearer ${employeeToken}` };
+
+    const [risksRes, controlsRes, krisRes, vendorsRes, slasRes, approvalsPendingRes, approvalsMineRes] = await Promise.all([
+        fetch(`${API_BASE}/api/v1/risks?include_archived=true&limit=100&search=E2E-`, { headers: riskManagerHeaders }),
+        fetch(`${API_BASE}/api/v1/controls?include_archived=true&limit=100&search=E2E-`, { headers: riskManagerHeaders }),
+        fetch(`${API_BASE}/api/v1/kris?include_archived=true&page=1&size=200&search=E2E-`, { headers: riskManagerHeaders }),
+        fetch(`${API_BASE}/api/v1/vendors?include_archived=true&limit=100&search=E2E-VREG`, { headers: riskManagerHeaders }),
+        fetch(`${API_BASE}/api/v1/vendor-slas?include_archived=true`, { headers: riskManagerHeaders }),
+        fetch(`${API_BASE}/api/v1/approvals?status=pending&limit=100`, { headers: riskManagerHeaders }),
+        fetch(`${API_BASE}/api/v1/approvals?status=pending&limit=100&my_requests=true`, { headers: employeeHeaders }),
+    ]);
+
+    const failures: string[] = [];
+    if (!risksRes.ok) failures.push(`Failed to fetch risks: HTTP ${risksRes.status}`);
+    if (!controlsRes.ok) failures.push(`Failed to fetch controls: HTTP ${controlsRes.status}`);
+    if (!krisRes.ok) failures.push(`Failed to fetch KRIs: HTTP ${krisRes.status}`);
+    if (!vendorsRes.ok) failures.push(`Failed to fetch vendors: HTTP ${vendorsRes.status}`);
+    if (!slasRes.ok) failures.push(`Failed to fetch vendor SLAs: HTTP ${slasRes.status}`);
+    if (!approvalsPendingRes.ok) failures.push(`Failed to fetch pending approvals queue: HTTP ${approvalsPendingRes.status}`);
+    if (!approvalsMineRes.ok) failures.push(`Failed to fetch employee pending approvals: HTTP ${approvalsMineRes.status}`);
+
+    if (failures.length > 0) {
+        return {
+            ok: false,
+            missing: failures,
+            counts: { risks: 0, controls: 0, kris: 0, vendors: 0, vendor_slas: 0, approvals_pending: 0, approvals_my_requests: 0 },
+        };
+    }
+
+    const risksBody = await risksRes.json() as { items: Array<{ risk_id_code?: string }> };
+    const controlsBody = await controlsRes.json() as { items: Array<{ name?: string }> };
+    const krisBody = await krisRes.json() as { items: Array<{ metric_name?: string }> };
+    const vendorsBody = await vendorsRes.json() as { items: Array<{ registration_id?: string }> };
+    const slasBody = await slasRes.json() as Array<{ metric_name?: string }>;
+    const approvalsPendingBody = await approvalsPendingRes.json() as { items: Array<{ reason?: string; status?: string }> };
+    const approvalsMineBody = await approvalsMineRes.json() as { items: Array<{ reason?: string; status?: string }> };
+
+    const riskCodes = new Set(risksBody.items.map((item) => item.risk_id_code).filter(Boolean));
+    const controlNames = new Set(controlsBody.items.map((item) => item.name).filter(Boolean));
+    const kriNames = new Set(krisBody.items.map((item) => item.metric_name).filter(Boolean));
+    const vendorRegistrations = new Set(vendorsBody.items.map((item) => item.registration_id).filter(Boolean));
+    const slaNames = new Set(slasBody.map((item) => item.metric_name).filter(Boolean));
+    const queueApprovals = approvalsPendingBody.items;
+    const myApprovals = approvalsMineBody.items;
+
+    const missing: string[] = [];
+    for (const code of E2E_REQUIRED_FIXTURES.risks) {
+        if (!riskCodes.has(code)) missing.push(`risk:${code}`);
+    }
+    for (const name of E2E_REQUIRED_FIXTURES.controls) {
+        if (!controlNames.has(name)) missing.push(`control:${name}`);
+    }
+    for (const name of E2E_REQUIRED_FIXTURES.kris) {
+        if (!kriNames.has(name)) missing.push(`kri:${name}`);
+    }
+    for (const registration of E2E_REQUIRED_FIXTURES.vendors) {
+        if (!vendorRegistrations.has(registration)) missing.push(`vendor:${registration}`);
+    }
+    for (const name of E2E_REQUIRED_FIXTURES.vendor_slas) {
+        if (!slaNames.has(name)) missing.push(`vendor_sla:${name}`);
+    }
+
+    const expectedQueueApprovals = [
+        E2E_APPROVALS.PENDING_RISK_DELETE,
+        E2E_APPROVALS.PENDING_PRIORITY_DELETE,
+        E2E_APPROVALS.PENDING_PRIVILEGED_EDIT,
+        E2E_APPROVALS.PENDING_CONTROL_DELETE,
+    ];
+
+    for (const expectedApproval of expectedQueueApprovals) {
+        const found = queueApprovals.some(
+            (item) =>
+                item.reason === expectedApproval.reason &&
+                String(item.status || '').toLowerCase() === expectedApproval.status,
+        );
+        if (!found) {
+            missing.push(`approval_queue:${expectedApproval.reason}`);
+        }
+    }
+
+    const employeeRequestFound = myApprovals.some(
+        (item) =>
+            item.reason === E2E_APPROVALS.PENDING_RISK_DELETE.reason &&
+            String(item.status || '').toLowerCase() === E2E_APPROVALS.PENDING_RISK_DELETE.status,
+    );
+    if (!employeeRequestFound) {
+        missing.push(`approval_my_requests:${E2E_APPROVALS.PENDING_RISK_DELETE.reason}`);
+    }
+
+    return {
+        ok: missing.length === 0,
+        missing,
+        counts: {
+            risks: risksBody.items.length,
+            controls: controlsBody.items.length,
+            kris: krisBody.items.length,
+            vendors: vendorsBody.items.length,
+            vendor_slas: slasBody.length,
+            approvals_pending: queueApprovals.length,
+            approvals_my_requests: myApprovals.length,
+        },
+    };
 }

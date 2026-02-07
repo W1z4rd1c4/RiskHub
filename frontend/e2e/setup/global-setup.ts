@@ -6,6 +6,7 @@
  */
 
 import { FullConfig } from '@playwright/test';
+import { verifyDeterministicE2EData } from './test-data';
 
 async function globalSetup(config: FullConfig): Promise<void> {
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
@@ -39,6 +40,23 @@ async function globalSetup(config: FullConfig): Promise<void> {
         // Don't throw - Playwright webServer config will start it
         console.log('   (Playwright webServer may start it automatically)');
     }
+
+    console.log('🔍 Verifying deterministic E2E seed fixtures...');
+    const preflight = await verifyDeterministicE2EData();
+    if (!preflight.ok) {
+        console.error('❌ Deterministic E2E seed preflight failed.');
+        if (preflight.missing.length > 0) {
+            console.error('   Missing fixtures:');
+            for (const fixture of preflight.missing) {
+                console.error(`   - ${fixture}`);
+            }
+        }
+        console.error('   Run backend seed first: cd backend && venv/bin/python -m scripts.seed_e2e_all');
+        throw new Error('Required deterministic E2E fixtures are missing.');
+    }
+    console.log(
+        `✅ Deterministic fixtures verified (risks=${preflight.counts.risks}, controls=${preflight.counts.controls}, KRIs=${preflight.counts.kris}, vendors=${preflight.counts.vendors}, slas=${preflight.counts.vendor_slas}, approvals_pending=${preflight.counts.approvals_pending}, approvals_my_requests=${preflight.counts.approvals_my_requests})`,
+    );
 
     console.log('✅ E2E Global Setup complete');
 }

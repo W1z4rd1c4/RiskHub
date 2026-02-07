@@ -37,12 +37,12 @@ export class ApprovalsPage {
     }
 
     get emptyState(): Locator {
-        return this.page.locator('text="All Caught Up"');
+        return this.page.locator('.border-dashed').first();
     }
 
     get approvalCards(): Locator {
-        // Target cards within the approvals list (div.space-y-4 container)
-        return this.page.locator('.space-y-4 > .glass-card, .space-y-4 > div.glass-card');
+        // Cards are wrapped by motion divs; do not assume direct child relationship.
+        return this.page.locator('.space-y-4 .glass-card');
     }
 
     get resolutionDialog(): Locator {
@@ -71,26 +71,37 @@ export class ApprovalsPage {
 
     async navigate(): Promise<void> {
         await this.page.goto('/approvals');
-        await waitForDataLoad(this.page);
+        await this.waitForApprovalsReady();
     }
 
     async selectPendingQueue(): Promise<void> {
         await this.pendingQueueTab.click();
-        await waitForDataLoad(this.page);
+        await this.waitForApprovalsReady();
     }
 
     async selectMyRequests(): Promise<void> {
         await this.myRequestsTab.click();
-        await waitForDataLoad(this.page);
+        await this.waitForApprovalsReady();
     }
 
     async selectHistory(): Promise<void> {
         await this.historyTab.click();
-        await waitForDataLoad(this.page);
+        await this.waitForApprovalsReady();
+    }
+
+    async waitForApprovalsReady(timeout = 15000): Promise<void> {
+        await waitForDataLoad(this.page, timeout);
+        const ready = await Promise.race([
+            this.approvalCards.first().waitFor({ state: 'visible', timeout }).then(() => true),
+            this.emptyState.waitFor({ state: 'visible', timeout }).then(() => true),
+        ]).catch(() => false);
+        if (!ready) {
+            throw new Error('Approvals list did not reach a ready state (cards or empty state).');
+        }
     }
 
     async getApprovalCount(): Promise<number> {
-        await waitForDataLoad(this.page);
+        await this.waitForApprovalsReady();
         return await this.approvalCards.count();
     }
 
@@ -228,6 +239,20 @@ export class ApprovalsPage {
         return -1;
     }
 
+    /**
+     * Find a card by deterministic reason text.
+     */
+    async findCardByReason(reason: string): Promise<number> {
+        const count = await this.getApprovalCount();
+        for (let i = 0; i < count; i++) {
+            const cardText = await this.getCard(i).textContent() ?? '';
+            if (cardText.includes(reason)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Assertions
     // ─────────────────────────────────────────────────────────────
@@ -241,7 +266,7 @@ export class ApprovalsPage {
     }
 
     async expectCardsLoaded(minCards = 1): Promise<void> {
-        await waitForDataLoad(this.page);
+        await this.waitForApprovalsReady();
         await expect(this.approvalCards.first()).toBeVisible();
         const count = await this.approvalCards.count();
         expect(count).toBeGreaterThanOrEqual(minCards);

@@ -13,7 +13,7 @@ from app.models import Risk, Control
 from app.models.approval_request import (
     ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
 )
-from scripts.e2e_mappings import load_mappings
+from scripts.e2e_mappings import load_mappings_strict, require_user_id
 
 
 APPROVALS = [
@@ -84,10 +84,11 @@ async def seed_approvals():
     print("="*60)
     
     async with async_session_maker() as db:
-        users, _ = await load_mappings(db)
+        users, _ = await load_mappings_strict(db, context="seed_e2e_approvals")
         
         created = 0
-        skipped = 0
+        updated = 0
+        deduped = 0
         
         for approval_data in APPROVALS:
             data = approval_data.copy()
@@ -118,47 +119,73 @@ async def seed_approvals():
                 resource_id = entity.id
                 resource_name = entity.name
             
-            # Check for existing pending approval
-            result = await db.execute(
-                select(ApprovalRequest).where(
-                    ApprovalRequest.resource_type == resource_type,
-                    ApprovalRequest.resource_id == resource_id,
-                    ApprovalRequest.action_type == data["action_type"],
-                    ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
-                )
-            )
-            if result.scalar_one_or_none():
-                skipped += 1
-                continue
-            
             # Resolve user IDs
-            requester_id = users[data.pop("requester")]
-            primary_approver_id = users[data.pop("primary_approver")]
-            
-            approval = ApprovalRequest(
-                resource_type=resource_type,
-                resource_id=resource_id,
-                resource_name=resource_name,
-                action_type=data.pop("action_type"),
-                status=data.pop("status"),
-                requested_by_id=requester_id,
-                primary_approver_id=primary_approver_id,
-                requires_privileged_approval=data.pop("requires_privileged"),
-                reason=data.pop("reason"),
-                pending_changes=data.pop("pending_changes", None),
-            )
-            
-            # Set primary_approved_at for PENDING_PRIVILEGED status
+            requester_id = require_user_id(users, data.pop("requester"))
+            primary_approver_id = require_user_id(users, data.pop("primary_approver"))
+
+            action_type = data.pop("action_type")
+            approval_status = data.pop("status")
+            requires_privileged = data.pop("requires_privileged")
+            reason = data.pop("reason")
+            pending_changes = data.pop("pending_changes", None)
+
+            existing_rows = (
+                await db.execute(
+                    select(ApprovalRequest)
+                    .where(ApprovalRequest.reason == reason)
+                    .order_by(ApprovalRequest.id.asc())
+                )
+            ).scalars().all()
+
+            approval = existing_rows[0] if existing_rows else None
+            if len(existing_rows) > 1:
+                for duplicate in existing_rows[1:]:
+                    await db.delete(duplicate)
+                    deduped += 1
+
+            if approval is None:
+                approval = ApprovalRequest(
+                    resource_type=resource_type,
+                    resource_id=resource_id,
+                    resource_name=resource_name,
+                    action_type=action_type,
+                    status=approval_status,
+                    requested_by_id=requester_id,
+                    primary_approver_id=primary_approver_id,
+                    requires_privileged_approval=requires_privileged,
+                    reason=reason,
+                    pending_changes=pending_changes,
+                )
+                db.add(approval)
+                created += 1
+                print(f"   ✓ CREATED {resource_type.value.upper()} #{resource_id}: {action_type.value}")
+            else:
+                approval.resource_type = resource_type
+                approval.resource_id = resource_id
+                approval.resource_name = resource_name
+                approval.action_type = action_type
+                approval.status = approval_status
+                approval.requested_by_id = requester_id
+                approval.primary_approver_id = primary_approver_id
+                approval.requires_privileged_approval = requires_privileged
+                approval.pending_changes = pending_changes
+                approval.resolved_by_id = None
+                approval.resolved_at = None
+                approval.resolution_notes = None
+                approval.privileged_approver_id = None
+                approval.privileged_approved_at = None
+                updated += 1
+                print(f"   ↺ UPDATED {resource_type.value.upper()} #{resource_id}: {action_type.value}")
+
+            # Set primary_approved_at only for pending privileged fixtures.
             if approval.status == ApprovalStatus.PENDING_PRIVILEGED:
-                approval.primary_approved_at = datetime.utcnow()
-            
-            db.add(approval)
-            created += 1
-            print(f"   ✓ {resource_type.value.upper()} #{resource_id}: {approval.action_type.value}")
+                approval.primary_approved_at = datetime.now(UTC).replace(tzinfo=None)
+            else:
+                approval.primary_approved_at = None
         
         await db.commit()
         
-        print(f"\n✅ Created {created} approval requests, skipped {skipped} existing")
+        print(f"\n✅ Approval fixtures normalized: created={created}, updated={updated}, deduped={deduped}")
 
 
 if __name__ == "__main__":
