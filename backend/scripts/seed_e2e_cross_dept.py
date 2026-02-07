@@ -6,11 +6,14 @@ These entities have deterministic owners from different departments than the ent
 enabling tests to verify cross-department access patterns reliably.
 """
 import asyncio
-from datetime import datetime, UTC
 from sqlalchemy import select
 from app.db.session import async_session_maker
 from app.models import Risk, Control, KeyRiskIndicator
-from scripts.e2e_mappings import load_mappings
+from scripts.e2e_mappings import (
+    load_mappings_strict,
+    require_department_id,
+    require_user_id,
+)
 
 
 # Deterministic cross-department scenarios
@@ -22,6 +25,7 @@ CROSS_DEPT_SCENARIOS = [
         "owner_email": "fin.head@riskhub.local",
         "entity_type": "RISK",
         "entity_dept": "Operations",
+        "risk_id_code": "XDEPT-001",
         "name": "E2E-XDEPT-FIN-OPS-RISK Cross-Department Finance-Ops Risk",
         "description": "Risk owned by Finance Head but hosted in Operations department",
     },
@@ -31,6 +35,7 @@ CROSS_DEPT_SCENARIOS = [
         "owner_email": "it.head@riskhub.local",
         "entity_type": "RISK",
         "entity_dept": "Finance",
+        "risk_id_code": "XDEPT-002",
         "name": "E2E-XDEPT-IT-FIN-RISK Cross-Department IT-Finance Risk",
         "description": "Risk owned by IT Head but hosted in Finance department",
     },
@@ -58,6 +63,7 @@ CROSS_DEPT_SCENARIOS = [
         "owner_email": "fin.analyst@riskhub.local",
         "entity_type": "KRI",
         "entity_dept": "IT",
+        "linked_risk_code": "E2E-IT-001",
         "name": "E2E-XDEPT-FIN-IT-KRI IT KRI Reported by Finance",
         "description": "KRI owned by Finance Analyst but linked to IT risk",
     },
@@ -71,52 +77,64 @@ async def seed_cross_dept_scenarios():
     print("="*60)
     
     async with async_session_maker() as db:
-        users, depts = await load_mappings(db)
-        
-        # Check if already seeded
-        result = await db.execute(
-            select(Risk).where(Risk.name.contains("E2E-XDEPT"))
+        users, depts = await load_mappings_strict(
+            db,
+            context="seed_e2e_cross_dept",
         )
-        if result.scalars().first():
-            print("   ⏭️  Cross-department scenarios already seeded")
-            return
         
         # Get CRO as created_by for all entities
-        cro_id = users.get("cro@riskhub.local")
-        
-        # For KRIs, we need a linked risk - create one first
-        kri_risk_result = await db.execute(
-            select(Risk).where(Risk.name.contains("E2E")).limit(1)
-        )
-        kri_linked_risk = kri_risk_result.scalar_one_or_none()
+        cro_id = require_user_id(users, "cro@riskhub.local")
         
         created = 0
+        updated = 0
         
         for scenario in CROSS_DEPT_SCENARIOS:
-            owner_id = users.get(scenario["owner_email"])
-            dept_id = depts.get(scenario["entity_dept"])
-            
-            if not owner_id or not dept_id:
-                print(f"   ⚠️ Skipping {scenario['scenario_name']}: missing user/dept")
-                continue
+            owner_id = require_user_id(users, scenario["owner_email"])
+            dept_id = require_department_id(depts, scenario["entity_dept"])
             
             entity_type = scenario["entity_type"]
             name = scenario["name"]
             description = scenario["description"]
             
             if entity_type == "RISK":
-                # Check if exists
+                risk_id_code = scenario["risk_id_code"]
                 existing = await db.execute(
-                    select(Risk).where(Risk.name == name)
+                    select(Risk).where(Risk.risk_id_code == risk_id_code)
                 )
-                if existing.scalar_one_or_none():
-                    print(f"   ⏭️  {name[:40]}... exists")
+                risk = existing.scalar_one_or_none()
+
+                if risk:
+                    needs_update = False
+                    desired_fields = {
+                        "name": name,
+                        "description": description,
+                        "process": "Cross-Department",
+                        "subprocess": "Ownership Testing",
+                        "risk_type": "operational",
+                        "department_id": dept_id,
+                        "owner_id": owner_id,
+                        "category": "Operational",
+                        "gross_probability": 3,
+                        "gross_impact": 3,
+                        "gross_score": 9,
+                        "net_probability": 2,
+                        "net_impact": 2,
+                        "net_score": 4,
+                        "status": "active",
+                    }
+                    for field, expected in desired_fields.items():
+                        if getattr(risk, field) != expected:
+                            setattr(risk, field, expected)
+                            needs_update = True
+
+                    if needs_update:
+                        updated += 1
+                        print(f"   ↺ RISK: {scenario['scenario_name']} (normalized)")
+                    else:
+                        print(f"   ⏭️  {name[:40]}... exists")
                     continue
-                
-                # Generate unique risk_id_code
-                risk_id_code = f"XDEPT-{created+1:03d}"
-                
-                entity = Risk(
+
+                risk = Risk(
                     risk_id_code=risk_id_code,
                     name=name,
                     description=description,
@@ -134,7 +152,7 @@ async def seed_cross_dept_scenarios():
                     net_score=4,
                     status="active",
                 )
-                db.add(entity)
+                db.add(risk)
                 created += 1
                 print(f"   ✓ RISK: {scenario['scenario_name']}")
             
@@ -143,8 +161,27 @@ async def seed_cross_dept_scenarios():
                 existing = await db.execute(
                     select(Control).where(Control.name == name)
                 )
-                if existing.scalar_one_or_none():
-                    print(f"   ⏭️  {name[:40]}... exists")
+                existing_control = existing.scalar_one_or_none()
+                if existing_control:
+                    needs_update = False
+                    if existing_control.control_form != "manual":
+                        existing_control.control_form = "manual"
+                        needs_update = True
+                    if existing_control.frequency != "quarterly":
+                        existing_control.frequency = "quarterly"
+                        needs_update = True
+                    if existing_control.department_id != dept_id:
+                        existing_control.department_id = dept_id
+                        needs_update = True
+                    if existing_control.control_owner_id != owner_id:
+                        existing_control.control_owner_id = owner_id
+                        needs_update = True
+
+                    if needs_update:
+                        updated += 1
+                        print(f"   ↺ CONTROL: {scenario['scenario_name']} (normalized)")
+                    else:
+                        print(f"   ⏭️  {name[:40]}... exists")
                     continue
                 
                 entity = Control(
@@ -152,7 +189,7 @@ async def seed_cross_dept_scenarios():
                     description=description,
                     department_id=dept_id,
                     control_owner_id=owner_id,
-                    control_form="detective",
+                    control_form="manual",
                     frequency="quarterly",
                     created_by_id=cro_id,
                 )
@@ -161,23 +198,51 @@ async def seed_cross_dept_scenarios():
                 print(f"   ✓ CONTROL: {scenario['scenario_name']}")
             
             elif entity_type == "KRI":
-                # KRI needs a linked risk
-                if not kri_linked_risk:
-                    print(f"   ⚠️ Skipping {scenario['scenario_name']}: no linked risk")
-                    continue
-                
+                linked_risk_code = scenario.get("linked_risk_code", "E2E-IT-001")
+                linked_risk_result = await db.execute(
+                    select(Risk).where(Risk.risk_id_code == linked_risk_code)
+                )
+                linked_risk = linked_risk_result.scalar_one_or_none()
+                if not linked_risk:
+                    raise RuntimeError(
+                        f"Required linked risk '{linked_risk_code}' missing for scenario {scenario['scenario_name']}"
+                    )
+
                 # Check if exists
                 existing = await db.execute(
                     select(KeyRiskIndicator).where(KeyRiskIndicator.metric_name == name)
                 )
-                if existing.scalar_one_or_none():
-                    print(f"   ⏭️  {name[:40]}... exists")
+                kri = existing.scalar_one_or_none()
+                if kri:
+                    needs_update = False
+                    desired_fields = {
+                        "description": description,
+                        "risk_id": linked_risk.id,
+                        "reporting_owner_id": owner_id,
+                        "unit": "%",
+                        "frequency": "monthly",
+                        "lower_limit": 20,
+                        "upper_limit": 80,
+                        "is_archived": False,
+                        "archived_at": None,
+                        "archived_by_id": None,
+                    }
+                    for field, expected in desired_fields.items():
+                        if getattr(kri, field) != expected:
+                            setattr(kri, field, expected)
+                            needs_update = True
+
+                    if needs_update:
+                        updated += 1
+                        print(f"   ↺ KRI: {scenario['scenario_name']} (normalized)")
+                    else:
+                        print(f"   ⏭️  {name[:40]}... exists")
                     continue
-                
-                entity = KeyRiskIndicator(
+
+                kri = KeyRiskIndicator(
                     metric_name=name,
                     description=description,
-                    risk_id=kri_linked_risk.id,
+                    risk_id=linked_risk.id,
                     reporting_owner_id=owner_id,
                     current_value=50.0,
                     unit="%",
@@ -185,12 +250,12 @@ async def seed_cross_dept_scenarios():
                     lower_limit=20,
                     upper_limit=80,
                 )
-                db.add(entity)
+                db.add(kri)
                 created += 1
                 print(f"   ✓ KRI: {scenario['scenario_name']}")
         
         await db.commit()
-        print(f"\n✅ Created {created} cross-department entities")
+        print(f"\n✅ Cross-department entities: created={created}, updated={updated}")
 
 
 if __name__ == "__main__":

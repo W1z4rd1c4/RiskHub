@@ -65,7 +65,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 158: Audit** — Full-app audit findings → 10 independent fix plans (10/10)
 - [x] **Phase 159: Audit Fixes** — Fix Phase 158 code review findings (10/10)
 - [ ] **Phase 179: E2E Test Data** — E2E test data seeding (16/17)
-- [ ] **Phase 180: E2E Business Logic** — E2E business logic tests (9/15)
+- [ ] **Phase 180: E2E Business Logic** — E2E business logic tests (14/15)
 - [ ] **Phase 200: Entity Naming Enforcement** — Mandatory naming (9/10)
 - [ ] **Phase 201: Archived Visibility + Restore** — Archive toggle parity and unarchive flows (4/5)
 - [x] **Phase 250: Spaghetti Simplification** — Code simplification (10/10)
@@ -810,7 +810,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 158. Audit | 10/10 | ✅ Complete | 2026-01-19 |
 | 159. Audit Fixes | 10/10 | ✅ Complete | 2026-01-23 |
 | 179. E2E Test Data | 16/17 | ⏳ In progress | - |
-| 180. E2E Business Logic | 9/15 | ⏳ In progress | - |
+| 180. E2E Business Logic | 14/15 | ⏳ In progress | - |
 | 200. Entity Naming | 9/10 | ⏳ In progress | - |
 | 201. Archived Visibility + Restore | 4/5 | ⏳ In progress | - |
 | 250. Spaghetti Simplification | 10/10 | ✅ Complete | 2026-01-10 |
@@ -861,11 +861,11 @@ Plans:
 - [x] 180-07: Activity Logging & Audit Trail (§9 tests)
 - [x] 180-08: Suite Integration & Full Regression (CI config, docs)
 - [x] 180-09: E2E Test Data Verification (verify Phase 179 data enables tests)
-- [ ] 180-10: E2E Test Updates for Deterministic Scenarios (use Phase 179 seeded data)
-- [ ] 180-11: Deterministic E2E Fixture Constants (all entity families + archive variants)
-- [ ] 180-12: Deterministic Risk/Control/KRI Spec Refactor (reduce skip-driven paths)
-- [ ] 180-13: Vendor + Vendor SLA E2E Coverage (visibility/archive/restore/RBAC)
-- [ ] 180-14: Archive Visibility & Restore Matrix Across Surfaces (list/search/link)
+- [x] 180-10: E2E Test Updates for Deterministic Scenarios (use Phase 179 seeded data)
+- [x] 180-11: Deterministic E2E Fixture Constants (all entity families + archive variants)
+- [x] 180-12: Deterministic Risk/Control/KRI Spec Refactor (reduce skip-driven paths)
+- [x] 180-13: Vendor + Vendor SLA E2E Coverage (visibility/archive/restore/RBAC)
+- [x] 180-14: Archive Visibility & Restore Matrix Across Surfaces (list/search/link)
 - [ ] 180-15: Full Verification + Skip Budget + Docs/State Reconciliation
 
 ### Phase 200: Entity Naming Enforcement
