@@ -59,8 +59,8 @@
 | 157 Business Logic Compliance | ✅ Complete (6/6) | 2026-01-22 |
 | 158 Audit | ✅ Complete (10/10) | 2026-01-19 |
 | 159 Audit Fixes | ✅ Complete (10/10) | 2026-01-23 |
-| 179 E2E Test Data | ⏳ In progress (11/12) | - |
-| 180 E2E Business Logic | ⏳ In progress (9/10) | - |
+| 179 E2E Test Data | ⏳ In progress (16/17) | - |
+| 180 E2E Business Logic | ⏳ In progress (9/15) | - |
 | 200 Entity Naming | ⏳ In progress (9/10) | - |
 | 201 Archived Visibility + Restore | ⏳ In progress (4/5) | - |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
@@ -197,11 +197,11 @@
 
 ### Last Action
 
-- Executed Phase 201 archive visibility/restore work across backend and frontend surfaces; added Phase 201 plan artifacts and updated planning state anchors (2026-02-07).
+- Executed Phase 179 extension plans 179-12..179-16: hardened prerequisites, added deterministic vendor/vendor-SLA/archive matrix seeding, and validated end-to-end seeding via `venv/bin/python -m scripts.seed_e2e_all` (2026-02-07).
 
 ### Next Step
 
-- Finish Phase 201 verification loop (tests/docs reconciliation and E2E smoke) and then continue with existing in-progress phases.
+- Execute Phase 180 extension plans against the deterministic Phase 179 dataset (fixtures/spec updates, vendor + archive E2E coverage).
 
 ---
 

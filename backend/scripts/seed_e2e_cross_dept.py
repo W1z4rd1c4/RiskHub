@@ -179,6 +179,7 @@ async def seed_cross_dept_scenarios():
                     description=description,
                     risk_id=kri_linked_risk.id,
                     reporting_owner_id=owner_id,
+                    current_value=50.0,
                     unit="%",
                     frequency="monthly",
                     lower_limit=20,
