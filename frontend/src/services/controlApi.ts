@@ -20,6 +20,7 @@ export const controlApi = {
         search?: string;
         process?: string;
         category?: string;
+        include_archived?: boolean;
     }): Promise<ControlListResponse> {
         return apiClient.get<ControlListResponse>('/controls', { params });
     },
@@ -38,6 +39,10 @@ export const controlApi = {
 
     async deleteControl(id: number, reason: string = 'Archived by user'): Promise<void | ApprovalCreatedResponse> {
         return apiClient.delete<void | ApprovalCreatedResponse>(`/controls/${id}?reason=${encodeURIComponent(reason)}`);
+    },
+
+    async restoreControl(id: number): Promise<Control> {
+        return apiClient.post<Control>(`/controls/${id}/restore`, {});
     },
 
     async logExecution(controlId: number, data: ControlExecutionCreate): Promise<ControlExecution> {

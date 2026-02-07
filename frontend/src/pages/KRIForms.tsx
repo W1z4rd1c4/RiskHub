@@ -1,7 +1,15 @@
 import { Plus } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { KRIForm } from '@/components/KRIForm';
 
 export function KRINewPage() {
+    const [searchParams] = useSearchParams();
+    const riskIdParam = searchParams.get('risk_id');
+    const parsedRiskId = riskIdParam ? Number(riskIdParam) : NaN;
+    const preselectedRiskId = Number.isInteger(parsedRiskId) && parsedRiskId > 0
+        ? parsedRiskId
+        : undefined;
+
     return (
         <div className="space-y-8">
             <div className="flex items-center gap-4">
@@ -16,7 +24,7 @@ export function KRINewPage() {
                 </div>
             </div>
 
-            <KRIForm />
+            <KRIForm initialData={preselectedRiskId ? { risk_id: preselectedRiskId } : undefined} />
         </div>
     );
 }

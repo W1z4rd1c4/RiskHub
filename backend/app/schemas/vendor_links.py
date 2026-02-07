@@ -21,6 +21,7 @@ class LinkedRiskRead(BaseModel):
     category: str | None = None
     department_id: int | None = None
     department_name: str | None = None
+    status: str | None = None
 
     model_config = {"from_attributes": True}
 

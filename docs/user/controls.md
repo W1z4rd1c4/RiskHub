@@ -12,6 +12,7 @@
 4. [Logging Control Executions](#logging-control-executions)
 5. [Control Frequency and Scheduling](#control-frequency-and-scheduling)
 6. [Linking Controls to Risks](#linking-controls-to-risks)
+7. [Archiving and Restoring Controls](#archiving-and-restoring-controls)
 
 ---
 
@@ -40,6 +41,7 @@ Use the filter bar:
 - **Search**: Find by name or description
 - **Department**: Filter by organizational unit
 - **Status**: Show Active, Draft, or All
+- **Include Archived**: Off by default; enable to include archived controls
 - **Frequency**: Daily, Weekly, Monthly, etc.
 
 ---
@@ -211,6 +213,24 @@ When a control is linked to risks:
 
 ---
 
+## Archiving and Restoring Controls
+
+### Archiving
+
+- Archiving is a soft-delete and preserves control history.
+- Archived controls are hidden from default list/search views.
+- Users with `controls:delete` can archive immediately; non-privileged users create approval requests.
+
+### Restoring (Unarchive)
+
+Users with **`controls:delete`** can restore archived controls from:
+- Control detail page (Unarchive action)
+- Control list/search rows when archived items are visible
+
+Restoring sets control status back to **Active**.
+
+---
+
 ## Quick Reference
 
 ### Control Actions Summary
@@ -224,6 +244,8 @@ When a control is linked to risks:
 | Edit control linked to high-risk | Anyone with access | Yes (privileged) |
 | Log execution | Owner or department member | No |
 | Link/unlink to risk | Users with write access | No |
+| Archive control | Users with `controls:delete` | Non-privileged: Yes |
+| Restore archived control | Users with `controls:delete` | No |
 
 ---
 

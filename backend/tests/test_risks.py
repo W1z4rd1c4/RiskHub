@@ -218,3 +218,150 @@ async def test_generate_risk_id_code_r100_plus(db_session, test_department, test
     next_code = await generate_risk_id_code(db_session, process="Test")
     
     assert next_code == "TEST-R102", f"Expected TEST-R102 but got {next_code}"
+
+
+@pytest.mark.asyncio
+async def test_risk_list_include_archived_toggle(
+    auth_client: AsyncClient,
+    test_user: User,
+    test_department: Department,
+    seed_risk_types,
+):
+    """Default list excludes archived risks; include_archived=true returns them."""
+    create_response = await auth_client.post(
+        "/api/v1/risks",
+        json={
+            "risk_id_code": "R-ARCH-201",
+            "name": "Archived Toggle Risk",
+            "process": "Archive Toggle",
+            "description": "Risk used to validate include_archived",
+            "department_id": test_department.id,
+            "risk_owner_id": test_user.id,
+            "risk_type": "operational",
+            "category": "Test",
+            "gross_probability": 2,
+            "gross_impact": 2,
+            "net_probability": 1,
+            "net_impact": 1,
+            "status": "active",
+        },
+    )
+    risk_id = create_response.json()["id"]
+
+    archive_response = await auth_client.delete(f"/api/v1/risks/{risk_id}?reason=Archive+for+test")
+    assert archive_response.status_code == 204
+
+    default_list = await auth_client.get("/api/v1/risks")
+    assert default_list.status_code == 200
+    default_ids = {item["id"] for item in default_list.json()["items"]}
+    assert risk_id not in default_ids
+
+    archived_list = await auth_client.get("/api/v1/risks?include_archived=true")
+    assert archived_list.status_code == 200
+    archived_ids = {item["id"] for item in archived_list.json()["items"]}
+    assert risk_id in archived_ids
+
+
+@pytest.mark.asyncio
+async def test_risk_restore_reactivates_archived_risk(
+    auth_client: AsyncClient,
+    test_user: User,
+    test_department: Department,
+    seed_risk_types,
+):
+    """Restore endpoint sets archived risk back to active."""
+    create_response = await auth_client.post(
+        "/api/v1/risks",
+        json={
+            "risk_id_code": "R-RESTORE-201",
+            "name": "Restore Risk",
+            "process": "Restore Process",
+            "description": "Risk used to validate restore",
+            "department_id": test_department.id,
+            "risk_owner_id": test_user.id,
+            "risk_type": "operational",
+            "category": "Test",
+            "gross_probability": 2,
+            "gross_impact": 3,
+            "net_probability": 1,
+            "net_impact": 2,
+            "status": "active",
+        },
+    )
+    risk_id = create_response.json()["id"]
+
+    archive_response = await auth_client.delete(f"/api/v1/risks/{risk_id}?reason=Archive+for+restore")
+    assert archive_response.status_code == 204
+
+    restore_response = await auth_client.post(f"/api/v1/risks/{risk_id}/restore")
+    assert restore_response.status_code == 200
+    assert restore_response.json()["status"] == "active"
+
+    default_list = await auth_client.get("/api/v1/risks")
+    assert default_list.status_code == 200
+    default_ids = {item["id"] for item in default_list.json()["items"]}
+    assert risk_id in default_ids
+
+
+@pytest.mark.asyncio
+async def test_risk_restore_requires_delete_permission(
+    client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+    seed_risk_types,
+):
+    """Users without risks:delete cannot call restore endpoint."""
+    admin_headers = {"X-Mock-User-Id": str(test_user.id)}
+
+    create_response = await client.post(
+        "/api/v1/risks",
+        json={
+            "risk_id_code": "R-RESTORE-403",
+            "name": "Restore Forbidden Risk",
+            "process": "Restore Process",
+            "description": "Risk used to validate restore RBAC",
+            "department_id": test_department.id,
+            "risk_owner_id": test_user.id,
+            "risk_type": "operational",
+            "category": "Test",
+            "gross_probability": 2,
+            "gross_impact": 3,
+            "net_probability": 1,
+            "net_impact": 2,
+            "status": "active",
+        },
+        headers=admin_headers,
+    )
+    risk_id = create_response.json()["id"]
+    archive_response = await client.delete(
+        f"/api/v1/risks/{risk_id}?reason=Archive+for+rbac",
+        headers=admin_headers,
+    )
+    assert archive_response.status_code == 204
+
+    from app.models import Role, User as UserModel
+    from app.models.user import AccessScope
+
+    readonly_role = Role(name="risk_readonly", display_name="Risk Read Only", description="risk read only")
+    db_session.add(readonly_role)
+    await db_session.commit()
+    await db_session.refresh(readonly_role)
+
+    readonly_user = UserModel(
+        name="Risk Readonly User",
+        email="risk-readonly@test.com",
+        department_id=test_department.id,
+        role_id=readonly_role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(readonly_user)
+    await db_session.commit()
+    await db_session.refresh(readonly_user)
+
+    forbidden = await client.post(
+        f"/api/v1/risks/{risk_id}/restore",
+        headers={"X-Mock-User-Id": str(readonly_user.id)},
+    )
+    assert forbidden.status_code == 403

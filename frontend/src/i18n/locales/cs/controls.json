@@ -37,7 +37,9 @@
     },
     "status": {
         "active": "Aktivní",
+        "draft": "Návrh",
         "inactive": "Neaktivní",
+        "archived": "Archivované",
         "under_review": "V revizi",
         "deprecated": "Zastaralé"
     },
@@ -68,6 +70,7 @@
         "all_departments": "Všechna oddělení",
         "all_owners": "Všichni vlastníci",
         "all_statuses": "Všechny stavy",
+        "include_archived": "Zobrazit archivované",
         "overdue_only": "Pouze opožděné",
         "search_placeholder": "Hledat podle názvu, popisu, rizika nebo oddělení..."
     },
@@ -92,6 +95,7 @@
     "actions": {
         "link_risk": "Propojit riziko",
         "unlink": "Odpojit",
+        "unarchive": "Obnovit z archivu",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
     },

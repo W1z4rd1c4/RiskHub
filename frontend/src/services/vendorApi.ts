@@ -7,6 +7,7 @@ export const vendorApi = {
         limit?: number;
         search?: string;
         status?: string;
+        include_archived?: boolean;
         vendor_type?: string;
         dora_relevant?: boolean;
         supports_important_core_insurance_function?: boolean;
@@ -36,6 +37,10 @@ export const vendorApi = {
 
     async deleteVendor(id: number): Promise<void> {
         return apiClient.delete<void>(`/vendors/${id}`);
+    },
+
+    async restoreVendor(id: number): Promise<Vendor> {
+        return apiClient.post<Vendor>(`/vendors/${id}/restore`, {});
     },
 
     async triggerReassessment(id: number, reason: string): Promise<Vendor> {

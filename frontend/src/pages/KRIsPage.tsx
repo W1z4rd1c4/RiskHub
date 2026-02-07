@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { Plus, Search, RefreshCw, AlertTriangle, CheckCircle, ChevronRight, User, Shield, Building2 } from 'lucide-react';
@@ -7,6 +7,7 @@ import { PermissionGate } from '@/components/PermissionGate';
 import { ViewSwitcher, SortableTable, Pagination, CategoryDrillDown } from '@/components/tables';
 import type { Column, ViewMode } from '@/components/tables';
 import type { KeyRiskIndicator } from '@/types/kri';
+import { useAuth } from '@/contexts/AuthContext';
 
 type StatusFilter = 'all' | 'within' | 'breach' | 'overdue';
 
@@ -17,9 +18,11 @@ export function KRIsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+    const [includeArchived, setIncludeArchived] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const { t } = useTranslation('kris');
+    const { hasPermission } = useAuth();
     const limit = 10;
 
     const fetchKRIs = useCallback(async () => {
@@ -27,7 +30,7 @@ export function KRIsPage() {
         try {
             // For 'all' view, use server-side pagination
             if (viewMode === 'all') {
-                const data = await kriApi.getKRIs({ page: currentPage, size: limit });
+                const data = await kriApi.getKRIs({ page: currentPage, size: limit, include_archived: includeArchived });
                 setKris(data.items || []);
                 setTotalCount(data.total || 0);
             } else {
@@ -38,7 +41,7 @@ export function KRIsPage() {
                 let total = 0;
 
                 do {
-                    const data = await kriApi.getKRIs({ page, size: pageSize });
+                    const data = await kriApi.getKRIs({ page, size: pageSize, include_archived: includeArchived });
                     total = data.total || 0;
                     allKRIs = [...allKRIs, ...(data.items || [])];
                     page++;
@@ -52,7 +55,17 @@ export function KRIsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [viewMode, currentPage]);
+    }, [viewMode, currentPage, includeArchived]);
+
+    const handleRestoreKRI = async (kriId: number, e: MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await kriApi.restoreKRI(kriId);
+            await fetchKRIs();
+        } catch (err) {
+            console.error('Failed to restore KRI:', err);
+        }
+    };
 
     useEffect(() => {
         fetchKRIs();
@@ -128,9 +141,31 @@ export function KRIsPage() {
                         }`}>
                         {isBreaching ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
                         {isBreaching ? t('filters.breach') : t('columns.ok')}
+                        {kri.is_archived && (
+                            <span className="ml-1 px-1 py-0.5 rounded bg-white/10 text-slate-300 border border-white/10">
+                                {t('labels.archived', 'Archived')}
+                            </span>
+                        )}
                     </span>
                 );
             },
+        },
+        {
+            key: 'actions',
+            label: '',
+            render: (kri) => (
+                <div className="flex items-center justify-end gap-2">
+                    {kri.is_archived && hasPermission('risks', 'delete') && (
+                        <button
+                            onClick={(e) => handleRestoreKRI(kri.id, e)}
+                            className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
+                        >
+                            {t('actions.unarchive', 'Unarchive')}
+                        </button>
+                    )}
+                    <ChevronRight className="h-4 w-4 text-slate-500" />
+                </div>
+            ),
         },
         {
             key: 'risk_process',
@@ -214,6 +249,14 @@ export function KRIsPage() {
                     />
                 </div>
                 <div className="flex gap-2 flex-wrap items-center">
+                    <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold px-3">
+                        <input
+                            type="checkbox"
+                            checked={includeArchived}
+                            onChange={(e) => { setIncludeArchived(e.target.checked); setCurrentPage(1); }}
+                        />
+                        {t('filters.include_archived', 'Include archived')}
+                    </label>
                     {/* Button-style status filters */}
                     {(['all', 'within', 'breach', 'overdue'] as StatusFilter[]).map((opt) => (
                         <button

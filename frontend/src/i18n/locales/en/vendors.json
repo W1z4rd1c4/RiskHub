@@ -11,7 +11,8 @@
         "save": "Save",
         "create": "Create",
         "cancel": "Cancel",
-        "refresh": "Refresh"
+        "refresh": "Refresh",
+        "unarchive": "Unarchive"
     },
     "filters": {
         "search_placeholder": "Search vendors...",
@@ -371,6 +372,8 @@
         "actions": {
             "manage": "Manage links"
         },
+        "archived_risks": "Archived risks",
+        "archived_controls": "Archived controls",
         "dialogs": {
             "link_risks_title": "Link Risks to Vendor",
             "link_controls_title": "Link Controls to Vendor"

@@ -67,6 +67,7 @@
         "breached_only": "Pouze překročené",
         "overdue": "Opožděné",
         "overdue_only": "Pouze opožděné",
+        "include_archived": "Zobrazit archivované",
         "search_placeholder": "Hledat podle názvu metriky..."
     },
     "empty_state": {
@@ -86,6 +87,7 @@
     },
     "actions": {
         "link_risk": "Propojit riziko",
+        "unarchive": "Obnovit z archivu",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
     },

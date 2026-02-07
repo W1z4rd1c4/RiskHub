@@ -247,3 +247,132 @@ async def test_vendor_owner_can_create_sla_without_vendor_write_permission(
         },
     )
     assert resp.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_vendor_sla_archive_restore_requires_vendors_delete(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    """Archive and restore operations require vendors:delete."""
+    await _grant(db_session, test_role_employee, "vendors", "read")
+
+    vendor = Vendor(
+        name="SLA Permission Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    create_resp = await client_employee.post(
+        "/api/v1/vendor-slas",
+        json={
+            "vendor_id": vendor.id,
+            "metric_name": "Latency",
+            "description": "SLA archive/restore permission test",
+            "current_value": 10.0,
+            "lower_limit": 0.0,
+            "upper_limit": 50.0,
+            "unit": "ms",
+            "frequency": "monthly",
+            "reporting_owner_id": test_user_employee.id,
+        },
+    )
+    assert create_resp.status_code == 201
+    sla_id = create_resp.json()["id"]
+
+    archive_forbidden = await client_employee.delete(f"/api/v1/vendor-slas/{sla_id}")
+    assert archive_forbidden.status_code == 403
+
+    # Seed archived state to validate restore RBAC path separately.
+    sla = await db_session.get(VendorSLA, sla_id)
+    assert sla is not None
+    sla.is_archived = True
+    await db_session.commit()
+
+    restore_forbidden = await client_employee.post(f"/api/v1/vendor-slas/{sla_id}/restore")
+    assert restore_forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_vendor_sla_archive_restore_and_list_include_archived(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    """With vendors:delete, SLA can be archived/restored and list honors include_archived."""
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "vendors", "delete")
+
+    vendor = Vendor(
+        name="SLA Restore Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    create_resp = await client_employee.post(
+        "/api/v1/vendor-slas",
+        json={
+            "vendor_id": vendor.id,
+            "metric_name": "Availability",
+            "description": "SLA include_archived test",
+            "current_value": 99.0,
+            "lower_limit": 95.0,
+            "upper_limit": 100.0,
+            "unit": "%",
+            "frequency": "monthly",
+            "reporting_owner_id": test_user_employee.id,
+        },
+    )
+    assert create_resp.status_code == 201
+    sla_id = create_resp.json()["id"]
+
+    archive_resp = await client_employee.delete(f"/api/v1/vendor-slas/{sla_id}")
+    assert archive_resp.status_code == 204
+
+    default_list = await client_employee.get(f"/api/v1/vendor-slas?vendor_id={vendor.id}")
+    assert default_list.status_code == 200
+    default_ids = {item["id"] for item in default_list.json()}
+    assert sla_id not in default_ids
+
+    include_list = await client_employee.get(
+        f"/api/v1/vendor-slas?vendor_id={vendor.id}&include_archived=true"
+    )
+    assert include_list.status_code == 200
+    include_items = include_list.json()
+    include_ids = {item["id"] for item in include_items}
+    assert sla_id in include_ids
+    archived_item = next(item for item in include_items if item["id"] == sla_id)
+    assert archived_item["is_archived"] is True
+
+    restore_resp = await client_employee.post(f"/api/v1/vendor-slas/{sla_id}/restore")
+    assert restore_resp.status_code == 200
+    assert restore_resp.json()["is_archived"] is False

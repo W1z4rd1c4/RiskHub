@@ -67,6 +67,15 @@ test.describe('Risk CRUD Permissions', () => {
                 await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
             }
         });
+
+        test('Archived visibility toggle defaults off on list page', async ({ riskManagerPage }) => {
+            const risksPage = new RisksPage(riskManagerPage);
+            await risksPage.navigate();
+
+            const includeArchivedToggle = riskManagerPage.getByRole('checkbox', { name: /include archived/i });
+            await expect(includeArchivedToggle).toBeVisible();
+            await expect(includeArchivedToggle).not.toBeChecked();
+        });
     });
 
     test.describe('risks:write - Create/Edit Risks', () => {

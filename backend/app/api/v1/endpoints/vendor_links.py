@@ -70,6 +70,7 @@ async def list_vendor_linked_risks(
                     category=risk.category,
                     department_id=risk.department_id,
                     department_name=risk.department.name if getattr(risk, "department", None) else None,
+                    status=getattr(risk, "status", None),
                 )
             )
     return visible

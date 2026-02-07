@@ -67,6 +67,7 @@
         "breached_only": "Breached Only",
         "overdue": "Overdue",
         "overdue_only": "Overdue Only",
+        "include_archived": "Include archived",
         "search_placeholder": "Search by metric name..."
     },
     "empty_state": {
@@ -86,6 +87,7 @@
     },
     "actions": {
         "link_risk": "Link Risk",
+        "unarchive": "Unarchive",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
     },

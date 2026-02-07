@@ -26,6 +26,7 @@
         "yes": "Yes",
         "no": "No",
         "archive": "Archive",
+        "unarchive": "Unarchive",
         "view_all": "View all →",
         "add_control": "Add control",
         "mark_all_read": "Mark all as read"
@@ -69,7 +70,8 @@
         "archive_reason_placeholder": "e.g., Control is no longer needed, superseded by new process...",
         "control": "Control",
         "risk": "Risk",
-        "results": "results"
+        "results": "results",
+        "archived": "Archived"
     },
     "errors": {
         "generic": "An error occurred. Please try again.",
@@ -212,6 +214,7 @@
         "search_logs": "Search logs...",
         "search_items": "Search items...",
         "search_risks": "Search risks...",
-        "search_controls": "Search controls..."
+        "search_controls": "Search controls...",
+        "include_archived": "Include archived"
     }
 }
