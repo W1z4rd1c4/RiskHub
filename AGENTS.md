@@ -9,6 +9,9 @@
 
 ## Quick Commands
 
+- Canonical local startup (new sessions): `./scripts/dev.sh --daemon`
+- Canonical local startup (foreground): `./scripts/dev.sh`
+- Stop canonical daemon sessions: `screen -S riskhub-backend -X quit && screen -S riskhub-frontend -X quit`
 - Dev (DB + backend): `make dev`
 - Dev (DB + backend + frontend): `make dev-full`
 - Docker (all services): `make docker` (or `docker-compose up -d`)
@@ -42,3 +45,4 @@ Commonly useful skills in this environment:
 
 - Prefer `rg` for searching, then open the narrowest relevant files.
 - If a change affects product behavior, add/adjust tests in the closest existing test suite (`backend/tests/`, `frontend/tests/`, `frontend/e2e/`).
+- For app launch/runbook details, use `scripts/dev.sh` as the source of truth.

@@ -1,12 +1,16 @@
 import pytest
 
+from datetime import datetime, UTC
+
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department, Permission, Role, RolePermission, User, Vendor
 from app.models.notification import Notification, NotificationType
+from app.models.vendor_sla import VendorSLA
 from app.models.user import AccessScope
+from app.services.vendor_sla_deadline_service import VendorSLADeadlineService
 
 
 async def _grant(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:
@@ -113,6 +117,90 @@ async def test_vendor_sla_breach_creates_notification(
     assert any(n.type == NotificationType.VENDOR_SLA_BREACH_DETECTED for n in notifications)
     assert not any(
         n.type == NotificationType.VENDOR_SLA_BREACH_DETECTED and n.user_id == rm_other_dept.id for n in notifications
+    )
+
+
+@pytest.mark.asyncio
+async def test_vendor_sla_deadline_service_filters_cross_scope_recipients(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+
+    rm_role = Role(name="risk_manager", display_name="Risk Manager", description="RM")
+    compliance_role = Role(name="compliance", display_name="Compliance", description="Compliance")
+    db_session.add_all([rm_role, compliance_role])
+    await db_session.commit()
+    await _grant(db_session, rm_role, "vendors", "read")
+    await _grant(db_session, compliance_role, "vendors", "read")
+
+    rm_user = User(
+        name="RM",
+        email="rm_sla_service@test.com",
+        department_id=test_department.id,
+        role_id=rm_role.id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    other_department = Department(name="Other Dept (SLA service notif)", code="SLAS2", description="Other dept")
+    db_session.add(other_department)
+    await db_session.commit()
+    await db_session.refresh(other_department)
+    rm_other_dept = User(
+        name="RM Other Dept",
+        email="rm_other_dept_sla_service@test.com",
+        department_id=other_department.id,
+        role_id=rm_role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add_all([rm_user, rm_other_dept])
+    await db_session.commit()
+
+    vendor = Vendor(
+        name="SLA Service Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    sla = VendorSLA(
+        vendor_id=vendor.id,
+        metric_name="Availability",
+        description="Monthly availability %",
+        current_value=95.0,
+        lower_limit=98.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=test_user_employee.id,
+    )
+    db_session.add(sla)
+    await db_session.commit()
+
+    await VendorSLADeadlineService.check_vendor_sla_deadlines(db_session, now=datetime.now(UTC))
+
+    notifications = (await db_session.execute(select(Notification))).scalars().all()
+    assert any(
+        n.type == NotificationType.VENDOR_SLA_BREACH_DETECTED and n.user_id == test_user_employee.id
+        for n in notifications
+    )
+    assert not any(
+        n.type == NotificationType.VENDOR_SLA_BREACH_DETECTED and n.user_id == rm_other_dept.id
+        for n in notifications
     )
 
 

@@ -1,6 +1,7 @@
 """Directory emulator sync service."""
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 from datetime import datetime, UTC
@@ -51,6 +52,12 @@ def _display_name(user_data: dict[str, Any], fallback_email: str | None) -> str:
     if fallback_email:
         return fallback_email
     return user_data.get("external_id", "")
+
+
+def _email_sha256(value: str | None) -> str:
+    if not value:
+        return "none"
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
 def _build_department_code(name: str, existing_codes: set[str]) -> str:
@@ -243,7 +250,12 @@ class DirectorySyncService:
                 if not user and target_email:
                     user = user_by_email.get(target_email)
                     if user and not user.external_id:
-                        logger.info(f"Link user {user.email} to external_id {external_id}")
+                        logger.info(
+                            "Link user_id=%s to external_id=%s email_sha256=%s",
+                            user.id,
+                            external_id,
+                            _email_sha256(user.email),
+                        )
                     elif user and user.external_id:
                         # Email exists but is linked to another external_id!
                         error_count += 1
@@ -668,4 +680,3 @@ class DirectorySyncService:
             await db.commit()
             
         return cleanup_count
-

@@ -171,6 +171,53 @@ async def test_directory_sync_deactivates_user(
     assert user.is_active is False
 
 
+@pytest.mark.asyncio
+async def test_directory_sync_link_log_redacts_email(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_role_employee: Role,
+    test_department: Department,
+    mock_ad_get_users: AsyncMock,
+    caplog,
+):
+    """Linking existing users to external IDs should not log raw email addresses."""
+    user = User(
+        name="Link Candidate",
+        email="link.candidate@example.com",
+        role_id=test_role_employee.id,
+        department_id=test_department.id,
+        is_active=True,
+        external_id=None,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    mock_ad_get_users.return_value = [
+        {
+            "external_id": "dir-link-candidate",
+            "email": "link.candidate@example.com",
+            "display_name": "Link Candidate",
+            "department": test_department.name,
+            "account_enabled": True,
+            "user_principal_name": "link.candidate@example.com",
+        }
+    ]
+
+    caplog.set_level("INFO", logger="app.services.directory_sync_service")
+    response = await auth_client.post("/api/v1/directory/sync/preview")
+    assert response.status_code == 200
+
+    messages = [
+        record.getMessage()
+        for record in caplog.records
+        if record.name == "app.services.directory_sync_service" and "Link user_id=" in record.getMessage()
+    ]
+    assert messages
+    assert all("link.candidate@example.com" not in message for message in messages)
+    assert all("email_sha256=" in message for message in messages)
+
+
 # === Webhook Authentication Tests ===
 
 @pytest.mark.asyncio

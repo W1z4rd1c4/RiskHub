@@ -13,7 +13,7 @@ from app.i18n import t
 from app.models import User, Vendor
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.notification import NotificationType
-from app.models.role import Role, RoleType
+from app.models.role import Role, RoleType, RolePermission
 from app.models.vendor_assessment import (
     VendorAssessment,
     VendorAssessmentScope,
@@ -251,10 +251,11 @@ class VendorAssessmentService:
     @staticmethod
     async def _users_by_roles(db: AsyncSession, roles: set[RoleType]) -> list[User]:
         role_names = [r.value for r in roles]
+        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
         stmt = (
             select(User)
             .join(Role, User.role_id == Role.id)
-            .options(selectinload(User.role))
+            .options(permission_load)
             .where(User.is_active == True)
             .where(Role.name.in_(role_names))
         )
@@ -271,9 +272,10 @@ class VendorAssessmentService:
             if user.id == actor.id:
                 continue
             locale = getattr(user, "preferred_language", None) or "en"
-            await NotificationService.create_notification(
+            await NotificationService.create_vendor_notification_if_visible(
                 db=db,
-                user_id=user.id,
+                user=user,
+                vendor_id=vendor.id,
                 notification_type=NotificationType.VENDOR_ASSESSMENT_SUBMITTED,
                 title=t("notifications.vendor_assessment_submitted_title", locale=locale),
                 message=t(
@@ -282,8 +284,6 @@ class VendorAssessmentService:
                     vendor_name=vendor.name,
                     actor_name=actor.name,
                 ),
-                resource_type="vendor",
-                resource_id=vendor.id,
             )
 
     @staticmethod
@@ -294,9 +294,10 @@ class VendorAssessmentService:
             if user.id == actor.id:
                 continue
             locale = getattr(user, "preferred_language", None) or "en"
-            await NotificationService.create_notification(
+            await NotificationService.create_vendor_notification_if_visible(
                 db=db,
-                user_id=user.id,
+                user=user,
+                vendor_id=vendor.id,
                 notification_type=NotificationType.VENDOR_ASSESSMENT_COMMITTEE_RECOMMENDED,
                 title=t("notifications.vendor_assessment_committee_recommended_title", locale=locale),
                 message=t(
@@ -304,8 +305,6 @@ class VendorAssessmentService:
                     locale=locale,
                     vendor_name=vendor.name,
                 ),
-                resource_type="vendor",
-                resource_id=vendor.id,
             )
 
     @staticmethod
@@ -314,14 +313,16 @@ class VendorAssessmentService:
         owner_id = vendor.outsourcing_owner_user_id
         if not owner_id or owner_id == actor.id:
             return
-        owner_result = await db.execute(select(User).where(User.id == owner_id))
+        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+        owner_result = await db.execute(select(User).options(permission_load).where(User.id == owner_id))
         owner = owner_result.scalar_one_or_none()
         if not owner:
             return
         locale = getattr(owner, "preferred_language", None) or "en"
-        await NotificationService.create_notification(
+        await NotificationService.create_vendor_notification_if_visible(
             db=db,
-            user_id=owner.id,
+            user=owner,
+            vendor_id=vendor.id,
             notification_type=NotificationType.VENDOR_ASSESSMENT_DECIDED,
             title=t("notifications.vendor_assessment_decided_title", locale=locale),
             message=t(
@@ -330,6 +331,4 @@ class VendorAssessmentService:
                 vendor_name=vendor.name,
                 decision=assessment.status.value,
             ),
-            resource_type="vendor",
-            resource_id=vendor.id,
         )

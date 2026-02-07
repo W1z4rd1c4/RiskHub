@@ -16,7 +16,7 @@ from app.i18n import t
 from app.models import User, Vendor
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.notification import NotificationType
-from app.models.role import Role, RoleType
+from app.models.role import Role, RoleType, RolePermission
 from app.models.vendor_incident import VendorIncident, VendorIncidentType, VendorIncidentSeverity
 from app.models.vendor_remediation import VendorRemediationAction, VendorRemediationStatus
 from app.schemas.vendor_incident import (
@@ -50,10 +50,11 @@ def _require_vendor_write(vendor: Vendor, current_user: User) -> None:
 
 async def _users_by_roles(db: AsyncSession, roles: set[RoleType]) -> list[User]:
     role_names = [r.value for r in roles]
+    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
     stmt = (
         select(User)
         .join(Role, User.role_id == Role.id)
-        .options(selectinload(User.role))
+        .options(permission_load)
         .where(User.is_active == True)
         .where(Role.name.in_(role_names))
     )
@@ -129,12 +130,14 @@ async def create_vendor_incident(
             # Notify outsourcing owner + Risk Manager/Compliance (re-use reassessment notification type)
             owner_id = vendor.outsourcing_owner_user_id
             if owner_id:
-                owner = (await db.execute(select(User).where(User.id == owner_id))).scalar_one_or_none()
+                permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+                owner = (await db.execute(select(User).options(permission_load).where(User.id == owner_id))).scalar_one_or_none()
                 if owner:
                     owner_locale = getattr(owner, "preferred_language", None) or "en"
-                    await NotificationService.create_notification(
+                    await NotificationService.create_vendor_notification_if_visible(
                         db=db,
-                        user_id=owner.id,
+                        user=owner,
+                        vendor_id=vendor.id,
                         notification_type=NotificationType.VENDOR_REASSESSMENT_DUE_SOON,
                         title=t("notifications.vendor_reassessment_due_soon_title", locale=owner_locale),
                         message=t(
@@ -143,8 +146,6 @@ async def create_vendor_incident(
                             vendor_name=vendor.name,
                             due_date=now.date().isoformat(),
                         ),
-                        resource_type="vendor",
-                        resource_id=vendor.id,
                         created_at=now,
                     )
 
@@ -152,9 +153,10 @@ async def create_vendor_incident(
                 if gov.id == owner_id:
                     continue
                 gov_locale = getattr(gov, "preferred_language", None) or "en"
-                await NotificationService.create_notification(
+                await NotificationService.create_vendor_notification_if_visible(
                     db=db,
-                    user_id=gov.id,
+                    user=gov,
+                    vendor_id=vendor.id,
                     notification_type=NotificationType.VENDOR_REASSESSMENT_DUE_SOON,
                     title=t("notifications.vendor_reassessment_due_soon_title", locale=gov_locale),
                     message=t(
@@ -163,8 +165,6 @@ async def create_vendor_incident(
                         vendor_name=vendor.name,
                         due_date=now.date().isoformat(),
                     ),
-                    resource_type="vendor",
-                    resource_id=vendor.id,
                     created_at=now,
                 )
 
@@ -356,4 +356,3 @@ async def delete_vendor_remediation(
     await db.delete(remediation)
     await db.commit()
     return None
-
