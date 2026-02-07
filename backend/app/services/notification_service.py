@@ -9,7 +9,7 @@ from app.models.notification import Notification, NotificationType
 from app.models.approval_request import ApprovalRequest, ApprovalResourceType
 from app.models.user import User, AccessScope
 from app.models.role import Permission, Role, RolePermission
-from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id
+from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id, can_read_vendor_id
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +67,45 @@ class NotificationService:
         db.add(notification)
         await db.flush()  # Get ID without committing
         return notification
+
+    @staticmethod
+    async def can_notify_vendor(db: AsyncSession, user: User, vendor_id: int) -> bool:
+        """Vendor notification visibility gate (permission + scope + ownership)."""
+        return await can_read_vendor_id(db, user, vendor_id)
+
+    @staticmethod
+    async def create_vendor_notification_if_visible(
+        db: AsyncSession,
+        *,
+        user: User,
+        vendor_id: int,
+        notification_type: NotificationType,
+        title: str,
+        message: str,
+        created_at: datetime | None = None,
+        skip_preference_check: bool = False,
+        visibility_cache: dict[tuple[int, int], bool] | None = None,
+    ) -> Notification | None:
+        """Create a vendor notification only when recipient can access the vendor."""
+        cache_key = (user.id, vendor_id)
+        visible = visibility_cache.get(cache_key) if visibility_cache is not None else None
+        if visible is None:
+            visible = await NotificationService.can_notify_vendor(db, user, vendor_id)
+            if visibility_cache is not None:
+                visibility_cache[cache_key] = visible
+        if not visible:
+            return None
+        return await NotificationService.create_notification(
+            db=db,
+            user_id=user.id,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            resource_type="vendor",
+            resource_id=vendor_id,
+            skip_preference_check=skip_preference_check,
+            created_at=created_at,
+        )
     
     @staticmethod
     async def notify_approvers(
