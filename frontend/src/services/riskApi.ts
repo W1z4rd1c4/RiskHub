@@ -47,6 +47,10 @@ export const riskApi = {
         return apiClient.delete<void | ApprovalCreatedResponse>(`/risks/${id}`, { params: { reason } });
     },
 
+    async restoreRisk(id: number): Promise<Risk> {
+        return apiClient.post<Risk>(`/risks/${id}/restore`, {});
+    },
+
     async getLinkedControls(riskId: number): Promise<RiskControlLink[]> {
         return apiClient.get<RiskControlLink[]>(`/risks/${riskId}/controls`);
     },

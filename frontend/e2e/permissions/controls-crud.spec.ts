@@ -61,6 +61,15 @@ test.describe('Control CRUD Permissions', () => {
                 await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
             }
         });
+
+        test('Archived visibility toggle defaults off on list page', async ({ riskManagerPage }) => {
+            const controlsPage = new ControlsPage(riskManagerPage);
+            await controlsPage.navigate();
+
+            const includeArchivedToggle = riskManagerPage.getByRole('checkbox', { name: /include archived/i });
+            await expect(includeArchivedToggle).toBeVisible();
+            await expect(includeArchivedToggle).not.toBeChecked();
+        });
     });
 
     test.describe('controls:write - Create/Edit Controls', () => {

@@ -13,7 +13,7 @@ import {
     Handshake,
 } from 'lucide-react';
 import type { Risk, RiskControlLink, ControlEffectiveness } from '@/types/risk';
-import type { KeyRiskIndicator, OverdueKRI } from '@/types/kri';
+import type { OverdueKRI } from '@/types/kri';
 import type { Vendor } from '@/types/vendor';
 import { PermissionGate } from '@/components/PermissionGate';
 import { RiskScoreMatrix } from '@/components/RiskScoreMatrix';
@@ -52,8 +52,8 @@ interface RiskDetailOverviewTabProps {
     overdueKRIs: OverdueKRI[];
     getColor: (type: string) => string;
     getDisplayName: (type: string) => string;
-    onOpenAddKri: () => void;
-    onOpenKri: (kri: KeyRiskIndicator) => void;
+    onNavigateToNewKri: () => void;
+    onNavigateToKri: (kriId: number) => void;
     onLinkControl: (controlId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<void>;
     onUnlinkControl: (controlId: number) => Promise<void>;
     onOpenCreateControl: () => void;
@@ -76,8 +76,8 @@ export function RiskDetailOverviewTab({
     overdueKRIs,
     getColor,
     getDisplayName,
-    onOpenAddKri,
-    onOpenKri,
+    onNavigateToNewKri,
+    onNavigateToKri,
     onLinkControl,
     onUnlinkControl,
     onOpenCreateControl,
@@ -224,7 +224,7 @@ export function RiskDetailOverviewTab({
                         </div>
                         <PermissionGate resource="risks" action="write">
                             <button
-                                onClick={onOpenAddKri}
+                                onClick={onNavigateToNewKri}
                                 className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/20 transition-all font-bold"
                             >
                                 <Plus className="h-3 w-3 inline mr-1" /> Add KRI
@@ -243,10 +243,7 @@ export function RiskDetailOverviewTab({
                                         kri={kri as any}
                                         isOverdue={!!overdueInfo}
                                         daysOverdue={overdueInfo?.days_overdue}
-                                        onClick={() => {
-                                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                            onOpenKri(kri as any);
-                                        }}
+                                        onClick={() => onNavigateToKri(kri.id)}
                                     />
                                 );
                             })}

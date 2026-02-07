@@ -466,3 +466,67 @@ async def test_risk_vendors_endpoint_filters_invisible_vendors(
     assert "Visible Vendor" in names
     assert "Cross Dept Owned Vendor" in names
     assert "Hidden Vendor" not in names
+
+
+@pytest.mark.asyncio
+async def test_vendor_linked_entities_include_archive_status_metadata(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    """Linked risk/control payloads include status for archived rendering in frontend."""
+    await _grant(db_session, test_role_employee, "vendors", "read")
+
+    vendor = Vendor(
+        name="Status Metadata Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    active_risk = _make_risk(risk_id_code="META-R001", department_id=test_department.id)
+    archived_risk = _make_risk(risk_id_code="META-R002", department_id=test_department.id)
+    archived_risk.status = "archived"
+    active_control = _make_control(name="Metadata Active Control", department_id=test_department.id)
+    active_control.status = "active"
+    archived_control = _make_control(name="Metadata Archived Control", department_id=test_department.id)
+    archived_control.status = "archived"
+
+    db_session.add_all([vendor, active_risk, archived_risk, active_control, archived_control])
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    await db_session.refresh(active_risk)
+    await db_session.refresh(archived_risk)
+    await db_session.refresh(active_control)
+    await db_session.refresh(archived_control)
+
+    db_session.add_all(
+        [
+            VendorRiskLink(vendor_id=vendor.id, risk_id=active_risk.id),
+            VendorRiskLink(vendor_id=vendor.id, risk_id=archived_risk.id),
+            VendorControlLink(vendor_id=vendor.id, control_id=active_control.id),
+            VendorControlLink(vendor_id=vendor.id, control_id=archived_control.id),
+        ]
+    )
+    await db_session.commit()
+
+    risks_resp = await client_employee.get(f"/api/v1/vendors/{vendor.id}/linked-risks")
+    assert risks_resp.status_code == 200
+    risk_status_map = {item["risk_id_code"]: item.get("status") for item in risks_resp.json()}
+    assert risk_status_map["META-R001"] == "active"
+    assert risk_status_map["META-R002"] == "archived"
+
+    controls_resp = await client_employee.get(f"/api/v1/vendors/{vendor.id}/linked-controls")
+    assert controls_resp.status_code == 200
+    control_status_map = {item["name"]: item.get("status") for item in controls_resp.json()}
+    assert control_status_map["Metadata Active Control"] == "active"
+    assert control_status_map["Metadata Archived Control"] == "archived"

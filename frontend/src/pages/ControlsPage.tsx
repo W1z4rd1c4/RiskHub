@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import {
@@ -25,6 +25,7 @@ import type { Column, ViewMode } from '@/components/tables';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 /**
@@ -33,7 +34,8 @@ import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
  */
 async function fetchAllForGroupedView(
     search: string,
-    status: string
+    status: string,
+    includeArchived: boolean,
 ): Promise<{ items: ControlSummary[]; total: number }> {
     const pageSize = 100; // Backend max limit is 100
     let allControls: ControlSummary[] = [];
@@ -46,6 +48,7 @@ async function fetchAllForGroupedView(
             limit: pageSize,
             search: search || undefined,
             status: status || undefined,
+            include_archived: includeArchived || status === ControlStatus.ARCHIVED,
         });
 
         total = response.total;
@@ -66,12 +69,14 @@ export function ControlsPage() {
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('');
+    const [includeArchived, setIncludeArchived] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [isExporting, setIsExporting] = useState(false);
 
     const limit = 10;
     const { t } = useTranslation('controls');
+    const { hasPermission } = useAuth();
 
     // Use shared hooks for debouncing and pending approvals
     const debouncedSearch = useDebouncedValue(search, 300);
@@ -86,6 +91,7 @@ export function ControlsPage() {
                 setIsLoading(true);
             }
 
+            const shouldIncludeArchived = includeArchived || statusFilter === ControlStatus.ARCHIVED;
             if (viewMode === 'all') {
                 // Paginated "all" view: fetch current page only
                 const skip = (currentPage - 1) * limit;
@@ -94,6 +100,7 @@ export function ControlsPage() {
                     limit,
                     search: debouncedSearch || undefined,
                     status: statusFilter || undefined,
+                    include_archived: shouldIncludeArchived,
                 });
                 setControls(response.items);
                 setTotalCount(response.total);
@@ -101,7 +108,8 @@ export function ControlsPage() {
                 // Grouped views: fetch all pages for accurate group counts
                 const { items, total } = await fetchAllForGroupedView(
                     debouncedSearch,
-                    statusFilter
+                    statusFilter,
+                    shouldIncludeArchived,
                 );
                 setControls(items);
                 setTotalCount(total);
@@ -114,7 +122,18 @@ export function ControlsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, debouncedSearch, statusFilter, viewMode]);
+    }, [currentPage, debouncedSearch, statusFilter, viewMode, includeArchived]);
+
+    const handleRestoreControl = async (controlId: number, e: MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await controlApi.restoreControl(controlId);
+            await fetchControls();
+        } catch (err) {
+            console.error('Restore failed:', err);
+            setError(t('errors.load_failed'));
+        }
+    };
 
     useEffect(() => {
         fetchControls();
@@ -223,13 +242,21 @@ export function ControlsPage() {
         {
             key: 'actions',
             label: '',
-            render: () => (
-                <div className="text-right">
+            render: (control) => (
+                <div className="text-right flex items-center justify-end gap-2">
+                    {control.status === ControlStatus.ARCHIVED && hasPermission('controls', 'delete') && (
+                        <button
+                            onClick={(e) => handleRestoreControl(control.id, e)}
+                            className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
+                        >
+                            {t('actions.unarchive', 'Unarchive')}
+                        </button>
+                    )}
                     <ChevronRight className="h-4 w-4 text-slate-500" />
                 </div>
             ),
         },
-    ], []);
+    ], [hasPermission, t]);
 
     // Get group by field based on view mode
     const getGroupByField = (): keyof ControlSummary | null => {
@@ -300,16 +327,30 @@ export function ControlsPage() {
                 <div className="flex gap-4">
                     <ThemedSelect
                         value={statusFilter}
-                        onValueChange={(v) => { setStatusFilter(v); setControls([]); setCurrentPage(1); }}
+                        onValueChange={(v) => {
+                            setStatusFilter(v);
+                            if (v === ControlStatus.ARCHIVED) setIncludeArchived(true);
+                            setControls([]);
+                            setCurrentPage(1);
+                        }}
                         placeholder={t('filters.all_statuses')}
                         allowEmpty
                         emptyLabel={t('filters.all_statuses')}
                         options={[
                             { value: 'active', label: t('status.active') },
-                            { value: 'draft', label: t('status.inactive') },
+                            { value: 'draft', label: t('status.draft', 'Draft') },
                             { value: 'inactive', label: t('status.inactive') },
+                            { value: 'archived', label: t('status.archived', 'Archived') },
                         ]}
                     />
+                    <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold px-3">
+                        <input
+                            type="checkbox"
+                            checked={includeArchived}
+                            onChange={(e) => { setIncludeArchived(e.target.checked); setControls([]); setCurrentPage(1); }}
+                        />
+                        {t('filters.include_archived', 'Include archived')}
+                    </label>
                     <button
                         onClick={() => { fetchControls(); setControls([]); }}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"

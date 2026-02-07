@@ -11,7 +11,8 @@
         "save": "Uložit",
         "create": "Vytvořit",
         "cancel": "Zrušit",
-        "refresh": "Obnovit"
+        "refresh": "Obnovit",
+        "unarchive": "Obnovit z archivu"
     },
     "filters": {
         "search_placeholder": "Hledat dodavatele...",
@@ -371,6 +372,8 @@
         "actions": {
             "manage": "Spravovat vazby"
         },
+        "archived_risks": "Archivovaná rizika",
+        "archived_controls": "Archivované kontroly",
         "dialogs": {
             "link_risks_title": "Navázat rizika na dodavatele",
             "link_controls_title": "Navázat kontroly na dodavatele"

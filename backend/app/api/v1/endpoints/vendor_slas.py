@@ -242,13 +242,13 @@ async def archive_vendor_sla(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+    if not check_permission(current_user, "vendors", "delete"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:delete")
     sla = await _get_sla_or_404(db, sla_id)
     if not _can_read_sla(sla, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor SLA not found")
-    if not _can_write_sla(sla, current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+    if sla.is_archived:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vendor SLA is already archived")
 
     changes = build_change_set(sla, {"is_archived": True})
     sla.is_archived = True
@@ -268,6 +268,41 @@ async def archive_vendor_sla(
     )
     await db.commit()
     return None
+
+
+@router.post("/vendor-slas/{sla_id}/restore", response_model=VendorSLARead)
+async def restore_vendor_sla(
+    sla_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    if not check_permission(current_user, "vendors", "delete"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:delete")
+    sla = await _get_sla_or_404(db, sla_id)
+    if not _can_read_sla(sla, current_user):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor SLA not found")
+    if not sla.is_archived:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vendor SLA is not archived")
+
+    changes = build_change_set(sla, {"is_archived": False, "archived_at": None, "archived_by_id": None})
+    sla.is_archived = False
+    sla.archived_at = None
+    sla.archived_by_id = None
+
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.VENDOR_SLA,
+        entity_id=sla.id,
+        entity_name=f"{sla.vendor.name} SLA" if sla.vendor else "Vendor SLA",
+        action=ActivityAction.UPDATE,
+        actor=current_user,
+        department_id=sla.vendor.department_id if sla.vendor else None,
+        changes=changes,
+        description="Restored vendor SLA",
+    )
+    await db.commit()
+    await db.refresh(sla)
+    return sla_to_read(sla)
 
 
 @router.post("/vendor-slas/{sla_id}/values", response_model=VendorSLARead)

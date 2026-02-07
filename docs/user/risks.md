@@ -40,6 +40,7 @@ Use the filter bar to narrow your view:
 - **Search**: Type to find by name or description
 - **Department**: Filter by organizational unit
 - **Status**: Show Active, Mitigated, or All
+- **Include Archived**: Off by default; enable to include archived risks
 - **Priority**: Show only priority risks
 - **Risk Type**: Filter by category
 
@@ -251,13 +252,17 @@ Archiving removes a risk from active views while preserving its history for audi
 ### After Archiving
 
 - Risk moves to "Archived" status
-- Hidden from default views (toggle "Show Archived" to see)
+- Hidden from default views (enable **Include Archived** to see)
 - All history preserved
 - Linked controls remain linked (for audit trail)
 
 ### Restoring Archived Risks
 
-Contact your Risk Manager or CRO to restore an archived risk if needed.
+Users with **`risks:delete`** permission can restore from:
+- Risk detail page (Unarchive action)
+- Risk list/search rows when archived items are visible
+
+Restoring sets status back to **Active**.
 
 ---
 

@@ -168,6 +168,7 @@
         "all_owners": "Všichni vlastníci",
         "all_statuses": "Všechny stavy",
         "all_types": "Všechny typy",
+        "include_archived": "Zobrazit archivované",
         "priority_only": "Prioritní rizika",
         "search_placeholder": "Hledat podle názvu, procesu nebo kategorie..."
     },
@@ -196,6 +197,7 @@
         "link_control": "Propojit kontrolu",
         "link_kri": "Propojit KRI",
         "unlink": "Odpojit",
+        "unarchive": "Obnovit z archivu",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
     },

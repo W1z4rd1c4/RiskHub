@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
-import { ArrowLeft, Edit, XCircle, Building2, User, ShieldAlert, AlertTriangle, Link2, CheckSquare, ClipboardList, CalendarClock, FileCheck2, Shield, AlertOctagon, ClipboardCheck, Activity, Radar } from 'lucide-react';
+import { ArrowLeft, Edit, XCircle, Building2, User, ShieldAlert, AlertTriangle, Link2, CheckSquare, ClipboardList, CalendarClock, FileCheck2, Shield, AlertOctagon, ClipboardCheck, Activity, Radar, RotateCcw } from 'lucide-react';
 import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';
 import { VendorForm } from '@/components/VendorForm';
@@ -224,6 +224,22 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                             {t('actions.edit', 'Edit')}
                         </button>
                     </PermissionGate>
+                )}
+                {vendor.status === 'inactive' && hasPermission('vendors', 'delete') && (
+                    <button
+                        onClick={async () => {
+                            try {
+                                await vendorApi.restoreVendor(vendor.id);
+                                await fetchVendor();
+                            } catch (err) {
+                                console.error('Error restoring vendor:', err);
+                            }
+                        }}
+                        className="px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 transition-colors flex items-center gap-2"
+                    >
+                        <RotateCcw className="h-4 w-4" />
+                        {t('actions.unarchive', 'Unarchive')}
+                    </button>
                 )}
             </div>
 

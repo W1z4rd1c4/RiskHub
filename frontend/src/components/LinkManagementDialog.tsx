@@ -19,6 +19,7 @@ import { lookupApi } from '@/services/lookupApi';
 import { ControlEffectiveness } from '@/types/risk';
 import { LinkSearchPanel, type DepartmentLookup, type SearchResultItem } from './linking/LinkSearchPanel';
 import { ExistingLinksPanel, type ExistingLinkItem } from './linking/ExistingLinksPanel';
+import { useAuth } from '@/contexts/AuthContext';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -71,6 +72,7 @@ export function LinkManagementDialog({
     const [selectedDeptId, setSelectedDeptId] = useState<number | null>(null);
     const [selectedProcess, setSelectedProcess] = useState<string>('');
     const [selectedCategory, setSelectedCategory] = useState<string>('');
+    const [includeArchived, setIncludeArchived] = useState(false);
 
     // -----------------------------------------------------------------------
     // Lookups state
@@ -79,6 +81,7 @@ export function LinkManagementDialog({
     const [processes, setProcesses] = useState<string[]>([]);
     const [categories, setCategories] = useState<string[]>([]);
     const [isLoadingLookups, setIsLoadingLookups] = useState(false);
+    const { hasPermission } = useAuth();
 
     // -----------------------------------------------------------------------
     // Derived values
@@ -123,6 +126,7 @@ export function LinkManagementDialog({
             setSelectedDeptId(null);
             setSelectedProcess('');
             setSelectedCategory('');
+            setIncludeArchived(false);
             return;
         }
 
@@ -132,7 +136,7 @@ export function LinkManagementDialog({
 
         return () => clearTimeout(delayDebounceFn);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchQuery, selectedDeptId, selectedProcess, selectedCategory, isOpen]);
+    }, [searchQuery, selectedDeptId, selectedProcess, selectedCategory, includeArchived, isOpen]);
 
     // -----------------------------------------------------------------------
     // Handlers
@@ -141,13 +145,14 @@ export function LinkManagementDialog({
     const handleSearch = async () => {
         try {
             setIsSearching(true);
-            const params: Record<string, string | number> = {
+            const params: Record<string, string | number | boolean> = {
                 limit: 20
             };
             if (searchQuery) params.search = searchQuery;
             if (selectedDeptId) params.department_id = selectedDeptId;
             if (selectedProcess) params.process = selectedProcess;
             if (selectedCategory) params.category = selectedCategory;
+            if (includeArchived) params.include_archived = true;
 
             if (mode === 'control-to-risk') {
                 const results = await riskApi.getRisks(params);
@@ -185,6 +190,19 @@ export function LinkManagementDialog({
             console.error('Unlinking failed:', err);
         } finally {
             setIsUnlinking(null);
+        }
+    };
+
+    const handleUnarchiveSearchResult = async (targetId: number) => {
+        try {
+            if (mode === 'control-to-risk') {
+                await riskApi.restoreRisk(targetId);
+            } else {
+                await controlApi.restoreControl(targetId);
+            }
+            await handleSearch();
+        } catch (err) {
+            console.error('Unarchive failed:', err);
         }
     };
 
@@ -247,6 +265,8 @@ export function LinkManagementDialog({
                                     onProcessChange={setSelectedProcess}
                                     selectedCategory={selectedCategory}
                                     onCategoryChange={setSelectedCategory}
+                                    includeArchived={includeArchived}
+                                    onIncludeArchivedChange={setIncludeArchived}
                                     departments={departments}
                                     processes={processes}
                                     categories={categories}
@@ -255,6 +275,8 @@ export function LinkManagementDialog({
                                     onSelectTarget={setSelectedTargetId}
                                     onLink={handleLink}
                                     isLinking={isLinking}
+                                    canUnarchive={mode === 'control-to-risk' ? hasPermission('risks', 'delete') : hasPermission('controls', 'delete')}
+                                    onUnarchive={handleUnarchiveSearchResult}
                                 />
                             )}
 

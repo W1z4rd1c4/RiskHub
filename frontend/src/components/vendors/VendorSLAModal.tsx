@@ -16,9 +16,10 @@ interface VendorSLAModalProps {
     onClose: () => void;
     onSaved: () => Promise<void>;
     canManage: boolean;
+    canDelete: boolean;
 }
 
-export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canManage }: VendorSLAModalProps) {
+export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canManage, canDelete }: VendorSLAModalProps) {
     const { t } = useTranslation('vendors');
     const isCreate = !sla;
     const [isSaving, setIsSaving] = useState(false);
@@ -137,7 +138,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
     };
 
     const archive = async () => {
-        if (!sla || !canManage) return;
+        if (!sla || !canDelete) return;
         try {
             setIsDeleting(true);
             await vendorSlaApi.archive(sla.id);
@@ -148,6 +149,20 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
         } finally {
             setIsDeleting(false);
             setIsDeleteDialogOpen(false);
+        }
+    };
+
+    const restore = async () => {
+        if (!sla || !canDelete) return;
+        try {
+            setIsDeleting(true);
+            await vendorSlaApi.restore(sla.id);
+            await onSaved();
+            onClose();
+        } catch (err) {
+            console.error('Failed to restore vendor SLA:', err);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -334,7 +349,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                         <button
                                             type="button"
                                             onClick={record}
-                                            disabled={isRecording}
+                                            disabled={isRecording || !!sla?.is_archived}
                                             className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60"
                                         >
                                             {isRecording ? t('sla.record.saving', 'Saving...') : t('sla.record.save', 'Record')}
@@ -346,16 +361,29 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
 
                         <div className="p-6 border-t border-white/5 flex items-center justify-between bg-white/[0.02]">
                             <div>
-                                {!isCreate && sla && canManage && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsDeleteDialogOpen(true)}
-                                        disabled={isDeleting}
-                                        className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-bold hover:bg-rose-500/20 transition-colors flex items-center gap-2 disabled:opacity-60"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                        {t('sla.actions.archive', 'Archive')}
-                                    </button>
+                                {!isCreate && sla && canDelete && (
+                                    sla.is_archived ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                void restore();
+                                            }}
+                                            disabled={isDeleting}
+                                            className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-bold hover:bg-emerald-500/20 transition-colors flex items-center gap-2 disabled:opacity-60"
+                                        >
+                                            {t('actions.unarchive', 'Unarchive')}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsDeleteDialogOpen(true)}
+                                            disabled={isDeleting}
+                                            className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-bold hover:bg-rose-500/20 transition-colors flex items-center gap-2 disabled:opacity-60"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                            {t('sla.actions.archive', 'Archive')}
+                                        </button>
+                                    )
                                 )}
                             </div>
                             <div className="flex items-center gap-3">
@@ -369,7 +397,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                 <button
                                     type="button"
                                     onClick={save}
-                                    disabled={!canManage || isSaving || !formData.metric_name?.trim()}
+                                    disabled={!canManage || isSaving || !formData.metric_name?.trim() || !!sla?.is_archived}
                                     className="px-4 py-2 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-colors flex items-center gap-2 disabled:opacity-60"
                                 >
                                     <Save className="h-4 w-4" />

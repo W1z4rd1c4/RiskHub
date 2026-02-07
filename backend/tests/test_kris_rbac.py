@@ -591,3 +591,70 @@ async def test_risk_owner_can_view_kri_history_cross_department(
     assert response.status_code == 200
     data = response.json()
     assert data["total"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_read_scoped_user_can_list_archived_kri_with_include_archived(
+    client_readonly: AsyncClient,
+    db_session,
+    test_risk_for_kri: Risk,
+):
+    """Read-scoped users can include archived KRIs without privileged role checks."""
+    from datetime import datetime, UTC
+
+    archived_kri = KeyRiskIndicator(
+        risk_id=test_risk_for_kri.id,
+        metric_name="Archived Read Scope KRI",
+        description="Archived KRI for read scope include_archived test",
+        unit="%",
+        current_value=33.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        is_archived=True,
+        archived_at=datetime.now(UTC),
+    )
+    db_session.add(archived_kri)
+    await db_session.commit()
+    await db_session.refresh(archived_kri)
+
+    default_resp = await client_readonly.get("/api/v1/kris")
+    assert default_resp.status_code == 200
+    default_ids = {item["id"] for item in default_resp.json()["items"]}
+    assert archived_kri.id not in default_ids
+
+    include_resp = await client_readonly.get("/api/v1/kris?include_archived=true")
+    assert include_resp.status_code == 200
+    include_ids = {item["id"] for item in include_resp.json()["items"]}
+    assert archived_kri.id in include_ids
+
+
+@pytest.mark.asyncio
+async def test_read_scoped_user_can_get_archived_kri_detail_with_include_archived(
+    client_readonly: AsyncClient,
+    db_session,
+    test_risk_for_kri: Risk,
+):
+    """Archived KRI detail is hidden by default and available when include_archived=true."""
+    from datetime import datetime, UTC
+
+    archived_kri = KeyRiskIndicator(
+        risk_id=test_risk_for_kri.id,
+        metric_name="Archived Detail KRI",
+        description="Archived KRI detail visibility test",
+        unit="%",
+        current_value=22.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        is_archived=True,
+        archived_at=datetime.now(UTC),
+    )
+    db_session.add(archived_kri)
+    await db_session.commit()
+    await db_session.refresh(archived_kri)
+
+    hidden = await client_readonly.get(f"/api/v1/kris/{archived_kri.id}")
+    assert hidden.status_code == 404
+
+    visible = await client_readonly.get(f"/api/v1/kris/{archived_kri.id}?include_archived=true")
+    assert visible.status_code == 200
+    assert visible.json()["id"] == archived_kri.id

@@ -13,16 +13,16 @@ import type {
 } from '../types/kri';
 import type { ApprovalCreatedResponse } from '../types/approval';
 export const kriApi = {
-    async getKRIs(params?: { risk_id?: number; breach_only?: boolean; page?: number; size?: number }): Promise<KRIListResponse> {
+    async getKRIs(params?: { risk_id?: number; breach_only?: boolean; page?: number; size?: number; include_archived?: boolean }): Promise<KRIListResponse> {
         return apiClient.get<KRIListResponse>('/kris', { params });
     },
 
-    async getBreaches(params?: { department_id?: number }): Promise<KeyRiskIndicator[]> {
+    async getBreaches(params?: { department_id?: number; include_archived?: boolean }): Promise<KeyRiskIndicator[]> {
         return apiClient.get<KeyRiskIndicator[]>('/kris/breaches', { params });
     },
 
-    async getKRI(id: number): Promise<KeyRiskIndicator> {
-        return apiClient.get<KeyRiskIndicator>(`/kris/${id}`);
+    async getKRI(id: number, params?: { include_archived?: boolean }): Promise<KeyRiskIndicator> {
+        return apiClient.get<KeyRiskIndicator>(`/kris/${id}`, { params });
     },
 
     async createKRI(data: KRICreate): Promise<KeyRiskIndicator> {
@@ -37,6 +37,10 @@ export const kriApi = {
         return apiClient.delete<void>(`/kris/${id}`, { params: { reason } });
     },
 
+    async restoreKRI(id: number): Promise<KeyRiskIndicator> {
+        return apiClient.post<KeyRiskIndicator>(`/kris/${id}/restore`, {});
+    },
+
     // History endpoints
     async recordValue(kriId: number, data: KRIRecordValue): Promise<KeyRiskIndicator> {
         return apiClient.post<KeyRiskIndicator>(`/kris/${kriId}/values`, data);
@@ -44,7 +48,7 @@ export const kriApi = {
 
     async getHistory(
         kriId: number,
-        params?: { from_date?: string; to_date?: string; page?: number; size?: number }
+        params?: { from_date?: string; to_date?: string; page?: number; size?: number; include_archived?: boolean }
     ): Promise<KRIHistoryListResponse> {
         return apiClient.get<KRIHistoryListResponse>(`/kris/${kriId}/history`, { params });
     },

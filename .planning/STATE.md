@@ -62,6 +62,7 @@
 | 179 E2E Test Data | ⏳ In progress (11/12) | - |
 | 180 E2E Business Logic | ⏳ In progress (9/10) | - |
 | 200 Entity Naming | ⏳ In progress (9/10) | - |
+| 201 Archived Visibility + Restore | ⏳ In progress (4/5) | - |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
 
@@ -196,12 +197,12 @@
 
 ### Last Action
 
-- Reconciled ROADMAP.md and STATE.md with actual phase folder contents (2026-01-23). Updated plan counts and completion statuses using PLAN.md/SUMMARY.md files as source of truth.
+- Executed Phase 201 archive visibility/restore work across backend and frontend surfaces; added Phase 201 plan artifacts and updated planning state anchors (2026-02-07).
 
 ### Next Step
 
-- Continue with planned work on remaining in-progress phases (17 Production Deploy, 150 Audit, 179 E2E Test Data, 180 E2E Business Logic, 200 Entity Naming).
+- Finish Phase 201 verification loop (tests/docs reconciliation and E2E smoke) and then continue with existing in-progress phases.
 
 ---
 
-*Updated: 2026-01-26*
+*Updated: 2026-02-07*

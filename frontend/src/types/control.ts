@@ -138,6 +138,7 @@ export interface ControlRiskLink {
         risk_id_code: string;
         process: string;
         description: string;
+        status?: string;
     };
 }
 

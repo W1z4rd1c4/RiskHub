@@ -15,7 +15,8 @@ import {
     ShieldAlert,
     Plus,
     Target,
-    AlertCircle
+    AlertCircle,
+    RotateCcw
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
@@ -126,6 +127,18 @@ export function ControlDetailPage() {
         }
     };
 
+    const handleRestore = async () => {
+        if (!control) return;
+        try {
+            await controlApi.restoreControl(control.id);
+            await fetchData();
+            setApprovalMessage('Control restored successfully.');
+        } catch (err) {
+            console.error('Restore failed:', err);
+            setApprovalMessage('Failed to restore control. Please try again.');
+        }
+    };
+
     const handleLinkRisk = async (riskId: number, effectiveness: ControlEffectiveness, notes?: string) => {
         if (!control) return;
         setLinkError(null);
@@ -202,6 +215,9 @@ export function ControlDetailPage() {
         return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
     };
 
+    const activeLinkedRisks = linkedRisks.filter((link) => link.risk?.status !== 'archived');
+    const archivedLinkedRisks = linkedRisks.filter((link) => link.risk?.status === 'archived');
+
     return (
         <div className="space-y-8">
             {/* Approval/Error Message Banner */}
@@ -259,12 +275,22 @@ export function ControlDetailPage() {
                         </button>
                     )}
                     <PermissionGate resource="controls" action="delete">
-                        <button
-                            onClick={() => setIsArchiveDialogOpen(true)}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
-                        >
-                            <Trash2 className="h-5 w-5" />
-                        </button>
+                        {control.status === ControlStatus.ARCHIVED ? (
+                            <button
+                                onClick={handleRestore}
+                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-all"
+                                title="Unarchive control"
+                            >
+                                <RotateCcw className="h-5 w-5" />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setIsArchiveDialogOpen(true)}
+                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
+                            >
+                                <Trash2 className="h-5 w-5" />
+                            </button>
+                        )}
                     </PermissionGate>
                 </div>
             </div>
@@ -409,32 +435,67 @@ export function ControlDetailPage() {
                                 <p className="text-xs text-rose-400 font-medium">{linkedRisksError}</p>
                             </div>
                         ) : (
-                            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                                {linkedRisks.length === 0 ? (
+                            <div className="space-y-6">
+                                {activeLinkedRisks.length === 0 && archivedLinkedRisks.length === 0 ? (
                                     <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl col-span-full">
                                         <p className="text-xs text-slate-600 font-medium">No risks linked to this control.</p>
                                     </div>
                                 ) : (
-                                    linkedRisks.map((link) => (
-                                        <div
-                                            key={link.id}
-                                            onClick={(e) => handleRiskClick(link.risk_id, e)}
-                                            className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer relative"
-                                        >
-                                            <div className="flex justify-between items-start mb-2">
-                                                <div>
-                                                    <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || 'Unnamed Risk'}</span>
-                                                    {link.risk?.process && <span className="text-[10px] text-slate-500 block mt-0.5">{link.risk.process}</span>}
-                                                </div>
-                                                <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${link.effectiveness === 'high' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
-                                                    }`}>
-                                                    {link.effectiveness}
-                                                </span>
+                                    <>
+                                        {activeLinkedRisks.length > 0 && (
+                                            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                                                {activeLinkedRisks.map((link) => (
+                                                    <div
+                                                        key={link.id}
+                                                        onClick={(e) => handleRiskClick(link.risk_id, e)}
+                                                        className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer relative"
+                                                    >
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div>
+                                                                <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || 'Unnamed Risk'}</span>
+                                                                {link.risk?.process && <span className="text-[10px] text-slate-500 block mt-0.5">{link.risk.process}</span>}
+                                                            </div>
+                                                            <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${link.effectiveness === 'high' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                                                                }`}>
+                                                                {link.effectiveness}
+                                                            </span>
+                                                        </div>
+                                                        {link.risk?.description && <p className="mt-1 text-[10px] text-slate-400 line-clamp-2">{link.risk.description}</p>}
+                                                        {link.notes && <p className="mt-2 text-[10px] text-slate-500 font-medium italic">"{link.notes}"</p>}
+                                                    </div>
+                                                ))}
                                             </div>
-                                            {link.risk?.description && <p className="mt-1 text-[10px] text-slate-400 line-clamp-2">{link.risk.description}</p>}
-                                            {link.notes && <p className="mt-2 text-[10px] text-slate-500 font-medium italic">"{link.notes}"</p>}
-                                        </div>
-                                    ))
+                                        )}
+                                        {archivedLinkedRisks.length > 0 && (
+                                            <div>
+                                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                                                    Archived Risks ({archivedLinkedRisks.length})
+                                                </h4>
+                                                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 opacity-70">
+                                                    {archivedLinkedRisks.map((link) => (
+                                                        <div
+                                                            key={link.id}
+                                                            onClick={(e) => handleRiskClick(link.risk_id, e)}
+                                                            className="group p-4 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/[0.05] hover:border-accent/30 transition-all cursor-pointer relative"
+                                                        >
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <div>
+                                                                    <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || 'Unnamed Risk'}</span>
+                                                                    {link.risk?.process && <span className="text-[10px] text-slate-500 block mt-0.5">{link.risk.process}</span>}
+                                                                </div>
+                                                                <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${link.effectiveness === 'high' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                                                                    }`}>
+                                                                    {link.effectiveness}
+                                                                </span>
+                                                            </div>
+                                                            {link.risk?.description && <p className="mt-1 text-[10px] text-slate-400 line-clamp-2">{link.risk.description}</p>}
+                                                            {link.notes && <p className="mt-2 text-[10px] text-slate-500 font-medium italic">"{link.notes}"</p>}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         )}

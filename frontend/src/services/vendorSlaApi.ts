@@ -23,10 +23,12 @@ export const vendorSlaApi = {
     archive: (slaId: number) =>
         apiClient.delete<void>(`/vendor-slas/${slaId}`),
 
+    restore: (slaId: number) =>
+        apiClient.post<VendorSLA>(`/vendor-slas/${slaId}/restore`, {}),
+
     recordValue: (slaId: number, payload: VendorSLAValueCreate) =>
         apiClient.post<VendorSLA>(`/vendor-slas/${slaId}/values`, payload),
 
     history: (slaId: number, limit = 100) =>
         apiClient.get<VendorSLAHistoryResponse>(`/vendor-slas/${slaId}/history`, { params: { limit } }),
 };
-
