@@ -7,7 +7,7 @@ import asyncio
 from sqlalchemy import select
 from app.db.session import async_session_maker
 from app.models import Risk
-from scripts.e2e_mappings import load_mappings
+from scripts.e2e_mappings import load_mappings, require_user_id, require_department_id
 
 
 RISKS = [
@@ -228,6 +228,8 @@ RISKS = [
     },
 ]
 
+E2E_RISK_CODES = tuple(risk["risk_id_code"] for risk in RISKS)
+
 
 async def seed_risks():
     """Create E2E test risks with cross-department ownership."""
@@ -257,8 +259,8 @@ async def seed_risks():
             # Resolve IDs
             owner_email = data.pop("owner")
             dept_name = data.pop("dept")
-            owner_id = users[owner_email]
-            dept_id = depts[dept_name]
+            owner_id = require_user_id(users, owner_email)
+            dept_id = require_department_id(depts, dept_name)
             
             # Calculate scores
             gross_score = data["gross_probability"] * data["gross_impact"]
@@ -301,6 +303,7 @@ async def seed_risks():
         print(f"\n✅ Created {created} risks, skipped {skipped} existing")
         print(f"   Cross-department owners: {cross_dept}/10")
         print(f"   Priority risks: {priority_count}/8")
+        return {"created": created, "skipped": skipped, "cross_dept": cross_dept}
 
 
 if __name__ == "__main__":
