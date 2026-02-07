@@ -33,6 +33,10 @@ export class ControlsPage {
         return this.page.locator('button:has-text("New Control"), button:has-text("Create"), a:has-text("New Control")');
     }
 
+    get includeArchivedCheckbox(): Locator {
+        return this.page.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
+    }
+
     get departmentFilter(): Locator {
         return this.page.locator('[data-testid="department-filter"], select:has-text("Department")');
     }
@@ -73,8 +77,38 @@ export class ControlsPage {
         await this.clickRow(0);
     }
 
+    rowByText(text: string): Locator {
+        return this.tableRows.filter({ hasText: text }).first();
+    }
+
+    async openRowByText(text: string): Promise<void> {
+        const row = this.rowByText(text);
+        try {
+            await expect(row).toBeVisible({ timeout: 10000 });
+        } catch {
+            throw new Error(`Control row not found for deterministic fixture: ${text}`);
+        }
+        await row.click();
+        await this.page.waitForURL(/.*controls\/\d+/);
+        await waitForDataLoad(this.page);
+    }
+
     async clickCreateButton(): Promise<void> {
         await this.createButton.click();
+        await waitForDataLoad(this.page);
+    }
+
+    async setIncludeArchived(enabled: boolean): Promise<void> {
+        const currentState = await this.includeArchivedCheckbox.isChecked();
+        if (currentState !== enabled) {
+            await this.includeArchivedCheckbox.click();
+            await waitForDataLoad(this.page);
+        }
+    }
+
+    async clickUnarchiveForRow(text: string): Promise<void> {
+        const row = this.rowByText(text);
+        await row.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first().click();
         await waitForDataLoad(this.page);
     }
 

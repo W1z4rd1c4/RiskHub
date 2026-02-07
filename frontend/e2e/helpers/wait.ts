@@ -10,15 +10,18 @@ import { Page, expect } from '@playwright/test';
  * @param timeout - Maximum time to wait (default 30s)
  */
 export async function waitForDataLoad(page: Page, timeout = 30000): Promise<void> {
-    // Wait for skeleton loaders to disappear
-    await page.waitForSelector('.animate-pulse', { state: 'detached', timeout }).catch(() => {
-        // No skeleton found, which is fine
-    });
+    const loadingSelectors = [
+        '.animate-pulse',
+        '[data-loading="true"]',
+        '.w-8.h-8.border-2.border-accent.border-t-transparent.rounded-full.animate-spin',
+        '.animate-spin',
+    ];
 
-    // Also wait for any loading spinners
-    await page.waitForSelector('[data-loading="true"]', { state: 'detached', timeout }).catch(() => {
-        // No loading spinner found, which is fine
-    });
+    for (const selector of loadingSelectors) {
+        await page.waitForSelector(selector, { state: 'detached', timeout }).catch(() => {
+            // Selector may not exist on this screen or may already be gone.
+        });
+    }
 }
 
 /**
@@ -97,7 +100,7 @@ export async function waitForNavigation(
  * @param timeout - Maximum time to wait (default 5s)
  */
 export async function waitForModal(page: Page, timeout = 5000): Promise<void> {
-    await expect(page.locator('[role="dialog"], [role="alertdialog"], .modal')).toBeVisible({ timeout });
+    await expect(page.locator('[data-testid="link-management-dialog"], [role="dialog"], [role="alertdialog"], .modal')).toBeVisible({ timeout });
 }
 
 /**
@@ -106,10 +109,24 @@ export async function waitForModal(page: Page, timeout = 5000): Promise<void> {
  * @param timeout - Maximum time to wait (default 5s)
  */
 export async function waitForModalClose(page: Page, timeout = 5000): Promise<void> {
-    await page.waitForSelector('[role="dialog"], [role="alertdialog"], .modal', {
+    await page.waitForSelector('[data-testid="link-management-dialog"], [role="dialog"], [role="alertdialog"], .modal', {
         state: 'detached',
         timeout
     }).catch(() => {
         // Modal already gone
     });
+}
+
+/**
+ * Wait for a table row containing text to become visible.
+ * Returns false when row does not appear within timeout.
+ */
+export async function waitForTableRowByText(
+    page: Page,
+    text: string,
+    timeout = 10000
+): Promise<boolean> {
+    await waitForDataLoad(page, timeout);
+    const row = page.locator('table tbody tr').filter({ hasText: text }).first();
+    return await row.isVisible({ timeout }).catch(() => false);
 }

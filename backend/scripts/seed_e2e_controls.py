@@ -91,7 +91,7 @@ CONTROLS = [
         "dept": "IT",
         "owner": "it.head@riskhub.local",
         "risk_links": ["E2E-IT-003"],
-        "frequency": "semi-annually",
+        "frequency": "annually",
         "control_form": "manual",
     },
     # === Compliance Department (3 controls) ===
@@ -119,7 +119,7 @@ CONTROLS = [
         "dept": "Compliance",
         "owner": "it.analyst@riskhub.local",  # Cross-department!
         "risk_links": ["E2E-COMP-003"],
-        "frequency": "on-demand",
+        "frequency": "ad_hoc",
         "control_form": "manual",
     },
 ]

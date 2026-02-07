@@ -1,45 +1,48 @@
-/**
- * KRI Management E2E Tests
- * Uses demo account picker for login
- */
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from './fixtures/auth.fixture';
+import { E2E_KRIS } from './fixtures/e2e-data';
+import { KRIsPage } from './pages/KRIsPage';
+import { waitForTableRowByText } from './helpers/wait';
 
-async function loginAsDemoUser(page: Page, accountName: string) {
-    await page.goto('/login');
-    await page.waitForSelector(`button:has-text("${accountName}")`, { timeout: 10000 });
-    await page.click(`button:has-text("${accountName}")`);
-    await page.waitForURL(/^http:\/\/localhost:5173\/(dashboard|admin|$)/, { timeout: 15000 });
-}
+test.describe('KRI Management (Deterministic)', () => {
+    test('KRI list renders seeded active KRI', async ({ riskManagerPage }) => {
+        const krisPage = new KRIsPage(riskManagerPage);
+        await krisPage.navigate();
+        await krisPage.search(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
 
-async function waitForDataLoad(page: Page) {
-    await page.waitForSelector('.animate-pulse', { state: 'detached', timeout: 30000 }).catch(() => { });
-}
-
-test.describe('KRI Management', () => {
-    test.beforeEach(async ({ page }) => {
-        await loginAsDemoUser(page, 'Petra Svobodová');
+        await expect(krisPage.rowByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name)).toBeVisible();
     });
 
-    test.describe('KRI List', () => {
-        test('should display KRI list', async ({ page }) => {
-            await page.goto('/kris');
-            await waitForDataLoad(page);
+    test('Archived KRI visibility follows include archived toggle', async ({ riskManagerPage }) => {
+        const krisPage = new KRIsPage(riskManagerPage);
+        await krisPage.navigate();
+        await krisPage.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
 
-            // Should show KRIs table or cards
-            await expect(page.locator('table, [role="grid"], .grid').first()).toBeVisible();
-        });
+        const hiddenByDefault = await waitForTableRowByText(riskManagerPage, E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name, 2000);
+        expect(hiddenByDefault).toBe(false);
+
+        await krisPage.setIncludeArchived(true);
+        await krisPage.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
+        await expect(krisPage.rowByText(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name)).toBeVisible();
     });
 
-    test.describe('KRI Detail', () => {
-        test('should navigate to KRI detail', async ({ page }) => {
-            await page.goto('/kris');
-            await waitForDataLoad(page);
+    test('Deterministic KRI row opens KRI detail page', async ({ riskManagerPage }) => {
+        const krisPage = new KRIsPage(riskManagerPage);
+        await krisPage.navigate();
+        await krisPage.search(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
 
-            const firstRow = page.locator('table tbody tr, .grid > div').first();
-            if (await firstRow.isVisible()) {
-                await firstRow.click();
-                await expect(page.locator('h1, h2').first()).toBeVisible();
-            }
-        });
+        await krisPage.openRowByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
+        await expect(riskManagerPage).toHaveURL(/\/kris\/\d+$/);
+        await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
+    });
+
+    test('Archived KRI row exposes unarchive action for privileged users', async ({ riskManagerPage }) => {
+        const krisPage = new KRIsPage(riskManagerPage);
+        await krisPage.navigate();
+        await krisPage.setIncludeArchived(true);
+        await krisPage.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
+
+        const row = krisPage.rowByText(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
+        await expect(row).toBeVisible();
+        await expect(row.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first()).toBeVisible();
     });
 });

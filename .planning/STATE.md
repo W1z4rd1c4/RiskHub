@@ -60,7 +60,7 @@
 | 158 Audit | ✅ Complete (10/10) | 2026-01-19 |
 | 159 Audit Fixes | ✅ Complete (10/10) | 2026-01-23 |
 | 179 E2E Test Data | ⏳ In progress (16/17) | - |
-| 180 E2E Business Logic | ⏳ In progress (9/15) | - |
+| 180 E2E Business Logic | ⏳ In progress (14/15) | - |
 | 200 Entity Naming | ⏳ In progress (9/10) | - |
 | 201 Archived Visibility + Restore | ⏳ In progress (4/5) | - |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
@@ -198,10 +198,11 @@
 ### Last Action
 
 - Executed Phase 179 extension plans 179-12..179-16: hardened prerequisites, added deterministic vendor/vendor-SLA/archive matrix seeding, and validated end-to-end seeding via `venv/bin/python -m scripts.seed_e2e_all` (2026-02-07).
+- Executed Phase 180 extension plans 180-10..180-14 and implemented 180-15 setup/docs reconciliation: introduced deterministic fixture constants, refactored skip-heavy suites to deterministic selectors, added vendor/vendor-SLA archive coverage, and integrated global setup preflight checks for seeded fixture availability (2026-02-07). Full 180-15 runtime verification is blocked by backend `GET /api/v1/controls` returning HTTP 500.
 
 ### Next Step
 
-- Execute Phase 180 extension plans against the deterministic Phase 179 dataset (fixtures/spec updates, vendor + archive E2E coverage).
+- Fix backend `GET /api/v1/controls` HTTP 500 in the current environment, rerun Phase 180 targeted Playwright verification, then close 180-15.
 
 ---
 

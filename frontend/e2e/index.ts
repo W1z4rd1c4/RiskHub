@@ -7,6 +7,7 @@
 
 // Fixtures
 export { test, expect } from './fixtures/auth.fixture';
+export * from './fixtures/e2e-data';
 
 // Helpers
 export * from './helpers/login';
@@ -20,3 +21,5 @@ export { DashboardPage } from './pages/DashboardPage';
 export { KRIsPage } from './pages/KRIsPage';
 export { LoginPage } from './pages/LoginPage';
 export { RisksPage } from './pages/RisksPage';
+export { VendorDetailPage } from './pages/VendorDetailPage';
+export { VendorsPage } from './pages/VendorsPage';
