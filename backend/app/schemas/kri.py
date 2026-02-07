@@ -49,6 +49,9 @@ class KRIResponse(KRIBase):
     """Schema for KRI response with computed breach status."""
     id: int
     risk_id: int
+    is_archived: bool = False
+    archived_at: Optional[datetime] = None
+    archived_by_id: Optional[int] = None
     
     # Description is inherited from KRIBase, explicitly included in response
     
@@ -133,4 +136,3 @@ class KRIHistoryEdit(BaseModel):
     """Schema for requesting correction to a historical entry."""
     value: float
     reason: str = Field(..., min_length=10, max_length=500, description="Explanation for the correction")
-

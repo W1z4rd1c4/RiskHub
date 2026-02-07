@@ -293,6 +293,118 @@ describe('RBAC UI gating', () => {
         expect(screen.getByRole('button', { name: /record value/i })).toBeInTheDocument();
     });
 
+    it('KRI: risks:delete shows "Unarchive" for archived KRI', async () => {
+        const user = makeUser({
+            id: 77,
+            effective_permissions: ['risks:delete'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/kris/:id', () =>
+                HttpResponse.json({
+                    id: 1,
+                    risk_id: 100,
+                    metric_name: 'Archived Mock KRI',
+                    description: 'Mock',
+                    current_value: 50,
+                    lower_limit: 0,
+                    upper_limit: 100,
+                    unit: '%',
+                    breach_status: 'within',
+                    last_updated: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                    frequency: 'monthly',
+                    is_archived: true,
+                })
+            ),
+            http.get('*/api/v1/risks/:id', () =>
+                HttpResponse.json({
+                    id: 100,
+                    name: 'Mock Risk',
+                    process: 'Mock Process',
+                    description: 'Mock Desc',
+                    category: 'Mock',
+                    risk_type: 'operational',
+                    risk_id_code: 'R-001',
+                    net_score: 4,
+                    gross_probability: 1,
+                    gross_impact: 1,
+                    net_probability: 1,
+                    net_impact: 1,
+                    status: 'active',
+                    is_priority: false,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                })
+            ),
+            http.get('*/api/v1/kris/:id/history', () =>
+                HttpResponse.json({ items: [], total: 0, page: 1, size: 50 })
+            )
+        );
+
+        renderWithRoute('/kris/1');
+
+        await screen.findByRole('heading', { name: 'Archived Mock KRI' });
+        expect(screen.getByRole('button', { name: /unarchive/i })).toBeInTheDocument();
+    });
+
+    it('KRI: without risks:delete hides "Unarchive" for archived KRI', async () => {
+        const user = makeUser({
+            id: 78,
+            effective_permissions: ['risks:read'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/kris/:id', () =>
+                HttpResponse.json({
+                    id: 1,
+                    risk_id: 100,
+                    metric_name: 'Archived Mock KRI',
+                    description: 'Mock',
+                    current_value: 50,
+                    lower_limit: 0,
+                    upper_limit: 100,
+                    unit: '%',
+                    breach_status: 'within',
+                    last_updated: new Date().toISOString(),
+                    created_at: new Date().toISOString(),
+                    frequency: 'monthly',
+                    is_archived: true,
+                })
+            ),
+            http.get('*/api/v1/risks/:id', () =>
+                HttpResponse.json({
+                    id: 100,
+                    name: 'Mock Risk',
+                    process: 'Mock Process',
+                    description: 'Mock Desc',
+                    category: 'Mock',
+                    risk_type: 'operational',
+                    risk_id_code: 'R-001',
+                    net_score: 4,
+                    gross_probability: 1,
+                    gross_impact: 1,
+                    net_probability: 1,
+                    net_impact: 1,
+                    status: 'active',
+                    is_priority: false,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                })
+            ),
+            http.get('*/api/v1/kris/:id/history', () =>
+                HttpResponse.json({ items: [], total: 0, page: 1, size: 50 })
+            )
+        );
+
+        renderWithRoute('/kris/1');
+
+        await screen.findByRole('heading', { name: 'Archived Mock KRI' });
+        expect(screen.queryByRole('button', { name: /unarchive/i })).not.toBeInTheDocument();
+    });
+
     it('Controls: controls:write only hides "Log Execution"', async () => {
         const user = makeUser({
             id: 20,

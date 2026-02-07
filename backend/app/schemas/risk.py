@@ -195,6 +195,7 @@ class RiskBriefForLink(BaseModel):
     description: str  # Used by ControlDetailPage and ExistingLinksPanel
     gross_score: int
     net_score: int
+    status: Optional[RiskStatusEnum] = None
     
     model_config = {"from_attributes": True}
 

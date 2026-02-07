@@ -53,6 +53,7 @@ export function VendorSLATab({ vendorId, canEditVendor }: VendorSLATabProps) {
     }, [refresh]);
 
     const canCreate = canEditVendor || hasPermission('vendors', 'write');
+    const canDeleteSla = hasPermission('vendors', 'delete');
 
     const canManageItem = useCallback(
         (sla: VendorSLA) => {
@@ -155,6 +156,18 @@ export function VendorSLATab({ vendorId, canEditVendor }: VendorSLATabProps) {
                                 {sla.description && <p className="text-sm text-slate-200 whitespace-pre-wrap">{sla.description}</p>}
                             </div>
                             <div className="flex items-center gap-2">
+                                {sla.is_archived && canDeleteSla && (
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            await vendorSlaApi.restore(sla.id);
+                                            await refresh();
+                                        }}
+                                        className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-bold hover:bg-emerald-500/20 transition-colors"
+                                    >
+                                        {t('actions.unarchive', 'Unarchive')}
+                                    </button>
+                                )}
                                 {(canManageItem(sla) || canCreate) && (
                                     <button
                                         type="button"
@@ -181,6 +194,7 @@ export function VendorSLATab({ vendorId, canEditVendor }: VendorSLATabProps) {
                 onClose={() => setIsModalOpen(false)}
                 onSaved={refresh}
                 canManage={selected ? canManageItem(selected) : canCreate}
+                canDelete={canDeleteSla}
             />
         </section>
     );

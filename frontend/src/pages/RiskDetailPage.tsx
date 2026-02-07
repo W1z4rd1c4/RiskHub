@@ -10,16 +10,16 @@ import {
     FileText,
     Target,
     AlertCircle,
-    XCircle
+    XCircle,
+    RotateCcw
 } from 'lucide-react';
 import { riskApi } from '@/services/riskApi';
 import { kriApi } from '@/services/kriApi';
 import type { Risk, RiskControlLink, ControlEffectiveness } from '@/types/risk';
-import type { KeyRiskIndicator, KRICreate, KRIUpdate, OverdueKRI } from '@/types/kri';
+import type { OverdueKRI } from '@/types/kri';
 import type { HistoryTimelineItem } from '@/types/history';
 import type { Vendor } from '@/types/vendor';
 import { PermissionGate } from '@/components/PermissionGate';
-import { KRIModal } from '@/components/kri/KRIModal';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
@@ -27,7 +27,6 @@ import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistory
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
 import { useTranslation } from '@/i18n/hooks';
 import { isApprovalCreatedResponse } from '@/types/approval';
-import { parseUpdateResult } from '@/lib/approvalUi';
 
 type TabView = 'overview' | 'history' | 'assessment';
 
@@ -51,10 +50,6 @@ export function RiskDetailPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
     const [linkError, setLinkError] = useState<string | null>(null);
-
-    // KRI Modal State
-    const [isKRIModalOpen, setIsKRIModalOpen] = useState(false);
-    const [selectedKRI, setSelectedKRI] = useState<KeyRiskIndicator | null>(null);
 
     // KRI History State
     const [kriHistoryItems, setKriHistoryItems] = useState<HistoryTimelineItem[]>([]);
@@ -173,6 +168,18 @@ export function RiskDetailPage() {
         }
     };
 
+    const handleRestore = async () => {
+        if (!risk) return;
+        try {
+            await riskApi.restoreRisk(risk.id);
+            await fetchData();
+            setApprovalMessage('Risk restored successfully.');
+        } catch (err) {
+            console.error('Error restoring risk:', err);
+            setApprovalMessage('Failed to restore risk. Please try again.');
+        }
+    };
+
     const handleLinkControl = async (controlId: number, effectiveness: ControlEffectiveness, notes?: string) => {
         if (!risk) return;
         setLinkError(null);
@@ -196,42 +203,6 @@ export function RiskDetailPage() {
         } catch (err) {
             console.error('Unlinking failed:', err);
             setLinkError('Failed to unlink control. Please try again.');
-        }
-    };
-
-    const handleSaveKRI = async (data: KRICreate | KRIUpdate) => {
-        if (!risk) return;
-        try {
-            if (selectedKRI) {
-                const result = await kriApi.updateKRI(selectedKRI.id, data as KRIUpdate);
-                // Use standardized helper to check for 202 approval-queued response
-                const parsed = parseUpdateResult(result);
-                if (parsed.kind === 'approval') {
-                    setApprovalMessage(
-                        `KRI edit submitted for approval (ID: ${parsed.approvalId}). Changes will not be applied until approved.`
-                    );
-                    setIsKRIModalOpen(false);
-                    return; // Don't refresh data - changes aren't applied yet
-                }
-            } else {
-                await kriApi.createKRI(data as KRICreate);
-            }
-            await fetchData();
-        } catch (err) {
-            console.error('KRI Save failed:', err);
-            setApprovalMessage('Failed to save KRI. Please try again.');
-        }
-    };
-
-    const handleDeleteKRI = async (kriId: number) => {
-        const reason = prompt('Why is this KRI being deleted?');
-        if (!reason) return; // User cancelled or empty reason
-        try {
-            await kriApi.deleteKRI(kriId, reason);
-            await fetchData();
-        } catch (err) {
-            console.error('KRI Delete failed:', err);
-            alert('Failed to delete KRI.');
         }
     };
 
@@ -345,12 +316,22 @@ export function RiskDetailPage() {
                         </button>
                     </PermissionGate>
                     <PermissionGate resource="risks" action="delete">
-                        <button
-                            onClick={() => setIsDeleteDialogOpen(true)}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
-                        >
-                            <Trash2 className="h-5 w-5" />
-                        </button>
+                        {risk.status === 'archived' ? (
+                            <button
+                                onClick={handleRestore}
+                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-all"
+                                title="Unarchive risk"
+                            >
+                                <RotateCcw className="h-5 w-5" />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setIsDeleteDialogOpen(true)}
+                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
+                            >
+                                <Trash2 className="h-5 w-5" />
+                            </button>
+                        )}
                     </PermissionGate>
                 </div>
             </div>
@@ -398,14 +379,8 @@ export function RiskDetailPage() {
                     overdueKRIs={overdueKRIs}
                     getColor={getColor}
                     getDisplayName={getDisplayName}
-                    onOpenAddKri={() => {
-                        setSelectedKRI(null);
-                        setIsKRIModalOpen(true);
-                    }}
-                    onOpenKri={(kri) => {
-                        setSelectedKRI(kri);
-                        setIsKRIModalOpen(true);
-                    }}
+                    onNavigateToNewKri={() => navigate(`/kris/new?risk_id=${risk.id}`)}
+                    onNavigateToKri={(kriId) => navigate(`/kris/${kriId}`)}
                     onLinkControl={handleLinkControl}
                     onUnlinkControl={handleUnlinkControl}
                     onOpenCreateControl={() => setIsCreateDialogOpen(true)}
@@ -433,17 +408,6 @@ export function RiskDetailPage() {
             {/* Risk Assessment Tab */}
             {activeTab === 'assessment' && (
                 <RiskDetailQuestionnairesTab risk={risk} />
-            )}
-
-            {risk && (
-                <KRIModal
-                    risk_id={risk.id}
-                    kri={selectedKRI}
-                    isOpen={isKRIModalOpen}
-                    onClose={() => setIsKRIModalOpen(false)}
-                    onSave={handleSaveKRI}
-                    onDelete={handleDeleteKRI}
-                />
             )}
 
             {/* Delete Confirmation Dialog */}

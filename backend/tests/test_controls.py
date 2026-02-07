@@ -149,3 +149,128 @@ async def test_control_not_found(auth_client: AsyncClient, test_user: User):
     response = await auth_client.get("/api/v1/controls/99999")
     
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_control_list_include_archived_toggle(
+    auth_client: AsyncClient,
+    test_user: User,
+    test_department: Department,
+):
+    """Default list excludes archived controls; include_archived=true returns them."""
+    create_response = await auth_client.post(
+        "/api/v1/controls",
+        json={
+            "name": "Archived Toggle Control",
+            "description": "Control used to validate include_archived",
+            "department_id": test_department.id,
+            "control_owner_id": test_user.id,
+            "control_form": "manual",
+            "frequency": "monthly",
+            "risk_level": 3,
+            "status": "active",
+        },
+    )
+    control_id = create_response.json()["id"]
+
+    archive_response = await auth_client.delete(f"/api/v1/controls/{control_id}?reason=Archive+for+test")
+    assert archive_response.status_code == 204
+
+    default_list = await auth_client.get("/api/v1/controls")
+    assert default_list.status_code == 200
+    default_ids = {item["id"] for item in default_list.json()["items"]}
+    assert control_id not in default_ids
+
+    archived_list = await auth_client.get("/api/v1/controls?include_archived=true")
+    assert archived_list.status_code == 200
+    archived_ids = {item["id"] for item in archived_list.json()["items"]}
+    assert control_id in archived_ids
+
+
+@pytest.mark.asyncio
+async def test_control_restore_reactivates_archived_control(
+    auth_client: AsyncClient,
+    test_user: User,
+    test_department: Department,
+):
+    """Restore endpoint sets archived control back to active."""
+    create_response = await auth_client.post(
+        "/api/v1/controls",
+        json={
+            "name": "Restore Control",
+            "description": "Control used to validate restore",
+            "department_id": test_department.id,
+            "control_owner_id": test_user.id,
+            "control_form": "manual",
+            "frequency": "monthly",
+            "risk_level": 2,
+            "status": "active",
+        },
+    )
+    control_id = create_response.json()["id"]
+
+    archive_response = await auth_client.delete(f"/api/v1/controls/{control_id}?reason=Archive+for+restore")
+    assert archive_response.status_code == 204
+
+    restore_response = await auth_client.post(f"/api/v1/controls/{control_id}/restore")
+    assert restore_response.status_code == 200
+    assert restore_response.json()["status"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_control_restore_requires_delete_permission(
+    client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    """Users without controls:delete cannot call restore endpoint."""
+    admin_headers = {"X-Mock-User-Id": str(test_user.id)}
+
+    create_response = await client.post(
+        "/api/v1/controls",
+        json={
+            "name": "Forbidden Restore Control",
+            "description": "Control used to validate restore RBAC",
+            "department_id": test_department.id,
+            "control_owner_id": test_user.id,
+            "control_form": "manual",
+            "frequency": "monthly",
+            "risk_level": 2,
+            "status": "active",
+        },
+        headers=admin_headers,
+    )
+    control_id = create_response.json()["id"]
+
+    archive_response = await client.delete(
+        f"/api/v1/controls/{control_id}?reason=Archive+for+rbac",
+        headers=admin_headers,
+    )
+    assert archive_response.status_code == 204
+
+    from app.models import Role, User as UserModel
+    from app.models.user import AccessScope
+
+    readonly_role = Role(name="control_readonly", display_name="Control Read Only", description="control read only")
+    db_session.add(readonly_role)
+    await db_session.commit()
+    await db_session.refresh(readonly_role)
+
+    readonly_user = UserModel(
+        name="Control Readonly User",
+        email="control-readonly@test.com",
+        department_id=test_department.id,
+        role_id=readonly_role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(readonly_user)
+    await db_session.commit()
+    await db_session.refresh(readonly_user)
+
+    forbidden = await client.post(
+        f"/api/v1/controls/{control_id}/restore",
+        headers={"X-Mock-User-Id": str(readonly_user.id)},
+    )
+    assert forbidden.status_code == 403

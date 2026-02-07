@@ -176,3 +176,125 @@ async def test_vendor_create_requires_vendors_write(
         },
     )
     assert resp.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_vendors_include_archived_toggle(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    """Inactive vendors are hidden by default and shown when include_archived=true."""
+    await _grant(db_session, test_role_employee, "vendors", "read")
+
+    active_vendor = Vendor(
+        name="Active Toggle Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    inactive_vendor = Vendor(
+        name="Inactive Toggle Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="inactive",
+    )
+    db_session.add_all([active_vendor, inactive_vendor])
+    await db_session.commit()
+
+    default_resp = await client_employee.get("/api/v1/vendors")
+    assert default_resp.status_code == 200
+    default_names = {v["name"] for v in default_resp.json()["items"]}
+    assert "Active Toggle Vendor" in default_names
+    assert "Inactive Toggle Vendor" not in default_names
+
+    include_resp = await client_employee.get("/api/v1/vendors?include_archived=true")
+    assert include_resp.status_code == 200
+    include_names = {v["name"] for v in include_resp.json()["items"]}
+    assert "Inactive Toggle Vendor" in include_names
+
+
+@pytest.mark.asyncio
+async def test_vendor_restore_requires_vendors_delete(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    """Users without vendors:delete cannot restore vendors."""
+    await _grant(db_session, test_role_employee, "vendors", "read")
+
+    vendor = Vendor(
+        name="Restore Forbidden Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="inactive",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    forbidden = await client_employee.post(f"/api/v1/vendors/{vendor.id}/restore")
+    assert forbidden.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_vendor_restore_reactivates_inactive_vendor(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    """Restore endpoint sets vendor status from inactive to active."""
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "vendors", "delete")
+
+    vendor = Vendor(
+        name="Restore Active Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="inactive",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    restored = await client_employee.post(f"/api/v1/vendors/{vendor.id}/restore")
+    assert restored.status_code == 200
+    assert restored.json()["status"] == "active"

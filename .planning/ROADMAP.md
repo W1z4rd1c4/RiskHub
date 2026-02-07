@@ -67,6 +67,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 179: E2E Test Data** — E2E test data seeding (11/12)
 - [ ] **Phase 180: E2E Business Logic** — E2E business logic tests (9/10)
 - [ ] **Phase 200: Entity Naming Enforcement** — Mandatory naming (9/10)
+- [ ] **Phase 201: Archived Visibility + Restore** — Archive toggle parity and unarchive flows (4/5)
 - [x] **Phase 250: Spaghetti Simplification** — Code simplification (10/10)
 - [x] **Phase 251: Spaghetti Simplification 2** — More code cleanup (11/11)
 
@@ -811,6 +812,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 179. E2E Test Data | 11/12 | ⏳ In progress | - |
 | 180. E2E Business Logic | 9/10 | ⏳ In progress | - |
 | 200. Entity Naming | 9/10 | ⏳ In progress | - |
+| 201. Archived Visibility + Restore | 4/5 | ⏳ In progress | - |
 | 250. Spaghetti Simplification | 10/10 | ✅ Complete | 2026-01-10 |
 | 251. Spaghetti Simplification 2 | 11/11 | ✅ Complete | 2026-01-10 |
 
@@ -875,3 +877,18 @@ Plans:
 - [ ] 200-08: Export & Reporting Updates
 - [x] 200-09: Verification & Regression Testing
 - [x] 200-10: Final Cleanup & Documentation
+
+### Phase 201: Archived Visibility + Restore
+
+**Goal**: Standardize archived visibility defaults and restore/unarchive behavior across Risks, Controls, KRIs, Vendors, and Vendor SLAs.
+**Depends on**: Phase 200 (Entity Naming)
+**Research**: None (implementation path defined by phase plan set)
+**Plans**: 5 plans
+
+Plans:
+
+- [x] 201-01: Backend archive visibility contract alignment (include_archived + schema/type updates)
+- [x] 201-02: Restore endpoints + delete-permission enforcement + activity logs
+- [x] 201-03: Frontend include archived toggles in list/search surfaces
+- [x] 201-04: Unarchive actions + archived linked-item grouping/muted styling
+- [ ] 201-05: Tests, E2E verification, and documentation reconciliation

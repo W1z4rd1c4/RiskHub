@@ -32,6 +32,7 @@ export interface SearchResultItem {
     name?: string;
     description?: string;
     process?: string;
+    status?: string;
     risk_level?: number;
     frequency?: string;
     department?: { name?: string };
@@ -55,6 +56,8 @@ export interface LinkSearchPanelProps {
     onProcessChange: (process: string) => void;
     selectedCategory: string;
     onCategoryChange: (category: string) => void;
+    includeArchived: boolean;
+    onIncludeArchivedChange: (include: boolean) => void;
 
     // Lookups
     departments: DepartmentLookup[];
@@ -67,6 +70,8 @@ export interface LinkSearchPanelProps {
     onSelectTarget: (id: number | null) => void;
     onLink: () => void;
     isLinking: boolean;
+    canUnarchive: boolean;
+    onUnarchive: (id: number) => Promise<void>;
 }
 
 export function LinkSearchPanel({
@@ -81,6 +86,8 @@ export function LinkSearchPanel({
     onProcessChange,
     selectedCategory,
     onCategoryChange,
+    includeArchived,
+    onIncludeArchivedChange,
     departments,
     processes,
     categories,
@@ -89,14 +96,17 @@ export function LinkSearchPanel({
     onSelectTarget,
     onLink,
     isLinking,
+    canUnarchive,
+    onUnarchive,
 }: LinkSearchPanelProps) {
     const { t } = useTranslation('common');
-    const hasActiveFilters = selectedDeptId || selectedProcess || selectedCategory;
+    const hasActiveFilters = selectedDeptId || selectedProcess || selectedCategory || includeArchived;
 
     const clearAllFilters = () => {
         onDeptIdChange(null);
         onProcessChange('');
         onCategoryChange('');
+        onIncludeArchivedChange(false);
     };
 
     const selectedResult = searchResults.find(r => r.id === selectedTargetId);
@@ -132,6 +142,14 @@ export function LinkSearchPanel({
                     Filters
                     {isLoadingLookups && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
                 </div>
+                <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold">
+                    <input
+                        type="checkbox"
+                        checked={includeArchived}
+                        onChange={(e) => onIncludeArchivedChange(e.target.checked)}
+                    />
+                    {t('filters.include_archived', 'Include archived')}
+                </label>
 
                 {/* Filter Dropdowns */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -191,11 +209,16 @@ export function LinkSearchPanel({
                                 <button
                                     key={result.id}
                                     onClick={() => onSelectTarget(result.id)}
-                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-accent/10 transition-colors text-left group"
+                                    className={`w-full flex items-center justify-between px-4 py-3 hover:bg-accent/10 transition-colors text-left group ${result.status === 'archived' ? 'opacity-70' : ''}`}
                                 >
                                     <div className="flex flex-col flex-1 min-w-0 pr-4">
-                                        <span className="text-xs font-bold text-white truncate group-hover:text-accent transition-colors text-balance">
-                                            {mode === 'control-to-risk' ? result.description : result.name}
+                                        <span className="text-xs font-bold text-white truncate group-hover:text-accent transition-colors text-balance flex items-center gap-2">
+                                            <span>{mode === 'control-to-risk' ? result.description : result.name}</span>
+                                            {result.status === 'archived' && (
+                                                <span className="px-1 py-0.5 rounded bg-white/10 border border-white/10 text-slate-300 text-[9px] uppercase tracking-widest">
+                                                    {t('labels.archived', 'Archived')}
+                                                </span>
+                                            )}
                                         </span>
                                         <span className="text-[10px] text-slate-500 mt-0.5">
                                             {mode === 'control-to-risk' ? result.process : (
@@ -212,6 +235,27 @@ export function LinkSearchPanel({
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-3 shrink-0">
+                                        {result.status === 'archived' && canUnarchive && (
+                                            <span
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    void onUnarchive(result.id);
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        void onUnarchive(result.id);
+                                                    }
+                                                }}
+                                                className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest"
+                                            >
+                                                {t('actions.unarchive', 'Unarchive')}
+                                            </span>
+                                        )}
                                         {mode === 'risk-to-control' && (
                                             <>
                                                 <div className="flex flex-col items-end">

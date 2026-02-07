@@ -48,6 +48,9 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
         [linkedRisks],
     );
 
+    const activeRisks = linkedRisks.filter((risk) => risk.status !== 'archived');
+    const archivedRisks = linkedRisks.filter((risk) => risk.status === 'archived');
+
     const handleLink = async (riskId: number) => {
         await vendorLinkApi.linkRisk(vendorId, riskId);
         await refresh();
@@ -96,32 +99,70 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
                     </p>
                 </div>
             ) : (
-                <div className="space-y-3">
-                    {linkedRisks.map((risk) => (
-                        <button
-                            key={risk.id}
-                            onClick={() => onNavigateToRisk(risk.id)}
-                            className="w-full p-4 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center justify-between hover:bg-white/[0.05] transition-all text-left group"
-                        >
-                            <div className="min-w-0 pr-4">
-                                <div className="text-sm font-bold text-white truncate group-hover:text-accent transition-colors">
-                                    {risk.risk_id_code}: {risk.name}
-                                </div>
-                                <div className="text-[10px] text-slate-500 mt-1 font-medium">
-                                    {risk.process}
-                                    {risk.department_name ? (
-                                        <>
-                                            <span className="text-slate-700 mx-2">/</span>
-                                            {risk.department_name}
-                                        </>
-                                    ) : null}
-                                </div>
+                <div className="space-y-5">
+                    {activeRisks.length > 0 && (
+                        <div className="space-y-3">
+                            {activeRisks.map((risk) => (
+                                <button
+                                    key={risk.id}
+                                    onClick={() => onNavigateToRisk(risk.id)}
+                                    className="w-full p-4 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center justify-between hover:bg-white/[0.05] transition-all text-left group"
+                                >
+                                    <div className="min-w-0 pr-4">
+                                        <div className="text-sm font-bold text-white truncate group-hover:text-accent transition-colors">
+                                            {risk.risk_id_code}: {risk.name}
+                                        </div>
+                                        <div className="text-[10px] text-slate-500 mt-1 font-medium">
+                                            {risk.process}
+                                            {risk.department_name ? (
+                                                <>
+                                                    <span className="text-slate-700 mx-2">/</span>
+                                                    {risk.department_name}
+                                                </>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                    <div className="p-2 rounded-lg bg-white/5 group-hover:bg-accent/20 transition-colors">
+                                        <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-accent" />
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {archivedRisks.length > 0 && (
+                        <div className="space-y-3">
+                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                {t('links.archived_risks', 'Archived risks')} ({archivedRisks.length})
+                            </h4>
+                            <div className="space-y-3 opacity-70">
+                                {archivedRisks.map((risk) => (
+                                    <button
+                                        key={risk.id}
+                                        onClick={() => onNavigateToRisk(risk.id)}
+                                        className="w-full p-4 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center justify-between hover:bg-white/[0.05] transition-all text-left group"
+                                    >
+                                        <div className="min-w-0 pr-4">
+                                            <div className="text-sm font-bold text-white truncate group-hover:text-accent transition-colors">
+                                                {risk.risk_id_code}: {risk.name}
+                                            </div>
+                                            <div className="text-[10px] text-slate-500 mt-1 font-medium">
+                                                {risk.process}
+                                                {risk.department_name ? (
+                                                    <>
+                                                        <span className="text-slate-700 mx-2">/</span>
+                                                        {risk.department_name}
+                                                    </>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-white/5 group-hover:bg-accent/20 transition-colors">
+                                            <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-accent" />
+                                        </div>
+                                    </button>
+                                ))}
                             </div>
-                            <div className="p-2 rounded-lg bg-white/5 group-hover:bg-accent/20 transition-colors">
-                                <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-accent" />
-                            </div>
-                        </button>
-                    ))}
+                        </div>
+                    )}
                 </div>
             )}
 

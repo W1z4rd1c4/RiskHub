@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Edit2, Trash2, Target, AlertTriangle, CheckCircle, Plus, Clock, History } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, Target, AlertTriangle, CheckCircle, Plus, Clock, History, RotateCcw } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
 import { PermissionGate } from '@/components/PermissionGate';
@@ -46,7 +46,7 @@ export function KRIDetailPage() {
     const fetchKRI = async (kriId: number) => {
         setIsLoading(true);
         try {
-            const data = await kriApi.getKRI(kriId);
+            const data = await kriApi.getKRI(kriId, { include_archived: true });
             setKri(data);
             // Fetch linked risk name
             if (data.risk_id) {
@@ -69,7 +69,7 @@ export function KRIDetailPage() {
     const fetchHistory = async (kriId: number) => {
         setIsLoadingHistory(true);
         try {
-            const response = await kriApi.getHistory(kriId, { size: 50 });
+            const response = await kriApi.getHistory(kriId, { size: 50, include_archived: true });
             setHistory(response.items);
             setHistoryTotal(response.total);
         } catch (err) {
@@ -91,6 +91,16 @@ export function KRIDetailPage() {
             console.error('Failed to delete KRI:', err);
         } finally {
             setIsDeleting(false);
+        }
+    };
+
+    const handleRestore = async () => {
+        if (!kri) return;
+        try {
+            await kriApi.restoreKRI(kri.id);
+            await fetchKRI(kri.id);
+        } catch (err) {
+            console.error('Failed to restore KRI:', err);
         }
     };
 
@@ -204,9 +214,17 @@ export function KRIDetailPage() {
                         <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
                             <Edit2 className="h-4 w-4 mr-1" /> Edit
                         </Button>
-                        <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-                            <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? 'Deleting...' : 'Delete'}
-                        </Button>
+                    </PermissionGate>
+                    <PermissionGate resource="risks" action="delete">
+                        {kri.is_archived ? (
+                            <Button variant="outline" onClick={handleRestore}>
+                                <RotateCcw className="h-4 w-4 mr-1" /> Unarchive
+                            </Button>
+                        ) : (
+                            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                                <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? 'Deleting...' : 'Delete'}
+                            </Button>
+                        )}
                     </PermissionGate>
                 </div>
             </motion.div>

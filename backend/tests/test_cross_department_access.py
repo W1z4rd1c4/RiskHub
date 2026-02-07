@@ -363,3 +363,40 @@ async def test_non_owner_cannot_create_execution_for_other_dept_control(
     # Should be denied (no ownership, no dept access, and no execute permission)
     assert response.status_code in [403, 422]  # 403 or possibly permission check first
 
+
+@pytest.mark.asyncio
+async def test_risk_owner_can_restore_cross_department_archived_risk(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    second_department: Department,
+    test_user_employee: User,
+    seed_risk_types,
+):
+    """
+    Risk owner can restore an archived risk even when department-scoped to a different department.
+    Mirrors cross-department owner access policy used by risk restore endpoint.
+    """
+    risk = Risk(
+        risk_id_code="XDEPT-R-RESTORE",
+        name="Cross-Dept Archived Risk",
+        process="Cross-Dept Restore",
+        description="Archived risk in another department owned by employee",
+        department_id=second_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        category="Test",
+        gross_probability=3,
+        gross_impact=3,
+        gross_score=9,
+        net_probability=2,
+        net_impact=2,
+        net_score=4,
+        status=RiskStatus.archived.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    response = await client_employee.post(f"/api/v1/risks/{risk.id}/restore")
+    assert response.status_code == 200
+    assert response.json()["status"] == "active"

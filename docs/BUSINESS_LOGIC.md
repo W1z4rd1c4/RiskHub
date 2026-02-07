@@ -1,6 +1,6 @@
 # RiskHub Business Logic Reference
 
-> **Last Updated**: 2026-01-10  
+> **Last Updated**: 2026-02-07  
 > **Purpose**: Comprehensive reference for entity ownership, permissions, approval workflows, and role-based access rules.
 
 ---
@@ -406,19 +406,41 @@ Non-privileged users can access resources **outside their department** if they a
 
 ### 8.2 Who Can Delete (Archive) Entities
 
-| Entity | Immediate Archive | Requires Approval |
-|--------|------------------|-------------------|
-| Risk | Privileged users | Non-privileged: creates ApprovalRequest |
-| Control | Privileged users | Non-privileged: creates ApprovalRequest |
-| KRI | Privileged users | Non-privileged: creates ApprovalRequest |
+| Entity | Archive Permission | Immediate Archive | Requires Approval |
+|--------|---------------------|-------------------|-------------------|
+| Risk | `risks:delete` | Privileged users | Non-privileged: creates ApprovalRequest |
+| Control | `controls:delete` | Privileged users | Non-privileged: creates ApprovalRequest |
+| KRI | `risks:delete` | Privileged users | Non-privileged: creates ApprovalRequest |
+| Vendor | `vendors:delete` | Immediate | No |
+| Vendor SLA | `vendors:delete` | Immediate | No |
 
 > [!NOTE]
 > Deletion is implemented as **soft-delete (archival)** to preserve audit trails.
 > - Risks: `status = 'archived'`
 > - Controls: `status = 'archived'`
 > - KRIs: `is_archived = true`, `archived_at`, `archived_by_id`
+> - Vendors: `status = 'inactive'` (inactive is the archived state)
+> - Vendor SLAs: `is_archived = true`, `archived_at`, `archived_by_id`
 
-### 8.3 Approval Action Decision Tree
+### 8.3 Archived Visibility Defaults and Restore
+
+| Surface | Default Behavior | Opt-in Behavior |
+|--------|-------------------|-----------------|
+| Risks list/search | Archived hidden | `include_archived=true` includes archived risks |
+| Controls list/search | Archived hidden | `include_archived=true` includes archived controls |
+| KRIs list/detail/history | Archived hidden | `include_archived=true` allows archived KRIs within read scope |
+| Vendors list/search | Inactive hidden | `include_archived=true` includes inactive vendors |
+| Vendor SLA list | Archived hidden | `include_archived=true` includes archived SLAs |
+
+| Restore Endpoint | Required Permission | Restore State |
+|------------------|---------------------|---------------|
+| `POST /api/v1/risks/{id}/restore` | `risks:delete` | `status='active'` |
+| `POST /api/v1/controls/{id}/restore` | `controls:delete` | `status='active'` |
+| `POST /api/v1/kris/{id}/restore` | `risks:delete` | `is_archived=false`, clear archive metadata |
+| `POST /api/v1/vendors/{id}/restore` | `vendors:delete` | `status='active'` |
+| `POST /api/v1/vendor-slas/{id}/restore` | `vendors:delete` | `is_archived=false`, clear archive metadata |
+
+### 8.4 Approval Action Decision Tree
 
 ```
 User requests action (DELETE or EDIT sensitive field)
@@ -459,7 +481,7 @@ User requests action (DELETE or EDIT sensitive field)
         └───────────────────────┴─────► DONE
 ```
 
-### 8.4 KRI Value Submission Flow
+### 8.5 KRI Value Submission Flow
 
 | Submitter | Action | Approval Required |
 |-----------|--------|-------------------|
@@ -467,7 +489,7 @@ User requests action (DELETE or EDIT sensitive field)
 | Risk Owner (fallback) | Submit value | Only if risk is high-priority |
 | Privileged User | Submit value | Never (immediate) |
 
-### 8.5 Control Execution Logging
+### 8.6 Control Execution Logging
 
 | Logger | Permission Required | Department Scope |
 |--------|---------------------|------------------|
@@ -475,7 +497,7 @@ User requests action (DELETE or EDIT sensitive field)
 | Department Member | `controls:execute` | Department controls only |
 | Privileged User | `controls:execute` | All controls |
 
-### 8.6 Notification Types (Stable Keys)
+### 8.7 Notification Types (Stable Keys)
 
 Notification types are stable string keys shared across backend model, backend API schemas, and frontend TypeScript unions.
 

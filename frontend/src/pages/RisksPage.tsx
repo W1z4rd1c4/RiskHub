@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, type MouseEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import {
@@ -17,6 +17,7 @@ import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
 import type { RiskSummary, RiskStatus } from '@/types/risk';
 import { PermissionGate } from '@/components/PermissionGate';
+import { useAuth } from '@/contexts/AuthContext';
 import { SortableTable } from '@/components/tables/SortableTable';
 import { CategoryDrillDown, MiniHeatmap, ViewSwitcher, Pagination } from '@/components/tables';
 import type { ViewMode } from '@/components/tables';
@@ -47,6 +48,7 @@ export function RisksPage() {
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('active');
+    const [includeArchived, setIncludeArchived] = useState(false);
     const [typeFilter, setTypeFilter] = useState<string>('');
     const [priorityFilter, setPriorityFilter] = useState<boolean | undefined>(undefined);
     const [currentPage, setCurrentPage] = useState(1);
@@ -65,6 +67,7 @@ export function RisksPage() {
     const { riskTypes, getColor, getInitials, getDisplayName } = useRiskTypes();
     const { getScoreColor } = useRiskThresholds();
     const { t } = useTranslation('risks');
+    const { hasPermission } = useAuth();
     const limit = 10;
 
     useEffect(() => {
@@ -93,6 +96,8 @@ export function RisksPage() {
                 setIsLoading(true);
             }
 
+            const shouldIncludeArchived = includeArchived || statusFilter === 'archived';
+
             // For paginated "all" view, just fetch the current page
             if (viewMode === 'all') {
                 const skip = (currentPage - 1) * limit;
@@ -107,6 +112,7 @@ export function RisksPage() {
                     min_net_score: criticalFilter ? 15 : undefined,
                     sort_by: sortField || undefined, // Added sort_by
                     sort_order: sortDirection || undefined, // Added sort_order
+                    include_archived: shouldIncludeArchived,
                 });
 
                 const risksWithCounts = response.items.map(risk => ({
@@ -137,6 +143,7 @@ export function RisksPage() {
                         min_net_score: criticalFilter ? 15 : undefined,
                         sort_by: sortField || undefined,
                         sort_order: sortDirection || undefined,
+                        include_archived: shouldIncludeArchived,
                     });
 
                     total = response.total;
@@ -161,7 +168,18 @@ export function RisksPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, debouncedSearch, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter, sortField, sortDirection]);
+    }, [currentPage, debouncedSearch, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter, sortField, sortDirection, includeArchived]);
+
+    const handleRestoreRisk = async (riskId: number, e: MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await riskApi.restoreRisk(riskId);
+            await fetchRisks();
+        } catch (err) {
+            console.error('Failed to restore risk:', err);
+            setError(t('errors.load_failed'));
+        }
+    };
 
     useEffect(() => {
         fetchRisks();
@@ -358,13 +376,21 @@ export function RisksPage() {
         {
             key: 'actions',
             label: '',
-            render: () => (
-                <div className="text-right">
+            render: (risk) => (
+                <div className="text-right flex items-center justify-end gap-2">
+                    {risk.status === 'archived' && hasPermission('risks', 'delete') && (
+                        <button
+                            onClick={(e) => handleRestoreRisk(risk.id, e)}
+                            className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
+                        >
+                            {t('actions.unarchive', 'Unarchive')}
+                        </button>
+                    )}
                     <ChevronRight className="h-4 w-4 text-slate-500" />
                 </div>
             ),
         },
-    ], [pendingApprovalIds, getColor, getDisplayName, getInitials, getScoreColor]); // Added dependencies for useMemo
+    ], [pendingApprovalIds, getColor, getDisplayName, getInitials, getScoreColor, hasPermission, t]); // Added dependencies for useMemo
 
     // Get group by field based on view mode
     const getGroupByField = (): keyof RiskSummary | null => {
@@ -433,7 +459,12 @@ export function RisksPage() {
                 <div className="flex gap-4 items-center">
                     <ThemedSelect
                         value={statusFilter}
-                        onValueChange={(v) => { setStatusFilter(v as RiskStatus); setRisks([]); setCurrentPage(1); }}
+                        onValueChange={(v) => {
+                            setStatusFilter(v as RiskStatus);
+                            if (v === 'archived') setIncludeArchived(true);
+                            setRisks([]);
+                            setCurrentPage(1);
+                        }}
                         placeholder={t('status.active')}
                         options={[
                             { value: 'active', label: t('status.active') },
@@ -441,6 +472,14 @@ export function RisksPage() {
                             { value: 'archived', label: t('status.archived') },
                         ]}
                     />
+                    <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold px-3">
+                        <input
+                            type="checkbox"
+                            checked={includeArchived}
+                            onChange={(e) => { setIncludeArchived(e.target.checked); setRisks([]); setCurrentPage(1); }}
+                        />
+                        {t('filters.include_archived', 'Include archived')}
+                    </label>
                     <ThemedSelect
                         value={typeFilter}
                         onValueChange={(v) => { setTypeFilter(v); setRisks([]); setCurrentPage(1); }}
