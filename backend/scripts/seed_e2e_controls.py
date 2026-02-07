@@ -6,7 +6,7 @@ import asyncio
 from sqlalchemy import select
 from app.db.session import async_session_maker
 from app.models import Control, Risk, ControlRiskLink, ControlStatus
-from scripts.e2e_mappings import load_mappings
+from scripts.e2e_mappings import load_mappings, require_user_id, require_department_id
 
 
 CONTROLS = [
@@ -124,6 +124,8 @@ CONTROLS = [
     },
 ]
 
+E2E_CONTROL_NAMES = tuple(control["name"] for control in CONTROLS)
+
 
 async def seed_controls():
     """Create E2E test controls with risk linkages."""
@@ -155,8 +157,8 @@ async def seed_controls():
             dept_name = data.pop("dept")
             risk_codes = data.pop("risk_links")
             
-            owner_id = users[owner_email]
-            dept_id = depts[dept_name]
+            owner_id = require_user_id(users, owner_email)
+            dept_id = require_department_id(depts, dept_name)
             
             control = Control(
                 name=data["name"],
@@ -178,14 +180,17 @@ async def seed_controls():
                     select(Risk).where(Risk.risk_id_code == risk_code)
                 )
                 risk = result.scalar_one_or_none()
-                if risk:
-                    link = ControlRiskLink(
-                        control_id=control.id,
-                        risk_id=risk.id,
-                        effectiveness="high",
+                if not risk:
+                    raise RuntimeError(
+                        f"Deterministic control seed requires risk '{risk_code}', but it was not found."
                     )
-                    db.add(link)
-                    created_links += 1
+                link = ControlRiskLink(
+                    control_id=control.id,
+                    risk_id=risk.id,
+                    effectiveness="high",
+                )
+                db.add(link)
+                created_links += 1
             
             print(f"   ✓ {data['name'][:55]}{'...' if len(data['name']) > 55 else ''}")
         
@@ -193,6 +198,7 @@ async def seed_controls():
         
         print(f"\n✅ Created {created_controls} controls, {created_links} risk links")
         print(f"   Skipped {skipped} existing")
+        return {"created": created_controls, "links_created": created_links, "skipped": skipped}
 
 
 if __name__ == "__main__":

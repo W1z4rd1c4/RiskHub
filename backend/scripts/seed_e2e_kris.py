@@ -6,7 +6,7 @@ import asyncio
 from sqlalchemy import select
 from app.db.session import async_session_maker
 from app.models import KeyRiskIndicator, Risk
-from scripts.e2e_mappings import load_mappings
+from scripts.e2e_mappings import load_mappings, require_user_id
 
 
 KRIS = [
@@ -122,6 +122,8 @@ KRIS = [
     },
 ]
 
+E2E_KRI_NAMES = tuple(kri["name"] for kri in KRIS)
+
 
 async def seed_kris():
     """Create E2E test KRIs linked to risks."""
@@ -154,12 +156,13 @@ async def seed_kris():
             )
             risk = result.scalar_one_or_none()
             if not risk:
-                print(f"   ⚠️ Risk {risk_code} not found, skipping {data['name']}")
-                continue
+                raise RuntimeError(
+                    f"Deterministic KRI seed requires risk '{risk_code}', but it was not found."
+                )
             
             # Resolve reporting owner
             reporting_owner_email = data.pop("reporting_owner")
-            reporting_owner_id = users.get(reporting_owner_email)
+            reporting_owner_id = require_user_id(users, reporting_owner_email)
             
             kri = KeyRiskIndicator(
                 metric_name=data["name"],
@@ -179,6 +182,7 @@ async def seed_kris():
         await db.commit()
         
         print(f"\n✅ Created {created} KRIs, skipped {skipped} existing")
+        return {"created": created, "skipped": skipped}
 
 
 if __name__ == "__main__":
