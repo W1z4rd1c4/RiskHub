@@ -12,6 +12,7 @@ from app.models import User, RiskTypeConfig, GlobalConfig, ApprovalScenario, Ris
 from app.models.role import RoleType
 from app.api.deps import get_current_user
 from app.core.activity_logger import log_activity
+from app.core.policy import PROTECTED_SYSTEM_ROLES
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.riskhub import (
     RiskTypeRead, RiskTypeCreate, RiskTypeUpdate, PublicRiskTypeRead,
@@ -951,8 +952,7 @@ async def delete_role(
         raise HTTPException(status_code=404, detail="Role not found")
     
     # Protected roles cannot be deleted
-    protected_roles = {"admin", "cro", "viewer", "internal_audit"}
-    if role.is_system or role.name in protected_roles:
+    if role.is_system or role.name in PROTECTED_SYSTEM_ROLES:
         raise HTTPException(
             status_code=400, 
             detail=f"Cannot delete protected system role: {role.display_name}"

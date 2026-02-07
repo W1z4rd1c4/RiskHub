@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.role import Role
+from app.models.role import Role, RoleType
 from app.models.user import User
 
 @pytest.mark.asyncio
@@ -61,6 +61,22 @@ async def test_delete_role_soft(
     result = await db_session.execute(select(Role).where(Role.id == role.id))
     updated_role = result.scalar_one()
     assert updated_role.is_active is False
+
+
+@pytest.mark.asyncio
+async def test_delete_protected_role_is_blocked(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+):
+    """Protected roles cannot be deleted even if not marked as system roles."""
+    role = Role(name=RoleType.VIEWER, display_name="Viewer", is_system=False, is_active=True)
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    response = await client_cro.delete(f"/api/v1/riskhub/roles/{role.id}")
+    assert response.status_code == 400
+    assert "Cannot delete protected system role" in response.json()["detail"]
 
 @pytest.mark.asyncio
 async def test_create_role_invalid_permission_ids(

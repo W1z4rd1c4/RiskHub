@@ -36,6 +36,8 @@ async def test_major_vendor_incident_triggers_reassessment_and_notification(
     compliance_role = Role(name="compliance", display_name="Compliance", description="Compliance")
     db_session.add_all([rm_role, compliance_role])
     await db_session.commit()
+    await _grant(db_session, rm_role, "vendors", "read")
+    await _grant(db_session, compliance_role, "vendors", "read")
 
     rm_user = User(
         name="RM",
@@ -54,6 +56,19 @@ async def test_major_vendor_incident_triggers_reassessment_and_notification(
         access_scope=AccessScope.GLOBAL,
     )
     db_session.add_all([rm_user, compliance_user])
+    other_department = Department(name="Other Dept (Incident notif)", code="VINC2", description="Other dept")
+    db_session.add(other_department)
+    await db_session.commit()
+    await db_session.refresh(other_department)
+    rm_other_dept = User(
+        name="RM Other Dept",
+        email="rm_other_dept_incident@test.com",
+        department_id=other_department.id,
+        role_id=rm_role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(rm_other_dept)
     await db_session.commit()
 
     vendor = Vendor(
@@ -94,4 +109,6 @@ async def test_major_vendor_incident_triggers_reassessment_and_notification(
 
     notifications = (await db_session.execute(select(Notification))).scalars().all()
     assert any(n.type == NotificationType.VENDOR_REASSESSMENT_DUE_SOON and n.user_id == test_user_employee.id for n in notifications)
-
+    assert not any(
+        n.type == NotificationType.VENDOR_REASSESSMENT_DUE_SOON and n.user_id == rm_other_dept.id for n in notifications
+    )

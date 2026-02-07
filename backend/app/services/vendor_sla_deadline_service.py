@@ -10,9 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.i18n import t
-from app.models import User, Vendor
+from app.models import User
 from app.models.notification import Notification, NotificationType
-from app.models.role import Role, RoleType
+from app.models.role import Role, RoleType, RolePermission
 from app.models.vendor_sla import VendorSLA
 from app.models.global_config import ConfigDefaults, get_config_float, get_config_int
 from app.services.notification_service import NotificationService
@@ -62,10 +62,11 @@ class VendorSLADeadlineService:
     @staticmethod
     async def _users_by_roles(db: AsyncSession, roles: set[RoleType]) -> list[User]:
         role_names = [r.value for r in roles]
+        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
         stmt = (
             select(User)
             .join(Role, User.role_id == Role.id)
-            .options(selectinload(User.role))
+            .options(permission_load)
             .where(User.is_active == True)
             .where(Role.name.in_(role_names))
         )
@@ -97,7 +98,25 @@ class VendorSLADeadlineService:
         slas = (await db.execute(stmt)).scalars().all()
         results["total_checked"] = len(slas)
 
-        governance_recipients = await VendorSLADeadlineService._users_by_roles(db, {RoleType.RISK_MANAGER, RoleType.COMPLIANCE})
+        governance_recipients = await VendorSLADeadlineService._users_by_roles(
+            db, {RoleType.RISK_MANAGER, RoleType.COMPLIANCE}
+        )
+        visibility_cache: dict[tuple[int, int], bool] = {}
+
+        owner_ids: set[int] = set()
+        for sla in slas:
+            if sla.reporting_owner_id:
+                owner_ids.add(sla.reporting_owner_id)
+            if sla.vendor and sla.vendor.outsourcing_owner_user_id:
+                owner_ids.add(sla.vendor.outsourcing_owner_user_id)
+
+        owners_by_id: dict[int, User] = {}
+        if owner_ids:
+            permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+            owners = (
+                await db.execute(select(User).options(permission_load).where(User.id.in_(owner_ids)))
+            ).scalars().all()
+            owners_by_id = {owner.id: owner for owner in owners}
 
         for sla in slas:
             try:
@@ -105,9 +124,9 @@ class VendorSLADeadlineService:
                 if not vendor:
                     continue
 
-                reporting_owner = sla.reporting_owner
+                reporting_owner = owners_by_id.get(sla.reporting_owner_id) if sla.reporting_owner_id else None
                 if not reporting_owner and vendor.outsourcing_owner_user_id:
-                    reporting_owner = (await db.execute(select(User).where(User.id == vendor.outsourcing_owner_user_id))).scalar_one_or_none()
+                    reporting_owner = owners_by_id.get(vendor.outsourcing_owner_user_id)
 
                 if not reporting_owner:
                     continue
@@ -136,9 +155,10 @@ class VendorSLADeadlineService:
                         lookback_days=config["duplicate_lookback_days"],
                         now=now,
                     ):
-                        created = await NotificationService.create_notification(
+                        created = await NotificationService.create_vendor_notification_if_visible(
                             db=db,
-                            user_id=reporting_owner.id,
+                            user=reporting_owner,
+                            vendor_id=vendor_id,
                             notification_type=NotificationType.VENDOR_SLA_DUE_TOMORROW,
                             title=t("notifications.vendor_sla_due_tomorrow_title", locale=locale),
                             message=t(
@@ -148,9 +168,8 @@ class VendorSLADeadlineService:
                                 sla_name=sla.metric_name,
                                 due_date=due_str,
                             ),
-                            resource_type="vendor",
-                            resource_id=vendor_id,
                             created_at=now,
+                            visibility_cache=visibility_cache,
                         )
                         if created:
                             results["due_tomorrow"] += 1
@@ -164,9 +183,10 @@ class VendorSLADeadlineService:
                         lookback_days=config["duplicate_lookback_days"],
                         now=now,
                     ):
-                        created = await NotificationService.create_notification(
+                        created = await NotificationService.create_vendor_notification_if_visible(
                             db=db,
-                            user_id=reporting_owner.id,
+                            user=reporting_owner,
+                            vendor_id=vendor_id,
                             notification_type=NotificationType.VENDOR_SLA_DUE_SOON,
                             title=t("notifications.vendor_sla_due_soon_title", locale=locale),
                             message=t(
@@ -176,9 +196,8 @@ class VendorSLADeadlineService:
                                 sla_name=sla.metric_name,
                                 due_date=due_str,
                             ),
-                            resource_type="vendor",
-                            resource_id=vendor_id,
                             created_at=now,
+                            visibility_cache=visibility_cache,
                         )
                         if created:
                             results["due_soon"] += 1
@@ -192,9 +211,10 @@ class VendorSLADeadlineService:
                         lookback_days=config["duplicate_lookback_days"],
                         now=now,
                     ):
-                        created = await NotificationService.create_notification(
+                        created = await NotificationService.create_vendor_notification_if_visible(
                             db=db,
-                            user_id=reporting_owner.id,
+                            user=reporting_owner,
+                            vendor_id=vendor_id,
                             notification_type=NotificationType.VENDOR_SLA_OVERDUE,
                             title=t("notifications.vendor_sla_overdue_title", locale=locale),
                             message=t(
@@ -204,9 +224,8 @@ class VendorSLADeadlineService:
                                 sla_name=sla.metric_name,
                                 due_date=due_str,
                             ),
-                            resource_type="vendor",
-                            resource_id=vendor_id,
                             created_at=now,
+                            visibility_cache=visibility_cache,
                         )
                         if created:
                             results["overdue"] += 1
@@ -223,9 +242,10 @@ class VendorSLADeadlineService:
                         now=now,
                     ):
                         # Reporting owner
-                        await NotificationService.create_notification(
+                        await NotificationService.create_vendor_notification_if_visible(
                             db=db,
-                            user_id=reporting_owner.id,
+                            user=reporting_owner,
+                            vendor_id=vendor_id,
                             notification_type=NotificationType.VENDOR_SLA_BREACH_DETECTED,
                             title=t("notifications.vendor_sla_breach_detected_title", locale=locale),
                             message=t(
@@ -234,21 +254,19 @@ class VendorSLADeadlineService:
                                 vendor_name=vendor.name,
                                 sla_name=sla.metric_name,
                             ),
-                            resource_type="vendor",
-                            resource_id=vendor_id,
                             created_at=now,
+                            visibility_cache=visibility_cache,
                         )
 
                         # Outsourcing owner (visibility)
                         if vendor.outsourcing_owner_user_id and vendor.outsourcing_owner_user_id != reporting_owner.id:
-                            owner = (
-                                await db.execute(select(User).where(User.id == vendor.outsourcing_owner_user_id))
-                            ).scalar_one_or_none()
+                            owner = owners_by_id.get(vendor.outsourcing_owner_user_id)
                             if owner:
                                 owner_locale = getattr(owner, "preferred_language", None) or "en"
-                                await NotificationService.create_notification(
+                                await NotificationService.create_vendor_notification_if_visible(
                                     db=db,
-                                    user_id=owner.id,
+                                    user=owner,
+                                    vendor_id=vendor_id,
                                     notification_type=NotificationType.VENDOR_SLA_BREACH_DETECTED,
                                     title=t("notifications.vendor_sla_breach_detected_title", locale=owner_locale),
                                     message=t(
@@ -257,9 +275,8 @@ class VendorSLADeadlineService:
                                         vendor_name=vendor.name,
                                         sla_name=sla.metric_name,
                                     ),
-                                    resource_type="vendor",
-                                    resource_id=vendor_id,
                                     created_at=now,
+                                    visibility_cache=visibility_cache,
                                 )
 
                         # Risk Manager / Compliance fan-out
@@ -267,9 +284,10 @@ class VendorSLADeadlineService:
                             if gov.id in {reporting_owner.id, vendor.outsourcing_owner_user_id}:
                                 continue
                             gov_locale = getattr(gov, "preferred_language", None) or "en"
-                            await NotificationService.create_notification(
+                            await NotificationService.create_vendor_notification_if_visible(
                                 db=db,
-                                user_id=gov.id,
+                                user=gov,
+                                vendor_id=vendor_id,
                                 notification_type=NotificationType.VENDOR_SLA_BREACH_DETECTED,
                                 title=t("notifications.vendor_sla_breach_detected_title", locale=gov_locale),
                                 message=t(
@@ -278,9 +296,8 @@ class VendorSLADeadlineService:
                                     vendor_name=vendor.name,
                                     sla_name=sla.metric_name,
                                 ),
-                                resource_type="vendor",
-                                resource_id=vendor_id,
                                 created_at=now,
+                                visibility_cache=visibility_cache,
                             )
 
                         results["breached"] += 1
@@ -297,9 +314,10 @@ class VendorSLADeadlineService:
                                 lookback_days=config["duplicate_lookback_days"],
                                 now=now,
                             ):
-                                created = await NotificationService.create_notification(
+                                created = await NotificationService.create_vendor_notification_if_visible(
                                     db=db,
-                                    user_id=reporting_owner.id,
+                                    user=reporting_owner,
+                                    vendor_id=vendor_id,
                                     notification_type=NotificationType.VENDOR_SLA_NEAR_BREACH,
                                     title=t("notifications.vendor_sla_near_breach_title", locale=locale),
                                     message=t(
@@ -308,9 +326,8 @@ class VendorSLADeadlineService:
                                         vendor_name=vendor.name,
                                         sla_name=sla.metric_name,
                                     ),
-                                    resource_type="vendor",
-                                    resource_id=vendor_id,
                                     created_at=now,
+                                    visibility_cache=visibility_cache,
                                 )
                                 if created:
                                     results["near_breach"] += 1

@@ -54,6 +54,20 @@ async def test_vendor_assessment_workflow_transitions_and_notifications(
     db_session.add(compliance_user)
     await db_session.commit()
     await db_session.refresh(compliance_user)
+    other_department = Department(name="Other Dept (Assessment notif)", code="VASS2", description="Other dept")
+    db_session.add(other_department)
+    await db_session.commit()
+    await db_session.refresh(other_department)
+    rm_other_dept = User(
+        name="RM Other Dept",
+        email="rm_other_dept_assessment@test.com",
+        department_id=other_department.id,
+        role_id=test_role_risk_manager.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(rm_other_dept)
+    await db_session.commit()
 
     vendor = Vendor(
         name="Acme ICT",
@@ -142,6 +156,6 @@ async def test_vendor_assessment_workflow_transitions_and_notifications(
     assert any(n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == test_user_risk_manager.id for n in notifications)
     assert any(n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == compliance_user.id for n in notifications)
     assert any(n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == test_user_cro.id for n in notifications)
+    assert not any(n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == rm_other_dept.id for n in notifications)
     assert any(n.type == NotificationType.VENDOR_ASSESSMENT_COMMITTEE_RECOMMENDED and n.user_id == test_user_cro.id for n in notifications)
     assert any(n.type == NotificationType.VENDOR_ASSESSMENT_DECIDED and n.user_id == test_user_employee.id for n in notifications)
-
