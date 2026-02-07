@@ -64,8 +64,8 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 157: Business Logic Compliance** — Fix BUSINESS_LOGIC.md discrepancies (6/6)
 - [x] **Phase 158: Audit** — Full-app audit findings → 10 independent fix plans (10/10)
 - [x] **Phase 159: Audit Fixes** — Fix Phase 158 code review findings (10/10)
-- [ ] **Phase 179: E2E Test Data** — E2E test data seeding (11/12)
-- [ ] **Phase 180: E2E Business Logic** — E2E business logic tests (9/10)
+- [ ] **Phase 179: E2E Test Data** — E2E test data seeding (16/17)
+- [ ] **Phase 180: E2E Business Logic** — E2E business logic tests (9/15)
 - [ ] **Phase 200: Entity Naming Enforcement** — Mandatory naming (9/10)
 - [ ] **Phase 201: Archived Visibility + Restore** — Archive toggle parity and unarchive flows (4/5)
 - [x] **Phase 250: Spaghetti Simplification** — Code simplification (10/10)
@@ -809,8 +809,8 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 157. Business Logic Compliance | 6/6 | ✅ Complete | 2026-01-22 |
 | 158. Audit | 10/10 | ✅ Complete | 2026-01-19 |
 | 159. Audit Fixes | 10/10 | ✅ Complete | 2026-01-23 |
-| 179. E2E Test Data | 11/12 | ⏳ In progress | - |
-| 180. E2E Business Logic | 9/10 | ⏳ In progress | - |
+| 179. E2E Test Data | 16/17 | ⏳ In progress | - |
+| 180. E2E Business Logic | 9/15 | ⏳ In progress | - |
 | 200. Entity Naming | 9/10 | ⏳ In progress | - |
 | 201. Archived Visibility + Restore | 4/5 | ⏳ In progress | - |
 | 250. Spaghetti Simplification | 10/10 | ✅ Complete | 2026-01-10 |
@@ -821,7 +821,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 **Goal**: Create comprehensive insurance risk data (risks, controls, KRIs) with cross-department ownership to enable E2E tests that currently skip due to missing data.
 **Depends on**: Phase 180 (E2E Business Logic Testing)
 **Research**: None (data based on Slavia Pojišťovna insurance operations research)
-**Plans**: 12 plans
+**Plans**: 17 plans
 
 Plans:
 
@@ -837,13 +837,18 @@ Plans:
 - [x] 179-09: Sensitive Field Approval Data (pending approvals for owner/dept changes)
 - [x] 179-10: Permission-Gated Action Data (delete approvals, control executions, KRI corrections)
 - [x] 179-11: Deterministic Cross-Department Scenarios (known user-entity ownership)
+- [x] 179-12: Fresh DB Foundation Hardening (strict prerequisites, no user/department creation)
+- [x] 179-13: Deterministic Vendor Seed Matrix (active + inactive/archive semantics)
+- [x] 179-14: Deterministic Vendor SLA Seed Matrix (active + archived)
+- [x] 179-15: Deterministic Archive Matrix Seeding (risk/control/kri/vendor/vendor-sla)
+- [x] 179-16: Orchestration Finalization + Idempotency + State Reconciliation
 
 ### Phase 180: E2E Business Logic Testing
 
 **Goal**: Comprehensive E2E test suite covering all business logic defined in docs/BUSINESS_LOGIC.md
 **Depends on**: Phase 5 (Automated Testing), Phase 8 (Permission Filtering)
 **Research**: None
-**Plans**: 10 plans
+**Plans**: 15 plans
 
 Plans:
 
@@ -857,6 +862,11 @@ Plans:
 - [x] 180-08: Suite Integration & Full Regression (CI config, docs)
 - [x] 180-09: E2E Test Data Verification (verify Phase 179 data enables tests)
 - [ ] 180-10: E2E Test Updates for Deterministic Scenarios (use Phase 179 seeded data)
+- [ ] 180-11: Deterministic E2E Fixture Constants (all entity families + archive variants)
+- [ ] 180-12: Deterministic Risk/Control/KRI Spec Refactor (reduce skip-driven paths)
+- [ ] 180-13: Vendor + Vendor SLA E2E Coverage (visibility/archive/restore/RBAC)
+- [ ] 180-14: Archive Visibility & Restore Matrix Across Surfaces (list/search/link)
+- [ ] 180-15: Full Verification + Skip Budget + Docs/State Reconciliation
 
 ### Phase 200: Entity Naming Enforcement
 

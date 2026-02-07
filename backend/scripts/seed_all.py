@@ -43,8 +43,11 @@ async def seed_all():
     # Optional: E2E test data seeding
     if os.environ.get('SEED_E2E_DATA', '').lower() == 'true':
         print("\n7️⃣  Seeding E2E test data...")
+        print("   (E2E scripts only reuse existing users/departments from base seed)")
         from seed_e2e_all import seed_e2e_all
-        await seed_e2e_all()
+        e2e_status = await seed_e2e_all()
+        if e2e_status != 0:
+            raise RuntimeError("E2E seeding failed. Resolve prerequisites/errors and rerun.")
     
     print("\n" + "=" * 60)
     print("✅ ALL DATA SEEDED SUCCESSFULLY!")
