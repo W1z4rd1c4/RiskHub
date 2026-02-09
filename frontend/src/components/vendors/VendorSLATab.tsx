@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { Activity, BadgeCheck, Clock, Loader2, Plus, RefreshCcw } from 'lucide-react';
 import { vendorSlaApi } from '@/services/vendorSlaApi';
@@ -35,16 +35,22 @@ export function VendorSLATab({ vendorId, canEditVendor }: VendorSLATabProps) {
 
     const [selected, setSelected] = useState<VendorSLA | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const latestRequestIdRef = useRef(0);
 
     const refresh = useCallback(async () => {
+        const requestId = ++latestRequestIdRef.current;
         try {
             setIsLoading(true);
             const data = await vendorSlaApi.list({ vendor_id: vendorId, include_archived: includeArchived });
-            setItems(data);
+            if (requestId === latestRequestIdRef.current) {
+                setItems(data);
+            }
         } catch (err) {
             console.error('Failed to load vendor SLAs:', err);
         } finally {
-            setIsLoading(false);
+            if (requestId === latestRequestIdRef.current) {
+                setIsLoading(false);
+            }
         }
     }, [vendorId, includeArchived]);
 

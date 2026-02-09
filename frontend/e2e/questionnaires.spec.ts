@@ -46,17 +46,23 @@ test.describe('questionnaire workflow', () => {
         await page.getByRole('button', { name: /Open/i }).click();
 
         // Fill required questions in the modal
-        const selectOption = async (questionText: string, optionText: string) => {
+        const selectOption = async (questionText: string, optionText: string | RegExp) => {
             const container = page.getByText(questionText, { exact: true }).locator('..').locator('..');
             const combobox = container.getByRole('combobox');
             await combobox.scrollIntoViewIfNeeded();
             await combobox.focus();
             await combobox.press('Enter');
-            await page.getByRole('option', { name: optionText, exact: true }).click();
+            if (typeof optionText === 'string') {
+                await page.getByRole('option', { name: optionText, exact: true }).click();
+                return;
+            }
+            await page.getByRole('option', { name: optionText }).click();
         };
 
         await selectOption('Has the risk description or scope changed since last review?', 'No');
         await selectOption('Are the existing controls still effective?', 'Yes');
+        await selectOption('Likelihood (next 12 months) — 1 to 5', /3\s+—/);
+        await selectOption('Worst-case financial impact — 1 to 5', /3\s+—/);
         await selectOption('Expected trend over the next quarter', 'Stable');
 
         await page
@@ -71,7 +77,7 @@ test.describe('questionnaire workflow', () => {
             page
                 .getByText('Status:', { exact: true })
                 .locator('..')
-                .getByText('submitted', { exact: true })
+                .getByText(/submitted/i)
         ).toBeVisible({ timeout: 15000 });
 
         await page.getByRole('button', { name: /Close/i }).click();

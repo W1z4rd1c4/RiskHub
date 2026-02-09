@@ -26,7 +26,16 @@ export class RisksPage {
     }
 
     get searchInput(): Locator {
-        return this.page.locator('input[placeholder*="Search"], input[type="search"]');
+        return this.page.locator(
+            [
+                '[data-testid="search-input"]',
+                'input[placeholder*="Search"]',
+                'input[placeholder*="Hledat"]',
+                'input[aria-label*="Search"]',
+                'input[aria-label*="Hledat"]',
+                'input[type="search"]',
+            ].join(', ')
+        ).first();
     }
 
     get createButton(): Locator {
@@ -56,13 +65,22 @@ export class RisksPage {
     // Actions
     async navigate(): Promise<void> {
         await this.page.goto('/risks');
-        await waitForDataLoad(this.page);
+        await this.waitForListReady();
+    }
+
+    async waitForListReady(timeout = 15000): Promise<void> {
+        await waitForDataLoad(this.page, timeout);
+        await Promise.race([
+            this.table.waitFor({ state: 'visible', timeout }),
+            this.page.locator('[class*="card"], [class*="Card"]').first().waitFor({ state: 'visible', timeout }),
+        ]).catch(() => undefined);
     }
 
     async search(query: string): Promise<void> {
+        await expect(this.searchInput).toBeVisible({ timeout: 10000 });
         await this.searchInput.fill(query);
         await this.page.waitForTimeout(500); // Debounce
-        await waitForDataLoad(this.page);
+        await this.waitForListReady();
     }
 
     async clearSearch(): Promise<void> {
@@ -86,9 +104,15 @@ export class RisksPage {
     }
 
     async openRowByText(text: string): Promise<void> {
-        const row = this.rowByText(text);
-        const visible = await row.isVisible().catch(() => false);
-        if (!visible) {
+        let row = this.rowByText(text);
+        const visibleWithoutSearch = await row.isVisible({ timeout: 3000 }).catch(() => false);
+        if (!visibleWithoutSearch) {
+            await this.search(text);
+            row = this.rowByText(text);
+        }
+        try {
+            await expect(row).toBeVisible({ timeout: 10000 });
+        } catch {
             throw new Error(`Risk row not found for deterministic fixture: ${text}`);
         }
         await row.click();
