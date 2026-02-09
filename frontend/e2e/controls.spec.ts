@@ -1,7 +1,7 @@
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_CONTROLS } from './fixtures/e2e-data';
 import { ControlsPage } from './pages/ControlsPage';
-import { waitForTableRowByText } from './helpers/wait';
+import { waitForDataLoad, waitForTableRowByText } from './helpers/wait';
 
 test.describe('Control Management (Deterministic)', () => {
     test('Control list renders seeded active control', async ({ riskManagerPage }) => {
@@ -38,7 +38,8 @@ test.describe('Control Management (Deterministic)', () => {
         await expect(controlsPage.rowByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name)).toBeVisible();
         await controlsPage.openRowByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name);
         await expect(riskManagerPage).toHaveURL(/\/controls\/\d+$/);
-        await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
+        await waitForDataLoad(riskManagerPage, 15000);
+        await expect(riskManagerPage.getByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name).first()).toBeVisible({ timeout: 15000 });
     });
 
     test('Archived control row exposes unarchive action for privileged users', async ({ riskManagerPage }) => {

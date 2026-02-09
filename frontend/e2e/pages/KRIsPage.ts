@@ -26,13 +26,30 @@ export class KRIsPage {
     }
 
     get searchInput(): Locator {
-        return this.page.locator('input[placeholder*="Search"], input[type="search"]');
+        return this.page.locator(
+            [
+                '[data-testid="kri-search-input"]',
+                'input[placeholder*="Search"]',
+                'input[placeholder*="Hledat"]',
+                'input[aria-label*="Search"]',
+                'input[aria-label*="Hledat"]',
+                'input[type="search"]',
+            ].join(', ')
+        ).first();
     }
 
     get createButton(): Locator {
         return this.page.locator(
-            'button:has-text("New KRI"), button:has-text("Nové KRI"), a:has-text("New KRI"), a:has-text("Nové KRI")',
-        );
+            [
+                'button:has-text("New KRI")',
+                'button:has-text("Nový KRI")',
+                'button:has-text("Nové KRI")',
+                'a:has-text("New KRI")',
+                'a:has-text("Nový KRI")',
+                'a:has-text("Nové KRI")',
+                '[href="/kris/new"]',
+            ].join(', ')
+        ).first();
     }
 
     get includeArchivedCheckbox(): Locator {
@@ -75,8 +92,24 @@ export class KRIsPage {
     }
 
     async search(query: string): Promise<void> {
+        await expect(this.searchInput).toBeVisible({ timeout: 10000 });
         await this.searchInput.fill(query);
-        await this.page.waitForTimeout(500); // Debounce
+        const normalizedQuery = query.trim().toLowerCase();
+        await Promise.all([
+            this.page.waitForResponse((response) => {
+                if (response.request().method() !== 'GET') return false;
+                if (!response.url().includes('/api/v1/kris')) return false;
+                if (!normalizedQuery) return true;
+                try {
+                    const url = new URL(response.url());
+                    const searchParam = (url.searchParams.get('search') || '').toLowerCase();
+                    return searchParam.includes(normalizedQuery);
+                } catch {
+                    return false;
+                }
+            }, { timeout: 15000 }).catch(() => undefined),
+            this.page.waitForTimeout(500), // Debounce + request dispatch
+        ]);
         await this.waitForListReady();
     }
 
@@ -110,17 +143,37 @@ export class KRIsPage {
     async openRowByText(text: string): Promise<void> {
         await this.waitForListReady();
         const row = this.rowByText(text);
-        await row.waitFor({ state: 'visible', timeout: 6000 }).catch(() => undefined);
+        await row.waitFor({ state: 'visible', timeout: 10000 }).catch(() => undefined);
         const rowVisible = await row.isVisible().catch(() => false);
         if (rowVisible) {
-            await row.click();
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    await this.rowByText(text).click({ timeout: 8000 });
+                    break;
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    const detached = message.includes('detached from the DOM');
+                    if (!detached || attempt === 3) throw error;
+                    await this.waitForListReady();
+                }
+            }
         } else {
             const card = this.cards.filter({ hasText: text }).first();
             const cardVisible = await card.isVisible().catch(() => false);
             if (!cardVisible) {
                 throw new Error(`KRI row not found for deterministic fixture: ${text}`);
             }
-            await card.click();
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    await this.cards.filter({ hasText: text }).first().click({ timeout: 8000 });
+                    break;
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    const detached = message.includes('detached from the DOM');
+                    if (!detached || attempt === 3) throw error;
+                    await this.waitForListReady();
+                }
+            }
         }
         await this.page.waitForURL(/.*kris\/\d+/);
         await waitForDataLoad(this.page);

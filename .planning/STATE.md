@@ -198,12 +198,14 @@
 ### Last Action
 
 - Executed Phase 179 extension plans 179-12..179-16: hardened prerequisites, added deterministic vendor/vendor-SLA/archive matrix seeding, and validated end-to-end seeding via `venv/bin/python -m scripts.seed_e2e_all` (2026-02-07).
-- Executed Phase 180 extension plans 180-10..180-14 and implemented 180-15 setup/docs reconciliation: introduced deterministic fixture constants, refactored skip-heavy suites to deterministic selectors, added vendor/vendor-SLA archive coverage, and integrated global setup preflight checks for seeded fixture availability (2026-02-07). Full 180-15 runtime verification is blocked by backend `GET /api/v1/controls` returning HTTP 500.
+- Executed Phase 180 extension plans 180-10..180-14 and implemented 180-15 setup/docs reconciliation: introduced deterministic fixture constants, refactored skip-heavy suites to deterministic selectors, added vendor/vendor-SLA archive coverage, and integrated global setup preflight checks for seeded fixture availability (2026-02-07).
+- Executed 180-16 stabilization follow-up for `kri-owner-access`: refactored to deterministic fixture-driven navigation/assertions and removed brittle shell-content checks. Focused and stress runs passed (`6/6`, `30/30`), while broader/full verification exposed additional unrelated parallel flakes in other specs (2026-02-09).
+- Executed next blocker fix (item 1) for `cross-department/control-owner-access`: patched `ControlsPage` search locator for localized UI (`Hledat`) and added visible-wait before fill; target spec now passes (`4/4`) and the prior timeout is removed from blockers (2026-02-09).
 
 ### Next Step
 
-- Fix backend `GET /api/v1/controls` HTTP 500 in the current environment, rerun Phase 180 targeted Playwright verification, then close 180-15.
+- Stabilize remaining non-`kri-owner-access` parallel flakes in `controls.spec.ts`, `permissions/kris-crud.spec.ts`, and `risks.spec.ts`; rerun `make test-e2e` and close 180-15 once full-suite verification is clean.
 
 ---
 
-*Updated: 2026-02-07*
+*Updated: 2026-02-09*

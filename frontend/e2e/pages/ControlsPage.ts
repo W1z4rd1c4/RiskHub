@@ -26,7 +26,14 @@ export class ControlsPage {
     }
 
     get searchInput(): Locator {
-        return this.page.locator('input[placeholder*="Search"], input[type="search"]');
+        return this.page.locator(
+            '[data-testid="search-input"], ' +
+            'input[placeholder*="Search"], ' +
+            'input[placeholder*="Hledat"], ' +
+            'input[aria-label*="Search"], ' +
+            'input[aria-label*="Hledat"], ' +
+            'input[type="search"]'
+        ).first();
     }
 
     get createButton(): Locator {
@@ -56,8 +63,24 @@ export class ControlsPage {
     }
 
     async search(query: string): Promise<void> {
+        await expect(this.searchInput).toBeVisible({ timeout: 10000 });
         await this.searchInput.fill(query);
-        await this.page.waitForTimeout(500); // Debounce
+        const normalizedQuery = query.trim().toLowerCase();
+        await Promise.all([
+            this.page.waitForResponse((response) => {
+                if (response.request().method() !== 'GET') return false;
+                if (!response.url().includes('/api/v1/controls')) return false;
+                if (!normalizedQuery) return true;
+                try {
+                    const url = new URL(response.url());
+                    const searchParam = (url.searchParams.get('search') || '').toLowerCase();
+                    return searchParam.includes(normalizedQuery);
+                } catch {
+                    return false;
+                }
+            }, { timeout: 15000 }).catch(() => undefined),
+            this.page.waitForTimeout(500), // Debounce + request dispatch
+        ]);
         await waitForDataLoad(this.page);
     }
 
@@ -88,9 +111,21 @@ export class ControlsPage {
         } catch {
             throw new Error(`Control row not found for deterministic fixture: ${text}`);
         }
-        await row.click();
-        await this.page.waitForURL(/.*controls\/\d+/);
-        await waitForDataLoad(this.page);
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                await this.rowByText(text).click({ timeout: 8000 });
+                await this.page.waitForURL(/.*controls\/\d+/, { timeout: 10000 });
+                await waitForDataLoad(this.page);
+                return;
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                const detached = message.includes('detached from the DOM');
+                if (!detached || attempt === 3) {
+                    throw error;
+                }
+                await waitForDataLoad(this.page);
+            }
+        }
     }
 
     async clickCreateButton(): Promise<void> {

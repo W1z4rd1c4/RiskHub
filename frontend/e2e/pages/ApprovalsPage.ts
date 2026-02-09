@@ -135,8 +135,19 @@ export class ApprovalsPage {
      */
     async getActionType(index: number): Promise<string> {
         const card = this.getCard(index);
-        const actionBadge = card.locator('.rounded:has(.lucide-trash-2), .rounded:has(.lucide-edit)');
-        return (await actionBadge.textContent() ?? '').toLowerCase().trim();
+        const actionBadge = card.locator(
+            '.rounded:has(.lucide-trash-2), .rounded:has(.lucide-edit), ' +
+            '.rounded:has-text("delete"), .rounded:has-text("edit")'
+        ).first();
+        const badgeText = (await actionBadge.textContent().catch(() => ''))?.toLowerCase().trim() ?? '';
+        if (badgeText.includes('delete') || badgeText.includes('edit')) {
+            return badgeText;
+        }
+
+        const cardText = (await card.textContent() ?? '').toLowerCase();
+        if (cardText.includes('delete')) return 'delete';
+        if (cardText.includes('edit')) return 'edit';
+        return '';
     }
 
     /**
