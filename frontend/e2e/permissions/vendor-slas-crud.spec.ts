@@ -75,7 +75,7 @@ async function ensureVendorSlaArchived(
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
             });
-            if (!(archiveResponse.ok || archiveResponse.status === 204)) {
+            if (!(archiveResponse.ok || archiveResponse.status === 204 || archiveResponse.status === 400)) {
                 throw new Error(`Failed to archive SLA ${sla.id}: ${archiveResponse.status}`);
             }
         } else {
@@ -87,10 +87,17 @@ async function ensureVendorSlaArchived(
                 },
                 body: JSON.stringify({}),
             });
-            if (!restoreResponse.ok) {
+            if (!(restoreResponse.ok || restoreResponse.status === 400)) {
                 throw new Error(`Failed to restore SLA ${sla.id}: ${restoreResponse.status}`);
             }
         }
+    }
+
+    const finalArchived = await getVendorSlaArchivedState(vendorRegistrationId, metricName);
+    if (finalArchived !== archived) {
+        throw new Error(
+            `SLA '${metricName}' expected archived=${archived} but got archived=${finalArchived}`
+        );
     }
 
     return { vendorId, slaId: sla.id };
@@ -118,6 +125,8 @@ async function getVendorSlaArchivedState(
 }
 
 test.describe('Vendor SLA CRUD Permissions (Deterministic)', () => {
+    test.describe.configure({ mode: 'serial' });
+
     let vendorId: number;
 
     test.beforeEach(async () => {

@@ -9,6 +9,7 @@ import { waitForDataLoad } from './helpers/wait';
 import { RisksPage } from './pages/RisksPage';
 import { ControlsPage } from './pages/ControlsPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { E2E_RISKS } from './fixtures/e2e-data';
 
 test.describe('Access Scope Visibility', () => {
 
@@ -41,20 +42,12 @@ test.describe('Access Scope Visibility', () => {
 
         test('GLOBAL user can view cross-department risk detail', async ({ page }) => {
             await loginAsDemoUser(page, DEMO_ACCOUNTS.RISK_MANAGER);
-
-            // Navigate to risks and click first one
-            await page.goto('/risks');
-            await waitForDataLoad(page);
-
-            const firstRow = page.locator('table tbody tr').first();
-            if (await firstRow.isVisible()) {
-                await firstRow.click();
-                await page.waitForURL(/.*risks\/\d+/);
-                await waitForDataLoad(page);
-
-                // Should be able to view the risk detail
-                await expect(page.locator('h1, h2').first()).toBeVisible();
-            }
+            const risksPage = new RisksPage(page);
+            await risksPage.navigate();
+            await risksPage.search(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
+            await risksPage.openRowByText(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
+            await expect(page).toHaveURL(/\/risks\/\d+$/);
+            await expect(page.locator('main')).toBeVisible();
         });
 
         test('GLOBAL user can access controls from any department', async ({ page }) => {
@@ -202,13 +195,10 @@ test.describe('Access Scope Visibility', () => {
 
             // Click on any department card/row
             const deptItem = page.locator('table tbody tr, [class*="card"]').first();
-            if (await deptItem.isVisible()) {
-                await deptItem.click();
-                await waitForDataLoad(page);
-
-                // Should be able to view department details
-                await expect(page.locator('h1, h2').first()).toBeVisible();
-            }
+            await expect(deptItem).toBeVisible({ timeout: 15000 });
+            await deptItem.click();
+            await waitForDataLoad(page);
+            await expect(page.locator('main')).toBeVisible();
         });
 
         test('DEPARTMENT user sees consistent data across pages', async ({ page }) => {

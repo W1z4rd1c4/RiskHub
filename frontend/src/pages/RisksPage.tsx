@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, type MouseEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type MouseEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import {
@@ -58,6 +58,7 @@ export function RisksPage() {
     const [criticalFilter, setCriticalFilter] = useState<boolean>(false);
     const [sortField, setSortField] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+    const latestRequestIdRef = useRef(0);
 
     // Shared hooks for debouncing and pending approvals
     const debouncedSearch = useDebouncedValue(search, 300);
@@ -87,6 +88,7 @@ export function RisksPage() {
 
 
     const fetchRisks = useCallback(async () => {
+        const requestId = ++latestRequestIdRef.current;
         try {
             // Only show skeleton for initial load OR non-search changes.
             // For search updates, we fetch in the background to avoid flashing.
@@ -122,8 +124,10 @@ export function RisksPage() {
                     control_count: risk.control_count ?? 0
                 }));
 
-                setRisks(risksWithCounts);
-                setTotalCount(response.total);
+                if (requestId === latestRequestIdRef.current) {
+                    setRisks(risksWithCounts);
+                    setTotalCount(response.total);
+                }
             } else {
                 // For grouped views, fetch ALL pages for accurate group counts
                 const pageSize = 100; // Backend max limit is 100
@@ -157,16 +161,24 @@ export function RisksPage() {
                     skip += pageSize;
                 } while (skip < total);
 
-                setRisks(allRisks);
-                setTotalCount(total);
+                if (requestId === latestRequestIdRef.current) {
+                    setRisks(allRisks);
+                    setTotalCount(total);
+                }
             }
 
-            setError(null);
+            if (requestId === latestRequestIdRef.current) {
+                setError(null);
+            }
         } catch (err) {
             console.error('[RisksPage] Error fetching risks:', err);
-            setError(t('errors.load_failed'));
+            if (requestId === latestRequestIdRef.current) {
+                setError(t('errors.load_failed'));
+            }
         } finally {
-            setIsLoading(false);
+            if (requestId === latestRequestIdRef.current) {
+                setIsLoading(false);
+            }
         }
     }, [currentPage, debouncedSearch, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter, sortField, sortDirection, includeArchived]);
 
