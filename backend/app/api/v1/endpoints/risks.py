@@ -121,7 +121,8 @@ async def list_risks(
     # Department filtering based on role
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:  # If not empty, user is restricted to specific departments
-        # Include risks from user's departments OR where user is KRI reporting owner OR control owner
+        # Include risks from user's departments OR where user is direct risk owner OR
+        # where user is KRI reporting owner/control owner on linked entities.
         reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, current_user.id)
         control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
         cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
@@ -130,11 +131,17 @@ async def list_risks(
             base_query = base_query.where(
                 or_(
                     Risk.department_id.in_(dept_ids),
+                    Risk.owner_id == current_user.id,
                     Risk.id.in_(cross_dept_risk_ids)
                 )
             )
         else:
-            base_query = base_query.where(Risk.department_id.in_(dept_ids))
+            base_query = base_query.where(
+                or_(
+                    Risk.department_id.in_(dept_ids),
+                    Risk.owner_id == current_user.id,
+                )
+            )
     elif department_id:  # Privileged user can filter by specific department
         base_query = base_query.where(Risk.department_id == department_id)
     
@@ -263,6 +270,10 @@ async def get_risk(
     
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
+
+    # Allow access if user is direct risk owner (cross-department ownership).
+    if risk.owner_id == current_user.id:
+        return risk
     
     # Allow access if user is reporting owner of any linked KRI (cross-department)
     if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):

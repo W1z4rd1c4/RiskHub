@@ -868,6 +868,11 @@ Plans:
 - [x] 180-14: Archive Visibility & Restore Matrix Across Surfaces (list/search/link)
 - [ ] 180-15: Full Verification + Skip Budget + Docs/State Reconciliation
 
+Note:
+- `kri-owner-access` deterministic stabilization follow-up is complete (focused + stress green).
+- `cross-department/control-owner-access` timeout blocker was fixed via locale-safe controls search locator.
+- 180-15 remains open due remaining parallel flakes in controls/risks/KRI-permissions specs.
+
 ### Phase 200: Entity Naming Enforcement
 
 **Goal**: Enforce mandatory "Name" field for all entities (Risk, Control, KRI) and update all UI components to display it prominently.

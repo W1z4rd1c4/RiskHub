@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type MouseEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { Plus, Search, RefreshCw, AlertTriangle, CheckCircle, ChevronRight, User, Shield, Building2 } from 'lucide-react';
@@ -25,8 +25,10 @@ export function KRIsPage() {
     const { t } = useTranslation('kris');
     const { hasPermission } = useAuth();
     const limit = 10;
+    const latestRequestIdRef = useRef(0);
 
     const fetchKRIs = useCallback(async () => {
+        const requestId = ++latestRequestIdRef.current;
         setIsLoading(true);
         try {
             // For 'all' view, use server-side pagination
@@ -37,6 +39,7 @@ export function KRIsPage() {
                     include_archived: includeArchived,
                     search: debouncedSearch || undefined,
                 });
+                if (requestId !== latestRequestIdRef.current) return;
                 setKris(data.items || []);
                 setTotalCount(data.total || 0);
             } else {
@@ -58,12 +61,15 @@ export function KRIsPage() {
                     page++;
                 } while ((page - 1) * pageSize < total);
 
+                if (requestId !== latestRequestIdRef.current) return;
                 setKris(allKRIs);
                 setTotalCount(total);
             }
         } catch (err) {
+            if (requestId !== latestRequestIdRef.current) return;
             console.error('Failed to fetch KRIs:', err);
         } finally {
+            if (requestId !== latestRequestIdRef.current) return;
             setIsLoading(false);
         }
     }, [viewMode, currentPage, includeArchived, debouncedSearch]);

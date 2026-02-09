@@ -12,7 +12,12 @@ async function loginAsDemoUser(page: Page, accountName: string) {
 }
 
 async function waitForDataLoad(page: Page) {
+    await expect(page.locator('aside')).toBeVisible({ timeout: 30000 });
     await page.waitForSelector('.animate-pulse', { state: 'detached', timeout: 30000 }).catch(() => { });
+    await page.waitForFunction(
+        () => !(document.body?.textContent ?? '').includes('Synchronizing Insight...'),
+        { timeout: 30000 }
+    ).catch(() => { });
 }
 
 test.describe('Dashboard', () => {
@@ -26,7 +31,8 @@ test.describe('Dashboard', () => {
             await waitForDataLoad(page);
 
             // Should show dashboard content
-            await expect(page.locator('h1, h2').first()).toBeVisible();
+            await expect(page.locator('main')).toBeVisible();
+            await expect(page.getByText(/Operational Insight|Total Controls|Critical Risks/i).first()).toBeVisible({ timeout: 15000 });
         });
 
         test('should display key metrics', async ({ page }) => {

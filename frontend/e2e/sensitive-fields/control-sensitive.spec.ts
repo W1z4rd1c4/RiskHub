@@ -11,10 +11,12 @@
 import { test, expect, DEMO_ACCOUNTS } from '../fixtures/auth.fixture';
 import { ApprovalsPage } from '../pages/ApprovalsPage';
 import { ControlsPage } from '../pages/ControlsPage';
+import { E2E_CONTROLS } from '../fixtures/e2e-data';
 import { waitForDataLoad } from '../helpers/wait';
 import { loginAsDemoUser } from '../helpers/login';
 
 test.describe('Control Sensitive Field Changes (§6.1)', () => {
+    test.describe.configure({ mode: 'serial' });
     test.describe('control_owner_id Changes', () => {
         test('Non-privileged user changing control owner triggers approval request', async ({ browser }) => {
             // Login as Department Head
@@ -25,15 +27,8 @@ test.describe('Control Sensitive Field Changes (§6.1)', () => {
             const controlsPage = new ControlsPage(page);
             await controlsPage.navigate();
 
-            const rowCount = await controlsPage.getRowCount();
-            if (rowCount === 0) {
-                await context.close();
-                test.skip();
-                return;
-            }
-
-            // Go to first control detail
-            await controlsPage.clickFirstRow();
+            await controlsPage.search(E2E_CONTROLS.PENDING_DELETE_APPROVAL.name);
+            await controlsPage.openRowByText(E2E_CONTROLS.PENDING_DELETE_APPROVAL.name);
             await waitForDataLoad(page);
 
             // Look for edit button
@@ -139,14 +134,8 @@ test.describe('Control Sensitive Field Changes (§6.1)', () => {
             const controlsPage = new ControlsPage(page);
             await controlsPage.navigate();
 
-            const rowCount = await controlsPage.getRowCount();
-            if (rowCount === 0) {
-                await context.close();
-                test.skip();
-                return;
-            }
-
-            await controlsPage.clickFirstRow();
+            await controlsPage.search(E2E_CONTROLS.PENDING_DELETE_APPROVAL.name);
+            await controlsPage.openRowByText(E2E_CONTROLS.PENDING_DELETE_APPROVAL.name);
             await waitForDataLoad(page);
 
             const editBtn = page.locator('button:has-text("Edit"), a:has-text("Edit")');
@@ -199,13 +188,8 @@ test.describe('Control Sensitive Field Changes (§6.1)', () => {
             const controlsPage = new ControlsPage(riskManagerPage);
             await controlsPage.navigate();
 
-            const rowCount = await controlsPage.getRowCount();
-            if (rowCount === 0) {
-                test.skip();
-                return;
-            }
-
-            await controlsPage.clickFirstRow();
+            await controlsPage.search(E2E_CONTROLS.PENDING_DELETE_APPROVAL.name);
+            await controlsPage.openRowByText(E2E_CONTROLS.PENDING_DELETE_APPROVAL.name);
             await waitForDataLoad(riskManagerPage);
 
             // Look for edit button
@@ -261,13 +245,8 @@ test.describe('Control Sensitive Field Changes (§6.1)', () => {
             const controlsPage = new ControlsPage(croPage);
             await controlsPage.navigate();
 
-            const rowCount = await controlsPage.getRowCount();
-            if (rowCount === 0) {
-                test.skip();
-                return;
-            }
-
-            await controlsPage.clickFirstRow();
+            await controlsPage.search(E2E_CONTROLS.PENDING_DELETE_APPROVAL.name);
+            await controlsPage.openRowByText(E2E_CONTROLS.PENDING_DELETE_APPROVAL.name);
             await waitForDataLoad(croPage);
 
             const editBtn = croPage.locator('button:has-text("Edit"), a:has-text("Edit")');
