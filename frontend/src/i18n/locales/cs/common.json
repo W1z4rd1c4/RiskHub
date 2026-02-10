@@ -31,6 +31,23 @@
         "add_control": "Přidat kontrolu",
         "mark_all_read": "Označit vše jako přečtené"
     },
+    "export": {
+        "button": "Export",
+        "title": "Export dat",
+        "fields": {
+            "format": "Formát",
+            "date": "Stav k datu"
+        },
+        "formats": {
+            "pdf": "PDF (.pdf)",
+            "xlsx": "Excel (.xlsx)",
+            "csv": "CSV (.csv)"
+        },
+        "actions": {
+            "submit": "Exportovat",
+            "cancel": "Zrušit"
+        }
+    },
     "labels": {
         "name": "Název",
         "description": "Popis",

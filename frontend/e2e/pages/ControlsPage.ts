@@ -2,7 +2,7 @@
  * Controls Page Object Model
  * Handles Control list and interaction operations
  */
-import { Page, Locator, expect } from '@playwright/test';
+import { expect, Locator, Page } from '@playwright/test';
 import { waitForDataLoad, waitForTableRows } from '../helpers/wait';
 
 export class ControlsPage {
@@ -14,7 +14,7 @@ export class ControlsPage {
 
     // Locators
     get pageTitle(): Locator {
-        return this.page.locator('h1:has-text("Controls"), h1:has-text("Control Catalog")');
+        return this.page.locator('h2');
     }
 
     get table(): Locator {
@@ -26,30 +26,31 @@ export class ControlsPage {
     }
 
     get searchInput(): Locator {
-        return this.page.locator(
-            '[data-testid="search-input"], ' +
-            'input[placeholder*="Search"], ' +
-            'input[placeholder*="Hledat"], ' +
-            'input[aria-label*="Search"], ' +
-            'input[aria-label*="Hledat"], ' +
-            'input[type="search"]'
-        ).first();
+        return this.page.getByTestId('controls-search-input');
     }
 
     get createButton(): Locator {
-        return this.page.locator('button:has-text("New Control"), button:has-text("Create"), a:has-text("New Control")');
-    }
-
-    get departmentFilter(): Locator {
-        return this.page.locator('[data-testid="department-filter"], select:has-text("Department")');
-    }
-
-    get statusFilter(): Locator {
-        return this.page.locator('[data-testid="status-filter"], select:has-text("Status")');
+        return this.page.getByTestId('controls-create-button');
     }
 
     get statusSelectTrigger(): Locator {
-        return this.page.locator('[role="combobox"]').first();
+        return this.page.getByTestId('controls-status-filter-trigger');
+    }
+
+    get exportButton(): Locator {
+        return this.page.getByTestId('controls-export-button');
+    }
+
+    get exportDialog(): Locator {
+        return this.page.getByTestId('controls-export-dialog');
+    }
+
+    get exportFormatTrigger(): Locator {
+        return this.page.getByTestId('export-format-trigger');
+    }
+
+    get exportDateInput(): Locator {
+        return this.page.getByTestId('export-date-input');
     }
 
     get paginationControls(): Locator {
@@ -64,29 +65,22 @@ export class ControlsPage {
 
     async search(query: string): Promise<void> {
         await expect(this.searchInput).toBeVisible({ timeout: 10000 });
+        const currentValue = await this.searchInput.inputValue();
+        if (currentValue === query) {
+            await waitForDataLoad(this.page);
+            return;
+        }
         await this.searchInput.fill(query);
-        const normalizedQuery = query.trim().toLowerCase();
-        await Promise.all([
-            this.page.waitForResponse((response) => {
-                if (response.request().method() !== 'GET') return false;
-                if (!response.url().includes('/api/v1/controls')) return false;
-                if (!normalizedQuery) return true;
-                try {
-                    const url = new URL(response.url());
-                    const searchParam = (url.searchParams.get('search') || '').toLowerCase();
-                    return searchParam.includes(normalizedQuery);
-                } catch {
-                    return false;
-                }
-            }, { timeout: 15000 }).catch(() => undefined),
-            this.page.waitForTimeout(500), // Debounce + request dispatch
-        ]);
         await waitForDataLoad(this.page);
     }
 
     async clearSearch(): Promise<void> {
+        const currentValue = await this.searchInput.inputValue();
+        if (currentValue.length === 0) {
+            await waitForDataLoad(this.page);
+            return;
+        }
         await this.searchInput.clear();
-        await this.page.waitForTimeout(500);
         await waitForDataLoad(this.page);
     }
 
@@ -133,15 +127,45 @@ export class ControlsPage {
         await waitForDataLoad(this.page);
     }
 
+    async openExportDialog(): Promise<void> {
+        await this.exportButton.click();
+        await expect(this.exportDialog).toBeVisible();
+    }
+
+    async chooseExportFormat(format: 'pdf' | 'xlsx' | 'csv'): Promise<void> {
+        await this.exportFormatTrigger.click();
+        await this.page.getByTestId(`export-format-option-${format}`).click();
+    }
+
+    async setExportDate(date: string): Promise<void> {
+        await this.exportDateInput.fill(date);
+    }
+
+    async submitExport(format: 'pdf' | 'xlsx' | 'csv'): Promise<void> {
+        await Promise.all([
+            this.page.waitForResponse((response) => {
+                if (response.request().method() !== 'GET') return false;
+                if (!response.url().includes('/api/v1/reports/controls/export')) return false;
+                try {
+                    const url = new URL(response.url());
+                    return (url.searchParams.get('format') || '').toLowerCase() === format;
+                } catch {
+                    return false;
+                }
+            }, { timeout: 20000 }),
+            this.page.getByTestId('export-submit-button').click(),
+        ]);
+    }
+
     async setStatusFilterArchived(): Promise<void> {
         await this.statusSelectTrigger.click();
-        await this.page.locator('[role="option"]').filter({ hasText: /archived|archiv/i }).first().click();
+        await this.page.getByTestId('controls-status-filter-option-archived').click();
         await waitForDataLoad(this.page);
     }
 
     async clickUnarchiveForRow(text: string): Promise<void> {
         const row = this.rowByText(text);
-        await row.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first().click();
+        await row.locator('[data-testid^="control-unarchive-"]').first().click();
         await waitForDataLoad(this.page);
     }
 

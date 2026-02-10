@@ -47,6 +47,7 @@ test.describe('Control Owner Cross-Department Access (Deterministic)', () => {
         await controlsPage.navigate();
         await controlsPage.search(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name);
         await controlsPage.openRowByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name);
+        await expect(employeePage.getByRole('heading', { name: E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name })).toBeVisible();
 
         const bodyText = await employeePage.textContent('main');
         expect(bodyText?.toLowerCase()).toContain('risk');

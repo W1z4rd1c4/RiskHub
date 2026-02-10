@@ -11,10 +11,11 @@ import { Page, expect } from '@playwright/test';
  */
 export async function waitForDataLoad(page: Page, timeout = 30000): Promise<void> {
     const loadingSelectors = [
-        '.animate-pulse',
+        'table tbody tr.animate-pulse',
         '[data-loading="true"]',
-        '.w-8.h-8.border-2.border-accent.border-t-transparent.rounded-full.animate-spin',
-        '.animate-spin',
+        '[data-testid="list-loading"]',
+        '[data-testid="table-loading"]',
+        '[aria-busy="true"]',
     ];
 
     for (const selector of loadingSelectors) {

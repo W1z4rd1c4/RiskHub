@@ -1,8 +1,9 @@
 """
 Report generation service for PDF and Excel exports.
 """
+import csv
 from io import BytesIO
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 
 from reportlab.lib import colors
@@ -871,5 +872,155 @@ def generate_audit_trail_excel(executions: list) -> bytes:
     
     buffer = BytesIO()
     wb.save(buffer)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def _format_export_value(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value)
+
+
+def _sanitize_csv_cell(value: str) -> str:
+    """
+    Prevent CSV formula injection by prefixing risky leading characters.
+    """
+    if not value:
+        return value
+    if value[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return f"'{value}"
+    return value
+
+
+def generate_tabular_csv(headers: list[str], rows: list[list[object]]) -> bytes:
+    buffer = BytesIO()
+    text_buffer = []
+
+    class _Writer:
+        def write(self, chunk: str) -> int:
+            text_buffer.append(chunk)
+            return len(chunk)
+
+    writer = csv.writer(_Writer())
+    writer.writerow(headers)
+    for row in rows:
+        writer.writerow([_sanitize_csv_cell(_format_export_value(cell)) for cell in row])
+
+    buffer.write("".join(text_buffer).encode("utf-8"))
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def generate_tabular_excel(sheet_name: str, headers: list[str], rows: list[list[object]]) -> bytes:
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name[:31] if sheet_name else "Export"
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid")
+    header_border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
+    )
+
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = header_border
+        cell.alignment = Alignment(horizontal="center")
+
+    max_len = [len(h) for h in headers]
+    for row_idx, row in enumerate(rows, start=2):
+        for col_idx, cell_value in enumerate(row, start=1):
+            value = _format_export_value(cell_value)
+            ws.cell(row=row_idx, column=col_idx, value=value)
+            max_len[col_idx - 1] = max(max_len[col_idx - 1], len(value))
+
+    for i, width in enumerate(max_len, start=1):
+        # Cap width to keep workbook readable
+        ws.column_dimensions[chr(64 + i)].width = min(max(width + 2, 10), 60)
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
+def generate_tabular_pdf(title: str, headers: list[str], rows: list[list[object]]) -> bytes:
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=15 * mm,
+        leftMargin=15 * mm,
+        topMargin=20 * mm,
+        bottomMargin=20 * mm,
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "ExportTitle",
+        parent=styles["Heading1"],
+        fontSize=20,
+        spaceAfter=10,
+        textColor=DARK_BG,
+        alignment=TA_CENTER,
+    )
+    subtitle_style = ParagraphStyle(
+        "ExportSubtitle",
+        parent=styles["Normal"],
+        fontSize=9,
+        spaceAfter=14,
+        textColor=colors.gray,
+        alignment=TA_CENTER,
+    )
+
+    elements = [
+        Paragraph(title, title_style),
+        Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", subtitle_style),
+    ]
+
+    table_data = [headers]
+    for row in rows:
+        table_data.append([_format_export_value(cell)[:140] for cell in row])
+
+    if len(headers) == 0:
+        headers = ["Data"]
+        table_data = [headers, [""]]
+
+    table_width = A4[0] - (30 * mm)
+    col_width = max(40, table_width / max(len(headers), 1))
+    col_widths = [col_width] * len(headers)
+
+    table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), HEADER_BG),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 8),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.white),
+                ("TEXTCOLOR", (0, 1), (-1, -1), DARK_BG),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 1), (-1, -1), 7),
+                ("GRID", (0, 0), (-1, -1), 0.35, colors.lightgrey),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+            ]
+        )
+    )
+    elements.append(table)
+
+    doc.build(elements)
     buffer.seek(0)
     return buffer.getvalue()

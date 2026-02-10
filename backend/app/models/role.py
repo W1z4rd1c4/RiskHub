@@ -26,6 +26,7 @@ class RoleType(StrEnum):
     
     # Department
     DEPARTMENT_HEAD = "department_head"
+    CONTROL_OWNER = "control_owner"
     EMPLOYEE = "employee"
     
     # System

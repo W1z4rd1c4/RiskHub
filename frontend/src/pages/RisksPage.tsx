@@ -9,8 +9,7 @@ import {
     AlertCircle,
     AlertTriangle,
     Star,
-    FileText,
-    Sheet,
+    Download,
     Lock
 } from 'lucide-react';
 import { reportApi } from '@/services/reportApi';
@@ -24,8 +23,10 @@ import type { ViewMode } from '@/components/tables';
 import type { Column, SortDirection } from '@/components/tables/SortableTable';
 import { useRiskTypes, useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { DEFAULT_LIST_PAGE_SIZE, GROUPED_VIEW_FETCH_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
+import { ExportDialog, type ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 
 // Helper to convert hex color to rgba for backgrounds/borders
 function hexToRgba(hex: string, alpha: number): string {
@@ -53,6 +54,7 @@ export function RisksPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [isExporting, setIsExporting] = useState(false);
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [hasBreachFilter, setHasBreachFilter] = useState<boolean | undefined>(undefined);
     const [criticalFilter, setCriticalFilter] = useState<boolean>(false);
     const [sortField, setSortField] = useState<string | null>(null);
@@ -68,7 +70,8 @@ export function RisksPage() {
     const { getScoreColor } = useRiskThresholds();
     const { t } = useTranslation('risks');
     const { hasPermission } = useAuth();
-    const limit = 10;
+    const limit = DEFAULT_LIST_PAGE_SIZE;
+    const hasLoadedRisksRef = useRef(false);
 
     useEffect(() => {
         if (searchParams.get('breached') === 'true') {
@@ -91,7 +94,7 @@ export function RisksPage() {
         try {
             // Only show skeleton for initial load OR non-search changes.
             // For search updates, we fetch in the background to avoid flashing.
-            const shouldShowSkeleton = risks.length === 0;
+            const shouldShowSkeleton = !hasLoadedRisksRef.current;
 
             if (shouldShowSkeleton) {
                 setIsLoading(true);
@@ -129,7 +132,7 @@ export function RisksPage() {
                 }
             } else {
                 // For grouped views, fetch ALL pages for accurate group counts
-                const pageSize = 100; // Backend max limit is 100
+                const pageSize = GROUPED_VIEW_FETCH_PAGE_SIZE;
                 let allRisks: RiskSummary[] = [];
                 let skip = 0;
                 let total = 0;
@@ -168,6 +171,7 @@ export function RisksPage() {
 
             if (requestId === latestRequestIdRef.current) {
                 setError(null);
+                hasLoadedRisksRef.current = true;
             }
         } catch (err) {
             console.error('[RisksPage] Error fetching risks:', err);
@@ -179,9 +183,9 @@ export function RisksPage() {
                 setIsLoading(false);
             }
         }
-    }, [currentPage, debouncedSearch, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter, sortField, sortDirection]);
+    }, [currentPage, debouncedSearch, limit, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter, sortField, sortDirection, t]);
 
-    const handleRestoreRisk = async (riskId: number, e: MouseEvent) => {
+    const handleRestoreRisk = useCallback(async (riskId: number, e: MouseEvent) => {
         e.stopPropagation();
         try {
             await riskApi.restoreRisk(riskId);
@@ -190,27 +194,26 @@ export function RisksPage() {
             console.error('Failed to restore risk:', err);
             setError(t('errors.load_failed'));
         }
-    };
+    }, [fetchRisks, t]);
 
     useEffect(() => {
         fetchRisks();
     }, [fetchRisks]);
 
-    const handleExportPdf = async () => {
+    const handleExport = async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
         setIsExporting(true);
         try {
-            await reportApi.downloadRisksPdf({ status: statusFilter || null });
-        } catch (err) {
-            console.error('Export failed:', err);
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
-    const handleExportExcel = async () => {
-        setIsExporting(true);
-        try {
-            await reportApi.downloadRisksExcel({ status: statusFilter || null });
+            await reportApi.exportRisks({
+                format,
+                asOfDate,
+                filters: {
+                    status: statusFilter || null,
+                    search: search.trim() || null,
+                    riskType: typeFilter || null,
+                    isPriority: priorityFilter ?? null,
+                },
+            });
+            setIsExportDialogOpen(false);
         } catch (err) {
             console.error('Export failed:', err);
         } finally {
@@ -392,6 +395,7 @@ export function RisksPage() {
                     {risk.status === 'archived' && hasPermission('risks', 'delete') && (
                         <button
                             onClick={(e) => handleRestoreRisk(risk.id, e)}
+                            data-testid={`risk-unarchive-${risk.id}`}
                             className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
                         >
                             {t('actions.unarchive', 'Unarchive')}
@@ -401,7 +405,7 @@ export function RisksPage() {
                 </div>
             ),
         },
-    ], [pendingApprovalIds, getColor, getDisplayName, getInitials, getScoreColor, hasPermission, t]); // Added dependencies for useMemo
+    ], [pendingApprovalIds, getColor, getDisplayName, getInitials, getScoreColor, handleRestoreRisk, hasPermission, t]); // Added dependencies for useMemo
 
     // Get group by field based on view mode
     const getGroupByField = (): keyof RiskSummary | null => {
@@ -425,24 +429,18 @@ export function RisksPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={handleExportPdf}
+                        onClick={() => setIsExportDialogOpen(true)}
+                        data-testid="risks-export-button"
                         disabled={isExporting}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-50"
-                        title="Export PDF"
+                        className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
                     >
-                        <FileText className="h-5 w-5" />
-                    </button>
-                    <button
-                        onClick={handleExportExcel}
-                        disabled={isExporting}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 transition-colors disabled:opacity-50"
-                        title="Export Excel"
-                    >
-                        <Sheet className="h-5 w-5" />
+                        <Download className="h-4 w-4" />
+                        {t('actions.export', 'Export')}
                     </button>
                     <PermissionGate resource="risks" action="write">
                         <button
                             onClick={() => navigate('/risks/new')}
+                            data-testid="risks-create-button"
                             className="btn-primary"
                         >
                             <Plus className="h-5 w-5" />
@@ -460,6 +458,7 @@ export function RisksPage() {
                 <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
                     <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
                     <input
+                        data-testid="risks-search-input"
                         type="text"
                         placeholder={t('filters.search_placeholder')}
                         value={search}
@@ -476,6 +475,9 @@ export function RisksPage() {
                             setCurrentPage(1);
                         }}
                         placeholder={t('status.active')}
+                        triggerTestId="risks-status-filter-trigger"
+                        contentTestId="risks-status-filter-content"
+                        optionTestIdPrefix="risks-status-filter-option"
                         options={[
                             { value: 'active', label: t('status.active') },
                             { value: 'emerging', label: t('status.emerging') },
@@ -488,6 +490,9 @@ export function RisksPage() {
                         placeholder={t('filters.all_types')}
                         allowEmpty
                         emptyLabel={t('filters.all_types')}
+                        triggerTestId="risks-type-filter-trigger"
+                        contentTestId="risks-type-filter-content"
+                        optionTestIdPrefix="risks-type-filter-option"
                         options={riskTypes.map(rt => ({ value: rt.code, label: rt.display_name }))}
                     />
                     <button
@@ -528,6 +533,7 @@ export function RisksPage() {
                     )}
                     <button
                         onClick={() => { fetchRisks(); setRisks([]); }}
+                        data-testid="risks-refresh-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     >
                         <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
@@ -647,6 +653,14 @@ export function RisksPage() {
                     )}
                 />
             )}
+
+            <ExportDialog
+                isOpen={isExportDialogOpen}
+                onClose={() => setIsExportDialogOpen(false)}
+                onSubmit={handleExport}
+                isSubmitting={isExporting}
+                dataTestId="risks-export-dialog"
+            />
         </div>
     );
 }

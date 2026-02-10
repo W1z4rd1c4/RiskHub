@@ -12,7 +12,7 @@ from app.models import User, RiskTypeConfig, GlobalConfig, ApprovalScenario, Ris
 from app.models.role import RoleType
 from app.api.deps import get_current_user
 from app.core.activity_logger import log_activity
-from app.core.policy import PROTECTED_SYSTEM_ROLES
+from app.core.policy import PROTECTED_SYSTEM_ROLES, PUBLIC_CONFIG_ALLOWLIST
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.riskhub import (
     RiskTypeRead, RiskTypeCreate, RiskTypeUpdate, PublicRiskTypeRead,
@@ -610,21 +610,6 @@ async def update_approval_scenario(
 # Public Config Endpoint (for all authenticated users)
 # ============================================================================
 
-# Allowlist of config keys safe for all authenticated users
-PUBLIC_CONFIG_ALLOWLIST = {
-    "kri_reminder_days_before",
-    "kri_overdue_grace_days",
-    "session_timeout_minutes",
-    "password_expiry_days",
-    # Risk thresholds - needed for UI display (risk cards, reports)
-    "medium_risk_min_net_score",
-    "high_risk_min_net_score",
-    "critical_risk_min_net_score",
-    # Asset value - needed for financial loss calculations in risk form
-    "total_assets_value",
-}
-
-
 @router.get("/public-config/{key}")
 async def get_public_config(
     key: str,
@@ -637,8 +622,6 @@ async def get_public_config(
     CRO users can read any config value.
     """
     # CRO can read any key; non-CRO limited to allowlist
-    from app.models.role import Role
-    
     is_cro = bool(current_user.role and current_user.role.name == RoleType.CRO)
     
     if not is_cro and key not in PUBLIC_CONFIG_ALLOWLIST:

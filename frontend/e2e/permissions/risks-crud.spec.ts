@@ -58,7 +58,7 @@ test.describe('Risk CRUD Permissions (Deterministic)', () => {
 
         const row = risksPage.rowByText(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
         await expect(row).toBeVisible();
-        await expect(row.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first()).toBeVisible();
+        await expect(row.locator('[data-testid^="risk-unarchive-"]').first()).toBeVisible();
     });
 
     test('Archived risk remains navigable from toggled list', async ({ riskManagerPage }) => {
