@@ -28,11 +28,9 @@ test.describe('Risk CRUD Permissions (Deterministic)', () => {
         await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
     });
 
-    test('Archived visibility toggle defaults off and hides archived deterministic risk', async ({ riskManagerPage }) => {
+    test('Archived deterministic risk is hidden by default until status is Archived', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();
-
-        await expect(risksPage.includeArchivedCheckbox).not.toBeChecked();
         await risksPage.search(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
 
         const archivedVisibleWithoutToggle = await waitForTableRowByText(
@@ -43,10 +41,9 @@ test.describe('Risk CRUD Permissions (Deterministic)', () => {
         expect(archivedVisibleWithoutToggle).toBe(false);
     });
 
-    test('Archived deterministic risk appears when include archived is enabled', async ({ riskManagerPage }) => {
+    test('Archived deterministic risk appears when status filter is Archived', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();
-        await risksPage.setIncludeArchived(true);
         await risksPage.setStatusFilterArchived();
         await risksPage.search(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
 
@@ -56,7 +53,6 @@ test.describe('Risk CRUD Permissions (Deterministic)', () => {
     test('Risk Manager sees unarchive action on archived deterministic risk row', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();
-        await risksPage.setIncludeArchived(true);
         await risksPage.setStatusFilterArchived();
         await risksPage.search(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
 
@@ -68,7 +64,6 @@ test.describe('Risk CRUD Permissions (Deterministic)', () => {
     test('Archived risk remains navigable from toggled list', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();
-        await risksPage.setIncludeArchived(true);
         await risksPage.setStatusFilterArchived();
         await risksPage.search(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
 

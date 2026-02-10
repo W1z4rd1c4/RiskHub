@@ -40,16 +40,16 @@ export class ControlsPage {
         return this.page.locator('button:has-text("New Control"), button:has-text("Create"), a:has-text("New Control")');
     }
 
-    get includeArchivedCheckbox(): Locator {
-        return this.page.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
-    }
-
     get departmentFilter(): Locator {
         return this.page.locator('[data-testid="department-filter"], select:has-text("Department")');
     }
 
     get statusFilter(): Locator {
         return this.page.locator('[data-testid="status-filter"], select:has-text("Status")');
+    }
+
+    get statusSelectTrigger(): Locator {
+        return this.page.locator('[role="combobox"]').first();
     }
 
     get paginationControls(): Locator {
@@ -133,12 +133,10 @@ export class ControlsPage {
         await waitForDataLoad(this.page);
     }
 
-    async setIncludeArchived(enabled: boolean): Promise<void> {
-        const currentState = await this.includeArchivedCheckbox.isChecked();
-        if (currentState !== enabled) {
-            await this.includeArchivedCheckbox.click();
-            await waitForDataLoad(this.page);
-        }
+    async setStatusFilterArchived(): Promise<void> {
+        await this.statusSelectTrigger.click();
+        await this.page.locator('[role="option"]').filter({ hasText: /archived|archiv/i }).first().click();
+        await waitForDataLoad(this.page);
     }
 
     async clickUnarchiveForRow(text: string): Promise<void> {

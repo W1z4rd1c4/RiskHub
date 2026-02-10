@@ -9,7 +9,7 @@ import type { Column, ViewMode } from '@/components/tables';
 import type { KeyRiskIndicator } from '@/types/kri';
 import { useAuth } from '@/contexts/AuthContext';
 
-type StatusFilter = 'all' | 'within' | 'breach' | 'overdue';
+type StatusFilter = 'all' | 'within' | 'breach' | 'overdue' | 'archived';
 
 export function KRIsPage() {
     const navigate = useNavigate();
@@ -19,7 +19,6 @@ export function KRIsPage() {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-    const [includeArchived, setIncludeArchived] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const { t } = useTranslation('kris');
@@ -31,6 +30,7 @@ export function KRIsPage() {
         const requestId = ++latestRequestIdRef.current;
         setIsLoading(true);
         try {
+            const includeArchived = statusFilter === 'archived';
             // For 'all' view, use server-side pagination
             if (viewMode === 'all') {
                 const data = await kriApi.getKRIs({
@@ -72,7 +72,7 @@ export function KRIsPage() {
             if (requestId !== latestRequestIdRef.current) return;
             setIsLoading(false);
         }
-    }, [viewMode, currentPage, includeArchived, debouncedSearch]);
+    }, [viewMode, currentPage, statusFilter, debouncedSearch]);
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -111,11 +111,14 @@ export function KRIsPage() {
             ? new Date(kri.last_period_end).getTime() + (15 * 24 * 60 * 60 * 1000) < Date.now()
             : false;
 
-        const matchesStatus = statusFilter === 'all' ||
+        if (!matchesSearch) return false;
+        if (statusFilter === 'archived') return kri.is_archived === true;
+        if (kri.is_archived) return false;
+
+        return statusFilter === 'all' ||
             (statusFilter === 'within' && kri.breach_status === 'within') ||
             (statusFilter === 'breach' && kri.breach_status !== 'within') ||
             (statusFilter === 'overdue' && isOverdue);
-        return matchesSearch && matchesStatus;
     });
 
     // Table columns matching Risks page style
@@ -273,16 +276,8 @@ export function KRIsPage() {
                     />
                 </div>
                 <div className="flex gap-2 flex-wrap items-center">
-                    <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold px-3">
-                        <input
-                            type="checkbox"
-                            checked={includeArchived}
-                            onChange={(e) => { setIncludeArchived(e.target.checked); setCurrentPage(1); }}
-                        />
-                        {t('filters.include_archived', 'Include archived')}
-                    </label>
                     {/* Button-style status filters */}
-                    {(['all', 'within', 'breach', 'overdue'] as StatusFilter[]).map((opt) => (
+                    {(['all', 'within', 'breach', 'overdue', 'archived'] as StatusFilter[]).map((opt) => (
                         <button
                             key={opt}
                             onClick={() => { setStatusFilter(opt); setCurrentPage(1); }}
