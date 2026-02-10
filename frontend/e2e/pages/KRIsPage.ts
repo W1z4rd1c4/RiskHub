@@ -2,7 +2,7 @@
  * KRIs Page Object Model
  * Handles Key Risk Indicator list and interaction operations
  */
-import { Page, Locator, expect } from '@playwright/test';
+import { expect, Locator, Page } from '@playwright/test';
 import { waitForDataLoad } from '../helpers/wait';
 
 export class KRIsPage {
@@ -14,7 +14,7 @@ export class KRIsPage {
 
     // Locators
     get pageTitle(): Locator {
-        return this.page.locator('h1:has-text("Risk Appetite"), h1:has-text("KRI"), h1:has-text("Key Risk Indicator")');
+        return this.page.locator('h2');
     }
 
     get table(): Locator {
@@ -26,38 +26,27 @@ export class KRIsPage {
     }
 
     get searchInput(): Locator {
-        return this.page.locator(
-            [
-                '[data-testid="kri-search-input"]',
-                'input[placeholder*="Search"]',
-                'input[placeholder*="Hledat"]',
-                'input[aria-label*="Search"]',
-                'input[aria-label*="Hledat"]',
-                'input[type="search"]',
-            ].join(', ')
-        ).first();
+        return this.page.getByTestId('kris-search-input');
     }
 
     get createButton(): Locator {
-        return this.page.locator(
-            [
-                'button:has-text("New KRI")',
-                'button:has-text("Nový KRI")',
-                'button:has-text("Nové KRI")',
-                'a:has-text("New KRI")',
-                'a:has-text("Nový KRI")',
-                'a:has-text("Nové KRI")',
-                '[href="/kris/new"]',
-            ].join(', ')
-        ).first();
+        return this.page.getByTestId('kris-create-button');
     }
 
-    get statusFilter(): Locator {
-        return this.page.locator('[data-testid="status-filter"], select:has-text("Status")');
+    get exportButton(): Locator {
+        return this.page.getByTestId('kris-export-button');
     }
 
-    get breachFilter(): Locator {
-        return this.page.locator('[data-testid="breach-filter"], button:has-text("Breached")');
+    get exportDialog(): Locator {
+        return this.page.getByTestId('kris-export-dialog');
+    }
+
+    get exportFormatTrigger(): Locator {
+        return this.page.getByTestId('export-format-trigger');
+    }
+
+    get exportDateInput(): Locator {
+        return this.page.getByTestId('export-date-input');
     }
 
     get paginationControls(): Locator {
@@ -71,6 +60,22 @@ export class KRIsPage {
 
     get cards(): Locator {
         return this.page.locator('[class*="card"], [class*="Card"]');
+    }
+
+    private async waitForKrisResponse(expected: { search?: string } = {}): Promise<void> {
+        await this.page.waitForResponse((response) => {
+            if (response.request().method() !== 'GET') return false;
+            if (!response.url().includes('/api/v1/kris')) return false;
+            if (expected.search === undefined) return true;
+
+            try {
+                const url = new URL(response.url());
+                const actualSearch = (url.searchParams.get('search') || '').trim().toLowerCase();
+                return actualSearch.includes(expected.search.trim().toLowerCase());
+            } catch {
+                return false;
+            }
+        }, { timeout: 15000 });
     }
 
     // Actions
@@ -89,29 +94,28 @@ export class KRIsPage {
 
     async search(query: string): Promise<void> {
         await expect(this.searchInput).toBeVisible({ timeout: 10000 });
-        await this.searchInput.fill(query);
-        const normalizedQuery = query.trim().toLowerCase();
+        const currentValue = await this.searchInput.inputValue();
+        if (currentValue === query) {
+            await this.waitForListReady();
+            return;
+        }
         await Promise.all([
-            this.page.waitForResponse((response) => {
-                if (response.request().method() !== 'GET') return false;
-                if (!response.url().includes('/api/v1/kris')) return false;
-                if (!normalizedQuery) return true;
-                try {
-                    const url = new URL(response.url());
-                    const searchParam = (url.searchParams.get('search') || '').toLowerCase();
-                    return searchParam.includes(normalizedQuery);
-                } catch {
-                    return false;
-                }
-            }, { timeout: 15000 }).catch(() => undefined),
-            this.page.waitForTimeout(500), // Debounce + request dispatch
+            this.waitForKrisResponse({ search: query }),
+            this.searchInput.fill(query),
         ]);
         await this.waitForListReady();
     }
 
     async clearSearch(): Promise<void> {
-        await this.searchInput.clear();
-        await this.page.waitForTimeout(500);
+        const currentValue = await this.searchInput.inputValue();
+        if (currentValue.length === 0) {
+            await this.waitForListReady();
+            return;
+        }
+        await Promise.all([
+            this.waitForKrisResponse({ search: '' }),
+            this.searchInput.clear(),
+        ]);
         await this.waitForListReady();
     }
 
@@ -180,8 +184,38 @@ export class KRIsPage {
         await waitForDataLoad(this.page);
     }
 
+    async openExportDialog(): Promise<void> {
+        await this.exportButton.click();
+        await expect(this.exportDialog).toBeVisible();
+    }
+
+    async chooseExportFormat(format: 'pdf' | 'xlsx' | 'csv'): Promise<void> {
+        await this.exportFormatTrigger.click();
+        await this.page.getByTestId(`export-format-option-${format}`).click();
+    }
+
+    async setExportDate(date: string): Promise<void> {
+        await this.exportDateInput.fill(date);
+    }
+
+    async submitExport(format: 'pdf' | 'xlsx' | 'csv'): Promise<void> {
+        await Promise.all([
+            this.page.waitForResponse((response) => {
+                if (response.request().method() !== 'GET') return false;
+                if (!response.url().includes('/api/v1/reports/kris/export')) return false;
+                try {
+                    const url = new URL(response.url());
+                    return (url.searchParams.get('format') || '').toLowerCase() === format;
+                } catch {
+                    return false;
+                }
+            }, { timeout: 20000 }),
+            this.page.getByTestId('export-submit-button').click(),
+        ]);
+    }
+
     async setStatusFilterArchived(): Promise<void> {
-        await this.page.locator('button').filter({ hasText: /archived|archiv/i }).first().click();
+        await this.page.getByTestId('kris-status-filter-archived').click();
         await this.waitForListReady();
     }
 
@@ -189,12 +223,12 @@ export class KRIsPage {
         const row = this.rowByText(text);
         const rowVisible = await row.isVisible().catch(() => false);
         if (rowVisible) {
-            await row.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first().click();
+            await row.locator('[data-testid^="kri-unarchive-"]').first().click();
         } else {
             await this.cards
                 .filter({ hasText: text })
                 .first()
-                .locator('button:has-text("Unarchive"), button:has-text("Obnov")')
+                .locator('[data-testid^="kri-unarchive-"]')
                 .first()
                 .click();
         }

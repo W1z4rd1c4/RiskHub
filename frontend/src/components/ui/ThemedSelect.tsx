@@ -24,6 +24,9 @@ export interface ThemedSelectProps {
     /** Show empty option that clears selection */
     allowEmpty?: boolean
     emptyLabel?: string
+    triggerTestId?: string
+    contentTestId?: string
+    optionTestIdPrefix?: string
 }
 
 // Radix UI Select doesn't allow empty string values (uses "" to clear selection).
@@ -43,6 +46,9 @@ export function ThemedSelect({
     disabled = false,
     allowEmpty = false,
     emptyLabel = "All",
+    triggerTestId,
+    contentTestId,
+    optionTestIdPrefix,
 }: ThemedSelectProps) {
     // Translate external "" to internal sentinel
     const internalValue = value === "" ? EMPTY_SENTINEL : value
@@ -60,17 +66,26 @@ export function ThemedSelect({
         return options
     }, [options, allowEmpty, emptyLabel])
 
+    const optionTestIdForValue = (optionValue: string): string | undefined => {
+        if (!optionTestIdPrefix) {
+            return undefined
+        }
+        const normalized = optionValue === EMPTY_SENTINEL ? "empty" : optionValue
+        return `${optionTestIdPrefix}-${normalized}`
+    }
+
     return (
         <Select value={internalValue} onValueChange={handleValueChange} disabled={disabled}>
-            <SelectTrigger className={cn("min-w-[130px]", className)}>
+            <SelectTrigger className={cn("min-w-[130px]", className)} data-testid={triggerTestId}>
                 <SelectValue placeholder={placeholder} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent data-testid={contentTestId}>
                 {allOptions.map((option) => (
                     <SelectItem
                         key={option.value}
                         value={option.value}
                         disabled={option.disabled}
+                        data-testid={optionTestIdForValue(option.value)}
                     >
                         {option.label}
                     </SelectItem>

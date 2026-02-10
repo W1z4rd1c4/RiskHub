@@ -16,6 +16,7 @@
 7. [Cross-Department Access](#7-cross-department-access)
 8. [Quick Reference Tables](#8-quick-reference-tables)
 9. [Activity Logging & Audit Trail](#9-activity-logging--audit-trail)
+10. [Reporting Exports](#10-reporting-exports)
 
 ---
 
@@ -551,6 +552,48 @@ When an approval is executed:
 - The APPROVAL entity logs `APPROVE` or `REJECT`
 - The underlying entity (RISK/CONTROL/KRI) logs the actual change (ARCHIVE or UPDATE)
 - All entity-level logs include a description like "Archived via approval #123"
+
+---
+
+## 10. Reporting Exports
+
+### 10.1 Unified Export Endpoints
+
+RiskHub provides unified list export endpoints for:
+- Risks: `/api/v1/reports/risks/export`
+- Controls: `/api/v1/reports/controls/export`
+- KRIs: `/api/v1/reports/kris/export`
+- Vendors: `/api/v1/reports/vendors/export`
+
+Shared query contract:
+- `format` = `pdf` | `xlsx` | `csv`
+- `as_of_date` = `YYYY-MM-DD` (optional; defaults to current date)
+
+### 10.2 UI Export Contract
+
+List pages (Risks, Controls, KRIs, Vendors) use:
+- One **Export** button per page
+- Modal selection of format + as-of date
+- Page filter-aware exports (status/search/type where relevant)
+
+### 10.3 Access Scope Enforcement
+
+Exported data is always scoped to what the requesting user can access under RBAC:
+- Department-scoped users only receive in-scope entities
+- Privileged/global users can export across departments
+- Ownership/reporting-owner exceptions follow the same logic as list/detail views
+
+### 10.4 Archived/Inactive Semantics
+
+- Risks/Controls: archived items included when status filter is `archived`
+- KRIs: archived items included when status filter is `archived`
+- Vendors: archived semantics use `status = inactive`
+
+### 10.5 Legacy Compatibility
+
+Legacy risk/control export endpoints remain operational for compatibility:
+- `/api/v1/reports/risks/pdf`, `/api/v1/reports/risks/excel`
+- `/api/v1/reports/controls/pdf`, `/api/v1/reports/controls/excel`
 
 ---
 

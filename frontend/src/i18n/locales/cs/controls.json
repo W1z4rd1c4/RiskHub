@@ -95,6 +95,7 @@
         "link_risk": "Propojit riziko",
         "unlink": "Odpojit",
         "unarchive": "Obnovit z archivu",
+        "export": "Export",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
     },

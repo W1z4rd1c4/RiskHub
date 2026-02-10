@@ -63,6 +63,6 @@ test.describe('Control CRUD Permissions (Deterministic)', () => {
 
         const row = controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
         await expect(row).toBeVisible();
-        await expect(row.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first()).toBeVisible();
+        await expect(row.locator('[data-testid^="control-unarchive-"]').first()).toBeVisible();
     });
 });

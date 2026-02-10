@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, type MouseEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import {
@@ -8,8 +8,7 @@ import {
     ChevronRight,
     RefreshCw,
     AlertCircle,
-    FileText,
-    Sheet,
+    Download,
     Lock,
     User,
     Shield,
@@ -23,9 +22,11 @@ import { PermissionGate } from '@/components/PermissionGate';
 import { SortableTable, CategoryDrillDown, ViewSwitcher, Pagination } from '@/components/tables';
 import type { Column, ViewMode } from '@/components/tables';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { DEFAULT_LIST_PAGE_SIZE, GROUPED_VIEW_FETCH_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 import { useAuth } from '@/contexts/AuthContext';
+import { ExportDialog, type ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 
 
 /**
@@ -36,7 +37,7 @@ async function fetchAllForGroupedView(
     search: string,
     status: string,
 ): Promise<{ items: ControlSummary[]; total: number }> {
-    const pageSize = 100; // Backend max limit is 100
+    const pageSize = GROUPED_VIEW_FETCH_PAGE_SIZE;
     let allControls: ControlSummary[] = [];
     let skip = 0;
     let total = 0;
@@ -71,8 +72,10 @@ export function ControlsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [isExporting, setIsExporting] = useState(false);
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const hasLoadedControlsRef = useRef(false);
 
-    const limit = 10;
+    const limit = DEFAULT_LIST_PAGE_SIZE;
     const { t } = useTranslation('controls');
     const { hasPermission } = useAuth();
 
@@ -84,7 +87,7 @@ export function ControlsPage() {
     const fetchControls = useCallback(async () => {
         try {
             // Only show skeleton for initial load
-            const shouldShowSkeleton = controls.length === 0;
+            const shouldShowSkeleton = !hasLoadedControlsRef.current;
             if (shouldShowSkeleton) {
                 setIsLoading(true);
             }
@@ -113,15 +116,16 @@ export function ControlsPage() {
             }
 
             setError(null);
+            hasLoadedControlsRef.current = true;
         } catch (err) {
             console.error('Error fetching controls:', err);
             setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, debouncedSearch, statusFilter, viewMode]);
+    }, [currentPage, debouncedSearch, limit, statusFilter, t, viewMode]);
 
-    const handleRestoreControl = async (controlId: number, e: MouseEvent) => {
+    const handleRestoreControl = useCallback(async (controlId: number, e: MouseEvent) => {
         e.stopPropagation();
         try {
             await controlApi.restoreControl(controlId);
@@ -130,27 +134,24 @@ export function ControlsPage() {
             console.error('Restore failed:', err);
             setError(t('errors.load_failed'));
         }
-    };
+    }, [fetchControls, t]);
 
     useEffect(() => {
         fetchControls();
     }, [fetchControls]);
 
-    const handleExportPdf = async () => {
+    const handleExport = async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
         setIsExporting(true);
         try {
-            await reportApi.downloadControlsPdf({ status: statusFilter || null });
-        } catch (err) {
-            console.error('Export failed:', err);
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
-    const handleExportExcel = async () => {
-        setIsExporting(true);
-        try {
-            await reportApi.downloadControlsExcel({ status: statusFilter || null });
+            await reportApi.exportControls({
+                format,
+                asOfDate,
+                filters: {
+                    status: statusFilter || null,
+                    search: search.trim() || null,
+                },
+            });
+            setIsExportDialogOpen(false);
         } catch (err) {
             console.error('Export failed:', err);
         } finally {
@@ -244,6 +245,7 @@ export function ControlsPage() {
                     {control.status === ControlStatus.ARCHIVED && hasPermission('controls', 'delete') && (
                         <button
                             onClick={(e) => handleRestoreControl(control.id, e)}
+                            data-testid={`control-unarchive-${control.id}`}
                             className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
                         >
                             {t('actions.unarchive', 'Unarchive')}
@@ -253,7 +255,7 @@ export function ControlsPage() {
                 </div>
             ),
         },
-    ], [hasPermission, t]);
+    ], [handleRestoreControl, hasPermission, pendingApprovalIds, t]);
 
     // Get group by field based on view mode
     const getGroupByField = (): keyof ControlSummary | null => {
@@ -279,24 +281,18 @@ export function ControlsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <button
-                        onClick={handleExportPdf}
+                        onClick={() => setIsExportDialogOpen(true)}
+                        data-testid="controls-export-button"
                         disabled={isExporting}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-50"
-                        title="Export PDF"
+                        className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
                     >
-                        <FileText className="h-5 w-5" />
-                    </button>
-                    <button
-                        onClick={handleExportExcel}
-                        disabled={isExporting}
-                        className="p-2.5 glass rounded-xl text-slate-400 hover:text-emerald-400 hover:bg-emerald-400/10 transition-colors disabled:opacity-50"
-                        title="Export Excel"
-                    >
-                        <Sheet className="h-5 w-5" />
+                        <Download className="h-4 w-4" />
+                        {t('actions.export', 'Export')}
                     </button>
                     <PermissionGate resource="controls" action="write">
                         <button
                             onClick={() => navigate('/controls/new')}
+                            data-testid="controls-create-button"
                             className="btn-primary"
                         >
                             <Plus className="h-5 w-5" />
@@ -314,6 +310,7 @@ export function ControlsPage() {
                 <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
                     <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
                     <input
+                        data-testid="controls-search-input"
                         type="text"
                         placeholder={t('filters.search_placeholder')}
                         value={search}
@@ -332,6 +329,9 @@ export function ControlsPage() {
                         placeholder={t('filters.all_statuses')}
                         allowEmpty
                         emptyLabel={t('filters.all_statuses')}
+                        triggerTestId="controls-status-filter-trigger"
+                        contentTestId="controls-status-filter-content"
+                        optionTestIdPrefix="controls-status-filter-option"
                         options={[
                             { value: 'active', label: t('status.active') },
                             { value: 'draft', label: t('status.draft', 'Draft') },
@@ -341,6 +341,7 @@ export function ControlsPage() {
                     />
                     <button
                         onClick={() => { fetchControls(); setControls([]); }}
+                        data-testid="controls-refresh-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     >
                         <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
@@ -475,6 +476,14 @@ export function ControlsPage() {
                     )}
                 />
             )}
+
+            <ExportDialog
+                isOpen={isExportDialogOpen}
+                onClose={() => setIsExportDialogOpen(false)}
+                onSubmit={handleExport}
+                isSubmitting={isExporting}
+                dataTestId="controls-export-dialog"
+            />
         </div>
     );
 }

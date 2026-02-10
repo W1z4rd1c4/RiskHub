@@ -13,6 +13,7 @@
 5. [Control Frequency and Scheduling](#control-frequency-and-scheduling)
 6. [Linking Controls to Risks](#linking-controls-to-risks)
 7. [Archiving and Restoring Controls](#archiving-and-restoring-controls)
+8. [Exporting Controls](#exporting-controls)
 
 ---
 
@@ -41,7 +42,7 @@ Use the filter bar:
 - **Search**: Find by name or description
 - **Department**: Filter by organizational unit
 - **Status**: Show Active, Draft, or All
-- **Include Archived**: Off by default; enable to include archived controls
+- **Archived controls**: set **Status = Archived**
 - **Frequency**: Daily, Weekly, Monthly, etc.
 
 ---
@@ -228,6 +229,27 @@ Users with **`controls:delete`** can restore archived controls from:
 - Control list/search rows when archived items are visible
 
 Restoring sets control status back to **Active**.
+
+---
+
+## Exporting Controls
+
+Use the list-page **Export** button to generate point-in-time control exports.
+
+### Export Workflow
+
+1. Open **Controls**
+2. Click **Export**
+3. Select:
+   - **Format**: Excel (`.xlsx`), PDF (`.pdf`), or CSV (`.csv`)
+   - **As of date**: defaults to today
+4. Click **Export**
+
+### Export Scope Rules
+
+- Export uses your current control list filters (status and search).
+- Export data is permission-scoped; you only receive controls you can access.
+- Archived controls are included only when the status filter is set to **Archived**.
 
 ---
 

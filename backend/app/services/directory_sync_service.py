@@ -10,19 +10,13 @@ from typing import Any
 from sqlalchemy import select, func, update, and_, not_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
+from app.integrations.ad_emulator_client import ADEmulatorClient
 from app.models import User, Role, Department
-from app.models.role import RoleType
 from app.models.directory_sync_log import DirectorySyncLog, DirectorySyncStatus
 from app.schemas.directory_sync import DirectorySyncPreview, DirectoryUserDiff
-from app.integrations.ad_emulator_client import ADEmulatorClient
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_ROLE_CANDIDATES = [
-    RoleType.EMPLOYEE,
-    "control_owner",
-    RoleType.VIEWER,
-]
 
 
 def _normalize_email(value: str | None) -> str | None:
@@ -87,14 +81,15 @@ async def _resolve_default_role(db: AsyncSession) -> Role:
     Only returns non-privileged roles (employee, control_owner, viewer).
     Raises ValueError if no suitable role exists - never falls back to privileged roles.
     """
-    for name in DEFAULT_ROLE_CANDIDATES:
+    for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES:
         result = await db.execute(select(Role).where(Role.name == name))
         role = result.scalar_one_or_none()
         if role:
             return role
 
+    candidates = ", ".join(str(name) for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES)
     raise ValueError(
-        "No safe default role found (employee, control_owner, or viewer). "
+        f"No safe default role found ({candidates}). "
         "Seed roles before syncing directory users."
     )
 

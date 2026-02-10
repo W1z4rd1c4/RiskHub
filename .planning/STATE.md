@@ -26,7 +26,8 @@
 
 | Phase | Status | Completed |
 |-------|--------|-----------|
-| 1-5 Foundation/Catalog/Dashboards | ✅ Complete | 2025-12-25 |
+| 1-3 + 5 Foundation/Catalog/Dashboards/Testing | ✅ Complete | 2025-12-25 |
+| 4 Reporting | ✅ Complete (5/5) | 2026-02-10 |
 | 6-6.1 Risk Appetite & KRI | ✅ Complete (3/3) | - |
 | 7 User Management | ✅ Complete (17/17) | - |
 | 8 Permission Filtering | ✅ Complete (8/8) | 2025-12-28 |
@@ -72,6 +73,58 @@
 
 - Backfilled missing summaries for executed plans: `02-03`, `2.2`, `03.1-01`, `06-02`, `07-07`, `07-10`, `07-11`, `07-12`.
 - Reconciled `.planning/ROADMAP.md` and `.planning/STATE.md` to reflect these as complete.
+
+### Phase 4 Extension Planning (2026-02-10)
+
+- Reopened Phase 4 (`04-reporting`) to extend exports beyond legacy risk/control PDF+Excel.
+- Added execution plans:
+  - `04-03`: Unified backend export contract for risks/controls/kris/vendors with pdf/xlsx/csv and as-of date snapshots.
+  - `04-04`: Single export button and shared export modal across Risks/Controls/KRIs/Vendors list pages.
+  - `04-05`: Regression verification, docs reconciliation, and planning-state closeout.
+
+### Phase 4 Execution (2026-02-10)
+
+- ✅ **04-03**: Unified backend export contract implemented.
+  - Added new endpoints:
+    - `GET /api/v1/reports/risks/export`
+    - `GET /api/v1/reports/controls/export`
+    - `GET /api/v1/reports/kris/export`
+    - `GET /api/v1/reports/vendors/export`
+  - Supported `format=pdf|xlsx|csv` and `as_of_date=YYYY-MM-DD` across all four entity exports.
+  - Added snapshot replay service for point-in-time reconstruction:
+    - `backend/app/services/export_snapshot_service.py`
+  - Preserved legacy compatibility:
+    - `GET /api/v1/reports/risks/pdf|excel`
+    - `GET /api/v1/reports/controls/pdf|excel`
+  - Added/updated backend tests for unified export matrix, scoping, and as-of behavior:
+    - `backend/tests/test_reports_rbac.py`
+  - Verification:
+    - `backend/tests/test_reports_rbac.py` → `16 passed`
+    - `backend/tests/test_vendor_reports.py`, `backend/tests/test_kris_rbac.py`, `backend/tests/test_vendors.py`, `backend/tests/api/v1/test_reports_audit.py` → `28 passed`
+
+- ✅ **04-04**: Single export button + shared modal implemented on Risks/Controls/KRIs/Vendors.
+  - Added reusable modal:
+    - `frontend/src/components/reports/ExportDialog.tsx`
+  - Added unified frontend API methods:
+    - `reportApi.exportRisks`, `reportApi.exportControls`, `reportApi.exportKRIs`, `reportApi.exportVendors`
+  - Replaced split PDF/Excel header actions with one modal-driven export flow on:
+    - `frontend/src/pages/RisksPage.tsx`
+    - `frontend/src/pages/ControlsPage.tsx`
+    - `frontend/src/pages/KRIsPage.tsx`
+    - `frontend/src/pages/VendorsPage.tsx`
+  - Added EN/CS localization keys for shared export modal and page export labels.
+  - Verification:
+    - `cd frontend && npx tsc --noEmit` → `passed`
+    - `cd frontend && npm run test:run -- src/pages/__tests__` → `3 files passed, 34 tests passed`
+- ✅ **04-05**: Regression verification + docs/state reconciliation completed.
+  - Extended backend export RBAC tests for full format matrix and vendor as-of replay behavior.
+  - Updated E2E page objects/specs for modal-driven single-export flow assertions.
+  - Added user docs for vendors and reconciled export guidance across risks/controls/kris/vendors.
+  - Verification:
+    - `cd backend && venv/bin/pytest tests/test_reports_rbac.py tests/test_vendor_reports.py -q` → `19 passed`
+    - `cd frontend && npx tsc --noEmit` → `passed`
+    - `cd frontend && npx playwright test e2e/risks.spec.ts e2e/controls.spec.ts e2e/kris.spec.ts e2e/vendors.spec.ts --project=chromium` → `19 passed`
+  - Full-suite gate (`make test-e2e`) intentionally deferred per user direction to stop broad reruns.
 
 ### Phase 17 Progress
 
@@ -201,11 +254,12 @@
 - Executed Phase 180 extension plans 180-10..180-14 and implemented 180-15 setup/docs reconciliation: introduced deterministic fixture constants, refactored skip-heavy suites to deterministic selectors, added vendor/vendor-SLA archive coverage, and integrated global setup preflight checks for seeded fixture availability (2026-02-07).
 - Executed 180-16 stabilization follow-up for `kri-owner-access`: refactored to deterministic fixture-driven navigation/assertions and removed brittle shell-content checks. Focused and stress runs passed (`6/6`, `30/30`), while broader/full verification exposed additional unrelated parallel flakes in other specs (2026-02-09).
 - Executed next blocker fix (item 1) for `cross-department/control-owner-access`: patched `ControlsPage` search locator for localized UI (`Hledat`) and added visible-wait before fill; target spec now passes (`4/4`) and the prior timeout is removed from blockers (2026-02-09).
+- Executed `04-05` closeout for Phase 4 reporting extension: finalized export regression coverage/docs updates, passed backend + targeted frontend verification (`19 backend assertions + 19 Playwright tests`), and reconciled planning state/roadmap (2026-02-10).
 
 ### Next Step
 
-- Stabilize remaining non-`kri-owner-access` parallel flakes in `controls.spec.ts`, `permissions/kris-crud.spec.ts`, and `risks.spec.ts`; rerun `make test-e2e` and close 180-15 once full-suite verification is clean.
+- Continue Phase 180 stabilization work (remaining full-suite E2E flakes), then run full `make test-e2e` once blocker fixes are complete.
 
 ---
 
-*Updated: 2026-02-09*
+*Updated: 2026-02-10*

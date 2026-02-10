@@ -6,6 +6,7 @@ from datetime import datetime, UTC, timedelta
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.integrations.vendor_signals.public_registry import PublicRegistryConnector
 from app.models.vendor import Vendor
 from app.models.vendor_external_signal import VendorExternalSignal, VendorExternalSignalStatus
@@ -14,11 +15,14 @@ logger = logging.getLogger(__name__)
 
 
 class VendorSignalService:
-    DEFAULT_MIN_INTERVAL_HOURS = 24
-
     @staticmethod
     def connectors():
         return [PublicRegistryConnector()]
+
+    @staticmethod
+    def min_interval_hours() -> int:
+        settings = get_settings()
+        return max(settings.vendor_signals_min_interval_hours, 0)
 
     @staticmethod
     async def _latest_fetched_at(db: AsyncSession, *, vendor_id: int, provider_key: str) -> datetime | None:
@@ -50,7 +54,7 @@ class VendorSignalService:
                 latest = await VendorSignalService._latest_fetched_at(db, vendor_id=vendor.id, provider_key=connector.provider_key)
                 if latest:
                     latest_utc = latest.replace(tzinfo=UTC) if latest.tzinfo is None else latest.astimezone(UTC)
-                    if latest_utc >= (fetched_at - timedelta(hours=VendorSignalService.DEFAULT_MIN_INTERVAL_HOURS)):
+                    if latest_utc >= (fetched_at - timedelta(hours=VendorSignalService.min_interval_hours())):
                         continue
 
             try:
@@ -83,4 +87,3 @@ class VendorSignalService:
 
         await db.commit()
         return results
-

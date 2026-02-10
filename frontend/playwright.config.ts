@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const ciChromiumChannel = process.platform === 'darwin' ? 'chrome' : undefined;
+const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 export default defineConfig({
     testDir: './e2e',
@@ -21,7 +22,7 @@ export default defineConfig({
     timeout: 60000,
 
     use: {
-        baseURL: 'http://localhost:5173',
+        baseURL: frontendBaseUrl,
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
         video: 'on-first-retry',
@@ -53,7 +54,7 @@ export default defineConfig({
 
     webServer: {
         command: 'npm run dev',
-        url: 'http://localhost:5173',
+        url: frontendBaseUrl,
         reuseExistingServer: !process.env.CI,
         timeout: 120000,
     },

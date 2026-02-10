@@ -95,6 +95,7 @@
         "link_risk": "Link Risk",
         "unlink": "Unlink",
         "unarchive": "Unarchive",
+        "export": "Export",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
     },

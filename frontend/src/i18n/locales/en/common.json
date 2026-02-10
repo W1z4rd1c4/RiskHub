@@ -31,6 +31,23 @@
         "add_control": "Add control",
         "mark_all_read": "Mark all as read"
     },
+    "export": {
+        "button": "Export",
+        "title": "Export data",
+        "fields": {
+            "format": "Format",
+            "date": "As of date"
+        },
+        "formats": {
+            "pdf": "PDF (.pdf)",
+            "xlsx": "Excel (.xlsx)",
+            "csv": "CSV (.csv)"
+        },
+        "actions": {
+            "submit": "Export",
+            "cancel": "Cancel"
+        }
+    },
     "labels": {
         "name": "Name",
         "description": "Description",

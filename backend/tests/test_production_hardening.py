@@ -5,12 +5,16 @@ from app.core.config import Settings
 from app.main import create_app
 
 
+PRODUCTION_SECRET = "test-secret-for-production-mode-123456"
+PRODUCTION_DATABASE_URL = "postgresql+asyncpg://riskhub:tests@prod-db:5432/riskhub"
+
+
 @pytest.mark.asyncio
 async def test_docs_enabled_in_debug_mode():
     app = create_app(
         Settings(
             debug=True,
-            secret_key="test-secret",
+            secret_key=PRODUCTION_SECRET,
             mock_auth_enabled=False,
             cors_origins=["http://testserver"],
         )
@@ -26,9 +30,11 @@ async def test_docs_disabled_in_production_mode():
     app = create_app(
         Settings(
             debug=False,
-            secret_key="test-secret",
+            secret_key=PRODUCTION_SECRET,
             mock_auth_enabled=False,
             cors_origins=["http://testserver"],
+            database_url=PRODUCTION_DATABASE_URL,
+            directory_webhook_enabled=False,
         )
     )
     transport = ASGITransport(app=app)
@@ -45,9 +51,11 @@ async def test_trusted_host_blocks_unexpected_host_in_production_mode():
     app = create_app(
         Settings(
             debug=False,
-            secret_key="test-secret",
+            secret_key=PRODUCTION_SECRET,
             mock_auth_enabled=False,
             cors_origins=["http://testserver"],
+            database_url=PRODUCTION_DATABASE_URL,
+            directory_webhook_enabled=False,
         )
     )
     transport = ASGITransport(app=app)
@@ -61,9 +69,27 @@ async def test_trusted_host_blocks_unexpected_host_in_production_mode():
 
 def test_cors_guard_rejects_wildcard_origins_in_production_mode():
     with pytest.raises(RuntimeError):
-        create_app(Settings(debug=False, secret_key="test-secret", mock_auth_enabled=False, cors_origins=["*"]))
+        create_app(
+            Settings(
+                debug=False,
+                secret_key=PRODUCTION_SECRET,
+                mock_auth_enabled=False,
+                cors_origins=["*"],
+                database_url=PRODUCTION_DATABASE_URL,
+                directory_webhook_enabled=False,
+            )
+        )
 
 
 def test_cors_guard_requires_explicit_allowlist_in_production_mode():
     with pytest.raises(RuntimeError):
-        create_app(Settings(debug=False, secret_key="test-secret", mock_auth_enabled=False, cors_origins=[]))
+        create_app(
+            Settings(
+                debug=False,
+                secret_key=PRODUCTION_SECRET,
+                mock_auth_enabled=False,
+                cors_origins=[],
+                database_url=PRODUCTION_DATABASE_URL,
+                directory_webhook_enabled=False,
+            )
+        )
