@@ -77,19 +77,6 @@ async def audit_trail_test_data(db_session: AsyncSession, test_user, test_depart
 
 
 @pytest.mark.asyncio
-async def test_download_audit_trail_pdf(
-    auth_client: AsyncClient,
-    audit_trail_test_data: dict,
-):
-    """Test GET /reports/audit-trail/pdf returns a valid PDF."""
-    response = await auth_client.get("/api/v1/reports/audit-trail/pdf")
-    assert response.status_code == 200
-    assert response.headers["content-type"] == "application/pdf"
-    # PDF magic bytes check
-    assert response.content[:4] == b"%PDF"
-
-
-@pytest.mark.asyncio
 async def test_download_audit_trail_excel(
     auth_client: AsyncClient,
     audit_trail_test_data: dict,
@@ -108,9 +95,9 @@ async def test_audit_trail_filter_by_result(
     audit_trail_test_data: dict,
 ):
     """Test that result filter returns 200."""
-    response_passed = await auth_client.get("/api/v1/reports/audit-trail/pdf?result=passed")
+    response_passed = await auth_client.get("/api/v1/reports/audit-trail/excel?result=passed")
     assert response_passed.status_code == 200
-    assert response_passed.headers["content-type"] == "application/pdf"
+    assert "spreadsheetml" in response_passed.headers["content-type"]
 
 
 @pytest.mark.asyncio
@@ -120,7 +107,15 @@ async def test_audit_trail_department_scoping(
     test_department,
 ):
     """Test that department_id filter works."""
-    response = await auth_client.get(f"/api/v1/reports/audit-trail/pdf?department_id={test_department.id}")
+    response = await auth_client.get(f"/api/v1/reports/audit-trail/excel?department_id={test_department.id}")
     assert response.status_code == 200
-    assert response.headers["content-type"] == "application/pdf"
+    assert "spreadsheetml" in response.headers["content-type"]
 
+
+@pytest.mark.asyncio
+async def test_audit_trail_pdf_endpoint_removed(
+    auth_client: AsyncClient,
+    audit_trail_test_data: dict,
+):
+    response = await auth_client.get("/api/v1/reports/audit-trail/pdf")
+    assert response.status_code == 404

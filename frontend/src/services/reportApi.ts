@@ -5,7 +5,7 @@ interface ReportFilters {
     status?: string | null;
 }
 
-export type UnifiedExportFormat = 'pdf' | 'xlsx' | 'csv';
+export type UnifiedExportFormat = 'xlsx' | 'csv';
 
 interface RiskExportFilters extends ReportFilters {
     search?: string | null;
@@ -134,27 +134,11 @@ async function downloadUnifiedExport(
 
 export const reportApi = {
     /**
-     * Download controls report as PDF.
-     */
-    async downloadControlsPdf(filters: ReportFilters = {}): Promise<void> {
-        const url = `/reports/controls/pdf${buildQueryString(filters)}`;
-        await downloadFile(url, 'placeholder-pdf-014.pdf');
-    },
-
-    /**
      * Download controls report as Excel.
      */
     async downloadControlsExcel(filters: ReportFilters = {}): Promise<void> {
         const url = `/reports/controls/excel${buildQueryString(filters)}`;
         await downloadFile(url, 'placeholder-xlsx-003.xlsx');
-    },
-
-    /**
-     * Download risks report as PDF.
-     */
-    async downloadRisksPdf(filters: ReportFilters = {}): Promise<void> {
-        const url = `/reports/risks/pdf${buildQueryString(filters)}`;
-        await downloadFile(url, 'placeholder-pdf-038.pdf');
     },
 
     /**
@@ -166,19 +150,11 @@ export const reportApi = {
     },
 
     /**
-     * Download dashboard summary as PDF.
+     * Download dashboard summary as Excel.
      */
-    async downloadSummaryPdf(filters: ReportFilters = {}): Promise<void> {
-        const url = `/reports/summary/pdf${buildQueryString(filters)}`;
-        await downloadFile(url, 'placeholder-pdf-015.pdf');
-    },
-
-    /**
-     * Download audit trail report as PDF.
-     */
-    async downloadAuditTrailPdf(filters: AuditTrailFilters = {}): Promise<void> {
-        const url = `/reports/audit-trail/pdf${buildAuditQueryString(filters)}`;
-        await downloadFile(url, 'placeholder-pdf-008.pdf');
+    async downloadSummaryExcel(filters: ReportFilters = {}): Promise<void> {
+        const url = `/reports/summary/excel${buildQueryString(filters)}`;
+        await downloadFile(url, 'placeholder-xlsx-004.xlsx');
     },
 
     /**

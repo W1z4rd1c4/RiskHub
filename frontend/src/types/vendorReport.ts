@@ -1,2 +1,1 @@
-export type VendorReportFormat = 'pdf' | 'xlsx';
-
+export type VendorReportFormat = 'xlsx';

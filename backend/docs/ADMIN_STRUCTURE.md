@@ -6,7 +6,7 @@ Welcome to the layout of the Land. If you were to open the hood of RiskHub, you'
 This is where the logic lives.
 - **`app/api/v1`**: The "Customs Office." Every request from the outside world enters through here.
 - **`app/models`**: The "Blueprints." This is where we define what a "Risk" or an "Administrator" looks like in the database.
-- **`app/services`**: The "Specialists." If we need to generate a complex PDF or sync with a directory, we call a specialist service in this folder.
+- **`app/services`**: The "Specialists." If we need to generate exports or sync with a directory, we call a specialist service in this folder.
 - **`alembic`**: The "Time Machine." This folder records every change we've ever made to the database structure, allowing us to roll forward or backward in time as needed.
 
 ## The Frontend Gallery (`/frontend`)
@@ -26,7 +26,6 @@ This is the "Brain" of the project's history.
 
 ## Important Utilities
 - **`docker-compose.yml`**: The "Power Button." One command here spins up the entire database environment.
-- **`generate_pdf.py`**: A dedicated workbench for refining our PDF export logic.
 - **`scripts/`**: A collection of "Swiss Army Knives"—small tools for seeding initial data, cleaning the database, or verifying integrations.
 
 ---

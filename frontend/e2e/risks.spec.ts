@@ -17,6 +17,8 @@ test.describe('Risk Management (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId('risks-export-button')).toHaveCount(1);
         await risksPage.openExportDialog();
         await expect(risksPage.exportDateInput).toHaveValue(todayLocalIso());
+        await risksPage.exportFormatTrigger.click();
+        await expect(riskManagerPage.getByTestId('export-format-option-pdf')).toHaveCount(0);
 
         await risksPage.chooseExportFormat('csv');
         await risksPage.submitExport('csv');

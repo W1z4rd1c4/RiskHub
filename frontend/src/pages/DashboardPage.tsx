@@ -200,9 +200,9 @@ export function DashboardPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => reportApi.downloadSummaryPdf({ departmentId: filters.departmentId })}
+                        onClick={() => reportApi.downloadSummaryExcel({ departmentId: filters.departmentId })}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
-                        title="Export Summary PDF"
+                        title="Export Summary Excel"
                     >
                         <FileText className="h-5 w-5" />
                     </button>

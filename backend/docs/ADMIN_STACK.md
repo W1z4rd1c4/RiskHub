@@ -26,7 +26,7 @@ To talk to the database, we use **SQLAlchemy 2.0**. It allows our Python code to
 ## The Supporting Cast
 - **Lucide Icons**: For that crisp, modern visual language.
 - **Recharts**: To turn thousands of data points into beautiful, actionable risk charts.
-- **ReportLab**: The artisan tool we use to "draw" the PDF reports you export.
+- **OpenPyXL + CSV tooling**: The export engine we use for Excel/CSV report generation.
 - **Pytest**: Our automated testing suite that runs hundreds of "mock usage" scenarios every time we change a line of code.
 
 ---

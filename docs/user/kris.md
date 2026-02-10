@@ -240,7 +240,7 @@ Use the **Export** button on the Risk Appetite list page.
 1. Open **Risk Appetite**
 2. Click **Export**
 3. Choose:
-   - **Format**: Excel (`.xlsx`), PDF (`.pdf`), CSV (`.csv`)
+   - **Format**: Excel (`.xlsx`) or CSV (`.csv`)
    - **As of date**: defaults to today
 4. Click **Export**
 

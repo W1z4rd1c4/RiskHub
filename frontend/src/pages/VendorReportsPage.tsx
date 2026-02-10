@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from '@/i18n/hooks';
-import { Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { Download, FileSpreadsheet } from 'lucide-react';
 import { vendorReportApi } from '@/services/vendorReportApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { PermissionGate } from '@/components/PermissionGate';
@@ -60,14 +60,6 @@ export function VendorReportsPage() {
                             </div>
 
                             <div className="flex flex-wrap gap-2">
-                                <button
-                                    disabled={isDownloading}
-                                    onClick={() => download(() => vendorReportApi.downloadAnnual(year, 'pdf'))}
-                                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center gap-2"
-                                >
-                                    <FileText className="h-4 w-4" />
-                                    {t('reports.annual.download_pdf', 'Download PDF')}
-                                </button>
                                 <button
                                     disabled={isDownloading}
                                     onClick={() => download(() => vendorReportApi.downloadAnnual(year, 'xlsx'))}

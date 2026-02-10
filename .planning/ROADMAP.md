@@ -24,7 +24,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 3.1: Interactive Dashboards** — Filters, drill-downs, exploration (1/1)
 - [x] **Phase 3.2: List View Enhancements** — Grouped views, sorting, pagination (1/1)
 - [x] **Phase 3.3: Department Page** — Department detail pages (1/1)
-- [x] **Phase 4: Reporting** — Unified exports (PDF/Excel/CSV), as-of snapshots, and audit trails (5/5)
+- [x] **Phase 4: Reporting** — Unified exports (Excel/CSV), as-of snapshots, and audit trails (6/6)
 - [x] **Phase 5: Automated Testing** — Backend and frontend test coverage (2/2)
 - [x] **Phase 6: Risk Appetite** — Key Risk Indicators with limit monitoring (2/2)
 - [x] **Phase 6.1: KRI Management Tab** — KRI management page (1/1)
@@ -160,11 +160,11 @@ Plans:
 
 ### Phase 4: Reporting
 
-**Goal**: Unified exports (PDF/Excel/CSV) with as-of snapshots and audit trail functionality
+**Goal**: Unified exports (Excel/CSV) with as-of snapshots and audit trail functionality
 **Depends on**: Phase 3
-**Research**: Likely (PDF generation in Python)
-**Research topics**: ReportLab vs WeasyPrint, Excel generation with openpyxl
-**Plans**: 5 plans
+**Research**: Likely (export tooling and snapshot reconstruction)
+**Research topics**: Excel generation with openpyxl, CSV safety, point-in-time replay
+**Plans**: 6 plans
 
 Plans:
 
@@ -173,6 +173,7 @@ Plans:
 - [x] 04-03: Unified backend exports for risks/controls/kris/vendors (pdf/xlsx/csv + as_of_date)
 - [x] 04-04: Single export button + shared export modal on Risks/Controls/KRIs/Vendors pages
 - [x] 04-05: Export regression, docs reconciliation, and phase-state closeout
+- [x] 04-06: Hard-remove PDF export format and migrate reporting surfaces to Excel/CSV only
 
 ### Phase 5: Automated Testing (INSERTED)
 
@@ -774,7 +775,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 3.1 Interactive Dashboards | 1/1 | ✅ Complete | - |
 | 3.2 List Enhancements | 1/1 | ✅ Complete | 2025-12-25 |
 | 3.3 Department Page | 1/1 | ✅ Complete | 2025-12-25 |
-| 4. Reporting | 5/5 | ✅ Complete | 2026-02-10 |
+| 4. Reporting | 6/6 | ✅ Complete | 2026-02-10 |
 | 5. Automated Testing | 2/2 | ✅ Complete | 2025-12-25 |
 | 6. Risk Appetite | 2/2 | ✅ Complete | - |
 | 6.1 KRI Management | 1/1 | ✅ Complete | 2025-12-26 |
@@ -874,7 +875,8 @@ Plans:
 Note:
 - `kri-owner-access` deterministic stabilization follow-up is complete (focused + stress green).
 - `cross-department/control-owner-access` timeout blocker was fixed via locale-safe controls search locator.
-- 180-15 remains open due remaining parallel flakes in controls/risks/KRI-permissions specs.
+- Critical deterministic verification set is currently green (`44/44`, chromium) across controls/kris/risks/vendors + permissions + cross-department control-owner.
+- 180-15 remains open because full multi-project CI Playwright (`npx playwright test`) is unstable in this environment (runner SIGTERM / missing JUnit artifact), so full gate closure is still pending infra stabilization.
 
 ### Phase 200: Entity Naming Enforcement
 
