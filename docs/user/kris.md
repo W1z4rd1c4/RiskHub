@@ -12,6 +12,7 @@
 4. [Understanding Breach Alerts](#understanding-breach-alerts)
 5. [KRI History and Trends](#kri-history-and-trends)
 6. [Correcting KRI Values](#correcting-kri-values)
+7. [Exporting KRIs](#exporting-kris)
 
 ---
 
@@ -72,7 +73,7 @@ The Risk Appetite page shows:
 ### Filtering KRIs
 
 Filter by:
-- **Status**: Show only breached KRIs
+- **Status**: All, Within, Breach, Overdue, or Archived
 - **Reporting Period**: Daily, Weekly, Monthly, etc.
 - **Department**: Your area or all
 - **Owner**: Your KRIs only
@@ -227,6 +228,27 @@ This ensures audit trail integrity.
 - New value appears with correction timestamp
 - Dashboard reflects corrected value
 - Full audit trail preserved
+
+---
+
+## Exporting KRIs
+
+Use the **Export** button on the Risk Appetite list page.
+
+### Export Workflow
+
+1. Open **Risk Appetite**
+2. Click **Export**
+3. Choose:
+   - **Format**: Excel (`.xlsx`), PDF (`.pdf`), CSV (`.csv`)
+   - **As of date**: defaults to today
+4. Click **Export**
+
+### Export Behavior
+
+- Export follows current filters (status + search).
+- Archived KRIs are exported only when **Status = Archived**.
+- Output includes only KRIs you are allowed to view.
 
 ---
 

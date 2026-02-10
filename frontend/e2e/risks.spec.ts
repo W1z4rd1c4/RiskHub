@@ -3,7 +3,26 @@ import { E2E_RISKS } from './fixtures/e2e-data';
 import { RisksPage } from './pages/RisksPage';
 import { waitForDataLoad, waitForTableRowByText } from './helpers/wait';
 
+function todayLocalIso(): string {
+    const now = new Date();
+    const offsetMs = now.getTimezoneOffset() * 60_000;
+    return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
+}
+
 test.describe('Risk Management (Deterministic)', () => {
+    test('Single export button opens modal and exports selected format', async ({ riskManagerPage }) => {
+        const risksPage = new RisksPage(riskManagerPage);
+        await risksPage.navigate();
+
+        await expect(riskManagerPage.getByTestId('risks-export-button')).toHaveCount(1);
+        await risksPage.openExportDialog();
+        await expect(risksPage.exportDateInput).toHaveValue(todayLocalIso());
+
+        await risksPage.chooseExportFormat('csv');
+        await risksPage.submitExport('csv');
+        await expect(risksPage.exportDialog).not.toBeVisible();
+    });
+
     test('Risk list renders seeded active entity', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();

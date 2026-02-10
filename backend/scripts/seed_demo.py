@@ -11,9 +11,14 @@ import asyncio
 from datetime import datetime, UTC, timedelta
 from passlib.context import CryptContext
 from sqlalchemy import select, text
+from app.db.rbac_seed_contract import (
+    PERMISSION_BY_KEY,
+    RBAC_ROLE_PERMISSIONS,
+    ROLE_BY_NAME,
+    expand_permission_keys,
+)
 from app.db.session import async_session_maker
 from app.models import User, Department, Role, Permission, RolePermission
-from app.models.role import RoleType
 from app.models.user import AccessScope
 from app.models.risk import Risk, RiskType, RiskStatus, ControlEffectiveness, ControlRiskLink
 from app.models.control import Control, ControlForm, ControlFrequency, ControlStatus
@@ -44,51 +49,28 @@ DEPARTMENTS = [
     {"name": "Risk Management", "code": "RM"},
 ]
 
-ROLES = [
-    {"name": "admin", "display": "Administrator"},
-    {"name": "cro", "display": "Chief Risk Officer"},
-    {"name": "risk_manager", "display": "Risk Manager"},
-    {"name": "department_head", "display": "Department Head"},
-    {"name": "employee", "display": "Employee"},
-]
+DEMO_ROLE_ORDER = (
+    "admin",
+    "cro",
+    "risk_manager",
+    "department_head",
+    "employee",
+)
 
-PERMISSIONS = [
-    ("risks", "read"), ("risks", "write"), ("risks", "delete"),
-    ("controls", "read"), ("controls", "write"), ("controls", "delete"), ("controls", "execute"),
-    ("kri", "read"), ("kri", "write"), ("kri", "submit"), ("kri", "delete"),
-    ("users", "read"), ("users", "write"),
-    ("approvals", "read"), ("approvals", "write"),
-    ("activity_log", "read"),
-    ("reports", "read"),
-    ("departments", "read"), ("departments", "write"),
-    ("riskhub", "read"), ("riskhub", "write"),
-]
-
-# Permission matrix per role
+ROLES = [dict(ROLE_BY_NAME[name]) for name in DEMO_ROLE_ORDER]
 ROLE_PERMISSIONS = {
-    "admin": ["users:read", "users:write", "activity_log:read", "departments:read"],
-    "cro": [f"{r}:{a}" for r, a in PERMISSIONS],  # All permissions
-    "risk_manager": [
-        "risks:read", "risks:write", "risks:delete",
-        "controls:read", "controls:write", "controls:delete", "controls:execute",
-        "kri:read", "kri:write", "kri:submit", "kri:delete",
-        "approvals:read", "approvals:write",
-        "activity_log:read", "reports:read", "departments:read",
-    ],
-    "department_head": [
-        "risks:read", "risks:write",
-        "controls:read", "controls:write", "controls:execute",
-        "kri:read", "kri:write", "kri:submit",
-        "approvals:read",
-        "activity_log:read", "reports:read", "departments:read",
-    ],
-    "employee": [
-        "risks:read",
-        "controls:read", "controls:execute",
-        "kri:read", "kri:submit",
-        "activity_log:read", "reports:read",
-    ],
+    role_name: tuple(RBAC_ROLE_PERMISSIONS[role_name])
+    for role_name in DEMO_ROLE_ORDER
 }
+
+DEMO_PERMISSION_KEYS = sorted(
+    expand_permission_keys(
+        permission_key
+        for permission_keys in ROLE_PERMISSIONS.values()
+        for permission_key in permission_keys
+    )
+)
+PERMISSIONS = [dict(PERMISSION_BY_KEY[key]) for key in DEMO_PERMISSION_KEYS]
 
 
 async def seed_all():
@@ -116,32 +98,42 @@ async def seed_all():
         # === 2. CREATE PERMISSIONS ===
         print("\n🔐 Creating permissions...")
         perm_map = {}
-        for resource, action in PERMISSIONS:
-            perm = Permission(resource=resource, action=action, description=f"{action} {resource}")
+        for permission_data in PERMISSIONS:
+            perm = Permission(**permission_data)
             db.add(perm)
             await db.flush()
-            perm_map[f"{resource}:{action}"] = perm.id
+            perm_key = f"{permission_data['resource']}:{permission_data['action']}"
+            perm_map[perm_key] = perm.id
         print(f"   ✓ Created {len(PERMISSIONS)} permissions")
         
         # === 3. CREATE ROLES ===
         print("\n👔 Creating roles...")
         role_map = {}
-        for r in ROLES:
-            role = Role(name=r["name"], display_name=r["display"], is_system=r["name"] == "admin")
+        for role_data in ROLES:
+            role = Role(**role_data)
             db.add(role)
             await db.flush()
-            role_map[r["name"]] = role.id
-            print(f"   ✓ {r['display']} (ID: {role.id})")
+            role_map[role_data["name"]] = role.id
+            print(f"   ✓ {role_data['display_name']} (ID: {role.id})")
         
         # === 4. ASSIGN ROLE PERMISSIONS ===
         print("\n🔗 Assigning role permissions...")
-        for role_name, perms in ROLE_PERMISSIONS.items():
+        for role_name, permission_keys in ROLE_PERMISSIONS.items():
             role_id = role_map[role_name]
-            for perm_key in perms:
+            assigned_count = 0
+            for perm_key in permission_keys:
                 if perm_key in perm_map:
                     rp = RolePermission(role_id=role_id, permission_id=perm_map[perm_key])
                     db.add(rp)
-            print(f"   ✓ {role_name}: {len(perms)} permissions")
+                    assigned_count += 1
+                elif perm_key.endswith(":*"):
+                    resource = perm_key.split(":", maxsplit=1)[0]
+                    for candidate_key, permission_id in perm_map.items():
+                        if candidate_key.startswith(f"{resource}:"):
+                            rp = RolePermission(role_id=role_id, permission_id=permission_id)
+                            db.add(rp)
+                            assigned_count += 1
+            print(f"   ✓ {role_name}: {assigned_count} permissions")
         
         # === 5. CREATE USERS ===
         print("\n👤 Creating users...")

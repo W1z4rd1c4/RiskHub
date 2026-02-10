@@ -17,11 +17,49 @@ export class VendorsPage {
     }
 
     get searchInput(): Locator {
-        return this.page.locator('input[placeholder*="Search"], input[type="search"]').first();
+        return this.page.getByTestId('vendors-search-input');
     }
 
     get statusSelectTrigger(): Locator {
-        return this.page.locator('[role="combobox"]').first();
+        return this.page.getByTestId('vendors-status-filter-trigger');
+    }
+
+    get exportButton(): Locator {
+        return this.page.getByTestId('vendors-export-button');
+    }
+
+    get exportDialog(): Locator {
+        return this.page.getByTestId('vendors-export-dialog');
+    }
+
+    get exportFormatTrigger(): Locator {
+        return this.page.getByTestId('export-format-trigger');
+    }
+
+    get exportDateInput(): Locator {
+        return this.page.getByTestId('export-date-input');
+    }
+
+    private async waitForVendorsResponse(expected: { search?: string; status?: string } = {}): Promise<void> {
+        await this.page.waitForResponse((response) => {
+            if (response.request().method() !== 'GET') return false;
+            if (!response.url().includes('/api/v1/vendors')) return false;
+
+            try {
+                const url = new URL(response.url());
+                if (expected.search !== undefined) {
+                    const actualSearch = (url.searchParams.get('search') || '').trim().toLowerCase();
+                    if (!actualSearch.includes(expected.search.trim().toLowerCase())) return false;
+                }
+                if (expected.status !== undefined) {
+                    const actualStatus = (url.searchParams.get('status') || '').trim().toLowerCase();
+                    if (!actualStatus.includes(expected.status.trim().toLowerCase())) return false;
+                }
+                return true;
+            } catch {
+                return false;
+            }
+        }, { timeout: 15000 });
     }
 
     async navigate(): Promise<void> {
@@ -30,8 +68,15 @@ export class VendorsPage {
     }
 
     async search(query: string): Promise<void> {
-        await this.searchInput.fill(query);
-        await this.page.waitForTimeout(400);
+        const currentValue = await this.searchInput.inputValue();
+        if (currentValue === query) {
+            await waitForDataLoad(this.page);
+            return;
+        }
+        await Promise.all([
+            this.waitForVendorsResponse({ search: query }),
+            this.searchInput.fill(query),
+        ]);
         await waitForDataLoad(this.page);
     }
 
@@ -50,15 +95,48 @@ export class VendorsPage {
         await waitForDataLoad(this.page);
     }
 
+    async openExportDialog(): Promise<void> {
+        await this.exportButton.click();
+        await expect(this.exportDialog).toBeVisible();
+    }
+
+    async chooseExportFormat(format: 'pdf' | 'xlsx' | 'csv'): Promise<void> {
+        await this.exportFormatTrigger.click();
+        await this.page.getByTestId(`export-format-option-${format}`).click();
+    }
+
+    async setExportDate(date: string): Promise<void> {
+        await this.exportDateInput.fill(date);
+    }
+
+    async submitExport(format: 'pdf' | 'xlsx' | 'csv'): Promise<void> {
+        await Promise.all([
+            this.page.waitForResponse((response) => {
+                if (response.request().method() !== 'GET') return false;
+                if (!response.url().includes('/api/v1/reports/vendors/export')) return false;
+                try {
+                    const url = new URL(response.url());
+                    return (url.searchParams.get('format') || '').toLowerCase() === format;
+                } catch {
+                    return false;
+                }
+            }, { timeout: 20000 }),
+            this.page.getByTestId('export-submit-button').click(),
+        ]);
+    }
+
     async setStatusFilterInactive(): Promise<void> {
         await this.statusSelectTrigger.click();
-        await this.page.locator('[role="option"]').filter({ hasText: /inactive|neaktivn/i }).first().click();
+        await Promise.all([
+            this.waitForVendorsResponse({ status: 'inactive' }),
+            this.page.getByTestId('vendors-status-filter-option-inactive').click(),
+        ]);
         await waitForDataLoad(this.page);
     }
 
     async clickUnarchiveForRow(text: string): Promise<void> {
         await this.rowByText(text)
-            .locator('button:has-text("Unarchive"), button:has-text("Obnov")')
+            .locator('[data-testid^="vendor-unarchive-"]')
             .first()
             .click();
         await waitForDataLoad(this.page);

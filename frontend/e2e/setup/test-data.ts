@@ -7,8 +7,9 @@
 
 import { Page } from '@playwright/test';
 import { E2E_APPROVALS, E2E_REQUIRED_FIXTURES } from '../fixtures/e2e-data';
+import { getApiBaseUrl, getDemoToken } from '../helpers/api-auth';
 
-const API_BASE = process.env.BACKEND_URL || 'http://localhost:8000';
+const API_BASE = getApiBaseUrl();
 
 interface TestRisk {
     id?: number;
@@ -50,41 +51,8 @@ interface CleanupIds {
 /**
  * Get auth token for API calls by logging in as a privileged demo user.
  */
-async function getTokenForEmail(email: string, fallbackUserIds: number[] = []): Promise<string> {
-    // Prefer email-based demo login if available, then fallback to ID-based endpoint.
-    const candidates: Array<{ url: string; body?: Record<string, string> }> = [
-        {
-            url: `${API_BASE}/api/v1/auth/demo-login`,
-            body: { email },
-        },
-        ...fallbackUserIds.map((id) => ({ url: `${API_BASE}/api/v1/auth/demo-login/${id}` })),
-    ];
-
-    for (const candidate of candidates) {
-        const response = await fetch(candidate.url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            ...(candidate.body ? { body: JSON.stringify(candidate.body) } : {}),
-        });
-
-        if (!response.ok) {
-            continue;
-        }
-
-        const data = await response.json() as { access_token?: string };
-        if (data.access_token) {
-            return data.access_token;
-        }
-    }
-
-    throw new Error(`Failed to get demo token for ${email} via all supported demo-login endpoints`);
-}
-
-/**
- * Get auth token for API calls by logging in as a privileged demo user.
- */
 async function getAdminToken(): Promise<string> {
-    return getTokenForEmail('risk.manager@riskhub.local', [3, 1]);
+    return getDemoToken({ email: 'risk.manager@riskhub.local', fallbackUserIds: [3, 1] });
 }
 
 /**
@@ -265,8 +233,8 @@ interface DeterministicPreflightResult {
  * Fails fast on fresh DBs that were not seeded with E2E fixtures.
  */
 export async function verifyDeterministicE2EData(): Promise<DeterministicPreflightResult> {
-    const riskManagerToken = await getTokenForEmail('risk.manager@riskhub.local', [3, 1]);
-    const employeeToken = await getTokenForEmail('ops.analyst@riskhub.local', [7]);
+    const riskManagerToken = await getDemoToken({ email: 'risk.manager@riskhub.local', fallbackUserIds: [3, 1] });
+    const employeeToken = await getDemoToken({ email: 'ops.analyst@riskhub.local', fallbackUserIds: [7] });
     const riskManagerHeaders = { Authorization: `Bearer ${riskManagerToken}` };
     const employeeHeaders = { Authorization: `Bearer ${employeeToken}` };
 

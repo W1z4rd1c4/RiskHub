@@ -2,7 +2,7 @@
  * Risks Page Object Model
  * Handles Risk list and interaction operations
  */
-import { Page, Locator, expect } from '@playwright/test';
+import { expect, Locator, Page } from '@playwright/test';
 import { waitForDataLoad, waitForTableRows } from '../helpers/wait';
 
 export class RisksPage {
@@ -14,7 +14,7 @@ export class RisksPage {
 
     // Locators
     get pageTitle(): Locator {
-        return this.page.locator('h1:has-text("Risks"), h1:has-text("Risk Register")');
+        return this.page.locator('h2');
     }
 
     get table(): Locator {
@@ -26,36 +26,57 @@ export class RisksPage {
     }
 
     get searchInput(): Locator {
-        return this.page.locator(
-            [
-                '[data-testid="search-input"]',
-                'input[placeholder*="Search"]',
-                'input[placeholder*="Hledat"]',
-                'input[aria-label*="Search"]',
-                'input[aria-label*="Hledat"]',
-                'input[type="search"]',
-            ].join(', ')
-        ).first();
+        return this.page.getByTestId('risks-search-input');
     }
 
     get createButton(): Locator {
-        return this.page.locator('button:has-text("New Risk"), button:has-text("Create"), a:has-text("New Risk")');
+        return this.page.getByTestId('risks-create-button');
     }
 
-    get departmentFilter(): Locator {
-        return this.page.locator('[data-testid="department-filter"], select:has-text("Department")');
+    get statusSelectTrigger(): Locator {
+        return this.page.getByTestId('risks-status-filter-trigger');
     }
 
-    get categoryFilter(): Locator {
-        return this.page.locator('[data-testid="category-filter"], select:has-text("Category")');
+    get exportButton(): Locator {
+        return this.page.getByTestId('risks-export-button');
+    }
+
+    get exportDialog(): Locator {
+        return this.page.getByTestId('risks-export-dialog');
+    }
+
+    get exportFormatTrigger(): Locator {
+        return this.page.getByTestId('export-format-trigger');
+    }
+
+    get exportDateInput(): Locator {
+        return this.page.getByTestId('export-date-input');
     }
 
     get paginationControls(): Locator {
         return this.page.locator('[class*="pagination"], nav[aria-label*="pagination"]');
     }
 
-    get statusSelectTrigger(): Locator {
-        return this.page.locator('[role="combobox"]').first();
+    private async waitForRisksResponse(expected: { search?: string; status?: string } = {}): Promise<void> {
+        await this.page.waitForResponse((response) => {
+            if (response.request().method() !== 'GET') return false;
+            if (!response.url().includes('/api/v1/risks')) return false;
+
+            try {
+                const url = new URL(response.url());
+                if (expected.search !== undefined) {
+                    const actualSearch = (url.searchParams.get('search') || '').trim().toLowerCase();
+                    if (!actualSearch.includes(expected.search.trim().toLowerCase())) return false;
+                }
+                if (expected.status !== undefined) {
+                    const actualStatus = (url.searchParams.get('status') || '').trim().toLowerCase();
+                    if (!actualStatus.includes(expected.status.trim().toLowerCase())) return false;
+                }
+                return true;
+            } catch {
+                return false;
+            }
+        }, { timeout: 15000 });
     }
 
     // Actions
@@ -74,14 +95,28 @@ export class RisksPage {
 
     async search(query: string): Promise<void> {
         await expect(this.searchInput).toBeVisible({ timeout: 10000 });
-        await this.searchInput.fill(query);
-        await this.page.waitForTimeout(500); // Debounce
+        const currentValue = await this.searchInput.inputValue();
+        if (currentValue === query) {
+            await this.waitForListReady();
+            return;
+        }
+        await Promise.all([
+            this.waitForRisksResponse({ search: query }),
+            this.searchInput.fill(query),
+        ]);
         await this.waitForListReady();
     }
 
     async clearSearch(): Promise<void> {
-        await this.searchInput.clear();
-        await this.page.waitForTimeout(500);
+        const currentValue = await this.searchInput.inputValue();
+        if (currentValue.length === 0) {
+            await waitForDataLoad(this.page);
+            return;
+        }
+        await Promise.all([
+            this.waitForRisksResponse({ search: '' }),
+            this.searchInput.clear(),
+        ]);
         await waitForDataLoad(this.page);
     }
 
@@ -121,15 +156,48 @@ export class RisksPage {
         await waitForDataLoad(this.page);
     }
 
+    async openExportDialog(): Promise<void> {
+        await this.exportButton.click();
+        await expect(this.exportDialog).toBeVisible();
+    }
+
+    async chooseExportFormat(format: 'pdf' | 'xlsx' | 'csv'): Promise<void> {
+        await this.exportFormatTrigger.click();
+        await this.page.getByTestId(`export-format-option-${format}`).click();
+    }
+
+    async setExportDate(date: string): Promise<void> {
+        await this.exportDateInput.fill(date);
+    }
+
+    async submitExport(format: 'pdf' | 'xlsx' | 'csv'): Promise<void> {
+        await Promise.all([
+            this.page.waitForResponse((response) => {
+                if (response.request().method() !== 'GET') return false;
+                if (!response.url().includes('/api/v1/reports/risks/export')) return false;
+                try {
+                    const url = new URL(response.url());
+                    return (url.searchParams.get('format') || '').toLowerCase() === format;
+                } catch {
+                    return false;
+                }
+            }, { timeout: 20000 }),
+            this.page.getByTestId('export-submit-button').click(),
+        ]);
+    }
+
     async setStatusFilterArchived(): Promise<void> {
         await this.statusSelectTrigger.click();
-        await this.page.locator('[role="option"]').filter({ hasText: /archived|archiv/i }).first().click();
+        await Promise.all([
+            this.waitForRisksResponse({ status: 'archived' }),
+            this.page.getByTestId('risks-status-filter-option-archived').click(),
+        ]);
         await waitForDataLoad(this.page);
     }
 
     async clickUnarchiveForRow(text: string): Promise<void> {
         const row = this.rowByText(text);
-        await row.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first().click();
+        await row.locator('[data-testid^="risk-unarchive-"]').first().click();
         await waitForDataLoad(this.page);
     }
 
@@ -160,7 +228,6 @@ export class RisksPage {
     }
 
     async expectEmptyState(): Promise<void> {
-        // No rows or empty state message
         const rowCount = await this.tableRows.count();
         expect(rowCount).toBe(0);
     }

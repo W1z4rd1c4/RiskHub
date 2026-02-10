@@ -1,15 +1,18 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
-import { Plus, Search, RefreshCw, AlertCircle, Building2, User, ChevronRight } from 'lucide-react';
+import { Plus, Search, RefreshCw, AlertCircle, Building2, User, ChevronRight, Download } from 'lucide-react';
 import { vendorApi } from '@/services/vendorApi';
+import { reportApi } from '@/services/reportApi';
 import type { Vendor, VendorStatus, VendorType } from '@/types/vendor';
 import { PermissionGate } from '@/components/PermissionGate';
 import { SortableTable, Pagination } from '@/components/tables';
 import type { Column, SortDirection } from '@/components/tables/SortableTable';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useAuth } from '@/contexts/AuthContext';
+import { ExportDialog, type ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 
 function scorePill(score: number) {
     if (score >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
@@ -34,8 +37,11 @@ export function VendorsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const hasLoadedVendorsRef = useRef(false);
 
-    const limit = 10;
+    const limit = DEFAULT_LIST_PAGE_SIZE;
     const totalPages = Math.max(1, Math.ceil(totalCount / limit));
 
     const debouncedSearch = useDebouncedValue(search, 300);
@@ -43,7 +49,7 @@ export function VendorsPage() {
 
     const fetchVendors = useCallback(async () => {
         try {
-            const shouldShowSkeleton = vendors.length === 0;
+            const shouldShowSkeleton = !hasLoadedVendorsRef.current;
             if (shouldShowSkeleton) setIsLoading(true);
 
             const skip = (currentPage - 1) * limit;
@@ -62,6 +68,7 @@ export function VendorsPage() {
             setVendors(res.items);
             setTotalCount(res.total);
             setError(null);
+            hasLoadedVendorsRef.current = true;
         } catch (err) {
             console.error('Error fetching vendors:', err);
             const message =
@@ -72,9 +79,9 @@ export function VendorsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, debouncedSearch, limit, sortDirection, sortField, statusFilter, t, typeFilter, vendors.length]);
+    }, [currentPage, debouncedSearch, limit, sortDirection, sortField, statusFilter, t, typeFilter]);
 
-    const handleRestoreVendor = async (vendorId: number, e: MouseEvent) => {
+    const handleRestoreVendor = useCallback(async (vendorId: number, e: MouseEvent) => {
         e.stopPropagation();
         try {
             await vendorApi.restoreVendor(vendorId);
@@ -82,7 +89,7 @@ export function VendorsPage() {
         } catch (err) {
             console.error('Error restoring vendor:', err);
         }
-    };
+    }, [fetchVendors]);
 
     useEffect(() => {
         fetchVendors();
@@ -162,6 +169,7 @@ export function VendorsPage() {
                     {vendor.status === 'inactive' && hasPermission('vendors', 'delete') && (
                         <button
                             onClick={(e) => handleRestoreVendor(vendor.id, e)}
+                            data-testid={`vendor-unarchive-${vendor.id}`}
                             className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
                         >
                             {t('actions.unarchive', 'Unarchive')}
@@ -171,13 +179,33 @@ export function VendorsPage() {
                 </div>
             )
         }
-    ], [hasPermission, t]);
+    ], [handleRestoreVendor, hasPermission, t]);
 
     const handleSort = (field: string, direction: SortDirection) => {
         setSortField(direction ? field : null);
         setSortDirection(direction);
         setCurrentPage(1);
         setVendors([]);
+    };
+
+    const handleExport = async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
+        setIsExporting(true);
+        try {
+            await reportApi.exportVendors({
+                format,
+                asOfDate,
+                filters: {
+                    status: statusFilter || null,
+                    search: search.trim() || null,
+                    vendorType: typeFilter || null,
+                },
+            });
+            setIsExportDialogOpen(false);
+        } catch (err) {
+            console.error('Export failed:', err);
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     return (
@@ -188,9 +216,19 @@ export function VendorsPage() {
                     <p className="text-slate-500 font-medium mt-1">{t('subtitle', 'Third-party vendor catalog')}</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsExportDialogOpen(true)}
+                        data-testid="vendors-export-button"
+                        disabled={isExporting}
+                        className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
+                    >
+                        <Download className="h-4 w-4" />
+                        {t('actions.export', 'Export')}
+                    </button>
                     <PermissionGate resource="vendors" action="write">
                         <button
                             onClick={() => navigate('/vendors/new')}
+                            data-testid="vendors-create-button"
                             className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all flex items-center gap-2"
                         >
                             <Plus className="h-5 w-5" />
@@ -204,6 +242,7 @@ export function VendorsPage() {
                 <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
                     <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
                     <input
+                        data-testid="vendors-search-input"
                         type="text"
                         placeholder={t('filters.search_placeholder', 'Search vendors...')}
                         value={search}
@@ -222,6 +261,9 @@ export function VendorsPage() {
                         placeholder={t('filters.all_statuses', 'All statuses')}
                         allowEmpty
                         emptyLabel={t('filters.all_statuses', 'All statuses')}
+                        triggerTestId="vendors-status-filter-trigger"
+                        contentTestId="vendors-status-filter-content"
+                        optionTestIdPrefix="vendors-status-filter-option"
                         options={[
                             { value: 'active', label: t('status.active', 'Active') },
                             { value: 'inactive', label: t('status.inactive', 'Inactive') },
@@ -233,6 +275,9 @@ export function VendorsPage() {
                         placeholder={t('filters.all_types', 'All types')}
                         allowEmpty
                         emptyLabel={t('filters.all_types', 'All types')}
+                        triggerTestId="vendors-type-filter-trigger"
+                        contentTestId="vendors-type-filter-content"
+                        optionTestIdPrefix="vendors-type-filter-option"
                         options={[
                             { value: 'ict', label: t('type.ict', 'ICT') },
                             { value: 'outsourcing', label: t('type.outsourcing', 'Outsourcing') },
@@ -243,6 +288,7 @@ export function VendorsPage() {
                     />
                     <button
                         onClick={() => { fetchVendors(); setVendors([]); }}
+                        data-testid="vendors-refresh-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     >
                         <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
@@ -307,6 +353,14 @@ export function VendorsPage() {
                     />
                 </>
             )}
+
+            <ExportDialog
+                isOpen={isExportDialogOpen}
+                onClose={() => setIsExportDialogOpen(false)}
+                onSubmit={handleExport}
+                isSubmitting={isExporting}
+                dataTestId="vendors-export-dialog"
+            />
         </div>
     );
 }

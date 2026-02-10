@@ -197,6 +197,7 @@
         "link_kri": "Link KRI",
         "unlink": "Unlink",
         "unarchive": "Unarchive",
+        "export": "Export",
         "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
     },

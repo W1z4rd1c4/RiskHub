@@ -58,6 +58,6 @@ test.describe('KRI CRUD Permissions (Deterministic)', () => {
 
         const row = krisPage.rowByText(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
         await expect(row).toBeVisible();
-        await expect(row.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first()).toBeVisible();
+        await expect(row.locator('[data-testid^="kri-unarchive-"]').first()).toBeVisible();
     });
 });
