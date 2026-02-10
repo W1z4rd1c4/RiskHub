@@ -70,7 +70,6 @@
         "all_departments": "Všechna oddělení",
         "all_owners": "Všichni vlastníci",
         "all_statuses": "Všechny stavy",
-        "include_archived": "Zobrazit archivované",
         "overdue_only": "Pouze opožděné",
         "search_placeholder": "Hledat podle názvu, popisu, rizika nebo oddělení..."
     },
