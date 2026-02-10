@@ -21,13 +21,13 @@ test.describe('KRI Ownership & Inheritance (Deterministic)', () => {
         await context.close();
     });
 
-    test('Archived KRI appears for Risk Manager only when include archived is enabled', async ({ riskManagerPage }) => {
+    test('Archived KRI appears for Risk Manager only when status filter is Archived', async ({ riskManagerPage }) => {
         const krisPage = new KRIsPage(riskManagerPage);
         await krisPage.navigate();
         await krisPage.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
         await expect(krisPage.rowByText(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name)).toHaveCount(0);
 
-        await krisPage.setIncludeArchived(true);
+        await krisPage.setStatusFilterArchived();
         await krisPage.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
         await expect(krisPage.rowByText(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name)).toBeVisible();
     });

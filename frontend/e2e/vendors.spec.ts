@@ -83,7 +83,7 @@ test.describe('Vendor Management (Deterministic)', () => {
         await expect(vendorsPage.rowByText(E2E_VENDORS.ACTIVE_PRIMARY.name)).toBeVisible();
     });
 
-    test('Inactive vendor is hidden by default and shown when include archived is enabled', async ({ riskManagerPage }) => {
+    test('Inactive vendor is hidden by default and shown when status is Inactive', async ({ riskManagerPage }) => {
         await ensureVendorStatus(E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id, 'inactive');
         const vendorsPage = new VendorsPage(riskManagerPage);
         await vendorsPage.navigate();
@@ -91,7 +91,6 @@ test.describe('Vendor Management (Deterministic)', () => {
 
         await expect(vendorsPage.rowByText(E2E_VENDORS.INACTIVE_RESTORE_TARGET.name)).toHaveCount(0);
 
-        await vendorsPage.setIncludeArchived(true);
         await vendorsPage.setStatusFilterInactive();
         await vendorsPage.search(E2E_VENDORS.INACTIVE_RESTORE_TARGET.name);
         await expect(vendorsPage.rowByText(E2E_VENDORS.INACTIVE_RESTORE_TARGET.name)).toBeVisible();

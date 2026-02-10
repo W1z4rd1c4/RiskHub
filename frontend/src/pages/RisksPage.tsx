@@ -48,7 +48,6 @@ export function RisksPage() {
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('active');
-    const [includeArchived, setIncludeArchived] = useState(false);
     const [typeFilter, setTypeFilter] = useState<string>('');
     const [priorityFilter, setPriorityFilter] = useState<boolean | undefined>(undefined);
     const [currentPage, setCurrentPage] = useState(1);
@@ -98,7 +97,7 @@ export function RisksPage() {
                 setIsLoading(true);
             }
 
-            const shouldIncludeArchived = includeArchived || statusFilter === 'archived';
+            const shouldIncludeArchived = statusFilter === 'archived';
 
             // For paginated "all" view, just fetch the current page
             if (viewMode === 'all') {
@@ -180,7 +179,7 @@ export function RisksPage() {
                 setIsLoading(false);
             }
         }
-    }, [currentPage, debouncedSearch, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter, sortField, sortDirection, includeArchived]);
+    }, [currentPage, debouncedSearch, statusFilter, typeFilter, priorityFilter, viewMode, hasBreachFilter, criticalFilter, sortField, sortDirection]);
 
     const handleRestoreRisk = async (riskId: number, e: MouseEvent) => {
         e.stopPropagation();
@@ -473,7 +472,6 @@ export function RisksPage() {
                         value={statusFilter}
                         onValueChange={(v) => {
                             setStatusFilter(v as RiskStatus);
-                            if (v === 'archived') setIncludeArchived(true);
                             setRisks([]);
                             setCurrentPage(1);
                         }}
@@ -484,14 +482,6 @@ export function RisksPage() {
                             { value: 'archived', label: t('status.archived') },
                         ]}
                     />
-                    <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold px-3">
-                        <input
-                            type="checkbox"
-                            checked={includeArchived}
-                            onChange={(e) => { setIncludeArchived(e.target.checked); setRisks([]); setCurrentPage(1); }}
-                        />
-                        {t('filters.include_archived', 'Include archived')}
-                    </label>
                     <ThemedSelect
                         value={typeFilter}
                         onValueChange={(v) => { setTypeFilter(v); setRisks([]); setCurrentPage(1); }}

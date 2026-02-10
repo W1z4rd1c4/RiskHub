@@ -28,11 +28,9 @@ test.describe('KRI CRUD Permissions (Deterministic)', () => {
         await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
     });
 
-    test('Archived toggle defaults off and hides archived deterministic KRI', async ({ riskManagerPage }) => {
+    test('Archived deterministic KRI is hidden by default until status is Archived', async ({ riskManagerPage }) => {
         const krisPage = new KRIsPage(riskManagerPage);
         await krisPage.navigate();
-
-        await expect(krisPage.includeArchivedCheckbox).not.toBeChecked();
         await krisPage.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
 
         const archivedVisibleWithoutToggle = await waitForTableRowByText(
@@ -43,10 +41,10 @@ test.describe('KRI CRUD Permissions (Deterministic)', () => {
         expect(archivedVisibleWithoutToggle).toBe(false);
     });
 
-    test('Archived deterministic KRI appears when include archived is enabled', async ({ riskManagerPage }) => {
+    test('Archived deterministic KRI appears when status filter is Archived', async ({ riskManagerPage }) => {
         const krisPage = new KRIsPage(riskManagerPage);
         await krisPage.navigate();
-        await krisPage.setIncludeArchived(true);
+        await krisPage.setStatusFilterArchived();
         await krisPage.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
 
         await expect(krisPage.rowByText(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name)).toBeVisible();
@@ -55,7 +53,7 @@ test.describe('KRI CRUD Permissions (Deterministic)', () => {
     test('Risk Manager sees unarchive action on archived deterministic KRI row', async ({ riskManagerPage }) => {
         const krisPage = new KRIsPage(riskManagerPage);
         await krisPage.navigate();
-        await krisPage.setIncludeArchived(true);
+        await krisPage.setStatusFilterArchived();
         await krisPage.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
 
         const row = krisPage.rowByText(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);

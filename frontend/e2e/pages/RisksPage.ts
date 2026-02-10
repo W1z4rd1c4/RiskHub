@@ -42,10 +42,6 @@ export class RisksPage {
         return this.page.locator('button:has-text("New Risk"), button:has-text("Create"), a:has-text("New Risk")');
     }
 
-    get includeArchivedCheckbox(): Locator {
-        return this.page.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
-    }
-
     get departmentFilter(): Locator {
         return this.page.locator('[data-testid="department-filter"], select:has-text("Department")');
     }
@@ -123,14 +119,6 @@ export class RisksPage {
     async clickCreateButton(): Promise<void> {
         await this.createButton.click();
         await waitForDataLoad(this.page);
-    }
-
-    async setIncludeArchived(enabled: boolean): Promise<void> {
-        const currentState = await this.includeArchivedCheckbox.isChecked();
-        if (currentState !== enabled) {
-            await this.includeArchivedCheckbox.click();
-            await waitForDataLoad(this.page);
-        }
     }
 
     async setStatusFilterArchived(): Promise<void> {
