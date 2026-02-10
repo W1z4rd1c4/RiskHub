@@ -70,7 +70,6 @@
         "all_departments": "All Departments",
         "all_owners": "All Owners",
         "all_statuses": "All Statuses",
-        "include_archived": "Include archived",
         "overdue_only": "Overdue Only",
         "search_placeholder": "Search by name, description, risk or department..."
     },
