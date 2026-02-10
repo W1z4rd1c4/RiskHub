@@ -94,39 +94,39 @@ class TestReportPermissions:
     """Test permission enforcement on report endpoints."""
 
     @pytest.mark.asyncio
-    async def test_admin_can_export_all_controls_pdf(
+    async def test_admin_can_export_all_controls_excel(
         self,
         auth_client: AsyncClient,
         test_control_own_dept: Control,
         test_control_other_dept: Control,
     ):
         """Admin (privileged) can export controls from all departments."""
-        response = await auth_client.get("/api/v1/reports/controls/pdf")
+        response = await auth_client.get("/api/v1/reports/controls/excel")
         assert response.status_code == 200
-        assert response.headers["content-type"] == "application/pdf"
+        assert "spreadsheetml" in response.headers["content-type"]
 
     @pytest.mark.asyncio
-    async def test_admin_can_export_all_risks_pdf(
+    async def test_admin_can_export_all_risks_excel(
         self,
         auth_client: AsyncClient,
         test_risk: Risk,
         test_risk_other_dept: Risk,
     ):
         """Admin can export risks from all departments."""
-        response = await auth_client.get("/api/v1/reports/risks/pdf")
+        response = await auth_client.get("/api/v1/reports/risks/excel")
         assert response.status_code == 200
-        assert response.headers["content-type"] == "application/pdf"
+        assert "spreadsheetml" in response.headers["content-type"]
 
     @pytest.mark.asyncio
-    async def test_admin_can_export_summary_pdf(
+    async def test_admin_can_export_summary_excel(
         self,
         auth_client: AsyncClient,
         test_control_own_dept: Control,
     ):
         """Admin can export dashboard summary."""
-        response = await auth_client.get("/api/v1/reports/summary/pdf")
+        response = await auth_client.get("/api/v1/reports/summary/excel")
         assert response.status_code == 200
-        assert response.headers["content-type"] == "application/pdf"
+        assert "spreadsheetml" in response.headers["content-type"]
 
 
 class TestReportDepartmentScoping:
@@ -141,7 +141,7 @@ class TestReportDepartmentScoping:
     ):
         """Employee cannot request export for a department they don't belong to."""
         response = await client_employee.get(
-            f"/api/v1/reports/controls/pdf?department_id={second_department.id}"
+            f"/api/v1/reports/controls/excel?department_id={second_department.id}"
         )
         assert response.status_code == 403
         assert "Access denied" in response.json()["detail"]
@@ -153,9 +153,9 @@ class TestReportDepartmentScoping:
         test_control_own_dept: Control,
     ):
         """Employee can export controls from their own department."""
-        response = await client_employee.get("/api/v1/reports/controls/pdf")
+        response = await client_employee.get("/api/v1/reports/controls/excel")
         assert response.status_code == 200
-        assert response.headers["content-type"] == "application/pdf"
+        assert "spreadsheetml" in response.headers["content-type"]
 
     @pytest.mark.asyncio
     async def test_employee_can_export_own_department_risks(
@@ -164,7 +164,7 @@ class TestReportDepartmentScoping:
         test_risk: Risk,
     ):
         """Employee can export risks from their own department."""
-        response = await client_employee.get("/api/v1/reports/risks/pdf")
+        response = await client_employee.get("/api/v1/reports/risks/excel")
         assert response.status_code == 200
 
     @pytest.mark.asyncio
@@ -176,7 +176,7 @@ class TestReportDepartmentScoping:
     ):
         """Employee cannot export risks from another department."""
         response = await client_employee.get(
-            f"/api/v1/reports/risks/pdf?department_id={second_department.id}"
+            f"/api/v1/reports/risks/excel?department_id={second_department.id}"
         )
         assert response.status_code == 403
 
@@ -187,13 +187,13 @@ class TestReportDepartmentScoping:
         test_control_own_dept: Control,
     ):
         """Employee's summary export only includes their department data."""
-        response = await client_employee.get("/api/v1/reports/summary/pdf")
+        response = await client_employee.get("/api/v1/reports/summary/excel")
         assert response.status_code == 200
 
 
 
 class TestReportExcelEndpoints:
-    """Test Excel export endpoints have same RBAC as PDF."""
+    """Test Excel export endpoints RBAC behavior."""
 
     @pytest.mark.asyncio
     async def test_admin_can_export_controls_excel(
@@ -236,36 +236,43 @@ class TestUnifiedExportEndpoints:
     """Regression coverage for /reports/*/export endpoints."""
 
     @pytest.mark.asyncio
-    async def test_risk_unified_export_supports_all_formats(
+    async def test_risk_unified_export_supports_supported_formats(
         self,
         auth_client: AsyncClient,
         test_risk: Risk,
     ):
-        for fmt in ("pdf", "xlsx", "csv"):
+        for fmt in ("xlsx", "csv"):
             response = await auth_client.get(f"/api/v1/reports/risks/export?format={fmt}")
             assert response.status_code == 200
-            if fmt == "pdf":
-                assert response.headers["content-type"] == "application/pdf"
-            elif fmt == "xlsx":
+            if fmt == "xlsx":
                 assert "spreadsheetml" in response.headers["content-type"]
             else:
                 assert "text/csv" in response.headers["content-type"]
 
     @pytest.mark.asyncio
-    async def test_control_unified_export_supports_all_formats(
+    async def test_control_unified_export_supports_supported_formats(
         self,
         auth_client: AsyncClient,
         test_control_own_dept: Control,
     ):
-        for fmt in ("pdf", "xlsx", "csv"):
+        for fmt in ("xlsx", "csv"):
             response = await auth_client.get(f"/api/v1/reports/controls/export?format={fmt}")
             assert response.status_code == 200
-            if fmt == "pdf":
-                assert response.headers["content-type"] == "application/pdf"
-            elif fmt == "xlsx":
+            if fmt == "xlsx":
                 assert "spreadsheetml" in response.headers["content-type"]
             else:
                 assert "text/csv" in response.headers["content-type"]
+
+    @pytest.mark.asyncio
+    async def test_unified_export_rejects_pdf_format(
+        self,
+        auth_client: AsyncClient,
+        test_risk: Risk,
+        test_control_own_dept: Control,
+    ):
+        for entity in ("risks", "controls", "kris", "vendors"):
+            response = await auth_client.get(f"/api/v1/reports/{entity}/export?format=pdf")
+            assert response.status_code == 422
 
     @pytest.mark.asyncio
     async def test_unified_export_csv_is_department_scoped(
@@ -400,7 +407,7 @@ class TestUnifiedExportEndpoints:
         db_session.add_all([kri, vendor])
         await db_session.commit()
 
-        for fmt in ("pdf", "xlsx", "csv"):
+        for fmt in ("xlsx", "csv"):
             kri_resp = await auth_client.get(f"/api/v1/reports/kris/export?format={fmt}")
             vendor_resp = await auth_client.get(f"/api/v1/reports/vendors/export?format={fmt}")
             assert kri_resp.status_code == 200

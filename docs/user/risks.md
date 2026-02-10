@@ -275,7 +275,7 @@ Use the list-page **Export** button to generate point-in-time snapshots of the r
 1. Open **Risks**
 2. Click **Export** in the header
 3. In the modal, choose:
-   - **Format**: Excel (`.xlsx`), PDF (`.pdf`), or CSV (`.csv`)
+   - **Format**: Excel (`.xlsx`) or CSV (`.csv`)
    - **As of date**: defaults to today, can be any historical date
 4. Click **Export**
 

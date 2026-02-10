@@ -241,7 +241,7 @@ Use the list-page **Export** button to generate point-in-time control exports.
 1. Open **Controls**
 2. Click **Export**
 3. Select:
-   - **Format**: Excel (`.xlsx`), PDF (`.pdf`), or CSV (`.csv`)
+   - **Format**: Excel (`.xlsx`) or CSV (`.csv`)
    - **As of date**: defaults to today
 4. Click **Export**
 

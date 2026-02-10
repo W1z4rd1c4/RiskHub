@@ -143,14 +143,13 @@ Generate downloadable reports from your data.
 
 | Format | Use Case |
 |--------|----------|
-| **PDF** | Formal reports, presentations, printing |
-| **Excel** | Data analysis, further processing |
+| **Excel** | Structured reporting and further processing |
+| **CSV** | Lightweight export for quick sharing/import |
 
 ### Exporting from Dashboard
 
 1. Click the **Export** button (top right of dashboard)
-2. Choose **PDF** or **Excel**
-3. Report generates and downloads
+2. Dashboard summary downloads as **Excel**
 
 ### Exporting from List Pages
 
@@ -158,16 +157,10 @@ Each list page (Risks, Controls, KRIs) has export:
 
 1. Apply any filters you want
 2. Click **Export** button
-3. Choose format
+3. Choose **Excel** or **CSV**
 4. Filtered data is exported
 
 ### What's Included in Exports
-
-**PDF Reports:**
-- Cover page with date and user
-- Filtered data in formatted tables
-- Summary statistics
-- Page numbers
 
 **Excel Reports:**
 - Raw data with all columns

@@ -39,7 +39,6 @@
             "date": "Stav k datu"
         },
         "formats": {
-            "pdf": "PDF (.pdf)",
             "xlsx": "Excel (.xlsx)",
             "csv": "CSV (.csv)"
         },
@@ -214,7 +213,7 @@
     },
     "tooltips": {
         "refresh_log": "Obnovit záznamy",
-        "export_pdf": "Exportovat souhrn PDF",
+        "export_summary_excel": "Exportovat souhrn do Excelu",
         "view_changes": "Zobrazit změny",
         "cancel_request": "Zrušit požadavek"
     },

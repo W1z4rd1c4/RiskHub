@@ -182,9 +182,9 @@ Check if:
 
 Currently, reports are generated on-demand. Scheduled reporting is planned for a future release.
 
-### The PDF looks different than the screen. Is this correct?
+### Why does exported Excel/CSV look different than the screen?
 
-Yes—PDFs are formatted for printing with headers, footers, and page numbers. The content should match what you see on screen.
+This is expected. Exports are structured for reporting and data processing, not visual parity with cards/charts. The underlying values should match your filtered view and access scope.
 
 ---
 

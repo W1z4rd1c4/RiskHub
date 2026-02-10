@@ -28,7 +28,7 @@ Use the **Export** button in the Vendors header.
 1. Open **Vendors**
 2. Click **Export**
 3. Select:
-   - **Format**: Excel (`.xlsx`), PDF (`.pdf`), or CSV (`.csv`)
+   - **Format**: Excel (`.xlsx`) or CSV (`.csv`)
    - **As of date**: defaults to today
 4. Click **Export**
 
