@@ -20,10 +20,6 @@ export class VendorsPage {
         return this.page.locator('input[placeholder*="Search"], input[type="search"]').first();
     }
 
-    get includeArchivedCheckbox(): Locator {
-        return this.page.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
-    }
-
     get statusSelectTrigger(): Locator {
         return this.page.locator('[role="combobox"]').first();
     }
@@ -52,14 +48,6 @@ export class VendorsPage {
         await row.click();
         await this.page.waitForURL(/.*vendors\/\d+/);
         await waitForDataLoad(this.page);
-    }
-
-    async setIncludeArchived(enabled: boolean): Promise<void> {
-        const currentState = await this.includeArchivedCheckbox.isChecked();
-        if (currentState !== enabled) {
-            await this.includeArchivedCheckbox.click();
-            await waitForDataLoad(this.page);
-        }
     }
 
     async setStatusFilterInactive(): Promise<void> {

@@ -12,7 +12,7 @@ test.describe('KRI Management (Deterministic)', () => {
         await expect(krisPage.rowByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name)).toBeVisible();
     });
 
-    test('Archived KRI visibility follows include archived toggle', async ({ riskManagerPage }) => {
+    test('Archived KRI visibility follows archived status filter', async ({ riskManagerPage }) => {
         const krisPage = new KRIsPage(riskManagerPage);
         await krisPage.navigate();
         await krisPage.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
@@ -20,7 +20,7 @@ test.describe('KRI Management (Deterministic)', () => {
         const hiddenByDefault = await waitForTableRowByText(riskManagerPage, E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name, 2000);
         expect(hiddenByDefault).toBe(false);
 
-        await krisPage.setIncludeArchived(true);
+        await krisPage.setStatusFilterArchived();
         await krisPage.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
         await expect(krisPage.rowByText(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name)).toBeVisible();
     });
@@ -38,7 +38,7 @@ test.describe('KRI Management (Deterministic)', () => {
     test('Archived KRI row exposes unarchive action for privileged users', async ({ riskManagerPage }) => {
         const krisPage = new KRIsPage(riskManagerPage);
         await krisPage.navigate();
-        await krisPage.setIncludeArchived(true);
+        await krisPage.setStatusFilterArchived();
         await krisPage.search(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
 
         const row = krisPage.rowByText(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);

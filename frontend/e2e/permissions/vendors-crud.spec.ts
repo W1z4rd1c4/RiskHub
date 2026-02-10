@@ -90,7 +90,6 @@ test.describe('Vendor CRUD Permissions (Deterministic)', () => {
     test('Privileged user can restore inactive vendor from list', async ({ riskManagerPage }) => {
         const vendorsPage = new VendorsPage(riskManagerPage);
         await vendorsPage.navigate();
-        await vendorsPage.setIncludeArchived(true);
         await vendorsPage.setStatusFilterInactive();
         await vendorsPage.search(E2E_VENDORS.INACTIVE_RESTORE_TARGET.name);
 
@@ -109,7 +108,6 @@ test.describe('Vendor CRUD Permissions (Deterministic)', () => {
     test('Department-scoped user without delete permission cannot see restore action', async ({ deptHeadPage }) => {
         const vendorsPage = new VendorsPage(deptHeadPage);
         await vendorsPage.navigate();
-        await vendorsPage.setIncludeArchived(true);
         await vendorsPage.setStatusFilterInactive();
         await vendorsPage.search(E2E_VENDORS.INACTIVE_RESTORE_TARGET.name);
 

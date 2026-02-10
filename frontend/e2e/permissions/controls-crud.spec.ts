@@ -33,11 +33,9 @@ test.describe('Control CRUD Permissions (Deterministic)', () => {
         await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
     });
 
-    test('Archived toggle defaults off and hides archived deterministic control', async ({ riskManagerPage }) => {
+    test('Archived deterministic control is hidden by default until status is Archived', async ({ riskManagerPage }) => {
         const controlsPage = new ControlsPage(riskManagerPage);
         await controlsPage.navigate();
-
-        await expect(controlsPage.includeArchivedCheckbox).not.toBeChecked();
         await controlsPage.search(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
 
         const archivedVisibleWithoutToggle = await waitForTableRowByText(
@@ -48,10 +46,10 @@ test.describe('Control CRUD Permissions (Deterministic)', () => {
         expect(archivedVisibleWithoutToggle).toBe(false);
     });
 
-    test('Archived deterministic control appears when include archived is enabled', async ({ riskManagerPage }) => {
+    test('Archived deterministic control appears when status filter is Archived', async ({ riskManagerPage }) => {
         const controlsPage = new ControlsPage(riskManagerPage);
         await controlsPage.navigate();
-        await controlsPage.setIncludeArchived(true);
+        await controlsPage.setStatusFilterArchived();
         await controlsPage.search(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
 
         await expect(controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name)).toBeVisible();
@@ -60,7 +58,7 @@ test.describe('Control CRUD Permissions (Deterministic)', () => {
     test('Risk Manager sees unarchive action on archived deterministic control row', async ({ riskManagerPage }) => {
         const controlsPage = new ControlsPage(riskManagerPage);
         await controlsPage.navigate();
-        await controlsPage.setIncludeArchived(true);
+        await controlsPage.setStatusFilterArchived();
         await controlsPage.search(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
 
         const row = controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);

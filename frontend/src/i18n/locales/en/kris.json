@@ -66,6 +66,7 @@
         "breach": "Breach",
         "breached_only": "Breached Only",
         "overdue": "Overdue",
+        "archived": "Archived",
         "overdue_only": "Overdue Only",
         "include_archived": "Include archived",
         "search_placeholder": "Search by metric name..."

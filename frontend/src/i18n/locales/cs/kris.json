@@ -66,6 +66,7 @@
         "breach": "Překročení",
         "breached_only": "Pouze překročené",
         "overdue": "Opožděné",
+        "archived": "Archivované",
         "overdue_only": "Pouze opožděné",
         "include_archived": "Zobrazit archivované",
         "search_placeholder": "Hledat podle názvu metriky..."

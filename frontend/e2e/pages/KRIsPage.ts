@@ -52,10 +52,6 @@ export class KRIsPage {
         ).first();
     }
 
-    get includeArchivedCheckbox(): Locator {
-        return this.page.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
-    }
-
     get statusFilter(): Locator {
         return this.page.locator('[data-testid="status-filter"], select:has-text("Status")');
     }
@@ -184,12 +180,9 @@ export class KRIsPage {
         await waitForDataLoad(this.page);
     }
 
-    async setIncludeArchived(enabled: boolean): Promise<void> {
-        const currentState = await this.includeArchivedCheckbox.isChecked();
-        if (currentState !== enabled) {
-            await this.includeArchivedCheckbox.click();
-            await this.waitForListReady();
-        }
+    async setStatusFilterArchived(): Promise<void> {
+        await this.page.locator('button').filter({ hasText: /archived|archiv/i }).first().click();
+        await this.waitForListReady();
     }
 
     async clickUnarchiveForRow(text: string): Promise<void> {

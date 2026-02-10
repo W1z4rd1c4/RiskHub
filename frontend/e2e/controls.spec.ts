@@ -17,7 +17,7 @@ test.describe('Control Management (Deterministic)', () => {
         expect(rowVisible).toBe(true);
     });
 
-    test('Archived control visibility follows include archived toggle', async ({ riskManagerPage }) => {
+    test('Archived control visibility follows archived status filter', async ({ riskManagerPage }) => {
         const controlsPage = new ControlsPage(riskManagerPage);
         await controlsPage.navigate();
         await controlsPage.search(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
@@ -25,7 +25,7 @@ test.describe('Control Management (Deterministic)', () => {
         const hiddenByDefault = await waitForTableRowByText(riskManagerPage, E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name, 2000);
         expect(hiddenByDefault).toBe(false);
 
-        await controlsPage.setIncludeArchived(true);
+        await controlsPage.setStatusFilterArchived();
         await controlsPage.search(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
         await expect(controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name)).toBeVisible();
     });
@@ -45,7 +45,7 @@ test.describe('Control Management (Deterministic)', () => {
     test('Archived control row exposes unarchive action for privileged users', async ({ riskManagerPage }) => {
         const controlsPage = new ControlsPage(riskManagerPage);
         await controlsPage.navigate();
-        await controlsPage.setIncludeArchived(true);
+        await controlsPage.setStatusFilterArchived();
         await controlsPage.search(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
 
         const row = controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
