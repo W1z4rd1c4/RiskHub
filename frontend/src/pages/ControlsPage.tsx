@@ -35,7 +35,6 @@ import { useAuth } from '@/contexts/AuthContext';
 async function fetchAllForGroupedView(
     search: string,
     status: string,
-    includeArchived: boolean,
 ): Promise<{ items: ControlSummary[]; total: number }> {
     const pageSize = 100; // Backend max limit is 100
     let allControls: ControlSummary[] = [];
@@ -48,7 +47,7 @@ async function fetchAllForGroupedView(
             limit: pageSize,
             search: search || undefined,
             status: status || undefined,
-            include_archived: includeArchived || status === ControlStatus.ARCHIVED,
+            include_archived: status === ControlStatus.ARCHIVED,
         });
 
         total = response.total;
@@ -69,7 +68,6 @@ export function ControlsPage() {
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('');
-    const [includeArchived, setIncludeArchived] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [isExporting, setIsExporting] = useState(false);
@@ -91,7 +89,7 @@ export function ControlsPage() {
                 setIsLoading(true);
             }
 
-            const shouldIncludeArchived = includeArchived || statusFilter === ControlStatus.ARCHIVED;
+            const shouldIncludeArchived = statusFilter === ControlStatus.ARCHIVED;
             if (viewMode === 'all') {
                 // Paginated "all" view: fetch current page only
                 const skip = (currentPage - 1) * limit;
@@ -109,7 +107,6 @@ export function ControlsPage() {
                 const { items, total } = await fetchAllForGroupedView(
                     debouncedSearch,
                     statusFilter,
-                    shouldIncludeArchived,
                 );
                 setControls(items);
                 setTotalCount(total);
@@ -122,7 +119,7 @@ export function ControlsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, debouncedSearch, statusFilter, viewMode, includeArchived]);
+    }, [currentPage, debouncedSearch, statusFilter, viewMode]);
 
     const handleRestoreControl = async (controlId: number, e: MouseEvent) => {
         e.stopPropagation();
@@ -329,7 +326,6 @@ export function ControlsPage() {
                         value={statusFilter}
                         onValueChange={(v) => {
                             setStatusFilter(v);
-                            if (v === ControlStatus.ARCHIVED) setIncludeArchived(true);
                             setControls([]);
                             setCurrentPage(1);
                         }}
@@ -343,14 +339,6 @@ export function ControlsPage() {
                             { value: 'archived', label: t('status.archived', 'Archived') },
                         ]}
                     />
-                    <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold px-3">
-                        <input
-                            type="checkbox"
-                            checked={includeArchived}
-                            onChange={(e) => { setIncludeArchived(e.target.checked); setControls([]); setCurrentPage(1); }}
-                        />
-                        {t('filters.include_archived', 'Include archived')}
-                    </label>
                     <button
                         onClick={() => { fetchControls(); setControls([]); }}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"

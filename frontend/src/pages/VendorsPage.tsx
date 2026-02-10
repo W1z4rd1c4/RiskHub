@@ -30,7 +30,6 @@ export function VendorsPage() {
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<VendorStatus | ''>('active');
-    const [includeArchived, setIncludeArchived] = useState(false);
     const [typeFilter, setTypeFilter] = useState<VendorType | ''>('');
     const [currentPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<string | null>(null);
@@ -48,7 +47,7 @@ export function VendorsPage() {
             if (shouldShowSkeleton) setIsLoading(true);
 
             const skip = (currentPage - 1) * limit;
-            const shouldIncludeArchived = includeArchived || statusFilter === 'inactive';
+            const shouldIncludeArchived = statusFilter === 'inactive';
             const res = await vendorApi.getVendors({
                 skip,
                 limit,
@@ -73,7 +72,7 @@ export function VendorsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, debouncedSearch, limit, sortDirection, sortField, statusFilter, t, typeFilter, vendors.length, includeArchived]);
+    }, [currentPage, debouncedSearch, limit, sortDirection, sortField, statusFilter, t, typeFilter, vendors.length]);
 
     const handleRestoreVendor = async (vendorId: number, e: MouseEvent) => {
         e.stopPropagation();
@@ -217,7 +216,6 @@ export function VendorsPage() {
                         value={statusFilter}
                         onValueChange={(v) => {
                             setStatusFilter(v as VendorStatus | '');
-                            if (v === 'inactive') setIncludeArchived(true);
                             setCurrentPage(1);
                             setVendors([]);
                         }}
@@ -243,14 +241,6 @@ export function VendorsPage() {
                             { value: 'other', label: t('type.other', 'Other') },
                         ]}
                     />
-                    <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold px-3">
-                        <input
-                            type="checkbox"
-                            checked={includeArchived}
-                            onChange={(e) => { setIncludeArchived(e.target.checked); setCurrentPage(1); setVendors([]); }}
-                        />
-                        {t('filters.include_archived', 'Include archived')}
-                    </label>
                     <button
                         onClick={() => { fetchVendors(); setVendors([]); }}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"

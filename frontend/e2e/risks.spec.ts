@@ -17,7 +17,7 @@ test.describe('Risk Management (Deterministic)', () => {
         expect(rowVisible).toBe(true);
     });
 
-    test('Archived risk visibility follows include archived toggle', async ({ riskManagerPage }) => {
+    test('Archived risk visibility follows archived status filter', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();
         await risksPage.search(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
@@ -25,7 +25,6 @@ test.describe('Risk Management (Deterministic)', () => {
         const hiddenByDefault = await waitForTableRowByText(riskManagerPage, E2E_RISKS.ARCHIVE_RESTORE_TARGET.name, 2000);
         expect(hiddenByDefault).toBe(false);
 
-        await risksPage.setIncludeArchived(true);
         await risksPage.setStatusFilterArchived();
         await risksPage.search(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
         await expect(risksPage.rowByText(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name)).toBeVisible();
