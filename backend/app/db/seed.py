@@ -4,67 +4,15 @@ from datetime import datetime, timedelta, UTC
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.rbac_seed_contract import (
+    RBAC_PERMISSIONS as PERMISSIONS,
+    RBAC_ROLES as ROLES,
+    RBAC_ROLE_PERMISSIONS as ROLE_PERMISSIONS,
+)
 from app.db.session import async_session_maker
 from app.models import Role, Permission, RolePermission, User, Department
 from app.models.user import AccessScope
 from app.models import Control, ControlExecution, Risk, ControlRiskLink
-
-
-# SII-compliant roles
-ROLES = [
-    {"name": "admin", "display_name": "Administrator", "description": "System administration, platform access only", "is_system": True},
-    {"name": "cro", "display_name": "Chief Risk Officer", "description": "Full access, risk oversight, reporting", "is_system": True},
-    {"name": "risk_manager", "display_name": "Risk Manager", "description": "Risk register management, control oversight"},
-    {"name": "actuarial", "display_name": "Actuarial Function", "description": "Actuarial controls, reserving oversight"},
-    {"name": "compliance", "display_name": "Compliance Officer", "description": "Regulatory compliance, policy controls"},
-    {"name": "internal_audit", "display_name": "Internal Audit", "description": "Read-only audit access, verification rights", "is_system": True},
-    {"name": "department_head", "display_name": "Department Head", "description": "Department control catalog ownership"},
-    {"name": "employee", "display_name": "Employee", "description": "Department member with basic access"},
-    {"name": "viewer", "display_name": "Viewer", "description": "Read-only dashboard access", "is_system": True},
-]
-
-# Base permissions (add risks permissions)
-PERMISSIONS = [
-    {"resource": "*", "action": "*", "description": "Full access to all resources"},
-    {"resource": "controls", "action": "read", "description": "View controls"},
-    {"resource": "controls", "action": "write", "description": "Create/edit controls"},
-    {"resource": "controls", "action": "delete", "description": "Delete controls"},
-    {"resource": "controls", "action": "approve", "description": "Approve control changes"},
-    {"resource": "risks", "action": "read", "description": "View risks"},
-    {"resource": "risks", "action": "write", "description": "Create/edit risks"},
-    {"resource": "risks", "action": "delete", "description": "Delete risks"},
-    {"resource": "vendors", "action": "read", "description": "View vendors"},
-    {"resource": "vendors", "action": "write", "description": "Create/edit vendors"},
-    {"resource": "vendors", "action": "delete", "description": "Archive vendors"},
-    {"resource": "vendor_contracts", "action": "read", "description": "View vendor contracts and DORA clauses"},
-    {"resource": "vendor_contracts", "action": "write", "description": "Create/edit vendor contracts and DORA clauses"},
-    {"resource": "departments", "action": "read", "description": "View departments"},
-    {"resource": "departments", "action": "write", "description": "Create/edit departments"},
-    {"resource": "reports", "action": "read", "description": "View and export reports"},
-    {"resource": "users", "action": "read", "description": "View users"},
-    {"resource": "users", "action": "write", "description": "Manage users"},
-    {"resource": "approvals", "action": "write", "description": "Resolve approval requests"},
-    {"resource": "kri", "action": "submit", "description": "Submit KRI values"},
-    {"resource": "activity_log", "action": "read", "description": "View activity log"},
-]
-
-# Role-permission mappings
-# NOTE: kri:submit policy aligned with add_granular_permissions.py:
-#   - cro: has *:* (includes kri:submit)
-#   - risk_manager: granted kri:submit explicitly
-#   - department_head: granted kri:submit explicitly
-#   - employee: does NOT have kri:submit (must be reporting owner to submit)
-ROLE_PERMISSIONS = {
-    "admin": ["users:*", "activity_log:read", "departments:read"],
-    "cro": ["*:*"],
-    "risk_manager": ["controls:*", "risks:*", "vendors:*", "departments:read", "reports:*", "users:read", "approvals:write", "activity_log:read", "kri:submit"],
-    "actuarial": ["controls:read", "controls:write", "risks:read", "vendors:read", "reports:read"],
-    "compliance": ["controls:read", "controls:write", "risks:read", "vendors:read", "reports:read", "vendor_contracts:*"],
-    "internal_audit": ["controls:read", "risks:read", "vendors:read", "departments:read", "reports:read"],
-    "department_head": ["controls:read", "controls:write", "risks:read", "vendors:read", "vendors:write", "departments:read", "reports:read", "kri:submit", "activity_log:read"],
-    "employee": ["controls:read", "risks:read", "vendors:read", "departments:read", "reports:read"],  # Read-only dept access per §4.2
-    "viewer": ["controls:read", "risks:read", "vendors:read", "departments:read", "reports:read"],
-}
 
 # Sample departments
 DEPARTMENTS = [

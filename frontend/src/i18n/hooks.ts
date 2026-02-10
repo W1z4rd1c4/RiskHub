@@ -47,12 +47,15 @@ export function useTranslation<NS extends Namespace = 'common'>(
     // Ensure `t` identity is stable across renders when i18next's `t` is stable.
     // Many components include `t` in hook dependency arrays; an unstable `t` reference
     // can cause effect loops and repeated refetching.
-    const t: SafeTFunction = useCallback(((key: string, arg2?: string | TranslationOptions, arg3?: TranslationOptions) => {
-        if (typeof arg2 === 'string') {
-            return rawT(key, { defaultValue: arg2, ...(arg3 ?? {}) });
-        }
-        return rawT(key, arg2);
-    }) as SafeTFunction, [rawT]);
+    const t = useCallback(
+        (key: string, arg2?: string | TranslationOptions, arg3?: TranslationOptions) => {
+            if (typeof arg2 === 'string') {
+                return rawT(key, { defaultValue: arg2, ...(arg3 ?? {}) });
+            }
+            return rawT(key, arg2);
+        },
+        [rawT]
+    ) as SafeTFunction;
 
     return { ...result, t };
 }

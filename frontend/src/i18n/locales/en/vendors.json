@@ -11,6 +11,7 @@
         "save": "Save",
         "create": "Create",
         "cancel": "Cancel",
+        "export": "Export",
         "refresh": "Refresh",
         "unarchive": "Unarchive"
     },

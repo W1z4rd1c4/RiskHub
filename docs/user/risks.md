@@ -12,6 +12,7 @@
 4. [Risk Scoring](#risk-scoring)
 5. [Linking Controls to Risks](#linking-controls-to-risks)
 6. [Archiving Risks](#archiving-risks)
+7. [Exporting Risks](#exporting-risks)
 
 ---
 
@@ -39,8 +40,7 @@
 Use the filter bar to narrow your view:
 - **Search**: Type to find by name or description
 - **Department**: Filter by organizational unit
-- **Status**: Show Active, Mitigated, or All
-- **Include Archived**: Off by default; enable to include archived risks
+- **Status**: Show Active, Emerging, or Archived
 - **Priority**: Show only priority risks
 - **Risk Type**: Filter by category
 
@@ -252,7 +252,7 @@ Archiving removes a risk from active views while preserving its history for audi
 ### After Archiving
 
 - Risk moves to "Archived" status
-- Hidden from default views (enable **Include Archived** to see)
+- Hidden from default views (set **Status = Archived** to see)
 - All history preserved
 - Linked controls remain linked (for audit trail)
 
@@ -263,6 +263,27 @@ Users with **`risks:delete`** permission can restore from:
 - Risk list/search rows when archived items are visible
 
 Restoring sets status back to **Active**.
+
+---
+
+## Exporting Risks
+
+Use the list-page **Export** button to generate point-in-time snapshots of the risks you can access.
+
+### Export Workflow
+
+1. Open **Risks**
+2. Click **Export** in the header
+3. In the modal, choose:
+   - **Format**: Excel (`.xlsx`), PDF (`.pdf`), or CSV (`.csv`)
+   - **As of date**: defaults to today, can be any historical date
+4. Click **Export**
+
+### What Gets Exported
+
+- The export respects your current list filters (status, search, risk type, priority).
+- The export includes only records you are authorized to view.
+- For historical dates, export tries to reflect the risk state at that date.
 
 ---
 

@@ -1,5 +1,7 @@
-from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -11,16 +13,16 @@ class Settings(BaseSettings):
     debug: bool = False  # Set to True in .env for development
     
     # Database
-    database_url: str = "postgresql+asyncpg://localhost:5432/riskhub"
+    database_url: str = "postgresql+asyncpg://riskhub:riskhub@db:5432/riskhub"
     
     # Authentication
-    secret_key: str = "your-secret-key-change-in-production-use-env-var"
+    secret_key: str
     # SECURITY: Never enable in production - allows X-Mock-User-Id header bypass
     mock_auth_enabled: bool = False  # Set to True in .env for development/demo
     access_token_expire_minutes: int = 60
     
     # CORS
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"]
+    cors_origins: list[str] = Field(default_factory=list)
 
     # Trusted hosts (production hardening). If not provided, allowed hosts are derived from CORS origins.
     allowed_hosts: list[str] | None = None
@@ -29,11 +31,13 @@ class Settings(BaseSettings):
     redis_url: str | None = None
     
     # AD Emulator Integration
-    ad_emulator_url: str = "http://localhost:8001/api/v1"
+    ad_emulator_url: str = "http://ad-emulator:8001/api/v1"
+    directory_webhook_enabled: bool = True
     webhook_secret: str = ""  # Required in production for webhook signature verification
 
     # Optional vendor external signals (Phase 18-10)
     vendor_signals_public_registry_base_url: str | None = None  # e.g., https://registry.example.com/api
+    vendor_signals_min_interval_hours: int = 24
     
     model_config = {
         "env_file": ".env",

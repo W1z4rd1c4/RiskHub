@@ -3,7 +3,26 @@ import { E2E_KRIS } from './fixtures/e2e-data';
 import { KRIsPage } from './pages/KRIsPage';
 import { waitForTableRowByText } from './helpers/wait';
 
+function todayLocalIso(): string {
+    const now = new Date();
+    const offsetMs = now.getTimezoneOffset() * 60_000;
+    return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
+}
+
 test.describe('KRI Management (Deterministic)', () => {
+    test('Single export button opens modal and exports selected format', async ({ riskManagerPage }) => {
+        const krisPage = new KRIsPage(riskManagerPage);
+        await krisPage.navigate();
+
+        await expect(riskManagerPage.getByTestId('kris-export-button')).toHaveCount(1);
+        await krisPage.openExportDialog();
+        await expect(krisPage.exportDateInput).toHaveValue(todayLocalIso());
+
+        await krisPage.chooseExportFormat('csv');
+        await krisPage.submitExport('csv');
+        await expect(krisPage.exportDialog).not.toBeVisible();
+    });
+
     test('KRI list renders seeded active KRI', async ({ riskManagerPage }) => {
         const krisPage = new KRIsPage(riskManagerPage);
         await krisPage.navigate();
@@ -43,6 +62,6 @@ test.describe('KRI Management (Deterministic)', () => {
 
         const row = krisPage.rowByText(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
         await expect(row).toBeVisible();
-        await expect(row.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first()).toBeVisible();
+        await expect(row.locator('[data-testid^="kri-unarchive-"]').first()).toBeVisible();
     });
 });

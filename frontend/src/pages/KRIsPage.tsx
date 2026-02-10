@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback, useRef, type MouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
-import { Plus, Search, RefreshCw, AlertTriangle, CheckCircle, ChevronRight, User, Shield, Building2 } from 'lucide-react';
+import { Plus, Search, RefreshCw, AlertTriangle, CheckCircle, ChevronRight, User, Shield, Building2, Download } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
+import { reportApi } from '@/services/reportApi';
 import { PermissionGate } from '@/components/PermissionGate';
 import { ViewSwitcher, SortableTable, Pagination, CategoryDrillDown } from '@/components/tables';
 import type { Column, ViewMode } from '@/components/tables';
 import type { KeyRiskIndicator } from '@/types/kri';
 import { useAuth } from '@/contexts/AuthContext';
+import { DEFAULT_LIST_PAGE_SIZE, GROUPED_VIEW_FETCH_PAGE_SIZE, LIST_SEARCH_DEBOUNCE_MS } from '@/constants/list';
+import { ExportDialog, type ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 
 type StatusFilter = 'all' | 'within' | 'breach' | 'overdue' | 'archived';
 
@@ -21,13 +24,16 @@ export function KRIsPage() {
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
     const { t } = useTranslation('kris');
     const { hasPermission } = useAuth();
-    const limit = 10;
+    const limit = DEFAULT_LIST_PAGE_SIZE;
     const latestRequestIdRef = useRef(0);
 
     const fetchKRIs = useCallback(async () => {
         const requestId = ++latestRequestIdRef.current;
+        const isLatestRequest = () => requestId === latestRequestIdRef.current;
         setIsLoading(true);
         try {
             const includeArchived = statusFilter === 'archived';
@@ -39,12 +45,12 @@ export function KRIsPage() {
                     include_archived: includeArchived,
                     search: debouncedSearch || undefined,
                 });
-                if (requestId !== latestRequestIdRef.current) return;
+                if (!isLatestRequest()) return;
                 setKris(data.items || []);
                 setTotalCount(data.total || 0);
             } else {
                 // For grouped views, fetch ALL pages for accurate group counts
-                const pageSize = 100;
+                const pageSize = GROUPED_VIEW_FETCH_PAGE_SIZE;
                 let allKRIs: KeyRiskIndicator[] = [];
                 let page = 1;
                 let total = 0;
@@ -61,23 +67,24 @@ export function KRIsPage() {
                     page++;
                 } while ((page - 1) * pageSize < total);
 
-                if (requestId !== latestRequestIdRef.current) return;
+                if (!isLatestRequest()) return;
                 setKris(allKRIs);
                 setTotalCount(total);
             }
         } catch (err) {
-            if (requestId !== latestRequestIdRef.current) return;
+            if (!isLatestRequest()) return;
             console.error('Failed to fetch KRIs:', err);
         } finally {
-            if (requestId !== latestRequestIdRef.current) return;
-            setIsLoading(false);
+            if (isLatestRequest()) {
+                setIsLoading(false);
+            }
         }
-    }, [viewMode, currentPage, statusFilter, debouncedSearch]);
+    }, [viewMode, currentPage, limit, statusFilter, debouncedSearch]);
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
             setDebouncedSearch(search.trim());
-        }, 300);
+        }, LIST_SEARCH_DEBOUNCE_MS);
         return () => window.clearTimeout(timeoutId);
     }, [search]);
 
@@ -88,6 +95,25 @@ export function KRIsPage() {
             await fetchKRIs();
         } catch (err) {
             console.error('Failed to restore KRI:', err);
+        }
+    };
+
+    const handleExport = async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
+        setIsExporting(true);
+        try {
+            await reportApi.exportKRIs({
+                format,
+                asOfDate,
+                filters: {
+                    status: statusFilter,
+                    search: search.trim() || null,
+                },
+            });
+            setIsExportDialogOpen(false);
+        } catch (err) {
+            console.error('Export failed:', err);
+        } finally {
+            setIsExporting(false);
         }
     };
 
@@ -185,6 +211,7 @@ export function KRIsPage() {
                     {kri.is_archived && hasPermission('risks', 'delete') && (
                         <button
                             onClick={(e) => handleRestoreKRI(kri.id, e)}
+                            data-testid={`kri-unarchive-${kri.id}`}
                             className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
                         >
                             {t('actions.unarchive', 'Unarchive')}
@@ -246,14 +273,24 @@ export function KRIsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <button
+                        onClick={() => setIsExportDialogOpen(true)}
+                        data-testid="kris-export-button"
+                        disabled={isExporting}
+                        className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
+                    >
+                        <Download className="h-4 w-4" />
+                        {t('actions.export', 'Export')}
+                    </button>
+                    <button
                         onClick={fetchKRIs}
+                        data-testid="kris-refresh-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
                         title="Refresh"
                     >
                         <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
                     </button>
                     <PermissionGate resource="risks" action="write">
-                        <button onClick={() => navigate('/kris/new')} className="btn-primary">
+                        <button onClick={() => navigate('/kris/new')} data-testid="kris-create-button" className="btn-primary">
                             <Plus className="h-5 w-5" /> {t('new_kri')}
                         </button>
                     </PermissionGate>
@@ -268,6 +305,7 @@ export function KRIsPage() {
                 <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
                     <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
                     <input
+                        data-testid="kris-search-input"
                         type="text"
                         placeholder={t('filters.search_placeholder')}
                         value={search}
@@ -281,6 +319,7 @@ export function KRIsPage() {
                         <button
                             key={opt}
                             onClick={() => { setStatusFilter(opt); setCurrentPage(1); }}
+                            data-testid={`kris-status-filter-${opt}`}
                             className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${statusFilter === opt
                                 ? 'bg-accent text-white shadow-lg shadow-accent/20'
                                 : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
@@ -291,6 +330,7 @@ export function KRIsPage() {
                     ))}
                     <button
                         onClick={() => { setSearch(''); setStatusFilter('all'); setCurrentPage(1); }}
+                        data-testid="kris-clear-filters-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     >
                         <RefreshCw className="h-4 w-4" />
@@ -409,6 +449,14 @@ export function KRIsPage() {
                     )}
                 />
             )}
+
+            <ExportDialog
+                isOpen={isExportDialogOpen}
+                onClose={() => setIsExportDialogOpen(false)}
+                onSubmit={handleExport}
+                isSubmitting={isExporting}
+                dataTestId="kris-export-dialog"
+            />
         </div>
     );
 }

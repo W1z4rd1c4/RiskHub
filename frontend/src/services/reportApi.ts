@@ -5,6 +5,33 @@ interface ReportFilters {
     status?: string | null;
 }
 
+export type UnifiedExportFormat = 'pdf' | 'xlsx' | 'csv';
+
+interface RiskExportFilters extends ReportFilters {
+    search?: string | null;
+    riskType?: string | null;
+    isPriority?: boolean | null;
+}
+
+interface ControlExportFilters extends ReportFilters {
+    search?: string | null;
+}
+
+interface KRIExportFilters extends ReportFilters {
+    search?: string | null;
+}
+
+interface VendorExportFilters extends ReportFilters {
+    search?: string | null;
+    vendorType?: string | null;
+}
+
+interface ExportRequest<TFilters> {
+    format: UnifiedExportFormat;
+    asOfDate: string;
+    filters?: TFilters;
+}
+
 interface AuditTrailFilters extends ReportFilters {
     result?: string | null;
     controlId?: number | null;
@@ -45,6 +72,18 @@ function buildAuditQueryString(filters: AuditTrailFilters): string {
     return query ? `?${query}` : '';
 }
 
+function buildExportQueryString(params: Record<string, string | number | boolean | null | undefined>): string {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === '') {
+            return;
+        }
+        query.append(key, String(value));
+    });
+    const queryString = query.toString();
+    return queryString ? `?${queryString}` : '';
+}
+
 /**
  * Download a file from the API using apiClient's shared base URL logic.
  * This ensures requests work correctly whether VITE_API_URL is set or not.
@@ -76,6 +115,21 @@ async function downloadFile(url: string, defaultFilename: string): Promise<void>
         console.error('Download error:', error);
         throw error;
     }
+}
+
+async function downloadUnifiedExport(
+    entity: 'risks' | 'controls' | 'kris' | 'vendors',
+    format: UnifiedExportFormat,
+    asOfDate: string,
+    filters: Record<string, string | number | boolean | null | undefined>,
+): Promise<void> {
+    const queryString = buildExportQueryString({
+        format,
+        as_of_date: asOfDate,
+        ...filters,
+    });
+    const extension = format === 'xlsx' ? 'xlsx' : format;
+    await downloadFile(`/reports/${entity}/export${queryString}`, `${entity}-${asOfDate}.${extension}`);
 }
 
 export const reportApi = {
@@ -133,5 +187,44 @@ export const reportApi = {
     async downloadAuditTrailExcel(filters: AuditTrailFilters = {}): Promise<void> {
         const url = `/reports/audit-trail/excel${buildAuditQueryString(filters)}`;
         await downloadFile(url, 'audit-trail.xlsx');
+    },
+
+    async exportRisks(request: ExportRequest<RiskExportFilters>): Promise<void> {
+        const { format, asOfDate, filters = {} } = request;
+        await downloadUnifiedExport('risks', format, asOfDate, {
+            department_id: filters.departmentId,
+            status: filters.status,
+            search: filters.search,
+            risk_type: filters.riskType,
+            is_priority: filters.isPriority,
+        });
+    },
+
+    async exportControls(request: ExportRequest<ControlExportFilters>): Promise<void> {
+        const { format, asOfDate, filters = {} } = request;
+        await downloadUnifiedExport('controls', format, asOfDate, {
+            department_id: filters.departmentId,
+            status: filters.status,
+            search: filters.search,
+        });
+    },
+
+    async exportKRIs(request: ExportRequest<KRIExportFilters>): Promise<void> {
+        const { format, asOfDate, filters = {} } = request;
+        await downloadUnifiedExport('kris', format, asOfDate, {
+            department_id: filters.departmentId,
+            status: filters.status,
+            search: filters.search,
+        });
+    },
+
+    async exportVendors(request: ExportRequest<VendorExportFilters>): Promise<void> {
+        const { format, asOfDate, filters = {} } = request;
+        await downloadUnifiedExport('vendors', format, asOfDate, {
+            department_id: filters.departmentId,
+            status: filters.status,
+            search: filters.search,
+            vendor_type: filters.vendorType,
+        });
     },
 };

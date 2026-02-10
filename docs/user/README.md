@@ -20,6 +20,7 @@ RiskHub is your organization's enterprise risk management platform. This guide w
 | [Managing Risks](./risks.md) | Create, edit, and score organizational risks |
 | [Managing Controls](./controls.md) | Create controls and log executions |
 | [Key Risk Indicators](./kris.md) | Submit KRI values and understand breaches |
+| [Managing Vendors](./vendors.md) | Manage vendor records, status, and exports |
 | [Dashboard & Reports](./dashboard.md) | Executive dashboards and exports |
 | [Notifications & Approvals](./notifications.md) | Handle approvals and stay informed |
 | [FAQ](./faq.md) | Common questions and troubleshooting |

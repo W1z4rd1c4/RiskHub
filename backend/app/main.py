@@ -14,7 +14,7 @@ from app.core.logging import configure_logging, get_logger
 configure_logging()
 logger = get_logger("main")
 
-INSECURE_SECRET = "your-secret-key-change-in-production-use-env-var"
+DEFAULT_DATABASE_URL = "postgresql+asyncpg://riskhub:riskhub@db:5432/riskhub"
 
 
 def _derive_allowed_hosts(cors_origins: list[str]) -> list[str]:
@@ -30,18 +30,6 @@ def _derive_allowed_hosts(cors_origins: list[str]) -> list[str]:
 
 
 def _validate_production_settings(settings: Settings) -> None:
-    # Production security checks
-    if not settings.debug and settings.secret_key == INSECURE_SECRET:
-        raise RuntimeError(
-            "FATAL: SECRET_KEY must be set via environment variable in production mode. "
-            "Set DEBUG=true for development or provide a secure SECRET_KEY."
-        )
-    if settings.debug and settings.secret_key == INSECURE_SECRET:
-        logger.warning(
-            "placeholder_secret_key",
-            message="Using placeholder SECRET_KEY in debug mode - DO NOT USE IN PRODUCTION",
-        )
-
     # Mock auth production guard
     if settings.mock_auth_enabled and not settings.debug:
         logger.critical(
@@ -52,15 +40,29 @@ def _validate_production_settings(settings: Settings) -> None:
     if settings.mock_auth_enabled and settings.debug:
         logger.warning("mock_auth_warning", message="MOCK_AUTH_ENABLED=true - Development mode only")
 
+    if settings.debug:
+        return
+
     # Production hardening guardrails
-    if not settings.debug:
-        if not settings.cors_origins:
-            raise RuntimeError("FATAL: CORS_ORIGINS must be set to an explicit allowlist in production.")
-        if "*" in settings.cors_origins:
-            raise RuntimeError(
-                "FATAL: CORS_ORIGINS cannot include '*' when allow_credentials=true. "
-                "Set an explicit allowlist of origins."
-            )
+    if len(settings.secret_key.strip()) < 32:
+        raise RuntimeError(
+            "FATAL: SECRET_KEY must be at least 32 characters when DEBUG=false."
+        )
+    if settings.database_url == DEFAULT_DATABASE_URL:
+        raise RuntimeError(
+            "FATAL: DATABASE_URL must be explicitly configured for production deployment."
+        )
+    if not settings.cors_origins:
+        raise RuntimeError("FATAL: CORS_ORIGINS must be set to an explicit allowlist in production.")
+    if "*" in settings.cors_origins:
+        raise RuntimeError(
+            "FATAL: CORS_ORIGINS cannot include '*' when allow_credentials=true. "
+            "Set an explicit allowlist of origins."
+        )
+    if settings.directory_webhook_enabled and not settings.webhook_secret.strip():
+        raise RuntimeError(
+            "FATAL: WEBHOOK_SECRET is required when DIRECTORY_WEBHOOK_ENABLED=true and DEBUG=false."
+        )
 
 
 @asynccontextmanager
