@@ -11,7 +11,6 @@ import {
     AlertTriangle,
     MinusCircle,
     History,
-    FileText,
     Sheet,
     Shield,
     Target
@@ -90,22 +89,13 @@ export function AuditTrailPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <div className="flex bg-white/5 border border-white/10 p-1 rounded-xl">
-                        <button
-                            onClick={() => reportApi.downloadAuditTrailPdf({ result: resultFilter || undefined }).catch(console.error)}
-                            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all bg-white/5 rounded-lg border border-white/5 flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20"
-                        >
-                            <FileText className="h-3.5 w-3.5" />
-                            PDF
-                        </button>
-                        <button
-                            onClick={() => reportApi.downloadAuditTrailExcel({ result: resultFilter || undefined }).catch(console.error)}
-                            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all flex items-center gap-2 hover:bg-accent/10 rounded-lg"
-                        >
-                            <Sheet className="h-3.5 w-3.5" />
-                            Excel
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => reportApi.downloadAuditTrailExcel({ result: resultFilter || undefined }).catch(console.error)}
+                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all bg-white/5 rounded-lg border border-white/10 flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20"
+                    >
+                        <Sheet className="h-3.5 w-3.5" />
+                        Excel
+                    </button>
                 </div>
             </div>
 

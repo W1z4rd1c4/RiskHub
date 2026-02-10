@@ -5,7 +5,7 @@ import { Download, FileDown, X } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
-export type ExportFormat = 'xlsx' | 'pdf' | 'csv';
+export type ExportFormat = 'xlsx' | 'csv';
 
 export interface ExportDialogSubmitPayload {
     format: ExportFormat;
@@ -50,7 +50,6 @@ export function ExportDialog({
     const formatOptions = useMemo(
         () => [
             { value: 'xlsx', label: t('placeholder-xlsx-006.xlsx', 'Excel (.xlsx)') },
-            { value: 'pdf', label: t('placeholder-pdf-021.pdf', 'PDF (.pdf)') },
             { value: 'csv', label: t('export.formats.csv', 'CSV (.csv)') },
         ],
         [t],

@@ -90,7 +90,6 @@
         "link_risk": "Link Risk",
         "unarchive": "Unarchive",
         "export": "Export",
-        "export_pdf": "Export PDF",
         "export_excel": "Export Excel"
     },
     "alerts": {

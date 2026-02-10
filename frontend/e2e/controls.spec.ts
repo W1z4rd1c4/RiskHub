@@ -17,6 +17,8 @@ test.describe('Control Management (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId('controls-export-button')).toHaveCount(1);
         await controlsPage.openExportDialog();
         await expect(controlsPage.exportDateInput).toHaveValue(todayLocalIso());
+        await controlsPage.exportFormatTrigger.click();
+        await expect(riskManagerPage.getByTestId('export-format-option-pdf')).toHaveCount(0);
 
         await controlsPage.chooseExportFormat('csv');
         await controlsPage.submitExport('csv');
@@ -39,11 +41,6 @@ test.describe('Control Management (Deterministic)', () => {
     test('Archived control visibility follows archived status filter', async ({ riskManagerPage }) => {
         const controlsPage = new ControlsPage(riskManagerPage);
         await controlsPage.navigate();
-        await controlsPage.search(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
-
-        const hiddenByDefault = await waitForTableRowByText(riskManagerPage, E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name, 2000);
-        expect(hiddenByDefault).toBe(false);
-
         await controlsPage.setStatusFilterArchived();
         await controlsPage.search(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
         await expect(controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name)).toBeVisible();

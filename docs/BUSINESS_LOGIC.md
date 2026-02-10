@@ -566,7 +566,7 @@ RiskHub provides unified list export endpoints for:
 - Vendors: `/api/v1/reports/vendors/export`
 
 Shared query contract:
-- `format` = `pdf` | `xlsx` | `csv`
+- `format` = `xlsx` | `csv`
 - `as_of_date` = `YYYY-MM-DD` (optional; defaults to current date)
 
 ### 10.2 UI Export Contract
@@ -589,11 +589,13 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - KRIs: archived items included when status filter is `archived`
 - Vendors: archived semantics use `status = inactive`
 
-### 10.5 Legacy Compatibility
+### 10.5 Specialized Excel Exports
 
-Legacy risk/control export endpoints remain operational for compatibility:
-- `/api/v1/reports/risks/pdf`, `/api/v1/reports/risks/excel`
-- `/api/v1/reports/controls/pdf`, `/api/v1/reports/controls/excel`
+Specialized report exports are Excel-only:
+- `/api/v1/reports/summary/excel`
+- `/api/v1/reports/audit-trail/excel`
+- `/api/v1/vendor-reports/annual?format=xlsx`
+- `/api/v1/vendor-reports/dora-register?format=xlsx`
 
 ---
 
