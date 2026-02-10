@@ -27,7 +27,7 @@
 | Phase | Status | Completed |
 |-------|--------|-----------|
 | 1-3 + 5 Foundation/Catalog/Dashboards/Testing | ✅ Complete | 2025-12-25 |
-| 4 Reporting | ✅ Complete (5/5) | 2026-02-10 |
+| 4 Reporting | ✅ Complete (6/6) | 2026-02-10 |
 | 6-6.1 Risk Appetite & KRI | ✅ Complete (3/3) | - |
 | 7 User Management | ✅ Complete (17/17) | - |
 | 8 Permission Filtering | ✅ Complete (8/8) | 2025-12-28 |
@@ -81,6 +81,7 @@
   - `04-03`: Unified backend export contract for risks/controls/kris/vendors with pdf/xlsx/csv and as-of date snapshots.
   - `04-04`: Single export button and shared export modal across Risks/Controls/KRIs/Vendors list pages.
   - `04-05`: Regression verification, docs reconciliation, and planning-state closeout.
+  - `04-06`: Hard removal of PDF export format across reporting surfaces (UI + API + docs/tests).
 
 ### Phase 4 Execution (2026-02-10)
 
@@ -125,6 +126,38 @@
     - `cd frontend && npx tsc --noEmit` → `passed`
     - `cd frontend && npx playwright test e2e/risks.spec.ts e2e/controls.spec.ts e2e/kris.spec.ts e2e/vendors.spec.ts --project=chromium` → `19 passed`
   - Full-suite gate (`make test-e2e`) intentionally deferred per user direction to stop broad reruns.
+- ✅ **04-06**: PDF export format removed across reporting surfaces.
+  - Unified list exports now support `xlsx|csv` only.
+  - Removed report endpoints:
+    - `/api/v1/reports/controls/pdf`
+    - `/api/v1/reports/risks/pdf`
+    - `/api/v1/reports/summary/pdf`
+    - `/api/v1/reports/audit-trail/pdf`
+  - Added/replaced summary endpoint:
+    - `/api/v1/reports/summary/excel`
+  - Restricted vendor annual report to Excel-only (`format=xlsx`).
+  - Updated export dialog and E2E contracts to assert PDF absence.
+  - Verification:
+    - `cd backend && venv/bin/pytest tests/test_reports_rbac.py tests/test_vendor_reports.py tests/api/v1/test_reports_audit.py -q` → `27 passed`
+    - `cd frontend && npx tsc --noEmit` → `passed`
+    - `cd frontend && npx playwright test e2e/risks.spec.ts e2e/controls.spec.ts e2e/kris.spec.ts e2e/vendors.spec.ts --project=chromium` → `19 passed`
+    - Full-suite gate (`make test-e2e`) deferred by user preference (targeted reruns first).
+
+### Hardening Closure Pass (2026-02-11)
+
+- Verified baseline lock references on `main` and recorded release gate execution in
+  `.planning/phases/180-e2e-business-logic/180-16-SUMMARY.md`.
+- Gate results:
+  - `make test` → `446 passed, 7 skipped` (green)
+  - `cd backend && pytest -m postgres -v` → `0 failed` (`4 skipped, 449 deselected`)
+  - `cd frontend && npx tsc --noEmit` → passed
+  - `cd frontend && npx eslint .` → `0 errors, 16 warnings` (warning baseline unchanged)
+  - Targeted critical Playwright suite (controls/kris/risks/vendors + permissions + cross-department control-owner) → `44 passed` (green)
+- Full `npx playwright test` multi-project gate remains blocked by runner instability in CI mode:
+  - Playwright process is terminated by SIGTERM after startup/progress (`process_exit_code=143`),
+    producing no JUnit artifact (`verdict=fail_no_junit`) in watchdog runs.
+  - Captured watchdog artifacts and command matrix in
+    `.planning/phases/180-e2e-business-logic/180-16-SUMMARY.md`.
 
 ### Phase 17 Progress
 
@@ -255,11 +288,13 @@
 - Executed 180-16 stabilization follow-up for `kri-owner-access`: refactored to deterministic fixture-driven navigation/assertions and removed brittle shell-content checks. Focused and stress runs passed (`6/6`, `30/30`), while broader/full verification exposed additional unrelated parallel flakes in other specs (2026-02-09).
 - Executed next blocker fix (item 1) for `cross-department/control-owner-access`: patched `ControlsPage` search locator for localized UI (`Hledat`) and added visible-wait before fill; target spec now passes (`4/4`) and the prior timeout is removed from blockers (2026-02-09).
 - Executed `04-05` closeout for Phase 4 reporting extension: finalized export regression coverage/docs updates, passed backend + targeted frontend verification (`19 backend assertions + 19 Playwright tests`), and reconciled planning state/roadmap (2026-02-10).
+- Executed `04-06` export contract simplification: removed PDF export support across reporting APIs/UI/docs and validated targeted backend/frontend suites (`27 backend tests`, `19 Playwright tests`, `frontend tsc`) (2026-02-10).
+- Executed hardening closure verification pass with deterministic gate matrix: backend + frontend static checks green, targeted critical Playwright green (`44/44`), and full multi-project Playwright blocked by CI runner SIGTERM/no-JUnit teardown behavior; documented release checklist and follow-ups in `180-16-SUMMARY.md` (2026-02-11).
 
 ### Next Step
 
-- Continue Phase 180 stabilization work (remaining full-suite E2E flakes), then run full `make test-e2e` once blocker fixes are complete.
+- Stabilize full-suite Playwright CI execution (SIGTERM/no-JUnit termination in multi-project mode), then rerun full `npx playwright test` and close Phase `180-15` with a fully green gate.
 
 ---
 
-*Updated: 2026-02-10*
+*Updated: 2026-02-11*

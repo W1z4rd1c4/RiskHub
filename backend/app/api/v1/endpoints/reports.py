@@ -1,7 +1,7 @@
 """
 Report generation endpoints.
 
-Includes legacy risk/control PDF/Excel endpoints and unified export endpoints
+Includes legacy risk/control Excel endpoints and unified export endpoints
 for risks/controls/kris/vendors with format + as_of_date support.
 """
 
@@ -33,20 +33,16 @@ from app.models.vendor import VendorStatus
 from app.services.export_snapshot_service import ExportSnapshotService
 from app.services.report_service import (
     generate_audit_trail_excel,
-    generate_audit_trail_pdf,
-    generate_dashboard_summary_pdf,
     generate_tabular_csv,
     generate_tabular_excel,
-    generate_tabular_pdf,
 )
 
 router = APIRouter()
 
-_PDF_MEDIA_TYPE = "application/pdf"
 _EXCEL_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 _CSV_MEDIA_TYPE = "text/csv; charset=utf-8"
 
-ExportFormat = Literal["pdf", "xlsx", "csv"]
+ExportFormat = Literal["xlsx", "csv"]
 KRIExportStatus = Literal["all", "within", "breach", "overdue", "archived"]
 
 
@@ -66,9 +62,8 @@ def _stream_binary(
     content_bytes: bytes,
     as_of_date: date | None = None,
 ) -> StreamingResponse:
-    ext = "xlsx" if export_format == "xlsx" else export_format
+    ext = "xlsx" if export_format == "xlsx" else "csv"
     media_type = {
-        "pdf": _PDF_MEDIA_TYPE,
         "xlsx": _EXCEL_MEDIA_TYPE,
         "csv": _CSV_MEDIA_TYPE,
     }[export_format]
@@ -660,9 +655,7 @@ def _render_export(
     data_rows: list[list[Any]],
     as_of_date: date,
 ) -> StreamingResponse:
-    if export_format == "pdf":
-        content = generate_tabular_pdf(title, headers, data_rows)
-    elif export_format == "xlsx":
+    if export_format == "xlsx":
         content = generate_tabular_excel(sheet_name, headers, data_rows)
     else:
         content = generate_tabular_csv(headers, data_rows)
@@ -985,27 +978,6 @@ async def _export_vendors(
 # Legacy report endpoints (risk/control)
 # =============================================================================
 
-@router.get("/controls/pdf")
-async def download_controls_pdf(
-    department_id: Optional[int] = Query(None, description="Filter by department"),
-    status_filter: Optional[str] = Query(None, description="Filter by status", alias="status"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("reports", "read")),
-):
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-    as_of = datetime.now(UTC).date()
-    return await _export_controls(
-        db=db,
-        current_user=current_user,
-        export_format="pdf",
-        as_of_date=as_of,
-        department_id=department_id,
-        status_filter=status_filter,
-        search=None,
-    )
-
-
 @router.get("/controls/excel")
 async def download_controls_excel(
     department_id: Optional[int] = Query(None, description="Filter by department"),
@@ -1024,29 +996,6 @@ async def download_controls_excel(
         department_id=department_id,
         status_filter=status_filter,
         search=None,
-    )
-
-
-@router.get("/risks/pdf")
-async def download_risks_pdf(
-    department_id: Optional[int] = Query(None, description="Filter by department"),
-    status_filter: Optional[str] = Query(None, description="Filter by status", alias="status"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("reports", "read")),
-):
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-    as_of = datetime.now(UTC).date()
-    return await _export_risks(
-        db=db,
-        current_user=current_user,
-        export_format="pdf",
-        as_of_date=as_of,
-        department_id=department_id,
-        status_filter=status_filter,
-        search=None,
-        risk_type=None,
-        is_priority=None,
     )
 
 
@@ -1079,7 +1028,7 @@ async def download_risks_excel(
 
 @router.get("/risks/export")
 async def export_risks(
-    format: ExportFormat = Query(..., description="Export format: pdf, xlsx, csv"),
+    format: ExportFormat = Query(..., description="Export format: xlsx, csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
@@ -1107,7 +1056,7 @@ async def export_risks(
 
 @router.get("/controls/export")
 async def export_controls(
-    format: ExportFormat = Query(..., description="Export format: pdf, xlsx, csv"),
+    format: ExportFormat = Query(..., description="Export format: xlsx, csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
@@ -1131,7 +1080,7 @@ async def export_controls(
 
 @router.get("/kris/export")
 async def export_kris(
-    format: ExportFormat = Query(..., description="Export format: pdf, xlsx, csv"),
+    format: ExportFormat = Query(..., description="Export format: xlsx, csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: KRIExportStatus = Query("all", alias="status"),
@@ -1155,7 +1104,7 @@ async def export_kris(
 
 @router.get("/vendors/export")
 async def export_vendors(
-    format: ExportFormat = Query(..., description="Export format: pdf, xlsx, csv"),
+    format: ExportFormat = Query(..., description="Export format: xlsx, csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
@@ -1183,106 +1132,82 @@ async def export_vendors(
 # Existing summary/audit endpoints
 # =============================================================================
 
-@router.get("/summary/pdf")
-async def download_summary_pdf(
+@router.get("/summary/excel")
+async def download_summary_excel(
     department_id: Optional[int] = Query(None, description="Filter by department"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
-    """Download dashboard summary as PDF. Scoped to user's accessible departments."""
+    """Download dashboard summary as Excel. Scoped to user's accessible departments."""
     dept_ids = get_user_department_ids(current_user)
     _validate_department_access(department_id, dept_ids)
 
-    if _user_has_no_departments(dept_ids):
-        empty_summary = {
-            "total_controls": 0,
-            "total_risks": 0,
-            "critical_risks_count": 0,
-            "average_net_risk_score": 0,
-            "controls_by_status": {},
-        }
-        return _stream_binary(
-            filename_base="dashboard-summary",
-            export_format="pdf",
-            content_bytes=generate_dashboard_summary_pdf(empty_summary),
-            as_of_date=datetime.now(UTC).date(),
-        )
-
-    controls_query = select(Control)
-    risks_query = select(Risk)
-
-    if dept_ids is not None:
-        controls_query = controls_query.where(Control.department_id.in_(dept_ids))
-        risks_query = risks_query.where(Risk.department_id.in_(dept_ids))
-
-    if department_id:
-        controls_query = controls_query.where(Control.department_id == department_id)
-        risks_query = risks_query.where(Risk.department_id == department_id)
-
-    controls_result = await db.execute(controls_query)
-    controls = controls_result.scalars().all()
-
-    risks_result = await db.execute(risks_query)
-    risks = risks_result.scalars().all()
-
-    from app.models.global_config import ConfigDefaults
-
-    total_controls = len(controls)
-    total_risks = len(risks)
-    critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
-    critical_risks = sum(1 for r in risks if r.net_probability * r.net_impact >= critical_threshold)
-    avg_net_score = sum(r.net_probability * r.net_impact for r in risks) / len(risks) if risks else 0
-
-    controls_by_status: dict[str, int] = {}
-    for control in controls:
-        ctrl_status = control.status or "unknown"
-        controls_by_status[ctrl_status] = controls_by_status.get(ctrl_status, 0) + 1
-
-    summary = {
-        "total_controls": total_controls,
-        "total_risks": total_risks,
-        "critical_risks_count": critical_risks,
-        "average_net_risk_score": avg_net_score,
-        "controls_by_status": controls_by_status,
+    summary: dict[str, Any] = {
+        "total_controls": 0,
+        "total_risks": 0,
+        "critical_risks_count": 0,
+        "average_net_risk_score": 0,
+        "controls_by_status": {},
     }
+
+    if not _user_has_no_departments(dept_ids):
+        controls_query = select(Control)
+        risks_query = select(Risk)
+
+        if dept_ids is not None:
+            controls_query = controls_query.where(Control.department_id.in_(dept_ids))
+            risks_query = risks_query.where(Risk.department_id.in_(dept_ids))
+
+        if department_id:
+            controls_query = controls_query.where(Control.department_id == department_id)
+            risks_query = risks_query.where(Risk.department_id == department_id)
+
+        controls_result = await db.execute(controls_query)
+        controls = controls_result.scalars().all()
+
+        risks_result = await db.execute(risks_query)
+        risks = risks_result.scalars().all()
+
+        from app.models.global_config import ConfigDefaults
+
+        total_controls = len(controls)
+        total_risks = len(risks)
+        critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
+        critical_risks = sum(1 for r in risks if r.net_probability * r.net_impact >= critical_threshold)
+        avg_net_score = sum(r.net_probability * r.net_impact for r in risks) / len(risks) if risks else 0
+
+        controls_by_status: dict[str, int] = {}
+        for control in controls:
+            ctrl_status = control.status or "unknown"
+            controls_by_status[ctrl_status] = controls_by_status.get(ctrl_status, 0) + 1
+
+        summary = {
+            "total_controls": total_controls,
+            "total_risks": total_risks,
+            "critical_risks_count": critical_risks,
+            "average_net_risk_score": avg_net_score,
+            "controls_by_status": controls_by_status,
+        }
+
+    headers = ["Metric", "Value"]
+    rows: list[list[Any]] = [
+        ["Total Controls", summary.get("total_controls", 0)],
+        ["Total Risks", summary.get("total_risks", 0)],
+        ["Critical Risks", summary.get("critical_risks_count", 0)],
+        ["Average Net Risk Score", f"{float(summary.get('average_net_risk_score', 0)):.1f}"],
+    ]
+
+    controls_by_status = summary.get("controls_by_status") or {}
+    if controls_by_status:
+        rows.append(["", ""])
+        rows.append(["Controls by Status", ""])
+        for ctrl_status, count in controls_by_status.items():
+            rows.append([str(ctrl_status).title(), count])
 
     return _stream_binary(
         filename_base="dashboard-summary",
-        export_format="pdf",
-        content_bytes=generate_dashboard_summary_pdf(summary),
-        as_of_date=datetime.now(UTC).date(),
-    )
-
-
-@router.get("/audit-trail/pdf")
-async def download_audit_trail_pdf(
-    department_id: Optional[int] = Query(None, description="Filter by department"),
-    result: Optional[str] = Query(None, description="Filter by result (passed/failed/warning)"),
-    control_id: Optional[int] = Query(None, description="Filter by control"),
-    from_date: Optional[datetime] = Query(None, description="Filter from date"),
-    to_date: Optional[datetime] = Query(None, description="Filter to date"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("reports", "read")),
-):
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-
-    if _user_has_no_departments(dept_ids):
-        return _stream_binary(
-            filename_base="audit-trail",
-            export_format="pdf",
-            content_bytes=generate_audit_trail_pdf([]),
-            as_of_date=datetime.now(UTC).date(),
-        )
-
-    query = _audit_trail_query(dept_ids, department_id, result, control_id, from_date, to_date)
-    result_set = await db.execute(query)
-    executions = result_set.scalars().all()
-
-    return _stream_binary(
-        filename_base="audit-trail",
-        export_format="pdf",
-        content_bytes=generate_audit_trail_pdf(list(executions)),
+        export_format="xlsx",
+        content_bytes=generate_tabular_excel("Dashboard Summary", headers, rows),
         as_of_date=datetime.now(UTC).date(),
     )
 

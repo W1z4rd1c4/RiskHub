@@ -1,121 +1,85 @@
 # Zprávy a exporty
 
-> **Cílová skupina**: Administrátoři, Risk Manager, Compliance
-
----
+> **Cílová skupina**: CRO, Risk Manager, Compliance, vedoucí oddělení
 
 ## Přehled
 
-RiskHub poskytuje komplexní možnosti exportu dat ve formátech PDF a Excel pro audit, compliance a management reporting.
+RiskHub používá pro reporting pouze formáty **Excel** a **CSV**.
 
----
+Hlavní pravidla:
+- Export je vždy omezený oprávněními uživatele.
+- Seznamové exporty (Rizika, Kontroly, KRI, Dodavatelé) používají jednotné exportní okno.
+- Souhrn dashboardu a auditní stopa jsou pouze v Excelu.
+- Roční report dodavatelů a DORA registr jsou pouze v Excelu.
 
-## Dostupné zprávy
+## Kde se exportuje
 
-### Registr rizik
+### Seznamové stránky (Rizika, Kontroly, KRI, Dodavatelé)
 
-Export všech rizik s:
-- Procerem a popisem
-- Kategorií a oddělením
-- Hrubým a čistým skóre
-- Stavem a prioritou
+1. Otevřete stránku seznamu.
+2. Nastavte filtry (stav, hledání, typ...).
+3. Klikněte na **Export**.
+4. Zvolte **Excel (.xlsx)** nebo **CSV (.csv)**.
+5. Nastavte **Stav k datu**.
+6. Export se stáhne.
 
-**Formáty**: PDF, Excel
+Unified endpointy:
+- `/api/v1/reports/risks/export`
+- `/api/v1/reports/controls/export`
+- `/api/v1/reports/kris/export`
+- `/api/v1/reports/vendors/export`
 
-### Katalog kontrol
+Povinný parametr:
+- `format=xlsx|csv`
 
-Export všech kontrol s:
-- Názvem a popisem
-- Typem a frekvencí
-- Stavem exekuce
-- Propojenými riziky
+Volitelné parametry:
+- `as_of_date=YYYY-MM-DD`
+- filtry stránky (`status`, `search` atd.)
 
-**Formáty**: PDF, Excel
+### Souhrn dashboardu
+
+- Endpoint: `/api/v1/reports/summary/excel`
+- Formát: pouze Excel
+- Scope: stejný jako data dashboardu
 
 ### Auditní stopa
 
-Export historie exekuce kontrol:
-- Datum a čas provedení
-- Kontrola a oddělení
-- Wykonavatel
-- Výsledek a zjištění
+- Endpoint: `/api/v1/reports/audit-trail/excel`
+- Formát: pouze Excel
+- Scope: stejný jako auditní zobrazení
 
-**Formáty**: PDF, Excel
+### Reporty dodavatelů
 
-### Executive Dashboard
+- Roční report: `/api/v1/vendor-reports/annual?year=YYYY&format=xlsx`
+- DORA registr: `/api/v1/vendor-reports/dora-register?format=xlsx`
 
-Sumarizovaný přehled pro management:
-- Klíčové metriky
-- Kritická rizika
-- Stav kontrol
+## Přístupová práva
 
-**Formát**: PDF
+Export respektuje backend RBAC:
+- Neprivilegovaní uživatelé vidí pouze vlastní scope.
+- Privilegovaní uživatelé mohou exportovat napříč povoleným scope.
+- Výjimky pro ownership/reporting-owner se chovají stejně jako v UI.
 
----
+## Provozní poznámky
 
-## Generování zpráv
+- Export je snapshot podle zvoleného `as_of_date` (kde je podporováno).
+- Archivované/neaktivní položky se řídí stavovým filtrem.
+- CSV je vhodné pro integrace, Excel pro analýzu a reporting.
 
-### Z uživatelského rozhraní
+## Řešení problémů
 
-1. Přejděte na příslušnou stránku (Rizika, Kontroly, Dashboard)
-2. Klikněte na tlačítko **Export**
-3. Vyberte formát (PDF nebo Excel)
-4. Soubor se automaticky stáhne
+### Prázdný export
 
-### Filtry
+Zkontrolujte:
+1. Filtry nejsou příliš omezující.
+2. Máte přístup k odpovídajícím datům.
+3. `as_of_date` nevylučuje hledané záznamy.
 
-Exporty respektují aktuální filtry:
-- Oddělení
-- Stav
-- Období
+### Odepřený export
 
----
+- Ověřte oprávnění `reports:read`.
+- Ověřte scope oddělení pro zadané filtry.
 
-## Lokalizace zpráv
+### Odmítnutý formát
 
-### Jazyková podpora
-
-Zprávy podporují čeština a angličtinu:
-- Titulky a záhlaví
-- Popisky sloupců
-- Souhrnné texty
-
-### Nastavení jazyka
-
-Jazyk zprávy se určuje podle:
-1. Nastavení uživatele
-2. Hlavičky Accept-Language
-3. Výchozí: angličtina
-
----
-
-## Formát data a čísel
-
-### Český formát
-
-- **Datum**: DD.MM.YYYY
-- **Čísla**: 1 234,56
-
-### Anglický formát
-
-- **Datum**: YYYY-MM-DD
-- **Čísla**: 1,234.56
-
----
-
-## Plánované zprávy
-
-> [!NOTE]
-> Funkce plánovaných automatických zpráv bude přidána v budoucí verzi.
-
----
-
-## Archivace zpráv
-
-Vygenerované zprávy nejsou ukládány server-side. Pro archivaci:
-1. Stáhněte zprávu
-2. Uložte do vašeho systému správy dokumentů
-
----
-
-*Pro technické detaily viz API dokumentaci.*
+- Podporované formáty pro seznamy jsou pouze `xlsx` a `csv`.

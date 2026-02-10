@@ -39,7 +39,6 @@
             "date": "As of date"
         },
         "formats": {
-            "pdf": "PDF (.pdf)",
             "xlsx": "Excel (.xlsx)",
             "csv": "CSV (.csv)"
         },
@@ -214,7 +213,7 @@
     },
     "tooltips": {
         "refresh_log": "Refresh Log",
-        "export_pdf": "Export Summary PDF",
+        "export_summary_excel": "Export Summary Excel",
         "view_changes": "View Changes",
         "cancel_request": "Cancel Request"
     },

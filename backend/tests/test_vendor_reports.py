@@ -10,13 +10,13 @@ from app.models import Department, User, Vendor
 async def test_vendor_reports_rbac_employee_blocked(
     client_employee: AsyncClient,
 ):
-    resp = await client_employee.get("/api/v1/vendor-reports/annual?year=2025&format=pdf")
+    resp = await client_employee.get("/api/v1/vendor-reports/annual?year=2025&format=xlsx")
     assert resp.status_code == 403
     assert "vendor reports" in resp.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
-async def test_vendor_reports_cro_can_export_pdf_and_excel(
+async def test_vendor_reports_cro_can_export_excel(
     client_cro: AsyncClient,
     db_session: AsyncSession,
     test_department: Department,
@@ -39,10 +39,6 @@ async def test_vendor_reports_cro_can_export_pdf_and_excel(
     db_session.add(vendor)
     await db_session.commit()
 
-    resp = await client_cro.get("/api/v1/vendor-reports/annual?year=2025&format=pdf")
-    assert resp.status_code == 200
-    assert resp.headers["content-type"] == "application/pdf"
-
     resp = await client_cro.get("/api/v1/vendor-reports/annual?year=2025&format=xlsx")
     assert resp.status_code == 200
     assert "spreadsheetml" in resp.headers["content-type"]
@@ -51,3 +47,10 @@ async def test_vendor_reports_cro_can_export_pdf_and_excel(
     assert resp.status_code == 200
     assert "spreadsheetml" in resp.headers["content-type"]
 
+
+@pytest.mark.asyncio
+async def test_vendor_reports_annual_rejects_pdf_format(
+    client_cro: AsyncClient,
+):
+    resp = await client_cro.get("/api/v1/vendor-reports/annual?year=2025&format=pdf")
+    assert resp.status_code == 422

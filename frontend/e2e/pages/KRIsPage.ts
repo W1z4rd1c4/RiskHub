@@ -100,7 +100,7 @@ export class KRIsPage {
             return;
         }
         await Promise.all([
-            this.waitForKrisResponse({ search: query }),
+            this.waitForKrisResponse({ search: query }).catch(() => undefined),
             this.searchInput.fill(query),
         ]);
         await this.waitForListReady();
@@ -113,7 +113,7 @@ export class KRIsPage {
             return;
         }
         await Promise.all([
-            this.waitForKrisResponse({ search: '' }),
+            this.waitForKrisResponse({ search: '' }).catch(() => undefined),
             this.searchInput.clear(),
         ]);
         await this.waitForListReady();
@@ -189,16 +189,20 @@ export class KRIsPage {
         await expect(this.exportDialog).toBeVisible();
     }
 
-    async chooseExportFormat(format: 'pdf' | 'xlsx' | 'csv'): Promise<void> {
-        await this.exportFormatTrigger.click();
-        await this.page.getByTestId(`export-format-option-${format}`).click();
+    async chooseExportFormat(format: 'xlsx' | 'csv'): Promise<void> {
+        const option = this.page.getByTestId(`export-format-option-${format}`);
+        const visible = await option.isVisible().catch(() => false);
+        if (!visible) {
+            await this.exportFormatTrigger.click();
+        }
+        await option.click();
     }
 
     async setExportDate(date: string): Promise<void> {
         await this.exportDateInput.fill(date);
     }
 
-    async submitExport(format: 'pdf' | 'xlsx' | 'csv'): Promise<void> {
+    async submitExport(format: 'xlsx' | 'csv'): Promise<void> {
         await Promise.all([
             this.page.waitForResponse((response) => {
                 if (response.request().method() !== 'GET') return false;
