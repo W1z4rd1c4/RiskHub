@@ -78,3 +78,33 @@ class KRIBreachTrendPoint(BaseModel):
     breached_entries: int = 0
 
     model_config = {"from_attributes": True}
+
+
+class IssueDashboardSummaryResponse(BaseModel):
+    """Overview counters for issue remediation dashboard widgets."""
+    open_issues: int = 0
+    overdue_issues: int = 0
+    high_severity_open: int = 0
+    median_days_open: int = 0
+
+
+class IssueAgingBucket(BaseModel):
+    """Issue aging bucket used for charting open issue age distribution."""
+    bucket: str
+    count: int = 0
+
+
+class IssueAgingResponse(BaseModel):
+    """Aging response for issue dashboard."""
+    buckets: list[IssueAgingBucket] = Field(default_factory=list)
+
+
+class IssueSeverityBreakdownItem(BaseModel):
+    """Issue severity count entry used by severity charts."""
+    severity: str
+    count: int = 0
+
+
+class IssueSeverityBreakdownResponse(BaseModel):
+    """Issue severity breakdown payload."""
+    items: list[IssueSeverityBreakdownItem] = Field(default_factory=list)

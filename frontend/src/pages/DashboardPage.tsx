@@ -6,6 +6,7 @@ import {
     ClipboardList,
     Building2,
     AlertTriangle,
+    AlertCircle,
     CheckCircle,
     TrendingUp,
     RefreshCw,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { useAuthz } from '@/authz/useAuthz';
+import { usePermissions } from '@/hooks/usePermissions';
 import { dashboardApi } from '@/services/dashboardApi';
 import { reportApi } from '@/services/reportApi';
 import type {
@@ -24,7 +26,10 @@ import type {
     RiskDistribution,
     ControlTrend,
     RiskTrendPoint,
-    KRIBreachTrendPoint
+    KRIBreachTrendPoint,
+    IssueDashboardSummary,
+    IssueAgingResponse,
+    IssueSeverityBreakdownResponse,
 } from '@/types/dashboard';
 
 import { FilterBar } from '@/components/dashboard/FilterBar';
@@ -38,6 +43,8 @@ import { KRIStatusWidget } from '@/components/dashboard/KRIStatusWidget';
 import { RiskTrendChart } from '@/components/dashboard/RiskTrendChart';
 import { KRIBreachHistoryChart } from '@/components/dashboard/KRIBreachHistoryChart';
 import { RiskCommitteeSection } from '@/components/dashboard/RiskCommitteeSection';
+import { IssueAgingChart } from '@/components/dashboard/IssueAgingChart';
+import { OpenIssuesBySeverityChart } from '@/components/dashboard/OpenIssuesBySeverityChart';
 import { DASHBOARD_POLL_MS } from '@/config/constants';
 
 const container = {
@@ -59,7 +66,9 @@ export function DashboardPage() {
     const navigate = useNavigate();
     const { filters } = useDashboardFilters();
     const authz = useAuthz();
+    const { hasPermission } = usePermissions();
     const { t } = useTranslation('dashboard');
+    const canReadIssues = hasPermission('issues', 'read');
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [deptMetrics, setDeptMetrics] = useState<DepartmentMetrics[]>([]);
     const [grossDistribution, setGrossDistribution] = useState<RiskDistribution | null>(null);
@@ -67,6 +76,9 @@ export function DashboardPage() {
     const [trends, setTrends] = useState<ControlTrend[]>([]);
     const [riskTrends, setRiskTrends] = useState<RiskTrendPoint[]>([]);
     const [breachTrends, setBreachTrends] = useState<KRIBreachTrendPoint[]>([]);
+    const [issueSummary, setIssueSummary] = useState<IssueDashboardSummary | null>(null);
+    const [issueAging, setIssueAging] = useState<IssueAgingResponse | null>(null);
+    const [issueSeverity, setIssueSeverity] = useState<IssueSeverityBreakdownResponse | null>(null);
 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -82,14 +94,28 @@ export function DashboardPage() {
     const fetchData = useCallback(async () => {
         try {
             setError(null);
-            const [summaryData, deptData, grossDistData, netDistData, trendData, riskTrendData, breachTrendData] = await Promise.all([
+            const [
+                summaryData,
+                deptData,
+                grossDistData,
+                netDistData,
+                trendData,
+                riskTrendData,
+                breachTrendData,
+                issueSummaryData,
+                issueAgingData,
+                issueSeverityData,
+            ] = await Promise.all([
                 dashboardApi.fetchDashboardSummary(filters),
                 dashboardApi.fetchDepartmentMetrics(filters),
                 dashboardApi.fetchRiskDistribution(filters, 'gross'),
                 dashboardApi.fetchRiskDistribution(filters, 'net'),
                 dashboardApi.fetchControlTrends(filters),
                 dashboardApi.fetchRiskTrends(filters),
-                dashboardApi.fetchKriBreachTrends(filters)
+                dashboardApi.fetchKriBreachTrends(filters),
+                canReadIssues ? dashboardApi.fetchIssuesSummary(filters) : Promise.resolve(null),
+                canReadIssues ? dashboardApi.fetchIssuesAging(filters) : Promise.resolve(null),
+                canReadIssues ? dashboardApi.fetchIssuesBySeverity(filters) : Promise.resolve(null),
             ]);
 
             setSummary(summaryData);
@@ -99,13 +125,16 @@ export function DashboardPage() {
             setTrends(trendData);
             setRiskTrends(riskTrendData);
             setBreachTrends(breachTrendData);
+            setIssueSummary(issueSummaryData);
+            setIssueAging(issueAgingData);
+            setIssueSeverity(issueSeverityData);
         } catch (err) {
             console.error('Dashboard fetch error:', err);
             setError('Failed to load dashboard data. Please check your connection.');
         } finally {
             setIsLoading(false);
         }
-    }, [filters]);
+    }, [canReadIssues, filters]);
 
     useEffect(() => {
         fetchData();
@@ -191,6 +220,18 @@ export function DashboardPage() {
         },
     ];
 
+    if (canReadIssues) {
+        stats.push({
+            title: 'Open issues',
+            value: issueSummary?.open_issues ?? 0,
+            icon: AlertCircle,
+            color: 'text-amber-300',
+            bg: 'bg-amber-500/10',
+            trend: 'live',
+            path: '/issues',
+        });
+    }
+
     return (
         <div className="space-y-10">
             <div className="flex justify-between items-end">
@@ -249,7 +290,7 @@ export function DashboardPage() {
                         variants={container}
                         initial="hidden"
                         animate="show"
-                        className="grid gap-6 md:grid-cols-2 lg:grid-cols-5"
+                        className="grid gap-6 md:grid-cols-2 lg:grid-cols-6"
                     >
                         {stats.map((stat) => (
                             <motion.div
@@ -274,6 +315,60 @@ export function DashboardPage() {
                             </motion.div>
                         ))}
                     </motion.div>
+
+                    {canReadIssues && issueSummary && issueAging && issueSeverity && (
+                        <div className="grid gap-6 lg:grid-cols-3">
+                            <motion.div
+                                initial={{ opacity: 0, y: 16 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="glass-card"
+                            >
+                                <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-300">
+                                    Issues Summary
+                                </h3>
+                                <div className="space-y-2 text-sm text-slate-300">
+                                    <div className="flex justify-between">
+                                        <span>Open</span>
+                                        <span className="font-semibold text-white">{issueSummary.open_issues}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Overdue</span>
+                                        <span className="font-semibold text-white">{issueSummary.overdue_issues}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>High/Critical Open</span>
+                                        <span className="font-semibold text-white">{issueSummary.high_severity_open}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Median Age (days)</span>
+                                        <span className="font-semibold text-white">{issueSummary.median_days_open}</span>
+                                    </div>
+                                </div>
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 16 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="glass-card"
+                            >
+                                <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-300">
+                                    Open Issues by Age
+                                </h3>
+                                <IssueAgingChart buckets={issueAging.buckets} />
+                            </motion.div>
+
+                            <motion.div
+                                initial={{ opacity: 0, y: 16 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="glass-card"
+                            >
+                                <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-300">
+                                    Open Issues by Severity
+                                </h3>
+                                <OpenIssuesBySeverityChart items={issueSeverity.items} />
+                            </motion.div>
+                        </div>
+                    )}
 
                     {/* Category Breakdown Charts */}
                     {summary && (summary.controls_by_status && Object.keys(summary.controls_by_status).length > 0) && (

@@ -3,7 +3,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department, Risk, User, Role
+from app.models import Department, Risk, User, Role, Control
 from app.models.risk import RiskStatus as RiskStatusEnum
 from app.models.user import AccessScope
 
@@ -242,3 +242,34 @@ async def test_get_department_active_user_count(
     
     # user_count should only be 2 (active ones)
     assert data["user_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_list_department_controls_normalizes_legacy_semi_annual_frequency(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+):
+    """Department controls endpoint should normalize legacy semi-annual frequency aliases."""
+    control = Control(
+        name="Department Legacy Frequency Control",
+        description="Control with legacy frequency alias",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="semi-annual",
+        risk_level=3,
+        status="active",
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    response = await auth_client.get(f"/api/v1/departments/{test_department.id}/controls")
+    assert response.status_code == 200
+    data = response.json()
+
+    item = next((entry for entry in data if entry["id"] == control.id), None)
+    assert item is not None
+    assert item["frequency"] == "semi-annually"

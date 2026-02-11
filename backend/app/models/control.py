@@ -17,6 +17,7 @@ class ControlFrequency(str, PyEnum):
     weekly = "weekly"
     monthly = "monthly"
     quarterly = "quarterly"
+    semi_annually = "semi-annually"
     annually = "annually"
     ad_hoc = "ad_hoc"
     continuous = "continuous"

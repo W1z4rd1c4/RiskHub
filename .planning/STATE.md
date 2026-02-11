@@ -32,10 +32,11 @@
 | 7 User Management | ✅ Complete (17/17) | - |
 | 8 Permission Filtering | ✅ Complete (8/8) | 2025-12-28 |
 | 9 Notification System | ✅ Complete (7/7) | 2025-12-28 |
-| 10 Historization | ⏳ In progress (4/5) | - |
-| 11 Historical Visualization | ⏳ In progress (4/5) | - |
+| 10 Historization | ✅ Complete (5/5) | 2026-02-11 |
+| 11 Historical Visualization | ✅ Complete (5/5) | 2026-02-11 |
 | 12 Compliance Governance | ✅ Complete (7/7) | 2026-01-04 |
 | 12.1 Compliance Review | ✅ Complete (10/10) | 2026-01-04 |
+| 13 Issue & Remediation Management | ✅ Complete (3/3) | 2026-02-11 |
 | 14 Risk Assessments | ✅ Complete (7/7) | 2026-01-24 |
 | 15 Settings Page | ✅ Complete (5/5) | 2026-01-07 |
 | 16 Risk Assessment Polish | ✅ Complete (3/3) | 2026-01-24 |
@@ -69,6 +70,21 @@
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
 
 ## Session Context
+
+### Phase 13 Execution (2026-02-11)
+
+- ✅ Executed full Phase 13 wave order (`13-01` → `13-02` → `13-03`) and delivered backend, frontend, dashboard, and reporting scope.
+- Delivered issue lifecycle backend with scoped RBAC (`issues:read|write|approve`), workflow state machine, notifications, scheduler integration, dashboard metrics, and issue export endpoint.
+- Added frontend issue management surface (`/issues`) with workflow actions, sidebar/route wiring, dashboard issue widgets, and issue export action.
+- Verification:
+  - `cd backend && pytest -q tests/api/v1/test_issue_workflow.py tests/test_issue_deadline_service.py tests/api/v1/test_dashboard_issue_metrics.py tests/api/v1/test_reports_issues.py` → `13 passed`
+  - `cd backend && python3 -m compileall app` → passed
+  - `cd frontend && npx tsc --noEmit` → passed
+  - `cd frontend && npx playwright test -g \"issues workflow\"` → `4 passed`
+- Added execution summaries:
+  - `.planning/phases/13-issue-remediation-management/13-01-SUMMARY.md`
+  - `.planning/phases/13-issue-remediation-management/13-02-SUMMARY.md`
+  - `.planning/phases/13-issue-remediation-management/13-03-SUMMARY.md`
 
 ### Planning Hygiene (2026-02-02)
 
@@ -194,6 +210,33 @@
   - `cd frontend && npm run test:run -- src/pages/__tests__/rbac_gating.test.tsx` → `10 passed`
   - `cd frontend && npx playwright test e2e/admin.spec.ts --project=chromium` → `4 passed`
 
+### Phase 10 Closeout Reconciliation (2026-02-11)
+
+- Closed `10-05` as completed-by-reconciliation (superseded implementation), since KRI value recording + breach detection already exists in:
+  - `POST /api/v1/kris/{kri_id}/values`
+  - `app.services.kri_history_service.record_value(...)`
+  - existing backend tests for historization and KRI value submission/notifications.
+- Added closeout summary:
+  - `.planning/phases/10-historization/10-05-SUMMARY.md`
+- Reconciled planning metadata:
+  - `.planning/ROADMAP.md` → Phase 10 `5/5` complete
+  - `.planning/STATE.md` → Phase 10 `5/5` complete
+
+### Phase 11 Closeout Reconciliation (2026-02-11)
+
+- Closed `11-04` as completed-by-reconciliation (already implemented), since dashboard historical widgets were already present in:
+  - `GET /api/v1/dashboard/risk-trends`
+  - `GET /api/v1/dashboard/kri-breach-trends`
+  - dashboard wiring/rendering for `RiskTrendChart` + `KRIBreachHistoryChart`.
+- Verification run at closeout:
+  - `cd backend && pytest tests/api/v1/test_dashboard_history.py -v` → `3 passed`
+  - `cd frontend && npx tsc --noEmit` → `passed`
+- Added closeout summary:
+  - `.planning/phases/11-historical-visualization/11-04-SUMMARY.md`
+- Reconciled planning metadata:
+  - `.planning/ROADMAP.md` → Phase 11 `5/5` complete
+  - `.planning/STATE.md` → Phase 11 `5/5` complete
+
 ### Phase 17 Progress
 
 - ✅ **17-04**: E2E Regression Suite (Playwright, full coverage)
@@ -208,7 +251,7 @@
 - ✅ **11-01**: History components (HistoryTimeline, HistoryTrendChart, HistoryChangeCard)
 - ✅ **11-02**: KRI detail page integration with history visualization
 - ✅ **11-03**: HistoryComparisonPanel for side-by-side KRI value comparison
-- ⏳ **11-04**: Dashboard widgets (RiskTrendChart, KRIBreachHistoryChart)
+- ✅ **11-04**: Dashboard widgets (RiskTrendChart, KRIBreachHistoryChart)
 - ✅ **11-05**: Audit trail PDF/Excel exports with RBAC + filters
 
 ### Recent Enhancements (2025-12-31)
@@ -327,6 +370,8 @@
 - Executed `04-06` export contract simplification: removed PDF export support across reporting APIs/UI/docs and validated targeted backend/frontend suites (`27 backend tests`, `19 Playwright tests`, `frontend tsc`) (2026-02-10).
 - Executed hardening closure verification pass with deterministic gate matrix: backend + frontend static checks green, targeted critical Playwright green (`44/44`), and full multi-project Playwright blocked by CI runner SIGTERM/no-JUnit teardown behavior; documented release checklist and follow-ups in `180-16-SUMMARY.md` (2026-02-11).
 - Executed Phase `156.1` admin-role/RBAC hardening plans end-to-end with passing backend/frontend/E2E verification and full docs reconciliation (`5/5 complete`) (2026-02-11).
+- Closed Phase `10` plan `10-05` by reconciliation as superseded-by-implementation and marked Phase `10` complete (`5/5`) (2026-02-11).
+- Closed Phase `11` plan `11-04` by reconciliation as already-implemented dashboard trend widgets and marked Phase `11` complete (`5/5`) (2026-02-11).
 
 ### Next Step
 

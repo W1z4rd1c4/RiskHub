@@ -50,6 +50,12 @@ interface DepartmentOption {
     code: string;
 }
 
+function formatFrequencyLabel(value: string): string {
+    return value
+        .replace(/[_-]/g, ' ')
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }: ControlFormProps) {
     const navigate = useNavigate();
     const { t } = useTranslation('controls');
@@ -563,7 +569,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                         value={formData.frequency || ControlFrequency.MONTHLY}
                                         onValueChange={(v) => handleInputChange('frequency', v)}
                                         className="w-full"
-                                        options={Object.values(ControlFrequency).map(f => ({ value: f, label: f.replace('_', ' ').toUpperCase() }))}
+                                        options={Object.values(ControlFrequency).map((f) => ({ value: f, label: formatFrequencyLabel(f) }))}
                                     />
                                 </div>
                                 <div>

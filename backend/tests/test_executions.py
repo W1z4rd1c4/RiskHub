@@ -579,6 +579,46 @@ async def test_controls_execute_can_log_on_control_execution_endpoint_within_dep
 
 
 @pytest.mark.asyncio
+async def test_controls_execution_semi_annually_frequency_sets_next_schedule_to_182_days(
+    auth_client: AsyncClient,
+    test_user: User,
+    test_department: Department,
+):
+    """Semi-annual controls should schedule next execution at 182 days."""
+    from datetime import datetime
+
+    control_response = await auth_client.post(
+        "/api/v1/controls",
+        json={
+            "name": "Semi Annual Scheduling Control",
+            "description": "Control for semi-annual scheduling test",
+            "department_id": test_department.id,
+            "control_owner_id": test_user.id,
+            "control_form": "manual",
+            "frequency": "semi-annually",
+            "risk_level": 3,
+            "status": "active",
+        },
+    )
+    assert control_response.status_code == 201
+    control_id = control_response.json()["id"]
+
+    execution_response = await auth_client.post(
+        f"/api/v1/controls/{control_id}/executions",
+        json={
+            "result": "passed",
+            "findings": "Scheduled correctly",
+        },
+    )
+    assert execution_response.status_code == 201
+    data = execution_response.json()
+
+    executed_at = datetime.fromisoformat(data["executed_at"])
+    next_scheduled = datetime.fromisoformat(data["next_scheduled"])
+    assert (next_scheduled - executed_at).days == 182
+
+
+@pytest.mark.asyncio
 async def test_controls_execute_cannot_log_on_control_execution_endpoint_across_departments(
     client: AsyncClient,
     db_session,

@@ -31,6 +31,11 @@ class NotificationType(str, PyEnum):
     VENDOR_SLA_OVERDUE = "vendor_sla_overdue"
     VENDOR_SLA_NEAR_BREACH = "vendor_sla_near_breach"
     VENDOR_SLA_BREACH_DETECTED = "vendor_sla_breach_detected"
+    ISSUE_ASSIGNED = "issue_assigned"
+    ISSUE_DUE_SOON = "issue_due_soon"
+    ISSUE_OVERDUE = "issue_overdue"
+    ISSUE_EXCEPTION_REQUESTED = "issue_exception_requested"
+    ISSUE_EXCEPTION_APPROVED = "issue_exception_approved"
 
 
 class Notification(Base):
