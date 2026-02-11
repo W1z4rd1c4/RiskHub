@@ -1,53 +1,74 @@
 ---
 phase: 180-e2e-business-logic
 plan: 180-16
-status: in_progress
+status: complete
 ---
 
-# Summary 180-16: Hardening Closure Gate and Release-Readiness Matrix
+# Summary 180-16: E2E Batch Stabilization and Full Gate Closure
 
-## Outcome
-- Performed closure-first gate verification across backend, frontend static checks, and targeted critical E2E.
-- Targeted critical E2E is green (`44/44`, chromium).
-- Full multi-project Playwright gate is still blocked by CI runner instability (SIGTERM + missing JUnit artifact), so release remains **not ready** without waiver.
+## Final Outcome
+- Point 1 (Playwright full-gate blocker) is now closed.
+- Full watchdog run completed with a valid artifact set and passing verdict.
+- Release readiness criterion for this point moved from blocked to ready.
 
-## Baseline Lock
-- Branch: `main`
-- Verified recent baseline commits referenced for hardening wave:
-  - `d81f485`
-  - `7117f3d`
-  - `96ed5bb`
-  - `d6c73ec`
-  - `3c54688`
+## Batch Execution Commands
+- Chromium batch command:
+  - `cd frontend && CI=1 npx playwright test --project=chromium --workers=2 --retries=0 <batch-files>`
+- Cross-browser parity command:
+  - `cd frontend && CI=1 npx playwright test --project=ci --project=firefox --project=webkit --workers=1 --retries=1 <batch-files>`
 
-## Verification Matrix
-| Gate | Command | Result | Verdict |
-|---|---|---|---|
-| Backend regression | `make test` | `446 passed, 7 skipped` | ✅ Pass |
-| Postgres marker gate | `cd backend && pytest -m postgres -v` | `4 skipped, 449 deselected, 0 failed` | ✅ Pass |
-| Frontend type safety | `cd frontend && npx tsc --noEmit` | Passed | ✅ Pass |
-| Frontend lint | `cd frontend && npx eslint .` | `0 errors, 16 warnings` | ✅ Pass (warning debt unchanged) |
-| Targeted critical E2E | `cd frontend && npx playwright test e2e/controls.spec.ts e2e/kris.spec.ts e2e/risks.spec.ts e2e/vendors.spec.ts e2e/permissions/controls-crud.spec.ts e2e/permissions/kris-crud.spec.ts e2e/permissions/risks-crud.spec.ts e2e/permissions/vendors-crud.spec.ts e2e/cross-department/control-owner-access.spec.ts --project=chromium` | `44 passed` | ✅ Pass |
-| Full E2E (watchdog) | `PLAYWRIGHT_RUN_LABEL=full-ci-gate-heartbeat-2 PLAYWRIGHT_TIMEOUT_SECONDS=600 PLAYWRIGHT_GRACE_SECONDS=45 PLAYWRIGHT_WORKERS=2 ./scripts/run_playwright_with_watchdog.sh` | `process_exit_code=143`, `verdict=fail_no_junit`, `expected_tests=864`, `tests=0` | ❌ Blocked (env/runner) |
+## Batch Stabilization Matrix
+| Batch | Scope | Chromium run #1 | Chromium run #2 | Parity (ci+firefox+webkit) | Final |
+|---|---|---|---|---|---|
+| A | auth/navigation baseline | `69 passed, 1 skipped` | `69 passed, 1 skipped` | `207 passed, 3 skipped` | ✅ |
+| B | core entity CRUD | `20 passed` | `20 passed` | `60 passed` | ✅ |
+| C | permission CRUD group 1 | `13 passed` | `13 passed` | `39 passed` | ✅ |
+| D | permission CRUD group 2 | `23 passed` | `23 passed` | `69 passed` | ✅ |
+| E | cross-department access | `18 passed, 2 skipped` | `18 passed, 2 skipped` | `54 passed, 6 skipped` | ✅ |
+| F | entity ownership | initial fail (fixed), then `9 passed` | `9 passed` | `27 passed` | ✅ |
+| G | approval workflows | `16 passed` | `16 passed` | `47 passed, 1 skipped` | ✅ |
+| H | activity logging | `3 passed, 18 skipped` | `3 passed, 18 skipped` | `9 passed, 54 skipped` | ✅ |
+| I | sensitive fields | `3 passed, 18 skipped` | `3 passed, 18 skipped` | `9 passed, 54 skipped` | ✅ |
+| J | admin console | initial fail (fixed), then `4 passed` | `4 passed` | `12 passed` | ✅ |
 
-## Reliability Classification
-- `test-flake`: Previously observed targeted failures in controls/KRI flows were not reproducible in rerun (`44/44` pass), indicating transient flake/order effects rather than deterministic regression.
-- `app regression`: No deterministic app regression confirmed in targeted critical scope.
-- `env issue` (blocking): Full multi-project CI Playwright run is terminated by SIGTERM before JUnit emission; this prevents deterministic full-gate closure.
+## Fixes Applied (by classification)
+- Runner / harness fixes:
+  - `scripts/run_playwright_with_watchdog.sh`
+  - Added signal trapping and unified finalize path.
+  - Guaranteed artifact persistence and summary writing on all exits.
+  - Kept explicit verdict classification (`fail_no_junit`, `fail_no_tests`, `fail_incomplete`).
+- Test fixes:
+  - `frontend/e2e/entity-ownership/risk-ownership.spec.ts`
+  - Replaced unstable fixture assumption with explicit unrelated user login for the ownership visibility assertion.
+  - `frontend/e2e/admin.spec.ts`
+  - Replaced local login helper with shared retrying helper and added `ensureAdminAccess()` precondition to eliminate intermittent `/login` redirection in long runs.
+- App code fixes:
+  - None required for closure of this point.
 
-## Lint Warning Debt (Pinned)
-- Baseline: `16` warnings (`react-hooks/exhaustive-deps` + `@typescript-eslint/no-explicit-any`).
-- Policy applied: no warning growth allowed; baseline preserved.
-- Closure decision: defer warning elimination as tracked debt under Phase `180-15` closeout.
-- Ownership/default:
-  - Frontend architecture owner: hook dependency warnings.
-  - Frontend platform owner: explicit `any` removals.
+## Full Run Evidence
+- Full gate command:
+  - `PLAYWRIGHT_RUN_LABEL=full-ci-gate-final-r2 PLAYWRIGHT_TIMEOUT_SECONDS=10800 PLAYWRIGHT_GRACE_SECONDS=60 PLAYWRIGHT_WORKERS=1 PLAYWRIGHT_RETRIES=1 ./scripts/run_playwright_with_watchdog.sh`
+- Runtime:
+  - `duration_seconds=2183` (36m 23s)
+- Result:
+  - `process_exit_code=0`
+  - `junit_present=1`
+  - `tests=868`
+  - `expected_tests=868`
+  - `failures=0`
+  - `errors=0`
+  - `skipped=156`
+  - `timed_out=0`
+  - `signal_received=none`
+  - `verdict=pass`
+- Artifact paths:
+  - `/tmp/riskhub-playwright-watchdog/full-ci-gate-final-r2/summary.txt`
+  - `/tmp/riskhub-playwright-watchdog/full-ci-gate-final-r2/playwright.log`
+  - `/tmp/riskhub-playwright-watchdog/full-ci-gate-final-r2/junit.xml`
+  - `/tmp/riskhub-playwright-watchdog/full-ci-gate-final-r2/results.json`
+  - `/tmp/riskhub-playwright-watchdog/full-ci-gate-final-r2/playwright-report`
 
-## Risks and Rollback
-- Current release risk: full-suite E2E verdict unavailable due runner termination in CI mode.
-- Rollback note: no behavior-changing rollback required for this closure pass; remove `scripts/run_playwright_with_watchdog.sh` only if reverting watchdog-based full-gate strategy.
-
-## Follow-up Work (Required to Mark Release Ready)
-1. Fix Playwright CI runner termination path (SIGTERM/no-JUnit) and prove stability on full `npx playwright test`.
-2. Re-run full gate matrix with watchdog artifacts and capture green verdict.
-3. Burn down 16-warning lint debt or explicitly approve deferred debt with dated owner commitments in phase docs.
+## Closure Statement
+- Previous status: blocked by SIGTERM/no-JUnit in full gate.
+- Current status: resolved.
+- For plan `180-16`, Point 1 is complete and verified with a green full watchdog gate.

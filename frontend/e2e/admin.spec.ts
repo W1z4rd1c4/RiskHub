@@ -3,24 +3,26 @@
  * Tests the admin-only system monitoring pages
  */
 import { test, expect, Page } from '@playwright/test';
-
-async function loginAsDemoUser(page: Page, accountName: string) {
-    await page.goto('/login');
-    await page.waitForSelector(`button:has-text("${accountName}")`, { timeout: 10000 });
-    await page.click(`button:has-text("${accountName}")`);
-    // Admin users are automatically redirected to /admin
-    await page.waitForURL(/^http:\/\/localhost:5173\/(dashboard|admin|settings|$)/, { timeout: 15000 });
-}
+import { loginAsDemoUser, DEMO_ACCOUNTS } from './helpers/login';
 
 async function waitForDataLoad(page: Page) {
     await page.waitForSelector('.animate-pulse', { state: 'detached', timeout: 30000 }).catch(() => { });
+}
+
+async function ensureAdminAccess(page: Page): Promise<void> {
+    await expect(async () => {
+        await loginAsDemoUser(page, DEMO_ACCOUNTS.ADMIN, { retries: 4, timeout: 20000 });
+        await page.goto('/admin');
+        await waitForDataLoad(page);
+        await expect(page).toHaveURL(/\/admin/, { timeout: 15000 });
+    }).toPass({ timeout: 90000 });
 }
 
 test.describe('Admin Console', () => {
     test.describe.configure({ mode: 'serial' });
 
     test.beforeEach(async ({ page }) => {
-        await loginAsDemoUser(page, 'System Admin');
+        await ensureAdminAccess(page);
     });
 
     test.describe('Access Control', () => {
@@ -97,12 +99,7 @@ test.describe('Admin Console', () => {
                 await route.continue();
             });
 
-            await page.goto('/admin');
-            if (page.url().includes('/login')) {
-                await loginAsDemoUser(page, 'System Admin');
-                await page.goto('/admin');
-            }
-            await expect(page).toHaveURL(/\/admin/);
+            await ensureAdminAccess(page);
 
             await page.getByRole('button', { name: /Audit Logs|Auditní logy/i }).click();
 
