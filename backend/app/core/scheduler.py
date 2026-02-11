@@ -10,6 +10,7 @@ from app.services.questionnaire_deadline_service import QuestionnaireDeadlineSer
 from app.services.vendor_reassessment_service import VendorReassessmentService
 from app.services.vendor_sla_deadline_service import VendorSLADeadlineService
 from app.services.vendor_signal_service import VendorSignalService
+from app.services.issue_deadline_service import IssueDeadlineService
 from app.models.vendor import Vendor
 from sqlalchemy import select
 
@@ -103,6 +104,17 @@ async def run_vendor_signal_refresh():
         logger.error(f"Vendor signal refresh failed: {e}")
 
 
+async def run_issue_deadline_check():
+    """Background job: Check issue deadlines/exceptions and generate notifications."""
+    logger.info("Starting scheduled issue deadline check...")
+    try:
+        async with get_db_context() as db:
+            result = await IssueDeadlineService.check_issue_deadlines(db)
+            logger.info(f"Issue deadline check complete: {result}")
+    except Exception as e:
+        logger.error(f"Issue deadline check failed: {e}")
+
+
 def setup_scheduler():
     """Configure scheduled jobs."""
     # Daily KRI check at 8:00 AM
@@ -145,7 +157,15 @@ def setup_scheduler():
         name="Daily Vendor External Signal Refresh",
         replace_existing=True,
     )
-    logger.info("Scheduler configured: KRI deadline check scheduled for 8:00 AM daily")
+    # Daily issue deadline check at 8:25 AM
+    scheduler.add_job(
+        run_issue_deadline_check,
+        CronTrigger(hour=8, minute=25),
+        id="issue_deadline_check",
+        name="Daily Issue Deadline Check",
+        replace_existing=True,
+    )
+    logger.info("Scheduler configured: KRI/questionnaire/vendor/issue checks scheduled daily")
 
 
 def start_scheduler():

@@ -31,6 +31,7 @@ const FREQUENCY_COLORS: Record<string, string> = {
     weekly: '#14b8a6',      // teal-500
     monthly: '#2dd4bf',     // teal-400
     quarterly: '#5eead4',   // teal-300
+    'semi-annually': '#67e8f9', // cyan-300
     annually: '#99f6e4',    // teal-200
     ad_hoc: '#6b7280',      // gray-500
     continuous: '#06b6d4',  // cyan-500

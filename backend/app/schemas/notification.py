@@ -29,6 +29,11 @@ class NotificationTypeEnum(str, Enum):
     vendor_sla_overdue = "vendor_sla_overdue"
     vendor_sla_near_breach = "vendor_sla_near_breach"
     vendor_sla_breach_detected = "vendor_sla_breach_detected"
+    issue_assigned = "issue_assigned"
+    issue_due_soon = "issue_due_soon"
+    issue_overdue = "issue_overdue"
+    issue_exception_requested = "issue_exception_requested"
+    issue_exception_approved = "issue_exception_approved"
 
 
 class NotificationBase(BaseModel):
@@ -91,6 +96,11 @@ class NotificationPreferences(BaseModel):
     vendor_sla_overdue: bool = True
     vendor_sla_near_breach: bool = True
     vendor_sla_breach_detected: bool = True
+    issue_assigned: bool = True
+    issue_due_soon: bool = True
+    issue_overdue: bool = True
+    issue_exception_requested: bool = True
+    issue_exception_approved: bool = True
     
     model_config = {"from_attributes": True}
 
@@ -120,3 +130,8 @@ class NotificationPreferencesUpdate(BaseModel):
     vendor_sla_overdue: bool | None = None
     vendor_sla_near_breach: bool | None = None
     vendor_sla_breach_detected: bool | None = None
+    issue_assigned: bool | None = None
+    issue_due_soon: bool | None = None
+    issue_overdue: bool | None = None
+    issue_exception_requested: bool | None = None
+    issue_exception_approved: bool | None = None

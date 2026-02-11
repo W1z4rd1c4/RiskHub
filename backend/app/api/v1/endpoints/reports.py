@@ -5,28 +5,42 @@ Includes legacy risk/control Excel endpoints and unified export endpoints
 for risks/controls/kris/vendors with format + as_of_date support.
 """
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 from io import BytesIO
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.permissions import (
     get_control_ids_where_owner,
+    get_issue_scope_clause,
     get_kri_ids_where_reporting_owner,
     get_risk_ids_where_control_owner,
     get_risk_ids_where_kri_reporting_owner,
     get_user_department_ids,
+    has_permission,
 )
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import Control, ControlExecution, Department, KeyRiskIndicator, Risk, User, Vendor
+from app.models import (
+    Control,
+    ControlExecution,
+    Department,
+    Issue,
+    IssueLink,
+    IssueRemediationPlan,
+    KeyRiskIndicator,
+    Risk,
+    User,
+    Vendor,
+)
 from app.models.activity_log import ActivityEntityType
 from app.models.control import ControlStatus
+from app.models.issue import IssueExceptionStatus, IssueSeverity, IssueStatus
 from app.models.kri_history import KRIValueHistory
 from app.models.risk import ControlRiskLink, RiskStatus
 from app.models.vendor import VendorStatus
@@ -645,6 +659,236 @@ def _filter_rows_by_vendor_criteria(
     return sorted(filtered, key=lambda x: str(x.get("name") or ""))
 
 
+def _coerce_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _as_of_datetime(as_of_date: date) -> datetime:
+    return datetime.combine(as_of_date, time.max, tzinfo=UTC)
+
+
+def _issue_has_active_exception(issue: Issue, as_of_dt: datetime) -> bool:
+    for exception in issue.exceptions:
+        if exception.status != IssueExceptionStatus.approved.value:
+            continue
+        expires_at = _coerce_utc(exception.expires_at)
+        if expires_at is not None and expires_at > as_of_dt:
+            return True
+    return False
+
+
+def _latest_exception(issue: Issue):
+    if not issue.exceptions:
+        return None
+    return max(
+        issue.exceptions,
+        key=lambda ex: _coerce_utc(ex.approved_at)
+        or _coerce_utc(ex.requested_at)
+        or _coerce_utc(ex.created_at)
+        or datetime.min.replace(tzinfo=UTC),
+    )
+
+
+def _joined(values: list[str]) -> str:
+    cleaned = [value.strip() for value in values if value and value.strip()]
+    return "; ".join(sorted(set(cleaned)))
+
+
+def _enum_value(value: Any) -> Any:
+    return value.value if hasattr(value, "value") else value
+
+
+def _issue_to_row(issue: Issue, *, as_of_dt: datetime) -> dict[str, Any]:
+    links = issue.links or []
+    risk_ids = [str(link.risk_id) for link in links if link.risk_id is not None]
+    control_ids = [str(link.control_id) for link in links if link.control_id is not None]
+    execution_ids = [str(link.execution_id) for link in links if link.execution_id is not None]
+    kri_ids = [str(link.kri_id) for link in links if link.kri_id is not None]
+    risk_names = [link.risk.name for link in links if link.risk is not None]
+    control_names = [link.control.name for link in links if link.control is not None]
+    kri_names = [link.kri.metric_name for link in links if link.kri is not None]
+
+    remediation = issue.remediation_plan
+    latest_exception = _latest_exception(issue)
+    active_exception = _issue_has_active_exception(issue, as_of_dt)
+    due_at = _coerce_utc(issue.due_at)
+    opened_at = _coerce_utc(issue.opened_at)
+    age_days = (as_of_dt - opened_at).days if opened_at is not None else 0
+    age_days = max(age_days, 0)
+    is_overdue = (
+        issue.status != IssueStatus.closed.value
+        and not active_exception
+        and due_at is not None
+        and due_at < as_of_dt
+    )
+
+    return {
+        "id": issue.id,
+        "title": issue.title,
+        "status": _enum_value(issue.status),
+        "severity": _enum_value(issue.severity),
+        "source_type": _enum_value(issue.source_type),
+        "source_id": issue.source_id,
+        "department_id": issue.department_id,
+        "department_name": issue.department.name if issue.department else None,
+        "owner_user_id": issue.owner_user_id,
+        "owner_name": issue.owner.name if issue.owner else None,
+        "due_at": due_at,
+        "is_overdue": is_overdue,
+        "age_days": age_days,
+        "risk_ids": _joined(risk_ids),
+        "risk_names": _joined(risk_names),
+        "control_ids": _joined(control_ids),
+        "control_names": _joined(control_names),
+        "execution_ids": _joined(execution_ids),
+        "kri_ids": _joined(kri_ids),
+        "kri_names": _joined(kri_names),
+        "remediation_status": _enum_value(remediation.status) if remediation else None,
+        "remediation_progress_percent": remediation.progress_percent if remediation else None,
+        "remediation_owner_id": remediation.owner_user_id if remediation else None,
+        "remediation_owner_name": remediation.owner.name if remediation and remediation.owner else None,
+        "remediation_target_date": remediation.target_date if remediation else None,
+        "exception_status": _enum_value(latest_exception.status) if latest_exception else None,
+        "exception_expires_at": _coerce_utc(latest_exception.expires_at) if latest_exception else None,
+    }
+
+
+async def _fetch_issues_for_export(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    department_id: int | None,
+    status_filter: IssueStatus | None,
+    severity_filter: IssueSeverity | None,
+    owner_user_id: int | None,
+) -> list[Issue]:
+    query = (
+        select(Issue)
+        .options(
+            selectinload(Issue.department),
+            selectinload(Issue.owner),
+            selectinload(Issue.links).selectinload(IssueLink.risk),
+            selectinload(Issue.links).selectinload(IssueLink.control),
+            selectinload(Issue.links).selectinload(IssueLink.execution),
+            selectinload(Issue.links).selectinload(IssueLink.kri),
+            selectinload(Issue.remediation_plan).selectinload(IssueRemediationPlan.owner),
+            selectinload(Issue.exceptions),
+        )
+    )
+
+    scope_clause = await get_issue_scope_clause(db, current_user)
+    if scope_clause is not None:
+        query = query.where(scope_clause)
+    if department_id is not None:
+        query = query.where(Issue.department_id == department_id)
+    if status_filter is not None:
+        query = query.where(Issue.status == status_filter.value)
+    if severity_filter is not None:
+        query = query.where(Issue.severity == severity_filter.value)
+    if owner_user_id is not None:
+        query = query.where(Issue.owner_user_id == owner_user_id)
+
+    result = await db.execute(query.order_by(Issue.id.asc()))
+    return list(result.scalars().all())
+
+
+async def _export_issues(
+    *,
+    db: AsyncSession,
+    current_user: User,
+    export_format: ExportFormat,
+    as_of_date: date,
+    department_id: int | None,
+    status_filter: IssueStatus | None,
+    severity_filter: IssueSeverity | None,
+    owner_user_id: int | None,
+    overdue_only: bool,
+) -> StreamingResponse:
+    models = await _fetch_issues_for_export(
+        db,
+        current_user=current_user,
+        department_id=department_id,
+        status_filter=status_filter,
+        severity_filter=severity_filter,
+        owner_user_id=owner_user_id,
+    )
+    as_of_dt = _as_of_datetime(as_of_date)
+    rows = [_issue_to_row(issue, as_of_dt=as_of_dt) for issue in models]
+    if overdue_only:
+        rows = [row for row in rows if bool(row.get("is_overdue"))]
+
+    headers = [
+        "Issue ID",
+        "Title",
+        "Status",
+        "Severity",
+        "Source Type",
+        "Source ID",
+        "Department",
+        "Owner",
+        "Due At",
+        "Overdue",
+        "Age (days)",
+        "Linked Risk IDs",
+        "Linked Risks",
+        "Linked Control IDs",
+        "Linked Controls",
+        "Linked Execution IDs",
+        "Linked KRI IDs",
+        "Linked KRIs",
+        "Remediation Status",
+        "Remediation Progress",
+        "Remediation Owner",
+        "Remediation Target Date",
+        "Exception Status",
+        "Exception Expires At",
+    ]
+
+    data_rows = [
+        [
+            row.get("id"),
+            row.get("title"),
+            row.get("status"),
+            row.get("severity"),
+            row.get("source_type"),
+            row.get("source_id"),
+            row.get("department_name"),
+            row.get("owner_name"),
+            row.get("due_at"),
+            "yes" if row.get("is_overdue") else "no",
+            row.get("age_days"),
+            row.get("risk_ids"),
+            row.get("risk_names"),
+            row.get("control_ids"),
+            row.get("control_names"),
+            row.get("execution_ids"),
+            row.get("kri_ids"),
+            row.get("kri_names"),
+            row.get("remediation_status"),
+            row.get("remediation_progress_percent"),
+            row.get("remediation_owner_name"),
+            row.get("remediation_target_date"),
+            row.get("exception_status"),
+            row.get("exception_expires_at"),
+        ]
+        for row in rows
+    ]
+
+    return _render_export(
+        title=f"Issue Export (as of {as_of_date.isoformat()})",
+        sheet_name="Issues",
+        filename_base="issues",
+        export_format=export_format,
+        headers=headers,
+        data_rows=data_rows,
+        as_of_date=as_of_date,
+    )
+
+
 def _render_export(
     *,
     title: str,
@@ -1125,6 +1369,38 @@ async def export_vendors(
         status_filter=status_filter,
         search=search,
         vendor_type=vendor_type,
+    )
+
+
+@router.get("/issues/export")
+async def export_issues(
+    format: ExportFormat = Query(..., description="Export format: xlsx, csv"),
+    as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
+    department_id: Optional[int] = Query(None),
+    status_filter: Optional[IssueStatus] = Query(None, alias="status"),
+    severity: Optional[IssueSeverity] = Query(None),
+    owner_user_id: Optional[int] = Query(None),
+    overdue_only: bool = Query(False),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("reports", "read")),
+):
+    if not has_permission(current_user, "issues", "read"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied: issues:read",
+        )
+
+    as_of = as_of_date or datetime.now(UTC).date()
+    return await _export_issues(
+        db=db,
+        current_user=current_user,
+        export_format=format,
+        as_of_date=as_of,
+        department_id=department_id,
+        status_filter=status_filter,
+        severity_filter=severity,
+        owner_user_id=owner_user_id,
+        overdue_only=overdue_only,
     )
 
 

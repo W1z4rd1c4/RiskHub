@@ -2,6 +2,7 @@
     "sidebar": {
         "dashboard": "Přehled",
         "risks": "Rizika",
+        "issues": "Nálezy",
         "controls": "Kontroly",
         "kris": "Rizikový apetit",
         "vendors": "Dodavatelé",

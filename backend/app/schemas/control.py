@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 from enum import Enum
 
 
@@ -16,9 +16,36 @@ class ControlFrequencyEnum(str, Enum):
     weekly = "weekly"
     monthly = "monthly"
     quarterly = "quarterly"
+    semi_annually = "semi-annually"
     annually = "annually"
     ad_hoc = "ad_hoc"
     continuous = "continuous"
+
+
+def normalize_control_frequency(value: Any) -> ControlFrequencyEnum:
+    """Normalize legacy frequency aliases to canonical ControlFrequencyEnum values."""
+    if isinstance(value, ControlFrequencyEnum):
+        return value
+    if value is None:
+        raise ValueError("Control frequency is required")
+
+    raw_value = str(value).strip().lower()
+    compact_value = raw_value.replace("_", "").replace("-", "").replace(" ", "")
+
+    if compact_value in {"semiannual", "semiannually"}:
+        canonical = ControlFrequencyEnum.semi_annually.value
+    elif compact_value == "adhoc":
+        canonical = ControlFrequencyEnum.ad_hoc.value
+    else:
+        canonical = raw_value.replace(" ", "_")
+
+    try:
+        return ControlFrequencyEnum(canonical)
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in ControlFrequencyEnum)
+        raise ValueError(
+            f"Invalid control frequency '{value}'. Allowed values: {allowed}"
+        ) from exc
 
 
 class ControlStatusEnum(str, Enum):
@@ -64,6 +91,11 @@ class ControlBase(BaseModel):
             raise ValueError('Risk level must be between 1 and 5')
         return v
 
+    @field_validator('frequency', mode='before')
+    @classmethod
+    def validate_frequency(cls, v):
+        return normalize_control_frequency(v)
+
 
 class ControlCreate(ControlBase):
     """Schema for creating a Control."""
@@ -87,6 +119,13 @@ class ControlUpdate(BaseModel):
     documentation_location: Optional[str] = Field(None, max_length=500)
     department_id: Optional[int] = None
     status: Optional[ControlStatusEnum] = None
+
+    @field_validator('frequency', mode='before')
+    @classmethod
+    def validate_frequency(cls, v):
+        if v is None:
+            return None
+        return normalize_control_frequency(v)
 
 
 class UserBriefForControl(BaseModel):
@@ -140,6 +179,11 @@ class ControlSummary(BaseModel):
     risk_department_name: Optional[str] = None
     
     model_config = {"from_attributes": True}
+
+    @field_validator('frequency', mode='before')
+    @classmethod
+    def validate_frequency(cls, v):
+        return normalize_control_frequency(v)
 
 
 class ControlListResponse(BaseModel):

@@ -26,6 +26,12 @@ interface VendorExportFilters extends ReportFilters {
     vendorType?: string | null;
 }
 
+interface IssueExportFilters extends ReportFilters {
+    severity?: string | null;
+    ownerUserId?: number | null;
+    overdueOnly?: boolean | null;
+}
+
 interface ExportRequest<TFilters> {
     format: UnifiedExportFormat;
     asOfDate: string;
@@ -118,7 +124,7 @@ async function downloadFile(url: string, defaultFilename: string): Promise<void>
 }
 
 async function downloadUnifiedExport(
-    entity: 'risks' | 'controls' | 'kris' | 'vendors',
+    entity: 'risks' | 'controls' | 'kris' | 'vendors' | 'issues',
     format: UnifiedExportFormat,
     asOfDate: string,
     filters: Record<string, string | number | boolean | null | undefined>,
@@ -201,6 +207,17 @@ export const reportApi = {
             status: filters.status,
             search: filters.search,
             vendor_type: filters.vendorType,
+        });
+    },
+
+    async exportIssues(request: ExportRequest<IssueExportFilters>): Promise<void> {
+        const { format, asOfDate, filters = {} } = request;
+        await downloadUnifiedExport('issues', format, asOfDate, {
+            department_id: filters.departmentId,
+            status: filters.status,
+            severity: filters.severity,
+            owner_user_id: filters.ownerUserId,
+            overdue_only: filters.overdueOnly,
         });
     },
 };

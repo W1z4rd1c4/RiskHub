@@ -8,6 +8,17 @@ from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.approval_request import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
 from app.models.notification import Notification, NotificationType
+from app.models.issue import (
+    Issue,
+    IssueSeverity,
+    IssueStatus,
+    IssueSourceType,
+    IssueLink,
+    IssueRemediationPlan,
+    IssueRemediationStatus,
+    IssueException,
+    IssueExceptionStatus,
+)
 from app.models.risk_questionnaire import RiskQuestionnaire, RiskQuestionnaireStatus, RiskQuestionnaireClarification
 from app.models.vendor import Vendor, VendorStatus, VendorType, VendorReplaceability
 from app.models.vendor_risk_factor import VendorRiskFactor
@@ -45,6 +56,15 @@ __all__ = [
     "KRIValueHistory",
     "ApprovalRequest", "ApprovalStatus", "ApprovalResourceType", "ApprovalActionType",
     "Notification", "NotificationType",
+    "Issue",
+    "IssueSeverity",
+    "IssueStatus",
+    "IssueSourceType",
+    "IssueLink",
+    "IssueRemediationPlan",
+    "IssueRemediationStatus",
+    "IssueException",
+    "IssueExceptionStatus",
     "RiskQuestionnaire", "RiskQuestionnaireStatus", "RiskQuestionnaireClarification",
     "Vendor", "VendorStatus", "VendorType", "VendorReplaceability",
     "VendorRiskFactor",

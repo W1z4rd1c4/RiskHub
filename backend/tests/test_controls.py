@@ -57,6 +57,39 @@ async def test_list_controls(auth_client: AsyncClient, test_user: User, test_dep
 
 
 @pytest.mark.asyncio
+async def test_list_controls_normalizes_legacy_semi_annual_frequency(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    """List endpoint should normalize legacy semi-annual frequency aliases."""
+    legacy_control = Control(
+        name="Legacy Frequency List Control",
+        description="Control with legacy frequency alias",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="semi_annually",
+        risk_level=3,
+        status="active",
+    )
+    db_session.add(legacy_control)
+    await db_session.commit()
+    await db_session.refresh(legacy_control)
+
+    response = await auth_client.get("/api/v1/controls?include_archived=true")
+    assert response.status_code == 200
+
+    item = next(
+        (entry for entry in response.json()["items"] if entry["id"] == legacy_control.id),
+        None,
+    )
+    assert item is not None
+    assert item["frequency"] == "semi-annually"
+
+
+@pytest.mark.asyncio
 async def test_get_control(auth_client: AsyncClient, test_user: User, test_department: Department):
     """Test retrieving a single control."""
     # Create a control first
@@ -82,6 +115,36 @@ async def test_get_control(auth_client: AsyncClient, test_user: User, test_depar
     data = response.json()
     assert data["id"] == control_id
     assert data["name"] == "Get Test Control"
+
+
+@pytest.mark.asyncio
+async def test_get_control_normalizes_legacy_semi_annual_frequency(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    """Detail endpoint should normalize legacy semi-annual frequency aliases."""
+    legacy_control = Control(
+        name="Legacy Frequency Detail Control",
+        description="Control with legacy frequency alias",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="semiannual",
+        risk_level=3,
+        status="active",
+    )
+    db_session.add(legacy_control)
+    await db_session.commit()
+    await db_session.refresh(legacy_control)
+
+    response = await auth_client.get(f"/api/v1/controls/{legacy_control.id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == legacy_control.id
+    assert data["frequency"] == "semi-annually"
 
 
 @pytest.mark.asyncio
