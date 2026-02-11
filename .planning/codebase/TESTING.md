@@ -1,51 +1,62 @@
 # Testing
 
-**Analysis Date:** 2026-02-02
+**Analysis Date:** 2026-02-11
 
-## Backend Testing (pytest)
+## Test Stack Overview
 
-**Frameworks:**
-- pytest + pytest-asyncio (`backend/pytest.ini`, `backend/tests/`)
-- httpx `AsyncClient` with ASGI transport (FastAPI app in-process)
+- Backend: `pytest`, `pytest-asyncio`, `httpx`, `pytest-cov` (`backend/pytest.ini`)
+- Frontend unit/integration: `Vitest` + Testing Library + MSW (`frontend/vitest.config.ts`, `frontend/src/test/mocks/`)
+- Frontend/browser E2E: `Playwright` (`frontend/playwright.config.ts`, `frontend/e2e/`)
 
-**Key patterns:**
-- In-memory SQLite by default for fast tests (`backend/tests/conftest.py`)
-- Fixtures for roles/users/departments and commonly used entities
-- Markers:
-  - `postgres`: requires PostgreSQL
-  - `slow`: longer-running suites
+## Backend Testing Patterns
 
-**How to run:**
-- `make test`
-- `cd backend && pytest -v`
+### Configuration
+- `backend/pytest.ini` sets discovery and coverage defaults
+- Markers include:
+  - `postgres` for PostgreSQL-required behavior
+  - `slow` for longer-running suites
 
-## Frontend Unit/Integration (Vitest)
+### Fixture strategy
+- Default backend tests use in-memory SQLite (`backend/tests/conftest.py`)
+- Role/user fixtures include wildcard and platform-admin variants (`backend/tests/conftest.py`)
+- Dependency override and header-based auth patterns are both used in test clients
 
-**Frameworks:**
-- Vitest + jsdom (`frontend/vitest.config.ts`)
-- Testing Library (`@testing-library/react`, `@testing-library/user-event`)
-- MSW for API mocking (`frontend/src/test/mocks/`)
+### Scale snapshot
+- Backend tests: 206 files
+- API-focused backend tests: 18 files under `backend/tests/api/`
 
-**How to run:**
-- `cd frontend && npm test`
-- `cd frontend && npm run test:run`
+## Frontend Unit/Integration Patterns
 
-## Frontend E2E (Playwright)
+- Vitest configured with jsdom and setup file (`frontend/vitest.config.ts`, `frontend/vitest.setup.ts`)
+- Includes `src/**/*.{test,spec}.{ts,tsx}`
+- MSW handlers provide deterministic API contracts during tests (`frontend/src/test/mocks/handlers.ts`)
+- React Query/Auth providers are wrapped in reusable test utilities (`frontend/src/test/utils.tsx`)
 
-**Frameworks:**
-- Playwright test runner (`frontend/playwright.config.ts`)
-- Uses `baseURL: http://localhost:5173` and starts dev server automatically
+## Frontend E2E Patterns
 
-**How to run:**
-- `make test-e2e`
-- `cd frontend && npx playwright test`
+- Playwright projects: Chromium, Firefox, WebKit, plus CI profile (`frontend/playwright.config.ts`)
+- Global setup performs health/preflight checks (`frontend/e2e/setup/global-setup.ts`)
+- Domain-oriented E2E suites cover permissions, approvals, sensitive fields, cross-department access, and activity logging (`frontend/e2e/`)
 
-**Notes:**
-- Repo includes dedicated RBAC/permission E2E suites (`frontend/e2e/roles-access.spec.ts`, `frontend/e2e/permissions/*`)
-- E2E data is often driven by seed scripts in `backend/scripts/`
+## CI Test/Security Execution
+
+- E2E workflow provisions Postgres service, runs backend + Playwright chromium suite (`.github/workflows/e2e.yml`)
+- Security workflow runs Bandit, pip-audit, npm audit, Trivy, gitleaks (`.github/workflows/security.yml`)
+
+## Canonical Commands
+
+- Backend tests: `make test` or `cd backend && pytest -v`
+- Backend Postgres-sensitive tests: `cd backend && pytest -m postgres -v`
+- Frontend unit tests: `cd frontend && npm run test:run`
+- Frontend type checks: `cd frontend && npx tsc --noEmit`
+- E2E: `make test-e2e` or `cd frontend && npx playwright test`
+
+## Practical Gaps to Watch
+
+- SQLite-default tests may not catch all Postgres-specific datetime/enum behavior
+- Authorization changes should be validated in both backend API tests and frontend gating tests
+- Approval-execution changes should include high-confidence regression tests around side effects
 
 ---
 
-*Testing audit: 2026-02-02*
-*Update when test strategy changes*
-
+*Testing audit refreshed on 2026-02-11*
