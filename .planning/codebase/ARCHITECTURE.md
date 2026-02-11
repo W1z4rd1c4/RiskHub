@@ -1,112 +1,72 @@
 # Architecture
 
-**Analysis Date:** 2026-02-02
+**Analysis Date:** 2026-02-11
 
-## Pattern Overview
+## System Shape
 
-**Overall:** Docker-deployable full-stack web app (FastAPI monolith + React SPA)
+RiskHub is a containerized full-stack application:
+- Backend: FastAPI monolith with modular domain endpoints (`backend/app/api/v1/endpoints/`)
+- Frontend: React SPA with route-based pages (`frontend/src/App.tsx`, `frontend/src/pages/`)
+- Datastore: PostgreSQL, with Redis for production runtime controls (`docker-compose.yml`)
 
-**Key Characteristics:**
-- Single backend service exposing a versioned REST API (`/api/v1/*`)
-- Frontend SPA consumes API via relative proxy (`/api/v1`) for LAN/Docker friendliness
-- RBAC + access scoping enforced in backend and mirrored as UI gating
-- “Delete” operations are typically soft-delete / archival for auditability
+## Backend Layering
 
-## Layers
+### API Layer
+- Router composition in `backend/app/api/v1/router.py`
+- Endpoint modules grouped by domain (risks, controls, approvals, vendors, admin, directory, etc.)
+- Authentication and user resolution via dependency injection (`backend/app/api/deps.py`)
 
-**Backend API Boundary (FastAPI):**
-- Purpose: HTTP routing, auth dependency injection, request validation
-- Contains: routers/endpoints in `backend/app/api/v1/endpoints/`
-- Depends on: services/models/schemas/db
-- Used by: frontend and E2E tests
+### Domain and Persistence
+- SQLAlchemy models in `backend/app/models/`
+- Pydantic request/response schemas in `backend/app/schemas/`
+- Business workflows in `backend/app/services/`
+- Async DB session boundary in `backend/app/db/session.py`
 
-**Schemas (Pydantic):**
-- Purpose: request/response contracts
-- Location: `backend/app/schemas/`
+### Cross-Cutting Runtime
+- Middleware chain: CORS, trusted hosts, logging context, security headers, rate limiting, language (`backend/app/main.py`, `backend/app/middleware/`)
+- Structured logging + audit logging (`backend/app/core/logging.py`, `backend/app/core/activity_logger.py`)
+- Background jobs via APScheduler (`backend/app/core/scheduler.py`)
 
-**Domain Models (SQLAlchemy):**
-- Purpose: persistence models + relationships
-- Location: `backend/app/models/`
+## Frontend Layering
 
-**Services (Business Logic):**
-- Purpose: encapsulate multi-step workflows (approvals execution, notifications, historization, vendor workflows)
-- Location: `backend/app/services/`
+- Bootstrapping: `frontend/src/main.tsx`
+- Global providers: QueryClient, AuthProvider, ThemeProvider (`frontend/src/App.tsx`)
+- Routing: `BrowserRouter` route tree in `frontend/src/App.tsx`
+- Domain views: page components in `frontend/src/pages/`, shared components in `frontend/src/components/`
+- API access: central `apiClient` + domain service wrappers (`frontend/src/services/`)
+- Authorization UX: `PermissionGate`, `usePermissions`, `useAuthz` (`frontend/src/components/PermissionGate.tsx`, `frontend/src/hooks/usePermissions.ts`, `frontend/src/authz/useAuthz.ts`)
 
-**Integrations:**
-- Purpose: outbound clients to other services (AD emulator, vendor signals connectors)
-- Location: `backend/app/integrations/`
+## Core Data Flows
 
-**Cross-Cutting Middleware:**
-- Purpose: logging context, security headers, rate limiting, language detection
-- Location: `backend/app/middleware/`
+### Authenticated API request
+1. User logs in (`/api/v1/auth/login`) and receives JWT (`backend/app/api/v1/endpoints/auth.py`)
+2. Frontend stores token in localStorage (`frontend/src/contexts/AuthContext.tsx`)
+3. `apiClient` injects bearer token (`frontend/src/services/apiClient.ts`)
+4. Backend resolves user/permissions in dependency layer (`backend/app/api/deps.py`)
+5. Endpoint/service executes and may write audit events (`backend/app/core/activity_logger.py`)
 
-**Frontend UI (React SPA):**
-- Purpose: pages, components, local UI state, data fetching
-- Location: `frontend/src/`
-- Patterns: route-based pages (`frontend/src/pages/`) + component library (`frontend/src/components/`)
+### Approval workflow
+1. Change request enters approvals flow (`backend/app/api/v1/endpoints/approvals.py`)
+2. Approval side effects are executed in service layer (`backend/app/services/approval_execution_service.py`)
+3. Related domain entities and activity logs are updated transactionally
 
-## Data Flow
+### Scheduled jobs
+1. App starts and conditionally starts scheduler based on `ENABLE_SCHEDULER` (`backend/app/core/scheduler.py`)
+2. Daily jobs process KRIs, questionnaires, vendor reassessment/SLA, and optional vendor signal refresh
 
-**HTTP Request (typical API call):**
-1. Client calls `/api/v1/...` (frontend via `frontend/src/services/apiClient.ts`)
-2. Middleware enriches context (request_id/user_id/client_ip), enforces headers/rate limits (`backend/app/main.py`)
-3. Endpoint validates input via Pydantic schemas (`backend/app/api/v1/endpoints/*`)
-4. Endpoint loads data via `AsyncSession` (dependency `get_db`) and service functions
-5. Activity logging is written as part of the transaction for auditable actions (`backend/app/core/activity_logger.py`)
-6. Transaction commits; response serialized back to client
+## Deployment Topology
 
-**Approval Workflow (governed changes):**
-1. Non-privileged action returns 202 and creates `ApprovalRequest`
-2. Approver resolves via `/api/v1/approvals/{id}/approve|reject`
-3. Side effects applied by `backend/app/services/approval_execution_service.py`
-4. Notifications emitted to requester/approvers via `backend/app/services/notification_service.py`
+- Dev/local hybrid flow orchestrated by `scripts/dev.sh` and `Makefile`
+- Dockerized production flow in `docker-compose.yml` + `docker-compose.prod.yml`
+- Frontend served by nginx, proxying backend API requests (`frontend/nginx.conf`)
 
-## Key Abstractions
+## Architectural Characteristics
 
-**RBAC + Scope:**
-- Permissions modeled as `resource:action` pairs and computed as effective permissions on login (`backend/app/core/permissions.py`, `backend/app/api/v1/endpoints/auth.py`)
-- Frontend uses `PermissionGate` and `usePermissions` as a single source of truth for UI gating (`frontend/src/components/PermissionGate.tsx`, `frontend/src/hooks/usePermissions.ts`)
-
-**Activity Log:**
-- Append-only audit model with enforced immutability (`backend/app/models/activity_log.py`)
-- Emitted via helper `log_activity()` (`backend/app/core/activity_logger.py`)
-
-## Entry Points
-
-**Backend:**
-- `backend/app/main.py` (FastAPI app + middleware + router mount)
-- `backend/app/api/v1/router.py` (registers all endpoint routers)
-
-**Frontend:**
-- `frontend/src/main.tsx` (bootstraps React app)
-- `frontend/src/App.tsx` (routes + layout)
-
-**Infrastructure:**
-- `docker-compose.yml` for local multi-service
-- `Makefile` for common flows (dev, tests, migrate)
-
-## Error Handling
-
-**Backend Strategy:**
-- Raise `HTTPException` for controlled failures; rely on FastAPI error responses
-- Some endpoints/services log and rethrow for 500s in unexpected cases
-
-**Frontend Strategy:**
-- Central `apiClient` surfaces server `detail` when available, otherwise status-based fallback (`frontend/src/services/apiClient.ts`)
-
-## Cross-Cutting Concerns
-
-**Logging:**
-- Structured JSON logs with request correlation (`backend/app/core/logging.py`, `backend/app/middleware/logging_context.py`)
-
-**Validation:**
-- Pydantic schemas for API boundary; TypeScript types for UI boundary
-
-**Authentication:**
-- JWT auth + dev-only mock auth (guarded in debug mode)
+- Strong modularity by business domain, but still a single deployable backend service
+- Authorization is backend-authoritative; frontend mirrors with UI gating
+- Approval and audit concerns are deeply integrated into domain write paths
+- Large endpoint modules exist in high-traffic domains (RiskHub/Reports/Dashboard/Controls/KRIs)
 
 ---
 
-*Architecture analysis: 2026-02-02*
-*Update when major patterns change*
-
+*Architecture analysis refreshed on 2026-02-11*

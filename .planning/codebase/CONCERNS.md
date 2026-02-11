@@ -1,56 +1,57 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-02-02
+**Analysis Date:** 2026-02-11
 
-## Tech Debt
+## High-Risk Hotspots (Require Extra Care)
 
-**Mixed timestamp semantics (naive vs timezone-aware):**
-- Issue: DB columns across models/migrations mix `TIMESTAMP WITHOUT TIME ZONE` and `TIMESTAMP WITH TIME ZONE`, while code frequently uses `datetime.now(UTC)`.
-- Why: historical migrations/models evolved inconsistently; some code compensates with `.replace(tzinfo=None)`.
-- Impact: runtime 500s possible when asyncpg receives tz-aware datetime for a naive column (example: approvals reject/approve flow).
-- Fix approach:
-  - Preferred long-term: standardize to timezone-aware columns + `DateTime(timezone=True)` models.
-  - Short-term/compat: ensure writes to naive columns strip tzinfo consistently (see recent changes in approvals/KRI archive).
+- Approval side-effect orchestration: `backend/app/services/approval_execution_service.py`
+- Timezone handling across mixed naive/aware paths: multiple backend services and endpoints
+- RBAC scope enforcement consistency between backend and frontend gating: `backend/app/core/permissions.py`, `frontend/src/components/PermissionGate.tsx`
+- Role/permission seed consistency across seed scripts: `backend/app/db/seed.py`, `backend/scripts/seed_*.py`
+- Mock auth and demo-login boundaries: `backend/app/main.py`, `backend/app/api/v1/endpoints/auth.py`
 
-**Permission/role drift between seed paths:**
-- Issue: there are multiple seeding sources (`backend/app/db/seed.py`, `backend/scripts/seed_demo.py`, `backend/scripts/seed_roles_permissions.py`) that can diverge from `docs/BUSINESS_LOGIC.md`.
-- Impact: UI/behavior mismatches depending on which seeding path is used (demo vs app seed vs tests).
-- Fix approach: converge to a single source of truth and/or add tests asserting permissions for demo users.
+## Timezone Consistency Debt
 
-## Known Bugs
+- Codebase still contains both timezone-aware model columns and explicit naive conversions (e.g. `.replace(tzinfo=None)`) in several write paths
+- This creates ongoing regression risk in Postgres-sensitive flows unless tested explicitly
+- Evidence: `backend/app/services/approval_execution_service.py`, `backend/app/services/kri_history_service.py`, `backend/app/api/v1/endpoints/approvals.py`
 
-**Approval resolve endpoints can 500 on timestamp mismatch (Postgres):**
-- Symptoms: UI shows “Request failed with status 500” when approving/rejecting.
-- Root cause: tz-aware datetime being written to naive timestamp columns (DBAPIError from asyncpg).
-- Mitigation: standardize writes or migrate columns to `timestamptz`.
+## Large, Dense Modules
 
-## Security Considerations
+- Several endpoint modules are very large, increasing maintenance and regression risk:
+  - `backend/app/api/v1/endpoints/riskhub.py` (1373 lines)
+  - `backend/app/api/v1/endpoints/reports.py` (1245 lines)
+  - `backend/app/api/v1/endpoints/dashboard.py` (1079 lines)
+  - `backend/app/api/v1/endpoints/controls.py` (1023 lines)
+- Large modules make focused refactoring and review harder without strict test coverage
 
-**MOCK_AUTH_ENABLED bypass:**
-- Risk: `X-Mock-User-Id` header allows impersonation.
-- Current mitigation: guarded to debug mode; production guard in `backend/app/main.py`.
-- Recommendation: ensure prod deploy never sets `DEBUG=true` and does not expose the demo login endpoint.
+## Authentication and Session Risks
 
-## Performance Bottlenecks
+- JWT access token stored in browser localStorage (`frontend/src/contexts/AuthContext.tsx`) remains an XSS-sensitive design choice
+- Dev/demo auth paths are intentionally present and must remain production-disabled (`backend/app/main.py`, `backend/app/api/v1/endpoints/auth.py`)
 
-**Potential N+1 query risks:**
-- Some endpoints rely on relationship loading strategies; keep an eye on list endpoints and dashboard aggregation paths.
-- Recommendation: use SQLAlchemy eager loading (`selectinload/joinedload`) consistently on high-traffic endpoints.
+## Scheduler Operational Risk
 
-## Fragile Areas
+- Background scheduler can duplicate jobs if enabled in more than one backend process
+- Guard exists (`ENABLE_SCHEDULER=true` expected on exactly one process), but this is deployment-discipline dependent (`backend/app/core/scheduler.py`)
 
-**Approval execution side effects:**
-- `backend/app/services/approval_execution_service.py` performs multi-entity writes and logs; changes can have broad effects.
-- Safe modification: add/extend tests in `backend/tests/test_approval_*` for any workflow changes.
+## Log Growth and Operational Hygiene
 
-## Test Coverage Gaps
+- Repository root contains very large dev log artifacts (e.g. `.dev-backend.log`), which can impact local disk usage and tooling performance
+- Ongoing cleanup policy and log rotation discipline should be enforced for local/dev workflows
 
-**Timezone behavior against real Postgres:**
-- Many tests run on SQLite; timezone/enum differences may slip through.
-- Recommendation: keep (or add) at least one CI job running the critical approval flows against Postgres (marker `postgres`).
+## Test-Parity Risk
+
+- Most backend tests run on SQLite fixtures (`backend/tests/conftest.py`)
+- Critical paths with Postgres behavior (timestamps, SQL semantics, asyncpg strictness) need recurring `-m postgres` validation
+
+## Recommended Ongoing Mitigations
+
+- Keep explicit regression tests on approval execution and timezone-sensitive writes
+- Validate RBAC changes with both API and UI-gating tests
+- Prefer incremental decomposition of oversized endpoint modules during feature work
+- Periodically reconcile seed scripts with `docs/BUSINESS_LOGIC.md`
 
 ---
 
-*Concerns audit: 2026-02-02*
-*Update as issues are fixed or new ones discovered*
-
+*Concerns audit refreshed on 2026-02-11*
