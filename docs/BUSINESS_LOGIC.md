@@ -638,11 +638,22 @@ Exception status transitions:
 
 Invalid transitions return `409` from backend workflow endpoints.
 
+Workflow mutation contract:
+- `PATCH /api/v1/issues/{id}` does **not** allow `status` updates.
+- Status changes are allowed only through workflow endpoints:
+  - `POST /api/v1/issues/{id}/assign`
+  - `POST /api/v1/issues/{id}/start-remediation`
+  - `POST /api/v1/issues/{id}/update-progress`
+  - `POST /api/v1/issues/{id}/close`
+  - `POST /api/v1/issues/{id}/revoke-exception` (exception lifecycle)
+
 ### 11.2 Scope and Non-Leaky Access
 
 - Issue reads are backend-scoped by department visibility plus ownership exception paths.
 - Out-of-scope issue reads return `404` (not `403`) to prevent resource leakage.
 - Backend remains source of truth for authorization; frontend only mirrors gating.
+- Owner assignment (`create`, `patch owner_user_id`, `assign`) is allowed only when owner has global scope or belongs to the issue department.
+- Department reassignment is blocked when existing links would become cross-department inconsistent.
 
 ### 11.3 Deadline and Exception Semantics
 
@@ -650,6 +661,10 @@ Invalid transitions return `409` from backend workflow endpoints.
 - High-severity overdue issues generate escalation notifications.
 - Approved exceptions suppress issue overdue/open dashboard counting while active.
 - Expired exceptions are auto-marked `expired`; closed issues can be re-opened when remediation is incomplete.
+- Explicit exception revocation is available via `POST /api/v1/issues/{id}/revoke-exception`.
+- Revocation transitions exception state `approved -> revoked`.
+- Revoking an exception re-opens a closed issue to `in_progress` when remediation is not complete.
+- Assignment and exception-approved notifications are emitted only to recipients that can read the issue.
 
 ### 11.4 Issue Dashboard Metrics
 

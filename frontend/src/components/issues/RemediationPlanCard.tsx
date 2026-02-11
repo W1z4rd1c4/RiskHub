@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { issuesApi } from '@/services/issuesApi';
-import type { Issue, IssueRemediationStatus } from '@/types/issue';
+import type { Issue, IssueOwnerLookup, IssueRemediationStatus } from '@/types/issue';
 
 interface RemediationPlanCardProps {
     issue: Issue;
@@ -45,8 +45,45 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
     const [exceptionReason, setExceptionReason] = useState<string>('');
     const [exceptionExpiresAt, setExceptionExpiresAt] = useState<string>('');
     const [validationNote, setValidationNote] = useState<string>(issue.validation_note ?? '');
+    const [ownerOptions, setOwnerOptions] = useState<IssueOwnerLookup[]>([]);
+    const [isOwnersLoading, setIsOwnersLoading] = useState<boolean>(false);
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        setAssignOwnerId(issue.owner_user_id ? String(issue.owner_user_id) : '');
+        setAssignDueAt(toDateTimeInputValue(issue.due_at));
+        setProgressPercent(issue.remediation_plan ? String(issue.remediation_plan.progress_percent) : '0');
+        setRemediationStatus(issue.remediation_plan?.status ?? 'active');
+        setBlockerReason(issue.remediation_plan?.blocker_reason ?? '');
+        setCompletionNotes(issue.remediation_plan?.completion_notes ?? '');
+        setValidationNote(issue.validation_note ?? '');
+    }, [issue]);
+
+    useEffect(() => {
+        if (!canWrite) {
+            setOwnerOptions([]);
+            return;
+        }
+        setIsOwnersLoading(true);
+        issuesApi
+            .listAssignableOwners(issue.department_id)
+            .then((owners) => {
+                setOwnerOptions(owners);
+                setAssignOwnerId((previous) => {
+                    if (!previous) {
+                        return previous;
+                    }
+                    return owners.some((owner) => String(owner.id) === previous) ? previous : '';
+                });
+            })
+            .catch(() => {
+                setOwnerOptions([]);
+            })
+            .finally(() => {
+                setIsOwnersLoading(false);
+            });
+    }, [canWrite, issue.department_id]);
 
     const requestedExceptionId = useMemo(() => {
         const requested = issue.exceptions
@@ -74,9 +111,13 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
     };
 
     const handleAssign = async () => {
+        if (!assignOwnerId) {
+            setError('Owner is required.');
+            return;
+        }
         const ownerId = Number(assignOwnerId);
         if (!Number.isFinite(ownerId) || ownerId <= 0) {
-            setError('Owner user ID must be a positive number.');
+            setError('Owner selection is invalid.');
             return;
         }
         const dueAt = toIsoOrUndefined(assignDueAt);
@@ -184,14 +225,21 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
 
             <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                    <label className="text-xs uppercase tracking-wide text-slate-400">Owner User ID</label>
-                    <input
-                        type="number"
+                    <label className="text-xs uppercase tracking-wide text-slate-400">Owner</label>
+                    <select
                         value={assignOwnerId}
                         onChange={(event) => setAssignOwnerId(event.target.value)}
                         className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
                         disabled={!canWrite || isSubmitting}
-                    />
+                    >
+                        <option value="">{isOwnersLoading ? 'Loading owners...' : 'Select owner'}</option>
+                        {ownerOptions.map((owner) => (
+                            <option key={owner.id} value={owner.id}>
+                                {owner.name}
+                                {owner.role_name ? ` - ${owner.role_name}` : ''}
+                            </option>
+                        ))}
+                    </select>
                 </div>
                 <div className="space-y-2">
                     <label className="text-xs uppercase tracking-wide text-slate-400">Due At</label>

@@ -24,21 +24,28 @@ function renderLinkSummary(issue: Issue): string {
         return 'No linked entities';
     }
     const parts = issue.links.map((link) => {
-        if (link.risk_id) {
-            return `Risk #${link.risk_id}`;
+        if (link.linked_entity_name && link.linked_entity_name.trim()) {
+            return link.linked_entity_name;
         }
-        if (link.control_id) {
-            return `Control #${link.control_id}`;
+        if (link.linked_entity_type === 'risk' || link.risk_id) {
+            return 'Unknown risk';
         }
-        if (link.execution_id) {
-            return `Execution #${link.execution_id}`;
+        if (link.linked_entity_type === 'control' || link.control_id) {
+            return 'Unknown control';
         }
-        if (link.kri_id) {
-            return `KRI #${link.kri_id}`;
+        if (link.linked_entity_type === 'execution' || link.execution_id) {
+            return 'Unknown execution';
+        }
+        if (link.linked_entity_type === 'kri' || link.kri_id) {
+            return 'Unknown KRI';
         }
         return 'Unknown link';
     });
     return parts.join(', ');
+}
+
+function formatSource(sourceType: string): string {
+    return sourceType.replace(/_/g, ' ');
 }
 
 export function IssueDetailPanel({ issue, canWrite, canApprove, onIssueUpdated }: IssueDetailPanelProps) {
@@ -57,7 +64,6 @@ export function IssueDetailPanel({ issue, canWrite, canApprove, onIssueUpdated }
                 <div className="flex items-start justify-between gap-3">
                     <div>
                         <h3 className="text-lg font-bold text-white">{issue.title}</h3>
-                        <p className="text-sm text-slate-400">Issue #{issue.id}</p>
                     </div>
                     <div className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-slate-300">
                         {issue.status}
@@ -66,9 +72,9 @@ export function IssueDetailPanel({ issue, canWrite, canApprove, onIssueUpdated }
                 <p className="text-sm text-slate-300">{issue.description || 'No description.'}</p>
                 <div className="grid gap-2 text-xs text-slate-400 md:grid-cols-2">
                     <div>Severity: <span className="text-slate-200">{issue.severity}</span></div>
-                    <div>Source: <span className="text-slate-200">{issue.source_type}</span></div>
-                    <div>Owner ID: <span className="text-slate-200">{issue.owner_user_id ?? 'Unassigned'}</span></div>
-                    <div>Department ID: <span className="text-slate-200">{issue.department_id}</span></div>
+                    <div>Source: <span className="text-slate-200">{formatSource(issue.source_type)}</span></div>
+                    <div>Owner: <span className="text-slate-200">{issue.owner_user_name || (issue.owner_user_id ? 'Unknown user' : 'Unassigned')}</span></div>
+                    <div>Department: <span className="text-slate-200">{issue.department_name || 'Unknown department'}</span></div>
                     <div>Opened: <span className="text-slate-200">{formatDate(issue.opened_at)}</span></div>
                     <div>Due: <span className="text-slate-200">{formatDate(issue.due_at)}</span></div>
                     <div className="md:col-span-2">Links: <span className="text-slate-200">{renderLinkSummary(issue)}</span></div>

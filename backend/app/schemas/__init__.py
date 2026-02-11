@@ -47,7 +47,10 @@ from app.schemas.issue import (
     IssueProgressUpdateRequest,
     IssueExceptionRequestCreate,
     IssueExceptionApproveRequest,
+    IssueExceptionRevokeRequest,
     IssueCloseRequest,
+    IssueDepartmentLookup,
+    IssueOwnerLookup,
 )
 from app.schemas.vendor import (
     VendorStatusEnum, VendorTypeEnum, VendorReplaceabilityEnum,
@@ -115,7 +118,10 @@ __all__ = [
     "IssueProgressUpdateRequest",
     "IssueExceptionRequestCreate",
     "IssueExceptionApproveRequest",
+    "IssueExceptionRevokeRequest",
     "IssueCloseRequest",
+    "IssueDepartmentLookup",
+    "IssueOwnerLookup",
     # Vendor schemas
     "VendorStatusEnum", "VendorTypeEnum", "VendorReplaceabilityEnum",
     "VendorBase", "VendorCreate", "VendorUpdate", "VendorRead", "VendorListResponse",

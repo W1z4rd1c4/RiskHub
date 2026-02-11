@@ -94,7 +94,7 @@ async def async_engine():
 | **Approval Workflow** | `test_approvals.py`, `test_approval_workflow.py` | Tiered approval flows |
 | **API Endpoints** | `test_risks.py`, `test_controls.py`, `test_users.py`, `test_departments.py` | CRUD operations |
 | **Dashboard** | `test_dashboard.py` | Dashboard aggregation |
-| **Issue Management** | `test_issues_api.py`, `test_issue_workflow.py`, `test_issue_deadline_service.py`, `test_dashboard_issue_metrics.py`, `test_reports_issues.py` | Issue lifecycle, reminders, dashboard metrics, reporting export |
+| **Issue Management** | `test_issues_api.py`, `test_issue_workflow.py`, `test_issue_deadline_service.py`, `test_dashboard_issue_metrics.py`, `test_reports_issues.py` | Issue lifecycle, reminders, dashboard metrics, reporting export, and hardening guards (status mutation, owner scope, exception revoke, notification visibility) |
 | **KRI System** | `test_kri_*.py` (5 files) | KRI values, history, deadlines |
 | **Activity Logging** | `test_activity_log.py`, `test_siem_logging.py` | Audit trail |
 | **Risk Hub Config** | `test_riskhub_*.py` (5 files) | Risk Hub admin features |
@@ -179,6 +179,40 @@ Preflight checks validate presence of deterministic entities across:
 - KRIs (including archived pair)
 - Vendors (including inactive archive semantics)
 - Vendor SLAs (including archived rows)
+
+### 3.5 Phase 180 Closeout Verification (Targeted-Only)
+
+Phase 180 closeout (`180-15`) uses targeted-only Playwright verification and does not require rerunning the full suite when full-gate evidence is already available.
+
+Targeted closeout packs (Chromium):
+
+```bash
+cd frontend
+
+# Pack A: critical deterministic coverage
+CI=1 npx playwright test --project=chromium --workers=1 --retries=0 \
+  e2e/controls.spec.ts e2e/kris.spec.ts e2e/risks.spec.ts e2e/vendors.spec.ts \
+  e2e/permissions/controls-crud.spec.ts e2e/permissions/kris-crud.spec.ts \
+  e2e/permissions/risks-crud.spec.ts e2e/permissions/vendors-crud.spec.ts \
+  e2e/cross-department/control-owner-access.spec.ts
+
+# Pack B: recently fixed surfaces
+CI=1 npx playwright test --project=chromium --workers=1 --retries=0 \
+  e2e/admin.spec.ts e2e/entity-ownership/risk-ownership.spec.ts
+
+# Pack C: skip-heavy representative suites (skip-budget reporting)
+CI=1 npx playwright test --project=chromium --workers=1 --retries=0 \
+  e2e/activity-logging/approval-logging.spec.ts e2e/activity-logging/change-tracking.spec.ts \
+  e2e/activity-logging/entity-logging.spec.ts e2e/sensitive-fields/risk-sensitive.spec.ts \
+  e2e/sensitive-fields/control-sensitive.spec.ts e2e/sensitive-fields/priority-risk-edit.spec.ts \
+  e2e/sensitive-fields/null-clearing.spec.ts
+```
+
+Artifact policy for closeout:
+
+- Persist per-pack `junit.xml` + `results.json` for reproducible skip-budget reporting.
+- Use full-gate artifact from `180-16` as inherited full-suite evidence:
+  - `/tmp/riskhub-playwright-watchdog/full-ci-gate-final-r2/summary.txt`
 
 ---
 
@@ -373,6 +407,19 @@ async def test_employee_cannot_see_other_department_risks(
 - `test_concurrency_stress.py`: Parallel request testing
 - `test_risks_concurrency.py`: Risk ID generation under load
 - `test_api_benchmarks.py`: Response time measurements
+
+### 6.6 Issue Hardening Regression Tests
+
+**What We Test:**
+- `PATCH /api/v1/issues/{id}` rejects direct `status` updates (`409`).
+- Owner assignment scope guard across create/update/assign paths.
+- Department reassignment conflict when existing links would become cross-department inconsistent.
+- Explicit revoke endpoint behavior (`POST /api/v1/issues/{id}/revoke-exception`) including permission checks.
+- Notification recipient visibility checks for assignment and exception-approval notifications.
+
+**Key Files:**
+- `test_issues_api.py`
+- `test_issue_workflow.py`
 
 ---
 

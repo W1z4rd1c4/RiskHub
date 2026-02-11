@@ -5,11 +5,13 @@ import type {
     IssueAssignPayload,
     IssueClosePayload,
     IssueCreatePayload,
+    IssueDepartmentLookup,
     IssueException,
     IssueLink,
     IssueLinkPayload,
     IssueListFilters,
     IssueListResponse,
+    IssueOwnerLookup,
     IssueProgressPayload,
     IssueRequestExceptionPayload,
     IssueStartRemediationPayload,
@@ -17,6 +19,16 @@ import type {
 } from '@/types/issue';
 
 export const issuesApi = {
+    async listDepartments(): Promise<IssueDepartmentLookup[]> {
+        return apiClient.get<IssueDepartmentLookup[]>('/issues/lookups/departments');
+    },
+
+    async listAssignableOwners(departmentId: number): Promise<IssueOwnerLookup[]> {
+        return apiClient.get<IssueOwnerLookup[]>('/issues/lookups/owners', {
+            params: { department_id: departmentId },
+        });
+    },
+
     async list(filters: IssueListFilters = {}): Promise<IssueListResponse> {
         return apiClient.get<IssueListResponse>('/issues', { params: filters });
     },
