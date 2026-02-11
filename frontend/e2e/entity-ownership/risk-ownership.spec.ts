@@ -33,11 +33,17 @@ test.describe('Risk Ownership (Deterministic)', () => {
         await context.close();
     });
 
-    test('Operations employee cannot see unrelated finance-owned cross-department risk', async ({ employeePage }) => {
-        const risksPage = new RisksPage(employeePage);
+    test('Unrelated employee cannot see finance-owned cross-department risk', async ({ browser }) => {
+        const context = await browser.newContext();
+        const page = await context.newPage();
+        await loginAsDemoUser(page, DEMO_ACCOUNTS.EMPLOYEE_IT);
+
+        const risksPage = new RisksPage(page);
         await risksPage.navigate();
         await risksPage.search(E2E_RISKS.CROSS_DEPT_IT_OWNS_FIN.name);
 
         await expect(risksPage.rowByText(E2E_RISKS.CROSS_DEPT_IT_OWNS_FIN.name)).toHaveCount(0);
+
+        await context.close();
     });
 });

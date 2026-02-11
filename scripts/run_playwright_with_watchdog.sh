@@ -29,6 +29,14 @@ JUNIT_COPY="$ARTIFACT_ROOT/junit.xml"
 JSON_COPY="$ARTIFACT_ROOT/results.json"
 HTML_COPY="$ARTIFACT_ROOT/playwright-report"
 
+PW_PID=""
+PGID=""
+PW_EXIT=0
+PW_EXIT_CAPTURED=0
+timed_out=0
+signal_name=""
+FINALIZED=0
+
 mkdir -p "$ARTIFACT_ROOT"
 
 cd "$FRONTEND_DIR"
@@ -50,11 +58,159 @@ CMD=(npx playwright test --workers="$WORKERS" --retries="$RETRIES" "$@")
   echo "command=CI=1 ${CMD[*]}"
 } >"$SUMMARY_FILE"
 
+persist_artifacts() {
+  # Re-create artifact directory in case an external process cleaned it during execution.
+  mkdir -p "$ARTIFACT_ROOT"
+
+  # Persist artifacts regardless of process exit.
+  if [ -f "$FRONTEND_DIR/test-results/junit.xml" ]; then
+    cp "$FRONTEND_DIR/test-results/junit.xml" "$JUNIT_COPY" || true
+  fi
+  if [ -f "$FRONTEND_DIR/test-results/results.json" ]; then
+    cp "$FRONTEND_DIR/test-results/results.json" "$JSON_COPY" || true
+  fi
+  if [ -d "$FRONTEND_DIR/playwright-report" ]; then
+    rm -rf "$HTML_COPY" || true
+    cp -R "$FRONTEND_DIR/playwright-report" "$HTML_COPY" || true
+  fi
+}
+
+on_signal() {
+  local sig="$1"
+  signal_name="$sig"
+  echo "watchdog=received_signal signal=$sig" >>"$SUMMARY_FILE"
+  if [ -n "${PGID:-}" ]; then
+    kill -TERM "-$PGID" >/dev/null 2>&1 || true
+  elif [ -n "${PW_PID:-}" ]; then
+    kill -TERM "$PW_PID" >/dev/null 2>&1 || true
+  fi
+}
+
+finalize() {
+  local original_rc="$1"
+  local final_rc="$original_rc"
+  local end_epoch duration tests failures errors skipped junit_present expected_tests verdict
+
+  if [ "$FINALIZED" -eq 1 ]; then
+    return
+  fi
+  FINALIZED=1
+
+  set +e
+
+  if [ -n "${PW_PID:-}" ] && [ "$PW_EXIT_CAPTURED" -eq 0 ]; then
+    wait "$PW_PID"
+    PW_EXIT="$?"
+    PW_EXIT_CAPTURED=1
+  fi
+  if [ "$PW_EXIT_CAPTURED" -eq 0 ]; then
+    PW_EXIT="$original_rc"
+  fi
+
+  end_epoch="$(date +%s)"
+  duration="$((end_epoch - start_epoch))"
+
+  persist_artifacts
+
+  # Parse JUnit if available for artifact-based verdict.
+  tests=0
+  failures=0
+  errors=0
+  skipped=0
+  junit_present=0
+  expected_tests=0
+  if [ -f "$JUNIT_COPY" ]; then
+    junit_present=1
+    read -r tests failures errors skipped <<EOF_PARSE
+$(python3 - "$JUNIT_COPY" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+path = sys.argv[1]
+root = ET.parse(path).getroot()
+nodes = []
+if root.tag == "testsuite":
+    nodes = [root]
+elif root.tag == "testsuites":
+    nodes = root.findall("testsuite")
+
+tests = failures = errors = skipped = 0
+for n in nodes:
+    tests += int(n.attrib.get("tests", 0))
+    failures += int(n.attrib.get("failures", 0))
+    errors += int(n.attrib.get("errors", 0))
+    skipped += int(n.attrib.get("skipped", 0))
+
+print(f"{tests} {failures} {errors} {skipped}")
+PY
+)
+EOF_PARSE
+  fi
+
+  if [ -f "$LOG_FILE" ]; then
+    expected_tests="$(grep -Eo 'Running [0-9]+ tests' "$LOG_FILE" | head -n 1 | awk '{print $2}' || true)"
+    expected_tests="${expected_tests:-0}"
+  fi
+
+  verdict="unknown"
+  if [ "$junit_present" -eq 1 ]; then
+    if [ "$failures" -gt 0 ] || [ "$errors" -gt 0 ]; then
+      verdict="fail"
+    elif [ "$tests" -eq 0 ]; then
+      verdict="fail_no_tests"
+    elif [ "$expected_tests" -gt 0 ] && [ "$tests" -lt "$expected_tests" ]; then
+      verdict="fail_incomplete"
+    elif [ "$PW_EXIT" -eq 0 ]; then
+      verdict="pass"
+    elif [ "$timed_out" -eq 1 ]; then
+      verdict="pass_with_timeout_teardown"
+    else
+      verdict="fail_nonzero_exit"
+    fi
+  else
+    verdict="fail_no_junit"
+  fi
+
+  {
+    echo "ended_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    echo "duration_seconds=$duration"
+    echo "process_exit_code=$PW_EXIT"
+    echo "timed_out=$timed_out"
+    echo "signal_received=${signal_name:-none}"
+    echo "junit_present=$junit_present"
+    echo "tests=$tests"
+    echo "expected_tests=$expected_tests"
+    echo "failures=$failures"
+    echo "errors=$errors"
+    echo "skipped=$skipped"
+    echo "verdict=$verdict"
+    echo "log_file=$LOG_FILE"
+    echo "junit_file=$JUNIT_COPY"
+    echo "json_file=$JSON_COPY"
+    echo "html_report=$HTML_COPY"
+  } >>"$SUMMARY_FILE"
+
+  echo "Playwright watchdog summary: $SUMMARY_FILE"
+  cat "$SUMMARY_FILE"
+
+  if [[ "$verdict" == pass* ]]; then
+    final_rc=0
+  else
+    final_rc=1
+  fi
+
+  trap - EXIT
+  exit "$final_rc"
+}
+
+trap 'on_signal SIGINT' INT
+trap 'on_signal SIGTERM' TERM
+trap 'rc=$?; finalize "$rc"' EXIT
+
 CI=1 "${CMD[@]}" >"$LOG_FILE" 2>&1 &
 PW_PID=$!
 PGID="$(ps -o pgid= "$PW_PID" | tr -d '[:space:]')"
 
-timed_out=0
 start_epoch="$(date +%s)"
 last_heartbeat=0
 
@@ -89,111 +245,5 @@ fi
 set +e
 wait "$PW_PID"
 PW_EXIT="$?"
+PW_EXIT_CAPTURED=1
 set -e
-
-end_epoch="$(date +%s)"
-duration="$((end_epoch - start_epoch))"
-
-# Re-create artifact directory in case an external process cleaned it during execution.
-mkdir -p "$ARTIFACT_ROOT"
-
-# Persist artifacts regardless of process exit.
-if [ -f "$FRONTEND_DIR/test-results/junit.xml" ]; then
-  cp "$FRONTEND_DIR/test-results/junit.xml" "$JUNIT_COPY"
-fi
-if [ -f "$FRONTEND_DIR/test-results/results.json" ]; then
-  cp "$FRONTEND_DIR/test-results/results.json" "$JSON_COPY"
-fi
-if [ -d "$FRONTEND_DIR/playwright-report" ]; then
-  cp -R "$FRONTEND_DIR/playwright-report" "$HTML_COPY"
-fi
-
-# Parse JUnit if available for artifact-based verdict.
-tests=0
-failures=0
-errors=0
-skipped=0
-junit_present=0
-expected_tests=0
-if [ -f "$JUNIT_COPY" ]; then
-  junit_present=1
-  read -r tests failures errors skipped <<EOF_PARSE
-$(python3 - "$JUNIT_COPY" <<'PY'
-import sys
-import xml.etree.ElementTree as ET
-
-path = sys.argv[1]
-root = ET.parse(path).getroot()
-nodes = []
-if root.tag == "testsuite":
-    nodes = [root]
-elif root.tag == "testsuites":
-    nodes = root.findall("testsuite")
-
-tests = failures = errors = skipped = 0
-for n in nodes:
-    tests += int(n.attrib.get("tests", 0))
-    failures += int(n.attrib.get("failures", 0))
-    errors += int(n.attrib.get("errors", 0))
-    skipped += int(n.attrib.get("skipped", 0))
-
-print(f"{tests} {failures} {errors} {skipped}")
-PY
-)
-EOF_PARSE
-fi
-
-if [ -f "$LOG_FILE" ]; then
-  expected_tests="$(grep -Eo 'Running [0-9]+ tests' "$LOG_FILE" | head -n 1 | awk '{print $2}' || true)"
-  expected_tests="${expected_tests:-0}"
-fi
-
-verdict="unknown"
-if [ "$junit_present" -eq 1 ]; then
-  if [ "$failures" -gt 0 ] || [ "$errors" -gt 0 ]; then
-    verdict="fail"
-  elif [ "$tests" -eq 0 ]; then
-    verdict="fail_no_tests"
-  elif [ "$expected_tests" -gt 0 ] && [ "$tests" -lt "$expected_tests" ]; then
-    verdict="fail_incomplete"
-  elif [ "$PW_EXIT" -eq 0 ]; then
-    verdict="pass"
-  elif [ "$timed_out" -eq 1 ]; then
-    verdict="pass_with_timeout_teardown"
-  else
-    verdict="fail_nonzero_exit"
-  fi
-else
-  if [ "$PW_EXIT" -eq 0 ]; then
-    verdict="pass_no_junit"
-  else
-    verdict="fail_no_junit"
-  fi
-fi
-
-{
-  echo "ended_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-  echo "duration_seconds=$duration"
-  echo "process_exit_code=$PW_EXIT"
-  echo "timed_out=$timed_out"
-  echo "junit_present=$junit_present"
-  echo "tests=$tests"
-  echo "expected_tests=$expected_tests"
-  echo "failures=$failures"
-  echo "errors=$errors"
-  echo "skipped=$skipped"
-  echo "verdict=$verdict"
-  echo "log_file=$LOG_FILE"
-  echo "junit_file=$JUNIT_COPY"
-  echo "json_file=$JSON_COPY"
-  echo "html_report=$HTML_COPY"
-} >>"$SUMMARY_FILE"
-
-echo "Playwright watchdog summary: $SUMMARY_FILE"
-cat "$SUMMARY_FILE"
-
-if [[ "$verdict" == fail* ]]; then
-  exit 1
-fi
-
-exit 0
