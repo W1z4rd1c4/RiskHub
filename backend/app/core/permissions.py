@@ -366,6 +366,44 @@ async def can_write_issue_id(db, user: User, issue_id: int) -> bool:
     return await can_read_issue_id(db, user, issue_id)
 
 
+async def is_issue_owner_assignable_to_department(
+    db,
+    *,
+    owner_user_id: int | None,
+    issue_department_id: int,
+) -> bool:
+    """
+    Owner assignment guard for issues.
+
+    Rules:
+    - `None` owner is always allowed (unassigned issue).
+    - Owner must exist and be active.
+    - Global-scope owners are always assignable.
+    - Non-global owners must belong to the issue department.
+    """
+    if owner_user_id is None:
+        return True
+
+    from sqlalchemy import select
+    from app.models import User
+
+    row = (
+        await db.execute(
+            select(User.id, User.is_active, User.access_scope, User.department_id).where(User.id == owner_user_id)
+        )
+    ).one_or_none()
+    if row is None:
+        return False
+
+    _, is_active, access_scope, department_id = row
+    if not bool(is_active):
+        return False
+
+    if access_scope == AccessScope.GLOBAL:
+        return True
+    return department_id == issue_department_id
+
+
 def get_effective_permissions(user: User) -> list[str]:
     """Return sorted list of effective permissions (resource:action)."""
     if not user.role or not user.role.permissions:

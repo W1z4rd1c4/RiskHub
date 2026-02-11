@@ -11,6 +11,8 @@ export interface IssueLink {
     control_id: number | null;
     execution_id: number | null;
     kri_id: number | null;
+    linked_entity_type: string | null;
+    linked_entity_name: string | null;
     created_at: string;
 }
 
@@ -20,6 +22,7 @@ export interface IssueRemediationPlan {
     status: IssueRemediationStatus;
     progress_percent: number;
     owner_user_id: number | null;
+    owner_user_name: string | null;
     target_date: string | null;
     blocker_reason: string | null;
     completion_notes: string | null;
@@ -34,7 +37,9 @@ export interface IssueException {
     status: IssueExceptionStatus;
     reason: string;
     requested_by_id: number | null;
+    requested_by_name: string | null;
     approved_by_id: number | null;
+    approved_by_name: string | null;
     requested_at: string | null;
     approved_at: string | null;
     expires_at: string | null;
@@ -50,7 +55,9 @@ export interface IssueSummary {
     source_type: IssueSourceType;
     source_id: number | null;
     department_id: number;
+    department_name: string | null;
     owner_user_id: number | null;
+    owner_user_name: string | null;
     opened_at: string;
     due_at: string | null;
     closed_at: string | null;
@@ -61,6 +68,7 @@ export interface IssueSummary {
 export interface Issue extends IssueSummary {
     description: string | null;
     created_by_id: number | null;
+    created_by_name: string | null;
     validation_note: string | null;
     links: IssueLink[];
     remediation_plan: IssueRemediationPlan | null;
@@ -139,6 +147,19 @@ export interface IssueApproveExceptionPayload {
 export interface IssueClosePayload {
     validation_note: string;
     completion_notes?: string;
+}
+
+export interface IssueDepartmentLookup {
+    id: number;
+    name: string;
+    code: string;
+}
+
+export interface IssueOwnerLookup {
+    id: number;
+    name: string;
+    role_name: string | null;
+    department_name: string | null;
 }
 
 export interface IssueLinkPayload {

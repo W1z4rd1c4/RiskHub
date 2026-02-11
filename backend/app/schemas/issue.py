@@ -66,6 +66,8 @@ class IssueLinkCreate(IssueLinkBase):
 class IssueLinkRead(IssueLinkBase):
     id: int
     issue_id: int
+    linked_entity_type: str | None = None
+    linked_entity_name: str | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -77,6 +79,7 @@ class IssueRemediationPlanRead(BaseModel):
     status: IssueRemediationStatusEnum
     progress_percent: int
     owner_user_id: int | None = None
+    owner_user_name: str | None = None
     target_date: datetime | None = None
     blocker_reason: str | None = None
     completion_notes: str | None = None
@@ -93,7 +96,9 @@ class IssueExceptionRead(BaseModel):
     status: IssueExceptionStatusEnum
     reason: str
     requested_by_id: int | None = None
+    requested_by_name: str | None = None
     approved_by_id: int | None = None
+    approved_by_name: str | None = None
     requested_at: datetime | None = None
     approved_at: datetime | None = None
     expires_at: datetime | None = None
@@ -111,7 +116,9 @@ class IssueSummary(BaseModel):
     source_type: IssueSourceTypeEnum
     source_id: int | None = None
     department_id: int
+    department_name: str | None = None
     owner_user_id: int | None = None
+    owner_user_name: str | None = None
     opened_at: datetime
     due_at: datetime | None = None
     closed_at: datetime | None = None
@@ -124,6 +131,7 @@ class IssueSummary(BaseModel):
 class IssueRead(IssueSummary):
     description: str | None = None
     created_by_id: int | None = None
+    created_by_name: str | None = None
     validation_note: str | None = None
     links: list[IssueLinkRead] = Field(default_factory=list)
     remediation_plan: IssueRemediationPlanRead | None = None
@@ -189,6 +197,23 @@ class IssueExceptionApproveRequest(BaseModel):
     expires_at: datetime
 
 
+class IssueExceptionRevokeRequest(BaseModel):
+    exception_id: int | None = None
+
+
 class IssueCloseRequest(BaseModel):
     validation_note: str = Field(..., min_length=1)
     completion_notes: str | None = None
+
+
+class IssueDepartmentLookup(BaseModel):
+    id: int
+    name: str
+    code: str
+
+
+class IssueOwnerLookup(BaseModel):
+    id: int
+    name: str
+    role_name: str | None = None
+    department_name: str | None = None

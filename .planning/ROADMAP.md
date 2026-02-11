@@ -65,9 +65,9 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 157: Business Logic Compliance** — Fix BUSINESS_LOGIC.md discrepancies (6/6)
 - [x] **Phase 158: Audit** — Full-app audit findings → 10 independent fix plans (10/10)
 - [x] **Phase 159: Audit Fixes** — Fix Phase 158 code review findings (10/10)
-- [ ] **Phase 179: E2E Test Data** — E2E test data seeding (16/17)
-- [ ] **Phase 180: E2E Business Logic** — E2E business logic tests (14/15)
-- [ ] **Phase 200: Entity Naming Enforcement** — Mandatory naming (9/10)
+- [x] **Phase 179: E2E Test Data** — E2E test data seeding (17/17)
+- [x] **Phase 180: E2E Business Logic** — E2E business logic tests (15/15)
+- [x] **Phase 200: Entity Naming Enforcement** — Mandatory naming (10/10)
 - [ ] **Phase 201: Archived Visibility + Restore** — Archive toggle parity and unarchive flows (4/5)
 - [x] **Phase 250: Spaghetti Simplification** — Code simplification (10/10)
 - [x] **Phase 251: Spaghetti Simplification 2** — More code cleanup (11/11)
@@ -840,9 +840,9 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 157. Business Logic Compliance | 6/6 | ✅ Complete | 2026-01-22 |
 | 158. Audit | 10/10 | ✅ Complete | 2026-01-19 |
 | 159. Audit Fixes | 10/10 | ✅ Complete | 2026-01-23 |
-| 179. E2E Test Data | 16/17 | ⏳ In progress | - |
-| 180. E2E Business Logic | 14/15 | ⏳ In progress | - |
-| 200. Entity Naming | 9/10 | ⏳ In progress | - |
+| 179. E2E Test Data | 17/17 | ✅ Complete | 2026-02-11 |
+| 180. E2E Business Logic | 15/15 | ✅ Complete | 2026-02-11 |
+| 200. Entity Naming | 10/10 | ✅ Complete | 2026-02-11 |
 | 201. Archived Visibility + Restore | 4/5 | ⏳ In progress | - |
 | 250. Spaghetti Simplification | 10/10 | ✅ Complete | 2026-01-10 |
 | 251. Spaghetti Simplification 2 | 11/11 | ✅ Complete | 2026-01-10 |
@@ -856,7 +856,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 
 Plans:
 
-- [ ] 179-00: E2E Test Data Overview
+- [x] 179-00: E2E Test Data Overview
 - [x] 179-01: Foundation & User Verification (validate demo users, create ID mappings)
 - [x] 179-02: Cross-Department Risk Data (15 risks with cross-dept ownership per §2.1, §7.1)
 - [x] 179-03: Cross-Department Control Data (12 controls with risk links per §2.2, §7.2)
@@ -873,6 +873,10 @@ Plans:
 - [x] 179-14: Deterministic Vendor SLA Seed Matrix (active + archived)
 - [x] 179-15: Deterministic Archive Matrix Seeding (risk/control/kri/vendor/vendor-sla)
 - [x] 179-16: Orchestration Finalization + Idempotency + State Reconciliation
+
+Note:
+- `179-00` closed by reconciliation to align overview/state metadata with the already completed `179-01..179-16` execution artifacts (no new seed implementation required).
+- Closeout summary artifact: `.planning/phases/179-e2e-test-data/179-00-SUMMARY.md`.
 
 ### Phase 180: E2E Business Logic Testing
 
@@ -897,13 +901,13 @@ Plans:
 - [x] 180-12: Deterministic Risk/Control/KRI Spec Refactor (reduce skip-driven paths)
 - [x] 180-13: Vendor + Vendor SLA E2E Coverage (visibility/archive/restore/RBAC)
 - [x] 180-14: Archive Visibility & Restore Matrix Across Surfaces (list/search/link)
-- [ ] 180-15: Full Verification + Skip Budget + Docs/State Reconciliation
+- [x] 180-15: Full Verification + Skip Budget + Docs/State Reconciliation
 
 Note:
 - `kri-owner-access` deterministic stabilization follow-up is complete (focused + stress green).
 - `cross-department/control-owner-access` timeout blocker was fixed via locale-safe controls search locator.
-- Critical deterministic verification set is currently green (`44/44`, chromium) across controls/kris/risks/vendors + permissions + cross-department control-owner.
-- 180-15 remains open because full multi-project CI Playwright (`npx playwright test`) is unstable in this environment (runner SIGTERM / missing JUnit artifact), so full gate closure is still pending infra stabilization.
+- Critical deterministic verification set remains green (`44/44`, chromium) for the core deterministic surface.
+- 180-15 closeout is complete with targeted-only reconciliation evidence (`93 tests`, `0 failures`, skip-budget recorded) and inherited full-gate pass from 180-16 (`/tmp/riskhub-playwright-watchdog/full-ci-gate-final-r2/summary.txt`).
 
 ### Phase 200: Entity Naming Enforcement
 
@@ -921,7 +925,7 @@ Plans:
 - [x] 200-05: Frontend Risk Details & Linkage Components
 - [x] 200-06: KRI Naming Consistency (UI/UX)
 - [x] 200-07: Control Naming Consistency (UI/UX)
-- [ ] 200-08: Export & Reporting Updates
+- [x] 200-08: Export & Reporting Updates
 - [x] 200-09: Verification & Regression Testing
 - [x] 200-10: Final Cleanup & Documentation
 

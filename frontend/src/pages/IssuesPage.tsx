@@ -4,7 +4,15 @@ import { IssueDetailPanel } from '@/components/issues/IssueDetailPanel';
 import { usePermissions } from '@/hooks/usePermissions';
 import { reportApi } from '@/services/reportApi';
 import { issuesApi } from '@/services/issuesApi';
-import type { Issue, IssueCreatePayload, IssueListFilters, IssueSeverity, IssueStatus } from '@/types/issue';
+import type {
+    Issue,
+    IssueCreatePayload,
+    IssueDepartmentLookup,
+    IssueListFilters,
+    IssueOwnerLookup,
+    IssueSeverity,
+    IssueStatus,
+} from '@/types/issue';
 
 const STATUS_OPTIONS: Array<{ label: string; value: IssueStatus | '' }> = [
     { label: 'All statuses', value: '' },
@@ -45,6 +53,9 @@ export function IssuesPage() {
     const [newIssueOwnerId, setNewIssueOwnerId] = useState<string>('');
     const [newIssueSeverity, setNewIssueSeverity] = useState<IssueSeverity>('medium');
     const [newIssueDueAt, setNewIssueDueAt] = useState<string>('');
+    const [departmentOptions, setDepartmentOptions] = useState<IssueDepartmentLookup[]>([]);
+    const [ownerOptions, setOwnerOptions] = useState<IssueOwnerLookup[]>([]);
+    const [isOwnersLoading, setIsOwnersLoading] = useState<boolean>(false);
 
     const listFilters = useMemo<IssueListFilters>(() => {
         const filters: IssueListFilters = { limit: 100 };
@@ -95,6 +106,53 @@ export function IssuesPage() {
         fetchIssues();
     }, [fetchIssues]);
 
+    useEffect(() => {
+        if (!canWrite) {
+            setDepartmentOptions([]);
+            return;
+        }
+        issuesApi
+            .listDepartments()
+            .then((departments) => {
+                setDepartmentOptions(departments);
+            })
+            .catch(() => {
+                setError('Failed to load department options.');
+            });
+    }, [canWrite]);
+
+    useEffect(() => {
+        if (!canWrite || !newIssueDepartmentId) {
+            setOwnerOptions([]);
+            setNewIssueOwnerId('');
+            setIsOwnersLoading(false);
+            return;
+        }
+        const departmentId = Number(newIssueDepartmentId);
+        if (!Number.isFinite(departmentId) || departmentId <= 0) {
+            setOwnerOptions([]);
+            setNewIssueOwnerId('');
+            setIsOwnersLoading(false);
+            return;
+        }
+
+        setIsOwnersLoading(true);
+        issuesApi
+            .listAssignableOwners(departmentId)
+            .then((owners) => {
+                setOwnerOptions(owners);
+                setNewIssueOwnerId((previous) => (owners.some((owner) => String(owner.id) === previous) ? previous : ''));
+            })
+            .catch(() => {
+                setOwnerOptions([]);
+                setNewIssueOwnerId('');
+                setError('Failed to load owner options.');
+            })
+            .finally(() => {
+                setIsOwnersLoading(false);
+            });
+    }, [canWrite, newIssueDepartmentId]);
+
     const handleSelectIssue = (issue: Issue) => {
         setSelectedIssueId(issue.id);
         setSelectedIssue(issue);
@@ -110,7 +168,7 @@ export function IssuesPage() {
         }
         const departmentId = Number(newIssueDepartmentId);
         if (!Number.isFinite(departmentId) || departmentId <= 0) {
-            setError('Department ID must be a positive number.');
+            setError('Department is required.');
             return;
         }
 
@@ -264,20 +322,38 @@ export function IssuesPage() {
                                 </option>
                             ))}
                         </select>
-                        <input
-                            type="number"
+                        <select
                             value={newIssueDepartmentId}
                             onChange={(event) => setNewIssueDepartmentId(event.target.value)}
-                            placeholder="Department ID"
                             className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        />
-                        <input
-                            type="number"
+                        >
+                            <option value="">Select department</option>
+                            {departmentOptions.map((department) => (
+                                <option key={department.id} value={department.id}>
+                                    {department.name} ({department.code})
+                                </option>
+                            ))}
+                        </select>
+                        <select
                             value={newIssueOwnerId}
                             onChange={(event) => setNewIssueOwnerId(event.target.value)}
-                            placeholder="Owner user ID (optional)"
                             className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        />
+                            disabled={!newIssueDepartmentId || isOwnersLoading}
+                        >
+                            <option value="">
+                                {!newIssueDepartmentId
+                                    ? 'Select department first'
+                                    : isOwnersLoading
+                                        ? 'Loading owners...'
+                                        : 'Unassigned'}
+                            </option>
+                            {ownerOptions.map((owner) => (
+                                <option key={owner.id} value={owner.id}>
+                                    {owner.name}
+                                    {owner.role_name ? ` - ${owner.role_name}` : ''}
+                                </option>
+                            ))}
+                        </select>
                         <input
                             type="datetime-local"
                             value={newIssueDueAt}
@@ -329,9 +405,9 @@ export function IssuesPage() {
                                     >
                                         <div className="text-sm font-semibold text-white">{issue.title}</div>
                                         <div className="mt-1 text-xs text-slate-400">
-                                            <span className="mr-2">#{issue.id}</span>
                                             <span className="mr-2">{issue.status}</span>
-                                            <span>{issue.severity}</span>
+                                            <span className="mr-2">{issue.severity}</span>
+                                            <span>{issue.department_name || 'Unknown department'}</span>
                                         </div>
                                     </button>
                                 );
