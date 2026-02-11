@@ -31,7 +31,7 @@ const SCOPE_OPTIONS: { value: AccessScopeEnum; label: string; description: strin
 ];
 
 export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditModalProps) {
-    const { canManagePrivileged } = usePermissions();
+    const { canManagePrivileged, canEditAccessUsers } = usePermissions();
     const { t } = useTranslation('common');
 
     const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
@@ -80,6 +80,11 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
 
     const handleSubmit = async () => {
         if (!user) return;
+        if (!canEditAccessUsers) {
+            setError('Only Admin or CRO can update access settings');
+            return;
+        }
+
         setIsSubmitting(true);
         setError(null);
 

@@ -51,8 +51,10 @@ export interface RecentLogsResponse {
 }
 
 export interface LogConfig {
-    log_rotation_size_mb: number;
-    log_retention_count: number;
+    app_log_rotation_size_mb: number;
+    app_log_retention_count: number;
+    audit_log_rotation_size_mb: number;
+    audit_log_retention_count: number;
 }
 
 export interface DocumentationEntry {

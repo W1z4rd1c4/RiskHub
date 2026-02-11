@@ -42,6 +42,20 @@ def _can_manage_privileged_status(user: User) -> bool:
     return bool(user.role and user.role.name in ADMIN_PRIVILEGED_ROLES)
 
 
+def _require_access_user_write(user: User) -> None:
+    """
+    Require explicit admin/CRO authority for access-management mutations.
+
+    Read/list endpoints may be available to global privileged users, but any
+    write to access-user fields is restricted to admin/CRO roles.
+    """
+    if not _can_manage_privileged_status(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Admin or CRO can update user access settings",
+        )
+
+
 def _build_access_user_read(user: User) -> AccessUserRead:
     return AccessUserRead(
         id=user.id,
@@ -165,8 +179,13 @@ async def update_access_user(
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update access management fields for a user."""
+    """
+    Update access management fields for a user.
+
+    Note: write access is stricter than read/list access and requires admin/CRO.
+    """
     _require_privileged(current_user)
+    _require_access_user_write(current_user)
 
     result = await db.execute(
         select(User)
@@ -182,13 +201,6 @@ async def update_access_user(
     # Role change guardrails
     if "role_id" in update_data:
         new_role_id = update_data["role_id"]
-        
-        # Only admin/CRO can change roles
-        if not _can_manage_privileged_status(current_user):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only Admin or CRO can change user roles"
-            )
         
         # Get new role to check if it's privileged
         if new_role_id != user.role_id:
@@ -226,9 +238,6 @@ async def update_access_user(
     if "access_scope" in update_data:
         new_scope = AccessScope(update_data["access_scope"])
         update_data["access_scope"] = new_scope
-
-        if not _can_manage_privileged_status(current_user):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
         if current_user.id == user.id and new_scope != AccessScope.GLOBAL:
             raise HTTPException(

@@ -71,7 +71,7 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("startup", message="RiskHub application starting")
     
-    # Apply log rotation settings from Risk Hub config
+    # Apply log rotation settings from global configuration
     await _apply_log_rotation_config()
 
     settings: Settings = app.state.settings
@@ -117,7 +117,7 @@ async def lifespan(app: FastAPI):
 
 
 async def _apply_log_rotation_config():
-    """Apply log rotation settings from Risk Hub config database."""
+    """Apply log rotation settings from global configuration database."""
     try:
         from app.db.session import async_session_maker
         from app.models.global_config import GlobalConfig

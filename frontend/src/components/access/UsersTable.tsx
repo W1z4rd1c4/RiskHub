@@ -32,7 +32,7 @@ interface UsersTableProps {
     directoryUsers: UserLookup[];
     expandedUserId: number | null;
     onToggleExpand: (userId: number) => void;
-    canManageAccess: boolean;
+    canEditAccess: boolean;
     canManageUsers: boolean;
     onEditAccess: (user: AccessUserRead) => void;
     onToggleStatus: (user: AccessUserRead) => void;
@@ -45,7 +45,7 @@ export function UsersTable({
     directoryUsers,
     expandedUserId,
     onToggleExpand,
-    canManageAccess,
+    canEditAccess,
     canManageUsers,
     onEditAccess,
     onToggleStatus,
@@ -187,7 +187,7 @@ export function UsersTable({
                                     </td>
                                     <td className="py-4 px-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
-                                            {canManageAccess && (
+                                            {canEditAccess && (
                                                 <button
                                                     onClick={() => onEditAccess(user)}
                                                     className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"

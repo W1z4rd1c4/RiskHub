@@ -1,14 +1,11 @@
 """Tests for admin log endpoints."""
 import json
 import pytest
-import tempfile
-from pathlib import Path
-from unittest.mock import patch, MagicMock
-from httpx import AsyncClient, ASGITransport
-from datetime import datetime, UTC
+from httpx import AsyncClient
+from sqlalchemy import select
 
-from app.main import app
 from app.core.logging import tail_log_file
+from app.models.global_config import GlobalConfig
 
 
 class TestTailLogFile:
@@ -66,3 +63,122 @@ class TestTailLogFile:
     # Note: Full integration tests for admin log endpoints would require
     # database fixtures and proper authentication setup. The core functionality
     # is covered by TestTailLogFile tests above.
+
+
+@pytest.mark.asyncio
+async def test_admin_log_config_get_returns_canonical_shape(auth_client: AsyncClient):
+    response = await auth_client.get("/api/v1/admin/logs/config")
+    assert response.status_code == 200
+    data = response.json()
+    assert set(data.keys()) == {
+        "app_log_rotation_size_mb",
+        "app_log_retention_count",
+        "audit_log_rotation_size_mb",
+        "audit_log_retention_count",
+    }
+
+
+@pytest.mark.asyncio
+async def test_admin_log_config_update_accepts_canonical_payload(
+    auth_client: AsyncClient,
+    db_session,
+):
+    payload = {
+        "app_log_rotation_size_mb": 12,
+        "app_log_retention_count": 9,
+        "audit_log_rotation_size_mb": 20,
+        "audit_log_retention_count": 15,
+    }
+    response = await auth_client.post("/api/v1/admin/logs/config", json=payload)
+    assert response.status_code == 200
+    assert response.json() == payload
+
+    result = await db_session.execute(
+        select(GlobalConfig).where(
+            GlobalConfig.key.in_(
+                [
+                    "app_log_rotation_size_mb",
+                    "app_log_retention_count",
+                    "audit_log_rotation_size_mb",
+                    "audit_log_retention_count",
+                ]
+            )
+        )
+    )
+    values = {cfg.key: cfg.value for cfg in result.scalars().all()}
+    assert values == {
+        "app_log_rotation_size_mb": "12",
+        "app_log_retention_count": "9",
+        "audit_log_rotation_size_mb": "20",
+        "audit_log_retention_count": "15",
+    }
+
+
+@pytest.mark.asyncio
+async def test_admin_log_config_update_accepts_legacy_payload_and_mirrors(
+    auth_client: AsyncClient,
+    db_session,
+):
+    payload = {"log_rotation_size_mb": 8, "log_retention_count": 6}
+    response = await auth_client.post("/api/v1/admin/logs/config", json=payload)
+    assert response.status_code == 200
+    assert response.json() == {
+        "app_log_rotation_size_mb": 8,
+        "app_log_retention_count": 6,
+        "audit_log_rotation_size_mb": 8,
+        "audit_log_retention_count": 6,
+    }
+
+    result = await db_session.execute(
+        select(GlobalConfig).where(
+            GlobalConfig.key.in_(
+                [
+                    "app_log_rotation_size_mb",
+                    "app_log_retention_count",
+                    "audit_log_rotation_size_mb",
+                    "audit_log_retention_count",
+                ]
+            )
+        )
+    )
+    values = {cfg.key: cfg.value for cfg in result.scalars().all()}
+    assert values == {
+        "app_log_rotation_size_mb": "8",
+        "app_log_retention_count": "6",
+        "audit_log_rotation_size_mb": "8",
+        "audit_log_retention_count": "6",
+    }
+
+
+@pytest.mark.asyncio
+async def test_admin_log_config_update_rejects_mixed_payload(auth_client: AsyncClient):
+    response = await auth_client.post(
+        "/api/v1/admin/logs/config",
+        json={
+            "app_log_rotation_size_mb": 12,
+            "app_log_retention_count": 9,
+            "audit_log_rotation_size_mb": 20,
+            "audit_log_retention_count": 15,
+            "log_rotation_size_mb": 8,
+            "log_retention_count": 6,
+        },
+    )
+    assert response.status_code == 422
+    assert "canonical app/audit fields or legacy log_* fields" in response.text
+
+
+@pytest.mark.asyncio
+async def test_admin_log_config_endpoints_reject_non_admin(client_cro: AsyncClient):
+    get_response = await client_cro.get("/api/v1/admin/logs/config")
+    assert get_response.status_code == 403
+
+    post_response = await client_cro.post(
+        "/api/v1/admin/logs/config",
+        json={
+            "app_log_rotation_size_mb": 12,
+            "app_log_retention_count": 9,
+            "audit_log_rotation_size_mb": 20,
+            "audit_log_retention_count": 15,
+        },
+    )
+    assert post_response.status_code == 403

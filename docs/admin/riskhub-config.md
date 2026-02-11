@@ -12,7 +12,7 @@
 3. [Risk Types Management](#3-risk-types-management)
 4. [Approval Rules Setup](#4-approval-rules-setup)
 5. [Notification Settings](#5-notification-settings)
-6. [Log Rotation Settings](#6-log-rotation-settings)
+6. [Platform Log Rotation (Admin Console)](#6-platform-log-rotation-admin-console)
 7. [Total Asset Value Configuration](#7-total-asset-value-configuration)
 
 ---
@@ -196,44 +196,27 @@ Users access notifications via the **bell icon** in the header:
 
 ---
 
-## 6. Log Rotation Settings
+## 6. Platform Log Rotation (Admin Console)
 
-Configure how audit and application logs are managed.
+Log rotation is a **platform administration** concern and is configured in **Admin Console**, not Risk Hub.
 
-### Dual Log System
+> [!IMPORTANT]
+> CRO can configure business rules in Risk Hub, but log rotation endpoints are admin-only (`/api/v1/admin/logs/config`).
 
-RiskHub maintains two separate log streams:
+### Canonical API Contract
 
-| Log Type | Purpose | Location |
-|----------|---------|----------|
-| **Application Logs** | Technical operations, debugging | `backend/logs/app.json.log` |
-| **Audit Logs** | Business actions, compliance | `backend/logs/audit.json.log` |
+Admin log config uses split application/audit fields:
 
-### Log Rotation Configuration
+- `app_log_rotation_size_mb`
+- `app_log_retention_count`
+- `audit_log_rotation_size_mb`
+- `audit_log_retention_count`
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| **Rotation Size** | 50 MB | File size at which logs rotate |
-| **Retention Count** | 10 | Number of rotated files to keep |
+### Transitional Compatibility
 
-### Configuring Log Rotation
-
-1. Navigate to **Risk Hub → Logs** or **Admin Console → Log Configuration**
-2. Set **Application Log Rotation Size** (MB)
-3. Set **Application Log Retention Count**
-4. Set **Audit Log Rotation Size** (MB)
-5. Set **Audit Log Retention Count**
-6. Click **Save Changes**
-
-> [!NOTE]
-> Audit logs should have higher retention for compliance. Consider your organization's data retention policies.
-
-### SIEM Integration
-
-Audit logs are formatted as structured JSON for SIEM integration:
-- Each line is a valid JSON object
-- Includes: timestamp, event, user_id, entity_type, entity_id, changes, client_ip
-- Forward to Splunk, Elastic, or Azure Sentinel using Filebeat or similar agent
+- Canonical payload is the default and required for frontend/admin UI.
+- Legacy payload (`log_rotation_size_mb`, `log_retention_count`) is accepted temporarily for compatibility clients.
+- Mixed canonical+legacy payloads are rejected (`422`).
 
 ---
 

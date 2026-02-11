@@ -19,6 +19,7 @@ from app.schemas.admin import (
     RecentLogEntry,
     RecentLogsResponse,
     LogConfig,
+    LogConfigUpdate,
     DocumentationEntry,
     DocumentationResponse,
     SnapshotResponse,
@@ -611,7 +612,7 @@ async def get_log_config(
 
 @router.post("/logs/config", response_model=LogConfig)
 async def update_log_config(
-    config: LogConfig,
+    config: LogConfigUpdate,
     db: AsyncSession = Depends(get_db),
     admin_user: User = Depends(require_platform_admin),
 ) -> LogConfig:
@@ -621,6 +622,7 @@ async def update_log_config(
     """
     from app.models.global_config import GlobalConfig
     from sqlalchemy import select
+    canonical = config.to_log_config()
     
     # Helper to upsert config
     async def upsert_config(key: str, value: int, display: str, desc: str):
@@ -646,13 +648,13 @@ async def update_log_config(
     # App log settings
     await upsert_config(
         "app_log_rotation_size_mb", 
-        config.app_log_rotation_size_mb,
+        canonical.app_log_rotation_size_mb,
         "App Log Rotation Size (MB)",
         "Maximum size of each application log file before rotation in megabytes"
     )
     await upsert_config(
         "app_log_retention_count", 
-        config.app_log_retention_count,
+        canonical.app_log_retention_count,
         "App Log Retention Count", 
         "Number of backup application log files to keep after rotation"
     )
@@ -660,20 +662,20 @@ async def update_log_config(
     # Audit log settings
     await upsert_config(
         "audit_log_rotation_size_mb", 
-        config.audit_log_rotation_size_mb,
+        canonical.audit_log_rotation_size_mb,
         "Audit Log Rotation Size (MB)",
         "Maximum size of each audit log file before rotation in megabytes"
     )
     await upsert_config(
         "audit_log_retention_count", 
-        config.audit_log_retention_count,
+        canonical.audit_log_retention_count,
         "Audit Log Retention Count", 
         "Number of backup audit log files to keep after rotation"
     )
     
     await db.commit()
     
-    return config
+    return canonical
 
 
 # ============================================================================

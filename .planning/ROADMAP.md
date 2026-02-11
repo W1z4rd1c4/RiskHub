@@ -61,6 +61,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 154: Workflow Bug Sweep** — Workflow bug fixes (5/5)
 - [ ] **Phase 155: Approval Edit UX** — Approval UX improvements (0/1)
 - [ ] **Phase 156: Audit** — Additional audit phase (1/8)
+- [x] **Phase 156.1: Admin Role & RBAC Hardening** — Fix admin-role authorization gaps and RBAC contract drift (5/5)
 - [x] **Phase 157: Business Logic Compliance** — Fix BUSINESS_LOGIC.md discrepancies (6/6)
 - [x] **Phase 158: Audit** — Full-app audit findings → 10 independent fix plans (10/10)
 - [x] **Phase 159: Audit Fixes** — Fix Phase 158 code review findings (10/10)
@@ -700,6 +701,23 @@ Plans:
 - [x] 151-18: Production security guardrails & concurrency verification tests
 - [x] 151-19: Approval workflow edge cases & activity logging
 
+### Phase 156.1: Admin Role & RBAC Hardening (INSERTED)
+
+**Goal**: Resolve critical admin-role and privileged-access inconsistencies found in deep review, with backend-first enforcement and frontend/test/docs contract alignment.
+**Depends on**: Phase 156 (Audit)
+**Research**: Completed (`.planning/phases/156.1-admin-role-rbac-hardening/156.1-RESEARCH.md`)
+**Status**: ✅ Complete
+**Completed**: 2026-02-11
+**Plans**: 5 plans
+
+Plans:
+
+- [x] 156.1-01: Backend access-management mutation hardening (admin/CRO only)
+- [x] 156.1-02: Frontend access-management edit gating alignment
+- [x] 156.1-03: Admin log-config API contract alignment with compatibility shim
+- [x] 156.1-04: RBAC seed, fixture, and mock contract convergence
+- [x] 156.1-05: Regression matrix, docs reconciliation, and rollout gate
+
 ### Phase 157: Business Logic Compliance
 
 **Goal**: Fix discrepancies between implementation and docs/BUSINESS_LOGIC.md identified during deep code review
@@ -810,6 +828,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 154. Workflow Bug Sweep | 5/5 | ✅ Complete | 2026-01-14 |
 | 155. Approval Edit UX | 0/1 | ⏸️ Planned | - |
 | 156. Audit | 1/8 | ⏳ In progress | - |
+| 156.1 Admin Role & RBAC Hardening | 5/5 | ✅ Complete | 2026-02-11 |
 | 157. Business Logic Compliance | 6/6 | ✅ Complete | 2026-01-22 |
 | 158. Audit | 10/10 | ✅ Complete | 2026-01-19 |
 | 159. Audit Fixes | 10/10 | ✅ Complete | 2026-01-23 |
