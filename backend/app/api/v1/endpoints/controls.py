@@ -11,7 +11,7 @@ from app.models import User, Control, ControlExecution, ControlRiskLink, Risk
 from app.schemas.control import (
     ControlCreate, ControlUpdate, ControlRead, ControlSummary, ControlListResponse,
     ControlExecutionCreate, ControlExecutionRead,
-    ControlFormEnum, ControlFrequencyEnum, ControlStatusEnum,
+    ControlFormEnum, ControlFrequencyEnum, ControlStatusEnum, normalize_control_frequency,
 )
 from app.schemas.risk import ControlRiskLinkCreate, ControlRiskLinkRead
 from app.api import deps
@@ -218,7 +218,7 @@ async def list_controls(
             description=c.description,
             department_id=c.department_id,
             department_name=c.department.name if c.department else None,
-            frequency=ControlFrequencyEnum(c.frequency),
+            frequency=normalize_control_frequency(c.frequency),
             risk_level=c.risk_level,
             status=ControlStatusEnum(c.status),
             control_form=ControlFormEnum(c.control_form),
@@ -722,15 +722,21 @@ async def restore_control(
 
 def calculate_next_scheduled(frequency: str, executed_at: datetime) -> datetime:
     """Calculate next scheduled execution based on frequency."""
+    try:
+        normalized_frequency = normalize_control_frequency(frequency).value
+    except ValueError:
+        normalized_frequency = ControlFrequencyEnum.monthly.value
+
     frequency_deltas = {
         "daily": timedelta(days=1),
         "weekly": timedelta(weeks=1),
         "monthly": timedelta(days=30),
         "quarterly": timedelta(days=90),
+        "semi-annually": timedelta(days=182),
         "annually": timedelta(days=365),
         "ad_hoc": timedelta(days=30),  # Default to monthly for ad-hoc
     }
-    return executed_at + frequency_deltas.get(frequency, timedelta(days=30))
+    return executed_at + frequency_deltas.get(normalized_frequency, timedelta(days=30))
 
 
 @router.post("/{control_id}/executions", response_model=ControlExecutionRead, status_code=status.HTTP_201_CREATED)

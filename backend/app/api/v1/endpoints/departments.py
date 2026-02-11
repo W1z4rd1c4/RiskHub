@@ -9,7 +9,11 @@ from app.db.session import get_db
 from app.models import Department, User, Risk, Control, ControlExecution, KeyRiskIndicator
 from app.models.risk import RiskStatus
 from app.models.control import ControlStatus, ControlForm, ControlFrequency
-from app.schemas.control import ControlFormEnum, ControlFrequencyEnum, ControlStatusEnum
+from app.schemas.control import (
+    ControlFormEnum,
+    ControlStatusEnum,
+    normalize_control_frequency,
+)
 from app.schemas.department import (
     DepartmentRead,
     DepartmentSummary,
@@ -510,7 +514,7 @@ async def list_department_controls(
             description=c.description,
             department_id=c.department_id,
             department_name=c.department.name if c.department else None,
-            frequency=ControlFrequencyEnum(c.frequency),
+            frequency=normalize_control_frequency(c.frequency),
             risk_level=c.risk_level,
             status=ControlStatusEnum(c.status),
             control_form=ControlFormEnum(c.control_form),

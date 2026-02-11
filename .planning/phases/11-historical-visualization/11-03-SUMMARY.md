@@ -35,4 +35,4 @@
 
 ## Next Step
 
-Plan 11-04: Add history correction request UI (optional).
+Plan 11-04: Dashboard historical widgets (completed 2026-02-11 via reconciliation).

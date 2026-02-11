@@ -2,6 +2,7 @@
     "sidebar": {
         "dashboard": "Dashboard",
         "risks": "Risks",
+        "issues": "Issues",
         "controls": "Controls",
         "kris": "Risk Appetite",
         "vendors": "Vendors",
