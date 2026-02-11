@@ -62,9 +62,9 @@
 | 157 Business Logic Compliance | ✅ Complete (6/6) | 2026-01-22 |
 | 158 Audit | ✅ Complete (10/10) | 2026-01-19 |
 | 159 Audit Fixes | ✅ Complete (10/10) | 2026-01-23 |
-| 179 E2E Test Data | ⏳ In progress (16/17) | - |
-| 180 E2E Business Logic | ⏳ In progress (14/15) | - |
-| 200 Entity Naming | ⏳ In progress (9/10) | - |
+| 179 E2E Test Data | ✅ Complete (17/17) | 2026-02-11 |
+| 180 E2E Business Logic | ✅ Complete (15/15) | 2026-02-11 |
+| 200 Entity Naming | ✅ Complete (10/10) | 2026-02-11 |
 | 201 Archived Visibility + Restore | ⏳ In progress (4/5) | - |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
@@ -170,11 +170,12 @@
   - `cd frontend && npx tsc --noEmit` → passed
   - `cd frontend && npx eslint .` → `0 errors, 16 warnings` (warning baseline unchanged)
   - Targeted critical Playwright suite (controls/kris/risks/vendors + permissions + cross-department control-owner) → `44 passed` (green)
-- Full `npx playwright test` multi-project gate remains blocked by runner instability in CI mode:
-  - Playwright process is terminated by SIGTERM after startup/progress (`process_exit_code=143`),
-    producing no JUnit artifact (`verdict=fail_no_junit`) in watchdog runs.
-- Captured watchdog artifacts and command matrix in
-  `.planning/phases/180-e2e-business-logic/180-16-SUMMARY.md`.
+- Full gate blocker is resolved:
+  - Watchdog full run completed successfully (`process_exit_code=0`, `junit_present=1`, `tests=868`, `failures=0`, `verdict=pass`).
+  - Artifact of record: `/tmp/riskhub-playwright-watchdog/full-ci-gate-final-r2/summary.txt`.
+- Completed 180-15 targeted closeout (no full rerun by direction):
+  - Pack A/B/C targeted verification totals: `93 tests`, `57 passed`, `36 skipped`, `0 failed`.
+  - Skip-budget artifact: `/tmp/riskhub-18015/skip-budget-summary.json`.
 
 ### Phase 156.1 Planning (2026-02-11)
 
@@ -368,14 +369,16 @@
 - Executed next blocker fix (item 1) for `cross-department/control-owner-access`: patched `ControlsPage` search locator for localized UI (`Hledat`) and added visible-wait before fill; target spec now passes (`4/4`) and the prior timeout is removed from blockers (2026-02-09).
 - Executed `04-05` closeout for Phase 4 reporting extension: finalized export regression coverage/docs updates, passed backend + targeted frontend verification (`19 backend assertions + 19 Playwright tests`), and reconciled planning state/roadmap (2026-02-10).
 - Executed `04-06` export contract simplification: removed PDF export support across reporting APIs/UI/docs and validated targeted backend/frontend suites (`27 backend tests`, `19 Playwright tests`, `frontend tsc`) (2026-02-10).
-- Executed hardening closure verification pass with deterministic gate matrix: backend + frontend static checks green, targeted critical Playwright green (`44/44`), and full multi-project Playwright blocked by CI runner SIGTERM/no-JUnit teardown behavior; documented release checklist and follow-ups in `180-16-SUMMARY.md` (2026-02-11).
+- Executed hardening closure verification pass with deterministic gate matrix: backend + frontend static checks green, targeted critical Playwright green (`44/44`), and finalized full-gate watchdog pass (`868 tests`, `0 failures`, valid JUnit) with targeted 180-15 reconciliation completed (`93 tests`, `0 failures`, documented skip budget) (2026-02-11).
 - Executed Phase `156.1` admin-role/RBAC hardening plans end-to-end with passing backend/frontend/E2E verification and full docs reconciliation (`5/5 complete`) (2026-02-11).
 - Closed Phase `10` plan `10-05` by reconciliation as superseded-by-implementation and marked Phase `10` complete (`5/5`) (2026-02-11).
 - Closed Phase `11` plan `11-04` by reconciliation as already-implemented dashboard trend widgets and marked Phase `11` complete (`5/5`) (2026-02-11).
+- Closed Phase `179` plan `179-00` by reconciliation; refreshed overview metadata and marked Phase `179` complete (`17/17`) without new seed implementation changes. Summary: `.planning/phases/179-e2e-test-data/179-00-SUMMARY.md` (2026-02-11).
+- Executed Phase `200` plan `200-08` export/reporting closeout with minimal backend naming fix (audit linked-risk labels now prefer `risk.name`), targeted backend/frontend verification only (`20 + 3 + 5 backend tests`, `10 + 9 Playwright tests`, all green), and created summary evidence at `.planning/phases/200-naming-enforcement/200-08-SUMMARY.md` (2026-02-11).
 
 ### Next Step
 
-- Resume Phase `180` full-suite Playwright stabilization after Phase `156.1` closure, using the latest deterministic admin/RBAC baseline as the new reference.
+- Resume next open roadmap item for Phase `201` (`201-05`: tests, E2E verification, and documentation reconciliation).
 
 ---
 

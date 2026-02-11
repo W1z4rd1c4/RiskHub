@@ -17,13 +17,16 @@ from app.core.permissions import (
     can_read_kri_id,
     can_read_risk_id,
     can_write_issue_id,
+    get_user_department_ids,
     get_issue_scope_clause,
+    is_issue_owner_assignable_to_department,
 )
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import (
     Control,
     ControlExecution,
+    Department,
     Issue,
     IssueException,
     IssueLink,
@@ -43,8 +46,10 @@ from app.schemas.issue import (
     IssueAssignRequest,
     IssueCloseRequest,
     IssueCreate,
+    IssueDepartmentLookup,
     IssueExceptionApproveRequest,
     IssueExceptionRead,
+    IssueExceptionRevokeRequest,
     IssueExceptionRequestCreate,
     IssueLinkCreate,
     IssueLinkRead,
@@ -52,6 +57,7 @@ from app.schemas.issue import (
     IssueProgressUpdateRequest,
     IssueRead,
     IssueRemediationPlanRead,
+    IssueOwnerLookup,
     IssueStartRemediationRequest,
     IssueSummary,
     IssueUpdate,
@@ -60,6 +66,13 @@ from app.services.issue_workflow_service import IssueWorkflowService
 from app.services.notification_service import NotificationService
 
 router = APIRouter()
+
+UNKNOWN_USER_LABEL = "Unknown user"
+UNKNOWN_DEPARTMENT_LABEL = "Unknown department"
+UNKNOWN_RISK_LABEL = "Unknown risk"
+UNKNOWN_CONTROL_LABEL = "Unknown control"
+UNKNOWN_EXECUTION_LABEL = "Unknown execution"
+UNKNOWN_KRI_LABEL = "Unknown KRI"
 
 
 def _coerce_utc(dt: datetime | None) -> datetime | None:
@@ -78,13 +91,53 @@ async def _validate_user_exists(db: AsyncSession, user_id: int | None) -> None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"User {user_id} not found")
 
 
+async def _get_active_user_with_permissions(db: AsyncSession, user_id: int) -> User | None:
+    return (
+        await db.execute(
+            select(User)
+            .options(
+                selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
+            )
+            .where(User.id == user_id, User.is_active == True)
+        )
+    ).scalar_one_or_none()
+
+
+async def _ensure_owner_assignable(
+    db: AsyncSession,
+    *,
+    owner_user_id: int | None,
+    department_id: int,
+    denied_status: int = status.HTTP_403_FORBIDDEN,
+) -> None:
+    if owner_user_id is None:
+        return
+    allowed = await is_issue_owner_assignable_to_department(
+        db,
+        owner_user_id=owner_user_id,
+        issue_department_id=department_id,
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=denied_status,
+            detail="Owner user must have global scope or belong to the issue department",
+        )
+
+
 async def _get_issue_with_relations(db: AsyncSession, issue_id: int) -> Issue | None:
     issue_result = await db.execute(
         select(Issue)
         .options(
-            selectinload(Issue.links),
-            selectinload(Issue.remediation_plan),
-            selectinload(Issue.exceptions),
+            selectinload(Issue.department),
+            selectinload(Issue.owner),
+            selectinload(Issue.created_by),
+            selectinload(Issue.links).selectinload(IssueLink.risk),
+            selectinload(Issue.links).selectinload(IssueLink.control),
+            selectinload(Issue.links).selectinload(IssueLink.execution).selectinload(ControlExecution.control),
+            selectinload(Issue.links).selectinload(IssueLink.kri),
+            selectinload(Issue.remediation_plan).selectinload(IssueRemediationPlan.owner),
+            selectinload(Issue.exceptions).selectinload(IssueException.requested_by),
+            selectinload(Issue.exceptions).selectinload(IssueException.approved_by),
         )
         .where(Issue.id == issue_id)
     )
@@ -131,6 +184,11 @@ def _active_exception(issue: Issue) -> IssueException | None:
 async def _notify_issue_assigned(db: AsyncSession, *, issue: Issue, owner_user_id: int, actor: User) -> None:
     if owner_user_id == actor.id:
         return
+    recipient = await _get_active_user_with_permissions(db, owner_user_id)
+    if recipient is None:
+        return
+    if not await can_read_issue_id(db, recipient, issue.id):
+        return
     await NotificationService.create_notification(
         db=db,
         user_id=owner_user_id,
@@ -144,7 +202,7 @@ async def _notify_issue_assigned(db: AsyncSession, *, issue: Issue, owner_user_i
 
 async def _notify_exception_requested(db: AsyncSession, *, issue: Issue, actor: User) -> None:
     permission_load = (
-        select(User)
+        select(User.id)
         .join(Role, User.role_id == Role.id)
         .join(RolePermission, RolePermission.role_id == Role.id)
         .join(Permission, RolePermission.permission_id == Permission.id)
@@ -156,15 +214,14 @@ async def _notify_exception_requested(db: AsyncSession, *, issue: Issue, actor: 
         )
         .distinct()
     )
-    recipients = (await db.execute(permission_load)).scalars().all()
-    recipient_ids = {recipient.id for recipient in recipients}
+    recipient_ids = set((await db.execute(permission_load)).scalars().all())
     if issue.owner_user_id is not None:
         recipient_ids.add(issue.owner_user_id)
 
     for recipient_id in recipient_ids:
         if recipient_id == actor.id:
             continue
-        recipient = (await db.execute(select(User).where(User.id == recipient_id, User.is_active == True))).scalar_one_or_none()
+        recipient = await _get_active_user_with_permissions(db, recipient_id)
         if recipient is None:
             continue
         if not await can_read_issue_id(db, recipient, issue.id):
@@ -190,6 +247,11 @@ async def _notify_exception_approved(
 ) -> None:
     recipient_ids = {uid for uid in (requested_by_id, owner_user_id) if uid and uid != actor.id}
     for user_id in recipient_ids:
+        recipient = await _get_active_user_with_permissions(db, user_id)
+        if recipient is None:
+            continue
+        if not await can_read_issue_id(db, recipient, issue.id):
+            continue
         await NotificationService.create_notification(
             db=db,
             user_id=user_id,
@@ -199,6 +261,263 @@ async def _notify_exception_approved(
             resource_type="issue",
             resource_id=issue.id,
         )
+
+
+async def _issue_link_department_ids(db: AsyncSession, issue_id: int) -> set[int]:
+    department_ids: set[int] = set()
+
+    risk_rows = await db.execute(
+        select(Risk.department_id)
+        .join(IssueLink, IssueLink.risk_id == Risk.id)
+        .where(IssueLink.issue_id == issue_id, IssueLink.risk_id.is_not(None))
+    )
+    department_ids.update(dept_id for dept_id in risk_rows.scalars().all() if dept_id is not None)
+
+    control_rows = await db.execute(
+        select(Control.department_id)
+        .join(IssueLink, IssueLink.control_id == Control.id)
+        .where(IssueLink.issue_id == issue_id, IssueLink.control_id.is_not(None))
+    )
+    department_ids.update(dept_id for dept_id in control_rows.scalars().all() if dept_id is not None)
+
+    execution_rows = await db.execute(
+        select(Control.department_id)
+        .join(ControlExecution, ControlExecution.control_id == Control.id)
+        .join(IssueLink, IssueLink.execution_id == ControlExecution.id)
+        .where(IssueLink.issue_id == issue_id, IssueLink.execution_id.is_not(None))
+    )
+    department_ids.update(dept_id for dept_id in execution_rows.scalars().all() if dept_id is not None)
+
+    kri_rows = await db.execute(
+        select(Risk.department_id)
+        .join(KeyRiskIndicator, KeyRiskIndicator.risk_id == Risk.id)
+        .join(IssueLink, IssueLink.kri_id == KeyRiskIndicator.id)
+        .where(IssueLink.issue_id == issue_id, IssueLink.kri_id.is_not(None))
+    )
+    department_ids.update(dept_id for dept_id in kri_rows.scalars().all() if dept_id is not None)
+
+    return department_ids
+
+
+def _label_or_fallback(value: str | None, fallback: str) -> str:
+    if value and value.strip():
+        return value.strip()
+    return fallback
+
+
+def _link_display(link: IssueLink) -> tuple[str | None, str | None]:
+    if link.risk_id is not None:
+        return "risk", _label_or_fallback(getattr(link.risk, "name", None), UNKNOWN_RISK_LABEL)
+    if link.control_id is not None:
+        return "control", _label_or_fallback(getattr(link.control, "name", None), UNKNOWN_CONTROL_LABEL)
+    if link.execution_id is not None:
+        control_name = getattr(getattr(link.execution, "control", None), "name", None)
+        if control_name and control_name.strip():
+            return "execution", f"Execution for {control_name.strip()}"
+        return "execution", UNKNOWN_EXECUTION_LABEL
+    if link.kri_id is not None:
+        return "kri", _label_or_fallback(getattr(link.kri, "metric_name", None), UNKNOWN_KRI_LABEL)
+    return None, None
+
+
+def _serialize_issue_link(link: IssueLink) -> IssueLinkRead:
+    linked_entity_type, linked_entity_name = _link_display(link)
+    return IssueLinkRead.model_validate(
+        {
+            "id": link.id,
+            "issue_id": link.issue_id,
+            "risk_id": link.risk_id,
+            "control_id": link.control_id,
+            "execution_id": link.execution_id,
+            "kri_id": link.kri_id,
+            "linked_entity_type": linked_entity_type,
+            "linked_entity_name": linked_entity_name,
+            "created_at": link.created_at,
+        }
+    )
+
+
+def _serialize_remediation(remediation: IssueRemediationPlan | None) -> IssueRemediationPlanRead | None:
+    if remediation is None:
+        return None
+    owner_user_name: str | None = None
+    if remediation.owner_user_id is not None:
+        owner_user_name = _label_or_fallback(getattr(remediation.owner, "name", None), UNKNOWN_USER_LABEL)
+    return IssueRemediationPlanRead.model_validate(
+        {
+            "id": remediation.id,
+            "issue_id": remediation.issue_id,
+            "status": remediation.status,
+            "progress_percent": remediation.progress_percent,
+            "owner_user_id": remediation.owner_user_id,
+            "owner_user_name": owner_user_name,
+            "target_date": remediation.target_date,
+            "blocker_reason": remediation.blocker_reason,
+            "completion_notes": remediation.completion_notes,
+            "completed_at": remediation.completed_at,
+            "created_at": remediation.created_at,
+            "updated_at": remediation.updated_at,
+        }
+    )
+
+
+def _serialize_exception(exception: IssueException) -> IssueExceptionRead:
+    requested_by_name: str | None = None
+    if exception.requested_by_id is not None:
+        requested_by_name = _label_or_fallback(getattr(exception.requested_by, "name", None), UNKNOWN_USER_LABEL)
+    approved_by_name: str | None = None
+    if exception.approved_by_id is not None:
+        approved_by_name = _label_or_fallback(getattr(exception.approved_by, "name", None), UNKNOWN_USER_LABEL)
+    return IssueExceptionRead.model_validate(
+        {
+            "id": exception.id,
+            "issue_id": exception.issue_id,
+            "status": exception.status,
+            "reason": exception.reason,
+            "requested_by_id": exception.requested_by_id,
+            "requested_by_name": requested_by_name,
+            "approved_by_id": exception.approved_by_id,
+            "approved_by_name": approved_by_name,
+            "requested_at": exception.requested_at,
+            "approved_at": exception.approved_at,
+            "expires_at": exception.expires_at,
+            "created_at": exception.created_at,
+            "updated_at": exception.updated_at,
+        }
+    )
+
+
+async def _resolve_user_name(db: AsyncSession, user_id: int | None) -> str | None:
+    if user_id is None:
+        return None
+    return (await db.execute(select(User.name).where(User.id == user_id))).scalar_one_or_none()
+
+
+async def _serialize_exception_with_user_names(db: AsyncSession, exception: IssueException) -> IssueExceptionRead:
+    requested_by_name: str | None = None
+    if exception.requested_by_id is not None:
+        requested_by_name = _label_or_fallback(await _resolve_user_name(db, exception.requested_by_id), UNKNOWN_USER_LABEL)
+    approved_by_name: str | None = None
+    if exception.approved_by_id is not None:
+        approved_by_name = _label_or_fallback(await _resolve_user_name(db, exception.approved_by_id), UNKNOWN_USER_LABEL)
+    return IssueExceptionRead.model_validate(
+        {
+            "id": exception.id,
+            "issue_id": exception.issue_id,
+            "status": exception.status,
+            "reason": exception.reason,
+            "requested_by_id": exception.requested_by_id,
+            "requested_by_name": requested_by_name,
+            "approved_by_id": exception.approved_by_id,
+            "approved_by_name": approved_by_name,
+            "requested_at": exception.requested_at,
+            "approved_at": exception.approved_at,
+            "expires_at": exception.expires_at,
+            "created_at": exception.created_at,
+            "updated_at": exception.updated_at,
+        }
+    )
+
+
+def _serialize_issue_summary(issue: Issue) -> IssueSummary:
+    owner_user_name: str | None = None
+    if issue.owner_user_id is not None:
+        owner_user_name = _label_or_fallback(getattr(issue.owner, "name", None), UNKNOWN_USER_LABEL)
+    return IssueSummary.model_validate(
+        {
+            "id": issue.id,
+            "title": issue.title,
+            "severity": issue.severity,
+            "status": issue.status,
+            "source_type": issue.source_type,
+            "source_id": issue.source_id,
+            "department_id": issue.department_id,
+            "department_name": _label_or_fallback(getattr(issue.department, "name", None), UNKNOWN_DEPARTMENT_LABEL),
+            "owner_user_id": issue.owner_user_id,
+            "owner_user_name": owner_user_name,
+            "opened_at": issue.opened_at,
+            "due_at": issue.due_at,
+            "closed_at": issue.closed_at,
+            "created_at": issue.created_at,
+            "updated_at": issue.updated_at,
+        }
+    )
+
+
+def _serialize_issue_read(issue: Issue) -> IssueRead:
+    summary = _serialize_issue_summary(issue)
+    created_by_name: str | None = None
+    if issue.created_by_id is not None:
+        created_by_name = _label_or_fallback(getattr(issue.created_by, "name", None), UNKNOWN_USER_LABEL)
+    return IssueRead.model_validate(
+        {
+            **summary.model_dump(),
+            "description": issue.description,
+            "created_by_id": issue.created_by_id,
+            "created_by_name": created_by_name,
+            "validation_note": issue.validation_note,
+            "links": [_serialize_issue_link(link).model_dump() for link in issue.links],
+            "remediation_plan": (
+                _serialize_remediation(issue.remediation_plan).model_dump() if issue.remediation_plan is not None else None
+            ),
+            "exceptions": [_serialize_exception(exception).model_dump() for exception in issue.exceptions],
+        }
+    )
+
+
+@router.get("/issues/lookups/departments", response_model=list[IssueDepartmentLookup])
+async def list_issue_departments(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("issues", "write")),
+) -> list[IssueDepartmentLookup]:
+    query = select(Department).where(Department.is_active == True)
+    allowed_department_ids = get_user_department_ids(current_user)
+    if allowed_department_ids is not None:
+        if not allowed_department_ids:
+            return []
+        query = query.where(Department.id.in_(allowed_department_ids))
+
+    departments = (await db.execute(query.order_by(Department.name.asc()))).scalars().all()
+    return [IssueDepartmentLookup.model_validate({"id": dept.id, "name": dept.name, "code": dept.code}) for dept in departments]
+
+
+@router.get("/issues/lookups/owners", response_model=list[IssueOwnerLookup])
+async def list_issue_assignable_owners(
+    department_id: int = Query(..., ge=1),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("issues", "write")),
+) -> list[IssueOwnerLookup]:
+    if not can_access_department_id(current_user, department_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this department")
+
+    owners = (
+        await db.execute(
+            select(User)
+            .options(
+                selectinload(User.role),
+                selectinload(User.department),
+            )
+            .where(
+                User.is_active == True,
+                or_(
+                    User.access_scope == AccessScope.GLOBAL,
+                    User.department_id == department_id,
+                ),
+            )
+            .order_by(User.name.asc(), User.id.asc())
+        )
+    ).scalars().all()
+    return [
+        IssueOwnerLookup.model_validate(
+            {
+                "id": owner.id,
+                "name": owner.name,
+                "role_name": getattr(owner.role, "display_name", None) or getattr(owner.role, "name", None),
+                "department_name": getattr(owner.department, "name", None),
+            }
+        )
+        for owner in owners
+    ]
 
 
 @router.get("/issues", response_model=IssueListResponse)
@@ -239,7 +558,10 @@ async def list_issues(
 
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
     result = await db.execute(
-        query.options(selectinload(Issue.links))
+        query.options(
+            selectinload(Issue.department),
+            selectinload(Issue.owner),
+        )
         .order_by(Issue.opened_at.desc(), Issue.id.desc())
         .offset(skip)
         .limit(limit)
@@ -247,7 +569,7 @@ async def list_issues(
     issues = result.scalars().all()
 
     return IssueListResponse(
-        items=[IssueSummary.model_validate(issue) for issue in issues],
+        items=[_serialize_issue_summary(issue) for issue in issues],
         total=total,
         skip=skip,
         limit=limit,
@@ -266,6 +588,11 @@ async def create_issue(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this department")
 
     await _validate_user_exists(db, payload.owner_user_id)
+    await _ensure_owner_assignable(
+        db,
+        owner_user_id=payload.owner_user_id,
+        department_id=payload.department_id,
+    )
 
     now = datetime.now(UTC)
     issue = Issue(
@@ -307,7 +634,7 @@ async def create_issue(
 
     await db.commit()
     issue = await _get_issue_with_relations(db, issue.id)
-    return IssueRead.model_validate(issue)
+    return _serialize_issue_read(issue)
 
 
 @router.get("/issues/{issue_id}", response_model=IssueRead)
@@ -317,7 +644,7 @@ async def get_issue(
     current_user: User = Depends(require_permission("issues", "read")),
 ) -> IssueRead:
     issue = await _get_readable_issue_or_404(db, issue_id, current_user)
-    return IssueRead.model_validate(issue)
+    return _serialize_issue_read(issue)
 
 
 @router.patch("/issues/{issue_id}", response_model=IssueRead)
@@ -330,6 +657,13 @@ async def update_issue(
     issue = await _get_writable_issue_or_404(db, issue_id, current_user)
     updates = payload.model_dump(exclude_unset=True)
 
+    if "status" in updates:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Use workflow endpoints to change issue status",
+        )
+
+    target_department_id = issue.department_id
     if "owner_user_id" in updates:
         await _validate_user_exists(db, updates.get("owner_user_id"))
     if "department_id" in updates:
@@ -338,11 +672,32 @@ async def update_issue(
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="department_id cannot be null")
         if not can_access_department_id(current_user, new_dept_id):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this department")
+        target_department_id = new_dept_id
+
+        if new_dept_id != issue.department_id:
+            link_department_ids = await _issue_link_department_ids(db, issue.id)
+            if any(link_department_id != new_dept_id for link_department_id in link_department_ids):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Cannot change department while links point to entities in another department; relink/unlink first",
+                )
+
+    if "owner_user_id" in updates:
+        await _ensure_owner_assignable(
+            db,
+            owner_user_id=updates.get("owner_user_id"),
+            department_id=target_department_id,
+        )
+    elif "department_id" in updates and issue.owner_user_id is not None:
+        await _ensure_owner_assignable(
+            db,
+            owner_user_id=issue.owner_user_id,
+            department_id=target_department_id,
+            denied_status=status.HTTP_409_CONFLICT,
+        )
 
     if "due_at" in updates:
         updates["due_at"] = _coerce_utc(updates["due_at"])
-    if "status" in updates and updates["status"] is not None:
-        updates["status"] = updates["status"].value
     if "severity" in updates and updates["severity"] is not None:
         updates["severity"] = updates["severity"].value
     if "source_type" in updates and updates["source_type"] is not None:
@@ -366,7 +721,7 @@ async def update_issue(
 
     await db.commit()
     issue = await _get_issue_with_relations(db, issue.id)
-    return IssueRead.model_validate(issue)
+    return _serialize_issue_read(issue)
 
 
 async def _resolve_link_department_and_access(
@@ -510,6 +865,11 @@ async def assign_issue(
 ) -> IssueRead:
     issue = await _get_writable_issue_or_404(db, issue_id, current_user)
     await _validate_user_exists(db, payload.owner_user_id)
+    await _ensure_owner_assignable(
+        db,
+        owner_user_id=payload.owner_user_id,
+        department_id=issue.department_id,
+    )
     await IssueWorkflowService.assign_issue(
         db,
         issue=issue,
@@ -521,7 +881,7 @@ async def assign_issue(
     await _notify_issue_assigned(db, issue=issue, owner_user_id=payload.owner_user_id, actor=current_user)
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
-    return IssueRead.model_validate(refreshed)
+    return _serialize_issue_read(refreshed)
 
 
 @router.post("/issues/{issue_id}/start-remediation", response_model=IssueRead)
@@ -540,7 +900,7 @@ async def start_remediation(
     )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
-    return IssueRead.model_validate(refreshed)
+    return _serialize_issue_read(refreshed)
 
 
 @router.post("/issues/{issue_id}/update-progress", response_model=IssueRead)
@@ -563,7 +923,7 @@ async def update_remediation_progress(
     )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
-    return IssueRead.model_validate(refreshed)
+    return _serialize_issue_read(refreshed)
 
 
 @router.post("/issues/{issue_id}/request-exception", response_model=IssueExceptionRead, status_code=status.HTTP_201_CREATED)
@@ -583,7 +943,7 @@ async def request_exception(
     await _notify_exception_requested(db, issue=issue, actor=current_user)
     await db.commit()
     await db.refresh(exception)
-    return IssueExceptionRead.model_validate(exception)
+    return await _serialize_exception_with_user_names(db, exception)
 
 
 @router.post("/issues/{issue_id}/approve-exception", response_model=IssueExceptionRead)
@@ -636,7 +996,52 @@ async def approve_exception(
     )
     await db.commit()
     await db.refresh(approved)
-    return IssueExceptionRead.model_validate(approved)
+    return await _serialize_exception_with_user_names(db, approved)
+
+
+@router.post("/issues/{issue_id}/revoke-exception", response_model=IssueExceptionRead)
+async def revoke_exception(
+    issue_id: int,
+    payload: IssueExceptionRevokeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("issues", "approve")),
+) -> IssueExceptionRead:
+    issue = await _get_readable_issue_or_404(db, issue_id, current_user)
+
+    target_exception: IssueException | None = None
+    if payload.exception_id is not None:
+        target_exception = (
+            await db.execute(
+                select(IssueException).where(IssueException.id == payload.exception_id, IssueException.issue_id == issue.id)
+            )
+        ).scalar_one_or_none()
+    else:
+        now = datetime.now(UTC)
+        target_exception = (
+            await db.execute(
+                select(IssueException)
+                .where(
+                    IssueException.issue_id == issue.id,
+                    IssueException.status == IssueExceptionStatus.approved.value,
+                    IssueException.expires_at.is_not(None),
+                    IssueException.expires_at > now,
+                )
+                .order_by(IssueException.approved_at.desc(), IssueException.created_at.desc())
+            )
+        ).scalars().first()
+
+    if target_exception is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approved exception not found")
+
+    revoked = await IssueWorkflowService.revoke_exception(
+        db,
+        issue=issue,
+        exception=target_exception,
+        actor=current_user,
+    )
+    await db.commit()
+    await db.refresh(revoked)
+    return await _serialize_exception_with_user_names(db, revoked)
 
 
 @router.post("/issues/{issue_id}/close", response_model=IssueRead)
@@ -656,4 +1061,4 @@ async def close_issue(
     )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
-    return IssueRead.model_validate(refreshed)
+    return _serialize_issue_read(refreshed)

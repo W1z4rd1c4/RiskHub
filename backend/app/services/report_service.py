@@ -382,7 +382,11 @@ def generate_audit_trail_excel(executions: list) -> bytes:
             risk_names = []
             for link in exe.control.risk_links:
                 if hasattr(link, 'risk') and link.risk:
-                    risk_names.append(f"R-{link.risk.id}: {link.risk.process[:30]}")
+                    display_name = (link.risk.name or link.risk.process or "").strip()
+                    if display_name:
+                        risk_names.append(f"R-{link.risk.id}: {display_name[:30]}")
+                    else:
+                        risk_names.append(f"R-{link.risk.id}")
             linked_risks = "; ".join(risk_names)
         ws.cell(row=row, column=12, value=linked_risks)
     
@@ -482,4 +486,3 @@ def generate_tabular_excel(sheet_name: str, headers: list[str], rows: list[list[
     wb.save(buffer)
     buffer.seek(0)
     return buffer.getvalue()
-

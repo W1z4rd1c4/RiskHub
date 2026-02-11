@@ -264,6 +264,21 @@ class TestUnifiedExportEndpoints:
                 assert "text/csv" in response.headers["content-type"]
 
     @pytest.mark.asyncio
+    async def test_risk_unified_export_csv_includes_name_column_and_values(
+        self,
+        auth_client: AsyncClient,
+        test_risk: Risk,
+    ):
+        response = await auth_client.get("/api/v1/reports/risks/export?format=csv")
+        assert response.status_code == 200
+
+        csv_payload = response.content.decode("utf-8")
+        rows = list(csv.DictReader(StringIO(csv_payload)))
+        assert rows
+        assert "Name" in rows[0]
+        assert any(row.get("Name") == test_risk.name for row in rows)
+
+    @pytest.mark.asyncio
     async def test_unified_export_rejects_pdf_format(
         self,
         auth_client: AsyncClient,
