@@ -1,6 +1,6 @@
 # RiskHub Testing Guide
 
-> **Last Updated**: 2026-01-10  
+> **Last Updated**: 2026-02-11  
 > **Purpose**: Comprehensive reference for testing infrastructure, patterns, and execution.
 
 ---
@@ -94,6 +94,7 @@ async def async_engine():
 | **Approval Workflow** | `test_approvals.py`, `test_approval_workflow.py` | Tiered approval flows |
 | **API Endpoints** | `test_risks.py`, `test_controls.py`, `test_users.py`, `test_departments.py` | CRUD operations |
 | **Dashboard** | `test_dashboard.py` | Dashboard aggregation |
+| **Issue Management** | `test_issues_api.py`, `test_issue_workflow.py`, `test_issue_deadline_service.py`, `test_dashboard_issue_metrics.py`, `test_reports_issues.py` | Issue lifecycle, reminders, dashboard metrics, reporting export |
 | **KRI System** | `test_kri_*.py` (5 files) | KRI values, history, deadlines |
 | **Activity Logging** | `test_activity_log.py`, `test_siem_logging.py` | Audit trail |
 | **Risk Hub Config** | `test_riskhub_*.py` (5 files) | Risk Hub admin features |
@@ -150,6 +151,7 @@ export default defineConfig({
 | **Risks** | `risks.spec.ts` | Risk CRUD, filtering, approval |
 | **Controls** | `controls.spec.ts` | Control CRUD, linking to risks |
 | **KRIs** | `kris.spec.ts` | KRI values, breach alerts |
+| **Issues Workflow** | `issues-workflow.spec.ts` | Issue lifecycle path and dashboard visibility checks |
 | **Admin** | `admin.spec.ts` | Admin console, logs, health |
 
 ### 3.4 Deterministic E2E Seed Workflow (Phase 179/180)
@@ -279,6 +281,9 @@ npx playwright test
 
 # Run specific E2E suite
 npx playwright test e2e/dashboard.spec.ts
+
+# Run issues workflow e2e gate
+npx playwright test -g "issues workflow"
 
 # Run with UI mode
 npx playwright test --ui

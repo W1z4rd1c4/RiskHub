@@ -1,6 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { apiClient } from './apiClient';
-import type { DashboardSummary, DepartmentMetrics, RiskDistribution, ControlTrend, DashboardFilters, RiskTrendPoint, KRIBreachTrendPoint } from '../types/dashboard';
+import type {
+    DashboardSummary,
+    DepartmentMetrics,
+    RiskDistribution,
+    ControlTrend,
+    DashboardFilters,
+    RiskTrendPoint,
+    KRIBreachTrendPoint,
+    IssueDashboardSummary,
+    IssueAgingResponse,
+    IssueSeverityBreakdownResponse,
+} from '../types/dashboard';
 
 function buildQueryParams(filters?: DashboardFilters): Record<string, any> {
     if (!filters) return {};
@@ -63,6 +74,21 @@ export const dashboardApi = {
         return apiClient.get<KRIBreachTrendPoint[]>('/dashboard/kri-breach-trends', { params });
     },
 
+    async fetchIssuesSummary(filters?: DashboardFilters): Promise<IssueDashboardSummary> {
+        const params = buildQueryParams(filters);
+        return apiClient.get<IssueDashboardSummary>('/dashboard/issues-summary', { params });
+    },
+
+    async fetchIssuesAging(filters?: DashboardFilters): Promise<IssueAgingResponse> {
+        const params = buildQueryParams(filters);
+        return apiClient.get<IssueAgingResponse>('/dashboard/issues-aging', { params });
+    },
+
+    async fetchIssuesBySeverity(filters?: DashboardFilters): Promise<IssueSeverityBreakdownResponse> {
+        const params = buildQueryParams(filters);
+        return apiClient.get<IssueSeverityBreakdownResponse>('/dashboard/issues-by-severity', { params });
+    },
+
     async fetchQuarterlyComparison(
         currentQuarter?: string,
         compareQuarter?: string
@@ -81,4 +107,3 @@ export const dashboardApi = {
         return apiClient.get<any>('/dashboard/committee-summary');
     },
 };
-

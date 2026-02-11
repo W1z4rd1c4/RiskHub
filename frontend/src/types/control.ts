@@ -4,12 +4,13 @@ export const ControlForm = {
     AUTOMATIC: 'automatic' as ControlForm,
 };
 
-export type ControlFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually' | 'ad_hoc' | 'continuous';
+export type ControlFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'semi-annually' | 'annually' | 'ad_hoc' | 'continuous';
 export const ControlFrequency = {
     DAILY: 'daily' as ControlFrequency,
     WEEKLY: 'weekly' as ControlFrequency,
     MONTHLY: 'monthly' as ControlFrequency,
     QUARTERLY: 'quarterly' as ControlFrequency,
+    SEMI_ANNUALLY: 'semi-annually' as ControlFrequency,
     ANNUALLY: 'annually' as ControlFrequency,
     AD_HOC: 'ad_hoc' as ControlFrequency,
     CONTINUOUS: 'continuous' as ControlFrequency,

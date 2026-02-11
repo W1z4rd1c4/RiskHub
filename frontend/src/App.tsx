@@ -16,6 +16,7 @@ import {
   RiskDetailPage,
   RiskNewPage,
   RiskEditPage,
+  IssuesPage,
   KRIsPage,
   KRIDetailPage,
   DepartmentsPage,
@@ -104,6 +105,7 @@ function App() {
                 <Route path="risks/new" element={<RiskNewPage />} />
                 <Route path="risks/:id" element={<RiskDetailPage />} />
                 <Route path="risks/:id/edit" element={<RiskEditPage />} />
+                <Route path="issues" element={<IssuesPage />} />
                 <Route path="kris" element={<KRIsPage />} />
                 <Route path="kris/new" element={<KRINewPage />} />
                 <Route path="kris/:id" element={<KRIDetailPage />} />

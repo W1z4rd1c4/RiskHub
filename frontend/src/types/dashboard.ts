@@ -54,6 +54,31 @@ export interface KRIBreachTrendPoint {
     breached_entries: number;
 }
 
+export interface IssueDashboardSummary {
+    open_issues: number;
+    overdue_issues: number;
+    high_severity_open: number;
+    median_days_open: number;
+}
+
+export interface IssueAgingBucket {
+    bucket: string;
+    count: number;
+}
+
+export interface IssueAgingResponse {
+    buckets: IssueAgingBucket[];
+}
+
+export interface IssueSeverityBreakdownItem {
+    severity: string;
+    count: number;
+}
+
+export interface IssueSeverityBreakdownResponse {
+    items: IssueSeverityBreakdownItem[];
+}
+
 export type RiskLevel = 'all' | 'critical' | 'high' | 'medium' | 'low';
 
 export interface DashboardFilters {

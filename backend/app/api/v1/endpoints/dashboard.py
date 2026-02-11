@@ -7,10 +7,12 @@ from datetime import datetime, UTC
 from fastapi import APIRouter, Depends, Query, Response, HTTPException, status
 from sqlalchemy import select, func, and_, or_, cast, String, case, desc
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models import User, Control, Risk, Department, ControlExecution, Vendor, VendorSLA
+from app.models import User, Control, Risk, Department, ControlExecution, Vendor, VendorSLA, Issue
 from app.models.control import ControlStatus, ControlForm, ControlFrequency
+from app.models.issue import IssueExceptionStatus, IssueSeverity, IssueStatus
 from app.models.risk import RiskStatus
 from app.schemas.dashboard import (
     DashboardSummaryResponse,
@@ -20,11 +22,16 @@ from app.schemas.dashboard import (
     ControlFrequencyTrend,
     RiskTrendPoint,
     KRIBreachTrendPoint,
+    IssueDashboardSummaryResponse,
+    IssueAgingResponse,
+    IssueAgingBucket,
+    IssueSeverityBreakdownItem,
+    IssueSeverityBreakdownResponse,
 )
 from app.models.kri_history import KRIValueHistory
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.api import deps
-from app.core.permissions import get_user_department_ids, has_permission
+from app.core.permissions import get_user_department_ids, get_issue_scope_clause, has_permission
 from app.core.security import require_permission
 from app.models.global_config import ConfigDefaults, build_risk_level_ranges
 from app.core.limits import (
@@ -57,6 +64,148 @@ def build_risk_level_condition(risk_level: str):
         return None
     min_score, max_score = RISK_LEVEL_RANGES[risk_level]
     return and_(Risk.net_score >= min_score, Risk.net_score <= max_score)
+
+
+def _coerce_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _has_active_issue_exception(issue: Issue, now: datetime) -> bool:
+    for exception in issue.exceptions:
+        if exception.status != IssueExceptionStatus.approved.value:
+            continue
+        expires_at = _coerce_utc(exception.expires_at)
+        if expires_at is not None and expires_at > now:
+            return True
+    return False
+
+
+def _issue_age_days(issue: Issue, now: datetime) -> int:
+    opened_at = _coerce_utc(issue.opened_at)
+    if opened_at is None:
+        return 0
+    delta = now - opened_at
+    return max(delta.days, 0)
+
+
+async def _load_scoped_issues(
+    db: AsyncSession,
+    current_user: User,
+    *,
+    department_id: int | None,
+) -> list[Issue]:
+    query = select(Issue).options(selectinload(Issue.exceptions))
+    scope_clause = await get_issue_scope_clause(db, current_user)
+    if scope_clause is not None:
+        query = query.where(scope_clause)
+    if department_id is not None:
+        query = query.where(Issue.department_id == department_id)
+    result = await db.execute(query)
+    return list(result.scalars().all())
+
+
+def _open_unsuppressed_issues(issues: list[Issue], now: datetime) -> list[Issue]:
+    return [
+        issue
+        for issue in issues
+        if issue.status != IssueStatus.closed.value and not _has_active_issue_exception(issue, now)
+    ]
+
+
+@router.get("/issues-summary", response_model=IssueDashboardSummaryResponse)
+async def get_issue_summary(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("issues", "read")),
+    department_id: Optional[int] = Query(None, description="Filter by department"),
+) -> IssueDashboardSummaryResponse:
+    now = datetime.now(UTC)
+    issues = await _load_scoped_issues(db, current_user, department_id=department_id)
+    open_issues = _open_unsuppressed_issues(issues, now)
+    overdue = [issue for issue in open_issues if _coerce_utc(issue.due_at) is not None and _coerce_utc(issue.due_at) < now]
+    high_severity = [
+        issue
+        for issue in open_issues
+        if issue.severity in (IssueSeverity.high.value, IssueSeverity.critical.value)
+    ]
+
+    ages = sorted(_issue_age_days(issue, now) for issue in open_issues)
+    if not ages:
+        median_days_open = 0
+    elif len(ages) % 2 == 1:
+        median_days_open = ages[len(ages) // 2]
+    else:
+        mid = len(ages) // 2
+        median_days_open = (ages[mid - 1] + ages[mid]) // 2
+
+    return IssueDashboardSummaryResponse(
+        open_issues=len(open_issues),
+        overdue_issues=len(overdue),
+        high_severity_open=len(high_severity),
+        median_days_open=median_days_open,
+    )
+
+
+@router.get("/issues-aging", response_model=IssueAgingResponse)
+async def get_issue_aging(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("issues", "read")),
+    department_id: Optional[int] = Query(None, description="Filter by department"),
+) -> IssueAgingResponse:
+    now = datetime.now(UTC)
+    issues = await _load_scoped_issues(db, current_user, department_id=department_id)
+    open_issues = _open_unsuppressed_issues(issues, now)
+
+    buckets: dict[str, int] = {"0-7": 0, "8-30": 0, "31-60": 0, "61+": 0}
+    for issue in open_issues:
+        age_days = _issue_age_days(issue, now)
+        if age_days <= 7:
+            buckets["0-7"] += 1
+        elif age_days <= 30:
+            buckets["8-30"] += 1
+        elif age_days <= 60:
+            buckets["31-60"] += 1
+        else:
+            buckets["61+"] += 1
+
+    return IssueAgingResponse(
+        buckets=[
+            IssueAgingBucket(bucket="0-7", count=buckets["0-7"]),
+            IssueAgingBucket(bucket="8-30", count=buckets["8-30"]),
+            IssueAgingBucket(bucket="31-60", count=buckets["31-60"]),
+            IssueAgingBucket(bucket="61+", count=buckets["61+"]),
+        ]
+    )
+
+
+@router.get("/issues-by-severity", response_model=IssueSeverityBreakdownResponse)
+async def get_issues_by_severity(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("issues", "read")),
+    department_id: Optional[int] = Query(None, description="Filter by department"),
+) -> IssueSeverityBreakdownResponse:
+    now = datetime.now(UTC)
+    issues = await _load_scoped_issues(db, current_user, department_id=department_id)
+    open_issues = _open_unsuppressed_issues(issues, now)
+
+    counts = {severity.value: 0 for severity in IssueSeverity}
+    for issue in open_issues:
+        if issue.severity in counts:
+            counts[issue.severity] += 1
+
+    return IssueSeverityBreakdownResponse(
+        items=[
+            IssueSeverityBreakdownItem(severity=IssueSeverity.low.value, count=counts[IssueSeverity.low.value]),
+            IssueSeverityBreakdownItem(severity=IssueSeverity.medium.value, count=counts[IssueSeverity.medium.value]),
+            IssueSeverityBreakdownItem(severity=IssueSeverity.high.value, count=counts[IssueSeverity.high.value]),
+            IssueSeverityBreakdownItem(
+                severity=IssueSeverity.critical.value, count=counts[IssueSeverity.critical.value]
+            ),
+        ]
+    )
 
 
 @router.get("/summary", response_model=DashboardSummaryResponse)

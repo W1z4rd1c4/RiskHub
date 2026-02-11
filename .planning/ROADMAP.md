@@ -31,11 +31,11 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 7: User Management & RBAC** — Role-based access and department hierarchy (17/17)
 - [x] **Phase 8: Permission-Based Filtering** — Data filtering and approval workflows (8/8)
 - [x] **Phase 9: Notification System** — KRI deadlines and approval notifications (7/7)
-- [ ] **Phase 10: Historization** — Historical tracking and audit trails (4/5)
-- [ ] **Phase 11: Historical Visualization** — Charts and trend analysis (4/5)
+- [x] **Phase 10: Historization** — Historical tracking and audit trails (5/5)
+- [x] **Phase 11: Historical Visualization** — Charts and trend analysis (5/5)
 - [x] **Phase 12: Compliance Governance** — Risk Committee dashboard & Activity Logs (7/7)
 - [x] **Phase 12.1: Compliance Governance Review** — Phase 12 audit (10/10)
-- [ ] **Phase 13: Issue & Remediation Management** — Findings and Action Plans (PLANNED)
+- [x] **Phase 13: Issue & Remediation Management** — Findings and Action Plans (3/3)
 - [x] **Phase 14: Risk Assessments** — Campaigns and questionnaires (7/7)
 - [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (5/5)
 - [x] **Phase 16: Risk Assessment Polish** — Review, reminders, reporting (3/3)
@@ -275,12 +275,13 @@ Plans:
 - [x] 09-06: Notification preferences (backend model, API, migration)
 - [x] 09-07: Notifications settings tab (frontend UI + API wiring)
 
-### Phase 10: Historization Schema & API
+### Phase 10: Historization Schema & API (COMPLETE)
 
 **Goal**: Implement historical tracking for all changes to risks, controls, and KRIs
 **Depends on**: Phase 9
 **Research**: Unlikely (standard audit trail patterns)
 **Plans**: 5 plans
+**Completed**: 2026-02-11
 
 Plans:
 
@@ -288,22 +289,29 @@ Plans:
 - [x] 10-02: KRI history service and API endpoints
 - [x] 10-03: KRI frontend historization (types, forms, value recording, history UI)
 - [x] 10-04: History tests and human verification
-- [ ] 10-05: KRI value recording endpoint with breach detection
+- [x] 10-05: KRI value recording endpoint with breach detection
 
-### Phase 11: Historical Visualization & Charts
+Note:
+- 10-05 was closed via reconciliation because value-recording + breach detection had already been implemented and tested through `POST /api/v1/kris/{kri_id}/values` and related historization/approval flows.
+
+### Phase 11: Historical Visualization & Charts (COMPLETE)
 
 **Goal**: Build UI for viewing historical data, trends, and audit trails
 **Depends on**: Phase 10
 **Research**: Unlikely (using existing Recharts library)
 **Plans**: 5 plans
+**Completed**: 2026-02-11
 
 Plans:
 
 - [x] 11-01: Frontend history components (timeline, change cards, trend charts)
 - [x] 11-02: Add history tabs to detail pages (risks, controls, KRIs)
 - [x] 11-03: Historical comparison view (side-by-side diff between dates)
-- [ ] 11-04: Dashboard historical widgets (risk trends, breach history)
+- [x] 11-04: Dashboard historical widgets (risk trends, breach history)
 - [x] 11-05: Audit report generation (PDF/Excel export of audit trail)
+
+Note:
+- 11-04 was closed via reconciliation because dashboard historical widgets were already implemented and wired end-to-end across backend APIs, dashboard schemas, frontend API client, and dashboard chart components.
 
 ### Phase 12: Compliance Governance
 
@@ -347,14 +355,14 @@ Plans:
 
 **Goal**: Manage findings, remediation plans, and exception tracking for failed controls or high risks.
 **Depends on**: Phase 12
-**Status**: Planned
+**Status**: ✅ Complete
 **Plans**: 3 plans
 
 Plans:
 
-- [ ] 13-01: Findings & Issues backend (model, API, linkage to Controls/Risks)
-- [ ] 13-02: Remediation Plan workflow (assignments, due dates, progress tracking)
-- [ ] 13-03: Findings Dashboard & Reporting (open issues, aging analysis)
+- [x] 13-01: Findings & Issues backend (model, API, linkage to Controls/Risks)
+- [x] 13-02: Remediation Plan workflow (assignments, due dates, progress tracking)
+- [x] 13-03: Findings Dashboard & Reporting (open issues, aging analysis)
 
 ### Phase 14: Risk Assessments
 
@@ -801,8 +809,8 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 8. Permission Filtering | 8/8 | ✅ Complete | 2025-12-28 |
 | 8-05. Testing Concerns | 1/1 | ✅ Complete | - |
 | 9. Notification System | 7/7 | ✅ Complete | 2025-12-28 |
-| 10. Historization | 4/5 | ⏳ In progress | - |
-| 11. Historical Visualization | 4/5 | ⏳ In progress | - |
+| 10. Historization | 5/5 | ✅ Complete | 2026-02-11 |
+| 11. Historical Visualization | 5/5 | ✅ Complete | 2026-02-11 |
 | 12. Compliance Governance | 7/7 | ✅ Complete | 2026-01-04 |
 | 12.1 Compliance Review | 10/10 | ✅ Complete | 2026-01-04 |
 | 15. Settings Page | 5/5 | ✅ Complete | 2026-01-07 |
