@@ -91,6 +91,13 @@ Testing expectations:
   - frontend `PermissionGate` / permission hooks
   - `docs/BUSINESS_LOGIC.md`
 
+## Frontend Display Guardrails
+
+- Do not render raw database numeric IDs in user-facing UI surfaces.
+- Prefer business identifiers: names, titles, codes, or human-readable labels.
+- If a related entity cannot be resolved, show `Unknown <entity>` text (for example, `Unknown user`) and never expose numeric IDs as fallback.
+- Technical IDs are acceptable in logs, telemetry, and developer tooling only, not in end-user screens.
+
 ## Security and Production Guardrails
 
 - Never commit real secrets or environment values.
