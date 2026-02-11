@@ -1,71 +1,63 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-02-02
+**Analysis Date:** 2026-02-11
 
-## Naming Patterns
+## Backend Conventions
 
-**Backend (Python):**
-- Modules grouped by concern: `api/v1/endpoints/*`, `services/*`, `models/*`, `schemas/*`
-- Endpoint functions use verb-noun: `list_*`, `create_*`, `update_*`, `delete_*`
-- Enum values are typically lowercased strings stored in DB, exposed as strings in APIs
+### API and dependency patterns
+- Endpoints use FastAPI dependency injection for DB and auth (`backend/app/api/deps.py`)
+- Permission checks use `require_permission(resource, action)` and policy helpers (`backend/app/core/security.py`, `backend/app/core/permissions.py`)
+- Router composition is centralized in `backend/app/api/v1/router.py`
 
-**Frontend (TypeScript):**
-- React components are PascalCase (`RiskDetailPage`, `PermissionGate`)
-- Hooks are `use*` (`usePermissions`, `useRiskHubConfig`)
-- Services are `*Api.ts` and export objects (`riskApi`, `approvalsApi`)
+### Async and transaction boundaries
+- Async-first style across endpoints/services (`async def` + `AsyncSession`)
+- No global auto-commit in `get_db`; endpoints/services commit explicitly (`backend/app/db/session.py`)
 
-## Backend Patterns
+### Model/schema separation
+- SQLAlchemy ORM entities in `backend/app/models/`
+- Pydantic API contracts in `backend/app/schemas/`
+- Service layer handles multi-entity workflows (approvals, notifications, historization)
 
-**Async-first:**
-- Endpoints and most services are `async def` using `AsyncSession`
+### Security and runtime guardrails
+- Production startup checks fail fast on unsafe config (`backend/app/main.py`)
+- Mock auth/demo paths are development-gated (`backend/app/main.py`, `backend/app/api/v1/endpoints/auth.py`)
+- Structured logging is expected in runtime paths (`backend/app/core/logging.py`)
 
-**Dependency Injection:**
-- DB via `Depends(get_db)` (`backend/app/db/session.py`)
-- Current user via `Depends(deps.get_current_user)` or `require_permission(...)` (`backend/app/api/deps.py`, `backend/app/core/security.py`)
+## Frontend Conventions
 
-**Validation & Schemas:**
-- Pydantic schemas live in `backend/app/schemas/`
-- Models in `backend/app/models/` are mapped with `mapped_column(...)`
+### Application composition
+- Provider stack in `frontend/src/App.tsx` (query, auth, theme)
+- Route-driven page structure in `frontend/src/pages/`
+- Shared component library in `frontend/src/components/`
 
-**Logging:**
-- Prefer `log_activity(...)` for audit trail events (`backend/app/core/activity_logger.py`)
-- App logging is structured JSON (see `backend/logs/`)
+### Data access and auth
+- Centralized fetch wrapper in `frontend/src/services/apiClient.ts`
+- Auth state and permissions sourced from `AuthContext` (`frontend/src/contexts/AuthContext.tsx`)
+- UI authorization gates via `PermissionGate` and `usePermissions` (`frontend/src/components/PermissionGate.tsx`, `frontend/src/hooks/usePermissions.ts`)
 
-**Formatting/Linting:**
-- Black + Ruff via pre-commit (`.pre-commit-config.yaml`)
-- Security scanning with Bandit and secret scanning with Gitleaks
+### Internationalization
+- i18n initialized before app render (`frontend/src/main.tsx`, `frontend/src/i18n/index.ts`)
+- Locale resources split by namespace/language (`frontend/src/i18n/locales/`)
 
-## Frontend Patterns
+## Testing and Quality Conventions
 
-**Routing:**
-- Routes configured in `frontend/src/App.tsx`, pages in `frontend/src/pages/`
+- Backend: pytest naming and markers in `backend/pytest.ini`
+- Frontend: Vitest jsdom tests + MSW mocks (`frontend/vitest.config.ts`, `frontend/src/test/mocks/`)
+- E2E: Playwright multi-browser projects (`frontend/playwright.config.ts`)
+- Lint/security toolchain via ESLint + pre-commit + security workflows (`frontend/eslint.config.js`, `.pre-commit-config.yaml`, `.github/workflows/security.yml`)
 
-**Data Fetching:**
-- API wrappers call `apiClient` (`frontend/src/services/apiClient.ts`)
-- Query caching commonly via `@tanstack/react-query`
+## Time and Date Handling Convention (Current State)
 
-**RBAC UI gating:**
-- Prefer `PermissionGate` (`frontend/src/components/PermissionGate.tsx`)
-- Permission checks centralize via `usePermissions()` → `AuthContext.hasPermission` (`frontend/src/hooks/usePermissions.ts`, `frontend/src/contexts/AuthContext.tsx`)
+- Codebase currently contains mixed timezone-aware and timezone-naive handling
+- Several write paths intentionally strip tzinfo for DB compatibility in legacy areas (`backend/app/services/approval_execution_service.py` and related files)
+- Newer models increasingly use `DateTime(timezone=True)`
 
-**Styling:**
-- Tailwind utility-first classes
-- Component variants often via `class-variance-authority` + `clsx`
+## Source-of-Truth Conventions
 
-**Formatting/Linting:**
-- ESLint flat config (`frontend/eslint.config.js`)
-
-## Error Handling
-
-**Backend:**
-- Use `HTTPException(status_code=..., detail=...)` for controlled errors
-
-**Frontend:**
-- `apiClient` normalizes FastAPI `detail` payloads and falls back to `Request failed with status X`
-- Prefer surfacing the server message when possible; keep user-friendly copy in UI
+- Business behavior and RBAC: `docs/BUSINESS_LOGIC.md`
+- Testing strategy and commands: `docs/TESTING.md`
+- Current execution context for planning: `.planning/STATE.md` and `.planning/ROADMAP.md`
 
 ---
 
-*Conventions audit: 2026-02-02*
-*Update as team conventions evolve*
-
+*Conventions audit refreshed on 2026-02-11*
