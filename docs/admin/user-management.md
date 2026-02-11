@@ -1,6 +1,6 @@
 # User Management
 
-> **Audience**: Administrator, CRO  
+> **Audience**: Administrator, CRO, Department Head (department-scoped read view)  
 > **Location**: Sidebar → Access Management
 
 ---
@@ -20,7 +20,8 @@
 
 ## 1. User Management Overview
 
-RiskHub manages users through the **Access Management** section, accessible to Administrators and CRO.
+RiskHub manages users through the **Access Management** section.
+Administrators and CRO can perform access mutations; department heads can use department-scoped read views.
 
 ### Key Concepts
 
@@ -28,6 +29,12 @@ RiskHub manages users through the **Access Management** section, accessible to A
 - **Roles** determine what actions a user can perform
 - **Departments** scope what data a user can see
 - **Access Scope** determines breadth of visibility (Global/Department/Manager)
+
+### Platform vs Business Boundary
+
+- **Administrator** is a platform role (users, sessions, logs, system health), not a business-data superuser.
+- **CRO** is both a business privileged role and an access-management write role.
+- Access-management **mutations** are restricted to **Administrator/CRO** even when other users have global read visibility.
 
 ### User Lifecycle
 
@@ -91,7 +98,7 @@ For organizations without AD or for system accounts:
 | **Actuarial** | Governance | Global | ✅ Read | ✅ Can approve |
 | **Department Head** | Department | Department | ✅ Department | ❌ Primary approver |
 | **Employee** | Department | Department | ✅ Department | ❌ |
-| **Administrator** | System | N/A | ❌ None | ❌ |
+| **Administrator** | System | Global (platform) | ❌ None | ❌ |
 | **Viewer** | System | Varies | ✅ Read-only | ❌ |
 
 ### Assigning a Role
@@ -205,6 +212,9 @@ When a user owns an entity outside their department:
 > [!NOTE]
 > Access scope is typically set automatically based on role. Manual override is available for special cases.
 
+> [!IMPORTANT]
+> Global scope does not by itself grant access-management write authority. Editing user access fields requires Administrator or CRO role.
+
 ---
 
 ## 6. Permission Matrix
@@ -229,6 +239,20 @@ Permissions are assigned to roles and determine specific actions users can perfo
 | `users:read` | View user list | Admin, CRO |
 | `users:write` | Create/edit users | Admin only |
 | `activity_log:read` | View activity log | Risk Manager, Compliance, Audit |
+
+### Access Management Endpoint Rules
+
+| Action | Policy |
+|--------|--------|
+| List all access users (`GET /api/v1/access/users`) | GLOBAL-scope users |
+| List my-department access users (`GET /api/v1/access/users/my-department`) | Department Head or GLOBAL-scope users |
+| Update access user (`PATCH /api/v1/access/users/{id}`) | **Administrator or CRO only** |
+
+Fields protected by the mutation rule:
+- `role_id`
+- `department_id`
+- `manager_id`
+- `access_scope`
 
 ### Viewing User Permissions
 
@@ -332,4 +356,4 @@ When deactivating a user who owns risks, controls, or KRIs:
 
 ---
 
-*User management is restricted to Administrator and CRO roles.*
+*Access-management mutations are restricted to Administrator and CRO roles. Read/list visibility can include additional scoped roles (for example, department heads for their department view).*

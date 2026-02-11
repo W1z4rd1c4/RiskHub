@@ -7,7 +7,7 @@ from app.db.base import Base
 
 class GlobalConfig(Base):
     """
-    System-wide configuration settings managed by CRO via Risk Hub.
+    System-wide configuration settings managed by platform and business admin surfaces.
     
     Stores typed key-value pairs grouped by category.
     Replaces hardcoded values like HIGH_RISK_MIN_NET_SCORE.
@@ -38,7 +38,7 @@ class GlobalConfig(Base):
     min_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
     
-    # Whether CRO can edit this value (some may be locked)
+    # Whether this value is editable in the owning admin surface
     is_editable: Mapped[bool] = mapped_column(Boolean, default=True)
     
     # Audit fields

@@ -55,30 +55,60 @@ function LogSettingsPanel() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                    <label className="text-sm text-slate-400">{t('audit.max_file_size')}</label>
-                    <input
-                        type="number"
-                        value={form.log_rotation_size_mb}
-                        onChange={(e) => setForm({ ...form, log_rotation_size_mb: parseInt(e.target.value) })}
-                        className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
-                        min="1"
-                        max="1000"
-                    />
-                    <p className="text-xs text-slate-500">{t('audit.max_file_size_hint')}</p>
+                <div className="space-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                    <h5 className="text-sm font-semibold text-white">{t('tabs.application_logs')}</h5>
+                    <div className="space-y-2">
+                        <label className="text-sm text-slate-400">{t('audit.max_file_size')}</label>
+                        <input
+                            type="number"
+                            value={form.app_log_rotation_size_mb}
+                            onChange={(e) => setForm({ ...form, app_log_rotation_size_mb: Number(e.target.value) })}
+                            className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                            min="1"
+                            max="500"
+                        />
+                        <p className="text-xs text-slate-500">{t('audit.max_file_size_hint')}</p>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm text-slate-400">{t('audit.retention_count')}</label>
+                        <input
+                            type="number"
+                            value={form.app_log_retention_count}
+                            onChange={(e) => setForm({ ...form, app_log_retention_count: Number(e.target.value) })}
+                            className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                            min="1"
+                            max="500"
+                        />
+                        <p className="text-xs text-slate-500">{t('audit.retention_count_hint')}</p>
+                    </div>
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-sm text-slate-400">{t('audit.retention_count')}</label>
-                    <input
-                        type="number"
-                        value={form.log_retention_count}
-                        onChange={(e) => setForm({ ...form, log_retention_count: parseInt(e.target.value) })}
-                        className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
-                        min="1"
-                        max="50"
-                    />
-                    <p className="text-xs text-slate-500">{t('audit.retention_count_hint')}</p>
+                <div className="space-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                    <h5 className="text-sm font-semibold text-white">{t('tabs.audit_logs')}</h5>
+                    <div className="space-y-2">
+                        <label className="text-sm text-slate-400">{t('audit.max_file_size')}</label>
+                        <input
+                            type="number"
+                            value={form.audit_log_rotation_size_mb}
+                            onChange={(e) => setForm({ ...form, audit_log_rotation_size_mb: Number(e.target.value) })}
+                            className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                            min="1"
+                            max="500"
+                        />
+                        <p className="text-xs text-slate-500">{t('audit.max_file_size_hint')}</p>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm text-slate-400">{t('audit.retention_count')}</label>
+                        <input
+                            type="number"
+                            value={form.audit_log_retention_count}
+                            onChange={(e) => setForm({ ...form, audit_log_retention_count: Number(e.target.value) })}
+                            className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                            min="1"
+                            max="500"
+                        />
+                        <p className="text-xs text-slate-500">{t('audit.retention_count_hint')}</p>
+                    </div>
                 </div>
             </div>
 

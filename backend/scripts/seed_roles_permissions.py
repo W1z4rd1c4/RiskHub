@@ -1,157 +1,102 @@
 """
-Seed script to create roles and permissions for the RiskHub application.
-Run this before seeding users.
+Legacy RBAC seeding entrypoint.
+
+This script now aligns with the canonical RBAC contract in
+`app.db.rbac_seed_contract` to avoid role/permission drift.
 """
+
 import asyncio
-from sqlalchemy import select
+
+from sqlalchemy import delete, select
+
+from app.db.rbac_seed_contract import (
+    RBAC_PERMISSIONS,
+    RBAC_ROLES,
+    RBAC_ROLE_PERMISSIONS,
+    expand_permission_keys,
+)
 from app.db.session import async_session_maker
-from app.models import Role, Permission, RolePermission
+from app.models import Permission, Role, RolePermission
 
 
-async def seed_roles_permissions():
+async def seed_roles_permissions() -> None:
+    """Seed roles and permissions using the canonical RBAC contract."""
     async with async_session_maker() as db:
         try:
-            # Create permissions
-            permissions_data = [
-                ("*", "*", "Full access to all resources"),
-                ("risks", "read", "View risks"),
-                ("risks", "write", "Create/edit risks"),
-                ("risks", "delete", "Delete risks"),
-                ("controls", "read", "View controls"),
-                ("controls", "write", "Create/edit controls"),
-                ("controls", "delete", "Delete controls"),
-                ("kris", "read", "View KRIs"),
-                ("kris", "write", "Create/edit KRIs"),
-                ("reports", "read", "View reports"),
-                ("users", "read", "View users"),
-                ("users", "write", "Manage users"),
-            ]
-            
-            created_perms = {}
-            for resource, action, description in permissions_data:
+            print("⚠️  legacy script invoked: applying canonical RBAC contract")
+
+            permissions_by_key: dict[str, Permission] = {}
+            for permission_data in RBAC_PERMISSIONS:
+                key = f"{permission_data['resource']}:{permission_data['action']}"
                 result = await db.execute(
-                    select(Permission).filter(
-                        Permission.resource == resource,
-                        Permission.action == action
+                    select(Permission).where(
+                        Permission.resource == permission_data["resource"],
+                        Permission.action == permission_data["action"],
                     )
                 )
-                existing = result.scalar_one_or_none()
-                
-                if not existing:
-                    perm = Permission(resource=resource, action=action, description=description)
-                    db.add(perm)
+                permission = result.scalar_one_or_none()
+                if permission is None:
+                    permission = Permission(**permission_data)
+                    db.add(permission)
                     await db.flush()
-                    created_perms[f"{resource}:{action}"] = perm
-                    print(f"  ✓ Created permission: {resource}:{action}")
-                else:
-                    created_perms[f"{resource}:{action}"] = existing
-            
-            await db.commit()
-            
-            # Create roles
-            roles_config = [
-                ("admin", "Administrator", "Full system access"),
-                ("ceo", "Chief Executive Officer", "C-Suite executive"),
-                ("cfo", "Chief Financial Officer", "C-Suite executive"),
-                ("cro", "Chief Risk Officer", "C-Suite executive"),
-                ("coo", "Chief Operating Officer", "C-Suite executive"),
-                ("risk_manager", "Risk Manager", "Risk management oversight"),
-                ("compliance", "Compliance Officer", "Compliance oversight"),
-                ("legal", "Legal Counsel", "Legal oversight"),
-                ("internal_audit", "Internal Auditor", "Audit oversight"),
-                ("actuarial", "Actuarial Function", "Actuarial oversight"),
-                ("department_head", "Department Head", "Department manager"),
-                ("employee", "Employee", "Standard employee"),
-                ("viewer", "Viewer", "Read-only access"),
-            ]
-            
-            created_roles = {}
-            for name, display_name, description in roles_config:
-                result = await db.execute(select(Role).filter(Role.name == name))
-                existing = result.scalar_one_or_none()
-                
-                if not existing:
-                    role = Role(name=name, display_name=display_name, description=description)
+                permissions_by_key[key] = permission
+
+            roles_by_name: dict[str, Role] = {}
+            for role_data in RBAC_ROLES:
+                role_name = str(role_data["name"])
+                result = await db.execute(select(Role).where(Role.name == role_name))
+                role = result.scalar_one_or_none()
+                if role is None:
+                    role = Role(
+                        name=role_name,
+                        display_name=str(role_data["display_name"]),
+                        description=str(role_data["description"]),
+                        is_system=bool(role_data.get("is_system", False)),
+                    )
                     db.add(role)
                     await db.flush()
-                    created_roles[name] = role
-                    print(f"  ✓ Created role: {display_name}")
                 else:
-                    created_roles[name] = existing
-            
-            await db.commit()
-            
-            # Assign permissions to roles
-            full_access_perm = created_perms.get("*:*")
-            
-            # Privileged roles get full access
-            privileged_roles = ["admin", "ceo", "cfo", "cro", "risk_manager", 
-                               "compliance", "legal", "internal_audit", "actuarial"]
-            
-            for role_name in privileged_roles:
-                role = created_roles.get(role_name)
-                if role and full_access_perm:
-                    result = await db.execute(
-                        select(RolePermission).filter(
+                    role.display_name = str(role_data["display_name"])
+                    role.description = str(role_data["description"])
+                    role.is_system = bool(role_data.get("is_system", False))
+
+                roles_by_name[role_name] = role
+
+            # Converge role-permission links to canonical mapping.
+            for role_name, role in roles_by_name.items():
+                desired_keys = expand_permission_keys(RBAC_ROLE_PERMISSIONS.get(role_name, ()))
+                desired_permission_ids = {
+                    permissions_by_key[key].id for key in desired_keys if key in permissions_by_key
+                }
+
+                existing_rows = await db.execute(
+                    select(RolePermission).where(RolePermission.role_id == role.id)
+                )
+                existing_links = list(existing_rows.scalars().all())
+                existing_permission_ids = {link.permission_id for link in existing_links}
+
+                # Remove stale links that are no longer part of the canonical contract.
+                stale_permission_ids = existing_permission_ids - desired_permission_ids
+                if stale_permission_ids:
+                    await db.execute(
+                        delete(RolePermission).where(
                             RolePermission.role_id == role.id,
-                            RolePermission.permission_id == full_access_perm.id
+                            RolePermission.permission_id.in_(stale_permission_ids),
                         )
                     )
-                    existing = result.scalar_one_or_none()
-                    
-                    if not existing:
-                        db.add(RolePermission(role_id=role.id, permission_id=full_access_perm.id))
-                        print(f"  ✓ Granted full access to {role.display_name}")
-            
-            # Department heads and employees get limited permissions
-            limited_perms = ["risks:read", "risks:write", "controls:read", "controls:write", "kris:read", "kris:write"]
-            
-            for role_name in ["department_head", "employee", "coo"]:
-                role = created_roles.get(role_name)
-                if role:
-                    for perm_key in limited_perms:
-                        perm = created_perms.get(perm_key)
-                        if perm:
-                            result = await db.execute(
-                                select(RolePermission).filter(
-                                    RolePermission.role_id == role.id,
-                                    RolePermission.permission_id == perm.id
-                                )
-                            )
-                            existing = result.scalar_one_or_none()
-                            
-                            if not existing:
-                                db.add(RolePermission(role_id=role.id, permission_id=perm.id))
-                    print(f"  ✓ Granted limited permissions to {role.display_name}")
-            
-            # Viewer gets read-only
-            viewer_role = created_roles.get("viewer")
-            if viewer_role:
-                read_perms = ["risks:read", "controls:read", "kris:read", "reports:read"]
-                for perm_key in read_perms:
-                    perm = created_perms.get(perm_key)
-                    if perm:
-                        result = await db.execute(
-                            select(RolePermission).filter(
-                                RolePermission.role_id == viewer_role.id,
-                                RolePermission.permission_id == perm.id
-                            )
-                        )
-                        existing = result.scalar_one_or_none()
-                        
-                        if not existing:
-                            db.add(RolePermission(role_id=viewer_role.id, permission_id=perm.id))
-                print(f"  ✓ Granted read-only permissions to Viewer")
-            
+
+                # Add missing links required by the canonical contract.
+                for permission_id in sorted(desired_permission_ids - existing_permission_ids):
+                    db.add(RolePermission(role_id=role.id, permission_id=permission_id))
+
             await db.commit()
-            print("\n✅ Roles and permissions seeded successfully!")
-            
-        except Exception as e:
+            print("✅ Roles and permissions converged to canonical RBAC contract")
+        except Exception as exc:  # pragma: no cover - defensive script guard
             await db.rollback()
-            print(f"\n❌ Error seeding roles and permissions: {e}")
+            print(f"❌ Error seeding canonical RBAC roles/permissions: {exc}")
             raise
 
 
 if __name__ == "__main__":
-    print("🌱 Seeding roles and permissions...")
+    print("🌱 Seeding roles and permissions (canonical contract mode)...")
     asyncio.run(seed_roles_permissions())

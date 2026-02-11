@@ -188,8 +188,12 @@ Preflight checks validate presence of deterministic entities across:
 |---------|-------|-------------|
 | `db_session` | function | Fresh async database session |
 | `test_department` | function | Pre-created department |
-| `test_role` | function | Admin role with `*:*` permissions |
-| `test_user` | function | Admin user (GLOBAL scope) |
+| `test_role` | function | Legacy wildcard superuser role (`admin` + `*:*`) for broad auth tests |
+| `test_user` | function | Legacy wildcard superuser user (GLOBAL scope) |
+| `test_role_superuser_wildcard` | function | Explicit alias for wildcard superuser role |
+| `test_user_superuser_wildcard` | function | Explicit alias for wildcard superuser user |
+| `test_role_platform_admin` | function | Canonical platform-admin role (users/activity-log/departments only) |
+| `test_user_platform_admin` | function | Canonical platform-admin user (GLOBAL scope) |
 | `test_role_employee` | function | Employee role (limited perms) |
 | `test_user_employee` | function | Employee user (DEPARTMENT scope) |
 | `test_role_cro` | function | CRO role |
@@ -204,7 +208,9 @@ Preflight checks validate presence of deterministic entities across:
 | Fixture | User | Auth Method |
 |---------|------|-------------|
 | `client` | None (unauthenticated) | Mock auth enabled |
-| `auth_client` | test_user (Admin) | Dependency override |
+| `auth_client` | `test_user` (legacy wildcard superuser) | Dependency override |
+| `auth_client_superuser` | `test_user_superuser_wildcard` | Dependency override |
+| `client_platform_admin` | `test_user_platform_admin` | X-Mock-User-Id header |
 | `client_employee` | test_user_employee | X-Mock-User-Id header |
 | `client_risk_manager` | test_user_risk_manager | X-Mock-User-Id header |
 | `client_cro` | test_user_cro | X-Mock-User-Id header |

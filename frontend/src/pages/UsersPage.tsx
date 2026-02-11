@@ -211,7 +211,7 @@ export function UsersPage() {
                     directoryUsers={displayDirectoryUsers}
                     expandedUserId={expandedUserId}
                     onToggleExpand={(userId) => setExpandedUserId(expandedUserId === userId ? null : userId)}
-                    canManageAccess={authz.canManageAccess}
+                    canEditAccess={authz.canEditAccessUsers}
                     canManageUsers={canManageUsers}
                     onEditAccess={handleEditAccess}
                     onToggleStatus={handleToggleClick}

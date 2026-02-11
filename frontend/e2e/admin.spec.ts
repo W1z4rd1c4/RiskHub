@@ -17,6 +17,8 @@ async function waitForDataLoad(page: Page) {
 }
 
 test.describe('Admin Console', () => {
+    test.describe.configure({ mode: 'serial' });
+
     test.beforeEach(async ({ page }) => {
         await loginAsDemoUser(page, 'System Admin');
     });
@@ -51,6 +53,75 @@ test.describe('Admin Console', () => {
             // Check that some navigable tabs exist
             const buttons = page.locator('button').filter({ hasText: /.+/ });
             await expect(buttons.first()).toBeVisible();
+        });
+
+        test('should save log configuration using canonical app/audit payload fields', async ({ page }) => {
+            let postedPayload: Record<string, unknown> | null = null;
+
+            await page.route('**/api/v1/admin/logs/audit**', async (route) => {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ entries: [], total_lines: 0, file_path: 'audit.json.log' }),
+                });
+            });
+
+            await page.route('**/api/v1/admin/logs/config**', async (route) => {
+                const method = route.request().method();
+
+                if (method === 'GET') {
+                    await route.fulfill({
+                        status: 200,
+                        contentType: 'application/json',
+                        body: JSON.stringify({
+                            app_log_rotation_size_mb: 10,
+                            app_log_retention_count: 10,
+                            audit_log_rotation_size_mb: 10,
+                            audit_log_retention_count: 10,
+                        }),
+                    });
+                    return;
+                }
+
+                if (method === 'POST') {
+                    const rawBody = route.request().postData() ?? '{}';
+                    postedPayload = JSON.parse(rawBody);
+                    await route.fulfill({
+                        status: 200,
+                        contentType: 'application/json',
+                        body: JSON.stringify(postedPayload),
+                    });
+                    return;
+                }
+
+                await route.continue();
+            });
+
+            await page.goto('/admin');
+            if (page.url().includes('/login')) {
+                await loginAsDemoUser(page, 'System Admin');
+                await page.goto('/admin');
+            }
+            await expect(page).toHaveURL(/\/admin/);
+
+            await page.getByRole('button', { name: /Audit Logs|Auditní logy/i }).click();
+
+            const numericInputs = page.locator('input[type="number"]');
+            await expect(numericInputs).toHaveCount(4);
+            await numericInputs.nth(0).fill('11');
+            await numericInputs.nth(1).fill('7');
+            await numericInputs.nth(2).fill('13');
+            await numericInputs.nth(3).fill('9');
+
+            await page.getByRole('button', { name: /Save Settings|Uložit nastavení/i }).click();
+
+            await expect.poll(() => postedPayload).not.toBeNull();
+            expect(postedPayload).toEqual({
+                app_log_rotation_size_mb: 11,
+                app_log_retention_count: 7,
+                audit_log_rotation_size_mb: 13,
+                audit_log_retention_count: 9,
+            });
         });
     });
 });
