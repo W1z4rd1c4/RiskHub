@@ -50,7 +50,7 @@
         "max_file_size_hint": "Maximální velikost log souboru před rotací.",
         "retention_count": "Počet uchovávaných souborů",
         "retention_count_hint": "Počet záložních souborů k uchování.",
-        "note": "Poznámka: Aktualizace těchto nastavení ovlivňuje aplikační i auditní logy.",
+        "note": "Nastavte rotaci pro aplikační a auditní logy samostatně.",
         "save_settings": "Uložit nastavení",
         "saving": "Ukládání...",
         "event_feed": "Auditní události",

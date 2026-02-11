@@ -41,6 +41,59 @@ async def test_access_update_rejects_non_admin_scope_change(
 
 
 @pytest.mark.asyncio
+async def test_access_update_rejects_non_admin_department_change(
+    client_risk_manager: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_risk_manager.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"department_id": None},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_access_update_rejects_non_admin_manager_change(
+    client_risk_manager: AsyncClient,
+    test_user_employee: User,
+    test_user: User,
+):
+    response = await client_risk_manager.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"manager_id": test_user.id},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_access_update_rejects_non_admin_mixed_mutation_payload(
+    client_risk_manager: AsyncClient,
+    test_user_employee: User,
+    test_user: User,
+):
+    response = await client_risk_manager.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"department_id": None, "manager_id": test_user.id},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_access_update_allows_admin_manager_change(
+    auth_client: AsyncClient,
+    test_user_employee: User,
+    test_user: User,
+):
+    response = await auth_client.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"manager_id": test_user.id},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["manager_id"] == test_user.id
+
+
+@pytest.mark.asyncio
 async def test_access_prevents_self_demotion(auth_client: AsyncClient, test_user: User):
     response = await auth_client.patch(
         f"/api/v1/access/users/{test_user.id}",

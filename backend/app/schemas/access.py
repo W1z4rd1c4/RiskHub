@@ -45,7 +45,11 @@ class AccessUserRead(BaseModel):
 
 
 class AccessUserUpdate(BaseModel):
-    """Schema for access management updates."""
+    """
+    Schema for access-management updates.
+
+    Backend policy: all updates using this payload are restricted to admin/CRO.
+    """
     role_id: Optional[int] = None
     department_id: Optional[int] = None
     manager_id: Optional[int] = None

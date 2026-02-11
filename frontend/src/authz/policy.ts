@@ -14,6 +14,7 @@ export type Authz = {
     isDepartmentHead: boolean;
     hasGlobalScope: boolean;
     canManageAccess: boolean;
+    canEditAccessUsers: boolean;
     canViewDepartmentAccess: boolean;
     canViewAdminConsole: boolean;
     canViewRiskHub: boolean;
@@ -42,6 +43,7 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
     const hasGlobalScope = user?.access_scope === 'global';
 
     const canManageAccess = hasGlobalScope;
+    const canEditAccessUsers = isPlatformAdmin || isCRO;
     const canViewDepartmentAccess = isDepartmentHead || hasGlobalScope;
     const canViewAdminConsole = isPlatformAdmin;
     const canViewRiskHub = isCRO;
@@ -69,6 +71,7 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
         isDepartmentHead,
         hasGlobalScope,
         canManageAccess,
+        canEditAccessUsers,
         canViewDepartmentAccess,
         canViewAdminConsole,
         canViewRiskHub,

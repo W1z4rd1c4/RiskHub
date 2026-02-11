@@ -50,7 +50,7 @@
         "max_file_size_hint": "Maximum size per log file before rotation.",
         "retention_count": "Retention Count (Files)",
         "retention_count_hint": "Number of backup files to keep.",
-        "note": "Note: Updating these settings affects both Application and Audit logs.",
+        "note": "Configure rotation for application and audit logs independently.",
         "save_settings": "Save Settings",
         "saving": "Saving...",
         "event_feed": "Audit Event Feed",
