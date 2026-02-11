@@ -1,73 +1,75 @@
 # Repository Structure
 
-**Analysis Date:** 2026-02-02
+**Analysis Date:** 2026-02-11
 
 ## Top-Level Layout
 
-- `backend/` — FastAPI app + Alembic + pytest
-- `frontend/` — React + TypeScript + Vite + Playwright
-- `docs/` — business logic and user/admin documentation
-- `.planning/` — roadmap + phase planning artifacts (GSD)
-- `AD Emulator/` — separate demo “directory service” (backend + frontend)
-- `docker-compose.yml` / `docker-compose.prod.yml` — local/prod deployment
-- `Makefile` — common commands (`make dev`, `make test`, `make test-e2e`)
+- `backend/` - FastAPI API, domain services, Alembic migrations, pytest suites
+- `frontend/` - React + TypeScript SPA, Vitest tests, Playwright E2E suites
+- `docs/` - product/business/admin/user documentation
+- `.planning/` - roadmap, state, phase plans/summaries, codebase map docs
+- `scripts/` - operational/dev utilities (including canonical `scripts/dev.sh`)
+- `AD Emulator/` - separate optional emulator app for directory-sync flows
 
-## Backend (`backend/`)
+## Backend Tree (`backend/`)
 
-**Key entry points:**
-- `backend/app/main.py` — app setup, middleware, router mount
-- `backend/app/api/v1/router.py` — registers all v1 endpoint modules
+### Entry points and runtime
+- `backend/app/main.py` - FastAPI app creation, middleware, startup checks
+- `backend/app/api/v1/router.py` - registers all API endpoint routers
+- `backend/app/db/session.py` - async engine/session factory + `get_db`
 
-**Core directories:**
-- `backend/app/api/v1/endpoints/` — HTTP endpoints (one file per domain area)
-- `backend/app/models/` — SQLAlchemy models
-- `backend/app/schemas/` — Pydantic schemas
-- `backend/app/services/` — business logic services/workflows
-- `backend/app/core/` — config, security, permissions, logging, scheduler
-- `backend/app/middleware/` — request context + security middleware
-- `backend/app/integrations/` — outbound API clients/connectors
-- `backend/app/db/` — DB session + seed scripts
-- `backend/alembic/` — migrations (`backend/alembic/versions/`)
-- `backend/tests/` — pytest suite (async + httpx)
+### Primary subdirectories
+- `backend/app/api/v1/endpoints/` - 34 endpoint modules
+- `backend/app/models/` - 35 model modules
+- `backend/app/schemas/` - 29 schema modules
+- `backend/app/services/` - 21 business service modules
+- `backend/app/core/` - configuration, auth, permissions, logging, scheduler
+- `backend/app/middleware/` - security/logging/language middleware
+- `backend/app/integrations/` - AD emulator and vendor-signal connectors
+- `backend/alembic/` - migration environment and versioned migrations
+- `backend/tests/` - 206 backend test files
 
-**Notable files:**
-- `backend/requirements.txt` — Python dependencies
-- `backend/alembic/env.py` — migration wiring (sync URL)
-- `backend/scripts/` — seed/demo/e2e data scripts and maintenance scripts
+## Frontend Tree (`frontend/`)
 
-## Frontend (`frontend/`)
+### Entry points
+- `frontend/src/main.tsx` - React bootstrap
+- `frontend/src/App.tsx` - provider composition and route tree
 
-**Key entry points:**
-- `frontend/src/main.tsx` — React bootstrap
-- `frontend/src/App.tsx` — route tree + layout
+### Primary subdirectories
+- `frontend/src/pages/` - 34 route-level page modules/tests
+- `frontend/src/components/` - 109 component modules/tests
+- `frontend/src/services/` - API client and domain service wrappers
+- `frontend/src/contexts/` - auth/theme/filter context providers
+- `frontend/src/authz/` - authz policy derivation hooks
+- `frontend/src/hooks/` - shared hooks
+- `frontend/src/i18n/` - locale resources and typed translation hooks
+- `frontend/src/test/` - MSW handlers and test utilities
+- `frontend/e2e/` - 52 E2E files (domain-focused test suites)
 
-**Core directories:**
-- `frontend/src/pages/` — route-level pages (e.g. risks, approvals, vendors)
-- `frontend/src/components/` — reusable UI components (domain-grouped)
-- `frontend/src/services/` — API wrappers (typically thin calls to `apiClient`)
-- `frontend/src/contexts/` — global state (Auth, filters, etc.)
-- `frontend/src/hooks/` — shared hooks (permissions, config, data helpers)
-- `frontend/src/types/` — shared domain types
-- `frontend/src/i18n/` — localization setup + locales
-- `frontend/src/test/` — MSW handlers + testing utilities
-- `frontend/e2e/` — Playwright E2E specs + helpers
+## Planning and Documentation Structure
 
-**Notable files:**
-- `frontend/vite.config.ts` — dev server + proxy + alias config
-- `frontend/playwright.config.ts` — E2E configuration
-- `frontend/vitest.config.ts` — unit/integration test configuration
-- `frontend/tailwind.config.js` — styling system
-- `frontend/src/services/apiClient.ts` — fetch-based API client + auth header + error normalization
+- `.planning/ROADMAP.md` - milestone/phase intent
+- `.planning/STATE.md` - current execution truth and status
+- `.planning/phases/` - detailed phase plans/summaries
+- `.planning/codebase/` - generated codebase reference docs
+- `docs/BUSINESS_LOGIC.md` - domain source of truth
+- `docs/TESTING.md` - testing guidance and workflows
 
-## Documentation (`docs/`)
+## Build/Test/Automation Artifacts
 
-- `docs/BUSINESS_LOGIC.md` — core behavior and RBAC rules (source of truth)
-- `docs/TESTING.md` — testing guidance and patterns
-- `docs/user/` — user-facing docs
-- `docs/admin/` — admin-facing docs
+- `.github/workflows/e2e.yml` - CI E2E flow
+- `.github/workflows/security.yml` - security scanning flow
+- `docker-compose.yml` and `docker-compose.prod.yml` - service topology
+- `Makefile` - local command entrypoints
+
+## Generated or Heavy Directories (avoid manual edits)
+
+- `frontend/node_modules/`
+- `frontend/dist/`
+- `backend/venv/`
+- `coverage_html/`, `backend/coverage_html/`
+- `test-results/`, `frontend/playwright-report/`
 
 ---
 
-*Structure audit: 2026-02-02*
-*Update if directory layout changes materially*
-
+*Structure audit refreshed on 2026-02-11*

@@ -1,91 +1,74 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-02
+**Analysis Date:** 2026-02-11
 
 ## Languages
 
 **Primary:**
-- Python 3.12+ — Backend API (`backend/app/`)
-- TypeScript ~5.8 — Frontend UI (`frontend/src/`)
+- Python 3.12+ - backend API and services (`backend/app/`)
+- TypeScript 5.9 - frontend application (`frontend/src/`)
 
 **Secondary:**
-- JavaScript — Frontend tooling/config (`frontend/*.js`)
-- SQL — Alembic migrations (`backend/alembic/versions/`)
-- Shell/Make — Local dev orchestration (`Makefile`, `dev.sh`)
+- JavaScript - tooling/config (`frontend/*.js`)
+- SQL - Alembic migrations (`backend/alembic/versions/`)
+- Shell/Make - local orchestration (`scripts/dev.sh`, `Makefile`)
 
-## Runtime
+## Runtime and Infrastructure
 
-**Environment:**
-- Python 3.12 (Docker image `python:3.12-slim`) — Backend runtime (`backend/Dockerfile`)
-- Node.js 20 (Docker image `node:20-alpine`) — Frontend build (`frontend/Dockerfile`)
-- Nginx (Docker image `nginx:alpine`) — Frontend static hosting (`frontend/Dockerfile`, `frontend/nginx.conf`)
-- PostgreSQL 16 — Primary DB (`docker-compose.yml`)
+- Backend runtime: `python:3.12-slim` (`backend/Dockerfile`)
+- Frontend build runtime: `node:20-alpine` (`frontend/Dockerfile`)
+- Frontend serving runtime: `nginx:alpine` (`frontend/Dockerfile`, `frontend/nginx.conf`)
+- Database: PostgreSQL 16 (`docker-compose.yml`)
+- Cache/rate-limit backend: Redis 7 (`docker-compose.yml`, `backend/app/main.py`)
 
-**Package Manager:**
-- Backend: `pip` via `backend/requirements.txt`
-- Frontend: `npm` (lockfile `frontend/package-lock.json`)
+## Core Frameworks and Libraries
 
-## Frameworks
+**Backend:**
+- FastAPI + Uvicorn (`backend/app/main.py`, `backend/requirements.txt`)
+- SQLAlchemy async + `asyncpg` (`backend/app/db/session.py`, `backend/requirements.txt`)
+- Alembic migrations (`backend/alembic/`)
+- Pydantic v2 + pydantic-settings (`backend/app/core/config.py`)
+- APScheduler for background jobs (`backend/app/core/scheduler.py`)
 
-**Core:**
-- FastAPI (async) — API server (`backend/app/main.py`, `backend/app/api/v1/router.py`)
-- SQLAlchemy 2 (async) + asyncpg — ORM/data access (`backend/app/db/session.py`)
-- Alembic — DB migrations (`backend/alembic/`)
-- React 19 + React Router 7 — SPA (`frontend/src/App.tsx`)
-- Vite — dev/build (`frontend/vite.config.ts`)
+**Frontend:**
+- React 19 + React Router 7 (`frontend/src/main.tsx`, `frontend/src/App.tsx`)
+- TanStack Query for server-state caching (`frontend/src/App.tsx`)
+- Tailwind CSS + PostCSS (`frontend/tailwind.config.js`, `frontend/postcss.config.js`)
+- i18next + react-i18next for localization (`frontend/src/i18n/`)
 
-**Testing:**
-- pytest + pytest-asyncio + httpx — backend tests (`backend/tests/`)
-- Vitest + Testing Library + MSW — frontend unit/integration tests (`frontend/src/**/__tests__`, `frontend/src/test/mocks/`)
-- Playwright — E2E tests (`frontend/e2e/`, `frontend/playwright.config.ts`)
+## Key Dependency Highlights
 
-**Build/Dev:**
-- Tailwind CSS + PostCSS — styling (`frontend/tailwind.config.js`, `frontend/postcss.config.js`)
-- ESLint + typescript-eslint — frontend lint (`frontend/eslint.config.js`)
-- Black + Ruff + Bandit + Gitleaks — repo hygiene (`.pre-commit-config.yaml`)
+**Backend highlights (`backend/requirements.txt`):**
+- `fastapi`, `uvicorn[standard]`, `sqlalchemy[asyncio]`, `asyncpg`, `alembic`
+- `python-jose`, `passlib[bcrypt]`, `bcrypt==4.1.3`
+- `redis`, `APScheduler`, `structlog`, `python-json-logger`
 
-## Key Dependencies
+**Frontend highlights (`frontend/package.json`):**
+- `react`, `react-dom`, `react-router-dom`, `@tanstack/react-query`
+- `axios`, `framer-motion`, `recharts`, `i18next`
+- `vitest`, `@playwright/test`, Testing Library, MSW
 
-**Critical (backend):**
-- `fastapi`, `uvicorn` — HTTP API runtime
-- `sqlalchemy[asyncio]`, `asyncpg` — DB access
-- `pydantic`, `pydantic-settings` — schema + config (`backend/app/core/config.py`)
-- `python-jose`, `passlib[bcrypt]` — JWT auth + password hashing (`backend/app/core/security.py`)
-- `structlog`, `python-json-logger` — structured logging (`backend/app/core/logging.py`, `backend/logs/`)
+## Tooling and Quality Gates
 
-**Critical (frontend):**
-- `react`, `react-router-dom` — app shell + routing
-- `@tanstack/react-query` — data fetching/caching (used across pages/hooks)
-- `tailwindcss` — utility styling
-- `@playwright/test`, `vitest` — test runners
+- Backend testing: `pytest`, `pytest-asyncio`, `pytest-cov` (`backend/pytest.ini`)
+- Frontend testing: Vitest + Playwright (`frontend/vitest.config.ts`, `frontend/playwright.config.ts`)
+- Lint/security: ESLint, Bandit, pip-audit, gitleaks, Trivy (`.pre-commit-config.yaml`, `.github/workflows/security.yml`)
 
-**Infrastructure:**
-- Docker Compose — local multi-service dev (`docker-compose.yml`, `docker-compose.prod.yml`)
+## Configuration Model
 
-## Configuration
+- Backend settings centralized in `Settings` (`backend/app/core/config.py`)
+- Local API routing defaults to relative `/api/v1` (`frontend/src/services/apiClient.ts`)
+- Vite dev proxy forwards `/api` to backend (`frontend/vite.config.ts`)
+- Production hardening checks enforced at startup (`backend/app/main.py`)
 
-**Environment:**
-- Root `.env.example` for production-like config
-- `backend/.env.example` and `frontend/.env.example` for local dev defaults
-- Backend settings via Pydantic `Settings` (`backend/app/core/config.py`)
+## Current Scale Snapshot
 
-**Build:**
-- Frontend proxy routes `/api` → `http://localhost:8000` for dev (`frontend/vite.config.ts`)
-- Frontend API base URL defaults to relative `/api/v1` (`frontend/src/services/apiClient.ts`)
-
-## Platform Requirements
-
-**Development:**
-- Docker (for Postgres via `docker-compose up -d db`)
-- Python 3.12 environment for backend (`make dev`, `make test`)
-- Node.js 20+ for frontend (`make dev-full`, `npm run dev`)
-
-**Production:**
-- Docker Compose / Docker runtime for `db`, `backend`, `frontend`
-- Backend expects strong `SECRET_KEY`, `DATABASE_URL`, and locked-down `MOCK_AUTH_ENABLED=false` (see `.env.example`)
+- Backend models: 35 files (`backend/app/models/`)
+- Backend services: 21 files (`backend/app/services/`)
+- Backend tests: 206 files (`backend/tests/`)
+- Frontend source files: 258 files (`frontend/src/`)
+- Frontend E2E files: 52 files (`frontend/e2e/`)
 
 ---
 
-*Stack analysis: 2026-02-02*
-*Update after major dependency changes*
-
+*Stack analysis refreshed on 2026-02-11*
