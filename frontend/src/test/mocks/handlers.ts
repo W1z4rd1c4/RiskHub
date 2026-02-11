@@ -36,8 +36,8 @@ export const mockAuthUser = {
     name: 'Test Admin',
     role: 'admin',
     role_display_name: 'Administrator',
-    permissions: ['*:*'],
-    effective_permissions: ['*:*'],
+    permissions: ['users:*', 'activity_log:read', 'departments:read'],
+    effective_permissions: ['users:*', 'activity_log:read', 'departments:read'],
     access_scope: 'global',
     scope_label: 'all',
 };

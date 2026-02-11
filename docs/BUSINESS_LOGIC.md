@@ -1,6 +1,6 @@
 # RiskHub Business Logic Reference
 
-> **Last Updated**: 2026-02-07  
+> **Last Updated**: 2026-02-11  
 > **Purpose**: Comprehensive reference for entity ownership, permissions, approval workflows, and role-based access rules.
 
 ---
@@ -80,6 +80,19 @@ Each user has an `access_scope` that determines data visibility:
 │         Can manage users, logs, system health               │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### 1.4 Access Management Write Policy
+
+Access-management read/list behavior and write behavior are intentionally different:
+
+| Surface | Who Can Access | Notes |
+|---------|----------------|-------|
+| `GET /api/v1/access/users` | GLOBAL-scope users | Platform-wide list/read endpoint |
+| `GET /api/v1/access/users/my-department` | Department Head OR GLOBAL-scope users | Department-scoped list/read endpoint |
+| `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Applies to all mutable fields (`role_id`, `department_id`, `manager_id`, `access_scope`) |
+
+> [!IMPORTANT]
+> `admin` is a platform role, not a business-data superuser. Admin capabilities must not be interpreted as unrestricted business access.
 
 ---
 
@@ -624,6 +637,25 @@ These values are configurable by CRO in Risk Hub:
 | `high_risk_min_net_score` | 10 | Threshold for requiring privileged approval |
 | `medium_risk_min_net_score` | 5 | Medium risk threshold for reporting |
 | `critical_risk_min_net_score` | 20 | Critical risk threshold |
+
+---
+
+## Appendix C: Admin Log Config Contract
+
+Admin Console log configuration uses canonical split fields:
+
+- `app_log_rotation_size_mb`
+- `app_log_retention_count`
+- `audit_log_rotation_size_mb`
+- `audit_log_retention_count`
+
+Compatibility behavior:
+
+- `POST /api/v1/admin/logs/config` accepts canonical payloads.
+- Legacy payload (`log_rotation_size_mb`, `log_retention_count`) is accepted temporarily and mirrored to app/audit values.
+- Mixed canonical+legacy payloads are rejected (`422`).
+
+`GET /api/v1/admin/logs/config` returns canonical fields.
 
 ---
 

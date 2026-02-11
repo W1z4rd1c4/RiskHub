@@ -115,7 +115,7 @@ async def seed_risk_types(db_session: AsyncSession):
 
 @pytest_asyncio.fixture
 async def test_role(db_session: AsyncSession) -> Role:
-    """Create a test role with admin permissions."""
+    """Legacy wildcard superuser role fixture (backward-compatible)."""
     from app.models import Permission, RolePermission
     
     role = Role(name="admin", display_name="Administrator", description="Admin role for testing")
@@ -137,8 +137,44 @@ async def test_role(db_session: AsyncSession) -> Role:
 
 
 @pytest_asyncio.fixture
+async def test_role_superuser_wildcard(test_role: Role) -> Role:
+    """Explicit alias for wildcard superuser role fixture."""
+    return test_role
+
+
+@pytest_asyncio.fixture
+async def test_role_platform_admin(db_session: AsyncSession) -> Role:
+    """Create a canonical platform-admin role fixture (non-wildcard)."""
+    from app.models import Permission, RolePermission
+
+    role = Role(name="admin", display_name="Administrator", description="Platform admin role for testing")
+    db_session.add(role)
+    await db_session.commit()
+
+    permission_specs = [
+        ("users", "read", "View users"),
+        ("users", "write", "Manage users"),
+        ("activity_log", "read", "View activity log"),
+        ("departments", "read", "View departments"),
+    ]
+    permissions: list[Permission] = []
+    for resource, action, description in permission_specs:
+        perm = Permission(resource=resource, action=action, description=description)
+        db_session.add(perm)
+        permissions.append(perm)
+    await db_session.commit()
+
+    for perm in permissions:
+        db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+    await db_session.commit()
+
+    await db_session.refresh(role)
+    return role
+
+
+@pytest_asyncio.fixture
 async def test_user(db_session: AsyncSession, test_department: Department, test_role: Role) -> User:
-    """Create a test user with admin role."""
+    """Legacy wildcard superuser test user fixture (backward-compatible)."""
     from sqlalchemy.orm import selectinload
     from sqlalchemy import select
     
@@ -161,6 +197,46 @@ async def test_user(db_session: AsyncSession, test_department: Department, test_
             selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
             selectinload(User.department),
             selectinload(User.manager)
+        )
+        .where(User.id == user.id)
+    )
+    return result.scalar_one()
+
+
+@pytest_asyncio.fixture
+async def test_user_superuser_wildcard(test_user: User) -> User:
+    """Explicit alias for wildcard superuser test user fixture."""
+    return test_user
+
+
+@pytest_asyncio.fixture
+async def test_user_platform_admin(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_role_platform_admin: Role,
+) -> User:
+    """Create a canonical platform-admin test user fixture."""
+    from sqlalchemy.orm import selectinload
+    from sqlalchemy import select
+    from app.models import Role as RoleModel, RolePermission
+
+    user = User(
+        name="Test Platform Admin",
+        email="platform.admin@test.com",
+        department_id=test_department.id,
+        role_id=test_role_platform_admin.id,
+        is_active=True,
+        access_scope=AccessScope.GLOBAL,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    result = await db_session.execute(
+        select(User)
+        .options(
+            selectinload(User.role).selectinload(RoleModel.permissions).selectinload(RolePermission.permission),
+            selectinload(User.department),
+            selectinload(User.manager),
         )
         .where(User.id == user.id)
     )
@@ -416,7 +492,7 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture(scope="function")
 async def auth_client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[AsyncClient, None]:
-    """Create an authenticated async test client."""
+    """Create authenticated client using legacy wildcard superuser fixture."""
     from app.api import deps
     from app.core import security
     
@@ -435,6 +511,57 @@ async def auth_client(db_session: AsyncSession, test_user: User) -> AsyncGenerat
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_client_superuser(
+    db_session: AsyncSession,
+    test_user_superuser_wildcard: User,
+) -> AsyncGenerator[AsyncClient, None]:
+    """Explicit wildcard-superuser auth client fixture."""
+    from app.api import deps
+    from app.core import security
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_user():
+        return test_user_superuser_wildcard
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[deps.get_current_user] = override_get_current_user
+    app.dependency_overrides[security.get_current_user] = override_get_current_user
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client_platform_admin(
+    db_session: AsyncSession,
+    test_user_platform_admin: User,
+) -> AsyncGenerator[AsyncClient, None]:
+    """Client for canonical platform admin role using header-based mock auth."""
+    from app.core.config import get_settings, Settings
+
+    def override_settings():
+        return Settings(mock_auth_enabled=True, debug=True)
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_settings] = override_settings
+
+    transport = ASGITransport(app=app)
+    headers = {"X-Mock-User-Id": str(test_user_platform_admin.id)}
+    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+        yield ac
+
     app.dependency_overrides.clear()
 
 

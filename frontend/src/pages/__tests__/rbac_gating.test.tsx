@@ -12,6 +12,7 @@ import { buildAuthz } from '@/authz/policy';
 
 import { KRIDetailPage } from '@/pages/KRIDetailPage';
 import { ControlDetailPage } from '@/pages/ControlDetailPage';
+import { UsersPage } from '@/pages/UsersPage';
 
 type AuthMeUser = {
     id: number;
@@ -25,6 +26,27 @@ type AuthMeUser = {
     scope_label: string;
     department_id?: number;
     department_name?: string;
+};
+
+type AccessUserApi = {
+    id: number;
+    email: string;
+    name: string;
+    is_active: boolean;
+    role_id: number;
+    role: {
+        id: number;
+        name: string;
+        display_name: string;
+        description: string;
+    };
+    department_id: number | null;
+    department_name: string | null;
+    manager_id: number | null;
+    manager_name: string | null;
+    access_scope: 'global' | 'department' | 'manager';
+    scope_label: string;
+    effective_permissions: string[];
 };
 
 const makeUser = (overrides: Partial<AuthMeUser>): AuthMeUser => ({
@@ -49,6 +71,28 @@ function makeHasPermission(perms: string[]) {
         });
 }
 
+const makeAccessUser = (overrides: Partial<AccessUserApi> = {}): AccessUserApi => ({
+    id: 200,
+    email: 'employee.one@riskhub.test',
+    name: 'Employee One',
+    is_active: true,
+    role_id: 2,
+    role: {
+        id: 2,
+        name: 'employee',
+        display_name: 'Employee',
+        description: 'Standard employee',
+    },
+    department_id: 10,
+    department_name: 'Operations',
+    manager_id: null,
+    manager_name: null,
+    access_scope: 'department',
+    scope_label: 'Department',
+    effective_permissions: ['risks:read'],
+    ...overrides,
+});
+
 function renderWithRoute(route: string) {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false } },
@@ -62,6 +106,7 @@ function renderWithRoute(route: string) {
                         <Routes>
                             <Route path="/kris/:id" element={<KRIDetailPage />} />
                             <Route path="/controls/:id" element={<ControlDetailPage />} />
+                            <Route path="/users" element={<UsersPage />} />
                         </Routes>
                     </DashboardFilterProvider>
                 </AuthProvider>
@@ -90,6 +135,7 @@ describe('RBAC UI gating', () => {
         expect(adminAuthz.canViewRiskHub).toBe(false);
         expect(adminAuthz.canViewActivityLog).toBe(false);
         expect(adminAuthz.canManageAccess).toBe(true);
+        expect(adminAuthz.canEditAccessUsers).toBe(true);
         expect(adminAuthz.canReadRisks).toBe(true);
 
         const cro = makeUser({
@@ -100,6 +146,7 @@ describe('RBAC UI gating', () => {
         const croAuthz = buildAuthz(cro, makeHasPermission(cro.effective_permissions));
         expect(croAuthz.canViewRiskHub).toBe(true);
         expect(croAuthz.canViewAdminConsole).toBe(false);
+        expect(croAuthz.canEditAccessUsers).toBe(true);
         expect(croAuthz.canReadRisks).toBe(true);
 
         const deptHead = makeUser({
@@ -111,6 +158,7 @@ describe('RBAC UI gating', () => {
         const deptHeadAuthz = buildAuthz(deptHead, makeHasPermission(deptHead.effective_permissions));
         expect(deptHeadAuthz.canViewDepartmentAccess).toBe(true);
         expect(deptHeadAuthz.canManageAccess).toBe(false);
+        expect(deptHeadAuthz.canEditAccessUsers).toBe(false);
         expect(deptHeadAuthz.canViewUsersPage).toBe(true);
         expect(deptHeadAuthz.canReadRisks).toBe(false);
 
@@ -123,6 +171,45 @@ describe('RBAC UI gating', () => {
         expect(employeeAuthz.canViewUsersPage).toBe(true);
         expect(employeeAuthz.canViewDepartmentAccess).toBe(false);
         expect(employeeAuthz.canViewRiskHub).toBe(false);
+        expect(employeeAuthz.canEditAccessUsers).toBe(false);
+    });
+
+    it('UsersPage: global non-admin user can view access data but cannot see edit action', async () => {
+        const user = makeUser({
+            role: 'risk_manager',
+            role_display_name: 'Risk Manager',
+            access_scope: 'global',
+            effective_permissions: ['users:read'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/access/users', () => HttpResponse.json([makeAccessUser()])),
+        );
+
+        renderWithRoute('/users');
+
+        await screen.findByText('Employee One');
+        expect(screen.queryByTitle('Edit Access')).not.toBeInTheDocument();
+    });
+
+    it('UsersPage: admin sees edit access action', async () => {
+        const user = makeUser({
+            role: 'admin',
+            role_display_name: 'Administrator',
+            access_scope: 'global',
+            effective_permissions: ['*:*'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/access/users', () => HttpResponse.json([makeAccessUser()])),
+        );
+
+        renderWithRoute('/users');
+
+        await screen.findByText('Employee One');
+        expect(screen.getByTitle('Edit Access')).toBeInTheDocument();
     });
 
     it('KRI: approvals:write only (not reporting owner) hides "Record Value"', async () => {

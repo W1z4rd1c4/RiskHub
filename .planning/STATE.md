@@ -57,6 +57,7 @@
 | 153 Audit Resolution 3 | ✅ Complete (12/12) | 2026-01-10 |
 | 154 Workflow Bug Sweep | ✅ Complete (5/5) | 2026-01-14 |
 | 156 Audit | ⏳ In progress (1/8) | - |
+| 156.1 Admin Role & RBAC Hardening | ✅ Complete (5/5) | 2026-02-11 |
 | 157 Business Logic Compliance | ✅ Complete (6/6) | 2026-01-22 |
 | 158 Audit | ✅ Complete (10/10) | 2026-01-19 |
 | 159 Audit Fixes | ✅ Complete (10/10) | 2026-01-23 |
@@ -156,8 +157,42 @@
 - Full `npx playwright test` multi-project gate remains blocked by runner instability in CI mode:
   - Playwright process is terminated by SIGTERM after startup/progress (`process_exit_code=143`),
     producing no JUnit artifact (`verdict=fail_no_junit`) in watchdog runs.
-  - Captured watchdog artifacts and command matrix in
-    `.planning/phases/180-e2e-business-logic/180-16-SUMMARY.md`.
+- Captured watchdog artifacts and command matrix in
+  `.planning/phases/180-e2e-business-logic/180-16-SUMMARY.md`.
+
+### Phase 156.1 Planning (2026-02-11)
+
+- Inserted phase `156.1` (`admin-role-rbac-hardening`) after Phase 156 for urgent authorization and contract fixes discovered during deep admin-role review.
+- Added decision-complete plan set under:
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-01-PLAN.md`
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-02-PLAN.md`
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-03-PLAN.md`
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-04-PLAN.md`
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-05-PLAN.md`
+- Captured scoped research and issue evidence in:
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-RESEARCH.md`
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-CONTEXT.md`
+
+### Phase 156.1 Execution (2026-02-11)
+
+- ✅ Executed all 5 plans in wave order and produced summaries:
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-01-SUMMARY.md`
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-02-SUMMARY.md`
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-03-SUMMARY.md`
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-04-SUMMARY.md`
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-05-SUMMARY.md`
+- Closed access-management mutation gap by enforcing admin/CRO-only writes on `PATCH /api/v1/access/users/{id}`.
+- Split frontend access read-vs-edit capabilities (`canManageAccess` vs `canEditAccessUsers`) to mirror backend authorization.
+- Aligned admin log-config API contract to canonical app/audit fields, with deterministic legacy compatibility shim and mixed-payload rejection.
+- Converged legacy RBAC seed entrypoint and test/mock fixtures toward canonical contract, with explicit wildcard fixture naming.
+- Reconciled business/admin docs to reflect platform-admin boundaries and canonical log-config contract.
+- Added/updated verification artifacts:
+  - `.planning/phases/156.1-admin-role-rbac-hardening/156.1-VERIFICATION.md`
+- Verification matrix (all green):
+  - `cd backend && venv/bin/pytest tests/test_access_management.py tests/test_admin_logs.py -q` → `19 passed`
+  - `cd frontend && npx tsc --noEmit` → `passed`
+  - `cd frontend && npm run test:run -- src/pages/__tests__/rbac_gating.test.tsx` → `10 passed`
+  - `cd frontend && npx playwright test e2e/admin.spec.ts --project=chromium` → `4 passed`
 
 ### Phase 17 Progress
 
@@ -272,6 +307,7 @@
 - Phase 90 (Integrated AD) superseded by Phase 99
 - AD Emulator will be standalone app communicating with RiskHub via HTTP
 - RiskHub will fetch directory users from AD Emulator, not store internally
+- Phase 156.1 inserted after Phase 156: Admin role and RBAC hardening for access mutation guards, admin log-config contract parity, and seed/test contract convergence (URGENT)
 
 ### AD Emulator Architecture
 
@@ -290,10 +326,11 @@
 - Executed `04-05` closeout for Phase 4 reporting extension: finalized export regression coverage/docs updates, passed backend + targeted frontend verification (`19 backend assertions + 19 Playwright tests`), and reconciled planning state/roadmap (2026-02-10).
 - Executed `04-06` export contract simplification: removed PDF export support across reporting APIs/UI/docs and validated targeted backend/frontend suites (`27 backend tests`, `19 Playwright tests`, `frontend tsc`) (2026-02-10).
 - Executed hardening closure verification pass with deterministic gate matrix: backend + frontend static checks green, targeted critical Playwright green (`44/44`), and full multi-project Playwright blocked by CI runner SIGTERM/no-JUnit teardown behavior; documented release checklist and follow-ups in `180-16-SUMMARY.md` (2026-02-11).
+- Executed Phase `156.1` admin-role/RBAC hardening plans end-to-end with passing backend/frontend/E2E verification and full docs reconciliation (`5/5 complete`) (2026-02-11).
 
 ### Next Step
 
-- Stabilize full-suite Playwright CI execution (SIGTERM/no-JUnit termination in multi-project mode), then rerun full `npx playwright test` and close Phase `180-15` with a fully green gate.
+- Resume Phase `180` full-suite Playwright stabilization after Phase `156.1` closure, using the latest deterministic admin/RBAC baseline as the new reference.
 
 ---
 
