@@ -133,11 +133,11 @@ export function QuarterlyComparisonWidget() {
             setData(result);
         } catch (err) {
             console.error('Failed to fetch quarterly comparison:', err);
-            setError('Failed to load quarterly data');
+            setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
         }
-    }, [currentQuarterLabel, compareQuarterLabel]);
+    }, [compareQuarterLabel, currentQuarterLabel, t]);
 
     // Load available periods and initial data
     useEffect(() => {
@@ -210,7 +210,7 @@ export function QuarterlyComparisonWidget() {
                     <Calendar className="h-5 w-5 text-accent" />
                     <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison', 'Quarterly Comparison')}</h3>
                 </div>
-                <p className="text-slate-500 text-sm">{error || 'No data available'}</p>
+                <p className="text-slate-500 text-sm">{error || t('quarterly.no_data_available')}</p>
             </div>
         );
     }
@@ -257,7 +257,7 @@ export function QuarterlyComparisonWidget() {
                     />
                 </div>
 
-                <span className="text-xs text-slate-600 font-bold">vs</span>
+                <span className="text-xs text-slate-600 font-bold">{t('quarterly.vs')}</span>
 
                 {/* Compare Period */}
                 <div className="flex items-center gap-2">
@@ -284,8 +284,9 @@ export function QuarterlyComparisonWidget() {
                 <div className="mb-4 flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
                     <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
                     <span className="text-xs text-amber-300">
-                        No historical snapshot for {data?.snapshot_info?.last_quarter ?? 'last quarter'}.
-                        Snapshot-based metrics show current values only.
+                        {t('quarterly.no_snapshot_banner', {
+                            period: data?.snapshot_info?.last_quarter ?? t('quarterly.last_quarter'),
+                        })}
                     </span>
                 </div>
             )}
@@ -325,7 +326,7 @@ export function QuarterlyComparisonWidget() {
                                         {metricLabels[key] || key}
                                     </p>
                                     {showUncertainty && (
-                                        <span title="No historical snapshot - comparison unavailable">
+                                        <span title={t('quarterly.no_snapshot_hint')}>
                                             <HelpCircle className="h-3 w-3 text-amber-400" />
                                         </span>
                                     )}
@@ -341,7 +342,7 @@ export function QuarterlyComparisonWidget() {
                                     {direction === 'unknown' && <HelpCircle className="h-3 w-3" />}
                                     <span>
                                         {direction === 'unknown'
-                                            ? 'N/A'
+                                            ? t('quarterly.not_available')
                                             : `${absolute > 0 ? '+' : ''}${absolute} (${percentage}%)`
                                         }
                                     </span>

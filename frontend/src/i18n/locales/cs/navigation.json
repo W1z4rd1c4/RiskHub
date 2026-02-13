@@ -32,5 +32,10 @@
     "header": {
         "notifications": "Oznámení",
         "search_placeholder": "Hledat..."
+    },
+    "tabs": {
+        "controls": "Katalog kontrol",
+        "risk_appetite": "Rizikový apetit",
+        "risks": "Registr rizik"
     }
 }

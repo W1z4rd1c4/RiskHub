@@ -20,7 +20,8 @@
         "net_score": "Reziduální skóre",
         "is_priority": "Prioritní riziko",
         "linked_controls": "Propojené kontroly",
-        "linked_kris": "Propojené KRI"
+        "linked_kris": "Propojené KRI",
+        "type": "Typ"
     },
     "probability_levels": {
         "1": "Nepravděpodobná",
@@ -201,6 +202,66 @@
         "export_excel": "Export Excel"
     },
     "form": {
+        "steps": {
+            "identity": "Identita",
+            "ownership": "Detaily a vlastník",
+            "scoring": "Hodnocení rizika"
+        },
+        "financial": {
+            "loss": "Ztráta",
+            "no_loss": "Bez finanční ztráty"
+        },
+        "probability": {
+            "1": {
+                "label": "Nepravděpodobná",
+                "description": "Může nastat jednou za 100+ let"
+            },
+            "2": {
+                "label": "Nízká",
+                "description": "Může nastat jednou za 10+ let"
+            },
+            "3": {
+                "label": "Střední",
+                "description": "Může nastat jednou za 1+ rok"
+            },
+            "4": {
+                "label": "Vysoká",
+                "description": "Může nastat vícekrát ročně"
+            },
+            "5": {
+                "label": "Extrémní",
+                "description": "Může nastat vícekrát měsíčně"
+            }
+        },
+        "impact": {
+            "1": {
+                "label": "Žádný",
+                "description": "Bez dopadu na provoz"
+            },
+            "2": {
+                "label": "Nízký",
+                "description": "Menší dopad na provoz"
+            },
+            "3": {
+                "label": "Střední",
+                "description": "Může významně ovlivnit provoz"
+            },
+            "4": {
+                "label": "Vysoký",
+                "description": "Významně ovlivňuje cíle společnosti"
+            },
+            "5": {
+                "label": "Extrémní",
+                "description": "Ohrožuje existenci společnosti"
+            }
+        },
+        "labels": {
+            "risk_type": "Typ rizika",
+            "main_process": "Hlavní proces",
+            "subprocess_optional": "Podproces (volitelné)",
+            "risk_description": "Popis rizika",
+            "create_value": "Vytvořit \"{{value}}\""
+        },
         "placeholders": {
             "name": "Zadejte krátký, popisný název rizika...",
             "type_or_select": "Zadejte nebo vyberte...",

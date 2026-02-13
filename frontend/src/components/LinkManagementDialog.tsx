@@ -20,6 +20,7 @@ import { ControlEffectiveness } from '@/types/risk';
 import { LinkSearchPanel, type DepartmentLookup, type SearchResultItem } from './linking/LinkSearchPanel';
 import { ExistingLinksPanel, type ExistingLinkItem } from './linking/ExistingLinksPanel';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/i18n/hooks';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -52,6 +53,7 @@ export function LinkManagementDialog({
     showSearch = true,
     showLinks = true
 }: LinkManagementDialogProps) {
+    const { t } = useTranslation(['common', 'controls', 'risks']);
     // -----------------------------------------------------------------------
     // Search state
     // -----------------------------------------------------------------------
@@ -182,7 +184,7 @@ export function LinkManagementDialog({
     };
 
     const handleUnlink = async (targetId: number) => {
-        if (!confirm('Are you sure you want to remove this link?')) return;
+        if (!confirm(t('common:confirmation.remove_link'))) return;
         try {
             setIsUnlinking(targetId);
             await onUnlink(targetId);
@@ -242,12 +244,13 @@ export function LinkManagementDialog({
                                     <LinkIcon className="h-5 w-5 text-accent" />
                                 </div>
                                 <h2 className="text-xl font-black text-white uppercase tracking-tight">
-                                    {title ?? (!showSearch ? 'Manage existing connections' : (mode === 'control-to-risk' ? 'Link Risks to Control' : 'Link Controls to Risk'))}
+                                    {title ?? (!showSearch ? t('common:empty.no_connections', 'Manage existing connections') : (mode === 'control-to-risk' ? t('controls:actions.link_risk', 'Link Risks to Control') : t('risks:actions.link_control', 'Link Controls to Risk')))}
                                 </h2>
                             </div>
                             <button
                                 onClick={onClose}
                                 className="p-2 text-slate-500 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+                                title={t('common:actions.close')}
                             >
                                 <X className="h-5 w-5" />
                             </button>
@@ -300,7 +303,7 @@ export function LinkManagementDialog({
                                 onClick={onClose}
                                 className="w-full text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors py-2"
                             >
-                                Close Manager
+                                {t('common:actions.close')}
                             </button>
                         </div>
                     </motion.div>

@@ -4,19 +4,20 @@ import { Settings2, Save, Check, AlertCircle } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import type { GlobalConfig } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/i18n/hooks';
 
-const CATEGORY_LABELS: Record<string, { label: string; description: string }> = {
+const CATEGORY_LABELS: Record<string, { labelKey: string; descriptionKey: string }> = {
     risk_thresholds: {
-        label: 'Risk Thresholds',
-        description: 'Configure score thresholds for risk classification'
+        labelKey: 'admin:system_settings.categories.risk_thresholds.label',
+        descriptionKey: 'admin:system_settings.categories.risk_thresholds.description'
     },
     approvals: {
-        label: 'Approval Settings',
-        description: 'Control which actions require approval workflows'
+        labelKey: 'admin:system_settings.categories.approvals.label',
+        descriptionKey: 'admin:system_settings.categories.approvals.description'
     },
     notifications: {
-        label: 'Notification Settings',
-        description: 'Configure reminder and escalation timing'
+        labelKey: 'admin:system_settings.categories.notifications.label',
+        descriptionKey: 'admin:system_settings.categories.notifications.description'
     },
 };
 
@@ -26,6 +27,7 @@ interface ConfigInputProps {
 }
 
 function ConfigInput({ config, onSave }: ConfigInputProps) {
+    const { t } = useTranslation(['admin', 'common']);
     const [value, setValue] = useState(config.value);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -42,7 +44,7 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to save');
+            setError(err instanceof Error ? err.message : t('admin:system_settings.errors.save_failed'));
         } finally {
             setSaving(false);
         }
@@ -136,13 +138,13 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
                         ) : (
                             <Save className="h-3.5 w-3.5" />
                         )}
-                        Save
+                        {t('common:actions.save')}
                     </button>
                 )}
 
                 {saved && (
                     <span className="flex items-center gap-1 text-green-400 text-sm">
-                        <Check className="h-4 w-4" /> Saved
+                        <Check className="h-4 w-4" /> {t('admin:system_settings.saved')}
                     </span>
                 )}
 
@@ -157,6 +159,7 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
 }
 
 export function SystemSettingsPanel() {
+    const { t } = useTranslation(['admin', 'common']);
     const queryClient = useQueryClient();
 
     const { data: configs, isLoading, error } = useQuery({
@@ -174,11 +177,11 @@ export function SystemSettingsPanel() {
     };
 
     if (isLoading) {
-        return <div className="text-slate-400 text-center py-8">Loading settings...</div>;
+        return <div className="text-slate-400 text-center py-8">{t('common:loading.settings')}</div>;
     }
 
     if (error) {
-        return <div className="text-red-400 text-center py-8">Failed to load settings</div>;
+        return <div className="text-red-400 text-center py-8">{t('admin:errors.failed_to_load_settings')}</div>;
     }
 
     const categories = Object.keys(configs || {});
@@ -187,18 +190,22 @@ export function SystemSettingsPanel() {
         <div className="space-y-6">
             <div className="flex items-center gap-3">
                 <Settings2 className="h-5 w-5 text-accent" />
-                <h3 className="text-lg font-semibold text-white">System Settings</h3>
+                <h3 className="text-lg font-semibold text-white">{t('admin:system_settings.title')}</h3>
             </div>
 
             {categories.map((category) => {
-                const categoryInfo = CATEGORY_LABELS[category] || { label: category, description: '' };
+                const categoryInfo = CATEGORY_LABELS[category];
                 const categoryConfigs = configs?.[category] || [];
 
                 return (
                     <div key={category} className="bg-white/5 rounded-xl p-4">
                         <div className="mb-4">
-                            <h4 className="text-white font-medium">{categoryInfo.label}</h4>
-                            <p className="text-sm text-slate-500">{categoryInfo.description}</p>
+                            <h4 className="text-white font-medium">
+                                {categoryInfo ? t(categoryInfo.labelKey) : category}
+                            </h4>
+                            <p className="text-sm text-slate-500">
+                                {categoryInfo ? t(categoryInfo.descriptionKey) : ''}
+                            </p>
                         </div>
 
                         <div className="space-y-1">

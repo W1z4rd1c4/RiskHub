@@ -127,4 +127,48 @@ describe('IssueDetailPage tabs', () => {
         );
         expect(screen.getByText('Issue updated')).toBeInTheDocument();
     });
+
+    it('shows unknown linked entity label without exposing numeric IDs', async () => {
+        mockGetIssue.mockResolvedValueOnce({
+            id: 42,
+            title: 'Access Review Gap',
+            severity: 'medium',
+            status: 'open',
+            source_type: 'manual',
+            source_id: null,
+            department_id: 3,
+            department_name: 'Finance',
+            owner_user_id: 8,
+            owner_user_name: 'Anna Kowalski',
+            opened_at: '2026-02-01T10:00:00Z',
+            due_at: null,
+            closed_at: null,
+            created_at: '2026-02-01T10:00:00Z',
+            updated_at: '2026-02-01T10:00:00Z',
+            description: 'Quarterly evidence was not attached.',
+            created_by_id: 8,
+            created_by_name: 'Anna Kowalski',
+            validation_note: null,
+            links: [
+                {
+                    id: 56,
+                    issue_id: 42,
+                    risk_id: 777,
+                    control_id: null,
+                    execution_id: null,
+                    kri_id: null,
+                    linked_entity_type: 'risk',
+                    linked_entity_name: null,
+                    created_at: '2026-02-01T10:00:00Z',
+                },
+            ],
+            remediation_plan: null,
+            exceptions: [],
+        });
+
+        render(<IssueDetailPage />);
+
+        await screen.findByText('Unknown risk');
+        expect(screen.queryByText(/Risk #777/i)).not.toBeInTheDocument();
+    });
 });

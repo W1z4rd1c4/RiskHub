@@ -115,7 +115,7 @@ export function LinkSearchPanel({
         <section className="space-y-4">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <Plus className="h-3 w-3" />
-                Add New Link
+                {t('common:actions.create')} {mode === 'control-to-risk' ? t('controls:actions.link_risk') : t('risks:actions.link_control')}
             </h3>
 
             <div className="space-y-4">
@@ -139,7 +139,7 @@ export function LinkSearchPanel({
                 {/* Filter Header */}
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                     <Filter className="h-3 w-3" />
-                    Filters
+                    {t('common:actions.filter')}
                     {isLoadingLookups && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
                 </div>
                 <label className="flex items-center gap-2 text-xs text-slate-400 font-semibold">
@@ -188,7 +188,7 @@ export function LinkSearchPanel({
                         className="flex items-center gap-2 text-[10px] text-slate-500 hover:text-accent transition-colors mt-1 ml-1 self-start group"
                     >
                         <RotateCcw className="h-3 w-3 group-hover:rotate-[-45deg] transition-transform" />
-                        Clear All Filters
+                        {t('common:actions.clear')}
                     </button>
                 )}
 
@@ -196,10 +196,10 @@ export function LinkSearchPanel({
                 <div className="space-y-3">
                     <div className="flex items-center justify-between px-1">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                            {searchQuery ? 'Search Results' : 'Initial Suggestions'}
+                            {searchQuery ? t('common:labels.no_results', 'Search Results') : t('common:labels.details', 'Initial Suggestions')}
                         </span>
                         <span className="text-[10px] text-slate-600 font-medium">
-                            {searchResults.length} {searchResults.length === 1 ? 'item' : 'items'}
+                            {searchResults.length} {searchResults.length === 1 ? t('common:labels.details', 'item') : t('common:labels.results', 'items')}
                         </span>
                     </div>
 
@@ -282,8 +282,10 @@ export function LinkSearchPanel({
                             <div className="p-4 rounded-full bg-white/5 mb-4">
                                 <Search className="h-6 w-6 text-slate-600" />
                             </div>
-                            <p className="text-sm font-bold text-slate-400">No {mode === 'control-to-risk' ? 'risks' : 'controls'} found</p>
-                            <p className="text-xs text-slate-600 mt-1">Try adjusting your filters or search query</p>
+                            <p className="text-sm font-bold text-slate-400">
+                                {mode === 'control-to-risk' ? t('common:empty.no_risks_found') : t('common:empty.no_controls_found')}
+                            </p>
+                            <p className="text-xs text-slate-600 mt-1">{t('common:linking.try_adjust_filters')}</p>
                         </div>
                     )}
                 </div>
@@ -300,7 +302,7 @@ export function LinkSearchPanel({
                             <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 space-y-4">
                                 <div className="flex justify-between items-start">
                                     <div className="flex-1 pr-4">
-                                        <p className="text-[10px] text-accent font-black uppercase tracking-widest mb-1">Confirm Linkage</p>
+                                        <p className="text-[10px] text-accent font-black uppercase tracking-widest mb-1">{t('common:linking.confirm_linkage')}</p>
                                         <p className="text-sm font-bold text-white leading-tight">
                                             {mode === 'control-to-risk' ? selectedResult.description : selectedResult.name}
                                         </p>
@@ -309,7 +311,7 @@ export function LinkSearchPanel({
                                         onClick={() => onSelectTarget(null)}
                                         className="text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white transition-colors border border-white/10 rounded-md px-2 py-1"
                                     >
-                                        Change
+                                        {t('common:linking.change')}
                                     </button>
                                 </div>
 
@@ -318,11 +320,11 @@ export function LinkSearchPanel({
                                         {mode === 'risk-to-control' && (
                                             <div className="bg-slate-900/50 border border-white/5 rounded-xl p-3">
                                                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5 flex items-center gap-2">
-                                                    Owner Information
+                                                    {t('common:linking.owner_information')}
                                                 </p>
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-xs font-bold text-white">
-                                                        {selectedResult.control_owner_name || 'No owner assigned'}
+                                                        {selectedResult.control_owner_name || t('common:empty.no_manager')}
                                                     </span>
                                                     <span className="text-[10px] text-slate-500">
                                                         {selectedResult.department_name}
@@ -337,7 +339,7 @@ export function LinkSearchPanel({
                                         className="px-6 flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all shadow-lg shadow-accent/20 disabled:opacity-50 h-10 self-end"
                                     >
                                         {isLinking ? <Loader2 className="h-3 w-3 animate-spin" /> : <LinkIcon className="h-3 w-3" />}
-                                        Create Link
+                                        {t('common:linking.create_link')}
                                     </button>
                                 </div>
                             </div>

@@ -17,6 +17,7 @@ import {
 import { useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { riskApi } from '@/services/riskApi';
+import { ApiClientError } from '@/services/apiClient';
 import { lookupApi } from '@/services/lookupApi';
 import type { UserLookupItem } from '@/services/lookupApi';
 import type { Risk, RiskCreate, RiskUpdate } from '@/types/risk';
@@ -36,15 +37,14 @@ interface RiskFormProps {
     isEdit?: boolean;
 }
 
-const steps = [
-    { id: 'identity', title: 'Identity', icon: Info },
-    { id: 'ownership', title: 'Details & Owner', icon: User },
-    { id: 'scoring', title: 'Risk Assessment', icon: Activity },
-];
-
 export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
     const navigate = useNavigate();
-    const { t } = useTranslation('risks');
+    const { t } = useTranslation(['risks', 'common', 'errorKeys', 'approvals']);
+    const steps = [
+        { id: 'identity', title: t('risks:form.steps.identity', 'Identity'), icon: Info },
+        { id: 'ownership', title: t('risks:form.steps.ownership', 'Details & Owner'), icon: User },
+        { id: 'scoring', title: t('risks:form.steps.scoring', 'Risk Assessment'), icon: Activity },
+    ];
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -277,8 +277,11 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
             navigate(`/risks/${initialData?.id}`);
         } catch (err: unknown) {
             console.error('Error saving risk:', err);
-            const message = err instanceof Error ? err.message : 'Failed to save risk. Please check your input.';
-            setError(message);
+            if (err instanceof ApiClientError) {
+                setError(err.messageKey);
+            } else {
+                setError('errorKeys.save_risk_failed');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -313,10 +316,10 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                         <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
                             <p className="text-amber-200 text-sm font-medium">
-                                Submitted for approval (ID: {approvalQueued.id})
+                                {t('approval_submitted', { ns: 'errorKeys' })} (ID: {approvalQueued.id})
                             </p>
                             <p className="text-amber-400/80 text-xs mt-1">
-                                {approvalQueued.message}
+                                {approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}
                             </p>
                             <div className="mt-3 flex gap-3">
                                 <Link
@@ -324,14 +327,14 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                     className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-100 transition-colors"
                                 >
                                     <CheckCircle className="h-3.5 w-3.5" />
-                                    Go to Approvals
+                                    {t('common:actions.view')} {t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}
                                 </Link>
                                 <button
                                     type="button"
                                     onClick={() => setApprovalQueued(null)}
                                     className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
                                 >
-                                    Dismiss
+                                    {t('common:actions.close')}
                                 </button>
                             </div>
                         </div>
@@ -341,7 +344,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                 {error && (
                     <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-400 text-sm font-medium">
                         <AlertCircle className="h-5 w-5" />
-                        {error}
+                        {error.startsWith('errorKeys.') ? t(error, { ns: 'errorKeys' }) : error}
                     </div>
                 )}
 
@@ -352,7 +355,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                             {/* Risk Name - Primary identifier */}
                             <div>
                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                    Risk Name <span className="text-rose-400">*</span>
+                                    {t('risks:fields.name')} <span className="text-rose-400">*</span>
                                 </label>
                                 <input
                                     type="text"
@@ -370,7 +373,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                             </div>
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Risk Type</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('risks:form.labels.risk_type')}</label>
                                     <ThemedSelect
                                         value={formData.risk_type || 'operational'}
                                         onValueChange={(v) => handleInputChange('risk_type', v)}
@@ -381,7 +384,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                 </div>
                                 <div className="relative">
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        Main Process <span className="text-rose-400">*</span>
+                                        {t('risks:form.labels.main_process')} <span className="text-rose-400">*</span>
                                     </label>
                                     <div className="relative">
                                         <input
@@ -419,7 +422,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                 {formData.process && !existingProcesses.includes(formData.process) && (
                                                     <div className="px-4 py-2.5 text-xs text-slate-400 flex items-center gap-2">
                                                         <Plus className="h-3 w-3" />
-                                                        Create "{formData.process}"
+                                                        {t('risks:form.labels.create_value', { value: formData.process })}
                                                     </div>
                                                 )}
                                             </div>
@@ -434,7 +437,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                             </div>
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div className="relative">
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Subprocess (Optional)</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('risks:form.labels.subprocess_optional')}</label>
                                     <div className="relative">
                                         <input
                                             type="text"
@@ -470,7 +473,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                 {formData.subprocess && !(subprocessesByProcess[formData.process] || []).includes(formData.subprocess) && (
                                                     <div className="px-4 py-2.5 text-xs text-slate-400 flex items-center gap-2">
                                                         <Plus className="h-3 w-3" />
-                                                        Create "{formData.subprocess}"
+                                                        {t('risks:form.labels.create_value', { value: formData.subprocess })}
                                                     </div>
                                                 )}
                                             </div>
@@ -479,7 +482,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                 </div>
                                 <div className="relative">
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        Category <span className="text-rose-400">*</span>
+                                        {t('common:labels.category')} <span className="text-rose-400">*</span>
                                     </label>
                                     <div className="relative">
                                         <input
@@ -493,7 +496,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                             onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 150)}
                                             className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all ${fieldErrors.category ? 'border-rose-500' : 'border-white/10'
                                                 }`}
-                                            placeholder="Type or select existing..."
+                                            placeholder={t('form.placeholders.type_or_select')}
                                         />
                                         {/* Dropdown with existing categories */}
                                         {showCategoryDropdown && existingCategories.length > 0 && (
@@ -517,7 +520,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                 {formData.category && !existingCategories.includes(formData.category) && (
                                                     <div className="px-4 py-2.5 text-xs text-slate-400 flex items-center gap-2">
                                                         <Plus className="h-3 w-3" />
-                                                        Create "{formData.category}"
+                                                        {t('risks:form.labels.create_value', { value: formData.category })}
                                                     </div>
                                                 )}
                                             </div>
@@ -532,7 +535,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                    Risk Description <span className="text-rose-400">*</span>
+                                    {t('risks:form.labels.risk_description')} <span className="text-rose-400">*</span>
                                 </label>
                                 <textarea
                                     rows={3}
@@ -557,14 +560,14 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        Department <span className="text-rose-400">*</span>
+                                        {t('common:labels.department')} <span className="text-rose-400">*</span>
                                     </label>
                                     <ThemedSelect
                                         value={formData.department_id?.toString() ?? ''}
                                         onValueChange={(v) => handleInputChange('department_id', v ? parseInt(v) : null)}
                                         placeholder={t('form.placeholders.select_department')}
                                         allowEmpty
-                                        emptyLabel="Select Department"
+                                        emptyLabel={t('form.placeholders.select_department')}
                                         className={fieldErrors.department_id ? 'border-rose-500' : ''}
                                         options={departments.map(d => ({ value: d.id.toString(), label: `${d.name} (${d.code})` }))}
                                     />
@@ -576,7 +579,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        Risk Owner <span className="text-rose-400">*</span>
+                                        {t('risks:fields.owner')} <span className="text-rose-400">*</span>
                                     </label>
                                     {/* Role filter chips + search */}
                                     <div className="flex flex-wrap gap-1.5 mb-3">
@@ -652,7 +655,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                             <div className={`max-h-40 overflow-y-auto rounded-xl border divide-y divide-white/5 ${fieldErrors.owner_id ? 'border-rose-500' : 'border-white/10'
                                                 }`}>
                                                 {filteredUsers.length === 0 ? (
-                                                    <p className="px-4 py-3 text-sm text-slate-500">No users found</p>
+                                                    <p className="px-4 py-3 text-sm text-slate-500">{t('common:empty.no_users_found')}</p>
                                                 ) : (
                                                     filteredUsers.slice(0, 8).map(u => (
                                                         <button
@@ -689,7 +692,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <Star className={`h-4 w-4 ${formData.is_priority ? 'text-amber-400 fill-amber-400' : 'text-slate-500'}`} />
-                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:text-slate-300 transition-colors">Priority Risk</span>
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:text-slate-300 transition-colors">{t('risks:fields.is_priority')}</span>
                                     </div>
                                 </label>
                             </div>
@@ -701,11 +704,11 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                             <div className="grid md:grid-cols-2 gap-12">
                                 <section className="space-y-6">
-                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>Gross Risk (Baseline)</h4>
+                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>{t('risks:fields.gross_score')} ({t('risks:scoring.inherent_risk')})</h4>
                                     <div className="space-y-4">
                                         <div>
                                             <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
-                                                <span>Probability</span>
+                                                <span>{t('risks:fields.probability')}</span>
                                                 <span className="text-white">{formData.gross_probability} / 5</span>
                                             </label>
                                             <input
@@ -717,16 +720,16 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                             {formData.gross_probability && PROBABILITY_DESCRIPTIONS[formData.gross_probability] && (
                                                 <p className="text-xs text-slate-400 mt-1">
                                                     <span className={`font-semibold ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>
-                                                        {PROBABILITY_DESCRIPTIONS[formData.gross_probability].label}
+                                                        {t(PROBABILITY_DESCRIPTIONS[formData.gross_probability].labelKey, PROBABILITY_DESCRIPTIONS[formData.gross_probability].labelKey)}
                                                     </span>
                                                     <span className="mx-1">—</span>
-                                                    {PROBABILITY_DESCRIPTIONS[formData.gross_probability].description}
+                                                    {t(PROBABILITY_DESCRIPTIONS[formData.gross_probability].descriptionKey, PROBABILITY_DESCRIPTIONS[formData.gross_probability].descriptionKey)}
                                                 </p>
                                             )}
                                         </div>
                                         <div>
                                             <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
-                                                <span>Impact</span>
+                                                <span>{t('risks:fields.impact')}</span>
                                                 <span className="text-white">{formData.gross_impact} / 5</span>
                                             </label>
                                             <input
@@ -738,12 +741,12 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                             {formData.gross_impact && IMPACT_DESCRIPTIONS[formData.gross_impact] && (
                                                 <p className="text-xs text-slate-400 mt-1">
                                                     <span className={`font-semibold ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>
-                                                        {IMPACT_DESCRIPTIONS[formData.gross_impact].label}
+                                                        {t(IMPACT_DESCRIPTIONS[formData.gross_impact].labelKey, IMPACT_DESCRIPTIONS[formData.gross_impact].labelKey)}
                                                     </span>
                                                     <span className="mx-1">—</span>
-                                                    {IMPACT_DESCRIPTIONS[formData.gross_impact].description}.
+                                                    {t(IMPACT_DESCRIPTIONS[formData.gross_impact].descriptionKey, IMPACT_DESCRIPTIONS[formData.gross_impact].descriptionKey)}.
                                                     <span className="text-slate-500 ml-1">
-                                                        Loss: {formatFinancialRange(formData.gross_impact, totalAssets)}
+                                                        {t('form.financial.loss', 'Loss')}: {formatFinancialRange(formData.gross_impact, totalAssets, t('form.financial.no_loss', 'No financial loss'))}
                                                     </span>
                                                 </p>
                                             )}
@@ -763,11 +766,11 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                 </section>
 
                                 <section className="space-y-6">
-                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>Net Risk (Target)</h4>
+                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>{t('risks:fields.net_score')} ({t('risks:scoring.residual_risk')})</h4>
                                     <div className="space-y-4">
                                         <div>
                                             <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
-                                                <span>Probability</span>
+                                                <span>{t('risks:fields.probability')}</span>
                                                 <span className="text-white">{formData.net_probability} / 5</span>
                                             </label>
                                             <input
@@ -779,16 +782,16 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                             {formData.net_probability && PROBABILITY_DESCRIPTIONS[formData.net_probability] && (
                                                 <p className="text-xs text-slate-400 mt-1">
                                                     <span className={`font-semibold ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>
-                                                        {PROBABILITY_DESCRIPTIONS[formData.net_probability].label}
+                                                        {t(PROBABILITY_DESCRIPTIONS[formData.net_probability].labelKey, PROBABILITY_DESCRIPTIONS[formData.net_probability].labelKey)}
                                                     </span>
                                                     <span className="mx-1">—</span>
-                                                    {PROBABILITY_DESCRIPTIONS[formData.net_probability].description}
+                                                    {t(PROBABILITY_DESCRIPTIONS[formData.net_probability].descriptionKey, PROBABILITY_DESCRIPTIONS[formData.net_probability].descriptionKey)}
                                                 </p>
                                             )}
                                         </div>
                                         <div>
                                             <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
-                                                <span>Impact</span>
+                                                <span>{t('risks:fields.impact')}</span>
                                                 <span className="text-white">{formData.net_impact} / 5</span>
                                             </label>
                                             <input
@@ -800,12 +803,12 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                             {formData.net_impact && IMPACT_DESCRIPTIONS[formData.net_impact] && (
                                                 <p className="text-xs text-slate-400 mt-1">
                                                     <span className={`font-semibold ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>
-                                                        {IMPACT_DESCRIPTIONS[formData.net_impact].label}
+                                                        {t(IMPACT_DESCRIPTIONS[formData.net_impact].labelKey, IMPACT_DESCRIPTIONS[formData.net_impact].labelKey)}
                                                     </span>
                                                     <span className="mx-1">—</span>
-                                                    {IMPACT_DESCRIPTIONS[formData.net_impact].description}.
+                                                    {t(IMPACT_DESCRIPTIONS[formData.net_impact].descriptionKey, IMPACT_DESCRIPTIONS[formData.net_impact].descriptionKey)}.
                                                     <span className="text-slate-500 ml-1">
-                                                        Loss: {formatFinancialRange(formData.net_impact, totalAssets)}
+                                                        {t('form.financial.loss', 'Loss')}: {formatFinancialRange(formData.net_impact, totalAssets, t('form.financial.no_loss', 'No financial loss'))}
                                                     </span>
                                                 </p>
                                             )}
@@ -837,7 +840,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                         className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest"
                     >
                         {currentStep === 0 ? <X className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-                        {currentStep === 0 ? 'Cancel' : 'Back'}
+                        {currentStep === 0 ? t('common:actions.cancel') : t('common:actions.back')}
                     </button>
 
                     {currentStep < steps.length - 1 ? (
@@ -846,7 +849,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                             onClick={nextStep}
                             className="btn-primary"
                         >
-                            Next Step <ChevronRight className="h-4 w-4" />
+                            {t('common:actions.next')} <ChevronRight className="h-4 w-4" />
                         </button>
                     ) : (
                         <button
@@ -854,7 +857,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                             disabled={isSubmitting}
                             className="btn-primary px-8"
                         >
-                            {isSubmitting ? 'Saving...' : (isEdit ? 'Update Risk' : 'Create Risk')}
+                            {isSubmitting ? t('common:loading.generic', 'Saving...') : (isEdit ? t('risks:edit_risk') : t('risks:create_risk'))}
                             <Save className="h-4 w-4" />
                         </button>
                     )}

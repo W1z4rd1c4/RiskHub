@@ -5,6 +5,7 @@
 
 import { Trash2, AlertCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/i18n/hooks';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,28 +62,29 @@ export function ExistingLinksPanel({
     onUnlink,
     isUnlinking,
 }: ExistingLinksPanelProps) {
+    const { t } = useTranslation(['common', 'risks', 'controls']);
     const getTargetId = (link: ExistingLinkItem): number => {
         return Number(mode === 'control-to-risk' ? link.risk_id : link.control_id);
     };
 
     const getDisplayName = (link: ExistingLinkItem): string => {
         if (mode === 'control-to-risk') {
-            return link.risk?.description || 'Unknown Risk';
+            return link.risk?.description || t('common:labels.unknown');
         }
-        return link.control?.name || 'Unknown Control';
+        return link.control?.name || t('common:labels.unknown');
     };
 
     return (
         <section className="space-y-4">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-between">
-                <span>Existing Links</span>
+                <span>{t('common:labels.details', 'Existing Links')}</span>
                 <span className="text-accent">{existingLinks.length}</span>
             </h3>
 
             {existingLinks.length === 0 ? (
                 <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
                     <AlertCircle className="h-8 w-8 text-slate-700 mx-auto mb-2" />
-                    <p className="text-xs text-slate-600 font-medium tracking-tight">No existing connections found.</p>
+                    <p className="text-xs text-slate-600 font-medium tracking-tight">{t('common:empty.no_connections')}</p>
                 </div>
             ) : (
                 <div className="space-y-3">

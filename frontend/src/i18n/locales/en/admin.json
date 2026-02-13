@@ -116,7 +116,8 @@
             "active": "Active",
             "inactive": "Inactive",
             "pending": "Pending"
-        }
+        },
+        "subtitle": "Manage user accounts and permissions."
     },
     "departments": {
         "title": "Department Management",
@@ -167,6 +168,7 @@
     "access": {
         "title": "Access Management",
         "subtitle": "Manage user access, roles, and permissions across the platform.",
+        "directory_sync_denied": "You do not have permission to manage directory sync.",
         "permission_matrix": "Permission Matrix",
         "access_scope": "Access Scope",
         "add_user": "Add User",
@@ -212,11 +214,6 @@
             "active": "Active",
             "inactive": "Inactive"
         },
-        "actions": {
-            "edit_access": "Edit Access",
-            "activate": "Activate",
-            "deactivate": "Deactivate"
-        },
         "capabilities": {
             "platform_admin": "Platform Administration Capabilities",
             "riskhub": "Risk Hub Capabilities",
@@ -239,6 +236,40 @@
             "all_business_data_desc": "Full access to risks, controls, KRIs",
             "platform_admin_note": "Platform Admin has no access to business data (risks, controls, KRIs)",
             "cro_note": "Chief Risk Officer has full business configuration access via Risk Hub"
+        },
+        "resources": {
+            "risks": "⚠️ Risks",
+            "controls": "🛡️ Controls",
+            "users": "👥 Users",
+            "reports": "📊 Reports",
+            "approvals": "✅ Approvals",
+            "departments": "🏢 Departments"
+        },
+        "actions": {
+            "edit_access": "Edit Access",
+            "activate": "Activate",
+            "deactivate": "Deactivate",
+            "can_view": "Can View",
+            "can_edit": "Can Edit",
+            "can_delete": "Can Delete"
+        }
+    },
+    "directory": {
+        "title": "Directory Integration",
+        "subtitle": "Sync users from the external AD Emulator into RiskHub.",
+        "sync_operations": "Sync Operations",
+        "preview_changes": "Preview Changes",
+        "apply_sync": "Apply Sync",
+        "sync_preview_results": "Sync Preview Results",
+        "sync_history": "Sync History",
+        "latest_error": "Latest Error:",
+        "no_changes": "No changes detected. Sync is up to date.",
+        "more_errors": " (+{{count}} more)",
+        "metrics": {
+            "created": "Created",
+            "updated": "Updated",
+            "deactivated": "Deactivated",
+            "disabled": "Disabled"
         }
     },
     "governance": {
@@ -291,6 +322,206 @@
             "roles": "Roles",
             "departments": "Departments",
             "questionnaires": "Questionnaires"
+        },
+        "questionnaires": {
+            "select_some": "Select at least one risk.",
+            "subtitle": "Batch-send risk assessment questionnaires (CRO only).",
+            "results": "Results",
+            "created": "Created",
+            "skipped_no_owner": "Skipped (no owner)",
+            "skipped_open": "Skipped (open exists)",
+            "errors": "Errors",
+            "department": "Department",
+            "all_departments": "All Departments",
+            "process": "Process",
+            "category": "Category",
+            "all_statuses": "All Statuses",
+            "status_active": "Active",
+            "status_emerging": "Emerging",
+            "select_all": "Select all (filters)",
+            "owner": "Owner",
+            "empty": "No risks found for the current filters.",
+            "select_all_hint": "Will send to all matching filtered risks.",
+            "selected_count": "{{count}} selected",
+            "send": "Send questionnaires"
+        }
+    },
+    "roles_panel": {
+        "title": "Platform Roles",
+        "show_deleted": "Show deleted",
+        "add_role": "Add Role",
+        "columns": {
+            "role_name": "Role Name",
+            "permissions": "Permissions",
+            "users": "Users"
+        },
+        "badges": {
+            "admin_permissions": "Admin Permissions",
+            "full_access": "Full Access",
+            "system": "System",
+            "active": "Active",
+            "deleted": "Deleted"
+        },
+        "actions": {
+            "edit_disabled": "{{role}} role cannot be edited",
+            "restore": "Restore"
+        },
+        "delete_confirm": "Are you sure you want to delete {{name}}?",
+        "cannot_delete_assigned": "Cannot delete: {{count}} users are assigned to this role.",
+        "modal": {
+            "edit_title": "Edit Role",
+            "new_title": "New Role",
+            "fields": {
+                "role_identifier": "Role Identifier",
+                "display_name": "Display Name",
+                "permissions": "Permissions"
+            },
+            "placeholders": {
+                "role_identifier": "e.g., junior_analyst",
+                "display_name": "e.g., Junior Risk Analyst",
+                "description": "Role responsibilities..."
+            },
+            "hints": {
+                "role_identifier": "Unique internal ID (lowercase, underscores)"
+            },
+            "loading_permissions": "Loading permissions...",
+            "saving": "Saving...",
+            "save_role": "Save Role",
+            "errors": {
+                "save_failed": "Failed to save"
+            }
+        }
+    },
+    "departments_panel": {
+        "title": "Departments",
+        "show_deleted": "Show deleted",
+        "add_department": "Add Department",
+        "columns": {
+            "name_code": "Name / Code",
+            "manager": "Manager",
+            "users": "Users",
+            "risks": "Risks",
+            "controls": "Controls"
+        },
+        "badges": {
+            "active": "Active",
+            "deleted": "Deleted"
+        },
+        "actions": {
+            "restore": "Restore"
+        },
+        "delete_confirm": "Are you sure you want to delete {{name}}?",
+        "delete_blocked_title": "Cannot delete because of linked items:",
+        "linked_counts": {
+            "users": "Users: {{count}}",
+            "risks": "Risks: {{count}}",
+            "controls": "Controls: {{count}}"
+        },
+        "modal": {
+            "edit_title": "Edit Department",
+            "new_title": "New Department",
+            "fields": {
+                "department_name": "Department Name",
+                "code_optional": "Code (Optional)"
+            },
+            "placeholders": {
+                "department_name": "e.g., IT Security",
+                "code": "e.g., IT_SEC",
+                "no_manager": "-- No Manager --"
+            },
+            "hints": {
+                "code": "Short identifier, uppercase"
+            },
+            "saving": "Saving...",
+            "save_department": "Save Department",
+            "errors": {
+                "save_failed": "Failed to save"
+            }
+        }
+    },
+    "risk_types_panel": {
+        "title": "Risk Types",
+        "show_deleted": "Show deleted",
+        "add_type": "Add Type",
+        "columns": {
+            "color": "Color",
+            "code": "Code",
+            "display_name": "Display Name",
+            "risks": "Risks"
+        },
+        "badges": {
+            "system": "System",
+            "active": "Active",
+            "deleted": "Deleted"
+        },
+        "actions": {
+            "restore": "Restore"
+        },
+        "delete_confirm": "Are you sure you want to delete {{name}}?",
+        "delete_warning": "⚠️ {{count}} risks will become uncategorized.",
+        "modal": {
+            "edit_title": "Edit Risk Type",
+            "new_title": "New Risk Type",
+            "fields": {
+                "code": "Code",
+                "display_name": "Display Name",
+                "color": "Color",
+                "sort_order": "Sort Order"
+            },
+            "placeholders": {
+                "code": "e.g., compliance",
+                "display_name": "e.g., Compliance Risk",
+                "description": "Brief description of this risk category"
+            },
+            "hints": {
+                "code": "Lowercase letters, numbers, underscores only"
+            },
+            "saving": "Saving...",
+            "errors": {
+                "save_failed": "Failed to save"
+            }
+        }
+    },
+    "approval_scenarios": {
+        "title": "Approval Scenarios",
+        "subtitle": "Configure which business actions require approval before execution.",
+        "requires_approval": "Requires Approval",
+        "approver_roles": "Approver Roles",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "configure": "Configure",
+        "columns": {
+            "scenario": "Scenario",
+            "approvers": "Approvers"
+        },
+        "special_roles": {
+            "risk_owner_dynamic": "Risk Owner (Dynamic)"
+        },
+        "modal": {
+            "configure": "Configure: {{name}}",
+            "select_roles": "Select roles...",
+            "roles_selected": "{{count}} role(s) selected"
+        }
+    },
+    "system_settings": {
+        "title": "System Settings",
+        "saved": "Saved",
+        "errors": {
+            "save_failed": "Failed to save"
+        },
+        "categories": {
+            "risk_thresholds": {
+                "label": "Risk Thresholds",
+                "description": "Configure score thresholds for risk classification"
+            },
+            "approvals": {
+                "label": "Approval Settings",
+                "description": "Control which actions require approval workflows"
+            },
+            "notifications": {
+                "label": "Notification Settings",
+                "description": "Configure reminder and escalation timing"
+            }
         }
     },
     "confirmations": {
@@ -318,5 +549,8 @@
             "password": "••••••••",
             "no_department_scoping": "No Department Scoping"
         }
+    },
+    "actions": {
+        "refresh": "Refresh"
     }
 }

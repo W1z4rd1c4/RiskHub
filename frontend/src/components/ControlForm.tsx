@@ -21,6 +21,7 @@ import { parseUpdateResult } from '@/lib/approvalUi';
 import { useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { controlApi } from '@/services/controlApi';
+import { ApiClientError } from '@/services/apiClient';
 import { lookupApi } from '@/services/lookupApi';
 import type { UserLookupItem } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
@@ -36,14 +37,6 @@ interface ControlFormProps {
     onCancel?: () => void;
 }
 
-const steps = [
-    { id: 'identity', title: 'Identity', icon: Info },
-    { id: 'ownership', title: 'Ownership', icon: User },
-    { id: 'execution', title: 'Execution', icon: Settings },
-    { id: 'risk', title: 'Risk & Status', icon: ShieldCheck },
-    { id: 'link_risk', title: 'Link Risk', icon: LinkIcon }
-];
-
 interface DepartmentOption {
     id: number;
     name: string;
@@ -58,7 +51,14 @@ function formatFrequencyLabel(value: string): string {
 
 export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }: ControlFormProps) {
     const navigate = useNavigate();
-    const { t } = useTranslation('controls');
+    const { t } = useTranslation(['controls', 'common', 'errorKeys']);
+    const steps = [
+        { id: 'identity', title: t('controls:form.steps.identity', 'Identity'), icon: Info },
+        { id: 'ownership', title: t('controls:form.steps.ownership', 'Ownership'), icon: User },
+        { id: 'execution', title: t('controls:form.steps.execution', 'Execution'), icon: Settings },
+        { id: 'risk', title: t('controls:form.steps.risk_status', 'Risk & Status'), icon: ShieldCheck },
+        { id: 'link_risk', title: t('controls:form.steps.link_risk', 'Link Risk'), icon: LinkIcon }
+    ];
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -172,11 +172,11 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
 
     const validateStep0 = () => {
         if (!formData.name?.trim()) {
-            setError('Control Name is required.');
+            setError(t('controls:form.validation.name_required', 'Control Name is required.'));
             return false;
         }
         if (!formData.description?.trim()) {
-            setError('Description is required.');
+            setError(t('controls:form.validation.description_required', 'Description is required.'));
             return false;
         }
         return true;
@@ -184,15 +184,15 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
 
     const validateStep1 = () => {
         if (!formData.control_owner_id) {
-            setError('Control Owner is required.');
+            setError(t('controls:form.validation.owner_required', 'Control Owner is required.'));
             return false;
         }
         if (!formData.process_owner_position?.trim()) {
-            setError('Owner Position is required.');
+            setError(t('controls:form.validation.owner_position_required', 'Owner Position is required.'));
             return false;
         }
         if (!formData.department_id) {
-            setError('Department is required.');
+            setError(t('controls:form.validation.department_required', 'Department is required.'));
             return false;
         }
         return true;
@@ -200,11 +200,11 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
 
     const validateStep2 = () => {
         if (!formData.data_source?.trim()) {
-            setError('Data Source is required.');
+            setError(t('controls:form.validation.data_source_required', 'Data Source is required.'));
             return false;
         }
         if (!formData.methodology_reference?.trim()) {
-            setError('Methodology Reference is required.');
+            setError(t('controls:form.validation.methodology_reference_required', 'Methodology Reference is required.'));
             return false;
         }
         return true;
@@ -299,8 +299,11 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
             }
         } catch (err: unknown) {
             console.error('Error saving control:', err);
-            const message = err instanceof Error ? err.message : 'Failed to save control. Please check your input.';
-            setError(message);
+            if (err instanceof ApiClientError) {
+                setError(err.messageKey);
+            } else {
+                setError('errorKeys.save_control_failed');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -362,10 +365,10 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                         <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
                             <p className="text-amber-200 text-sm font-medium">
-                                Submitted for approval (ID: {approvalQueued.id})
+                                {t('approval_submitted', { ns: 'errorKeys' })} (ID: {approvalQueued.id})
                             </p>
                             <p className="text-amber-400/80 text-xs mt-1">
-                                {approvalQueued.message}
+                                {approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}
                             </p>
                             <div className="mt-3 flex gap-3">
                                 <Link
@@ -373,14 +376,14 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                     className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-100 transition-colors"
                                 >
                                     <CheckCircle className="h-3.5 w-3.5" />
-                                    Go to Approvals
+                                    {t('common:actions.view')} {t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}
                                 </Link>
                                 <button
                                     type="button"
                                     onClick={() => setApprovalQueued(null)}
                                     className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
                                 >
-                                    Dismiss
+                                    {t('common:actions.close')}
                                 </button>
                             </div>
                         </div>
@@ -390,7 +393,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                 {error && (
                     <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-400 text-sm font-medium">
                         <AlertCircle className="h-5 w-5" />
-                        {error}
+                        {error.startsWith('errorKeys.') ? t(error, { ns: 'errorKeys' }) : error}
                     </div>
                 )}
 
@@ -398,7 +401,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                     {currentStep === 0 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Control Name</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('controls:fields.name')}</label>
                                 <input
                                     type="text"
                                     required
@@ -409,7 +412,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Description</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('common:labels.description')}</label>
                                 <textarea
                                     required
                                     rows={4}
@@ -431,7 +434,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                     <div className="grid md:grid-cols-2 gap-8">
                                         {/* Department Selection */}
                                         <div>
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Department</label>
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t('common:labels.department')}</label>
                                             <div className="grid grid-cols-1 gap-2">
                                                 <ThemedSelect
                                                     value={formData.department_id?.toString() ?? ''}
@@ -443,7 +446,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                                     options={departments.map(dept => ({ value: dept.id.toString(), label: `${dept.name} (${dept.code})` }))}
                                                 />
                                                 <div className="mt-4">
-                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Owner Position</label>
+                                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('controls:form.labels.owner_position', 'Owner Position')}</label>
                                                     <input
                                                         type="text"
                                                         value={formData.process_owner_position || ''}
@@ -457,7 +460,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
 
                                         {/* Control Owner Selection */}
                                         <div>
-                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Control Owner</label>
+                                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t('controls:fields.owner')}</label>
 
                                             {/* Role filter chips */}
                                             <div className="flex flex-wrap gap-1.5 mb-3">
@@ -469,7 +472,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                                         : 'bg-white/5 text-slate-500 hover:bg-white/10'
                                                         }`}
                                                 >
-                                                    All
+                                                    {t('common:labels.all')}
                                                 </button>
                                                 {uniqueRoles.map(role => (
                                                     <button
@@ -532,7 +535,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                                     />
                                                     <div className="max-h-[160px] overflow-y-auto rounded-xl border border-white/5 divide-y divide-white/5 custom-scrollbar bg-white/[0.02]">
                                                         {filteredUsers.length === 0 ? (
-                                                            <div className="p-4 text-center text-xs text-slate-500 italic">No owners found matching criteria</div>
+                                                            <div className="p-4 text-center text-xs text-slate-500 italic">{t('common:empty.no_owners_found')}</div>
                                                         ) : (
                                                             filteredUsers.map(user => (
                                                                 <button
@@ -564,7 +567,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Frequency</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('common:labels.frequency')}</label>
                                     <ThemedSelect
                                         value={formData.frequency || ControlFrequency.MONTHLY}
                                         onValueChange={(v) => handleInputChange('frequency', v)}
@@ -573,7 +576,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Control Form</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('common:labels.form')}</label>
                                     <ThemedSelect
                                         value={formData.control_form || ControlFormType.MANUAL}
                                         onValueChange={(v) => handleInputChange('control_form', v)}
@@ -583,7 +586,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Data Source & Methodology</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('controls:form.labels.data_source_methodology', 'Data Source & Methodology')}</label>
                                 <div className="space-y-4">
                                     <input
                                         type="text"
@@ -607,7 +610,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                     {currentStep === 3 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Inherent Risk Level (1-5)</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('controls:form.labels.inherent_risk_level', 'Inherent Risk Level (1-5)')}</label>
                                 <div className="flex items-center gap-4">
                                     <input
                                         type="range"
@@ -624,7 +627,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Initial Status</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('controls:form.labels.initial_status', 'Initial Status')}</label>
                                 <div className="grid grid-cols-2 gap-4">
                                     {[ControlStatus.DRAFT, ControlStatus.ACTIVE].map(s => (
                                         <button
@@ -647,7 +650,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                             <div>
                                 <h3 className="text-[10px] font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
                                     <Target className="h-4 w-4 text-accent" />
-                                    Link to Risk (Optional)
+                                    {t('controls:form.labels.link_to_risk_optional', 'Link to Risk (Optional)')}
                                 </h3>
 
                                 {selectedRisk ? (
@@ -657,7 +660,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                             <div className="flex items-center justify-between">
                                                 <div>
                                                     <p className="text-sm font-bold text-white">{selectedRisk.name}</p>
-                                                    <p className="text-xs text-slate-400 mt-1">{selectedRisk.process} • {selectedRisk.category || 'Uncategorized'}</p>
+                                                    <p className="text-xs text-slate-400 mt-1">{selectedRisk.process} • {selectedRisk.category || t('controls:form.labels.uncategorized', 'Uncategorized')}</p>
                                                     <p className="text-xs text-slate-300 mt-2 italic">{selectedRisk.description}</p>
                                                     {selectedRisk.department_name && (
                                                         <span className="inline-block mt-3 px-2 py-0.5 rounded bg-white/10 text-[10px] uppercase font-bold text-slate-300">
@@ -678,20 +681,20 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                         {/* Link Details */}
                                         <div className="grid md:grid-cols-2 gap-6">
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Effectiveness</label>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('controls:form.labels.effectiveness', 'Effectiveness')}</label>
                                                 <ThemedSelect
                                                     value={riskEffectiveness}
                                                     onValueChange={(v) => setRiskEffectiveness(v as ControlEffectiveness)}
                                                     className="w-full"
                                                     options={[
-                                                        { value: 'high', label: 'High' },
-                                                        { value: 'medium', label: 'Medium' },
-                                                        { value: 'low', label: 'Low' },
+                                                        { value: 'high', label: t('controls:form.effectiveness.high', 'High') },
+                                                        { value: 'medium', label: t('controls:form.effectiveness.medium', 'Medium') },
+                                                        { value: 'low', label: t('controls:form.effectiveness.low', 'Low') },
                                                     ]}
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Link Notes (Optional)</label>
+                                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('common:labels.notes')} ({t('common:labels.none', 'Optional')})</label>
                                                 <input
                                                     type="text"
                                                     value={linkNotes}
@@ -749,15 +752,15 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                             {isLoadingRisks ? (
                                                 <div className="p-8 text-center text-slate-500 text-sm">
                                                     <div className="animate-spin h-5 w-5 border-2 border-accent border-t-transparent rounded-full mx-auto mb-2"></div>
-                                                    Loading risks...
+                                                    {t('common:loading.risk_data', 'Loading risks...')}
                                                 </div>
                                             ) : risks.length === 0 ? (
                                                 <div className="p-8 text-center text-slate-500 text-sm">
-                                                    No risks available.
+                                                    {t('common:empty.no_risks_found')}
                                                 </div>
                                             ) : filteredRisks.length === 0 ? (
                                                 <div className="p-8 text-center text-slate-500 text-sm">
-                                                    No risks match your search.
+                                                    {t('common:labels.no_results')}
                                                 </div>
                                             ) : (
                                                 filteredRisks.slice(0, 20).map(risk => (
@@ -782,7 +785,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                                                         : risk.description}
                                                                 </p>
                                                             ) : (
-                                                                <span className="text-[10px] text-slate-600 italic">No description available</span>
+                                                                <span className="text-[10px] text-slate-600 italic">{t('common:empty.no_description')}</span>
                                                             )}
                                                         </div>
                                                     </button>
@@ -814,7 +817,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                         className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-white transition-colors uppercase tracking-widest"
                     >
                         {currentStep === 0 ? <X className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-                        {currentStep === 0 ? 'Cancel' : 'Back'}
+                        {currentStep === 0 ? t('common:actions.cancel') : t('common:actions.back')}
                     </button>
 
                     {currentStep < steps.length - 1 ? (
@@ -824,7 +827,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                             onClick={nextStep}
                             className="btn-primary"
                         >
-                            Next Step <ChevronRight className="h-4 w-4" />
+                            {t('common:actions.next')} <ChevronRight className="h-4 w-4" />
                         </button>
                     ) : (
                         <button
@@ -833,7 +836,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                             disabled={isSubmitting}
                             className="btn-primary"
                         >
-                            {isSubmitting ? 'Saving...' : (isEdit ? 'Update Control' : 'Create Control')}
+                            {isSubmitting ? t('common:loading.generic', 'Saving...') : (isEdit ? t('controls:edit_control') : t('controls:create_control'))}
                             <Save className="h-4 w-4" />
                         </button>
                     )}

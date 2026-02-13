@@ -32,5 +32,10 @@
     "header": {
         "notifications": "Notifications",
         "search_placeholder": "Search..."
+    },
+    "tabs": {
+        "controls": "Control Catalog",
+        "risk_appetite": "Risk Appetite",
+        "risks": "Risk Register"
     }
 }

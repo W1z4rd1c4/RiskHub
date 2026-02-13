@@ -16,6 +16,7 @@ interface RoleModalProps {
 }
 
 function RoleModal({ isOpen, onClose, role, allPermissions, permissionsLoading, onSave }: RoleModalProps) {
+    const { t } = useTranslation(['admin', 'common']);
     const [name, setName] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [description, setDescription] = useState('');
@@ -78,7 +79,7 @@ function RoleModal({ isOpen, onClose, role, allPermissions, permissionsLoading, 
             }
             onClose();
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Failed to save');
+            setError(err instanceof Error ? err.message : t('admin:roles_panel.modal.errors.save_failed'));
         } finally {
             setSaving(false);
         }
@@ -90,54 +91,54 @@ function RoleModal({ isOpen, onClose, role, allPermissions, permissionsLoading, 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
                 <h2 className="text-xl font-bold text-white mb-4">
-                    {role ? 'Edit Role' : 'New Role'}
+                    {role ? t('admin:roles_panel.modal.edit_title') : t('admin:roles_panel.modal.new_title')}
                 </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {!role && (
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1">Role Identifier</label>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:roles_panel.modal.fields.role_identifier')}</label>
                                 <input
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                                     className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent font-mono"
-                                    placeholder="e.g., junior_analyst"
+                                    placeholder={t('admin:roles_panel.modal.placeholders.role_identifier')}
                                     required
                                 />
-                                <p className="text-xs text-slate-500 mt-1">Unique internal ID (lowercase, underscores)</p>
+                                <p className="text-xs text-slate-500 mt-1">{t('admin:roles_panel.modal.hints.role_identifier')}</p>
                             </div>
                         )}
 
                         <div className={cn(!role ? "" : "md:col-span-2")}>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">Display Name</label>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:roles_panel.modal.fields.display_name')}</label>
                             <input
                                 type="text"
                                 value={displayName}
                                 onChange={(e) => setDisplayName(e.target.value)}
                                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                                placeholder="e.g., Junior Risk Analyst"
+                                placeholder={t('admin:roles_panel.modal.placeholders.display_name')}
                                 required
                             />
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">Description</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.description')}</label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                            placeholder="Role responsibilities..."
+                            placeholder={t('admin:roles_panel.modal.placeholders.description')}
                             rows={2}
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-3">Permissions</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-3">{t('admin:roles_panel.modal.fields.permissions')}</label>
                         {permissionsLoading ? (
-                            <div className="text-slate-400 text-sm py-4 text-center">Loading permissions...</div>
+                            <div className="text-slate-400 text-sm py-4 text-center">{t('admin:roles_panel.modal.loading_permissions')}</div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto p-1 custom-scrollbar">
                                 {Object.entries(permissionsByResource).map(([resource, perms]) => (
@@ -184,14 +185,14 @@ function RoleModal({ isOpen, onClose, role, allPermissions, permissionsLoading, 
                             onClick={onClose}
                             className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
                         >
-                            Cancel
+                            {t('common:actions.cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={saving || permissionsLoading}
                             className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 transition-colors"
                         >
-                            {saving ? 'Saving...' : 'Save Role'}
+                            {saving ? t('admin:roles_panel.modal.saving') : t('admin:roles_panel.modal.save_role')}
                         </button>
                     </div>
                 </form>
@@ -266,7 +267,7 @@ export function RolesPanel() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Shield className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-semibold text-white">Platform Roles</h3>
+                    <h3 className="text-lg font-semibold text-white">{t('admin:roles_panel.title')}</h3>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -277,7 +278,7 @@ export function RolesPanel() {
                             onChange={(e) => setShowInactive(e.target.checked)}
                             className="rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
                         />
-                        Show deleted
+                        {t('admin:roles_panel.show_deleted')}
                     </label>
 
                     <button
@@ -285,7 +286,7 @@ export function RolesPanel() {
                         className="flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
                     >
                         <Plus className="h-4 w-4" />
-                        Add Role
+                        {t('admin:roles_panel.add_role')}
                     </button>
                 </div>
             </div>
@@ -294,11 +295,11 @@ export function RolesPanel() {
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Role Name</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Permissions</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">Users</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">Status</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Actions</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:roles_panel.columns.role_name')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:roles_panel.columns.permissions')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:roles_panel.columns.users')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.status')}</th>
+                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -321,11 +322,11 @@ export function RolesPanel() {
                                     <div className="flex flex-wrap gap-1 max-w-md">
                                         {role.name === 'admin' ? (
                                             <span className="px-1.5 py-0.5 bg-blue-500/20 rounded text-xs text-blue-400 border border-blue-500/20 font-bold">
-                                                Admin Permissions
+                                                {t('admin:roles_panel.badges.admin_permissions')}
                                             </span>
                                         ) : role.permissions.includes("*:*") ? (
                                             <span className="px-1.5 py-0.5 bg-accent/20 rounded text-xs text-accent border border-accent/20 font-bold">
-                                                Full Access
+                                                {t('admin:roles_panel.badges.full_access')}
                                             </span>
                                         ) : role.permissions.length > 0 ? (
                                             role.permissions.map(p => (
@@ -347,15 +348,15 @@ export function RolesPanel() {
                                 <td className="py-3 px-4 text-center">
                                     {role.is_system ? (
                                         <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full text-xs border border-blue-500/20">
-                                            System
+                                            {t('admin:roles_panel.badges.system')}
                                         </span>
                                     ) : role.is_active ? (
                                         <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs border border-emerald-500/20">
-                                            Active
+                                            {t('admin:roles_panel.badges.active')}
                                         </span>
                                     ) : (
                                         <span className="px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs border border-red-500/20">
-                                            Deleted
+                                            {t('admin:roles_panel.badges.deleted')}
                                         </span>
                                     )}
                                 </td>
@@ -370,7 +371,9 @@ export function RolesPanel() {
                                                     : "text-slate-400 hover:text-white hover:bg-white/10"
                                             )}
                                             disabled={['cro', 'admin', 'viewer'].includes(role.name)}
-                                            title={['cro', 'admin', 'viewer'].includes(role.name) ? `${role.display_name} role cannot be edited` : "Edit"}
+                                            title={['cro', 'admin', 'viewer'].includes(role.name)
+                                                ? t('admin:roles_panel.actions.edit_disabled', { role: role.display_name })
+                                                : t('common:actions.edit')}
                                         >
                                             <Edit className="h-4 w-4" />
                                         </button>
@@ -379,7 +382,7 @@ export function RolesPanel() {
                                             <button
                                                 onClick={() => setDeleteConfirm(role)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                                                title="Delete"
+                                                title={t('common:actions.delete')}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
@@ -389,7 +392,7 @@ export function RolesPanel() {
                                             <button
                                                 onClick={() => restoreMutation.mutate(role.id)}
                                                 className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
-                                                title="Restore"
+                                                title={t('admin:roles_panel.actions.restore')}
                                             >
                                                 <RotateCcw className="h-4 w-4" />
                                             </button>
@@ -418,12 +421,12 @@ export function RolesPanel() {
                     <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6">
                         <h3 className="text-lg font-bold text-white mb-2">{t('confirmations.delete_role')}</h3>
                         <p className="text-slate-400 text-sm mb-4">
-                            Are you sure you want to delete <strong className="text-white">{deleteConfirm.display_name}</strong>?
+                            {t('admin:roles_panel.delete_confirm', { name: deleteConfirm.display_name })}
                             {deleteConfirm.user_count > 0 && (
                                 <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2 text-red-400">
                                     <AlertCircle className="h-5 w-5 shrink-0" />
                                     <span>
-                                        Cannot delete: <strong>{deleteConfirm.user_count} users</strong> are assigned to this role.
+                                        {t('admin:roles_panel.cannot_delete_assigned', { count: deleteConfirm.user_count })}
                                     </span>
                                 </div>
                             )}
@@ -433,14 +436,14 @@ export function RolesPanel() {
                                 onClick={() => setDeleteConfirm(null)}
                                 className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
                             >
-                                Cancel
+                                {t('common:actions.cancel')}
                             </button>
                             {deleteConfirm.user_count === 0 && (
                                 <button
                                     onClick={handleDelete}
                                     className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                                 >
-                                    Delete
+                                    {t('common:actions.delete')}
                                 </button>
                             )}
                         </div>

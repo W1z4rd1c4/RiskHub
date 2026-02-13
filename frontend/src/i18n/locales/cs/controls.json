@@ -62,7 +62,8 @@
         "passed": "Splněno",
         "failed": "Nesplněno",
         "not_tested": "Netestováno",
-        "not_applicable": "Nepoužitelné"
+        "not_applicable": "Nepoužitelné",
+        "warning": "Varování"
     },
     "filters": {
         "all_types": "Všechny typy",
@@ -115,6 +116,36 @@
         }
     },
     "form": {
+        "steps": {
+            "identity": "Identita",
+            "ownership": "Vlastnictví",
+            "execution": "Provádění",
+            "risk_status": "Riziko a stav",
+            "link_risk": "Propojit riziko"
+        },
+        "validation": {
+            "name_required": "Název kontroly je povinný.",
+            "description_required": "Popis je povinný.",
+            "owner_required": "Vlastník kontroly je povinný.",
+            "owner_position_required": "Pozice vlastníka je povinná.",
+            "department_required": "Oddělení je povinné.",
+            "data_source_required": "Zdroj dat je povinný.",
+            "methodology_reference_required": "Reference metodologie je povinná."
+        },
+        "labels": {
+            "owner_position": "Pozice vlastníka",
+            "data_source_methodology": "Zdroj dat a metodologie",
+            "inherent_risk_level": "Inherentní úroveň rizika (1-5)",
+            "initial_status": "Výchozí stav",
+            "link_to_risk_optional": "Propojit s rizikem (volitelné)",
+            "uncategorized": "Bez kategorie",
+            "effectiveness": "Efektivita"
+        },
+        "effectiveness": {
+            "high": "Vysoká",
+            "medium": "Střední",
+            "low": "Nízká"
+        },
         "placeholders": {
             "name": "např. Denní odsouhlasení transakcí",
             "description": "Popište účel a kroky této kontroly...",

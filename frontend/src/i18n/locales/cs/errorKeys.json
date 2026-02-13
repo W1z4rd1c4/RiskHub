@@ -1,0 +1,19 @@
+{
+  "unknown": "Něco se pokazilo. Zkuste to prosím znovu.",
+  "network": "Chyba sítě. Zkontrolujte prosím připojení.",
+  "unauthorized": "Vaše relace vypršela. Přihlaste se prosím znovu.",
+  "forbidden": "Nemáte oprávnění provést tuto akci.",
+  "not_found": "Požadovaný zdroj nebyl nalezen.",
+  "validation": "Některá pole nejsou platná. Zkontrolujte je a zkuste to znovu.",
+  "server": "Chyba serveru. Zkuste to prosím později.",
+  "request_failed": "Požadavek selhal. Zkuste to prosím znovu.",
+  "demo_login_failed": "Přihlášení do dema selhalo.",
+  "login_failed": "Přihlášení selhalo.",
+  "load_departments_failed": "Nepodařilo se načíst oddělení.",
+  "directory_preview_failed": "Náhled selhal. Ujistěte se, že AD Emulator běží na portu 8001.",
+  "directory_apply_failed": "Použití synchronizace selhalo. Zkontrolujte logy backendu.",
+  "save_control_failed": "Uložení kontroly selhalo. Zkontrolujte prosím vstup.",
+  "save_risk_failed": "Uložení rizika selhalo. Zkontrolujte prosím vstup.",
+  "save_kri_failed": "Uložení KRI selhalo.",
+  "approval_submitted": "Odesláno ke schválení"
+}
