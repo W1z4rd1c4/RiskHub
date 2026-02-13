@@ -4,20 +4,20 @@ import type { UserLookup } from '@/types/user';
 
 // Permission filter options
 export const permissionResources = [
-    { value: 'all', label: 'All Permissions' },
-    { value: 'risks', label: '⚠️ Risks' },
-    { value: 'controls', label: '🛡️ Controls' },
-    { value: 'users', label: '👥 Users' },
-    { value: 'reports', label: '📊 Reports' },
-    { value: 'approvals', label: '✅ Approvals' },
-    { value: 'departments', label: '🏢 Departments' },
+    { value: 'all', labelKey: 'admin:access.all_permissions' },
+    { value: 'risks', labelKey: 'admin:access.resources.risks' },
+    { value: 'controls', labelKey: 'admin:access.resources.controls' },
+    { value: 'users', labelKey: 'admin:access.resources.users' },
+    { value: 'reports', labelKey: 'admin:access.resources.reports' },
+    { value: 'approvals', labelKey: 'admin:access.resources.approvals' },
+    { value: 'departments', labelKey: 'admin:access.resources.departments' },
 ];
 
 export const permissionActions = [
-    { value: 'all', label: 'Any Action' },
-    { value: 'read', label: 'Can View' },
-    { value: 'write', label: 'Can Edit' },
-    { value: 'delete', label: 'Can Delete' },
+    { value: 'all', labelKey: 'admin:access.any_action' },
+    { value: 'read', labelKey: 'admin:access.actions.can_view' },
+    { value: 'write', labelKey: 'admin:access.actions.can_edit' },
+    { value: 'delete', labelKey: 'admin:access.actions.can_delete' },
 ];
 
 // Check if user has specific permission

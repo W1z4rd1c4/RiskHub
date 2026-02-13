@@ -213,7 +213,7 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
 
     const score = formData.risk_score_1_5 || 3;
     const impact = IMPACT_DESCRIPTIONS[score as 1 | 2 | 3 | 4 | 5];
-    const financialRange = formatFinancialRange(score, totalAssets);
+    const financialRange = formatFinancialRange(score, totalAssets, t('form.financial.no_loss', 'No financial loss'));
 
     const processSuggestions = existingProcesses.filter((p) => p.toLowerCase().includes((formData.process || '').toLowerCase()));
     const subprocessSuggestions = (subprocessesByProcess[formData.process || ''] || []).filter((p) =>
@@ -370,7 +370,7 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                             </div>
                         </div>
                         <p className="text-xs text-slate-400">
-                            <span className="font-semibold text-slate-200">{impact?.label || ''}</span>
+                            <span className="font-semibold text-slate-200">{impact ? t(impact.labelKey, impact.labelKey) : ''}</span>
                             {financialRange ? ` • ${financialRange}` : null}
                         </p>
                     </div>

@@ -107,7 +107,7 @@ export function UsersFilterBar({
                         className={cn(
                             permResourceFilter !== 'all' && "border-purple-500/50"
                         )}
-                        options={permissionResources.map(r => ({ value: r.value, label: r.label }))}
+                        options={permissionResources.map(r => ({ value: r.value, label: t(r.labelKey) }))}
                     />
                     <ThemedSelect
                         value={permActionFilter}
@@ -115,7 +115,7 @@ export function UsersFilterBar({
                         className={cn(
                             permActionFilter !== 'all' && "border-emerald-500/50"
                         )}
-                        options={permissionActions.map(a => ({ value: a.value, label: a.label }))}
+                        options={permissionActions.map(a => ({ value: a.value, label: t(a.labelKey) }))}
                     />
                     {hasPermFilters && (
                         <button

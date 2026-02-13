@@ -9,6 +9,7 @@ import {
     Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/i18n/hooks';
 import { directoryApi } from '@/services/directoryApi';
 import { usePermissions } from '@/hooks/usePermissions';
 import type {
@@ -17,12 +18,13 @@ import type {
 } from '@/types/directory';
 
 export function DirectoryEmulatorPage() {
+    const { t } = useTranslation(['common', 'admin', 'errorKeys']);
     const { canManageUsers } = usePermissions();
     const [syncHistory, setSyncHistory] = useState<DirectorySyncLogRead[]>([]);
     const [syncPreview, setSyncPreview] = useState<DirectorySyncPreview | null>(null);
 
     const [isSyncing, setIsSyncing] = useState(false);
-    const [syncError, setSyncError] = useState<string | null>(null);
+    const [syncErrorKey, setSyncErrorKey] = useState<string | null>(null);
 
     useEffect(() => {
         fetchSyncHistory();
@@ -38,21 +40,21 @@ export function DirectoryEmulatorPage() {
     };
 
     const runPreviewSync = async () => {
-        setSyncError(null);
+        setSyncErrorKey(null);
         try {
             setIsSyncing(true);
             const preview = await directoryApi.previewDirectorySync();
             setSyncPreview(preview);
         } catch (error) {
             console.error('Failed to preview sync:', error);
-            setSyncError('Preview failed. Ensure AD Emulator is running on port 8001.');
+            setSyncErrorKey('errorKeys.directory_preview_failed');
         } finally {
             setIsSyncing(false);
         }
     };
 
     const runApplySync = async () => {
-        setSyncError(null);
+        setSyncErrorKey(null);
         try {
             setIsSyncing(true);
             const result = await directoryApi.applyDirectorySync();
@@ -60,7 +62,7 @@ export function DirectoryEmulatorPage() {
             await fetchSyncHistory();
         } catch (error) {
             console.error('Failed to apply sync:', error);
-            setSyncError('Apply failed. Check backend logs for details.');
+            setSyncErrorKey('errorKeys.directory_apply_failed');
         } finally {
             setIsSyncing(false);
         }
@@ -70,8 +72,8 @@ export function DirectoryEmulatorPage() {
         return (
             <div className="glass-card p-8 text-center">
                 <AlertTriangle className="mx-auto h-10 w-10 text-rose-400" />
-                <h2 className="mt-4 text-xl font-bold text-white">Access restricted</h2>
-                <p className="mt-2 text-slate-400">You do not have permission to manage directory sync.</p>
+                <h2 className="mt-4 text-xl font-bold text-white">{t('common:access.denied')}</h2>
+                <p className="mt-2 text-slate-400">{t('admin:access.directory_sync_denied', 'You do not have permission to manage directory sync.')}</p>
             </div>
         );
     }
@@ -82,10 +84,10 @@ export function DirectoryEmulatorPage() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
                         <Server className="h-8 w-8 text-accent" />
-                        Directory Integration
+                        {t('admin:directory.title', 'Directory Integration')}
                     </h1>
                     <p className="text-slate-400 mt-1">
-                        Sync users from the external AD Emulator into RiskHub.
+                        {t('admin:directory.subtitle', 'Sync users from the external AD Emulator into RiskHub.')}
                     </p>
                 </div>
             </div>
@@ -97,7 +99,7 @@ export function DirectoryEmulatorPage() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Activity className="h-5 w-5 text-accent" />
-                                <h3 className="text-lg font-semibold text-white">Sync Operations</h3>
+                                <h3 className="text-lg font-semibold text-white">{t('admin:directory.sync_operations', 'Sync Operations')}</h3>
                             </div>
                             {isSyncing && <RefreshCw className="h-5 w-5 text-accent animate-spin" />}
                         </div>
@@ -109,7 +111,7 @@ export function DirectoryEmulatorPage() {
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all disabled:opacity-50 border border-white/10 font-medium"
                             >
                                 <Search className="h-4 w-4" />
-                                Preview Changes
+                                {t('admin:directory.preview_changes', 'Preview Changes')}
                             </button>
                             <button
                                 onClick={runApplySync}
@@ -117,36 +119,36 @@ export function DirectoryEmulatorPage() {
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-accent hover:bg-accent/80 text-white transition-all disabled:opacity-50 font-bold shadow-lg shadow-accent/20"
                             >
                                 <Play className="h-4 w-4" />
-                                Apply Sync
+                                {t('admin:directory.apply_sync', 'Apply Sync')}
                             </button>
                         </div>
 
-                        {syncError && (
+                        {syncErrorKey && (
                             <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 text-sm rounded-xl p-4 flex items-center gap-3">
                                 <AlertTriangle className="h-5 w-5 shrink-0" />
-                                {syncError}
+                                {t(syncErrorKey, { ns: 'errorKeys' })}
                             </div>
                         )}
 
                         {syncPreview && (
                             <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
                                 <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                                    <h4 className="text-sm font-semibold text-slate-300 mb-3">Sync Preview Results</h4>
+                                    <h4 className="text-sm font-semibold text-slate-300 mb-3">{t('admin:directory.sync_preview_results', 'Sync Preview Results')}</h4>
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-4">
                                         <div className="bg-emerald-500/10 rounded-lg p-3 border border-emerald-500/20">
-                                            <p className="text-emerald-400 font-medium">Created</p>
+                                            <p className="text-emerald-400 font-medium">{t('admin:directory.metrics.created', 'Created')}</p>
                                             <p className="text-xl font-bold text-white mt-1">{syncPreview.created_count}</p>
                                         </div>
                                         <div className="bg-sky-500/10 rounded-lg p-3 border border-sky-500/20">
-                                            <p className="text-sky-400 font-medium">Updated</p>
+                                            <p className="text-sky-400 font-medium">{t('admin:directory.metrics.updated', 'Updated')}</p>
                                             <p className="text-xl font-bold text-white mt-1">{syncPreview.updated_count}</p>
                                         </div>
                                         <div className="bg-rose-500/10 rounded-lg p-3 border border-rose-500/20">
-                                            <p className="text-rose-400 font-medium">Deactivated</p>
+                                            <p className="text-rose-400 font-medium">{t('admin:directory.metrics.deactivated', 'Deactivated')}</p>
                                             <p className="text-xl font-bold text-white mt-1">{syncPreview.deactivated_count}</p>
                                         </div>
                                         <div className="bg-amber-500/10 rounded-lg p-3 border border-amber-500/20">
-                                            <p className="text-amber-400 font-medium">Errors</p>
+                                            <p className="text-amber-400 font-medium">{t('common:access.errors')}</p>
                                             <p className="text-xl font-bold text-white mt-1">{syncPreview.error_count}</p>
                                         </div>
                                     </div>
@@ -186,7 +188,7 @@ export function DirectoryEmulatorPage() {
                                             ))
                                         ) : (
                                             <div className="text-center py-4 text-slate-500 text-sm">
-                                                No changes detected. Sync is up to date.
+                                                {t('admin:directory.no_changes', 'No changes detected. Sync is up to date.')}
                                             </div>
                                         )}
                                     </div>
@@ -201,13 +203,13 @@ export function DirectoryEmulatorPage() {
                     <div className="glass-card p-6 h-full">
                         <div className="flex items-center gap-2 mb-6">
                             <History className="h-5 w-5 text-accent" />
-                            <h3 className="text-lg font-semibold text-white">Sync History</h3>
+                            <h3 className="text-lg font-semibold text-white">{t('admin:directory.sync_history', 'Sync History')}</h3>
                         </div>
                         <div className="space-y-3">
                             {syncHistory.length === 0 ? (
                                 <div className="text-center py-12 text-slate-500 bg-white/5 rounded-xl border border-white/10 border-dashed">
                                     <History className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                    <p>No sync runs recorded yet.</p>
+                                    <p>{t('common:empty.no_sync_runs')}</p>
                                 </div>
                             ) : (
                                 syncHistory.map((log) => (
@@ -228,28 +230,28 @@ export function DirectoryEmulatorPage() {
                                         </div>
                                         <div className="grid grid-cols-4 gap-2 text-xs pt-2 border-t border-white/5">
                                             <div className="text-emerald-400 group-hover:text-emerald-300">
-                                                <span className="opacity-70 block text-[10px] uppercase">Created</span>
+                                                <span className="opacity-70 block text-[10px] uppercase">{t('admin:directory.metrics.created', 'Created')}</span>
                                                 <span className="font-bold">{log.created_count}</span>
                                             </div>
                                             <div className="text-sky-400 group-hover:text-sky-300">
-                                                <span className="opacity-70 block text-[10px] uppercase">Updated</span>
+                                                <span className="opacity-70 block text-[10px] uppercase">{t('admin:directory.metrics.updated', 'Updated')}</span>
                                                 <span className="font-bold">{log.updated_count}</span>
                                             </div>
                                             <div className="text-rose-400 group-hover:text-rose-300">
-                                                <span className="opacity-70 block text-[10px] uppercase">Disabled</span>
+                                                <span className="opacity-70 block text-[10px] uppercase">{t('admin:directory.metrics.disabled', 'Disabled')}</span>
                                                 <span className="font-bold">{log.deactivated_count}</span>
                                             </div>
                                             <div className="text-amber-400 group-hover:text-amber-300">
-                                                <span className="opacity-70 block text-[10px] uppercase">Errors</span>
+                                                <span className="opacity-70 block text-[10px] uppercase">{t('common:access.errors')}</span>
                                                 <span className="font-bold">{log.error_count}</span>
                                             </div>
                                         </div>
                                         {log.errors && log.errors.length > 0 && (
                                             <div className="mt-3 pt-2 border-t border-white/5 text-xs text-rose-300">
-                                                <p className="font-medium mb-1">Latest Error:</p>
+                                                <p className="font-medium mb-1">{t('admin:directory.latest_error', 'Latest Error:')}</p>
                                                 <p className="bg-rose-500/10 p-2 rounded truncate">
-                                                    {String(log.errors[0]?.error || 'Unknown error')}
-                                                    {log.errors.length > 1 && ` (+${log.errors.length - 1} more)`}
+                                                    {String(log.errors[0]?.error || t('common:labels.unknown'))}
+                                                    {log.errors.length > 1 && t('admin:directory.more_errors', { defaultValue: ' (+{{count}} more)', count: log.errors.length - 1 })}
                                                 </p>
                                             </div>
                                         )}

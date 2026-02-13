@@ -4,9 +4,11 @@ import { AlertTriangle, ArrowRight, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { kriApi } from '@/services/kriApi';
+import { useTranslation } from '@/i18n/hooks';
 import type { KeyRiskIndicator } from '@/types/kri';
 
 export function KRIBreachWidget() {
+    const { t } = useTranslation('dashboard');
     const navigate = useNavigate();
     const { filters } = useDashboardFilters();
     const [breaches, setBreaches] = useState<KeyRiskIndicator[]>([]);
@@ -38,8 +40,8 @@ export function KRIBreachWidget() {
             <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
                 <Activity className="h-6 w-6 text-emerald-500" />
             </div>
-            <h4 className="text-white font-bold mb-1">Appetite Maintained</h4>
-            <p className="text-xs text-slate-500">No KRIs are currently in breach across the organization.</p>
+            <h4 className="text-white font-bold mb-1">{t('kri.appetite_maintained')}</h4>
+            <p className="text-xs text-slate-500">{t('kri.no_breaches_org')}</p>
         </div>
     );
 
@@ -48,7 +50,7 @@ export function KRIBreachWidget() {
             <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                 <div className="flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-rose-500" />
-                    <h3 className="text-xs font-black text-white uppercase tracking-widest">Active Breaches</h3>
+                    <h3 className="text-xs font-black text-white uppercase tracking-widest">{t('kri.active_breaches')}</h3>
                 </div>
                 <span className="px-2 py-0.5 bg-rose-500/10 text-rose-500 text-[10px] font-black rounded-full border border-rose-500/20">
                     {breaches.length}+
@@ -86,7 +88,7 @@ export function KRIBreachWidget() {
                 onClick={() => navigate('/risks?breached=true')}
                 className="w-full py-3 bg-white/[0.01] hover:bg-white/5 text-[10px] font-black text-slate-500 uppercase tracking-widest border-t border-white/5 transition-all"
             >
-                View Risk Register
+                {t('kri.view_risk_register')}
             </button>
         </div>
     );

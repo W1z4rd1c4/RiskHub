@@ -19,29 +19,6 @@ interface Department {
     name: string;
 }
 
-const RISK_LEVELS: { value: RiskLevel; label: string; color: string }[] = [
-    { value: 'all', label: 'All', color: 'bg-white/10' },
-    { value: 'critical', label: 'Critical', color: 'bg-rose-500/20 text-rose-400' },
-    { value: 'high', label: 'High', color: 'bg-orange-500/20 text-orange-400' },
-    { value: 'medium', label: 'Medium', color: 'bg-amber-500/20 text-amber-400' },
-    { value: 'low', label: 'Low', color: 'bg-emerald-500/20 text-emerald-400' },
-];
-
-const CONTROL_STATUSES = [
-    { value: null, label: 'All Statuses' },
-    { value: 'active', label: 'Active' },
-    { value: 'inactive', label: 'Inactive' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'deprecated', label: 'Deprecated' },
-];
-
-const CONTROL_FORMS = [
-    { value: null, label: 'All Forms' },
-    { value: 'preventive', label: 'Preventive' },
-    { value: 'detective', label: 'Detective' },
-    { value: 'corrective', label: 'Corrective' },
-];
-
 export function FilterBar() {
     const {
         filters,
@@ -55,7 +32,30 @@ export function FilterBar() {
 
     const [departments, setDepartments] = useState<Department[]>([]);
     const [isExpanded, setIsExpanded] = useState(false);
-    const { t } = useTranslation('common');
+    const { t } = useTranslation(['dashboard', 'common']);
+
+    const riskLevels: { value: RiskLevel; label: string; color: string }[] = [
+        { value: 'all', label: t('common:labels.all'), color: 'bg-white/10' },
+        { value: 'critical', label: t('dashboard:risk_levels.critical'), color: 'bg-rose-500/20 text-rose-400' },
+        { value: 'high', label: t('dashboard:issues.severity.high'), color: 'bg-orange-500/20 text-orange-400' },
+        { value: 'medium', label: t('dashboard:issues.severity.medium'), color: 'bg-amber-500/20 text-amber-400' },
+        { value: 'low', label: t('dashboard:issues.severity.low'), color: 'bg-emerald-500/20 text-emerald-400' },
+    ];
+
+    const controlStatuses = [
+        { value: null, label: t('common:filters.all_statuses') },
+        { value: 'active', label: t('dashboard:charts.active') },
+        { value: 'inactive', label: t('dashboard:charts.inactive') },
+        { value: 'pending', label: t('dashboard:charts.pending') },
+        { value: 'deprecated', label: t('dashboard:charts.deprecated') },
+    ];
+
+    const controlForms = [
+        { value: null, label: t('common:filters.all_forms') },
+        { value: 'preventive', label: t('dashboard:charts.preventive') },
+        { value: 'detective', label: t('dashboard:charts.detective') },
+        { value: 'corrective', label: t('dashboard:charts.corrective') },
+    ];
 
     useEffect(() => {
         lookupApi.getDepartments().then(setDepartments).catch(console.error);
@@ -64,22 +64,22 @@ export function FilterBar() {
     const activeFilterChips = [
         filters.departmentId && {
             key: 'dept',
-            label: departments.find(d => d.id === filters.departmentId)?.name ?? 'Department',
+            label: departments.find(d => d.id === filters.departmentId)?.name ?? t('dashboard:filters.department'),
             onRemove: () => setDepartmentId(null),
         },
         filters.riskLevel !== 'all' && {
             key: 'risk',
-            label: `Risk: ${filters.riskLevel}`,
+            label: `${t('dashboard:filters.risk_level')}: ${t(`dashboard:issues.severity.${filters.riskLevel}`, filters.riskLevel)}`,
             onRemove: () => setRiskLevel('all'),
         },
         filters.controlStatus && {
             key: 'status',
-            label: `Status: ${filters.controlStatus}`,
+            label: `${t('common:labels.status')}: ${t(`dashboard:charts.${filters.controlStatus}`, filters.controlStatus)}`,
             onRemove: () => setControlStatus(null),
         },
         filters.controlForm && {
             key: 'form',
-            label: `Form: ${filters.controlForm}`,
+            label: `${t('common:labels.form')}: ${t(`dashboard:charts.${filters.controlForm}`, filters.controlForm)}`,
             onRemove: () => setControlForm(null),
         },
     ].filter(Boolean) as { key: string; label: string; onRemove: () => void }[];
@@ -93,7 +93,7 @@ export function FilterBar() {
                     className="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white transition-colors"
                 >
                     <Filter className="h-4 w-4" />
-                    <span>Filters</span>
+                    <span>{t('dashboard:filters.title')}</span>
                     {hasActiveFilters && (
                         <span className="ml-1 w-5 h-5 rounded-full bg-accent text-white text-xs flex items-center justify-center">
                             {activeFilterChips.length}
@@ -130,7 +130,7 @@ export function FilterBar() {
                         className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
                     >
                         <RotateCcw className="h-3 w-3" />
-                        Clear All
+                        {t('dashboard:filters.clear_all')}
                     </button>
                 )}
             </div>
@@ -149,14 +149,14 @@ export function FilterBar() {
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                     <Building2 className="h-3 w-3" />
-                                    Department
+                                    {t('dashboard:filters.department')}
                                 </label>
                                 <ThemedSelect
                                     value={filters.departmentId?.toString() ?? ''}
                                     onValueChange={(v) => setDepartmentId(v ? Number(v) : null)}
-                                    placeholder={t('filters.all_departments')}
+                                    placeholder={t('common:filters.all_departments')}
                                     allowEmpty
-                                    emptyLabel={t('filters.all_departments')}
+                                    emptyLabel={t('common:filters.all_departments')}
                                     options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
                                 />
                             </div>
@@ -165,10 +165,10 @@ export function FilterBar() {
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                     <AlertTriangle className="h-3 w-3" />
-                                    Risk Level
+                                    {t('dashboard:filters.risk_level')}
                                 </label>
                                 <div className="flex flex-wrap gap-1">
-                                    {RISK_LEVELS.map(level => (
+                                    {riskLevels.map(level => (
                                         <button
                                             key={level.value}
                                             onClick={() => setRiskLevel(level.value)}
@@ -188,15 +188,15 @@ export function FilterBar() {
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                     <CheckCircle className="h-3 w-3" />
-                                    Control Status
+                                    {t('dashboard:filters.control_status')}
                                 </label>
                                 <ThemedSelect
                                     value={filters.controlStatus ?? ''}
                                     onValueChange={(v) => setControlStatus(v || null)}
-                                    placeholder={t('filters.all_statuses')}
+                                    placeholder={t('common:filters.all_statuses')}
                                     allowEmpty
-                                    emptyLabel={t('filters.all_statuses')}
-                                    options={CONTROL_STATUSES.filter(s => s.value !== null).map(status => ({ value: status.value!, label: status.label }))}
+                                    emptyLabel={t('common:filters.all_statuses')}
+                                    options={controlStatuses.filter(s => s.value !== null).map(status => ({ value: status.value!, label: status.label }))}
                                 />
                             </div>
 
@@ -204,15 +204,15 @@ export function FilterBar() {
                             <div className="space-y-2">
                                 <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                                     <Shield className="h-3 w-3" />
-                                    Control Form
+                                    {t('dashboard:filters.control_form')}
                                 </label>
                                 <ThemedSelect
                                     value={filters.controlForm ?? ''}
                                     onValueChange={(v) => setControlForm(v || null)}
-                                    placeholder={t('filters.all_forms')}
+                                    placeholder={t('common:filters.all_forms')}
                                     allowEmpty
-                                    emptyLabel={t('filters.all_forms')}
-                                    options={CONTROL_FORMS.filter(f => f.value !== null).map(form => ({ value: form.value!, label: form.label }))}
+                                    emptyLabel={t('common:filters.all_forms')}
+                                    options={controlForms.filter(f => f.value !== null).map(form => ({ value: form.value!, label: form.label }))}
                                 />
                             </div>
                         </div>

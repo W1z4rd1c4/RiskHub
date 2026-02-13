@@ -15,6 +15,7 @@ import adminEN from './locales/en/admin.json';
 import authEN from './locales/en/auth.json';
 import vendorsEN from './locales/en/vendors.json';
 import issuesEN from './locales/en/issues.json';
+import errorKeysEN from './locales/en/errorKeys.json';
 
 // Import Czech namespace files
 import commonCS from './locales/cs/common.json';
@@ -29,6 +30,7 @@ import adminCS from './locales/cs/admin.json';
 import authCS from './locales/cs/auth.json';
 import vendorsCS from './locales/cs/vendors.json';
 import issuesCS from './locales/cs/issues.json';
+import errorKeysCS from './locales/cs/errorKeys.json';
 
 export const SUPPORTED_LANGUAGES = ['en', 'cs'] as const;
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
@@ -49,6 +51,7 @@ export const resources = {
         auth: authEN,
         vendors: vendorsEN,
         issues: issuesEN,
+        errorKeys: errorKeysEN,
     },
     cs: {
         common: commonCS,
@@ -63,6 +66,7 @@ export const resources = {
         auth: authCS,
         vendors: vendorsCS,
         issues: issuesCS,
+        errorKeys: errorKeysCS,
     },
 } as const;
 
@@ -79,6 +83,7 @@ export const namespaces = [
     'auth',
     'vendors',
     'issues',
+    'errorKeys',
 ] as const;
 
 export type Namespace = typeof namespaces[number];

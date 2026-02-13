@@ -98,6 +98,19 @@
         "overdue_alert": "Odeslání hodnoty je opožděno"
     },
     "form": {
+        "validation": {
+            "risk_required": "Vyberte prosím riziko pro pokračování.",
+            "metric_name_required": "Zadejte prosím název KRI.",
+            "description_required": "Zadejte prosím popis."
+        },
+        "units": {
+            "percentage": "% (Procenta)",
+            "count": "Počet",
+            "days": "Dny",
+            "hours": "Hodiny",
+            "ratio": "Poměr"
+        },
+        "reporting_owner_hint": "Nechte prázdné pro použití vlastníka rizika jako výchozího",
         "placeholders": {
             "metric_name": "např. Míra stížností zákazníků",
             "description": "Popište, co tento KRI měří a proč je důležitý...",
@@ -123,5 +136,8 @@
         "badge": "Opožděno",
         "days_overdue": "{{days}} dní po termínu",
         "last_submission": "Poslední odeslání: {{date}}"
+    },
+    "labels": {
+        "archived": "Archivováno"
     }
 }

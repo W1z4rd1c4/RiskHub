@@ -18,7 +18,8 @@
         "your_identity": "Vaše identita",
         "your_permissions": "Vaše oprávnění",
         "access_scope": "Rozsah přístupu",
-        "ad_notice": "Váš profil je spravován Active Directory vaší organizace. Pro aktualizaci informací kontaktujte správce IT."
+        "ad_notice": "Váš profil je spravován Active Directory vaší organizace. Pro aktualizaci informací kontaktujte správce IT.",
+        "all_permissions": "Všechna oprávnění"
     },
     "appearance": {
         "title": "Motiv",
@@ -144,7 +145,8 @@
         "admin_logs": "Zobrazit systémové logy",
         "admin_sessions": "Spravovat aktivní relace",
         "admin_all": "Plný admin přístup",
-        "super_admin": "Super Admin (všechna oprávnění)"
+        "super_admin": "Super Admin (všechna oprávnění)",
+        "approvals_write": "Spravovat schválení"
     },
     "documentation": {
         "title": "Dokumentace a nápověda",

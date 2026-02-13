@@ -49,10 +49,10 @@ interface MiniPieChartProps {
 }
 
 function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps) {
-    const { t } = useTranslation('common');
+    const { t } = useTranslation('dashboard');
     const chartTheme = useChartTheme();
     const chartData = Object.entries(data).map(([key, value]) => ({
-        name: formatLabel(key),
+        name: t(`charts.${key}`, formatLabel(key)),
         value,
         key,
     }));
@@ -64,7 +64,7 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
             <div className="flex flex-col items-center">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">{title}</h4>
                 <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center">
-                    <span className="text-xs text-slate-600">{t('empty.no_data')}</span>
+                    <span className="text-xs text-slate-600">{t('common:empty.no_data')}</span>
                 </div>
             </div>
         );
@@ -146,24 +146,25 @@ export function CategoryBreakdownCharts({
     controlsByForm,
     controlsByFrequency
 }: CategoryBreakdownChartsProps) {
+    const { t } = useTranslation('dashboard');
     const { setControlStatus, setControlForm } = useDashboardFilters();
 
     return (
         <div className="grid grid-cols-3 gap-8">
             <MiniPieChart
-                title="By Status"
+                title={t('charts.by_status')}
                 data={controlsByStatus}
                 colors={STATUS_COLORS}
                 onSegmentClick={(key) => setControlStatus(key)}
             />
             <MiniPieChart
-                title="By Form"
+                title={t('charts.by_form')}
                 data={controlsByForm}
                 colors={FORM_COLORS}
                 onSegmentClick={(key) => setControlForm(key)}
             />
             <MiniPieChart
-                title="By Frequency"
+                title={t('charts.by_frequency')}
                 data={controlsByFrequency}
                 colors={FREQUENCY_COLORS}
             />

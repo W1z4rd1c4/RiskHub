@@ -16,6 +16,7 @@ import { parseUpdateResult } from '@/lib/approvalUi';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
 import { userApi } from '@/services/userApi';
+import { ApiClientError } from '@/services/apiClient';
 import type { KRICreate } from '@/types/kri';
 import type { RiskSummary } from '@/types/risk';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -27,7 +28,7 @@ interface KRIFormProps {
 }
 
 export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
-    const { t } = useTranslation('kris');
+    const { t } = useTranslation(['kris', 'common', 'errorKeys', 'approvals']);
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                 }
             } catch (err: unknown) {
                 console.error('Error loading risks:', err);
-                setError('Failed to load risks.');
+                setError('errorKeys.request_failed');
             } finally {
                 setIsLoadingRisks(false);
             }
@@ -99,7 +100,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
 
     const validateStep1 = () => {
         if (!formData.risk_id) {
-            setError('Please select a risk to proceed.');
+            setError(t('kris:form.validation.risk_required', 'Please select a risk to proceed.'));
             return false;
         }
         return true;
@@ -107,11 +108,11 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
 
     const validateStep2 = () => {
         if (!formData.metric_name?.trim()) {
-            setError('Please enter a KRI name.');
+            setError(t('kris:form.validation.metric_name_required', 'Please enter a KRI name.'));
             return false;
         }
         if (!formData.description?.trim()) {
-            setError('Please enter a description.');
+            setError(t('kris:form.validation.description_required', 'Please enter a description.'));
             return false;
         }
         return true;
@@ -159,8 +160,11 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
             navigate(`/kris/${kriId}`);
         } catch (err: unknown) {
             console.error('Error saving KRI:', err);
-            const message = err instanceof Error ? err.message : 'Failed to save KRI.';
-            setError(message);
+            if (err instanceof ApiClientError) {
+                setError(err.messageKey);
+            } else {
+                setError('errorKeys.save_kri_failed');
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -215,10 +219,10 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                         <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
                             <p className="text-amber-200 text-sm font-medium">
-                                Submitted for approval (ID: {approvalQueued.id})
+                                {t('approval_submitted', { ns: 'errorKeys' })} (ID: {approvalQueued.id})
                             </p>
                             <p className="text-amber-400/80 text-xs mt-1">
-                                {approvalQueued.message}
+                                {approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}
                             </p>
                             <div className="mt-3 flex gap-3">
                                 <Link
@@ -226,14 +230,14 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                     className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-100 transition-colors"
                                 >
                                     <CheckCircle className="h-3.5 w-3.5" />
-                                    Go to Approvals
+                                    {t('common:actions.view')} {t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}
                                 </Link>
                                 <button
                                     type="button"
                                     onClick={() => setApprovalQueued(null)}
                                     className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
                                 >
-                                    Dismiss
+                                    {t('common:actions.close')}
                                 </button>
                             </div>
                         </div>
@@ -243,7 +247,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                 {error && (
                     <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-400 text-sm font-medium animate-in fade-in slide-in-from-top-2">
                         <AlertCircle className="h-5 w-5" />
-                        {error}
+                        {error.startsWith('errorKeys.') ? t(error, { ns: 'errorKeys' }) : error}
                     </div>
                 )}
 
@@ -254,7 +258,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                         <section className="animate-in fade-in slide-in-from-right-4 duration-300">
                             <h3 className="text-[10px] font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <Target className="h-4 w-4 text-accent" />
-                                Link to Risk
+                                {t('kris:actions.link_risk', 'Link to Risk')}
                             </h3>
 
                             {selectedRisk ? (
@@ -262,7 +266,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <p className="text-sm font-bold text-white">{selectedRisk.name}</p>
-                                            <p className="text-xs text-slate-400 mt-1">{selectedRisk.process} • {selectedRisk.category || 'Uncategorized'}</p>
+                                            <p className="text-xs text-slate-400 mt-1">{selectedRisk.process} • {selectedRisk.category || t('common:labels.unknown')}</p>
                                             <p className="text-xs text-slate-300 mt-2 italic">{selectedRisk.description}</p>
                                             {selectedRisk.department_name && (
                                                 <span className="inline-block mt-3 px-2 py-0.5 rounded bg-white/10 text-[10px] uppercase font-bold text-slate-300">
@@ -325,15 +329,15 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                         {isLoadingRisks ? (
                                             <div className="p-8 text-center text-slate-500 text-sm">
                                                 <div className="animate-spin h-5 w-5 border-2 border-accent border-t-transparent rounded-full mx-auto mb-2"></div>
-                                                Loading risks...
+                                                {t('common:loading.risk_data', 'Loading risks...')}
                                             </div>
                                         ) : risks.length === 0 ? (
                                             <div className="p-8 text-center text-slate-500 text-sm">
-                                                No risks available. Go to Risks → New Risk to create one first.
+                                                {t('common:empty.no_risks_found')}
                                             </div>
                                         ) : filteredRisks.length === 0 ? (
                                             <div className="p-8 text-center text-slate-500 text-sm">
-                                                No risks match your search. Try a different term.
+                                                {t('common:labels.no_results')}
                                             </div>
                                         ) : (
                                             filteredRisks.slice(0, 20).map(risk => (
@@ -358,7 +362,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                                                     : risk.description}
                                                             </p>
                                                         ) : (
-                                                            <span className="text-[10px] text-slate-600 italic">No description available</span>
+                                                            <span className="text-[10px] text-slate-600 italic">{t('common:empty.no_description')}</span>
                                                         )}
                                                     </div>
                                                 </button>
@@ -373,12 +377,12 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                     {/* STEP 2: KRI Details */}
                     {currentStep === 1 && (
                         <section className="animate-in fade-in slide-in-from-right-4 duration-300">
-                            <h3 className="text-[10px] font-black text-white uppercase tracking-widest mb-4">KRI Details</h3>
+                            <h3 className="text-[10px] font-black text-white uppercase tracking-widest mb-4">{t('kris:fields.name')} {t('common:labels.details')}</h3>
 
                             <div className="space-y-6">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        KRI Name *
+                                        {t('kris:fields.name')} *
                                     </label>
                                     <input
                                         type="text"
@@ -393,7 +397,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
 
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        Description *
+                                        {t('common:labels.description')} *
                                     </label>
                                     <textarea
                                         required
@@ -408,7 +412,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                 <div className="grid md:grid-cols-3 gap-4">
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                            Current Value *
+                                            {t('kris:fields.current_value')} *
                                         </label>
                                         <input
                                             type="number"
@@ -421,7 +425,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-2">
-                                            Lower Limit
+                                            {t('kris:fields.lower_limit')}
                                         </label>
                                         <input
                                             type="number"
@@ -433,7 +437,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                     </div>
                                     <div>
                                         <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2">
-                                            Upper Limit
+                                            {t('kris:fields.upper_limit')}
                                         </label>
                                         <input
                                             type="number"
@@ -447,20 +451,20 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
 
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        Unit
+                                        {t('kris:fields.unit')}
                                     </label>
                                     <ThemedSelect
                                         value={formData.unit || '%'}
                                         onValueChange={(v) => handleInputChange('unit', v)}
                                         className="w-full"
                                         options={[
-                                            { value: '%', label: '% (Percentage)' },
-                                            { value: 'count', label: 'Count' },
-                                            { value: 'days', label: 'Days' },
-                                            { value: 'hours', label: 'Hours' },
+                                            { value: '%', label: t('kris:form.units.percentage') },
+                                            { value: 'count', label: t('kris:form.units.count') },
+                                            { value: 'days', label: t('kris:form.units.days') },
+                                            { value: 'hours', label: t('kris:form.units.hours') },
                                             { value: 'CZK', label: 'CZK' },
                                             { value: 'EUR', label: 'EUR' },
-                                            { value: 'ratio', label: 'Ratio' },
+                                            { value: 'ratio', label: t('kris:form.units.ratio') },
                                         ]}
                                     />
                                 </div>
@@ -470,7 +474,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
                                             <Calendar className="h-3 w-3" />
-                                            Reporting Frequency
+                                            {t('kris:fields.frequency')}
                                         </label>
                                         <ThemedSelect
                                             value={formData.frequency || 'quarterly'}
@@ -488,7 +492,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                     <div>
                                         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1">
                                             <User className="h-3 w-3" />
-                                            Reporting Owner
+                                            {t('kris:fields.owner')}
                                         </label>
                                         <ThemedSelect
                                             value={formData.reporting_owner_id?.toString() ?? ''}
@@ -499,7 +503,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                             className="w-full"
                                             options={users.map(user => ({ value: user.id.toString(), label: `${user.name} (${user.email})` }))}
                                         />
-                                        <p className="text-[9px] text-slate-600 mt-1 ml-1">Leave empty to use Risk owner as default</p>
+                                        <p className="text-[9px] text-slate-600 mt-1 ml-1">{t('kris:form.reporting_owner_hint', 'Leave empty to use Risk owner as default')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -517,14 +521,14 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                 className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest"
                             >
                                 <X className="h-4 w-4" />
-                                Cancel
+                                {t('common:actions.cancel')}
                             </button>
                             <button
                                 type="button"
                                 onClick={nextStep}
                                 className="btn-primary"
                             >
-                                Next Step
+                                {t('common:actions.next')}
                             </button>
                         </>
                     ) : (
@@ -534,14 +538,14 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                 onClick={prevStep}
                                 className="text-slate-400 hover:text-white transition-colors font-bold text-sm"
                             >
-                                Back
+                                {t('common:actions.back')}
                             </button>
                             <button
                                 type="submit"
                                 disabled={isSubmitting}
                                 className="btn-primary px-8"
                             >
-                                {isSubmitting ? 'Saving...' : (isEdit ? 'Update KRI' : 'Create KRI')}
+                                {isSubmitting ? t('common:loading.generic', 'Saving...') : (isEdit ? t('kris:edit_kri') : t('kris:create_kri'))}
                                 <Save className="h-4 w-4" />
                             </button>
                         </>

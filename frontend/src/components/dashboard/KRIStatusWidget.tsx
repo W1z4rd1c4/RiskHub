@@ -77,17 +77,17 @@ export function KRIStatusWidget() {
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                         <CalendarClock className="h-4 w-4 text-accent" />
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest">KRI Status</h3>
+                        <h3 className="text-xs font-black text-white uppercase tracking-widest">{t('kri.status_title')}</h3>
                     </div>
                     <div className="flex gap-1">
                         {dueSoonKRIs.length > 0 && (
                             <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 text-[10px] font-black rounded-full border border-blue-500/20">
-                                {dueSoonKRIs.length} upcoming
+                                {t('kri.upcoming_count', { count: dueSoonKRIs.length })}
                             </span>
                         )}
                         {overdueKRIs.length > 0 && (
                             <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 text-[10px] font-black rounded-full border border-amber-500/20">
-                                {overdueKRIs.length} overdue
+                                {t('kri.overdue_count', { count: overdueKRIs.length })}
                             </span>
                         )}
                     </div>
@@ -103,7 +103,7 @@ export function KRIStatusWidget() {
                             }`}
                     >
                         <CalendarClock className="h-3 w-3 inline mr-1" />
-                        Upcoming
+                        {t('kri.upcoming')}
                     </button>
                     <button
                         onClick={() => setActiveTab('overdue')}
@@ -113,7 +113,7 @@ export function KRIStatusWidget() {
                             }`}
                     >
                         <AlertTriangle className="h-3 w-3 inline mr-1" />
-                        Overdue
+                        {t('kri.overdue')}
                     </button>
                 </div>
             </div>
@@ -122,12 +122,12 @@ export function KRIStatusWidget() {
             <div className="flex-1 overflow-auto divide-y divide-white/5">
                 {showUpcomingEmpty && (
                     <div className="p-6 text-center">
-                        <p className="text-xs text-slate-500">No KRIs due in the next 7 days.</p>
+                        <p className="text-xs text-slate-500">{t('kri.no_due_next_7')}</p>
                     </div>
                 )}
                 {showOverdueEmpty && (
                     <div className="p-6 text-center">
-                        <p className="text-xs text-emerald-400">🎉 No overdue KRIs!</p>
+                        <p className="text-xs text-emerald-400">{t('kri.no_overdue_short')}</p>
                     </div>
                 )}
                 {currentItems.map((kri) => {
@@ -150,8 +150,8 @@ export function KRIStatusWidget() {
                                 <div className="flex items-center gap-2">
                                     <span className={`text-[9px] font-black uppercase tracking-tighter ${getUrgencyColor(days, isOverdue)}`}>
                                         {isOverdue
-                                            ? `${days} days overdue`
-                                            : `${days} days until due`
+                                            ? t('kri.days_overdue', { count: days })
+                                            : t('kri.days_until_due', { count: days })
                                         }
                                     </span>
                                     <span className="w-1 h-1 rounded-full bg-slate-700" />
@@ -170,7 +170,7 @@ export function KRIStatusWidget() {
                 onClick={() => navigate(`/kris?${activeTab === 'overdue' ? 'overdue=true' : ''}`)}
                 className="w-full py-3 bg-white/[0.01] hover:bg-white/5 text-[10px] font-black text-slate-500 uppercase tracking-widest border-t border-white/5 transition-all"
             >
-                View All {activeTab === 'overdue' ? 'Overdue' : 'KRIs'}
+                {activeTab === 'overdue' ? t('kri.view_all_overdue') : t('kri.view_all')}
             </button>
         </div>
     );

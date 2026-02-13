@@ -1,0 +1,19 @@
+{
+  "unknown": "Something went wrong. Please try again.",
+  "network": "Network error. Please check your connection.",
+  "unauthorized": "Your session has expired. Please sign in again.",
+  "forbidden": "You do not have permission to perform this action.",
+  "not_found": "The requested resource was not found.",
+  "validation": "Some fields are invalid. Please review and try again.",
+  "server": "Server error. Please try again later.",
+  "request_failed": "Request failed. Please try again.",
+  "demo_login_failed": "Demo login failed.",
+  "login_failed": "Login failed.",
+  "load_departments_failed": "Failed to load departments.",
+  "directory_preview_failed": "Preview failed. Ensure AD Emulator is running on port 8001.",
+  "directory_apply_failed": "Apply failed. Check backend logs for details.",
+  "save_control_failed": "Failed to save control. Please check your input.",
+  "save_risk_failed": "Failed to save risk. Please check your input.",
+  "save_kri_failed": "Failed to save KRI.",
+  "approval_submitted": "Submitted for approval"
+}
