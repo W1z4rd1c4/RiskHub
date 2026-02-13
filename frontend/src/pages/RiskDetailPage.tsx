@@ -25,6 +25,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
+import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { useTranslation } from '@/i18n/hooks';
 import { isApprovalCreatedResponse } from '@/types/approval';
 
@@ -34,6 +35,7 @@ export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { t } = useTranslation('common');
+    const { t: tIssues } = useTranslation('issues');
     const { getColor, getDisplayName } = useRiskTypes();
     const [risk, setRisk] = useState<Risk | null>(null);
     const [linkedControls, setLinkedControls] = useState<RiskControlLink[]>([]);
@@ -50,6 +52,7 @@ export function RiskDetailPage() {
     const [isDeleting, setIsDeleting] = useState(false);
     const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
     const [linkError, setLinkError] = useState<string | null>(null);
+    const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
     // KRI History State
     const [kriHistoryItems, setKriHistoryItems] = useState<HistoryTimelineItem[]>([]);
@@ -307,6 +310,15 @@ export function RiskDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <PermissionGate resource="issues" action="write">
+                        <button
+                            onClick={() => setIsIssueModalOpen(true)}
+                            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-300 hover:text-white hover:border-accent/50 transition-all flex items-center gap-2"
+                        >
+                            <FileText className="h-4 w-4" />
+                            {tIssues('actions.new_issue', 'New Issue')}
+                        </button>
+                    </PermissionGate>
                     <PermissionGate resource="risks" action="write">
                         <button
                             onClick={() => navigate(`/risks/${risk.id}/edit`)}
@@ -423,6 +435,15 @@ export function RiskDetailPage() {
                 showInput
                 inputLabel="Reason for archiving"
                 inputPlaceholder="Why is this risk being archived?"
+            />
+
+            <IssueQuickCreateModal
+                isOpen={isIssueModalOpen}
+                onClose={() => setIsIssueModalOpen(false)}
+                contextEntityType="risk"
+                contextEntityId={risk.id}
+                contextEntityLabel={risk.name}
+                onCreated={(issue) => navigate(`/issues/${issue.id}`)}
             />
         </div>
     );

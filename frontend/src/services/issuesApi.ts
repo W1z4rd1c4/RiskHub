@@ -4,6 +4,7 @@ import type {
     IssueApproveExceptionPayload,
     IssueAssignPayload,
     IssueClosePayload,
+    IssueContextCreatePayload,
     IssueCreatePayload,
     IssueDepartmentLookup,
     IssueException,
@@ -39,6 +40,10 @@ export const issuesApi = {
 
     async create(payload: IssueCreatePayload): Promise<Issue> {
         return apiClient.post<Issue>('/issues', payload);
+    },
+
+    async createContextual(payload: IssueContextCreatePayload): Promise<Issue> {
+        return apiClient.post<Issue>('/issues/contextual', payload);
     },
 
     async update(issueId: number, payload: IssueUpdatePayload): Promise<Issue> {

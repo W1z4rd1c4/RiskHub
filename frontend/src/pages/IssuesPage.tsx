@@ -1,64 +1,109 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Download, PlusCircle, RefreshCw } from 'lucide-react';
-import { IssueDetailPanel } from '@/components/issues/IssueDetailPanel';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AlertCircle, AlertTriangle, ChevronRight, Download, Plus, RefreshCw, Search } from 'lucide-react';
+import { SortableTable, Pagination } from '@/components/tables';
+import type { Column, SortDirection } from '@/components/tables';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from '@/i18n/hooks';
+import { ExportDialog, type ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
+import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
+import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { usePermissions } from '@/hooks/usePermissions';
-import { reportApi } from '@/services/reportApi';
 import { issuesApi } from '@/services/issuesApi';
-import type {
-    Issue,
-    IssueCreatePayload,
-    IssueDepartmentLookup,
-    IssueListFilters,
-    IssueOwnerLookup,
-    IssueSeverity,
-    IssueStatus,
-} from '@/types/issue';
+import { reportApi } from '@/services/reportApi';
+import type { IssueListFilters, IssueSeverity, IssueStatus, IssueSummary } from '@/types/issue';
 
-const STATUS_OPTIONS: Array<{ label: string; value: IssueStatus | '' }> = [
-    { label: 'All statuses', value: '' },
-    { label: 'Open', value: 'open' },
-    { label: 'Triaged', value: 'triaged' },
-    { label: 'In progress', value: 'in_progress' },
-    { label: 'Ready for validation', value: 'ready_for_validation' },
-    { label: 'Closed', value: 'closed' },
-];
-
-const SEVERITY_OPTIONS: Array<{ label: string; value: IssueSeverity | '' }> = [
-    { label: 'All severities', value: '' },
-    { label: 'Low', value: 'low' },
-    { label: 'Medium', value: 'medium' },
-    { label: 'High', value: 'high' },
-    { label: 'Critical', value: 'critical' },
-];
+function formatDateTime(value: string | null, locale: string, notSetLabel: string): string {
+    if (!value) {
+        return notSetLabel;
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return value;
+    }
+    return new Intl.DateTimeFormat(locale, {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(parsed);
+}
 
 export function IssuesPage() {
+    const navigate = useNavigate();
     const { hasPermission } = usePermissions();
+    const { t, i18n } = useTranslation('issues');
     const canRead = hasPermission('issues', 'read');
     const canWrite = hasPermission('issues', 'write');
-    const canApprove = hasPermission('issues', 'approve');
 
-    const [items, setItems] = useState<Issue[]>([]);
-    const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
-    const [selectedIssueId, setSelectedIssueId] = useState<number | null>(null);
+    const [items, setItems] = useState<IssueSummary[]>([]);
+    const [totalCount, setTotalCount] = useState(0);
+    const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<IssueStatus | ''>('');
     const [severityFilter, setSeverityFilter] = useState<IssueSeverity | ''>('');
-    const [overdueOnly, setOverdueOnly] = useState<boolean>(false);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [isCreating, setIsCreating] = useState<boolean>(false);
+    const [overdueOnly, setOverdueOnly] = useState(false);
+    const [includeClosed, setIncludeClosed] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [sortField, setSortField] = useState<IssueListFilters['sort_by'] | null>(null);
+    const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
-    const [newIssueTitle, setNewIssueTitle] = useState<string>('');
-    const [newIssueDescription, setNewIssueDescription] = useState<string>('');
-    const [newIssueDepartmentId, setNewIssueDepartmentId] = useState<string>('');
-    const [newIssueOwnerId, setNewIssueOwnerId] = useState<string>('');
-    const [newIssueSeverity, setNewIssueSeverity] = useState<IssueSeverity>('medium');
-    const [newIssueDueAt, setNewIssueDueAt] = useState<string>('');
-    const [departmentOptions, setDepartmentOptions] = useState<IssueDepartmentLookup[]>([]);
-    const [ownerOptions, setOwnerOptions] = useState<IssueOwnerLookup[]>([]);
-    const [isOwnersLoading, setIsOwnersLoading] = useState<boolean>(false);
+    const latestRequestIdRef = useRef(0);
+    const hasLoadedIssuesRef = useRef(false);
+
+    const limit = DEFAULT_LIST_PAGE_SIZE;
+    const debouncedSearch = useDebouncedValue(search, 300);
+
+    const statusOptions: Array<{ label: string; value: IssueStatus }> = useMemo(
+        () => [
+            { label: t('status.open', 'Open'), value: 'open' },
+            { label: t('status.triaged', 'Triaged'), value: 'triaged' },
+            { label: t('status.in_progress', 'In progress'), value: 'in_progress' },
+            { label: t('status.ready_for_validation', 'Ready for validation'), value: 'ready_for_validation' },
+            { label: t('status.closed', 'Closed'), value: 'closed' },
+        ],
+        [t]
+    );
+
+    const severityOptions: Array<{ label: string; value: IssueSeverity }> = useMemo(
+        () => [
+            { label: t('severity.low', 'Low'), value: 'low' },
+            { label: t('severity.medium', 'Medium'), value: 'medium' },
+            { label: t('severity.high', 'High'), value: 'high' },
+            { label: t('severity.critical', 'Critical'), value: 'critical' },
+        ],
+        [t]
+    );
+
+    const statusLabel = useCallback(
+        (status: IssueStatus): string => t(`status.${status}`, status.replaceAll('_', ' ')),
+        [t]
+    );
+
+    const severityLabel = useCallback(
+        (severity: IssueSeverity): string => t(`severity.${severity}`, severity),
+        [t]
+    );
+
+    const sourceLabel = useCallback(
+        (sourceType: string): string => {
+            const key = sourceType as 'manual' | 'control_execution' | 'kri_breach' | 'audit';
+            return t(`source.${key}`, sourceType.replaceAll('_', ' '));
+        },
+        [t]
+    );
 
     const listFilters = useMemo<IssueListFilters>(() => {
-        const filters: IssueListFilters = { limit: 100 };
+        const filters: IssueListFilters = {
+            skip: (currentPage - 1) * limit,
+            limit,
+            include_closed: statusFilter === 'closed' ? true : includeClosed,
+        };
         if (statusFilter) {
             filters.status = statusFilter;
         }
@@ -68,361 +113,334 @@ export function IssuesPage() {
         if (overdueOnly) {
             filters.overdue = true;
         }
+        if (debouncedSearch.trim()) {
+            filters.search = debouncedSearch.trim();
+        }
+        if (sortField && sortDirection) {
+            filters.sort_by = sortField;
+            filters.sort_order = sortDirection;
+        }
         return filters;
-    }, [overdueOnly, severityFilter, statusFilter]);
+    }, [currentPage, debouncedSearch, includeClosed, limit, overdueOnly, severityFilter, sortDirection, sortField, statusFilter]);
 
     const fetchIssues = useCallback(async () => {
         if (!canRead) {
             return;
         }
-        setIsLoading(true);
-        setError(null);
-        try {
-            const response = await issuesApi.list(listFilters);
-            const ids = response.items.map((issue) => issue.id);
-            const detailed = await Promise.all(ids.map((id) => issuesApi.get(id)));
-            setItems(detailed);
 
-            const nextSelectedId = selectedIssueId && ids.includes(selectedIssueId) ? selectedIssueId : ids[0] ?? null;
-            setSelectedIssueId(nextSelectedId);
-            if (nextSelectedId) {
-                const current = detailed.find((issue) => issue.id === nextSelectedId) ?? null;
-                setSelectedIssue(current);
-            } else {
-                setSelectedIssue(null);
+        const requestId = ++latestRequestIdRef.current;
+        try {
+            setIsLoading(true);
+            const response = await issuesApi.list(listFilters);
+            if (requestId !== latestRequestIdRef.current) {
+                return;
             }
+            setItems(response.items);
+            setTotalCount(response.total);
+            setError(null);
+            hasLoadedIssuesRef.current = true;
         } catch (loadError) {
-            const message = loadError instanceof Error ? loadError.message : 'Failed to load issues';
+            if (requestId !== latestRequestIdRef.current) {
+                return;
+            }
+            const message = loadError instanceof Error ? loadError.message : t('errors.load_failed', 'Failed to load issues');
             setError(message);
             setItems([]);
-            setSelectedIssue(null);
-            setSelectedIssueId(null);
+            setTotalCount(0);
         } finally {
-            setIsLoading(false);
+            if (requestId === latestRequestIdRef.current) {
+                setIsLoading(false);
+            }
         }
-    }, [canRead, listFilters, selectedIssueId]);
+    }, [canRead, listFilters, t]);
 
     useEffect(() => {
         fetchIssues();
     }, [fetchIssues]);
 
-    useEffect(() => {
-        if (!canWrite) {
-            setDepartmentOptions([]);
-            return;
-        }
-        issuesApi
-            .listDepartments()
-            .then((departments) => {
-                setDepartmentOptions(departments);
-            })
-            .catch(() => {
-                setError('Failed to load department options.');
-            });
-    }, [canWrite]);
-
-    useEffect(() => {
-        if (!canWrite || !newIssueDepartmentId) {
-            setOwnerOptions([]);
-            setNewIssueOwnerId('');
-            setIsOwnersLoading(false);
-            return;
-        }
-        const departmentId = Number(newIssueDepartmentId);
-        if (!Number.isFinite(departmentId) || departmentId <= 0) {
-            setOwnerOptions([]);
-            setNewIssueOwnerId('');
-            setIsOwnersLoading(false);
-            return;
-        }
-
-        setIsOwnersLoading(true);
-        issuesApi
-            .listAssignableOwners(departmentId)
-            .then((owners) => {
-                setOwnerOptions(owners);
-                setNewIssueOwnerId((previous) => (owners.some((owner) => String(owner.id) === previous) ? previous : ''));
-            })
-            .catch(() => {
-                setOwnerOptions([]);
-                setNewIssueOwnerId('');
-                setError('Failed to load owner options.');
-            })
-            .finally(() => {
-                setIsOwnersLoading(false);
-            });
-    }, [canWrite, newIssueDepartmentId]);
-
-    const handleSelectIssue = (issue: Issue) => {
-        setSelectedIssueId(issue.id);
-        setSelectedIssue(issue);
-    };
-
-    const handleCreateIssue = async () => {
-        if (!canWrite) {
-            return;
-        }
-        if (!newIssueTitle.trim()) {
-            setError('Title is required.');
-            return;
-        }
-        const departmentId = Number(newIssueDepartmentId);
-        if (!Number.isFinite(departmentId) || departmentId <= 0) {
-            setError('Department is required.');
-            return;
-        }
-
-        const payload: IssueCreatePayload = {
-            title: newIssueTitle.trim(),
-            description: newIssueDescription.trim() || undefined,
-            severity: newIssueSeverity,
-            source_type: 'manual',
-            department_id: departmentId,
-            owner_user_id: newIssueOwnerId ? Number(newIssueOwnerId) : undefined,
-            due_at: newIssueDueAt ? new Date(newIssueDueAt).toISOString() : undefined,
-        };
-
-        setIsCreating(true);
-        setError(null);
+    const handleExport = async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
+        setIsExporting(true);
         try {
-            const created = await issuesApi.create(payload);
-            setItems((previous) => [created, ...previous]);
-            setSelectedIssueId(created.id);
-            setSelectedIssue(created);
-            setNewIssueTitle('');
-            setNewIssueDescription('');
-            setNewIssueDepartmentId('');
-            setNewIssueOwnerId('');
-            setNewIssueSeverity('medium');
-            setNewIssueDueAt('');
-        } catch (createError) {
-            const message = createError instanceof Error ? createError.message : 'Issue creation failed';
+            await reportApi.exportIssues({
+                format,
+                asOfDate,
+                filters: {
+                    status: statusFilter || null,
+                    severity: severityFilter || null,
+                    overdueOnly: overdueOnly || null,
+                },
+            });
+            setIsExportDialogOpen(false);
+        } catch (exportError) {
+            const message = exportError instanceof Error ? exportError.message : t('errors.export_failed', 'Export failed');
             setError(message);
         } finally {
-            setIsCreating(false);
+            setIsExporting(false);
         }
     };
 
-    const handleIssueUpdated = (updatedIssue: Issue) => {
-        setItems((previous) => previous.map((item) => (item.id === updatedIssue.id ? updatedIssue : item)));
-        setSelectedIssue(updatedIssue);
-    };
-
-    const handleExportIssues = async () => {
-        const asOfDate = new Date().toISOString().slice(0, 10);
-        await reportApi.exportIssues({
-            format: 'xlsx',
-            asOfDate,
-            filters: {
-                status: statusFilter || null,
-                severity: severityFilter || null,
-                overdueOnly,
+    const columns: Column<IssueSummary>[] = useMemo(() => {
+        return [
+            {
+                key: 'title',
+                label: t('columns.issue', 'Issue'),
+                sortable: true,
+                render: (issue) => (
+                    <div className="space-y-1">
+                        <p className="text-sm font-semibold text-white">{issue.title}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className={issuePill(issueStatusClass(issue.status))}>{statusLabel(issue.status)}</span>
+                            <span className={issuePill(issueSeverityClass(issue.severity))}>{severityLabel(issue.severity)}</span>
+                        </div>
+                    </div>
+                ),
             },
-        });
-    };
+            {
+                key: 'department_name',
+                label: t('columns.department', 'Department'),
+                sortable: true,
+                render: (issue) => (
+                    <span className="text-sm text-slate-300">
+                        {issue.department_name || t('fallbacks.unknown_department', 'Unknown department')}
+                    </span>
+                ),
+            },
+            {
+                key: 'owner_user_name',
+                label: t('columns.owner', 'Owner'),
+                sortable: true,
+                render: (issue) => (
+                    <span className="text-sm text-slate-300">{issue.owner_user_name || t('fallbacks.unassigned', 'Unassigned')}</span>
+                ),
+            },
+            {
+                key: 'source_type',
+                label: t('columns.source', 'Source'),
+                sortable: true,
+                render: (issue) => <span className="text-sm text-slate-300">{sourceLabel(issue.source_type)}</span>,
+            },
+            {
+                key: 'due_at',
+                label: t('columns.due', 'Due'),
+                sortable: true,
+                render: (issue) => (
+                    <span className="text-sm text-slate-300">
+                        {formatDateTime(issue.due_at, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                    </span>
+                ),
+            },
+            {
+                key: 'opened_at',
+                label: t('columns.opened', 'Opened'),
+                sortable: true,
+                render: (issue) => <span className="text-sm text-slate-300">{formatDateTime(issue.opened_at, i18n.language, t('fallbacks.not_set', 'Not set'))}</span>,
+            },
+            {
+                key: 'actions',
+                label: '',
+                render: () => (
+                    <div className="flex items-center justify-end">
+                        <ChevronRight className="h-4 w-4 text-slate-500" />
+                    </div>
+                ),
+            },
+        ];
+    }, [i18n.language, severityLabel, sourceLabel, statusLabel, t]);
+
+    const totalPages = Math.ceil(totalCount / limit) || 1;
 
     if (!canRead) {
         return (
             <div className="glass-card p-8 flex items-center gap-3 text-amber-200">
                 <AlertTriangle className="h-5 w-5" />
-                <span>You do not have permission to view issues.</span>
+                <span>{t('permissions.view_denied', 'You do not have permission to view issues.')}</span>
             </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-black text-white">Issues</h2>
-                    <p className="text-sm text-slate-400">Track remediation, exceptions, and closure validation.</p>
+                    <h2 className="text-3xl font-black text-white mb-2">{t('title', 'Issues')}</h2>
+                    <p className="text-slate-500 font-medium tracking-tight">{t('page_subtitle', 'Track remediation, exceptions, and closure validation.')}</p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setIsExportDialogOpen(true)}
+                        disabled={isExporting}
+                        className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
+                    >
+                        <Download className="h-4 w-4" />
+                        {t('common:actions.export', 'Export')}
+                    </button>
+                    {canWrite && (
+                        <button
+                            type="button"
+                            onClick={() => navigate('/issues/new')}
+                            className="btn-primary"
+                        >
+                            <Plus className="h-5 w-5" />
+                            {t('actions.new_issue', 'New Issue')}
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            <div className="glass-card flex flex-col md:flex-row md:items-center gap-4">
+                <div className="md:flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all min-w-0">
+                    <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors shrink-0" />
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(event) => {
+                            setSearch(event.target.value);
+                            setCurrentPage(1);
+                        }}
+                        placeholder={t('filters.search_placeholder', 'Search by title or description')}
+                        className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
+                    />
+                </div>
+
+                <div className="flex w-full md:w-auto items-center gap-2 md:gap-3 flex-wrap md:flex-nowrap">
+                    <ThemedSelect
+                        value={statusFilter}
+                        onValueChange={(value) => {
+                            const next = value as IssueStatus | '';
+                            setStatusFilter(next);
+                            if (next === 'closed') {
+                                setIncludeClosed(true);
+                            }
+                            setCurrentPage(1);
+                        }}
+                        options={statusOptions.map((option) => ({ value: option.value, label: option.label }))}
+                        allowEmpty
+                        emptyLabel={t('filters.all_statuses', 'All statuses')}
+                        placeholder={t('filters.all_statuses', 'All statuses')}
+                        className="w-[170px]"
+                    />
+                    <ThemedSelect
+                        value={severityFilter}
+                        onValueChange={(value) => {
+                            setSeverityFilter(value as IssueSeverity | '');
+                            setCurrentPage(1);
+                        }}
+                        options={severityOptions.map((option) => ({ value: option.value, label: option.label }))}
+                        allowEmpty
+                        emptyLabel={t('filters.all_severities', 'All severities')}
+                        placeholder={t('filters.all_severities', 'All severities')}
+                        className="w-[170px]"
+                    />
+                    <label className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 flex items-center gap-2 text-sm text-slate-300 whitespace-nowrap">
+                        <input
+                            type="checkbox"
+                            checked={overdueOnly}
+                            onChange={(event) => {
+                                setOverdueOnly(event.target.checked);
+                                setCurrentPage(1);
+                            }}
+                            className="accent-accent"
+                        />
+                        {t('filters.overdue_only', 'Overdue only')}
+                    </label>
+                    <label className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 flex items-center gap-2 text-sm text-slate-300 whitespace-nowrap">
+                        <input
+                            type="checkbox"
+                            checked={includeClosed}
+                            onChange={(event) => {
+                                setIncludeClosed(event.target.checked);
+                                if (!event.target.checked && statusFilter === 'closed') {
+                                    setStatusFilter('');
+                                }
+                                setCurrentPage(1);
+                            }}
+                            className="accent-accent"
+                        />
+                        {t('filters.include_closed', 'Include closed')}
+                    </label>
                     <button
                         type="button"
                         onClick={fetchIssues}
-                        className="rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/5"
+                        className="h-10 w-10 flex items-center justify-center glass rounded-xl text-slate-400 hover:text-white transition-colors"
+                        title={t('actions.refresh', 'Refresh')}
                     >
-                        <span className="inline-flex items-center gap-2">
-                            <RefreshCw className="h-4 w-4" />
-                            Refresh
-                        </span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleExportIssues}
-                        className="rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 hover:bg-white/5"
-                    >
-                        <span className="inline-flex items-center gap-2">
-                            <Download className="h-4 w-4" />
-                            Export
-                        </span>
+                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
                     </button>
                 </div>
             </div>
 
-            {error && (
-                <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-                    {error}
-                </div>
-            )}
-
-            <div className="glass-card p-4 grid gap-3 md:grid-cols-4">
-                <select
-                    value={statusFilter}
-                    onChange={(event) => setStatusFilter(event.target.value as IssueStatus | '')}
-                    className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                >
-                    {STATUS_OPTIONS.map((option) => (
-                        <option key={option.label} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
-                <select
-                    value={severityFilter}
-                    onChange={(event) => setSeverityFilter(event.target.value as IssueSeverity | '')}
-                    className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                >
-                    {SEVERITY_OPTIONS.map((option) => (
-                        <option key={option.label} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </select>
-                <label className="flex items-center gap-2 text-sm text-slate-300">
-                    <input
-                        type="checkbox"
-                        checked={overdueOnly}
-                        onChange={(event) => setOverdueOnly(event.target.checked)}
-                    />
-                    Overdue only
-                </label>
-            </div>
-
-            {canWrite && (
-                <section className="glass-card p-4 space-y-3">
-                    <h3 className="text-sm font-bold uppercase tracking-wide text-slate-300">Create Issue</h3>
-                    <div className="grid gap-3 md:grid-cols-2">
-                        <input
-                            type="text"
-                            value={newIssueTitle}
-                            onChange={(event) => setNewIssueTitle(event.target.value)}
-                            placeholder="Title"
-                            className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        />
-                        <select
-                            value={newIssueSeverity}
-                            onChange={(event) => setNewIssueSeverity(event.target.value as IssueSeverity)}
-                            className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        >
-                            {SEVERITY_OPTIONS.filter((option) => option.value).map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
-                        <select
-                            value={newIssueDepartmentId}
-                            onChange={(event) => setNewIssueDepartmentId(event.target.value)}
-                            className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        >
-                            <option value="">Select department</option>
-                            {departmentOptions.map((department) => (
-                                <option key={department.id} value={department.id}>
-                                    {department.name} ({department.code})
-                                </option>
-                            ))}
-                        </select>
-                        <select
-                            value={newIssueOwnerId}
-                            onChange={(event) => setNewIssueOwnerId(event.target.value)}
-                            className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                            disabled={!newIssueDepartmentId || isOwnersLoading}
-                        >
-                            <option value="">
-                                {!newIssueDepartmentId
-                                    ? 'Select department first'
-                                    : isOwnersLoading
-                                        ? 'Loading owners...'
-                                        : 'Unassigned'}
-                            </option>
-                            {ownerOptions.map((owner) => (
-                                <option key={owner.id} value={owner.id}>
-                                    {owner.name}
-                                    {owner.role_name ? ` - ${owner.role_name}` : ''}
-                                </option>
-                            ))}
-                        </select>
-                        <input
-                            type="datetime-local"
-                            value={newIssueDueAt}
-                            onChange={(event) => setNewIssueDueAt(event.target.value)}
-                            className="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        />
-                        <textarea
-                            value={newIssueDescription}
-                            onChange={(event) => setNewIssueDescription(event.target.value)}
-                            placeholder="Description"
-                            className="min-h-[72px] rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        />
+            {error ? (
+                <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
+                    <AlertCircle className="h-12 w-12 text-rose-500" />
+                    <div>
+                        <p className="text-white font-bold text-xl">{t('errors.title', 'Error loading issues')}</p>
+                        <p className="text-slate-500 max-w-sm mx-auto">{error}</p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={handleCreateIssue}
-                        disabled={isCreating}
-                        className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                        <span className="inline-flex items-center gap-2">
-                            <PlusCircle className="h-4 w-4" />
-                            {isCreating ? 'Creating...' : 'Create Issue'}
-                        </span>
+                    <button onClick={fetchIssues} className="text-accent font-bold hover:underline">
+                        {t('actions.try_again', 'Try again')}
                     </button>
-                </section>
+                </div>
+            ) : !hasLoadedIssuesRef.current && isLoading ? (
+                <div className="glass-card !p-0 overflow-hidden">
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b border-white/5 bg-white/[0.02]">
+                                {columns.map((column) => (
+                                    <th key={String(column.key)} className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        {column.label}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {[...Array(limit)].map((_, index) => (
+                                <tr key={`issues-skeleton-${index}`} className="border-b border-white/5 animate-pulse">
+                                    <td className="px-6 py-4"><div className="h-4 w-32 bg-white/5 rounded" /></td>
+                                    <td className="px-6 py-4"><div className="h-5 w-20 bg-white/5 rounded-md" /></td>
+                                    <td className="px-6 py-4"><div className="h-5 w-20 bg-white/5 rounded-md" /></td>
+                                    <td className="px-6 py-4"><div className="h-5 w-16 bg-white/5 rounded-md" /></td>
+                                    <td className="px-6 py-4"><div className="h-5 w-24 bg-white/5 rounded-md" /></td>
+                                    <td className="px-6 py-4"><div className="h-5 w-24 bg-white/5 rounded-md" /></td>
+                                    <td className="px-6 py-4"><div className="h-4 w-4 bg-white/5 rounded ml-auto" /></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <>
+                    <SortableTable
+                        data={items}
+                        columns={columns}
+                        keyExtractor={(issue) => issue.id}
+                        onRowClick={(issue) => navigate(`/issues/${issue.id}`)}
+                        emptyMessage={t('list.empty', 'No issues found.')}
+                        sortKey={sortField}
+                        sortDirection={sortDirection}
+                        onSort={(key, direction) => {
+                            setSortField((direction ? key : null) as IssueListFilters['sort_by'] | null);
+                            setSortDirection(direction);
+                            setCurrentPage(1);
+                        }}
+                    />
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        totalItems={totalCount}
+                        itemsPerPage={limit}
+                        onPageChange={setCurrentPage}
+                    />
+                </>
             )}
 
-            <div className="grid gap-4 lg:grid-cols-[360px,1fr]">
-                <section className="glass-card p-3">
-                    <h3 className="px-2 pb-3 text-sm font-bold uppercase tracking-wide text-slate-300">Issue Queue</h3>
-                    {isLoading ? (
-                        <p className="px-2 py-4 text-sm text-slate-500">Loading issues...</p>
-                    ) : items.length === 0 ? (
-                        <p className="px-2 py-4 text-sm text-slate-500">No issues found.</p>
-                    ) : (
-                        <div className="space-y-2 max-h-[68vh] overflow-y-auto pr-1">
-                            {items.map((issue) => {
-                                const active = selectedIssueId === issue.id;
-                                return (
-                                    <button
-                                        key={issue.id}
-                                        type="button"
-                                        onClick={() => handleSelectIssue(issue)}
-                                        className={`w-full rounded-lg border px-3 py-2 text-left transition ${
-                                            active
-                                                ? 'border-accent/50 bg-accent/10'
-                                                : 'border-white/10 bg-slate-900/40 hover:bg-slate-800/40'
-                                        }`}
-                                    >
-                                        <div className="text-sm font-semibold text-white">{issue.title}</div>
-                                        <div className="mt-1 text-xs text-slate-400">
-                                            <span className="mr-2">{issue.status}</span>
-                                            <span className="mr-2">{issue.severity}</span>
-                                            <span>{issue.department_name || 'Unknown department'}</span>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-                </section>
-
-                <IssueDetailPanel
-                    issue={selectedIssue}
-                    canWrite={canWrite}
-                    canApprove={canApprove}
-                    onIssueUpdated={handleIssueUpdated}
-                />
-            </div>
+            <ExportDialog
+                isOpen={isExportDialogOpen}
+                onClose={() => setIsExportDialogOpen(false)}
+                onSubmit={handleExport}
+                isSubmitting={isExporting}
+            />
         </div>
     );
 }
