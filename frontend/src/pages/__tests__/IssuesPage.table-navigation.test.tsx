@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IssuesPage } from '@/pages/IssuesPage';
 
 const mockList = vi.fn();
+const mockNavigate = vi.fn();
 
 vi.mock('@/hooks/usePermissions', () => ({
     usePermissions: () => ({
@@ -26,11 +27,11 @@ vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
     return {
         ...actual,
-        useNavigate: () => vi.fn(),
+        useNavigate: () => mockNavigate,
     };
 });
 
-describe('IssuesPage business naming', () => {
+describe('IssuesPage table navigation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockList.mockResolvedValue({
@@ -59,17 +60,12 @@ describe('IssuesPage business naming', () => {
         });
     });
 
-    it('renders issue list with business labels and no raw ID copy', async () => {
+    it('navigates to detail page on row click', async () => {
         render(<IssuesPage />);
 
-        await screen.findByText('Patch Vulnerability');
+        const rowTitle = await screen.findByText('Patch Vulnerability');
+        fireEvent.click(rowTitle);
 
-        expect(screen.getByText('Operations')).toBeInTheDocument();
-        expect(screen.getByText('Eva Kralova')).toBeInTheDocument();
-
-        expect(screen.queryByText('Department ID')).not.toBeInTheDocument();
-        expect(screen.queryByText('Owner user ID')).not.toBeInTheDocument();
-        expect(screen.queryByText(/Issue #/i)).not.toBeInTheDocument();
-        expect(screen.queryByText(/#42/)).not.toBeInTheDocument();
+        expect(mockNavigate).toHaveBeenCalledWith('/issues/42');
     });
 });

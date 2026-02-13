@@ -11,6 +11,7 @@ export interface IssueLink {
     control_id: number | null;
     execution_id: number | null;
     kri_id: number | null;
+    vendor_id?: number | null;
     linked_entity_type: string | null;
     linked_entity_name: string | null;
     created_at: string;
@@ -92,6 +93,11 @@ export interface IssueListFilters {
     overdue?: boolean;
     linked_risk_id?: number;
     linked_control_id?: number;
+    linked_vendor_id?: number;
+    search?: string;
+    include_closed?: boolean;
+    sort_by?: 'title' | 'severity' | 'status' | 'opened_at' | 'due_at' | 'updated_at' | 'created_at';
+    sort_order?: 'asc' | 'desc';
 }
 
 export interface IssueCreatePayload {
@@ -167,4 +173,17 @@ export interface IssueLinkPayload {
     control_id?: number;
     execution_id?: number;
     kri_id?: number;
+    vendor_id?: number;
+}
+
+export type IssueContextEntityType = 'risk' | 'control' | 'execution' | 'kri' | 'vendor';
+
+export interface IssueContextCreatePayload {
+    entity_type: IssueContextEntityType;
+    entity_id: number;
+    title: string;
+    description?: string;
+    severity?: IssueSeverity;
+    due_at?: string;
+    owner_user_id?: number;
 }

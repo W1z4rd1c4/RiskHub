@@ -36,7 +36,7 @@
 | 11 Historical Visualization | ✅ Complete (5/5) | 2026-02-11 |
 | 12 Compliance Governance | ✅ Complete (7/7) | 2026-01-04 |
 | 12.1 Compliance Review | ✅ Complete (10/10) | 2026-01-04 |
-| 13 Issue & Remediation Management | ✅ Complete (3/3) | 2026-02-11 |
+| 13 Issue & Remediation Management | ✅ Complete (8/8) | 2026-02-12 |
 | 14 Risk Assessments | ✅ Complete (7/7) | 2026-01-24 |
 | 15 Settings Page | ✅ Complete (5/5) | 2026-01-07 |
 | 16 Risk Assessment Polish | ✅ Complete (3/3) | 2026-01-24 |
@@ -85,6 +85,54 @@
   - `.planning/phases/13-issue-remediation-management/13-01-SUMMARY.md`
   - `.planning/phases/13-issue-remediation-management/13-02-SUMMARY.md`
   - `.planning/phases/13-issue-remediation-management/13-03-SUMMARY.md`
+
+### Phase 13 Reopen Planning (2026-02-12)
+
+- Reopened Phase 13 for simplification follow-up while preserving completed baseline work (`13-01..13-03`).
+- Added planning artifacts:
+  - `.planning/phases/13-issue-remediation-management/13-CONTEXT.md`
+  - `.planning/phases/13-issue-remediation-management/13-PLAN.md`
+  - `.planning/phases/13-issue-remediation-management/13-04-PLAN.md`
+  - `.planning/phases/13-issue-remediation-management/13-05-PLAN.md`
+  - `.planning/phases/13-issue-remediation-management/13-06-PLAN.md`
+  - `.planning/phases/13-issue-remediation-management/13-07-PLAN.md`
+  - `.planning/phases/13-issue-remediation-management/13-08-PLAN.md`
+  - `.planning/phases/13-issue-remediation-management/13-FOLLOWUPS.md`
+- Locked reopen scope:
+  - contextual create from Risk/Control/KRI/Vendor detail pages
+  - direct vendor linking via `IssueLink.vendor_id`
+  - workflow state-machine unchanged (UX simplification only)
+- Planning metadata reconciled to in-progress status (`3/8`) pending execution of `13-04..13-08`.
+
+### Phase 13 Reopen Execution (2026-02-12)
+
+- ✅ Executed reopen wave order:
+  - Wave 1: `13-04` backend contextual create + vendor direct linking
+  - Wave 2: `13-05` reusable frontend quick-create modal + API/type support
+  - Wave 3: `13-06` detail-page entry points + `13-07` simplified workflow UX
+  - Wave 4: `13-08` regression matrix, docs reconciliation, and re-closeout
+- Backend delivery highlights:
+  - Added `IssueLink.vendor_id` with migration `13e6f7a8b9c0_extend_issue_links_with_vendor_context.py`.
+  - Added `POST /api/v1/issues/contextual` and `GET /api/v1/issues?linked_vendor_id=...`.
+  - Added vendor-department fallback (vendor dept -> owner dept) with explicit `409` when unresolved.
+- Frontend delivery highlights:
+  - Added `IssueQuickCreateModal` and `issuesApi.createContextual(...)`.
+  - Added contextual “New Issue” actions on Risk/Control/KRI/Vendor detail pages.
+  - Added contextual E2E path: `frontend/e2e/issues-contextual-create.spec.ts`.
+  - Simplified issue workflow tab with guided next-step messaging and collapsible advanced progress fields.
+- Verification:
+  - `cd backend && pytest -q tests/api/v1/test_issues_api.py tests/api/v1/test_issue_workflow.py` → `33 passed`
+  - `cd backend && python3 -m compileall app` → passed
+  - `cd frontend && npx tsc --noEmit` → passed
+  - `cd frontend && npm run test:run -- IssueQuickCreateModal RiskDetailPage.issue-entry ControlDetailPage.issue-entry KRIDetailPage.issue-entry VendorDetailPage.issue-entry IssuesPage IssueNewPage IssueDetailPage RemediationPlanCard.workflow-visibility` → `20 passed`
+  - `cd frontend && npx playwright test -g "issues contextual create"` → `4 passed`
+- Added reopen execution summaries:
+  - `.planning/phases/13-issue-remediation-management/13-04-SUMMARY.md`
+  - `.planning/phases/13-issue-remediation-management/13-05-SUMMARY.md`
+  - `.planning/phases/13-issue-remediation-management/13-06-SUMMARY.md`
+  - `.planning/phases/13-issue-remediation-management/13-07-SUMMARY.md`
+  - `.planning/phases/13-issue-remediation-management/13-08-SUMMARY.md`
+- Phase 13 returned to complete state (`8/8`).
 
 ### Planning Hygiene (2026-02-02)
 

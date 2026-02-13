@@ -78,7 +78,7 @@ Roadmap anchors:
 - Exception status: `requested -> approved -> expired -> revoked`
 
 ### Permissions model (recommended)
-- Add `findings:read`, `findings:write`, `findings:approve` to RBAC contract.
+- Add `issues:read`, `issues:write`, `issues:approve` to RBAC contract.
 - Suggested role mapping:
   - CRO / Risk Manager: full findings lifecycle
   - Department Head: write within scope, no global approval
@@ -110,3 +110,40 @@ Roadmap anchors:
 - Sequence with strict dependencies to reduce rework:
   - data model/API first, workflow second, analytics/reporting last.
 
+---
+
+## Reopen Addendum (2026-02-12): Simplified Contextual Intake
+
+### Why reopen
+
+The core lifecycle is implemented, but intake still depends on manual issue form entry and disconnected context switching.
+Reopen scope focuses on reducing intake friction while keeping the existing backend state machine.
+
+### Additional findings
+
+1. Current create flow is manual-first and defaults to `source_type='manual'`:
+   - `frontend/src/components/issues/IssueCreateForm.tsx`
+2. Link model currently cannot link vendors directly:
+   - `backend/app/models/issue.py`
+   - `backend/app/schemas/issue.py`
+3. Contextual issue entry actions are not present on Risk/Control/KRI/Vendor detail pages.
+4. Vendor records allow `department_id` to be null, so contextual department resolution needs explicit fallback:
+   - `backend/app/models/vendor.py`
+
+### Reopen design direction
+
+1. Add contextual create endpoint (`POST /api/v1/issues/contextual`) with entity-typed input.
+2. Add `vendor_id` to `IssueLink` and update exactly-one-target constraints.
+3. Implement detail-page contextual entry points (Risk/Control/KRI/Vendor) using a shared quick-create modal.
+4. Keep workflow transitions/endpoints unchanged and simplify only frontend action presentation.
+5. Preserve no-ID UI rule and EN/CS i18n coverage for new UI copy.
+
+### Reopen verification emphasis
+
+1. Scope-safe contextual create by entity type with non-leaky `404` behavior.
+2. Vendor fallback department resolution:
+   - vendor department
+   - vendor owner department
+   - explicit failure when unresolved
+3. Regression coverage for `linked_vendor_id` list filtering.
+4. E2E detail-page create flows for all four contextual sources.
