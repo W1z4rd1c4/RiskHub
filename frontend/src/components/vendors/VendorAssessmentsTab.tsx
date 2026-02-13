@@ -39,6 +39,7 @@ function renderInput(
     value: unknown,
     onChange: (v: unknown) => void,
     disabled: boolean,
+    t: (key: string, fallback?: string) => string,
 ) {
     const q = section.questions.find((qq) => qq.key === key);
     if (!q) return null;
@@ -57,7 +58,7 @@ function renderInput(
                     disabled={disabled}
                     className="h-4 w-4 rounded border-white/20 bg-white/5"
                 />
-                {q.label}
+                {t(q.labelKey, q.labelKey)}
             </label>
         );
     }
@@ -66,12 +67,12 @@ function renderInput(
         const v = typeof value === 'string' ? value : '';
         return (
             <div className="space-y-1">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{q.label}</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t(q.labelKey, q.labelKey)}</p>
                 <ThemedSelect
                     value={v}
                     onValueChange={(vv) => onChange(vv)}
-                    options={(q.options ?? []).map((o) => ({ value: o.value, label: o.label }))}
-                    placeholder="Select"
+                    options={(q.options ?? []).map((o) => ({ value: o.value, label: t(o.labelKey, o.labelKey) }))}
+                    placeholder={t('common:actions.select')}
                     disabled={disabled}
                 />
             </div>
@@ -81,12 +82,12 @@ function renderInput(
     if (q.type === 'textarea') {
         return (
             <div className="space-y-1">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{q.label}</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t(q.labelKey, q.labelKey)}</p>
                 <textarea
                     value={typeof value === 'string' ? value : ''}
                     onChange={(e) => onChange(e.target.value)}
                     rows={3}
-                    placeholder={q.placeholder}
+                    placeholder={q.placeholderKey ? t(q.placeholderKey, q.placeholderKey) : undefined}
                     disabled={disabled}
                     className={common}
                 />
@@ -96,11 +97,11 @@ function renderInput(
 
     return (
         <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{q.label}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t(q.labelKey, q.labelKey)}</p>
             <input
                 value={typeof value === 'string' ? value : ''}
                 onChange={(e) => onChange(e.target.value)}
-                placeholder={q.placeholder}
+                placeholder={q.placeholderKey ? t(q.placeholderKey, q.placeholderKey) : undefined}
                 disabled={disabled}
                 className={common}
             />
@@ -306,7 +307,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                             {t('assessments.item_title', { defaultValue: 'Assessment' })} #{a.id}
                                         </p>
                                         <p className="text-xs text-slate-500 font-medium">
-                                            {a.scope === 'dora' ? 'DORA' : 'Standard'} · {new Date(a.created_at).toLocaleDateString()}
+                                            {a.scope === 'dora' ? t('assessments.scope.dora', 'DORA') : t('assessments.scope.standard', 'Standard')} · {new Date(a.created_at).toLocaleDateString()}
                                         </p>
                                     </div>
                                     {statusPill(a.status)}
@@ -323,7 +324,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                         <div className="flex items-center gap-2">
                                             {statusPill(selected.status)}
                                             <span className="text-xs text-slate-500 font-medium">
-                                                {selected.scope === 'dora' ? 'DORA scope' : 'Standard scope'}
+                                                {selected.scope === 'dora' ? t('assessments.scope.dora_scope', 'DORA scope') : t('assessments.scope.standard_scope', 'Standard scope')}
                                             </span>
                                         </div>
 
@@ -403,7 +404,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                             onChange={(e) => setDraftEvidence(e.target.value)}
                                             disabled={!canEditDraft}
                                             className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium disabled:opacity-60"
-                                            placeholder="https://... or file path"
+                                            placeholder={t('assessments.fields.evidence_placeholder', 'https://... or file path')}
                                         />
                                     </div>
 
@@ -417,11 +418,11 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                                     value={committeeRecommendation}
                                                     onValueChange={(v) => setCommitteeRecommendation(v as VendorCommitteeRecommendation)}
                                                     options={[
-                                                        { value: 'approve', label: 'Approve' },
-                                                        { value: 'approve_with_conditions', label: 'Approve with conditions' },
-                                                        { value: 'reject', label: 'Reject' },
+                                                        { value: 'approve', label: t('assessments.actions.approve', 'Approve') },
+                                                        { value: 'approve_with_conditions', label: t('assessments.actions.approve_with_conditions', 'Approve with conditions') },
+                                                        { value: 'reject', label: t('assessments.actions.reject', 'Reject') },
                                                     ]}
-                                                    placeholder="Select"
+                                                    placeholder={t('common:actions.select')}
                                                 />
                                             </div>
                                             <div className="space-y-1">
@@ -432,7 +433,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                                     value={committeeConditions}
                                                     onChange={(e) => setCommitteeConditions(e.target.value)}
                                                     className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium"
-                                                    placeholder="Optional"
+                                                    placeholder={t('assessments.fields.optional', 'Optional')}
                                                 />
                                             </div>
                                         </div>
@@ -443,7 +444,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                     {template.map((section) => (
                                         <div key={section.key} className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-3">
                                             <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
-                                                {section.title}
+                                                {t(section.titleKey, section.titleKey)}
                                             </h4>
                                             <div className="grid gap-3">
                                                 {section.questions.map((q) => (
@@ -454,6 +455,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                                             draftAnswers[q.key],
                                                             (v) => setDraftAnswers((prev) => ({ ...prev, [q.key]: v })),
                                                             !canEditDraft,
+                                                            t,
                                                         )}
                                                     </div>
                                                 ))}

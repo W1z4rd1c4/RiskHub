@@ -16,6 +16,7 @@ interface DepartmentModalProps {
 }
 
 function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModalProps) {
+    const { t } = useTranslation(['admin', 'common']);
     const [name, setName] = useState('');
     const [code, setCode] = useState('');
     const [managerId, setManagerId] = useState<number | undefined>(undefined);
@@ -61,7 +62,7 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
             onClose();
         } catch (err: unknown) {
             const error = err as { response?: { data?: { detail?: string } }; message?: string };
-            setError(error.response?.data?.detail || error.message || 'Failed to save');
+            setError(error.response?.data?.detail || error.message || t('admin:departments_panel.modal.errors.save_failed'));
         } finally {
             setSaving(false);
         }
@@ -73,42 +74,42 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-md p-6">
                 <h2 className="text-xl font-bold text-white mb-4">
-                    {department ? 'Edit Department' : 'New Department'}
+                    {department ? t('admin:departments_panel.modal.edit_title') : t('admin:departments_panel.modal.new_title')}
                 </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">Department Name</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:departments_panel.modal.fields.department_name')}</label>
                         <input
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                            placeholder="e.g., IT Security"
+                            placeholder={t('admin:departments_panel.modal.placeholders.department_name')}
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">Code (Optional)</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:departments_panel.modal.fields.code_optional')}</label>
                         <input
                             type="text"
                             value={code}
                             onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ''))}
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent font-mono"
-                            placeholder="e.g., IT_SEC"
+                            placeholder={t('admin:departments_panel.modal.placeholders.code')}
                         />
-                        <p className="text-xs text-slate-500 mt-1">Short identifier, uppercase</p>
+                        <p className="text-xs text-slate-500 mt-1">{t('admin:departments_panel.modal.hints.code')}</p>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">Manager</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.owner')}</label>
                         <ThemedSelect
                             value={managerId?.toString() ?? ''}
                             onValueChange={(v) => setManagerId(v ? Number(v) : undefined)}
-                            placeholder="-- No Manager --"
+                            placeholder={t('admin:departments_panel.modal.placeholders.no_manager')}
                             allowEmpty
-                            emptyLabel="-- No Manager --"
+                            emptyLabel={t('admin:departments_panel.modal.placeholders.no_manager')}
                             className="w-full"
                             options={users?.map(user => ({ value: user.id.toString(), label: `${user.name} (${user.email})` })) ?? []}
                         />
@@ -127,14 +128,14 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
                             onClick={onClose}
                             className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
                         >
-                            Cancel
+                            {t('common:actions.cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={saving}
                             className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 transition-colors"
                         >
-                            {saving ? 'Saving...' : 'Save Department'}
+                            {saving ? t('admin:departments_panel.modal.saving') : t('admin:departments_panel.modal.save_department')}
                         </button>
                     </div>
                 </form>
@@ -204,7 +205,7 @@ export function DepartmentsPanel() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Building className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-semibold text-white">Departments</h3>
+                    <h3 className="text-lg font-semibold text-white">{t('admin:departments_panel.title')}</h3>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -215,7 +216,7 @@ export function DepartmentsPanel() {
                             onChange={(e) => setShowInactive(e.target.checked)}
                             className="rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
                         />
-                        Show deleted
+                        {t('admin:departments_panel.show_deleted')}
                     </label>
 
                     <button
@@ -223,7 +224,7 @@ export function DepartmentsPanel() {
                         className="flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
                     >
                         <Plus className="h-4 w-4" />
-                        Add Department
+                        {t('admin:departments_panel.add_department')}
                     </button>
                 </div>
             </div>
@@ -232,13 +233,13 @@ export function DepartmentsPanel() {
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Name / Code</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Manager</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">Users</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">Risks</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">Controls</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">Status</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Actions</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.name_code')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.manager')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.users')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.risks')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:departments_panel.columns.controls')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.status')}</th>
+                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -284,11 +285,11 @@ export function DepartmentsPanel() {
                                 <td className="py-3 px-4 text-center">
                                     {dept.is_active ? (
                                         <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-full text-xs border border-emerald-500/20">
-                                            Active
+                                            {t('admin:departments_panel.badges.active')}
                                         </span>
                                     ) : (
                                         <span className="px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs border border-red-500/20">
-                                            Deleted
+                                            {t('admin:departments_panel.badges.deleted')}
                                         </span>
                                     )}
                                 </td>
@@ -297,7 +298,7 @@ export function DepartmentsPanel() {
                                         <button
                                             onClick={() => { setEditingDept(dept); setModalOpen(true); }}
                                             className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors"
-                                            title="Edit"
+                                            title={t('common:actions.edit')}
                                         >
                                             <Edit className="h-4 w-4" />
                                         </button>
@@ -306,7 +307,7 @@ export function DepartmentsPanel() {
                                             <button
                                                 onClick={() => setDeleteConfirm(dept)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                                                title="Delete"
+                                                title={t('common:actions.delete')}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
@@ -316,7 +317,7 @@ export function DepartmentsPanel() {
                                             <button
                                                 onClick={() => restoreMutation.mutate(dept.id)}
                                                 className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
-                                                title="Restore"
+                                                title={t('admin:departments_panel.actions.restore')}
                                             >
                                                 <RotateCcw className="h-4 w-4" />
                                             </button>
@@ -343,17 +344,17 @@ export function DepartmentsPanel() {
                     <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6">
                         <h3 className="text-lg font-bold text-white mb-2">{t('confirmations.delete_department')}</h3>
                         <p className="text-slate-400 text-sm mb-4">
-                            Are you sure you want to delete <strong className="text-white">{deleteConfirm.name}</strong>?
+                            {t('admin:departments_panel.delete_confirm', { name: deleteConfirm.name })}
                             {(deleteConfirm.user_count > 0 || deleteConfirm.risk_count > 0 || deleteConfirm.control_count > 0) && (
                                 <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg space-y-1 text-red-400 text-xs">
                                     <div className="flex items-center gap-2 font-bold">
                                         <AlertCircle className="h-4 w-4" />
-                                        Cannot delete because of linked items:
+                                        {t('admin:departments_panel.delete_blocked_title')}
                                     </div>
                                     <ul className="list-disc list-inside ml-1">
-                                        {deleteConfirm.user_count > 0 && <li>Users: {deleteConfirm.user_count}</li>}
-                                        {deleteConfirm.risk_count > 0 && <li>Risks: {deleteConfirm.risk_count}</li>}
-                                        {deleteConfirm.control_count > 0 && <li>Controls: {deleteConfirm.control_count}</li>}
+                                        {deleteConfirm.user_count > 0 && <li>{t('admin:departments_panel.linked_counts.users', { count: deleteConfirm.user_count })}</li>}
+                                        {deleteConfirm.risk_count > 0 && <li>{t('admin:departments_panel.linked_counts.risks', { count: deleteConfirm.risk_count })}</li>}
+                                        {deleteConfirm.control_count > 0 && <li>{t('admin:departments_panel.linked_counts.controls', { count: deleteConfirm.control_count })}</li>}
                                     </ul>
                                 </div>
                             )}
@@ -363,14 +364,14 @@ export function DepartmentsPanel() {
                                 onClick={() => setDeleteConfirm(null)}
                                 className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
                             >
-                                Cancel
+                                {t('common:actions.cancel')}
                             </button>
                             {deleteConfirm.user_count === 0 && deleteConfirm.risk_count === 0 && deleteConfirm.control_count === 0 && (
                                 <button
                                     onClick={handleDelete}
                                     className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                                 >
-                                    Delete
+                                    {t('common:actions.delete')}
                                 </button>
                             )}
                         </div>

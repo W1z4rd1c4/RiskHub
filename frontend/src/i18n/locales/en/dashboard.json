@@ -30,10 +30,33 @@
         "active_depts": "Active Depts",
         "critical_risks": "Critical Risks",
         "avg_risk_score": "Avg Risk Score",
+        "vendors": "Vendors",
         "live": "Live",
         "stable": "Stable",
         "urgent": "Urgent",
         "calculated": "Calculated"
+    },
+    "actions": {
+        "export_summary_excel": "Export Summary Excel"
+    },
+    "issues": {
+        "summary": {
+            "title": "Issues Summary",
+            "open_issues": "Open issues",
+            "open": "Open",
+            "overdue": "Overdue",
+            "high_critical_open": "High/Critical Open",
+            "median_age_days": "Median Age (days)",
+            "open_by_age": "Open Issues by Age",
+            "open_by_severity": "Open Issues by Severity",
+            "open_counted": "Open issues counted: {{count}}"
+        },
+        "severity": {
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "critical": "Critical"
+        }
     },
     "views": {
         "overview": "Overview",
@@ -71,24 +94,59 @@
         "activity_volume": "Activity Volume",
         "risks_without_kri": "Risks Without KRI",
         "current_period": "Current:",
-        "compare_period": "Compare:"
+        "compare_period": "Compare:",
+        "active_vendors": "Active Vendors",
+        "overdue_vendor_reassessments": "Overdue Vendor Reassessments",
+        "vendor_sla_breaches": "Vendor SLA Breaches",
+        "no_data_available": "No data available",
+        "vs": "vs",
+        "last_quarter": "last quarter",
+        "no_snapshot_banner": "No historical snapshot for {{period}}. Snapshot-based metrics show current values only.",
+        "no_snapshot_hint": "No historical snapshot - comparison unavailable",
+        "not_available": "N/A"
     },
     "kri": {
         "all_current": "All KRIs Current",
         "no_due_soon": "No KRIs are due soon or overdue.",
         "no_overdue": "No KRIs are overdue for reporting.",
         "active_breaches": "Active Breaches",
-        "view_risk_register": "View Risk Register"
+        "view_risk_register": "View Risk Register",
+        "appetite_maintained": "Appetite Maintained",
+        "no_breaches_org": "No KRIs are currently in breach across the organization.",
+        "status_title": "KRI Status",
+        "upcoming_count": "{{count}} upcoming",
+        "overdue_count": "{{count}} overdue",
+        "upcoming": "Upcoming",
+        "overdue": "Overdue",
+        "no_due_next_7": "No KRIs due in the next 7 days.",
+        "no_overdue_short": "No overdue KRIs",
+        "days_overdue": "{{count}} days overdue",
+        "days_until_due": "{{count}} days until due",
+        "view_all": "View All KRIs",
+        "view_all_overdue": "View All Overdue"
     },
     "charts": {
+        "by_status": "By Status",
+        "by_form": "By Form",
+        "by_frequency": "By Frequency",
         "draft": "Draft",
         "active": "Active",
+        "inactive": "Inactive",
+        "pending": "Pending",
+        "deprecated": "Deprecated",
         "manual": "Manual",
         "automatic": "Automatic",
+        "preventive": "Preventive",
+        "detective": "Detective",
+        "corrective": "Corrective",
         "daily": "Daily",
         "weekly": "Weekly",
         "monthly": "Monthly",
         "quarterly": "Quarterly",
+        "semi-annually": "Semi-annually",
+        "annually": "Annually",
+        "ad_hoc": "Ad hoc",
+        "continuous": "Continuous",
         "uncategorised": "Uncategorised"
     },
     "errors": {
@@ -99,7 +157,12 @@
     "filters": {
         "department": "Department",
         "time_period": "Time Period",
-        "view_mode": "View Mode"
+        "view_mode": "View Mode",
+        "title": "Filters",
+        "clear_all": "Clear All",
+        "risk_level": "Risk Level",
+        "control_status": "Control Status",
+        "control_form": "Control Form"
     },
     "time_periods": {
         "today": "Today",
@@ -117,9 +180,74 @@
         "title": "Risk Committee",
         "meeting_mode": "Meeting Mode",
         "executive_summary": "Executive Summary",
-        "quarterly_metrics": "Quarterly Metrics"
+        "quarterly_metrics": "Quarterly Metrics",
+        "no_summary_data": "No summary data available",
+        "critical_risks": "Critical Risks",
+        "no_critical_risks": "No critical risks at this time",
+        "critical_vendors": "Critical Vendors",
+        "no_vendors_in_scope": "No vendors in scope",
+        "next_reassessment": "Next reassessment:",
+        "vendor_alerts": "Vendor Alerts",
+        "overdue_reassessments": "Overdue reassessments",
+        "sla_breaches": "SLA breaches",
+        "major_incidents_30d": "Major incidents (30d)",
+        "none": "None",
+        "no_department_exposure_data": "No department exposure data",
+        "no_recent_significant_activity": "No recent significant activity",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "days_ago": "{{count}} days ago",
+        "weeks_ago": "{{count}} weeks ago",
+        "months_ago": "{{count}} months ago",
+        "actions": {
+            "create": "Create",
+            "delete": "Delete",
+            "archive": "Archive",
+            "approve": "Approve",
+            "reject": "Reject"
+        }
     },
     "kri_breaches": "KRI Breaches",
     "active_users": "Active Users",
-    "high_risk": "High Risk"
+    "high_risk": "High Risk",
+    "department_exposure": {
+        "title": "Departments",
+        "subtitle": "Organizational units and their risk/control landscape.",
+        "empty": "No departments found. Create your first department to get started.",
+        "people": "People",
+        "risk_sum": "Risk Σ"
+    },
+    "risk_levels": {
+        "critical": "Critical"
+    },
+    "department_table": {
+        "columns": {
+            "department": "Department",
+            "controls": "Controls",
+            "risks": "Risks",
+            "audited": "Audited",
+            "kri_breaches": "KRI Breaches",
+            "quick_actions": "Quick Actions"
+        },
+        "focused": "Focused",
+        "high": "High",
+        "audited": "Audited",
+        "breached": "Breached",
+        "actions": {
+            "view_controls": "View Controls",
+            "view_risks": "View Risks",
+            "remove_focus": "Remove Focus",
+            "set_focus": "Set as Focus",
+            "go_to_department": "Go to Department"
+        },
+        "empty": "No department data available"
+    },
+    "risk_drilldown": {
+        "gross": "Gross",
+        "net": "Net",
+        "title": "{{riskType}} Risks at P{{probability}} × I{{impact}}",
+        "no_risks_at_position": "No risks at this position",
+        "footer_prefix": "Click a risk to view details • Press",
+        "footer_suffix": "to close"
+    }
 }

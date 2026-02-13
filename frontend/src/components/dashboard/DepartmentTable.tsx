@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronRight, ChevronUp, ChevronDown, ClipboardList, AlertTriangle, Target } from 'lucide-react';
 import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
 import type { DepartmentMetrics } from '../../types/dashboard';
+import { useTranslation } from '@/i18n/hooks';
 
 interface DepartmentTableProps {
     metrics: DepartmentMetrics[];
@@ -22,6 +23,7 @@ function SortIcon({ columnKey, sortKey, sortDirection }: { columnKey: SortKey; s
 }
 
 export function DepartmentTable({ metrics }: DepartmentTableProps) {
+    const { t } = useTranslation('dashboard');
     const navigate = useNavigate();
     const { filters, setDepartmentId } = useDashboardFilters();
     const [sortKey, setSortKey] = useState<SortKey>('department_name');
@@ -60,7 +62,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                             onClick={() => handleSort('department_name')}
                         >
                             <div className="flex items-center gap-1">
-                                Department
+                                {t('department_table.columns.department')}
                                 <SortIcon columnKey="department_name" sortKey={sortKey} sortDirection={sortDirection} />
                             </div>
                         </th>
@@ -69,7 +71,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                             onClick={() => handleSort('control_count')}
                         >
                             <div className="flex items-center justify-center gap-1">
-                                Controls
+                                {t('department_table.columns.controls')}
                                 <SortIcon columnKey="control_count" sortKey={sortKey} sortDirection={sortDirection} />
                             </div>
                         </th>
@@ -78,7 +80,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                             onClick={() => handleSort('risk_count')}
                         >
                             <div className="flex items-center justify-center gap-1">
-                                Risks
+                                {t('department_table.columns.risks')}
                                 <SortIcon columnKey="risk_count" sortKey={sortKey} sortDirection={sortDirection} />
                             </div>
                         </th>
@@ -87,7 +89,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                             onClick={() => handleSort('audited_control_count')}
                         >
                             <div className="flex items-center justify-center gap-1">
-                                Audited
+                                {t('department_table.columns.audited')}
                                 <SortIcon columnKey="audited_control_count" sortKey={sortKey} sortDirection={sortDirection} />
                             </div>
                         </th>
@@ -96,12 +98,12 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                             onClick={() => handleSort('breaching_kri_count')}
                         >
                             <div className="flex items-center justify-center gap-1">
-                                KRI Breaches
+                                {t('department_table.columns.kri_breaches')}
                                 <SortIcon columnKey="breaching_kri_count" sortKey={sortKey} sortDirection={sortDirection} />
                             </div>
                         </th>
                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">
-                            Quick Actions
+                            {t('department_table.columns.quick_actions')}
                         </th>
                     </tr>
                 </thead>
@@ -127,7 +129,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                         </span>
                                         {isSelected && (
                                             <span className="ml-2 text-[9px] font-bold text-accent uppercase tracking-wider">
-                                                Focused
+                                                {t('department_table.focused')}
                                             </span>
                                         )}
                                     </button>
@@ -140,7 +142,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                         <span className="text-sm font-mono text-slate-300">{dept.risk_count}</span>
                                         {dept.high_risk_count > 0 && (
                                             <span className="text-[10px] font-black text-rose-400 uppercase tracking-tighter mt-0.5">
-                                                {dept.high_risk_count} High
+                                                {dept.high_risk_count} {t('department_table.high')}
                                             </span>
                                         )}
                                     </div>
@@ -151,7 +153,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                             {dept.audited_control_count}/{dept.control_count}
                                         </span>
                                         <span className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter mt-0.5">
-                                            Audited
+                                            {t('department_table.audited')}
                                         </span>
                                     </div>
                                 </td>
@@ -161,7 +163,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                             {dept.breaching_kri_count}/{dept.total_kri_count}
                                         </span>
                                         <span className="text-[9px] font-bold text-slate-600 uppercase tracking-tighter mt-0.5">
-                                            Breached
+                                            {t('department_table.breached')}
                                         </span>
                                     </div>
                                 </td>
@@ -178,7 +180,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                                 <ClipboardList className="h-4 w-4" />
                                             </button>
                                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-white bg-slate-800 rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                                                View Controls
+                                                {t('department_table.actions.view_controls')}
                                             </span>
                                         </div>
                                         <div className="relative group/tooltip">
@@ -192,7 +194,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                                 <AlertTriangle className="h-4 w-4" />
                                             </button>
                                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-white bg-slate-800 rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                                                View Risks
+                                                {t('department_table.actions.view_risks')}
                                             </span>
                                         </div>
                                         <div className="relative group/tooltip">
@@ -210,7 +212,9 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                                 <Target className="h-4 w-4" />
                                             </button>
                                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-white bg-slate-800 rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                                                {isSelected ? 'Remove Focus' : 'Set as Focus'}
+                                                {isSelected
+                                                    ? t('department_table.actions.remove_focus')
+                                                    : t('department_table.actions.set_focus')}
                                             </span>
                                         </div>
                                         <div className="relative group/tooltip">
@@ -221,7 +225,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                                 <ChevronRight className="h-4 w-4" />
                                             </button>
                                             <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-white bg-slate-800 rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                                                Go to Department
+                                                {t('department_table.actions.go_to_department')}
                                             </span>
                                         </div>
                                     </div>
@@ -232,7 +236,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                     {metrics.length === 0 && (
                         <tr>
                             <td colSpan={6} className="px-6 py-12 text-center">
-                                <span className="text-slate-500 font-medium">No department data available</span>
+                                <span className="text-slate-500 font-medium">{t('department_table.empty')}</span>
                             </td>
                         </tr>
                     )}

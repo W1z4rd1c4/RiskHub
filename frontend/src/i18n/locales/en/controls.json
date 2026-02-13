@@ -62,7 +62,8 @@
         "passed": "Passed",
         "failed": "Failed",
         "not_tested": "Not Tested",
-        "not_applicable": "Not Applicable"
+        "not_applicable": "Not Applicable",
+        "warning": "Warning"
     },
     "filters": {
         "all_types": "All Types",
@@ -115,6 +116,36 @@
         }
     },
     "form": {
+        "steps": {
+            "identity": "Identity",
+            "ownership": "Ownership",
+            "execution": "Execution",
+            "risk_status": "Risk & Status",
+            "link_risk": "Link Risk"
+        },
+        "validation": {
+            "name_required": "Control Name is required.",
+            "description_required": "Description is required.",
+            "owner_required": "Control Owner is required.",
+            "owner_position_required": "Owner Position is required.",
+            "department_required": "Department is required.",
+            "data_source_required": "Data Source is required.",
+            "methodology_reference_required": "Methodology Reference is required."
+        },
+        "labels": {
+            "owner_position": "Owner Position",
+            "data_source_methodology": "Data Source & Methodology",
+            "inherent_risk_level": "Inherent Risk Level (1-5)",
+            "initial_status": "Initial Status",
+            "link_to_risk_optional": "Link to Risk (Optional)",
+            "uncategorized": "Uncategorized",
+            "effectiveness": "Effectiveness"
+        },
+        "effectiveness": {
+            "high": "High",
+            "medium": "Medium",
+            "low": "Low"
+        },
         "placeholders": {
             "name": "e.g. Daily Transaction Reconciliation",
             "description": "Describe the purpose and steps of this control...",

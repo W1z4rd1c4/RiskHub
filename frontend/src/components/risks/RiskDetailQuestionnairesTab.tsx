@@ -185,7 +185,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
 
     const latestLikelihood = (latestSubmitted?.answers?.['risk_assessment.q11_likelihood_12m'] ?? null) as number | null;
     const latestWorstCaseImpact = (latestSubmitted?.answers?.['risk_assessment.q12_worst_case_impact'] ?? null) as number | null;
-    const worstCaseRange = latestWorstCaseImpact ? formatFinancialRange(latestWorstCaseImpact, totalAssets) : '';
+    const worstCaseRange = latestWorstCaseImpact ? formatFinancialRange(latestWorstCaseImpact, totalAssets, t('risks:form.financial.no_loss', 'No financial loss')) : '';
 
     return (
         <div className="glass-card !p-0 overflow-hidden">

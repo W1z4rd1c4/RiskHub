@@ -14,6 +14,7 @@ interface RiskTypeModalProps {
 }
 
 function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps) {
+    const { t } = useTranslation(['admin', 'common']);
     const [code, setCode] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [description, setDescription] = useState('');
@@ -47,7 +48,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
             }
             onClose();
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to save');
+            setError(err instanceof Error ? err.message : t('admin:risk_types_panel.modal.errors.save_failed'));
         } finally {
             setSaving(false);
         }
@@ -59,51 +60,51 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-md p-6">
                 <h2 className="text-xl font-bold text-white mb-4">
-                    {riskType ? 'Edit Risk Type' : 'New Risk Type'}
+                    {riskType ? t('admin:risk_types_panel.modal.edit_title') : t('admin:risk_types_panel.modal.new_title')}
                 </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {!riskType && (
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">Code</label>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.code')}</label>
                             <input
                                 type="text"
                                 value={code}
                                 onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                                placeholder="e.g., compliance"
+                                placeholder={t('admin:risk_types_panel.modal.placeholders.code')}
                                 required
                             />
-                            <p className="text-xs text-slate-500 mt-1">Lowercase letters, numbers, underscores only</p>
+                            <p className="text-xs text-slate-500 mt-1">{t('admin:risk_types_panel.modal.hints.code')}</p>
                         </div>
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">Display Name</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.display_name')}</label>
                         <input
                             type="text"
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                            placeholder="e.g., Compliance Risk"
+                            placeholder={t('admin:risk_types_panel.modal.placeholders.display_name')}
                             required
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">Description</label>
+                        <label className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.description')}</label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent"
-                            placeholder="Brief description of this risk category"
+                            placeholder={t('admin:risk_types_panel.modal.placeholders.description')}
                             rows={3}
                         />
                     </div>
 
                     <div className="flex gap-4">
                         <div className="flex-1">
-                            <label className="block text-sm font-medium text-slate-300 mb-1">Color</label>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.color')}</label>
                             <div className="flex items-center gap-2">
                                 <input
                                     type="color"
@@ -122,7 +123,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
                         </div>
 
                         <div className="w-24">
-                            <label className="block text-sm font-medium text-slate-300 mb-1">Sort Order</label>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:risk_types_panel.modal.fields.sort_order')}</label>
                             <input
                                 type="number"
                                 value={sortOrder}
@@ -145,14 +146,14 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
                             onClick={onClose}
                             className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
                         >
-                            Cancel
+                            {t('common:actions.cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={saving}
                             className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 transition-colors"
                         >
-                            {saving ? 'Saving...' : 'Save'}
+                            {saving ? t('admin:risk_types_panel.modal.saving') : t('common:actions.save')}
                         </button>
                     </div>
                 </form>
@@ -222,7 +223,7 @@ export function RiskTypesPanel() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Palette className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-semibold text-white">Risk Types</h3>
+                    <h3 className="text-lg font-semibold text-white">{t('admin:risk_types_panel.title')}</h3>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -233,7 +234,7 @@ export function RiskTypesPanel() {
                             onChange={(e) => setShowInactive(e.target.checked)}
                             className="rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
                         />
-                        Show deleted
+                        {t('admin:risk_types_panel.show_deleted')}
                     </label>
 
                     <button
@@ -241,7 +242,7 @@ export function RiskTypesPanel() {
                         className="flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
                     >
                         <Plus className="h-4 w-4" />
-                        Add Type
+                        {t('admin:risk_types_panel.add_type')}
                     </button>
                 </div>
             </div>
@@ -250,13 +251,13 @@ export function RiskTypesPanel() {
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Color</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Code</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Display Name</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">Description</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">Risks</th>
-                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">Status</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">Actions</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:risk_types_panel.columns.color')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:risk_types_panel.columns.code')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('admin:risk_types_panel.columns.display_name')}</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.description')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('admin:risk_types_panel.columns.risks')}</th>
+                            <th className="text-center py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.status')}</th>
+                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">{t('common:labels.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -289,15 +290,15 @@ export function RiskTypesPanel() {
                                 <td className="py-3 px-4 text-center">
                                     {type.is_system ? (
                                         <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full text-xs">
-                                            System
+                                            {t('admin:risk_types_panel.badges.system')}
                                         </span>
                                     ) : type.is_active ? (
                                         <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full text-xs">
-                                            Active
+                                            {t('admin:risk_types_panel.badges.active')}
                                         </span>
                                     ) : (
                                         <span className="px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full text-xs">
-                                            Deleted
+                                            {t('admin:risk_types_panel.badges.deleted')}
                                         </span>
                                     )}
                                 </td>
@@ -306,7 +307,7 @@ export function RiskTypesPanel() {
                                         <button
                                             onClick={() => { setEditingType(type); setModalOpen(true); }}
                                             className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors"
-                                            title="Edit"
+                                            title={t('common:actions.edit')}
                                         >
                                             <Edit className="h-4 w-4" />
                                         </button>
@@ -315,7 +316,7 @@ export function RiskTypesPanel() {
                                             <button
                                                 onClick={() => setDeleteConfirm(type)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
-                                                title="Delete"
+                                                title={t('common:actions.delete')}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
@@ -325,7 +326,7 @@ export function RiskTypesPanel() {
                                             <button
                                                 onClick={() => restoreMutation.mutate(type.id)}
                                                 className="p-1.5 text-slate-400 hover:text-green-400 hover:bg-green-500/10 rounded transition-colors"
-                                                title="Restore"
+                                                title={t('admin:risk_types_panel.actions.restore')}
                                             >
                                                 <RotateCcw className="h-4 w-4" />
                                             </button>
@@ -352,10 +353,10 @@ export function RiskTypesPanel() {
                     <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6">
                         <h3 className="text-lg font-bold text-white mb-2">{t('confirmations.delete_risk_type')}</h3>
                         <p className="text-slate-400 text-sm mb-4">
-                            Are you sure you want to delete <strong className="text-white">{deleteConfirm.display_name}</strong>?
+                            {t('admin:risk_types_panel.delete_confirm', { name: deleteConfirm.display_name })}
                             {deleteConfirm.risk_count > 0 && (
                                 <span className="block mt-2 text-amber-400">
-                                    ⚠️ {deleteConfirm.risk_count} risks will become uncategorized.
+                                    {t('admin:risk_types_panel.delete_warning', { count: deleteConfirm.risk_count })}
                                 </span>
                             )}
                         </p>
@@ -364,13 +365,13 @@ export function RiskTypesPanel() {
                                 onClick={() => setDeleteConfirm(null)}
                                 className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
                             >
-                                Cancel
+                                {t('common:actions.cancel')}
                             </button>
                             <button
                                 onClick={handleDelete}
                                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                             >
-                                Delete
+                                {t('common:actions.delete')}
                             </button>
                         </div>
                     </div>

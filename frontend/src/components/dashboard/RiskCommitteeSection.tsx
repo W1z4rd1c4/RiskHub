@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Building2, Clock, Star, Activity, Handshake, BellRing } from 'lucide-react';
 import { dashboardApi } from '@/services/dashboardApi';
+import { useTranslation } from '@/i18n/hooks';
 import { QuarterlyComparisonWidget } from './QuarterlyComparisonWidget';
 
 interface CommitteeSummary {
@@ -89,17 +90,17 @@ const ACTION_COLORS: Record<string, string> = {
     reject: 'bg-amber-500/20 text-amber-400',
 };
 
-function formatTimeAgo(dateStr: string): string {
+function formatTimeAgo(dateStr: string, t: (key: string, options?: unknown) => string): string {
     const date = new Date(dateStr);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    return `${Math.floor(diffDays / 30)} months ago`;
+    if (diffDays === 0) return t('risk_committee.today');
+    if (diffDays === 1) return t('risk_committee.yesterday');
+    if (diffDays < 7) return t('risk_committee.days_ago', { count: diffDays });
+    if (diffDays < 30) return t('risk_committee.weeks_ago', { count: Math.floor(diffDays / 7) });
+    return t('risk_committee.months_ago', { count: Math.floor(diffDays / 30) });
 }
 
 function getRiskScoreColor(score: number): string {
@@ -116,6 +117,7 @@ function getVendorRiskColor(score: number): string {
 }
 
 export function RiskCommitteeSection() {
+    const { t } = useTranslation('dashboard');
     const navigate = useNavigate();
     const [summary, setSummary] = useState<CommitteeSummary | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -126,10 +128,10 @@ export function RiskCommitteeSection() {
             .then(setSummary)
             .catch((err) => {
                 console.error('Failed to fetch committee summary:', err);
-                setError('Failed to load committee data');
+                setError(t('errors.load_failed'));
             })
             .finally(() => setIsLoading(false));
-    }, []);
+    }, [t]);
 
     if (isLoading) {
         return (
@@ -156,7 +158,7 @@ export function RiskCommitteeSection() {
             <div className="space-y-6">
                 <QuarterlyComparisonWidget />
                 <div className="glass-card">
-                    <p className="text-slate-500 text-sm">{error || 'No summary data available'}</p>
+                    <p className="text-slate-500 text-sm">{error || t('risk_committee.no_summary_data')}</p>
                 </div>
             </div>
         );
@@ -181,11 +183,11 @@ export function RiskCommitteeSection() {
                 >
                     <div className="flex items-center gap-2 mb-6">
                         <AlertTriangle className="h-5 w-5 text-rose-400" />
-                        <h3 className="text-lg font-bold text-white">Critical Risks</h3>
+                        <h3 className="text-lg font-bold text-white">{t('risk_committee.critical_risks')}</h3>
                     </div>
 
                     {summary.critical_risks.length === 0 ? (
-                        <p className="text-slate-500 text-sm">No critical risks at this time</p>
+                        <p className="text-slate-500 text-sm">{t('risk_committee.no_critical_risks')}</p>
                     ) : (
                         <div className="space-y-3">
                             {summary.critical_risks.map((risk) => (
@@ -237,11 +239,11 @@ export function RiskCommitteeSection() {
                 >
                     <div className="flex items-center gap-2 mb-6">
                         <Handshake className="h-5 w-5 text-blue-400" />
-                        <h3 className="text-lg font-bold text-white">Critical Vendors</h3>
+                        <h3 className="text-lg font-bold text-white">{t('risk_committee.critical_vendors')}</h3>
                     </div>
 
                     {summary.critical_vendors.length === 0 ? (
-                        <p className="text-slate-500 text-sm">No vendors in scope</p>
+                        <p className="text-slate-500 text-sm">{t('risk_committee.no_vendors_in_scope')}</p>
                     ) : (
                         <div className="space-y-3">
                             {summary.critical_vendors.map((v) => (
@@ -261,7 +263,7 @@ export function RiskCommitteeSection() {
                                     </p>
                                     {v.next_reassessment_due_at && (
                                         <p className="text-xs text-slate-500 mt-2">
-                                            Next reassessment: {new Date(v.next_reassessment_due_at).toLocaleDateString()}
+                                            {t('risk_committee.next_reassessment')} {new Date(v.next_reassessment_due_at).toLocaleDateString()}
                                         </p>
                                     )}
                                 </button>
@@ -279,17 +281,17 @@ export function RiskCommitteeSection() {
                 >
                     <div className="flex items-center gap-2 mb-6">
                         <BellRing className="h-5 w-5 text-amber-400" />
-                        <h3 className="text-lg font-bold text-white">Vendor Alerts</h3>
+                        <h3 className="text-lg font-bold text-white">{t('risk_committee.vendor_alerts')}</h3>
                     </div>
 
                     <div className="space-y-4">
                         <div className="bg-white/5 rounded-xl p-4 border border-white/5">
                             <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-bold text-white">Overdue reassessments</p>
+                                <p className="text-sm font-bold text-white">{t('risk_committee.overdue_reassessments')}</p>
                                 <span className="text-sm font-black text-rose-400">{summary.vendor_alerts.overdue_reassessments.count}</span>
                             </div>
                             {summary.vendor_alerts.overdue_reassessments.items.length === 0 ? (
-                                <p className="text-xs text-slate-500">None</p>
+                                <p className="text-xs text-slate-500">{t('risk_committee.none')}</p>
                             ) : (
                                 <div className="space-y-2">
                                     {summary.vendor_alerts.overdue_reassessments.items.slice(0, 3).map((v) => (
@@ -312,11 +314,11 @@ export function RiskCommitteeSection() {
 
                         <div className="bg-white/5 rounded-xl p-4 border border-white/5">
                             <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-bold text-white">SLA breaches</p>
+                                <p className="text-sm font-bold text-white">{t('risk_committee.sla_breaches')}</p>
                                 <span className="text-sm font-black text-rose-400">{summary.vendor_alerts.sla_breaches.count}</span>
                             </div>
                             {summary.vendor_alerts.sla_breaches.items.length === 0 ? (
-                                <p className="text-xs text-slate-500">None</p>
+                                <p className="text-xs text-slate-500">{t('risk_committee.none')}</p>
                             ) : (
                                 <div className="space-y-2">
                                     {summary.vendor_alerts.sla_breaches.items.slice(0, 3).map((s) => (
@@ -335,11 +337,11 @@ export function RiskCommitteeSection() {
 
                         <div className="bg-white/5 rounded-xl p-4 border border-white/5">
                             <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-bold text-white">Major incidents (30d)</p>
+                                <p className="text-sm font-bold text-white">{t('risk_committee.major_incidents_30d')}</p>
                                 <span className="text-sm font-black text-rose-400">{summary.vendor_alerts.major_incidents_30d.count}</span>
                             </div>
                             {summary.vendor_alerts.major_incidents_30d.items.length === 0 ? (
-                                <p className="text-xs text-slate-500">None</p>
+                                <p className="text-xs text-slate-500">{t('risk_committee.none')}</p>
                             ) : (
                                 <div className="space-y-2">
                                     {summary.vendor_alerts.major_incidents_30d.items.slice(0, 3).map((i) => (
@@ -368,11 +370,11 @@ export function RiskCommitteeSection() {
                 >
                     <div className="flex items-center gap-2 mb-6">
                         <Building2 className="h-5 w-5 text-purple-400" />
-                        <h3 className="text-lg font-bold text-white">Risk Exposure by Dept</h3>
+                        <h3 className="text-lg font-bold text-white">{t('sections.risk_exposure_by_dept')}</h3>
                     </div>
 
                     {summary.department_exposure.length === 0 ? (
-                        <p className="text-slate-500 text-sm">No department exposure data</p>
+                        <p className="text-slate-500 text-sm">{t('risk_committee.no_department_exposure_data')}</p>
                     ) : (
                         <div className="space-y-3">
                             {summary.department_exposure.map((dept, index) => {
@@ -419,11 +421,11 @@ export function RiskCommitteeSection() {
                 >
                     <div className="flex items-center gap-2 mb-6">
                         <Activity className="h-5 w-5 text-accent" />
-                        <h3 className="text-lg font-bold text-white">Recent Activity</h3>
+                        <h3 className="text-lg font-bold text-white">{t('sections.recent_activity')}</h3>
                     </div>
 
                     {summary.recent_activity.length === 0 ? (
-                        <p className="text-slate-500 text-sm">No recent significant activity</p>
+                        <p className="text-slate-500 text-sm">{t('risk_committee.no_recent_significant_activity')}</p>
                     ) : (
                         <div className="space-y-3 max-h-80 overflow-y-auto">
                             {summary.recent_activity.map((activity) => (
@@ -433,7 +435,7 @@ export function RiskCommitteeSection() {
                                 >
                                     <div className="flex items-start gap-2">
                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${ACTION_COLORS[activity.action] || 'bg-slate-500/20 text-slate-400'}`}>
-                                            {activity.action}
+                                            {t(`risk_committee.actions.${activity.action}`, activity.action)}
                                         </span>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-xs text-white font-medium truncate">
@@ -441,7 +443,7 @@ export function RiskCommitteeSection() {
                                             </p>
                                             <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-1">
                                                 <Clock className="h-3 w-3" />
-                                                {formatTimeAgo(activity.created_at)}
+                                                {formatTimeAgo(activity.created_at, t)}
                                             </p>
                                         </div>
                                     </div>

@@ -232,5 +232,15 @@
         "search_risks": "Hledat rizika...",
         "search_controls": "Hledat kontroly...",
         "include_archived": "Zobrazit archivované"
+    },
+    "linking": {
+        "try_adjust_filters": "Zkuste upravit filtry nebo vyhledávací dotaz",
+        "confirm_linkage": "Potvrdit propojení",
+        "change": "Změnit",
+        "owner_information": "Informace o vlastníkovi",
+        "create_link": "Vytvořit propojení"
+    },
+    "approval": {
+        "submitted_for_approval": "Odesláno ke schválení"
     }
 }

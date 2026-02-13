@@ -98,6 +98,19 @@
         "overdue_alert": "Value submission overdue"
     },
     "form": {
+        "validation": {
+            "risk_required": "Please select a risk to proceed.",
+            "metric_name_required": "Please enter a KRI name.",
+            "description_required": "Please enter a description."
+        },
+        "units": {
+            "percentage": "% (Percentage)",
+            "count": "Count",
+            "days": "Days",
+            "hours": "Hours",
+            "ratio": "Ratio"
+        },
+        "reporting_owner_hint": "Leave empty to use Risk owner as default",
         "placeholders": {
             "metric_name": "e.g. Customer complaint rate",
             "description": "Describe what this KRI measures and why it matters...",
@@ -123,5 +136,8 @@
         "badge": "Overdue",
         "days_overdue": "{{days}} days overdue",
         "last_submission": "Last submission: {{date}}"
+    },
+    "labels": {
+        "archived": "Archived"
     }
 }

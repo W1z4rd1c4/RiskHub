@@ -130,11 +130,11 @@ export function DashboardPage() {
             setIssueSeverity(issueSeverityData);
         } catch (err) {
             console.error('Dashboard fetch error:', err);
-            setError('Failed to load dashboard data. Please check your connection.');
+            setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
         }
-    }, [canReadIssues, filters]);
+    }, [canReadIssues, filters, t]);
 
     useEffect(() => {
         fetchData();
@@ -222,12 +222,12 @@ export function DashboardPage() {
 
     if (canReadIssues) {
         stats.push({
-            title: 'Open issues',
+            title: t('issues.summary.open_issues'),
             value: issueSummary?.open_issues ?? 0,
             icon: AlertCircle,
             color: 'text-amber-300',
             bg: 'bg-amber-500/10',
-            trend: 'live',
+            trend: t('stats.live'),
             path: '/issues',
         });
     }
@@ -243,7 +243,7 @@ export function DashboardPage() {
                     <button
                         onClick={() => reportApi.downloadSummaryExcel({ departmentId: filters.departmentId })}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
-                        title="Export Summary Excel"
+                        title={t('actions.export_summary_excel')}
                     >
                         <FileText className="h-5 w-5" />
                     </button>
@@ -324,23 +324,23 @@ export function DashboardPage() {
                                 className="glass-card"
                             >
                                 <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-300">
-                                    Issues Summary
+                                    {t('issues.summary.title')}
                                 </h3>
                                 <div className="space-y-2 text-sm text-slate-300">
                                     <div className="flex justify-between">
-                                        <span>Open</span>
+                                        <span>{t('issues.summary.open')}</span>
                                         <span className="font-semibold text-white">{issueSummary.open_issues}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span>Overdue</span>
+                                        <span>{t('issues.summary.overdue')}</span>
                                         <span className="font-semibold text-white">{issueSummary.overdue_issues}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span>High/Critical Open</span>
+                                        <span>{t('issues.summary.high_critical_open')}</span>
                                         <span className="font-semibold text-white">{issueSummary.high_severity_open}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span>Median Age (days)</span>
+                                        <span>{t('issues.summary.median_age_days')}</span>
                                         <span className="font-semibold text-white">{issueSummary.median_days_open}</span>
                                     </div>
                                 </div>
@@ -352,7 +352,7 @@ export function DashboardPage() {
                                 className="glass-card"
                             >
                                 <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-300">
-                                    Open Issues by Age
+                                    {t('issues.summary.open_by_age')}
                                 </h3>
                                 <IssueAgingChart buckets={issueAging.buckets} />
                             </motion.div>
@@ -363,7 +363,7 @@ export function DashboardPage() {
                                 className="glass-card"
                             >
                                 <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-300">
-                                    Open Issues by Severity
+                                    {t('issues.summary.open_by_severity')}
                                 </h3>
                                 <OpenIssuesBySeverityChart items={issueSeverity.items} />
                             </motion.div>
@@ -400,7 +400,7 @@ export function DashboardPage() {
                             <div className="flex items-center justify-between mb-8">
                                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                                     <TrendingUp className="h-5 w-5 text-accent" />
-                                    Control Execution Trends
+                                    {t('sections.control_execution_trends')}
                                 </h3>
                             </div>
                             <div className="flex-1 min-h-[300px]">

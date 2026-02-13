@@ -89,6 +89,7 @@
         "re": "Ohledně:"
     },
     "notifications": {
+        "submitted_for_approval": "Odesláno ke schválení",
         "approved": "Žádost byla úspěšně schválena",
         "rejected": "Žádost byla zamítnuta",
         "cancelled": "Žádost byla zrušena"
