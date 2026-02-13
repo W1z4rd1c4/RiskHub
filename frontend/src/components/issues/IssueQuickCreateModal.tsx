@@ -1,0 +1,220 @@
+import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Loader2, PlusCircle, X } from 'lucide-react';
+import { useTranslation } from '@/i18n/hooks';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { issuesApi } from '@/services/issuesApi';
+import type { Issue, IssueContextEntityType, IssueSeverity } from '@/types/issue';
+import { ISSUE_FIELD, ISSUE_LABEL, ISSUE_TEXTAREA } from './issueUi';
+
+interface IssueQuickCreateModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    contextEntityType: IssueContextEntityType;
+    contextEntityId: number;
+    contextEntityLabel: string;
+    defaultTitlePrefix?: string;
+    onCreated: (issue: Issue) => void;
+}
+
+function toDateTimeInputValue(value: Date): string {
+    const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
+    return local.toISOString().slice(0, 16);
+}
+
+function toIsoOrUndefined(value: string): string | undefined {
+    if (!value) {
+        return undefined;
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return undefined;
+    }
+    return parsed.toISOString();
+}
+
+export function IssueQuickCreateModal({
+    isOpen,
+    onClose,
+    contextEntityType,
+    contextEntityId,
+    contextEntityLabel,
+    defaultTitlePrefix,
+    onCreated,
+}: IssueQuickCreateModalProps) {
+    const { t } = useTranslation('issues');
+
+    const [title, setTitle] = useState('');
+    const [severity, setSeverity] = useState<IssueSeverity>('medium');
+    const [dueAt, setDueAt] = useState('');
+    const [description, setDescription] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const severityOptions = useMemo(
+        () => [
+            { value: 'low', label: t('severity.low', 'Low') },
+            { value: 'medium', label: t('severity.medium', 'Medium') },
+            { value: 'high', label: t('severity.high', 'High') },
+            { value: 'critical', label: t('severity.critical', 'Critical') },
+        ],
+        [t]
+    );
+
+    useEffect(() => {
+        if (!isOpen) {
+            return;
+        }
+        const seedTitle = defaultTitlePrefix
+            ? `${defaultTitlePrefix}: ${contextEntityLabel}`
+            : `${t('quick_create.default_title_prefix', 'Issue from')}: ${contextEntityLabel}`;
+        setTitle(seedTitle);
+        setSeverity('medium');
+        setDueAt(toDateTimeInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)));
+        setDescription('');
+        setError(null);
+        setIsSubmitting(false);
+    }, [contextEntityLabel, defaultTitlePrefix, isOpen, t]);
+
+    if (!isOpen) {
+        return null;
+    }
+
+    const handleSubmit = async () => {
+        if (!title.trim()) {
+            setError(t('errors.title_required', 'Title is required.'));
+            return;
+        }
+
+        setIsSubmitting(true);
+        setError(null);
+        try {
+            const created = await issuesApi.createContextual({
+                entity_type: contextEntityType,
+                entity_id: contextEntityId,
+                title: title.trim(),
+                description: description.trim() || undefined,
+                severity,
+                due_at: toIsoOrUndefined(dueAt),
+            });
+            onCreated(created);
+            onClose();
+        } catch (createError) {
+            const message =
+                createError instanceof Error
+                    ? createError.message
+                    : t('errors.create_failed', 'Issue creation failed');
+            setError(message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <button
+                type="button"
+                className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+                onClick={onClose}
+                aria-label={t('quick_create.close', 'Close quick create modal')}
+            />
+
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="issue-quick-create-title"
+                className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900/95 p-6 shadow-2xl space-y-5"
+            >
+                <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                        <h3 id="issue-quick-create-title" className="text-xl font-black text-white tracking-tight">
+                            {t('quick_create.title', 'Create Issue')}
+                        </h3>
+                        <p className="text-sm text-slate-400">
+                            {t('quick_create.context_label', 'Source')}: <span className="text-slate-200">{contextEntityLabel}</span>
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="p-2 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                        aria-label={t('quick_create.close', 'Close quick create modal')}
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                </div>
+
+                {error && (
+                    <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200 flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 mt-0.5" />
+                        <span>{error}</span>
+                    </div>
+                )}
+
+                <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-1.5 md:col-span-2">
+                        <label className={ISSUE_LABEL}>{t('form.fields.title', 'Title')}</label>
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(event) => setTitle(event.target.value)}
+                            className={ISSUE_FIELD}
+                            placeholder={t('form.placeholders.title', 'Issue title')}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className={ISSUE_LABEL}>{t('form.fields.severity', 'Severity')}</label>
+                        <ThemedSelect
+                            value={severity}
+                            onValueChange={(value) => setSeverity(value as IssueSeverity)}
+                            options={severityOptions}
+                            className="w-full"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className={ISSUE_LABEL}>{t('form.fields.due_date', 'Due date')}</label>
+                        <input
+                            type="datetime-local"
+                            value={dueAt}
+                            onChange={(event) => setDueAt(event.target.value)}
+                            className={`${ISSUE_FIELD} h-10`}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                        <label className={ISSUE_LABEL}>{t('form.fields.description', 'Description')}</label>
+                        <textarea
+                            value={description}
+                            onChange={(event) => setDescription(event.target.value)}
+                            className={ISSUE_TEXTAREA}
+                            placeholder={t('quick_create.description_placeholder', 'Optional context for remediation')}>
+                        </textarea>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
+                        disabled={isSubmitting}
+                    >
+                        {t('actions.cancel', 'Cancel')}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={isSubmitting}
+                        className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+                    >
+                        {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
+                        {isSubmitting
+                            ? t('quick_create.creating', 'Creating...')
+                            : t('quick_create.submit', 'Create Issue')}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}

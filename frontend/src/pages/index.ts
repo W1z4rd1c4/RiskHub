@@ -13,6 +13,8 @@ export { VendorsPage } from './VendorsPage';
 export { VendorDetailPage } from './VendorDetailPage';
 export { VendorReportsPage } from './VendorReportsPage';
 export { IssuesPage } from './IssuesPage';
+export { IssueNewPage } from './IssueNewPage';
+export { IssueDetailPage } from './IssueDetailPage';
 export { SettingsPage } from './SettingsPage';
 export { HeroPage } from './HeroPage';
 export { ControlDetailPage } from './ControlDetailPage';

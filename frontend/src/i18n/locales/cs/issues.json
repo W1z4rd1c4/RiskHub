@@ -1,0 +1,206 @@
+{
+  "title": "Nálezy",
+  "page_subtitle": "Sledujte nápravu, výjimky a validaci uzavření.",
+  "new_page": {
+    "title": "Vytvořit nález",
+    "breadcrumb": "Nálezy / Nový záznam"
+  },
+  "actions": {
+    "new_issue": "Nový nález",
+    "create_issue": "Vytvořit nález",
+    "creating": "Vytváření...",
+    "refresh": "Obnovit",
+    "try_again": "Zkusit znovu",
+    "back_to_issues": "Zpět na nálezy",
+    "cancel": "Zrušit",
+    "assign": "Přiřadit",
+    "start_remediation": "Spustit nápravu",
+    "update_progress": "Aktualizovat průběh",
+    "request_exception": "Požádat o výjimku",
+    "approve_exception": "Schválit výjimku",
+    "close_issue": "Uzavřít nález"
+  },
+  "quick_create": {
+    "title": "Vytvořit nález",
+    "submit": "Vytvořit nález",
+    "creating": "Vytváření...",
+    "close": "Zavřít rychlé vytvoření nálezu",
+    "context_label": "Zdroj",
+    "default_title_prefix": "Nález z",
+    "description_placeholder": "Volitelný kontext pro nápravu"
+  },
+  "filters": {
+    "search_placeholder": "Hledat podle názvu nebo popisu",
+    "all_statuses": "Všechny stavy",
+    "all_severities": "Všechny závažnosti",
+    "overdue_only": "Pouze po termínu",
+    "include_closed": "Včetně uzavřených"
+  },
+  "columns": {
+    "issue": "Nález",
+    "department": "Oddělení",
+    "owner": "Vlastník",
+    "source": "Zdroj",
+    "due": "Termín",
+    "opened": "Otevřeno"
+  },
+  "status": {
+    "open": "Otevřený",
+    "triaged": "Roztříděný",
+    "in_progress": "V řešení",
+    "ready_for_validation": "Připraveno k validaci",
+    "closed": "Uzavřený"
+  },
+  "severity": {
+    "low": "Nízká",
+    "medium": "Střední",
+    "high": "Vysoká",
+    "critical": "Kritická"
+  },
+  "source": {
+    "manual": "Manuální",
+    "control_execution": "Provedení kontroly",
+    "kri_breach": "Porušení KRI",
+    "audit": "Audit"
+  },
+  "permissions": {
+    "view_denied": "Nemáte oprávnění zobrazit nálezy.",
+    "create_denied": "Nemáte oprávnění vytvářet nálezy.",
+    "history_denied": "Nemáte oprávnění zobrazit historii aktivit tohoto nálezu."
+  },
+  "list": {
+    "empty": "Nebyly nalezeny žádné nálezy."
+  },
+  "errors": {
+    "title": "Chyba při načítání nálezů",
+    "load_failed": "Načtení nálezů selhalo",
+    "export_failed": "Export selhal",
+    "detail_load_failed": "Načtení detailu nálezu selhalo.",
+    "not_found": "Nález nebyl nalezen.",
+    "unable_to_load": "Nepodařilo se načíst detail nálezu.",
+    "action_failed": "Akce workflow nálezu selhala",
+    "owner_required": "Vlastník je povinný.",
+    "owner_invalid": "Výběr vlastníka je neplatný.",
+    "due_required": "Termín je povinný.",
+    "exception_reason_required": "Důvod výjimky je povinný.",
+    "exception_expiry_required": "Datum expirace výjimky je povinné.",
+    "no_requested_exception_for_approval": "Pro schválení není dostupná žádná požadovaná výjimka.",
+    "validation_note_required": "Poznámka k validaci je pro uzavření povinná.",
+    "create_failed": "Vytvoření nálezu selhalo",
+    "title_required": "Název je povinný.",
+    "department_required": "Oddělení je povinné.",
+    "load_departments_failed": "Nepodařilo se načíst možnosti oddělení.",
+    "load_owners_failed": "Nepodařilo se načíst možnosti vlastníků."
+  },
+  "detail": {
+    "loading": "Načítání dat nálezu",
+    "not_found_title": "Nález nenalezen",
+    "tabs": {
+      "overview": "Přehled",
+      "workflow": "Workflow",
+      "history": "Historie"
+    },
+    "fields": {
+      "source": "Zdroj",
+      "owner": "Vlastník",
+      "department": "Oddělení",
+      "opened": "Otevřeno",
+      "due": "Termín",
+      "created_by": "Vytvořil",
+      "links": "Vazby"
+    },
+    "sections": {
+      "linked_entities": "Navázané entity",
+      "exceptions": "Výjimky"
+    },
+    "messages": {
+      "select_issue": "Vyberte nález pro zobrazení workflow nápravy a navázaného kontextu.",
+      "no_description": "Popis není k dispozici.",
+      "no_linked_entities": "Žádné navázané entity.",
+      "no_exceptions": "Nebyly zaznamenány žádné výjimky.",
+      "loading_history": "Načítání historie...",
+      "no_history": "Pro tento nález nebyly nalezeny žádné záznamy aktivit.",
+      "expires": "Vyprší",
+      "system": "Systém"
+    }
+  },
+  "form": {
+    "fields": {
+      "title": "Název",
+      "severity": "Závažnost",
+      "department": "Oddělení",
+      "owner": "Vlastník",
+      "due_date": "Termín",
+      "description": "Popis"
+    },
+    "placeholders": {
+      "title": "Název nálezu",
+      "department": "Vyberte oddělení",
+      "select_owner": "Vyberte vlastníka",
+      "owner": "Nepřiřazeno",
+      "select_department_first": "Nejprve vyberte oddělení",
+      "loading_owners": "Načítání vlastníků...",
+      "description": "Popište kontext nápravy a očekávaný výsledek"
+    }
+  },
+  "workflow": {
+    "title": "Workflow nápravy",
+    "closed_notice": "Tento nález je uzavřen. Akce workflow jsou skryty, aby byl přehled zaměřen na souhrn a historii.",
+    "next_step": {
+      "assignment": "Další krok: přiřaďte vlastníka a spusťte nápravu.",
+      "progress": "Další krok: aktualizujte průběh a výjimky řešte jen pokud jsou potřeba.",
+      "close": "Další krok: doplňte validační poznámku a uzavřete nález.",
+      "closed": "Uzavřený nález: režim souhrnu."
+    },
+    "sections": {
+      "assignment": "Přiřazení",
+      "remediation_progress": "Průběh nápravy",
+      "exception_handling": "Práce s výjimkami",
+      "closure": "Uzavření",
+      "workflow_summary": "Souhrn workflow",
+      "advanced_progress": "Pokročilá pole průběhu"
+    },
+    "fields": {
+      "owner": "Vlastník",
+      "due_at": "Termín",
+      "progress": "Průběh (%)",
+      "remediation_status": "Stav nápravy",
+      "blocker_reason": "Důvod blokace",
+      "completion_notes": "Poznámky k dokončení",
+      "exception_reason": "Důvod výjimky",
+      "approve_until": "Schválit do",
+      "validation_note": "Poznámka k validaci",
+      "target_date": "Cílové datum",
+      "completed_at": "Dokončeno"
+    },
+    "messages": {
+      "no_requested_exception": "Žádná požadovaná výjimka nečeká na schválení.",
+      "not_created": "Nevytvořeno"
+    }
+  },
+  "remediation_status": {
+    "draft": "Návrh",
+    "active": "Aktivní",
+    "blocked": "Blokováno",
+    "completed": "Dokončeno"
+  },
+  "exception_status": {
+    "requested": "Požadováno",
+    "approved": "Schváleno",
+    "revoked": "Zrušeno",
+    "expired": "Expirovalo"
+  },
+  "fallbacks": {
+    "not_set": "Nenastaveno",
+    "n_a": "N/A",
+    "unknown_user": "Neznámý uživatel",
+    "unknown_department": "Neznámé oddělení",
+    "unknown_risk": "Neznámé riziko",
+    "unknown_control": "Neznámá kontrola",
+    "unknown_execution": "Neznámé provedení",
+    "unknown_kri": "Neznámé KRI",
+    "unknown_link": "Neznámá vazba",
+    "unassigned": "Nepřiřazeno",
+    "no_description": "Bez popisu."
+  }
+}

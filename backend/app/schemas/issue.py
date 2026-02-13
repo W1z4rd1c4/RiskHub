@@ -49,10 +49,11 @@ class IssueLinkBase(BaseModel):
     control_id: int | None = None
     execution_id: int | None = None
     kri_id: int | None = None
+    vendor_id: int | None = None
 
     @model_validator(mode="after")
     def validate_exactly_one_target(self):
-        targets = [self.risk_id, self.control_id, self.execution_id, self.kri_id]
+        targets = [self.risk_id, self.control_id, self.execution_id, self.kri_id, self.vendor_id]
         non_null_count = sum(1 for item in targets if item is not None)
         if non_null_count != 1:
             raise ValueError("Exactly one linked target must be provided")
@@ -149,6 +150,24 @@ class IssueCreate(BaseModel):
     department_id: int | None = None
     owner_user_id: int | None = None
     due_at: datetime | None = None
+
+
+class IssueContextEntityTypeEnum(str, Enum):
+    risk = "risk"
+    control = "control"
+    execution = "execution"
+    kri = "kri"
+    vendor = "vendor"
+
+
+class IssueContextualCreate(BaseModel):
+    entity_type: IssueContextEntityTypeEnum
+    entity_id: int = Field(..., ge=1)
+    title: str = Field(..., max_length=255)
+    description: str | None = None
+    severity: IssueSeverityEnum = IssueSeverityEnum.medium
+    due_at: datetime | None = None
+    owner_user_id: int | None = None
 
 
 class IssueUpdate(BaseModel):

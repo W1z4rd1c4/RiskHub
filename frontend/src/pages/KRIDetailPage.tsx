@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Edit2, Trash2, Target, AlertTriangle, CheckCircle, Plus, Clock, History, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, Target, AlertTriangle, CheckCircle, Plus, Clock, History, RotateCcw, FileText } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
 import { PermissionGate } from '@/components/PermissionGate';
@@ -12,6 +12,7 @@ import { KRIHistoryEditModal } from '@/components/kri/KRIHistoryEditModal';
 import { Button } from '@/components/ui/button';
 import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
+import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
 import type { Risk } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
@@ -22,6 +23,7 @@ export function KRIDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { t } = useTranslation('common');
+    const { t: tIssues } = useTranslation('issues');
     const [kri, setKri] = useState<KeyRiskIndicator | null>(null);
     const [linkedRisk, setLinkedRisk] = useState<Risk | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -35,6 +37,7 @@ export function KRIDetailPage() {
     const [historyTotal, setHistoryTotal] = useState(0);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<KRIHistoryEntry | null>(null);
+    const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
     // Permissions
     const { canRecordKRI, user } = usePermissions();
@@ -205,6 +208,14 @@ export function KRIDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    <PermissionGate resource="issues" action="write">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsIssueModalOpen(true)}
+                        >
+                            <FileText className="h-4 w-4 mr-1" /> {tIssues('actions.new_issue', 'New Issue')}
+                        </Button>
+                    </PermissionGate>
                     {(canRecordKRI || (!!kri && !!user?.id && kri.reporting_owner_id === user.id)) && (
                         <Button onClick={() => setIsValueModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500">
                             <Plus className="h-4 w-4 mr-1" /> Record Value
@@ -314,6 +325,17 @@ export function KRIDetailPage() {
                     />
                 )
             }
+
+            {kri && (
+                <IssueQuickCreateModal
+                    isOpen={isIssueModalOpen}
+                    onClose={() => setIsIssueModalOpen(false)}
+                    contextEntityType="kri"
+                    contextEntityId={kri.id}
+                    contextEntityLabel={kri.metric_name}
+                    onCreated={(issue) => navigate(`/issues/${issue.id}`)}
+                />
+            )}
         </div >
     );
 }

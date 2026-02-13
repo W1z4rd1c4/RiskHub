@@ -385,18 +385,29 @@ async def is_issue_owner_assignable_to_department(
         return True
 
     from sqlalchemy import select
-    from app.models import User
+    from app.models import Role, User
 
     row = (
         await db.execute(
-            select(User.id, User.is_active, User.access_scope, User.department_id).where(User.id == owner_user_id)
+            select(
+                User.id,
+                User.is_active,
+                User.access_scope,
+                User.department_id,
+                Role.name,
+            )
+            .join(Role, User.role_id == Role.id)
+            .where(User.id == owner_user_id)
         )
     ).one_or_none()
     if row is None:
         return False
 
-    _, is_active, access_scope, department_id = row
+    _, is_active, access_scope, department_id, role_name = row
     if not bool(is_active):
+        return False
+
+    if role_name == RoleType.ADMIN:
         return False
 
     if access_scope == AccessScope.GLOBAL:

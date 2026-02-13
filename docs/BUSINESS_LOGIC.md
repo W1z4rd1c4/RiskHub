@@ -678,6 +678,47 @@ Metric rules:
 - Overdue issues require `due_at < now` and open/not-suppressed.
 - Severity breakdown counts open/not-suppressed issues.
 
+### 11.5 Contextual Issue Intake
+
+Contextual creation endpoint:
+- `POST /api/v1/issues/contextual`
+
+Supported contextual source entities:
+- `risk`
+- `control`
+- `execution`
+- `kri`
+- `vendor`
+
+Contextual behavior:
+- Backend resolves issue department from linked source entity.
+- Vendor links support direct `vendor_id` in `IssueLink`.
+- Vendor department fallback:
+  - if `vendor.department_id` is null, fallback uses vendor owner department.
+  - if both are unresolved, contextual create fails with `409` and explicit validation detail.
+- Out-of-scope or missing contextual entities return non-leaky `404`.
+
+UI entry points:
+- Risk detail (`/risks/:id`)
+- Control detail (`/controls/:id`)
+- KRI detail (`/kris/:id`)
+- Vendor detail (`/vendors/:id`)
+
+Entry-point actions are permission-gated by `issues:write` and use business labels only (no raw numeric IDs in UI copy).
+
+### 11.6 Simplified Workflow UX (Frontend)
+
+The backend state machine remains authoritative and unchanged.
+
+Frontend simplification rules:
+- Workflow summary card shows current status and next guided step.
+- Closed issues render summary-only mode (mutation actions hidden).
+- Advanced remediation fields (blockers/completion notes) are collapsed by default under an explicit advanced section.
+- Action emphasis follows issue status:
+  - `open|triaged`: assignment/start remediation emphasized.
+  - `in_progress`: progress update and exception actions emphasized.
+  - `ready_for_validation`: close action emphasized.
+
 ---
 
 ## Appendix A: Code References

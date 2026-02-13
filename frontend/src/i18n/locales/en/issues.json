@@ -1,0 +1,206 @@
+{
+  "title": "Issues",
+  "page_subtitle": "Track remediation, exceptions, and closure validation.",
+  "new_page": {
+    "title": "Create Issue",
+    "breadcrumb": "Issues / New Entry"
+  },
+  "actions": {
+    "new_issue": "New Issue",
+    "create_issue": "Create Issue",
+    "creating": "Creating...",
+    "refresh": "Refresh",
+    "try_again": "Try again",
+    "back_to_issues": "Back to Issues",
+    "cancel": "Cancel",
+    "assign": "Assign",
+    "start_remediation": "Start Remediation",
+    "update_progress": "Update Progress",
+    "request_exception": "Request Exception",
+    "approve_exception": "Approve Exception",
+    "close_issue": "Close Issue"
+  },
+  "quick_create": {
+    "title": "Create Issue",
+    "submit": "Create Issue",
+    "creating": "Creating...",
+    "close": "Close quick create modal",
+    "context_label": "Source",
+    "default_title_prefix": "Issue from",
+    "description_placeholder": "Optional context for remediation"
+  },
+  "filters": {
+    "search_placeholder": "Search by title or description",
+    "all_statuses": "All statuses",
+    "all_severities": "All severities",
+    "overdue_only": "Overdue only",
+    "include_closed": "Include closed"
+  },
+  "columns": {
+    "issue": "Issue",
+    "department": "Department",
+    "owner": "Owner",
+    "source": "Source",
+    "due": "Due",
+    "opened": "Opened"
+  },
+  "status": {
+    "open": "Open",
+    "triaged": "Triaged",
+    "in_progress": "In progress",
+    "ready_for_validation": "Ready for validation",
+    "closed": "Closed"
+  },
+  "severity": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "critical": "Critical"
+  },
+  "source": {
+    "manual": "Manual",
+    "control_execution": "Control execution",
+    "kri_breach": "KRI breach",
+    "audit": "Audit"
+  },
+  "permissions": {
+    "view_denied": "You do not have permission to view issues.",
+    "create_denied": "You do not have permission to create issues.",
+    "history_denied": "You do not have permission to view activity history for this issue."
+  },
+  "list": {
+    "empty": "No issues found."
+  },
+  "errors": {
+    "title": "Error loading issues",
+    "load_failed": "Failed to load issues",
+    "export_failed": "Export failed",
+    "detail_load_failed": "Failed to load issue details.",
+    "not_found": "Issue not found.",
+    "unable_to_load": "Unable to load issue details.",
+    "action_failed": "Issue workflow action failed",
+    "owner_required": "Owner is required.",
+    "owner_invalid": "Owner selection is invalid.",
+    "due_required": "Due date is required.",
+    "exception_reason_required": "Exception reason is required.",
+    "exception_expiry_required": "Exception expiry date is required.",
+    "no_requested_exception_for_approval": "No requested exception is available for approval.",
+    "validation_note_required": "Validation note is required for closure.",
+    "create_failed": "Issue creation failed",
+    "title_required": "Title is required.",
+    "department_required": "Department is required.",
+    "load_departments_failed": "Failed to load department options.",
+    "load_owners_failed": "Failed to load owner options."
+  },
+  "detail": {
+    "loading": "Loading issue data",
+    "not_found_title": "Issue Not Found",
+    "tabs": {
+      "overview": "Overview",
+      "workflow": "Workflow",
+      "history": "History"
+    },
+    "fields": {
+      "source": "Source",
+      "owner": "Owner",
+      "department": "Department",
+      "opened": "Opened",
+      "due": "Due",
+      "created_by": "Created by",
+      "links": "Links"
+    },
+    "sections": {
+      "linked_entities": "Linked Entities",
+      "exceptions": "Exceptions"
+    },
+    "messages": {
+      "select_issue": "Select an issue to see remediation workflow and linked context.",
+      "no_description": "No description provided.",
+      "no_linked_entities": "No linked entities.",
+      "no_exceptions": "No exceptions recorded.",
+      "loading_history": "Loading history...",
+      "no_history": "No activity log entries found for this issue.",
+      "expires": "Expires",
+      "system": "System"
+    }
+  },
+  "form": {
+    "fields": {
+      "title": "Title",
+      "severity": "Severity",
+      "department": "Department",
+      "owner": "Owner",
+      "due_date": "Due date",
+      "description": "Description"
+    },
+    "placeholders": {
+      "title": "Issue title",
+      "department": "Select department",
+      "select_owner": "Select owner",
+      "owner": "Unassigned",
+      "select_department_first": "Select department first",
+      "loading_owners": "Loading owners...",
+      "description": "Describe remediation context and expected outcome"
+    }
+  },
+  "workflow": {
+    "title": "Remediation Workflow",
+    "closed_notice": "This issue is closed. Workflow actions are hidden to keep this view focused on summary and history.",
+    "next_step": {
+      "assignment": "Next step: assign owner and start remediation.",
+      "progress": "Next step: update progress and handle exceptions only if needed.",
+      "close": "Next step: add validation note and close the issue.",
+      "closed": "Closed issue: summary mode."
+    },
+    "sections": {
+      "assignment": "Assignment",
+      "remediation_progress": "Remediation Progress",
+      "exception_handling": "Exception Handling",
+      "closure": "Closure",
+      "workflow_summary": "Workflow Summary",
+      "advanced_progress": "Advanced progress fields"
+    },
+    "fields": {
+      "owner": "Owner",
+      "due_at": "Due at",
+      "progress": "Progress (%)",
+      "remediation_status": "Remediation status",
+      "blocker_reason": "Blocker reason",
+      "completion_notes": "Completion notes",
+      "exception_reason": "Exception reason",
+      "approve_until": "Approve until",
+      "validation_note": "Validation note",
+      "target_date": "Target date",
+      "completed_at": "Completed at"
+    },
+    "messages": {
+      "no_requested_exception": "No requested exception is waiting for approval.",
+      "not_created": "Not created"
+    }
+  },
+  "remediation_status": {
+    "draft": "Draft",
+    "active": "Active",
+    "blocked": "Blocked",
+    "completed": "Completed"
+  },
+  "exception_status": {
+    "requested": "Requested",
+    "approved": "Approved",
+    "revoked": "Revoked",
+    "expired": "Expired"
+  },
+  "fallbacks": {
+    "not_set": "Not set",
+    "n_a": "N/A",
+    "unknown_user": "Unknown user",
+    "unknown_department": "Unknown department",
+    "unknown_risk": "Unknown risk",
+    "unknown_control": "Unknown control",
+    "unknown_execution": "Unknown execution",
+    "unknown_kri": "Unknown KRI",
+    "unknown_link": "Unknown link",
+    "unassigned": "Unassigned",
+    "no_description": "No description."
+  }
+}

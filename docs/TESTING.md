@@ -152,6 +152,7 @@ export default defineConfig({
 | **Controls** | `controls.spec.ts` | Control CRUD, linking to risks |
 | **KRIs** | `kris.spec.ts` | KRI values, breach alerts |
 | **Issues Workflow** | `issues-workflow.spec.ts` | Issue lifecycle path and dashboard visibility checks |
+| **Issues Contextual Create** | `issues-contextual-create.spec.ts` | Create issue from risk/control/kri/vendor detail pages |
 | **Admin** | `admin.spec.ts` | Admin console, logs, health |
 
 ### 3.4 Deterministic E2E Seed Workflow (Phase 179/180)
@@ -319,6 +320,9 @@ npx playwright test e2e/dashboard.spec.ts
 # Run issues workflow e2e gate
 npx playwright test -g "issues workflow"
 
+# Run contextual issue intake e2e gate
+npx playwright test -g "issues contextual create"
+
 # Run with UI mode
 npx playwright test --ui
 
@@ -420,6 +424,24 @@ async def test_employee_cannot_see_other_department_risks(
 **Key Files:**
 - `test_issues_api.py`
 - `test_issue_workflow.py`
+
+### 6.7 Contextual Issue Intake Regression Tests
+
+**What We Test:**
+- Contextual issue create for all supported source entity types (`risk|control|execution|kri|vendor`).
+- Vendor direct linking in `IssueLink` and list filter support via `linked_vendor_id`.
+- Vendor department fallback behavior (`vendor.department_id` -> owner department fallback).
+- Explicit unresolved vendor department failure (`409`) when neither vendor nor owner department resolves.
+- Out-of-scope contextual source denial with non-leaky `404`.
+- Frontend entry-point gating by `issues:write` and no-ID display in contextual modal labels.
+
+**Key Files:**
+- `test_issues_api.py`
+- `RiskDetailPage.issue-entry.test.tsx`
+- `ControlDetailPage.issue-entry.test.tsx`
+- `KRIDetailPage.issue-entry.test.tsx`
+- `VendorDetailPage.issue-entry.test.tsx`
+- `issues-contextual-create.spec.ts`
 
 ---
 

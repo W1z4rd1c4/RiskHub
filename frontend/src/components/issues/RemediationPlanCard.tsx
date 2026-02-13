@@ -1,6 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from '@/i18n/hooks';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import {
+    ISSUE_ACTION_ROW,
+    ISSUE_FIELD,
+    ISSUE_LABEL,
+    ISSUE_PRIMARY_BUTTON,
+    ISSUE_SECONDARY_BUTTON,
+    ISSUE_SECTION_CARD,
+    ISSUE_SECTION_HEADER,
+    ISSUE_SECTION_SUBTITLE,
+    ISSUE_SECTION_TITLE,
+    ISSUE_SUCCESS_BUTTON,
+    ISSUE_TEXTAREA,
+    ISSUE_WARNING_BUTTON,
+    issuePill,
+    issueStatusClass,
+} from './issueUi';
 import { issuesApi } from '@/services/issuesApi';
-import type { Issue, IssueOwnerLookup, IssueRemediationStatus } from '@/types/issue';
+import type { Issue, IssueOwnerLookup, IssueRemediationStatus, IssueStatus } from '@/types/issue';
 
 interface RemediationPlanCardProps {
     issue: Issue;
@@ -33,7 +51,35 @@ function toIsoOrUndefined(value: string): string | undefined {
     return parsed.toISOString();
 }
 
+function formatDate(value: string | null | undefined, locale: string, notSetLabel: string): string {
+    if (!value) {
+        return notSetLabel;
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return value;
+    }
+    return new Intl.DateTimeFormat(locale, {
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(parsed);
+}
+
+function SummaryField({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="space-y-1">
+            <p className={ISSUE_LABEL}>{label}</p>
+            <p className="text-sm text-slate-300 break-words">{value}</p>
+        </div>
+    );
+}
+
 export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdated }: RemediationPlanCardProps) {
+    const { t, i18n } = useTranslation('issues');
+
     const [assignOwnerId, setAssignOwnerId] = useState<string>(issue.owner_user_id ? String(issue.owner_user_id) : '');
     const [assignDueAt, setAssignDueAt] = useState<string>(toDateTimeInputValue(issue.due_at));
     const [progressPercent, setProgressPercent] = useState<string>(
@@ -50,6 +96,11 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
+    const isClosed = issue.status === 'closed';
+    const canStartRemediation = issue.status === 'open' || issue.status === 'triaged';
+    const isInProgress = issue.status === 'in_progress';
+    const isReadyForValidation = issue.status === 'ready_for_validation';
+
     useEffect(() => {
         setAssignOwnerId(issue.owner_user_id ? String(issue.owner_user_id) : '');
         setAssignDueAt(toDateTimeInputValue(issue.due_at));
@@ -58,11 +109,16 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
         setBlockerReason(issue.remediation_plan?.blocker_reason ?? '');
         setCompletionNotes(issue.remediation_plan?.completion_notes ?? '');
         setValidationNote(issue.validation_note ?? '');
-    }, [issue]);
+        setExceptionReason('');
+        setExceptionExpiresAt('');
+        setError(null);
+        setIsSubmitting(false);
+    }, [issue.id, issue.updated_at, issue.owner_user_id, issue.due_at, issue.remediation_plan, issue.validation_note]);
 
     useEffect(() => {
-        if (!canWrite) {
+        if (!canWrite || isClosed) {
             setOwnerOptions([]);
+            setIsOwnersLoading(false);
             return;
         }
         setIsOwnersLoading(true);
@@ -83,7 +139,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
             .finally(() => {
                 setIsOwnersLoading(false);
             });
-    }, [canWrite, issue.department_id]);
+    }, [canWrite, isClosed, issue.department_id]);
 
     const requestedExceptionId = useMemo(() => {
         const requested = issue.exceptions
@@ -91,6 +147,23 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         return requested[0]?.id;
     }, [issue.exceptions]);
+
+    const issueStatusLabel = (status: IssueStatus): string => t(`status.${status}`, status.replaceAll('_', ' '));
+    const nextStepLabel = useMemo(() => {
+        if (issue.status === 'open' || issue.status === 'triaged') {
+            return t('workflow.next_step.assignment', 'Next step: assign owner and start remediation.');
+        }
+        if (issue.status === 'in_progress') {
+            return t('workflow.next_step.progress', 'Next step: update progress and handle exceptions only if needed.');
+        }
+        if (issue.status === 'ready_for_validation') {
+            return t('workflow.next_step.close', 'Next step: add validation note and close the issue.');
+        }
+        if (issue.status === 'closed') {
+            return t('workflow.next_step.closed', 'Closed issue: summary mode.');
+        }
+        return '';
+    }, [issue.status, t]);
 
     const refreshIssue = async () => {
         const refreshed = await issuesApi.get(issue.id);
@@ -103,7 +176,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
         try {
             await fn();
         } catch (mutationError) {
-            const message = mutationError instanceof Error ? mutationError.message : 'Issue workflow action failed';
+            const message = mutationError instanceof Error ? mutationError.message : t('errors.action_failed', 'Issue workflow action failed');
             setError(message);
         } finally {
             setIsSubmitting(false);
@@ -112,17 +185,17 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
 
     const handleAssign = async () => {
         if (!assignOwnerId) {
-            setError('Owner is required.');
+            setError(t('errors.owner_required', 'Owner is required.'));
             return;
         }
         const ownerId = Number(assignOwnerId);
         if (!Number.isFinite(ownerId) || ownerId <= 0) {
-            setError('Owner selection is invalid.');
+            setError(t('errors.owner_invalid', 'Owner selection is invalid.'));
             return;
         }
         const dueAt = toIsoOrUndefined(assignDueAt);
         if (!dueAt) {
-            setError('Due date is required.');
+            setError(t('errors.due_required', 'Due date is required.'));
             return;
         }
 
@@ -160,7 +233,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
 
     const handleRequestException = async () => {
         if (!exceptionReason.trim()) {
-            setError('Exception reason is required.');
+            setError(t('errors.exception_reason_required', 'Exception reason is required.'));
             return;
         }
 
@@ -174,11 +247,11 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
     const handleApproveException = async () => {
         const expiresAt = toIsoOrUndefined(exceptionExpiresAt);
         if (!expiresAt) {
-            setError('Exception expiry date is required.');
+            setError(t('errors.exception_expiry_required', 'Exception expiry date is required.'));
             return;
         }
         if (!requestedExceptionId) {
-            setError('No requested exception is available for approval.');
+            setError(t('errors.no_requested_exception_for_approval', 'No requested exception is available for approval.'));
             return;
         }
 
@@ -194,7 +267,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
 
     const handleClose = async () => {
         if (!validationNote.trim()) {
-            setError('Validation note is required for closure.');
+            setError(t('errors.validation_note_required', 'Validation note is required for closure.'));
             return;
         }
         await runMutation(async () => {
@@ -209,192 +282,294 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
     const remediation = issue.remediation_plan;
 
     return (
-        <section className="glass-card p-5 space-y-5">
-            <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white">Remediation Workflow</h3>
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                    Issue status: {issue.status}
-                </span>
-            </div>
-
-            {error && (
-                <div className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
-                    {error}
+        <div className="space-y-5" data-testid="issue-workflow-sections">
+            <section className={ISSUE_SECTION_CARD} data-testid="workflow-summary-card">
+                <div className={ISSUE_SECTION_HEADER}>
+                    <div>
+                        <h3 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.workflow_summary', 'Workflow Summary')}</h3>
+                        <p className={ISSUE_SECTION_SUBTITLE}>{t('workflow.title', 'Remediation Workflow')}</p>
+                    </div>
+                    <span className={issuePill(issueStatusClass(issue.status))}>{issueStatusLabel(issue.status)}</span>
                 </div>
+
+                {error && (
+                    <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+                        {error}
+                    </div>
+                )}
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <SummaryField
+                        label={t('workflow.fields.owner', 'Owner')}
+                        value={
+                            issue.owner_user_name ||
+                            (issue.owner_user_id ? t('fallbacks.unknown_user', 'Unknown user') : t('fallbacks.unassigned', 'Unassigned'))
+                        }
+                    />
+                    <SummaryField
+                        label={t('workflow.fields.due_at', 'Due at')}
+                        value={formatDate(issue.due_at, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                    />
+                    <SummaryField
+                        label={t('workflow.fields.remediation_status', 'Remediation status')}
+                        value={
+                            remediation
+                                ? t(`remediation_status.${remediation.status}`, remediation.status)
+                                : t('workflow.messages.not_created', 'Not created')
+                        }
+                    />
+                    <SummaryField
+                        label={t('workflow.fields.progress', 'Progress (%)')}
+                        value={`${remediation?.progress_percent ?? 0}%`}
+                    />
+                    <SummaryField
+                        label={t('workflow.fields.target_date', 'Target date')}
+                        value={formatDate(remediation?.target_date, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                    />
+                    <SummaryField
+                        label={t('workflow.fields.completed_at', 'Completed at')}
+                        value={formatDate(remediation?.completed_at, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                    />
+                </div>
+                <p className="text-sm text-slate-400">{nextStepLabel}</p>
+            </section>
+
+            {isClosed ? (
+                <section className={ISSUE_SECTION_CARD} data-testid="workflow-closed-card">
+                    <div className={ISSUE_SECTION_HEADER}>
+                        <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.closure', 'Closure')}</h4>
+                    </div>
+                    <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                        {t(
+                            'workflow.closed_notice',
+                            'This issue is closed. Workflow actions are hidden to keep this view focused on summary and history.'
+                        )}
+                    </div>
+                    <SummaryField
+                        label={t('workflow.fields.validation_note', 'Validation note')}
+                        value={issue.validation_note || t('fallbacks.not_set', 'Not set')}
+                    />
+                </section>
+            ) : (
+                <>
+                    <section className={ISSUE_SECTION_CARD} data-testid="workflow-assignment-card">
+                        <div className={ISSUE_SECTION_HEADER}>
+                            <div>
+                                <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.assignment', 'Assignment')}</h4>
+                                <p className={ISSUE_SECTION_SUBTITLE}>{t('workflow.fields.owner', 'Owner')} / {t('workflow.fields.due_at', 'Due at')}</p>
+                            </div>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-1.5">
+                                <label className={ISSUE_LABEL}>{t('workflow.fields.owner', 'Owner')}</label>
+                                <ThemedSelect
+                                    value={assignOwnerId}
+                                    onValueChange={setAssignOwnerId}
+                                    options={ownerOptions.map((owner) => ({
+                                        value: String(owner.id),
+                                        label: `${owner.name}${owner.role_name ? ` - ${owner.role_name}` : ''}`,
+                                    }))}
+                                    allowEmpty
+                                    emptyLabel={
+                                        isOwnersLoading
+                                            ? t('form.placeholders.loading_owners', 'Loading owners...')
+                                            : t('form.placeholders.select_owner', 'Select owner')
+                                    }
+                                    placeholder={t('form.placeholders.select_owner', 'Select owner')}
+                                    disabled={!canWrite || isOwnersLoading || isSubmitting}
+                                    className="w-full"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className={ISSUE_LABEL}>{t('workflow.fields.due_at', 'Due at')}</label>
+                                <input
+                                    type="datetime-local"
+                                    value={assignDueAt}
+                                    onChange={(event) => setAssignDueAt(event.target.value)}
+                                    className={`${ISSUE_FIELD} h-10`}
+                                    disabled={!canWrite || isSubmitting}
+                                />
+                            </div>
+                        </div>
+                        {canWrite && (
+                            <div className={ISSUE_ACTION_ROW}>
+                                <button
+                                    type="button"
+                                    onClick={handleAssign}
+                                    disabled={isSubmitting}
+                                    className={canStartRemediation ? ISSUE_SECONDARY_BUTTON : ISSUE_PRIMARY_BUTTON}
+                                >
+                                    {t('actions.assign', 'Assign')}
+                                </button>
+                                {canStartRemediation && (
+                                    <button
+                                        type="button"
+                                        onClick={handleStartRemediation}
+                                        disabled={isSubmitting}
+                                        className={ISSUE_PRIMARY_BUTTON}
+                                    >
+                                        {t('actions.start_remediation', 'Start Remediation')}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </section>
+
+                    <section className={ISSUE_SECTION_CARD} data-testid="workflow-progress-card">
+                        <div className={ISSUE_SECTION_HEADER}>
+                            <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.remediation_progress', 'Remediation Progress')}</h4>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-1.5">
+                                <label className={ISSUE_LABEL}>{t('workflow.fields.progress', 'Progress (%)')}</label>
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={progressPercent}
+                                    onChange={(event) => setProgressPercent(event.target.value)}
+                                    className={`${ISSUE_FIELD} h-10`}
+                                    disabled={!canWrite || isSubmitting}
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className={ISSUE_LABEL}>{t('workflow.fields.remediation_status', 'Remediation status')}</label>
+                                <ThemedSelect
+                                    value={remediationStatus}
+                                    onValueChange={setRemediationStatus}
+                                    options={REMEDIATION_STATUSES.map((statusValue) => ({
+                                        value: statusValue,
+                                        label: t(`remediation_status.${statusValue}`, statusValue),
+                                    }))}
+                                    disabled={!canWrite || isSubmitting}
+                                    className="w-full"
+                                />
+                            </div>
+                            <div className="space-y-1.5 md:col-span-2">
+                                <details className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                                    <summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-slate-400">
+                                        {t('workflow.sections.advanced_progress', 'Advanced progress fields')}
+                                    </summary>
+                                    <div className="mt-3 space-y-3">
+                                        <div className="space-y-1.5">
+                                            <label className={ISSUE_LABEL}>{t('workflow.fields.blocker_reason', 'Blocker reason')}</label>
+                                            <input
+                                                type="text"
+                                                value={blockerReason}
+                                                onChange={(event) => setBlockerReason(event.target.value)}
+                                                className={ISSUE_FIELD}
+                                                disabled={!canWrite || isSubmitting}
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className={ISSUE_LABEL}>{t('workflow.fields.completion_notes', 'Completion notes')}</label>
+                                            <textarea
+                                                value={completionNotes}
+                                                onChange={(event) => setCompletionNotes(event.target.value)}
+                                                className={ISSUE_TEXTAREA}
+                                                disabled={!canWrite || isSubmitting}
+                                            />
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                        </div>
+                        {canWrite && (
+                            <div className={ISSUE_ACTION_ROW}>
+                                <button
+                                    type="button"
+                                    onClick={handleUpdateProgress}
+                                    disabled={isSubmitting}
+                                    className={isInProgress ? ISSUE_PRIMARY_BUTTON : ISSUE_SECONDARY_BUTTON}
+                                >
+                                    {t('actions.update_progress', 'Update Progress')}
+                                </button>
+                            </div>
+                        )}
+                    </section>
+
+                    <section className={ISSUE_SECTION_CARD} data-testid="workflow-exception-card">
+                        <div className={ISSUE_SECTION_HEADER}>
+                            <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.exception_handling', 'Exception Handling')}</h4>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-1.5 md:col-span-2">
+                                <label className={ISSUE_LABEL}>{t('workflow.fields.exception_reason', 'Exception reason')}</label>
+                                <textarea
+                                    value={exceptionReason}
+                                    onChange={(event) => setExceptionReason(event.target.value)}
+                                    className={ISSUE_TEXTAREA}
+                                    disabled={!canWrite || isSubmitting}
+                                />
+                            </div>
+                            {canApprove && requestedExceptionId && (
+                                <div className="space-y-1.5">
+                                    <label className={ISSUE_LABEL}>{t('workflow.fields.approve_until', 'Approve until')}</label>
+                                    <input
+                                        type="datetime-local"
+                                        value={exceptionExpiresAt}
+                                        onChange={(event) => setExceptionExpiresAt(event.target.value)}
+                                        className={`${ISSUE_FIELD} h-10`}
+                                        disabled={isSubmitting}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        <div className={ISSUE_ACTION_ROW}>
+                            {canWrite && (
+                                <button
+                                    type="button"
+                                    onClick={handleRequestException}
+                                    disabled={isSubmitting}
+                                    className={isInProgress ? ISSUE_WARNING_BUTTON : ISSUE_SECONDARY_BUTTON}
+                                >
+                                    {t('actions.request_exception', 'Request Exception')}
+                                </button>
+                            )}
+                            {canApprove && requestedExceptionId && (
+                                <button
+                                    type="button"
+                                    onClick={handleApproveException}
+                                    disabled={isSubmitting}
+                                    className={ISSUE_SECONDARY_BUTTON}
+                                >
+                                    {t('actions.approve_exception', 'Approve Exception')}
+                                </button>
+                            )}
+                        </div>
+                        {canApprove && !requestedExceptionId && (
+                            <p className="text-sm text-slate-500">{t('workflow.messages.no_requested_exception', 'No requested exception is waiting for approval.')}</p>
+                        )}
+                    </section>
+
+                    <section className={ISSUE_SECTION_CARD} data-testid="workflow-closure-card">
+                        <div className={ISSUE_SECTION_HEADER}>
+                            <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.closure', 'Closure')}</h4>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className={ISSUE_LABEL}>{t('workflow.fields.validation_note', 'Validation note')}</label>
+                            <textarea
+                                value={validationNote}
+                                onChange={(event) => setValidationNote(event.target.value)}
+                                className={ISSUE_TEXTAREA}
+                                disabled={!canWrite || isSubmitting}
+                            />
+                        </div>
+                        {canWrite && (
+                            <div className={ISSUE_ACTION_ROW}>
+                                <button
+                                    type="button"
+                                    onClick={handleClose}
+                                    disabled={isSubmitting}
+                                    className={isReadyForValidation ? ISSUE_SUCCESS_BUTTON : ISSUE_SECONDARY_BUTTON}
+                                >
+                                    {t('actions.close_issue', 'Close Issue')}
+                                </button>
+                            </div>
+                        )}
+                    </section>
+                </>
             )}
-
-            <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                    <label className="text-xs uppercase tracking-wide text-slate-400">Owner</label>
-                    <select
-                        value={assignOwnerId}
-                        onChange={(event) => setAssignOwnerId(event.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        disabled={!canWrite || isSubmitting}
-                    >
-                        <option value="">{isOwnersLoading ? 'Loading owners...' : 'Select owner'}</option>
-                        {ownerOptions.map((owner) => (
-                            <option key={owner.id} value={owner.id}>
-                                {owner.name}
-                                {owner.role_name ? ` - ${owner.role_name}` : ''}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                <div className="space-y-2">
-                    <label className="text-xs uppercase tracking-wide text-slate-400">Due At</label>
-                    <input
-                        type="datetime-local"
-                        value={assignDueAt}
-                        onChange={(event) => setAssignDueAt(event.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        disabled={!canWrite || isSubmitting}
-                    />
-                </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-                <button
-                    type="button"
-                    onClick={handleAssign}
-                    disabled={!canWrite || isSubmitting}
-                    className="rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-                >
-                    Assign
-                </button>
-                <button
-                    type="button"
-                    onClick={handleStartRemediation}
-                    disabled={!canWrite || isSubmitting}
-                    className="rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-slate-200 disabled:opacity-50"
-                >
-                    Start Remediation
-                </button>
-                <button
-                    type="button"
-                    onClick={handleClose}
-                    disabled={!canWrite || isSubmitting}
-                    className="rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50"
-                >
-                    Close Issue
-                </button>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                    <label className="text-xs uppercase tracking-wide text-slate-400">Progress (%)</label>
-                    <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={progressPercent}
-                        onChange={(event) => setProgressPercent(event.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        disabled={!canWrite || isSubmitting}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <label className="text-xs uppercase tracking-wide text-slate-400">Remediation Status</label>
-                    <select
-                        value={remediationStatus}
-                        onChange={(event) => setRemediationStatus(event.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        disabled={!canWrite || isSubmitting}
-                    >
-                        {REMEDIATION_STATUSES.map((statusValue) => (
-                            <option key={statusValue} value={statusValue}>
-                                {statusValue}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs uppercase tracking-wide text-slate-400">Blocker Reason</label>
-                    <input
-                        type="text"
-                        value={blockerReason}
-                        onChange={(event) => setBlockerReason(event.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        disabled={!canWrite || isSubmitting}
-                    />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs uppercase tracking-wide text-slate-400">Completion Notes</label>
-                    <textarea
-                        value={completionNotes}
-                        onChange={(event) => setCompletionNotes(event.target.value)}
-                        className="min-h-[80px] w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        disabled={!canWrite || isSubmitting}
-                    />
-                </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-                <button
-                    type="button"
-                    onClick={handleUpdateProgress}
-                    disabled={!canWrite || isSubmitting}
-                    className="rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-slate-200 disabled:opacity-50"
-                >
-                    Update Progress
-                </button>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs uppercase tracking-wide text-slate-400">Exception Reason</label>
-                    <textarea
-                        value={exceptionReason}
-                        onChange={(event) => setExceptionReason(event.target.value)}
-                        className="min-h-[72px] w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        disabled={!canWrite || isSubmitting}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <label className="text-xs uppercase tracking-wide text-slate-400">Approve Until</label>
-                    <input
-                        type="datetime-local"
-                        value={exceptionExpiresAt}
-                        onChange={(event) => setExceptionExpiresAt(event.target.value)}
-                        className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        disabled={!canApprove || isSubmitting}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <label className="text-xs uppercase tracking-wide text-slate-400">Validation Note</label>
-                    <textarea
-                        value={validationNote}
-                        onChange={(event) => setValidationNote(event.target.value)}
-                        className="min-h-[72px] w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-sm text-white"
-                        disabled={!canWrite || isSubmitting}
-                    />
-                </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-                <button
-                    type="button"
-                    onClick={handleRequestException}
-                    disabled={!canWrite || isSubmitting}
-                    className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200 disabled:opacity-50"
-                >
-                    Request Exception
-                </button>
-                <button
-                    type="button"
-                    onClick={handleApproveException}
-                    disabled={!canApprove || isSubmitting}
-                    className="rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-3 py-2 text-xs font-semibold text-indigo-200 disabled:opacity-50"
-                >
-                    Approve Exception
-                </button>
-            </div>
-
-            <div className="rounded-lg border border-white/10 bg-slate-900/40 px-3 py-2 text-xs text-slate-300">
-                <div>Remediation status: {remediation?.status ?? 'not-created'}</div>
-                <div>Progress: {remediation?.progress_percent ?? 0}%</div>
-                <div>Target date: {remediation?.target_date ?? 'not-set'}</div>
-            </div>
-        </section>
+        </div>
     );
 }

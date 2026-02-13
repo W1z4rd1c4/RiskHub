@@ -70,6 +70,7 @@ async def test_issue_workflow_happy_path(
     auth_client: AsyncClient,
     test_department,
     test_user: User,
+    test_user_employee: User,
 ):
     create_resp = await auth_client.post(
         "/api/v1/issues",
@@ -79,7 +80,7 @@ async def test_issue_workflow_happy_path(
             "severity": "high",
             "source_type": "manual",
             "department_id": test_department.id,
-            "owner_user_id": test_user.id,
+            "owner_user_id": test_user_employee.id,
             "due_at": (datetime.now(UTC) + timedelta(days=5)).isoformat(),
         },
     )
@@ -87,21 +88,21 @@ async def test_issue_workflow_happy_path(
     created = create_resp.json()
     issue_id = created["id"]
     assert created["department_name"] == test_department.name
-    assert created["owner_user_name"] == test_user.name
+    assert created["owner_user_name"] == test_user_employee.name
     assert created["created_by_name"] == test_user.name
-    assert created["remediation_plan"]["owner_user_name"] == test_user.name
+    assert created["remediation_plan"]["owner_user_name"] == test_user_employee.name
 
     assign_resp = await auth_client.post(
         f"/api/v1/issues/{issue_id}/assign",
         json={
-            "owner_user_id": test_user.id,
+            "owner_user_id": test_user_employee.id,
             "due_at": (datetime.now(UTC) + timedelta(days=7)).isoformat(),
             "target_date": (datetime.now(UTC) + timedelta(days=6)).isoformat(),
         },
     )
     assert assign_resp.status_code == 200
     assert assign_resp.json()["status"] == "triaged"
-    assert assign_resp.json()["owner_user_name"] == test_user.name
+    assert assign_resp.json()["owner_user_name"] == test_user_employee.name
     assert assign_resp.json()["department_name"] == test_department.name
 
     start_resp = await auth_client.post(
@@ -120,7 +121,7 @@ async def test_issue_workflow_happy_path(
     assert progress_resp.status_code == 200
     assert progress_resp.json()["status"] == "ready_for_validation"
     assert progress_resp.json()["remediation_plan"]["status"] == "completed"
-    assert progress_resp.json()["owner_user_name"] == test_user.name
+    assert progress_resp.json()["owner_user_name"] == test_user_employee.name
 
     exception_request_resp = await auth_client.post(
         f"/api/v1/issues/{issue_id}/request-exception",
@@ -150,7 +151,7 @@ async def test_issue_workflow_happy_path(
     assert close_resp.json()["status"] == "closed"
     assert close_resp.json()["validation_note"] == "Validated remediation"
     assert close_resp.json()["department_name"] == test_department.name
-    assert close_resp.json()["owner_user_name"] == test_user.name
+    assert close_resp.json()["owner_user_name"] == test_user_employee.name
 
 
 @pytest.mark.asyncio
@@ -227,16 +228,21 @@ async def test_issue_workflow_notifications(
     db_session: AsyncSession,
     client_cro: AsyncClient,
     test_department,
-    test_user: User,
+    test_user_employee: User,
+    test_role_employee: Role,
 ):
+    department_id = test_department.id
+    owner_user_id = test_user_employee.id
+    await _grant(db_session, test_role_employee.id, "issues", "read")
+
     create_resp = await client_cro.post(
         "/api/v1/issues",
         json={
             "title": "Notification flow issue",
             "severity": "high",
             "source_type": "manual",
-            "department_id": test_department.id,
-            "owner_user_id": test_user.id,
+            "department_id": department_id,
+            "owner_user_id": owner_user_id,
             "due_at": (datetime.now(UTC) + timedelta(days=3)).isoformat(),
         },
     )
@@ -246,7 +252,7 @@ async def test_issue_workflow_notifications(
     await client_cro.post(
         f"/api/v1/issues/{issue_id}/assign",
         json={
-            "owner_user_id": test_user.id,
+            "owner_user_id": owner_user_id,
             "due_at": (datetime.now(UTC) + timedelta(days=4)).isoformat(),
         },
     )

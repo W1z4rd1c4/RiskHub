@@ -16,6 +16,7 @@ from app.core.permissions import (
     can_read_issue_id,
     can_read_kri_id,
     can_read_risk_id,
+    can_read_vendor_id,
     can_write_issue_id,
     get_user_department_ids,
     get_issue_scope_clause,
@@ -37,15 +38,19 @@ from app.models import (
     Role,
     RolePermission,
     User,
+    Vendor,
 )
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.models.issue import IssueExceptionStatus, IssueSeverity, IssueSourceType, IssueStatus
+from app.models.issue import IssueExceptionStatus, IssueRemediationStatus, IssueSeverity, IssueSourceType, IssueStatus
 from app.models.notification import NotificationType
+from app.models.role import RoleType
 from app.models.user import AccessScope
 from app.schemas.issue import (
     IssueAssignRequest,
     IssueCloseRequest,
     IssueCreate,
+    IssueContextEntityTypeEnum,
+    IssueContextualCreate,
     IssueDepartmentLookup,
     IssueExceptionApproveRequest,
     IssueExceptionRead,
@@ -73,6 +78,7 @@ UNKNOWN_RISK_LABEL = "Unknown risk"
 UNKNOWN_CONTROL_LABEL = "Unknown control"
 UNKNOWN_EXECUTION_LABEL = "Unknown execution"
 UNKNOWN_KRI_LABEL = "Unknown KRI"
+UNKNOWN_VENDOR_LABEL = "Unknown vendor"
 
 
 def _coerce_utc(dt: datetime | None) -> datetime | None:
@@ -135,6 +141,7 @@ async def _get_issue_with_relations(db: AsyncSession, issue_id: int) -> Issue | 
             selectinload(Issue.links).selectinload(IssueLink.control),
             selectinload(Issue.links).selectinload(IssueLink.execution).selectinload(ControlExecution.control),
             selectinload(Issue.links).selectinload(IssueLink.kri),
+            selectinload(Issue.links).selectinload(IssueLink.vendor),
             selectinload(Issue.remediation_plan).selectinload(IssueRemediationPlan.owner),
             selectinload(Issue.exceptions).selectinload(IssueException.requested_by),
             selectinload(Issue.exceptions).selectinload(IssueException.approved_by),
@@ -296,6 +303,14 @@ async def _issue_link_department_ids(db: AsyncSession, issue_id: int) -> set[int
     )
     department_ids.update(dept_id for dept_id in kri_rows.scalars().all() if dept_id is not None)
 
+    vendor_rows = await db.execute(
+        select(func.coalesce(Vendor.department_id, User.department_id))
+        .join(IssueLink, IssueLink.vendor_id == Vendor.id)
+        .outerjoin(User, Vendor.outsourcing_owner_user_id == User.id)
+        .where(IssueLink.issue_id == issue_id, IssueLink.vendor_id.is_not(None))
+    )
+    department_ids.update(dept_id for dept_id in vendor_rows.scalars().all() if dept_id is not None)
+
     return department_ids
 
 
@@ -317,6 +332,8 @@ def _link_display(link: IssueLink) -> tuple[str | None, str | None]:
         return "execution", UNKNOWN_EXECUTION_LABEL
     if link.kri_id is not None:
         return "kri", _label_or_fallback(getattr(link.kri, "metric_name", None), UNKNOWN_KRI_LABEL)
+    if link.vendor_id is not None:
+        return "vendor", _label_or_fallback(getattr(link.vendor, "name", None), UNKNOWN_VENDOR_LABEL)
     return None, None
 
 
@@ -330,6 +347,7 @@ def _serialize_issue_link(link: IssueLink) -> IssueLinkRead:
             "control_id": link.control_id,
             "execution_id": link.execution_id,
             "kri_id": link.kri_id,
+            "vendor_id": link.vendor_id,
             "linked_entity_type": linked_entity_type,
             "linked_entity_name": linked_entity_name,
             "created_at": link.created_at,
@@ -493,12 +511,14 @@ async def list_issue_assignable_owners(
     owners = (
         await db.execute(
             select(User)
+            .join(Role, User.role_id == Role.id)
             .options(
                 selectinload(User.role),
                 selectinload(User.department),
             )
             .where(
                 User.is_active == True,
+                Role.name != RoleType.ADMIN,
                 or_(
                     User.access_scope == AccessScope.GLOBAL,
                     User.department_id == department_id,
@@ -533,6 +553,11 @@ async def list_issues(
     overdue: Optional[bool] = None,
     linked_risk_id: Optional[int] = None,
     linked_control_id: Optional[int] = None,
+    linked_vendor_id: Optional[int] = None,
+    search: Optional[str] = Query(None),
+    include_closed: bool = Query(True),
+    sort_by: Optional[str] = Query(None),
+    sort_order: Optional[str] = Query(None),
 ) -> IssueListResponse:
     query = select(Issue)
     scope_clause = await get_issue_scope_clause(db, current_user)
@@ -547,14 +572,46 @@ async def list_issues(
         query = query.where(Issue.severity == severity.value)
     if owner_user_id is not None:
         query = query.where(Issue.owner_user_id == owner_user_id)
+    if not include_closed:
+        query = query.where(Issue.status != IssueStatus.closed.value)
+    if search and search.strip():
+        pattern = f"%{search.strip()}%"
+        query = query.where(or_(Issue.title.ilike(pattern), Issue.description.ilike(pattern)))
+
+    now = datetime.now(UTC)
     if overdue is True:
-        query = query.where(and_(Issue.due_at.is_not(None), Issue.due_at < datetime.now(UTC), Issue.status != IssueStatus.closed.value))
+        query = query.where(and_(Issue.due_at.is_not(None), Issue.due_at < now, Issue.status != IssueStatus.closed.value))
     if overdue is False:
-        query = query.where(or_(Issue.due_at.is_(None), Issue.due_at >= datetime.now(UTC), Issue.status == IssueStatus.closed.value))
+        query = query.where(or_(Issue.due_at.is_(None), Issue.due_at >= now, Issue.status == IssueStatus.closed.value))
     if linked_risk_id is not None:
         query = query.where(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.risk_id == linked_risk_id)))
     if linked_control_id is not None:
         query = query.where(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.control_id == linked_control_id)))
+    if linked_vendor_id is not None:
+        query = query.where(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.vendor_id == linked_vendor_id)))
+
+    sortable_fields = {
+        "title": Issue.title,
+        "severity": Issue.severity,
+        "status": Issue.status,
+        "opened_at": Issue.opened_at,
+        "due_at": Issue.due_at,
+        "updated_at": Issue.updated_at,
+        "created_at": Issue.created_at,
+    }
+    if sort_by is not None and sort_by not in sortable_fields:
+        raise HTTPException(status_code=400, detail="Invalid sort_by value")
+    if sort_order is not None and sort_order not in {"asc", "desc"}:
+        raise HTTPException(status_code=400, detail="Invalid sort_order value")
+
+    if sort_by is not None:
+        direction = sort_order or "asc"
+        order_expr = sortable_fields[sort_by].asc() if direction == "asc" else sortable_fields[sort_by].desc()
+        if sort_by == "due_at":
+            order_expr = order_expr.nullslast()
+        query = query.order_by(order_expr, Issue.id.desc())
+    else:
+        query = query.order_by(Issue.opened_at.desc(), Issue.id.desc())
 
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
     result = await db.execute(
@@ -562,7 +619,6 @@ async def list_issues(
             selectinload(Issue.department),
             selectinload(Issue.owner),
         )
-        .order_by(Issue.opened_at.desc(), Issue.id.desc())
         .offset(skip)
         .limit(limit)
     )
@@ -630,6 +686,163 @@ async def create_issue(
         actor=current_user,
         department_id=issue.department_id,
         description=f"Created issue: {issue.title}",
+    )
+
+    await db.commit()
+    issue = await _get_issue_with_relations(db, issue.id)
+    return _serialize_issue_read(issue)
+
+
+async def _resolve_vendor_department_and_access(
+    db: AsyncSession,
+    current_user: User,
+    vendor_id: int,
+) -> int:
+    row = (
+        await db.execute(
+            select(Vendor.id, Vendor.department_id, User.department_id)
+            .outerjoin(User, Vendor.outsourcing_owner_user_id == User.id)
+            .where(Vendor.id == vendor_id)
+        )
+    ).one_or_none()
+    if row is None or not await can_read_vendor_id(db, current_user, vendor_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked vendor not found")
+
+    _, vendor_department_id, owner_department_id = row
+    resolved_department_id = vendor_department_id or owner_department_id
+    if resolved_department_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Linked vendor has no department and owner department is unresolved",
+        )
+    return resolved_department_id
+
+
+async def _resolve_contextual_entity(
+    db: AsyncSession,
+    current_user: User,
+    *,
+    entity_type: IssueContextEntityTypeEnum,
+    entity_id: int,
+) -> tuple[int, IssueSourceType, dict[str, int]]:
+    if entity_type == IssueContextEntityTypeEnum.risk:
+        row = (await db.execute(select(Risk.id, Risk.department_id).where(Risk.id == entity_id))).one_or_none()
+        if row is None or not await can_read_risk_id(db, current_user, entity_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source risk not found")
+        return row[1], IssueSourceType.manual, {"risk_id": entity_id}
+
+    if entity_type == IssueContextEntityTypeEnum.control:
+        row = (await db.execute(select(Control.id, Control.department_id).where(Control.id == entity_id))).one_or_none()
+        if row is None or not await can_read_control_id(db, current_user, entity_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source control not found")
+        return row[1], IssueSourceType.control_execution, {"control_id": entity_id}
+
+    if entity_type == IssueContextEntityTypeEnum.execution:
+        row = (
+            await db.execute(
+                select(ControlExecution.id, ControlExecution.control_id, Control.department_id)
+                .join(Control, ControlExecution.control_id == Control.id)
+                .where(ControlExecution.id == entity_id)
+            )
+        ).one_or_none()
+        if row is None or not await can_read_control_id(db, current_user, row[1]):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source execution not found")
+        return row[2], IssueSourceType.control_execution, {"execution_id": entity_id}
+
+    if entity_type == IssueContextEntityTypeEnum.kri:
+        row = (
+            await db.execute(
+                select(KeyRiskIndicator.id, Risk.department_id)
+                .join(Risk, KeyRiskIndicator.risk_id == Risk.id)
+                .where(KeyRiskIndicator.id == entity_id)
+            )
+        ).one_or_none()
+        if row is None or not await can_read_kri_id(db, current_user, entity_id):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source KRI not found")
+        return row[1], IssueSourceType.kri_breach, {"kri_id": entity_id}
+
+    if entity_type == IssueContextEntityTypeEnum.vendor:
+        department_id = await _resolve_vendor_department_and_access(db, current_user, entity_id)
+        return department_id, IssueSourceType.manual, {"vendor_id": entity_id}
+
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported contextual entity type")
+
+
+@router.post("/issues/contextual", response_model=IssueRead, status_code=status.HTTP_201_CREATED)
+async def create_contextual_issue(
+    payload: IssueContextualCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("issues", "write")),
+) -> IssueRead:
+    department_id, source_type, link_values = await _resolve_contextual_entity(
+        db,
+        current_user,
+        entity_type=payload.entity_type,
+        entity_id=payload.entity_id,
+    )
+
+    await _validate_user_exists(db, payload.owner_user_id)
+    await _ensure_owner_assignable(
+        db,
+        owner_user_id=payload.owner_user_id,
+        department_id=department_id,
+    )
+
+    due_at = _coerce_utc(payload.due_at)
+    now = datetime.now(UTC)
+    issue = Issue(
+        title=payload.title,
+        description=payload.description,
+        severity=payload.severity.value,
+        status=IssueStatus.open.value,
+        source_type=source_type.value,
+        source_id=payload.entity_id,
+        department_id=department_id,
+        owner_user_id=payload.owner_user_id,
+        created_by_id=current_user.id,
+        opened_at=now,
+        due_at=due_at,
+    )
+    db.add(issue)
+    await db.flush()
+
+    remediation = IssueRemediationPlan(
+        issue_id=issue.id,
+        status=IssueRemediationStatus.draft.value,
+        progress_percent=0,
+        owner_user_id=payload.owner_user_id,
+        target_date=due_at,
+    )
+    db.add(remediation)
+    await db.flush()
+
+    link = IssueLink(
+        issue_id=issue.id,
+        **link_values,
+    )
+    db.add(link)
+    await db.flush()
+
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.ISSUE,
+        entity_id=issue.id,
+        entity_name=issue.title,
+        action=ActivityAction.CREATE,
+        actor=current_user,
+        department_id=issue.department_id,
+        description=f"Created contextual issue: {issue.title}",
+    )
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.ISSUE,
+        entity_id=issue.id,
+        entity_name=issue.title,
+        action=ActivityAction.LINK,
+        actor=current_user,
+        department_id=issue.department_id,
+        changes={"link_id": {"old": None, "new": link.id}},
+        description=f"Linked contextual source to issue {issue.title}",
     )
 
     await db.commit()
@@ -767,6 +980,9 @@ async def _resolve_link_department_and_access(
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked KRI not found")
         return row[1]
 
+    if payload.vendor_id is not None:
+        return await _resolve_vendor_department_and_access(db, current_user, payload.vendor_id)
+
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid link payload")
 
 
@@ -793,11 +1009,12 @@ async def add_issue_link(
                 IssueLink.control_id == payload.control_id,
                 IssueLink.execution_id == payload.execution_id,
                 IssueLink.kri_id == payload.kri_id,
+                IssueLink.vendor_id == payload.vendor_id,
             )
         )
     ).scalar_one_or_none()
     if existing is not None:
-        return IssueLinkRead.model_validate(existing)
+        return _serialize_issue_link(existing)
 
     link = IssueLink(
         issue_id=issue.id,
@@ -805,6 +1022,7 @@ async def add_issue_link(
         control_id=payload.control_id,
         execution_id=payload.execution_id,
         kri_id=payload.kri_id,
+        vendor_id=payload.vendor_id,
     )
     db.add(link)
     await db.flush()
@@ -822,7 +1040,7 @@ async def add_issue_link(
 
     await db.commit()
     await db.refresh(link)
-    return IssueLinkRead.model_validate(link)
+    return _serialize_issue_link(link)
 
 
 @router.delete("/issues/{issue_id}/links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)

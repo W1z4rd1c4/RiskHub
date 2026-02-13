@@ -5,6 +5,7 @@ import {
     ArrowLeft,
     Edit,
     Trash2,
+    FileText,
     Calendar,
     User,
     Building2,
@@ -30,6 +31,7 @@ import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { RiskQuickViewModal } from '@/components/RiskQuickViewModal';
+import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { isApprovalCreatedResponse } from '@/types/approval';
@@ -53,6 +55,7 @@ export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { t } = useTranslation('common');
+    const { t: tIssues } = useTranslation('issues');
     const { user, hasPermission } = useAuth();
     const [control, setControl] = useState<Control | null>(null);
     const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
@@ -69,6 +72,7 @@ export function ControlDetailPage() {
     const [linkedRisksError, setLinkedRisksError] = useState<string | null>(null);
     const [linkError, setLinkError] = useState<string | null>(null);
     const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
+    const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
     const fetchData = useCallback(async () => {
         if (!id) return;
@@ -264,6 +268,15 @@ export function ControlDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <PermissionGate resource="issues" action="write">
+                        <button
+                            onClick={() => setIsIssueModalOpen(true)}
+                            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-300 hover:text-white hover:border-accent/50 transition-all flex items-center gap-2"
+                        >
+                            <FileText className="h-4 w-4" />
+                            {tIssues('actions.new_issue', 'New Issue')}
+                        </button>
+                    </PermissionGate>
                     {/* Edit button: show for controls:write OR control owner */}
                     {(hasPermission('controls', 'write') || control.control_owner_id === user?.id) && (
                         <button
@@ -572,6 +585,15 @@ export function ControlDetailPage() {
                 onConfirm={handleArchive}
                 resourceType="control"
                 resourceName={control.name}
+            />
+
+            <IssueQuickCreateModal
+                isOpen={isIssueModalOpen}
+                onClose={() => setIsIssueModalOpen(false)}
+                contextEntityType="control"
+                contextEntityId={control.id}
+                contextEntityLabel={control.name}
+                onCreated={(issue) => navigate(`/issues/${issue.id}`)}
             />
 
             {/* Global Loading Overlay for Risk Fetching */}
