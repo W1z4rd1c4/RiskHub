@@ -71,7 +71,7 @@ describe('IssueDetailPanel business naming', () => {
             />
         );
 
-        expect(screen.getByText('Anna Kowalski')).toBeInTheDocument();
+        expect(screen.getAllByText('Anna Kowalski').length).toBeGreaterThan(0);
         expect(screen.getByText('Finance')).toBeInTheDocument();
         expect(screen.getByText('Customer Churn Risk')).toBeInTheDocument();
 

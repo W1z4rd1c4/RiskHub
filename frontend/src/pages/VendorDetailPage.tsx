@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
-import { ArrowLeft, Edit, XCircle, Building2, User, ShieldAlert, AlertTriangle, Link2, CheckSquare, ClipboardList, CalendarClock, FileCheck2, Shield, AlertOctagon, ClipboardCheck, Activity, Radar, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Edit, XCircle, Building2, User, ShieldAlert, AlertTriangle, Link2, CheckSquare, ClipboardList, CalendarClock, FileCheck2, Shield, AlertOctagon, ClipboardCheck, Activity, Radar, RotateCcw, FileText } from 'lucide-react';
 import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';
 import { VendorForm } from '@/components/VendorForm';
 import { PermissionGate } from '@/components/PermissionGate';
 import { useAuth } from '@/contexts/AuthContext';
+import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { VendorRiskFactorsTab } from '@/components/vendors/VendorRiskFactorsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
 import { VendorLinkedControlsTab } from '@/components/vendors/VendorLinkedControlsTab';
@@ -52,12 +53,14 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { t } = useTranslation('vendors');
+    const { t: tIssues } = useTranslation('issues');
     const { user, hasPermission } = useAuth();
 
     const [vendor, setVendor] = useState<Vendor | null>(null);
     const [isLoading, setIsLoading] = useState(mode !== 'new');
     const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<VendorTabView>('risk_factors');
+    const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
     const selectTab = (tab: VendorTabView) => {
         setActiveTab(tab);
@@ -214,33 +217,44 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     </div>
                 </div>
 
-                {canEdit && (
-                    <PermissionGate resource="vendors" action="read">
+                <div className="flex items-center gap-2">
+                    <PermissionGate resource="issues" action="write">
                         <button
-                            onClick={() => navigate(`/vendors/${vendor.id}/edit`)}
+                            onClick={() => setIsIssueModalOpen(true)}
                             className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors flex items-center gap-2"
                         >
-                            <Edit className="h-4 w-4" />
-                            {t('actions.edit', 'Edit')}
+                            <FileText className="h-4 w-4" />
+                            {tIssues('actions.new_issue', 'New Issue')}
                         </button>
                     </PermissionGate>
-                )}
-                {vendor.status === 'inactive' && hasPermission('vendors', 'delete') && (
-                    <button
-                        onClick={async () => {
-                            try {
-                                await vendorApi.restoreVendor(vendor.id);
-                                await fetchVendor();
-                            } catch (err) {
-                                console.error('Error restoring vendor:', err);
-                            }
-                        }}
-                        className="px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 transition-colors flex items-center gap-2"
-                    >
-                        <RotateCcw className="h-4 w-4" />
-                        {t('actions.unarchive', 'Unarchive')}
-                    </button>
-                )}
+                    {canEdit && (
+                        <PermissionGate resource="vendors" action="read">
+                            <button
+                                onClick={() => navigate(`/vendors/${vendor.id}/edit`)}
+                                className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors flex items-center gap-2"
+                            >
+                                <Edit className="h-4 w-4" />
+                                {t('actions.edit', 'Edit')}
+                            </button>
+                        </PermissionGate>
+                    )}
+                    {vendor.status === 'inactive' && hasPermission('vendors', 'delete') && (
+                        <button
+                            onClick={async () => {
+                                try {
+                                    await vendorApi.restoreVendor(vendor.id);
+                                    await fetchVendor();
+                                } catch (err) {
+                                    console.error('Error restoring vendor:', err);
+                                }
+                            }}
+                            className="px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 transition-colors flex items-center gap-2"
+                        >
+                            <RotateCcw className="h-4 w-4" />
+                            {t('actions.unarchive', 'Unarchive')}
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
@@ -523,6 +537,15 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     canRefresh={canEdit}
                 />
             )}
+
+            <IssueQuickCreateModal
+                isOpen={isIssueModalOpen}
+                onClose={() => setIsIssueModalOpen(false)}
+                contextEntityType="vendor"
+                contextEntityId={vendor.id}
+                contextEntityLabel={vendor.name}
+                onCreated={(issue) => navigate(`/issues/${issue.id}`)}
+            />
         </div>
     );
 }

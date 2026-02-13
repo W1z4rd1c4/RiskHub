@@ -35,7 +35,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 11: Historical Visualization** — Charts and trend analysis (5/5)
 - [x] **Phase 12: Compliance Governance** — Risk Committee dashboard & Activity Logs (7/7)
 - [x] **Phase 12.1: Compliance Governance Review** — Phase 12 audit (10/10)
-- [x] **Phase 13: Issue & Remediation Management** — Findings and Action Plans (3/3)
+- [x] **Phase 13: Issue & Remediation Management** — Findings and Action Plans (8/8)
 - [x] **Phase 14: Risk Assessments** — Campaigns and questionnaires (7/7)
 - [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (5/5)
 - [x] **Phase 16: Risk Assessment Polish** — Review, reminders, reporting (3/3)
@@ -355,14 +355,25 @@ Plans:
 
 **Goal**: Manage findings, remediation plans, and exception tracking for failed controls or high risks.
 **Depends on**: Phase 12
-**Status**: ✅ Complete
-**Plans**: 3 plans
+**Status**: ✅ Complete (reopened scope delivered)
+**Reopened**: 2026-02-12
+**Plans**: 8 plans
 
 Plans:
 
 - [x] 13-01: Findings & Issues backend (model, API, linkage to Controls/Risks)
 - [x] 13-02: Remediation Plan workflow (assignments, due dates, progress tracking)
 - [x] 13-03: Findings Dashboard & Reporting (open issues, aging analysis)
+- [x] 13-04: Contextual issue creation backend contract + vendor direct linking
+- [x] 13-05: Shared frontend contextual quick-create modal + API typing
+- [x] 13-06: Contextual “Create Issue” actions on Risk/Control/KRI/Vendor detail pages
+- [x] 13-07: Issues detail workflow UX simplification (guided actions, lower clutter)
+- [x] 13-08: Verification, docs reconciliation, and re-closeout
+
+Note:
+- `13-01..13-03` remain completed historical baseline from the initial Phase 13 execution.
+- Reopen scope is additive and preserves existing workflow state-machine contracts.
+- Reopen execution closed on 2026-02-12 after verification gates and docs reconciliation.
 
 ### Phase 14: Risk Assessments
 
@@ -813,6 +824,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 11. Historical Visualization | 5/5 | ✅ Complete | 2026-02-11 |
 | 12. Compliance Governance | 7/7 | ✅ Complete | 2026-01-04 |
 | 12.1 Compliance Review | 10/10 | ✅ Complete | 2026-01-04 |
+| 13. Issue & Remediation Management | 8/8 | ✅ Complete | 2026-02-12 |
 | 15. Settings Page | 5/5 | ✅ Complete | 2026-01-07 |
 | 17. Production Deploy | 8/15 | ⏳ In progress | - |
 | 18. Vendor Risk | 0/0 | ⏸️ Deferred | - |

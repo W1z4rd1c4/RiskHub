@@ -137,6 +137,7 @@ class IssueLink(Base):
     control_id: Mapped[int | None] = mapped_column(ForeignKey("controls.id"), nullable=True)
     execution_id: Mapped[int | None] = mapped_column(ForeignKey("control_executions.id"), nullable=True)
     kri_id: Mapped[int | None] = mapped_column(ForeignKey("key_risk_indicators.id"), nullable=True)
+    vendor_id: Mapped[int | None] = mapped_column(ForeignKey("vendors.id"), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     issue: Mapped["Issue"] = relationship("Issue", back_populates="links", lazy="selectin")
@@ -144,6 +145,7 @@ class IssueLink(Base):
     control: Mapped["Control | None"] = relationship("Control", lazy="selectin")
     execution: Mapped["ControlExecution | None"] = relationship("ControlExecution", lazy="selectin")
     kri: Mapped["KeyRiskIndicator | None"] = relationship("KeyRiskIndicator", lazy="selectin")
+    vendor: Mapped["Vendor | None"] = relationship("Vendor", lazy="selectin")
 
     __table_args__ = (
         CheckConstraint(
@@ -151,7 +153,8 @@ class IssueLink(Base):
             "(CASE WHEN risk_id IS NOT NULL THEN 1 ELSE 0 END) + "
             "(CASE WHEN control_id IS NOT NULL THEN 1 ELSE 0 END) + "
             "(CASE WHEN execution_id IS NOT NULL THEN 1 ELSE 0 END) + "
-            "(CASE WHEN kri_id IS NOT NULL THEN 1 ELSE 0 END)"
+            "(CASE WHEN kri_id IS NOT NULL THEN 1 ELSE 0 END) + "
+            "(CASE WHEN vendor_id IS NOT NULL THEN 1 ELSE 0 END)"
             ") = 1",
             name="ck_issue_links_exactly_one_target",
         ),
@@ -228,3 +231,4 @@ from app.models.department import Department
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.risk import Risk
 from app.models.user import User
+from app.models.vendor import Vendor
