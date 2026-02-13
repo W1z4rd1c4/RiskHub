@@ -89,6 +89,7 @@
         "re": "Re:"
     },
     "notifications": {
+        "submitted_for_approval": "Submitted for approval",
         "approved": "Request approved successfully",
         "rejected": "Request rejected",
         "cancelled": "Request cancelled"

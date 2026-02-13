@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, AlertTriangle, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../services/dashboardApi';
+import { useTranslation } from '@/i18n/hooks';
 
 import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
 
@@ -26,6 +27,7 @@ interface RiskDrilldownModalProps {
 }
 
 export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskType = 'net' }: RiskDrilldownModalProps) {
+    const { t } = useTranslation('dashboard');
     const navigate = useNavigate();
     const { filters } = useDashboardFilters();
     const [risks, setRisks] = useState<RiskInCell[]>([]);
@@ -42,11 +44,11 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
             setRisks(data);
         } catch (err) {
             console.error('Error fetching risks:', err);
-            setError('Failed to load risks');
+            setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
         }
-    }, [isOpen, probability, impact, filters, riskType]);
+    }, [filters, impact, isOpen, probability, riskType, t]);
 
     useEffect(() => {
         fetchRisks();
@@ -73,10 +75,10 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
     };
 
     const getSeverityLabel = () => {
-        if (score >= 16) return 'Critical';
-        if (score >= 10) return 'High';
-        if (score >= 5) return 'Medium';
-        return 'Low';
+        if (score >= 16) return t('issues.severity.critical');
+        if (score >= 10) return t('issues.severity.high');
+        if (score >= 5) return t('issues.severity.medium');
+        return t('issues.severity.low');
     };
 
     const handleRiskClick = (riskId: number) => {
@@ -115,7 +117,11 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-bold text-white">
-                                            {riskType === 'gross' ? 'Gross' : 'Net'} Risks at P{probability} × I{impact}
+                                            {t('risk_drilldown.title', {
+                                                riskType: riskType === 'gross' ? t('risk_drilldown.gross') : t('risk_drilldown.net'),
+                                                probability,
+                                                impact,
+                                            })}
                                         </h3>
                                         <p className="text-sm text-slate-500">
                                             Score: {score} • <span className={getSeverityColor()}>{getSeverityLabel()}</span>
@@ -146,7 +152,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
 
                                 {!isLoading && !error && risks.length === 0 && (
                                     <div className="text-center py-8 text-slate-500">
-                                        No risks at this position
+                                        {t('risk_drilldown.no_risks_at_position')}
                                     </div>
                                 )}
 
@@ -185,7 +191,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                                                             <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-white transition-colors" />
                                                         </div>
                                                         <p className="text-xs text-slate-500">
-                                                            {risk.owner_name || 'Unassigned'}
+                                                            {risk.owner_name || t('issues:fallbacks.unassigned')}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -198,7 +204,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                             {/* Footer */}
                             <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02]">
                                 <p className="text-xs text-slate-500 text-center">
-                                    Click a risk to view details • Press <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white font-mono">Esc</kbd> to close
+                                    {t('risk_drilldown.footer_prefix')} <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white font-mono">Esc</kbd> {t('risk_drilldown.footer_suffix')}
                                 </p>
                             </div>
                         </div>

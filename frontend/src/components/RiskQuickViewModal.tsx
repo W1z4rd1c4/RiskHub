@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Risk } from '@/types/risk';
 import { Shield, Target, User, BarChart, Calendar, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from '@/i18n/hooks';
 
 interface RiskQuickViewModalProps {
     risk: Risk | null;
@@ -12,6 +13,7 @@ interface RiskQuickViewModalProps {
 
 export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModalProps) {
     const navigate = useNavigate();
+    const { t } = useTranslation(['risks', 'common']);
 
     if (typeof document === 'undefined') return null;
     if (!risk) return null;
@@ -73,7 +75,7 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                         <div className="p-6 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
                             {/* Description */}
                             <div>
-                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Description</h4>
+                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t('common:labels.description')}</h4>
                                 <p className="text-sm text-slate-300 leading-relaxed font-medium">
                                     {risk.description}
                                 </p>
@@ -83,7 +85,7 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-white/5 rounded-xl p-4 border border-white/5">
                                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                        <BarChart className="h-3 w-3" /> Gross Risk
+                                        <BarChart className="h-3 w-3" /> {t('risks:fields.gross_score')}
                                     </h4>
                                     <div className="flex items-baseline gap-2">
                                         <span className={`text-2xl font-black ${getRiskLevelColor(risk.gross_score).split(' ')[0]}`}>
@@ -96,7 +98,7 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                                 </div>
                                 <div className="bg-white/5 rounded-xl p-4 border border-white/5">
                                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                        <BarChart className="h-3 w-3" /> Net Risk
+                                        <BarChart className="h-3 w-3" /> {t('risks:fields.net_score')}
                                     </h4>
                                     <div className="flex items-baseline gap-2">
                                         <span className={`text-2xl font-black ${getRiskLevelColor(risk.net_score).split(' ')[0]}`}>
@@ -113,26 +115,26 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                             <div className="grid grid-cols-2 gap-y-6 gap-x-12">
                                 <div>
                                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                        <User className="h-3 w-3" /> Risk Owner
+                                        <User className="h-3 w-3" /> {t('risks:fields.owner')}
                                     </h4>
-                                    <p className="text-sm font-bold text-white">{risk.owner?.name || 'Unassigned'}</p>
+                                    <p className="text-sm font-bold text-white">{risk.owner?.name || t('common:labels.unknown')}</p>
                                     <p className="text-xs text-slate-500">{risk.owner?.email}</p>
                                 </div>
                                 <div>
                                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                        <Target className="h-3 w-3" /> Department
+                                        <Target className="h-3 w-3" /> {t('risks:fields.department')}
                                     </h4>
-                                    <p className="text-sm font-bold text-white">{risk.department?.name || 'Unassigned'}</p>
+                                    <p className="text-sm font-bold text-white">{risk.department?.name || t('common:labels.unknown')}</p>
                                 </div>
                                 <div>
                                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                        <Shield className="h-3 w-3" /> Risk Type
+                                        <Shield className="h-3 w-3" /> {t('risks:fields.type')}
                                     </h4>
                                     <p className="text-sm font-bold text-white capitalize">{risk.risk_type}</p>
                                 </div>
                                 <div>
                                     <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                        <Calendar className="h-3 w-3" /> Last Updated
+                                        <Calendar className="h-3 w-3" /> {t('common:labels.updated_at')}
                                     </h4>
                                     <p className="text-sm font-bold text-white">
                                         {new Date(risk.updated_at).toLocaleDateString()}
@@ -147,7 +149,7 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                                 onClick={() => navigate(`/risks/${risk.id}`)}
                                 className="px-6 py-2.5 bg-accent hover:bg-accent/90 text-white text-sm font-bold rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-accent/20"
                             >
-                                View Full Risk Page <div className="text-[10px] opacity-60">→</div>
+                                {t('risks:view_risk')} <div className="text-[10px] opacity-60">→</div>
                             </button>
                         </div>
                     </motion.div>

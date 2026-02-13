@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShieldPlus } from 'lucide-react';
+import { useTranslation } from '@/i18n/hooks';
 import { ControlForm } from './ControlForm';
 
 interface ControlCreateDialogProps {
@@ -10,6 +11,7 @@ interface ControlCreateDialogProps {
 }
 
 export function ControlCreateDialog({ isOpen, onClose, onSuccess }: ControlCreateDialogProps) {
+    const { t } = useTranslation(['controls', 'common']);
     if (typeof document === 'undefined') return null;
 
     return createPortal(
@@ -39,12 +41,13 @@ export function ControlCreateDialog({ isOpen, onClose, onSuccess }: ControlCreat
                                     <ShieldPlus className="h-5 w-5 text-accent" />
                                 </div>
                                 <h2 className="text-xl font-black text-white uppercase tracking-tight">
-                                    Create New Control
+                                    {t('controls:create_control')}
                                 </h2>
                             </div>
                             <button
                                 onClick={onClose}
                                 className="p-2 text-slate-500 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+                                title={t('common:actions.close')}
                             >
                                 <X className="h-5 w-5" />
                             </button>

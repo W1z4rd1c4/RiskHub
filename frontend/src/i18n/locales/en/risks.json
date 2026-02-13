@@ -20,7 +20,8 @@
         "net_score": "Net Score",
         "is_priority": "Priority Risk",
         "linked_controls": "Linked Controls",
-        "linked_kris": "Linked KRIs"
+        "linked_kris": "Linked KRIs",
+        "type": "Type"
     },
     "probability_levels": {
         "1": "Very Low",
@@ -201,6 +202,66 @@
         "export_excel": "Export Excel"
     },
     "form": {
+        "steps": {
+            "identity": "Identity",
+            "ownership": "Details & Owner",
+            "scoring": "Risk Assessment"
+        },
+        "financial": {
+            "loss": "Loss",
+            "no_loss": "No financial loss"
+        },
+        "probability": {
+            "1": {
+                "label": "Unlikely",
+                "description": "Can occur once every 100+ years"
+            },
+            "2": {
+                "label": "Low",
+                "description": "Can occur once every 10+ years"
+            },
+            "3": {
+                "label": "Medium",
+                "description": "Can occur once every 1+ years"
+            },
+            "4": {
+                "label": "High",
+                "description": "Can occur multiple times per year"
+            },
+            "5": {
+                "label": "Extreme",
+                "description": "Can occur multiple times per month"
+            }
+        },
+        "impact": {
+            "1": {
+                "label": "None",
+                "description": "No impact on operations"
+            },
+            "2": {
+                "label": "Low",
+                "description": "Minor impact on operations"
+            },
+            "3": {
+                "label": "Medium",
+                "description": "May notably affect operations"
+            },
+            "4": {
+                "label": "High",
+                "description": "Significantly affects company goals"
+            },
+            "5": {
+                "label": "Extreme",
+                "description": "Threatens company existence"
+            }
+        },
+        "labels": {
+            "risk_type": "Risk Type",
+            "main_process": "Main Process",
+            "subprocess_optional": "Subprocess (Optional)",
+            "risk_description": "Risk Description",
+            "create_value": "Create \"{{value}}\""
+        },
         "placeholders": {
             "name": "Enter a short, descriptive name for this risk...",
             "type_or_select": "Type or select existing...",

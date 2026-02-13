@@ -1,5 +1,6 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { useChartTheme } from '@/hooks/useChartTheme';
+import { useTranslation } from '@/i18n/hooks';
 import type { IssueSeverityBreakdownItem } from '@/types/dashboard';
 
 interface OpenIssuesBySeverityChartProps {
@@ -14,6 +15,7 @@ const COLORS: Record<string, string> = {
 };
 
 export function OpenIssuesBySeverityChart({ items }: OpenIssuesBySeverityChartProps) {
+    const { t } = useTranslation('dashboard');
     const chartTheme = useChartTheme();
     const total = items.reduce((sum, item) => sum + item.count, 0);
 
@@ -33,11 +35,13 @@ export function OpenIssuesBySeverityChart({ items }: OpenIssuesBySeverityChartPr
                             borderRadius: '8px',
                             color: chartTheme.tooltipTextPrimary,
                         }}
-                        formatter={(value: number, name: string) => [value, name]}
+                        formatter={(value: number, name: string) => [value, t(`issues.severity.${name}`, name)]}
                     />
                 </PieChart>
             </ResponsiveContainer>
-            <div className="mt-2 text-center text-xs text-slate-400">Open issues counted: {total}</div>
+            <div className="mt-2 text-center text-xs text-slate-400">
+                {t('issues.summary.open_counted', { count: total })}
+            </div>
         </div>
     );
 }

@@ -172,6 +172,12 @@
     "assessments": {
         "subtitle": "Due diligence workflow: draft → review → recommendation → decision.",
         "empty": "No assessments yet.",
+        "scope": {
+            "dora": "DORA",
+            "standard": "Standard",
+            "dora_scope": "DORA scope",
+            "standard_scope": "Standard scope"
+        },
         "actions": {
             "start": "Start assessment",
             "save": "Save",
@@ -179,13 +185,66 @@
             "review": "Review",
             "recommend": "Recommend",
             "approve": "Approve",
+            "approve_with_conditions": "Approve with conditions",
             "reject": "Reject"
         },
         "fields": {
             "evidence": "Evidence reference",
+            "evidence_placeholder": "https://... or file path",
             "committee_recommendation": "Committee recommendation",
-            "conditions": "Conditions"
-        }
+            "conditions": "Conditions",
+            "optional": "Optional"
+        },
+        "template": {
+            "notes": "Notes",
+            "financial_stability": {
+                "title": "Financial Stability",
+                "annual_report_available": "Annual report / financial statements available?",
+                "notes_placeholder": "Summarize financial stability evidence..."
+            },
+            "regulatory_legal": {
+                "title": "Regulatory / Legal",
+                "gdpr_compliance": "GDPR compliance confirmed?",
+                "notes_placeholder": "Summarize legal/regulatory checks..."
+            },
+            "cyber_security": {
+                "title": "Cyber / Security",
+                "iso27001_or_equivalent": "ISO 27001 (or equivalent) in place?",
+                "notes_placeholder": "Summarize security posture evidence..."
+            },
+            "bcp_dr": {
+                "title": "BCP / DR",
+                "dr_tested_last_12m": "DR tested in last 12 months?",
+                "notes_placeholder": "Summarize resilience evidence..."
+            },
+            "governance_auditability": {
+                "title": "Governance / Auditability",
+                "audit_rights": "Audit rights are contractually ensured?",
+                "notes_placeholder": "Summarize governance controls..."
+            },
+            "replaceability_subcontractors": {
+                "title": "Replaceability / Subcontractors",
+                "uses_subcontractors": "Uses subcontractors / fourth parties?",
+                "replaceability": "Replaceability",
+                "notes_placeholder": "Summarize concentration/replaceability..."
+            },
+            "replaceability_options": {
+                "easy": "Easy",
+                "medium": "Medium",
+                "hard": "Hard"
+            },
+            "dora_subcontractors": {
+                "title": "DORA — Subcontractors & ICT Supply Chain",
+                "subcontractor_disclosure": "Full subcontractor disclosure available?",
+                "notes_placeholder": "Summarize subcontractor oversight..."
+            },
+            "dora_incident_reporting": {
+                "title": "DORA — Incident Reporting",
+                "incident_reporting_sla": "Incident reporting SLAs defined (timelines, escalation)?",
+                "notes_placeholder": "Summarize incident notification clauses..."
+            }
+        },
+        "item_title": "{{template}} · {{period}}"
     },
     "schedule": {
         "subtitle": "Reassessment cadence and due date reminders.",
@@ -426,6 +485,9 @@
             "easy": "Easy",
             "medium": "Medium",
             "hard": "Hard"
+        },
+        "financial": {
+            "no_loss": "No financial loss"
         }
     },
     "empty_state": {
@@ -443,5 +505,20 @@
         "department_required": "Department is required",
         "owner_required": "Outsourcing owner is required",
         "score_required": "Risk score (1–5) is required"
+    },
+    "reports": {
+        "title": "Vendor Reports",
+        "subtitle": "Exports for annual vendor risk management reporting and DORA register.",
+        "not_authorized": "You do not have access to vendor reports.",
+        "annual": {
+            "title": "Annual Vendor Management Report",
+            "year": "Year",
+            "download_excel": "Download Excel"
+        },
+        "dora": {
+            "title": "DORA Register of Information",
+            "subtitle": "Export the minimum DORA register dataset for vendor arrangements.",
+            "download": "Download Excel"
+        }
     }
 }

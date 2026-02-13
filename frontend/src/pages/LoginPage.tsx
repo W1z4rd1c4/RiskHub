@@ -1,31 +1,33 @@
 import { useState } from 'react';
 import { Shield, Building2, User, ChevronRight, Loader2 } from 'lucide-react';
+import { useTranslation } from '@/i18n/hooks';
 
 // Demo accounts organized by tier - IDs match database
 const DEMO_ACCOUNTS = {
     privileged: [
-        { id: 1, name: 'System Admin', role: 'Administrator', email: 'admin@riskhub.local', color: 'rose' },
-        { id: 2, name: 'Anna Kowalski', role: 'Chief Risk Officer', email: 'cro@riskhub.local', color: 'purple' },
-        { id: 3, name: 'Petra Svobodová', role: 'Risk Manager', email: 'risk.manager@riskhub.local', color: 'violet' },
+        { id: 1, name: 'System Admin', roleKey: 'auth:login_demo.roles.administrator', email: 'admin@riskhub.local', color: 'rose' },
+        { id: 2, name: 'Anna Kowalski', roleKey: 'auth:login_demo.roles.chief_risk_officer', email: 'cro@riskhub.local', color: 'purple' },
+        { id: 3, name: 'Petra Svobodová', roleKey: 'auth:login_demo.roles.risk_manager', email: 'risk.manager@riskhub.local', color: 'violet' },
     ],
     department_heads: [
-        { id: 4, name: 'Eva Králová', role: 'Department Head', email: 'ops.head@riskhub.local', dept: 'Operations', color: 'amber' },
-        { id: 5, name: 'Martin Procházka', role: 'Department Head', email: 'fin.head@riskhub.local', dept: 'Finance', color: 'emerald' },
-        { id: 6, name: 'Tomáš Novotný', role: 'Department Head', email: 'it.head@riskhub.local', dept: 'IT', color: 'sky' },
+        { id: 4, name: 'Eva Králová', roleKey: 'auth:login_demo.roles.department_head', email: 'ops.head@riskhub.local', deptKey: 'auth:login_demo.departments.operations', color: 'amber' },
+        { id: 5, name: 'Martin Procházka', roleKey: 'auth:login_demo.roles.department_head', email: 'fin.head@riskhub.local', deptKey: 'auth:login_demo.departments.finance', color: 'emerald' },
+        { id: 6, name: 'Tomáš Novotný', roleKey: 'auth:login_demo.roles.department_head', email: 'it.head@riskhub.local', deptKey: 'auth:login_demo.departments.it', color: 'sky' },
     ],
     employees: [
-        { id: 7, name: 'Jana Horáková', role: 'Control Owner', email: 'ops.analyst@riskhub.local', dept: 'Operations', color: 'amber' },
-        { id: 8, name: 'Lukáš Dvořák', role: 'Control Owner', email: 'fin.analyst@riskhub.local', dept: 'Finance', color: 'emerald' },
-        { id: 9, name: 'Barbora Němcová', role: 'Control Owner', email: 'it.analyst@riskhub.local', dept: 'IT', color: 'sky' },
+        { id: 7, name: 'Jana Horáková', roleKey: 'auth:login_demo.roles.control_owner', email: 'ops.analyst@riskhub.local', deptKey: 'auth:login_demo.departments.operations', color: 'amber' },
+        { id: 8, name: 'Lukáš Dvořák', roleKey: 'auth:login_demo.roles.control_owner', email: 'fin.analyst@riskhub.local', deptKey: 'auth:login_demo.departments.finance', color: 'emerald' },
+        { id: 9, name: 'Barbora Němcová', roleKey: 'auth:login_demo.roles.control_owner', email: 'it.analyst@riskhub.local', deptKey: 'auth:login_demo.departments.it', color: 'sky' },
     ],
 };
 
 export default function LoginPage() {
+    const { t } = useTranslation(['auth', 'errorKeys']);
     const [isLoading, setIsLoading] = useState<number | null>(null);
-    const [error, setError] = useState('');
+    const [errorKey, setErrorKey] = useState<string>('');
 
     const handleDemoLogin = async (userId: number) => {
-        setError('');
+        setErrorKey('');
         setIsLoading(userId);
 
         try {
@@ -35,14 +37,15 @@ export default function LoginPage() {
             });
 
             if (!response.ok) {
-                throw new Error('Demo login failed');
+                throw new Error('errorKeys.demo_login_failed');
             }
 
             const data = await response.json();
             localStorage.setItem('access_token', data.access_token);
             window.location.href = '/';
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Login failed');
+            const message = err instanceof Error ? err.message : 'errorKeys.login_failed';
+            setErrorKey(message.startsWith('errorKeys.') ? message : 'errorKeys.login_failed');
         } finally {
             setIsLoading(null);
         }
@@ -87,7 +90,7 @@ export default function LoginPage() {
                     </div>
                     <div className="text-left">
                         <p className="text-sm font-bold text-white">{account.name}</p>
-                        <p className="text-[10px] text-slate-500 font-medium">{account.role}</p>
+                        <p className="text-[10px] text-slate-500 font-medium">{t(account.roleKey)}</p>
                     </div>
                 </div>
                 {isLoading === account.id ? (
@@ -105,14 +108,14 @@ export default function LoginPage() {
                 {/* Header */}
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-black text-white tracking-tight mb-2">
-                        RiskHub <span className="text-purple-400">Demo</span>
+                        RiskHub <span className="text-purple-400">{t('login_demo.title_badge')}</span>
                     </h1>
-                    <p className="text-slate-500 font-medium">Select an account to explore different permission levels</p>
+                    <p className="text-slate-500 font-medium">{t('login_demo.subtitle')}</p>
                 </div>
 
-                {error && (
+                {errorKey && (
                     <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm font-medium text-center">
-                        {error}
+                        {t(errorKey, { ns: 'errorKeys' })}
                     </div>
                 )}
 
@@ -121,9 +124,9 @@ export default function LoginPage() {
                     <div className="glass-card">
                         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
                             <Shield className="h-4 w-4 text-purple-400" />
-                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">Privileged</h2>
+                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">{t('login_demo.sections.privileged.title')}</h2>
                         </div>
-                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">Full access to all resources, approval rights, and system settings.</p>
+                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">{t('login_demo.sections.privileged.description')}</p>
                         <div className="space-y-2">
                             {DEMO_ACCOUNTS.privileged.map(account => (
                                 <AccountButton key={account.id} account={account} />
@@ -135,9 +138,9 @@ export default function LoginPage() {
                     <div className="glass-card">
                         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
                             <Building2 className="h-4 w-4 text-amber-400" />
-                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">Department Heads</h2>
+                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">{t('login_demo.sections.department_heads.title')}</h2>
                         </div>
-                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">Write access scoped to their department. Can create and manage controls.</p>
+                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">{t('login_demo.sections.department_heads.description')}</p>
                         <div className="space-y-2">
                             {DEMO_ACCOUNTS.department_heads.map(account => (
                                 <AccountButton key={account.id} account={account} />
@@ -149,9 +152,9 @@ export default function LoginPage() {
                     <div className="glass-card">
                         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
                             <User className="h-4 w-4 text-sky-400" />
-                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">Employees</h2>
+                            <h2 className="text-[10px] font-black text-white uppercase tracking-widest">{t('login_demo.sections.employees.title')}</h2>
                         </div>
-                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">Control owners with limited access. Changes require approval.</p>
+                        <p className="text-[10px] text-slate-600 mb-4 leading-relaxed">{t('login_demo.sections.employees.description')}</p>
                         <div className="space-y-2">
                             {DEMO_ACCOUNTS.employees.map(account => (
                                 <AccountButton key={account.id} account={account} />
@@ -161,10 +164,9 @@ export default function LoginPage() {
                 </div>
 
                 <p className="text-center text-[10px] text-slate-600 mt-8 font-medium">
-                    This is a demo environment. All data is synthetic and resets periodically.
+                    {t('login_demo.footer_note')}
                 </p>
             </div>
         </div>
     );
 }
-

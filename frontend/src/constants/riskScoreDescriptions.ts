@@ -4,8 +4,8 @@
  */
 
 export interface ScoreDescription {
-    label: string;
-    description: string;
+    labelKey: string;
+    descriptionKey: string;
 }
 
 export interface ImpactDescription extends ScoreDescription {
@@ -17,11 +17,11 @@ export interface ImpactDescription extends ScoreDescription {
  * Probability of Occurrence descriptions (1-5 scale)
  */
 export const PROBABILITY_DESCRIPTIONS: Record<number, ScoreDescription> = {
-    5: { label: 'Extreme', description: 'Can occur multiple times per month' },
-    4: { label: 'High', description: 'Can occur multiple times per year' },
-    3: { label: 'Medium', description: 'Can occur once every 1+ years' },
-    2: { label: 'Low', description: 'Can occur once every 10+ years' },
-    1: { label: 'Unlikely', description: 'Can occur once every 100+ years' },
+    5: { labelKey: 'risks:form.probability.5.label', descriptionKey: 'risks:form.probability.5.description' },
+    4: { labelKey: 'risks:form.probability.4.label', descriptionKey: 'risks:form.probability.4.description' },
+    3: { labelKey: 'risks:form.probability.3.label', descriptionKey: 'risks:form.probability.3.description' },
+    2: { labelKey: 'risks:form.probability.2.label', descriptionKey: 'risks:form.probability.2.description' },
+    1: { labelKey: 'risks:form.probability.1.label', descriptionKey: 'risks:form.probability.1.description' },
 };
 
 /**
@@ -30,28 +30,28 @@ export const PROBABILITY_DESCRIPTIONS: Record<number, ScoreDescription> = {
  */
 export const IMPACT_DESCRIPTIONS: Record<number, ImpactDescription> = {
     5: {
-        label: 'Extreme',
-        description: 'Threatens company existence',
+        labelKey: 'risks:form.impact.5.label',
+        descriptionKey: 'risks:form.impact.5.description',
         percentRange: [5, 100]
     },
     4: {
-        label: 'High',
-        description: 'Significantly affects company goals',
+        labelKey: 'risks:form.impact.4.label',
+        descriptionKey: 'risks:form.impact.4.description',
         percentRange: [1, 5]
     },
     3: {
-        label: 'Medium',
-        description: 'May notably affect operations',
+        labelKey: 'risks:form.impact.3.label',
+        descriptionKey: 'risks:form.impact.3.description',
         percentRange: [0.1, 1]
     },
     2: {
-        label: 'Low',
-        description: 'Minor impact on operations',
+        labelKey: 'risks:form.impact.2.label',
+        descriptionKey: 'risks:form.impact.2.description',
         percentRange: [0, 0.1]
     },
     1: {
-        label: 'None',
-        description: 'No impact on operations',
+        labelKey: 'risks:form.impact.1.label',
+        descriptionKey: 'risks:form.impact.1.description',
         percentRange: [0, 0]
     },
 };
@@ -78,14 +78,14 @@ function formatCurrency(value: number): string {
  * @param totalAssets Total company assets in CZK
  * @returns Formatted range string, e.g., "10M - 100M CZK"
  */
-export function formatFinancialRange(level: number, totalAssets: number): string {
+export function formatFinancialRange(level: number, totalAssets: number, noFinancialLossLabel = 'No financial loss'): string {
     const impact = IMPACT_DESCRIPTIONS[level];
     if (!impact) return '';
 
     const [minPercent, maxPercent] = impact.percentRange;
 
     if (minPercent === 0 && maxPercent === 0) {
-        return 'No financial loss';
+        return noFinancialLossLabel;
     }
 
     const minLoss = (minPercent / 100) * totalAssets;

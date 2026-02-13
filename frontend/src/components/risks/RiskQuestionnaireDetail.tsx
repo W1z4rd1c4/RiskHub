@@ -212,14 +212,14 @@ export function RiskQuestionnaireDetail({
     const formatLikelihoodOptionLabel = (level: number): string => {
         const meta = PROBABILITY_DESCRIPTIONS[level];
         if (!meta) return String(level);
-        return `${level} — ${meta.label} — ${meta.description}`;
+        return `${level} — ${t(meta.labelKey, meta.labelKey)} — ${t(meta.descriptionKey, meta.descriptionKey)}`;
     };
 
     const formatWorstCaseImpactOptionLabel = (level: number): string => {
         const meta = IMPACT_DESCRIPTIONS[level];
         if (!meta) return String(level);
-        const range = formatFinancialRange(level, totalAssets);
-        return `${level} — ${meta.label} — ${meta.description}. Loss: ${range}`;
+        const range = formatFinancialRange(level, totalAssets, t('risks:form.financial.no_loss', 'No financial loss'));
+        return `${level} — ${t(meta.labelKey, meta.labelKey)} — ${t(meta.descriptionKey, meta.descriptionKey)}. ${t('risks:form.financial.loss', 'Loss')}: ${range}`;
     };
 
     const likelihoodOptions = [1, 2, 3, 4, 5].map(level => ({

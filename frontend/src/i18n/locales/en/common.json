@@ -232,5 +232,15 @@
         "search_risks": "Search risks...",
         "search_controls": "Search controls...",
         "include_archived": "Include archived"
+    },
+    "linking": {
+        "try_adjust_filters": "Try adjusting your filters or search query",
+        "confirm_linkage": "Confirm Linkage",
+        "change": "Change",
+        "owner_information": "Owner Information",
+        "create_link": "Create Link"
+    },
+    "approval": {
+        "submitted_for_approval": "Submitted for approval"
     }
 }
