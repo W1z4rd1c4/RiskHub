@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Check, Info } from 'lucide-react';
+import { useTranslation } from '@/i18n/hooks';
 
 interface PermissionMatrixProps {
     permissions: string[];
@@ -21,27 +22,27 @@ const actionStyles: Record<string, { color: string; bg: string; border: string }
 };
 
 // Resource configuration
-const resourceConfig: Record<string, { icon: string; label: string; description: string }> = {
-    users: { icon: '👥', label: 'Users', description: 'Platform users & access' },
-    risks: { icon: '⚠️', label: 'Risks', description: 'Risk register & KRIs' },
-    controls: { icon: '🛡️', label: 'Controls', description: 'Catalog & execution' },
-    approvals: { icon: '✅', label: 'Approvals', description: 'Workflow requests' },
-    reports: { icon: '📊', label: 'Reports', description: 'Analytics & exports' },
-    dashboard: { icon: '📈', label: 'Dashboard', description: 'Metrics & KPIs' },
-    notifications: { icon: '🔔', label: 'Notifications', description: 'Alerts & updates' },
-    departments: { icon: '🏢', label: 'Departments', description: 'Orgs & hierarchy' },
+const resourceConfig: Record<string, { icon: string; labelKey: string; descriptionKey: string }> = {
+    users: { icon: '👥', labelKey: 'admin:access.matrix.resources.users.label', descriptionKey: 'admin:access.matrix.resources.users.description' },
+    risks: { icon: '⚠️', labelKey: 'admin:access.matrix.resources.risks.label', descriptionKey: 'admin:access.matrix.resources.risks.description' },
+    controls: { icon: '🛡️', labelKey: 'admin:access.matrix.resources.controls.label', descriptionKey: 'admin:access.matrix.resources.controls.description' },
+    approvals: { icon: '✅', labelKey: 'admin:access.matrix.resources.approvals.label', descriptionKey: 'admin:access.matrix.resources.approvals.description' },
+    reports: { icon: '📊', labelKey: 'admin:access.matrix.resources.reports.label', descriptionKey: 'admin:access.matrix.resources.reports.description' },
+    dashboard: { icon: '📈', labelKey: 'admin:access.matrix.resources.dashboard.label', descriptionKey: 'admin:access.matrix.resources.dashboard.description' },
+    notifications: { icon: '🔔', labelKey: 'admin:access.matrix.resources.notifications.label', descriptionKey: 'admin:access.matrix.resources.notifications.description' },
+    departments: { icon: '🏢', labelKey: 'admin:access.matrix.resources.departments.label', descriptionKey: 'admin:access.matrix.resources.departments.description' },
 };
 
 // Detailed action descriptions
 const actionDescriptions: Record<string, Record<string, string>> = {
-    users: { read: 'View profiles', write: 'Create/Edit', delete: 'Remove' },
-    risks: { read: 'View register', write: 'Create/Edit', delete: 'Archive' },
-    controls: { read: 'View catalog', write: 'Log actions', delete: 'Remove' },
-    approvals: { read: 'View requests', write: 'Approve/Reject' },
-    reports: { read: 'View reports', write: 'Generate' },
-    dashboard: { read: 'View metrics' },
-    notifications: { read: 'View alerts', write: 'Settings' },
-    departments: { read: 'View list', write: 'Edit structure' },
+    users: { read: 'admin:access.matrix.actions.users.read', write: 'admin:access.matrix.actions.users.write', delete: 'admin:access.matrix.actions.users.delete' },
+    risks: { read: 'admin:access.matrix.actions.risks.read', write: 'admin:access.matrix.actions.risks.write', delete: 'admin:access.matrix.actions.risks.delete' },
+    controls: { read: 'admin:access.matrix.actions.controls.read', write: 'admin:access.matrix.actions.controls.write', delete: 'admin:access.matrix.actions.controls.delete' },
+    approvals: { read: 'admin:access.matrix.actions.approvals.read', write: 'admin:access.matrix.actions.approvals.write' },
+    reports: { read: 'admin:access.matrix.actions.reports.read', write: 'admin:access.matrix.actions.reports.write' },
+    dashboard: { read: 'admin:access.matrix.actions.dashboard.read' },
+    notifications: { read: 'admin:access.matrix.actions.notifications.read', write: 'admin:access.matrix.actions.notifications.write' },
+    departments: { read: 'admin:access.matrix.actions.departments.read', write: 'admin:access.matrix.actions.departments.write' },
 };
 
 const allResourceActions: Record<string, string[]> = {
@@ -61,6 +62,7 @@ export function PermissionMatrix({
     editable = false,
     onPermissionsChange
 }: PermissionMatrixProps) {
+    const { t } = useTranslation(['admin', 'common']);
     const [localPermissions, setLocalPermissions] = useState<Set<string>>(new Set(permissions));
 
     // Group permissions by resource
@@ -95,12 +97,12 @@ export function PermissionMatrix({
         <div className={cn('grid grid-cols-1 gap-1', className)}>
             {/* Header for the "table" */}
             <div className="hidden md:grid grid-cols-[180px_1fr] px-4 py-2 border-b border-white/5 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                <div>Resource</div>
-                <div className="flex gap-4">Permissions & Capabilities</div>
+                <div>{t('access.matrix.resource', { ns: 'admin' })}</div>
+                <div className="flex gap-4">{t('access.matrix.permissions_capabilities', { ns: 'admin' })}</div>
             </div>
 
             {sortedResources.map((resource) => {
-                const config = resourceConfig[resource] || { icon: '📋', label: resource, description: '' };
+                const config = resourceConfig[resource] || { icon: '📋', labelKey: `admin:access.matrix.resources.${resource}.label`, descriptionKey: `admin:access.matrix.resources.${resource}.description` };
                 const actions = editable ? (allResourceActions[resource] || []) : grouped[resource];
 
                 return (
@@ -109,8 +111,8 @@ export function PermissionMatrix({
                         <div className="px-4 py-2 flex items-center gap-2.5">
                             <span className="text-base grayscale group-hover:grayscale-0 transition-all">{config.icon}</span>
                             <div>
-                                <p className="text-xs font-bold text-white leading-none">{config.label}</p>
-                                <p className="text-[10px] text-slate-500 mt-1 leading-none">{config.description}</p>
+                                <p className="text-xs font-bold text-white leading-none">{t(config.labelKey)}</p>
+                                <p className="text-[10px] text-slate-500 mt-1 leading-none">{t(config.descriptionKey)}</p>
                             </div>
                         </div>
 
@@ -120,7 +122,8 @@ export function PermissionMatrix({
                                 const perm = `${resource}:${action}`;
                                 const enabled = localPermissions.has(perm);
                                 const style = actionStyles[action] || { color: 'text-slate-400', bg: 'bg-white/5', border: 'border-white/10' };
-                                const desc = actionDescriptions[resource]?.[action] || action;
+                                const descKey = actionDescriptions[resource]?.[action];
+                                const desc = descKey ? t(descKey) : action;
 
                                 return (
                                     <button
@@ -158,7 +161,7 @@ export function PermissionMatrix({
             {editable && (
                 <div className="mt-2 px-4 py-2 flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-t border-white/5">
                     <Info className="h-3.5 w-3.5 text-accent" />
-                    Click items to toggle permissions.
+                    {t('access.matrix.click_to_toggle', { ns: 'admin' })}
                 </div>
             )}
         </div>

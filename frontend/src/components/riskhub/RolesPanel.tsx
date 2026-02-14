@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Shield, Plus, Edit, Trash2, RotateCcw, AlertCircle, Users } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
+import { apiClient } from '@/services/apiClient';
 import type { RoleHubCreate, RoleHubUpdate, RoleHubRead, PermissionRead } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
@@ -22,14 +23,14 @@ function RoleModal({ isOpen, onClose, role, allPermissions, permissionsLoading, 
     const [description, setDescription] = useState('');
     const [selectedPermissionIds, setSelectedPermissionIds] = useState<number[]>([]);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen) {
             setName(role?.name || '');
             setDisplayName(role?.display_name || '');
             setDescription(role?.description || '');
-            setError(null);
+            setErrorKey(null);
 
             // Compute initial selected IDs based on allPermissions and role.permissions strings
             const initialSelectedIds = role
@@ -58,7 +59,7 @@ function RoleModal({ isOpen, onClose, role, allPermissions, permissionsLoading, 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
+        setErrorKey(null);
         setSaving(true);
         try {
             if (role) {
@@ -79,7 +80,7 @@ function RoleModal({ isOpen, onClose, role, allPermissions, permissionsLoading, 
             }
             onClose();
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : t('admin:roles_panel.modal.errors.save_failed'));
+            setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setSaving(false);
         }
@@ -172,10 +173,10 @@ function RoleModal({ isOpen, onClose, role, allPermissions, permissionsLoading, 
                         )}
                     </div>
 
-                    {error && (
+                    {errorKey && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                             <AlertCircle className="h-4 w-4" />
-                            {error}
+                            {t(errorKey, { ns: 'errorKeys' })}
                         </div>
                     )}
 
@@ -208,6 +209,7 @@ export function RolesPanel() {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingRole, setEditingRole] = useState<RoleHubRead | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<RoleHubRead | null>(null);
+    const [actionErrorKey, setActionErrorKey] = useState<string | null>(null);
 
     const { data: roles, isLoading: rolesLoading } = useQuery({
         queryKey: ['roles', showInactive],
@@ -253,7 +255,7 @@ export function RolesPanel() {
                 await deleteMutation.mutateAsync(deleteConfirm.id);
                 setDeleteConfirm(null);
             } catch (error: unknown) {
-                alert(error instanceof Error ? error.message : "Failed to delete role");
+                setActionErrorKey(apiClient.toUiMessageKey(error));
             }
         }
     };
@@ -264,6 +266,12 @@ export function RolesPanel() {
 
     return (
         <div className="space-y-4">
+            {actionErrorKey && (
+                <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                    <AlertCircle className="h-4 w-4" />
+                    {t(actionErrorKey, { ns: 'errorKeys' })}
+                </div>
+            )}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Shield className="h-5 w-5 text-accent" />

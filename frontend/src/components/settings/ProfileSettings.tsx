@@ -171,7 +171,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                         </div>
                     )}
                     {Object.keys(groupedPermissions).length === 0 ? (
-                        <p className="text-slate-400 text-center py-4">No permissions assigned</p>
+                        <p className="text-slate-400 text-center py-4">{t('profile.no_permissions_assigned', 'No permissions assigned')}</p>
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {Object.entries(groupedPermissions).map(([resource, perms]) => (

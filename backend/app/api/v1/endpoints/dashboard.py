@@ -12,7 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.db.session import get_db
 from app.models import User, Control, Risk, Department, ControlExecution, Vendor, VendorSLA, Issue
 from app.models.control import ControlStatus, ControlForm, ControlFrequency
-from app.models.issue import IssueExceptionStatus, IssueSeverity, IssueStatus
+from app.models.issue import IssueSeverity, IssueStatus
 from app.models.risk import RiskStatus
 from app.schemas.dashboard import (
     DashboardSummaryResponse,
@@ -45,6 +45,7 @@ from app.core.limits import (
     DASHBOARD_TOP_BREACHED_SLAS,
     DASHBOARD_TOP_MAJOR_INCIDENTS,
 )
+from app.services.issue_visibility_service import coerce_utc, issue_has_active_approved_exception
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -66,26 +67,8 @@ def build_risk_level_condition(risk_level: str):
     return and_(Risk.net_score >= min_score, Risk.net_score <= max_score)
 
 
-def _coerce_utc(value: datetime | None) -> datetime | None:
-    if value is None:
-        return None
-    if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value.astimezone(UTC)
-
-
-def _has_active_issue_exception(issue: Issue, now: datetime) -> bool:
-    for exception in issue.exceptions:
-        if exception.status != IssueExceptionStatus.approved.value:
-            continue
-        expires_at = _coerce_utc(exception.expires_at)
-        if expires_at is not None and expires_at > now:
-            return True
-    return False
-
-
 def _issue_age_days(issue: Issue, now: datetime) -> int:
-    opened_at = _coerce_utc(issue.opened_at)
+    opened_at = coerce_utc(issue.opened_at)
     if opened_at is None:
         return 0
     delta = now - opened_at
@@ -112,7 +95,7 @@ def _open_unsuppressed_issues(issues: list[Issue], now: datetime) -> list[Issue]
     return [
         issue
         for issue in issues
-        if issue.status != IssueStatus.closed.value and not _has_active_issue_exception(issue, now)
+        if issue.status != IssueStatus.closed.value and not issue_has_active_approved_exception(issue, now)
     ]
 
 
@@ -125,7 +108,7 @@ async def get_issue_summary(
     now = datetime.now(UTC)
     issues = await _load_scoped_issues(db, current_user, department_id=department_id)
     open_issues = _open_unsuppressed_issues(issues, now)
-    overdue = [issue for issue in open_issues if _coerce_utc(issue.due_at) is not None and _coerce_utc(issue.due_at) < now]
+    overdue = [issue for issue in open_issues if coerce_utc(issue.due_at) is not None and coerce_utc(issue.due_at) < now]
     high_severity = [
         issue
         for issue in open_issues

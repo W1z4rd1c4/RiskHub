@@ -40,11 +40,12 @@ from app.models import (
 )
 from app.models.activity_log import ActivityEntityType
 from app.models.control import ControlStatus
-from app.models.issue import IssueExceptionStatus, IssueSeverity, IssueStatus
+from app.models.issue import IssueSeverity, IssueStatus
 from app.models.kri_history import KRIValueHistory
 from app.models.risk import ControlRiskLink, RiskStatus
 from app.models.vendor import VendorStatus
 from app.services.export_snapshot_service import ExportSnapshotService
+from app.services.issue_visibility_service import coerce_utc, issue_has_active_approved_exception, unsuppressed_issue_clause
 from app.services.report_service import (
     generate_audit_trail_excel,
     generate_tabular_csv,
@@ -659,26 +660,8 @@ def _filter_rows_by_vendor_criteria(
     return sorted(filtered, key=lambda x: str(x.get("name") or ""))
 
 
-def _coerce_utc(value: datetime | None) -> datetime | None:
-    if value is None:
-        return None
-    if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value.astimezone(UTC)
-
-
 def _as_of_datetime(as_of_date: date) -> datetime:
     return datetime.combine(as_of_date, time.max, tzinfo=UTC)
-
-
-def _issue_has_active_exception(issue: Issue, as_of_dt: datetime) -> bool:
-    for exception in issue.exceptions:
-        if exception.status != IssueExceptionStatus.approved.value:
-            continue
-        expires_at = _coerce_utc(exception.expires_at)
-        if expires_at is not None and expires_at > as_of_dt:
-            return True
-    return False
 
 
 def _latest_exception(issue: Issue):
@@ -686,9 +669,9 @@ def _latest_exception(issue: Issue):
         return None
     return max(
         issue.exceptions,
-        key=lambda ex: _coerce_utc(ex.approved_at)
-        or _coerce_utc(ex.requested_at)
-        or _coerce_utc(ex.created_at)
+        key=lambda ex: coerce_utc(ex.approved_at)
+        or coerce_utc(ex.requested_at)
+        or coerce_utc(ex.created_at)
         or datetime.min.replace(tzinfo=UTC),
     )
 
@@ -714,9 +697,9 @@ def _issue_to_row(issue: Issue, *, as_of_dt: datetime) -> dict[str, Any]:
 
     remediation = issue.remediation_plan
     latest_exception = _latest_exception(issue)
-    active_exception = _issue_has_active_exception(issue, as_of_dt)
-    due_at = _coerce_utc(issue.due_at)
-    opened_at = _coerce_utc(issue.opened_at)
+    active_exception = issue_has_active_approved_exception(issue, as_of_dt)
+    due_at = coerce_utc(issue.due_at)
+    opened_at = coerce_utc(issue.opened_at)
     age_days = (as_of_dt - opened_at).days if opened_at is not None else 0
     age_days = max(age_days, 0)
     is_overdue = (
@@ -753,7 +736,7 @@ def _issue_to_row(issue: Issue, *, as_of_dt: datetime) -> dict[str, Any]:
         "remediation_owner_name": remediation.owner.name if remediation and remediation.owner else None,
         "remediation_target_date": remediation.target_date if remediation else None,
         "exception_status": _enum_value(latest_exception.status) if latest_exception else None,
-        "exception_expires_at": _coerce_utc(latest_exception.expires_at) if latest_exception else None,
+        "exception_expires_at": coerce_utc(latest_exception.expires_at) if latest_exception else None,
     }
 
 
@@ -764,7 +747,9 @@ async def _fetch_issues_for_export(
     department_id: int | None,
     status_filter: IssueStatus | None,
     severity_filter: IssueSeverity | None,
+    severity_group: Literal["high_critical"] | None,
     owner_user_id: int | None,
+    exclude_active_exceptions: bool,
 ) -> list[Issue]:
     query = (
         select(Issue)
@@ -787,10 +772,14 @@ async def _fetch_issues_for_export(
         query = query.where(Issue.department_id == department_id)
     if status_filter is not None:
         query = query.where(Issue.status == status_filter.value)
-    if severity_filter is not None:
+    if severity_group == "high_critical":
+        query = query.where(Issue.severity.in_((IssueSeverity.high.value, IssueSeverity.critical.value)))
+    elif severity_filter is not None:
         query = query.where(Issue.severity == severity_filter.value)
     if owner_user_id is not None:
         query = query.where(Issue.owner_user_id == owner_user_id)
+    if exclude_active_exceptions:
+        query = query.where(unsuppressed_issue_clause(datetime.now(UTC)))
 
     result = await db.execute(query.order_by(Issue.id.asc()))
     return list(result.scalars().all())
@@ -805,8 +794,10 @@ async def _export_issues(
     department_id: int | None,
     status_filter: IssueStatus | None,
     severity_filter: IssueSeverity | None,
+    severity_group: Literal["high_critical"] | None,
     owner_user_id: int | None,
     overdue_only: bool,
+    exclude_active_exceptions: bool,
 ) -> StreamingResponse:
     models = await _fetch_issues_for_export(
         db,
@@ -814,7 +805,9 @@ async def _export_issues(
         department_id=department_id,
         status_filter=status_filter,
         severity_filter=severity_filter,
+        severity_group=severity_group,
         owner_user_id=owner_user_id,
+        exclude_active_exceptions=exclude_active_exceptions,
     )
     as_of_dt = _as_of_datetime(as_of_date)
     rows = [_issue_to_row(issue, as_of_dt=as_of_dt) for issue in models]
@@ -1379,8 +1372,10 @@ async def export_issues(
     department_id: Optional[int] = Query(None),
     status_filter: Optional[IssueStatus] = Query(None, alias="status"),
     severity: Optional[IssueSeverity] = Query(None),
+    severity_group: Optional[Literal["high_critical"]] = Query(None),
     owner_user_id: Optional[int] = Query(None),
     overdue_only: bool = Query(False),
+    exclude_active_exceptions: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
@@ -1399,8 +1394,10 @@ async def export_issues(
         department_id=department_id,
         status_filter=status_filter,
         severity_filter=severity,
+        severity_group=severity_group,
         owner_user_id=owner_user_id,
         overdue_only=overdue_only,
+        exclude_active_exceptions=exclude_active_exceptions,
     )
 
 

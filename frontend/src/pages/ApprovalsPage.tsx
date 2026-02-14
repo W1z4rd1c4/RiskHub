@@ -14,6 +14,7 @@ import {
     X
 } from 'lucide-react';
 import { approvalsApi } from '../services/approvalsApi';
+import { apiClient } from '@/services/apiClient';
 import type { ApprovalRequest, ApprovalActionType, ApprovalStatus } from '../types/approval';
 import { usePermissions } from '../hooks/usePermissions';
 import { cn } from '@/lib/utils';
@@ -35,7 +36,7 @@ export default function ApprovalsPage() {
     const [dialogMode, setDialogMode] = useState<'approve' | 'reject' | null>(null);
     const [resolutionNotes, setResolutionNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     // Expanded rows state (for edits)
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
@@ -61,10 +62,10 @@ export default function ApprovalsPage() {
 
             const response = await approvalsApi.list(params);
             setApprovals(response.items);
-            setError(null);
+            setErrorKey(null);
         } catch (error) {
             console.error('Failed to fetch approvals:', error);
-            setError('Failed to load approval requests. Please try again.');
+            setErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setLoading(false);
         }
@@ -97,7 +98,7 @@ export default function ApprovalsPage() {
         if (isSubmitting) return; // Guard against double-submit
         if (!selectedApproval || !dialogMode) return;
         if (!resolutionNotes.trim()) {
-            alert('Resolution notes are mandatory.');
+            setErrorKey('approvals:dialogs.resolution_required');
             return;
         }
 
@@ -111,22 +112,22 @@ export default function ApprovalsPage() {
             // Refresh
             fetchApprovals();
             closeDialog();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Failed to resolve request:', error);
-            const message = error.response?.data?.detail || error.message || 'Failed to process request.';
-            alert(message);
+            setErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setIsSubmitting(false);
         }
     };
 
     const handleCancel = async (id: number) => {
-        if (!confirm('Are you sure you want to cancel this request?')) return;
+        if (!confirm(t('dialogs.cancel_message'))) return;
         try {
             await approvalsApi.cancel(id);
             fetchApprovals();
         } catch (error) {
             console.error('Failed to cancel request:', error);
+            setErrorKey(apiClient.toUiMessageKey(error));
         }
     };
 
@@ -190,10 +191,10 @@ export default function ApprovalsPage() {
             </div>
 
             {/* Filters */}
-            {filter !== 'risk_assessment' && error && (
+            {filter !== 'risk_assessment' && errorKey && (
                 <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-3 rounded-xl flex items-center gap-2 mb-4">
                     <X className="h-5 w-5" />
-                    <span>{error}</span>
+                    <span>{errorKey.startsWith('errorKeys.') ? t(errorKey, { ns: 'errorKeys' }) : t(errorKey)}</span>
                     <button onClick={fetchApprovals} className="ml-auto text-sm underline hover:text-rose-300">Retry</button>
                 </div>
             )}
@@ -396,7 +397,7 @@ export default function ApprovalsPage() {
                                             <button
                                                 onClick={() => toggleRow(approval.id)}
                                                 className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors"
-                                                title="View Changes"
+                                                title={t('common:tooltips.view_changes')}
                                             >
                                                 {expandedRows.has(approval.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                                             </button>
@@ -425,7 +426,7 @@ export default function ApprovalsPage() {
                                             <button
                                                 onClick={() => handleCancel(approval.id)}
                                                 className="p-2 hover:bg-rose-500/10 hover:text-rose-400 text-slate-500 rounded-lg transition-colors"
-                                                title="Cancel Request"
+                                                title={t('common:tooltips.cancel_request')}
                                             >
                                                 <RotateCcw className="h-4 w-4" />
                                             </button>

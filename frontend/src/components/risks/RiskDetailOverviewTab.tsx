@@ -21,6 +21,7 @@ import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { ControlCreateDialog } from '@/components/ControlCreateDialog';
 import { KRIGaugeCard } from '@/components/kri/KRIGaugeCard';
 import { ControlGaugeCard } from '@/components/controls/ControlGaugeCard';
+import { useTranslation } from '@/i18n/hooks';
 
 // Helper to convert hex color to rgba for backgrounds/borders
 function hexToRgba(hex: string, alpha: number): string {
@@ -91,6 +92,7 @@ export function RiskDetailOverviewTab({
     isCreateDialogOpen,
     setIsCreateDialogOpen,
 }: RiskDetailOverviewTabProps) {
+    const { t, i18n } = useTranslation(['risks', 'common', 'vendors', 'controls', 'kris']);
     const activeControls = linkedControls.filter(link =>
         link.control?.status !== 'draft' && link.control?.status !== 'archived'
     );
@@ -107,7 +109,7 @@ export function RiskDetailOverviewTab({
             >
                 <div className="flex items-center gap-3 border-b border-white/5 pb-4 mb-6">
                     <ShieldAlert className="h-5 w-5 text-accent" />
-                    <h3 className="font-bold text-white uppercase tracking-widest text-xs">Risk Assessment</h3>
+                    <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('tabs.assessment', { ns: 'risks' })}</h3>
                 </div>
 
                 <div className="flex flex-col md:flex-row items-center justify-center gap-12 md:gap-24 py-4">
@@ -140,12 +142,12 @@ export function RiskDetailOverviewTab({
                 <motion.div variants={item} className="glass-card flex flex-col gap-6">
                     <div className="flex items-center gap-3 border-b border-white/5 pb-4">
                         <Tag className="h-5 w-5 text-purple-400" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">Classification</h3>
+                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('overview.classification', { ns: 'risks' })}</h3>
                     </div>
 
                     <div className="space-y-4">
                         <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Type</span>
+                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('common:labels.type')}</span>
                             {(() => {
                                 const typeColor = getColor(risk.risk_type);
                                 return (
@@ -162,23 +164,23 @@ export function RiskDetailOverviewTab({
                             })()}
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Category</span>
+                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('common:labels.category')}</span>
                             <span className="text-sm text-white font-medium">{risk.category || '—'}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Process</span>
+                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('common:labels.process')}</span>
                             <span className="text-sm text-white font-medium">{risk.process}</span>
                         </div>
                         {risk.subprocess && (
                             <div className="flex justify-between items-center">
-                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Subprocess</span>
+                                <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('overview.subprocess', { ns: 'risks' })}</span>
                                 <span className="text-sm text-slate-300 font-medium">{risk.subprocess}</span>
                             </div>
                         )}
                         <div className="flex justify-between items-center">
-                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Priority</span>
+                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('fields.is_priority', { ns: 'risks' })}</span>
                             <span className={`flex items-center gap-1 text-sm font-bold ${risk.is_priority ? 'text-amber-400' : 'text-slate-400'}`}>
-                                {risk.is_priority ? <><Star className="h-3 w-3 fill-amber-400" /> Yes</> : 'No'}
+                                {risk.is_priority ? <><Star className="h-3 w-3 fill-amber-400" /> {t('common:actions.yes')}</> : t('common:actions.no')}
                             </span>
                         </div>
                     </div>
@@ -188,7 +190,7 @@ export function RiskDetailOverviewTab({
                 <motion.div variants={item} className="glass-card flex flex-col gap-6">
                     <div className="flex items-center gap-3 border-b border-white/5 pb-4">
                         <User className="h-5 w-5 text-accent" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">Ownership</h3>
+                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('overview.ownership', { ns: 'risks' })}</h3>
                     </div>
 
                     <div className="space-y-5">
@@ -197,8 +199,8 @@ export function RiskDetailOverviewTab({
                                 {risk.owner?.name?.[0] || 'U'}
                             </div>
                             <div>
-                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Risk Owner</p>
-                                <p className="text-sm font-bold text-white leading-snug">{risk.owner?.name || 'Unassigned'}</p>
+                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('fields.owner', { ns: 'risks' })}</p>
+                                <p className="text-sm font-bold text-white leading-snug">{risk.owner?.name || t('overview.unassigned', { ns: 'risks' })}</p>
                                 <p className="text-xs text-slate-500">{risk.owner?.email || ''}</p>
                             </div>
                         </div>
@@ -207,8 +209,8 @@ export function RiskDetailOverviewTab({
                                 <Building2 className="h-4 w-4" />
                             </div>
                             <div>
-                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Department</p>
-                                <p className="text-sm font-bold text-white leading-snug">{risk.department?.name || 'No Dept'}</p>
+                                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('common:labels.department')}</p>
+                                <p className="text-sm font-bold text-white leading-snug">{risk.department?.name || t('overview.no_department', { ns: 'risks' })}</p>
                                 <p className="text-xs text-slate-500 font-mono">{risk.department?.code || ''}</p>
                             </div>
                         </div>
@@ -220,14 +222,14 @@ export function RiskDetailOverviewTab({
                     <div className="flex items-center justify-between border-b border-white/5 pb-4">
                         <div className="flex items-center gap-3">
                             <FileText className="h-5 w-5 text-amber-400" />
-                            <h3 className="font-bold text-white uppercase tracking-widest text-xs">Risk Appetite Indicators</h3>
+                            <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('overview.risk_appetite_indicators', { ns: 'risks' })}</h3>
                         </div>
                         <PermissionGate resource="risks" action="write">
                             <button
                                 onClick={onNavigateToNewKri}
                                 className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/20 transition-all font-bold"
                             >
-                                <Plus className="h-3 w-3 inline mr-1" /> Add KRI
+                                <Plus className="h-3 w-3 inline mr-1" /> {t('overview.add_kri', { ns: 'risks' })}
                             </button>
                         </PermissionGate>
                     </div>
@@ -250,8 +252,8 @@ export function RiskDetailOverviewTab({
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                            <p className="text-slate-600 text-sm font-medium mb-2">No Key Risk Indicators (KRIs) configured for this risk.</p>
-                            <p className="text-[10px] text-slate-700 max-w-xs mx-auto">KRIs help monitor if the risk remains within the organization's appetite framework.</p>
+                            <p className="text-slate-600 text-sm font-medium mb-2">{t('common:empty.no_kris_configured')}</p>
+                            <p className="text-[10px] text-slate-700 max-w-xs mx-auto">{t('overview.kris_help_text', { ns: 'risks' })}</p>
                         </div>
                     )}
                 </motion.div>
@@ -267,7 +269,7 @@ export function RiskDetailOverviewTab({
                 <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
                     <div className="flex items-center gap-3">
                         <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">Mitigating Controls</h3>
+                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('overview.mitigating_controls', { ns: 'risks' })}</h3>
                     </div>
                     <PermissionGate resource="risks" action="write">
                         <div className="flex items-stretch bg-accent/10 border border-accent/20 rounded-lg overflow-hidden">
@@ -279,15 +281,15 @@ export function RiskDetailOverviewTab({
                                 className="flex items-center gap-2 px-4 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all border-r border-accent/20"
                             >
                                 <LinkIcon className="h-3 w-3" />
-                                Link Existing
+                                {t('overview.link_existing', { ns: 'risks' })}
                             </button>
                             <button
                                 onClick={onOpenCreateControl}
                                 className="flex items-center gap-2 px-3 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all"
-                                title="Create New Control"
+                                title={t('overview.create_new_control', { ns: 'risks' })}
                             >
                                 <Plus className="h-3.5 w-3.5" />
-                                <span>Add control</span>
+                                <span>{t('common:actions.add_control')}</span>
                             </button>
                         </div>
                     </PermissionGate>
@@ -296,7 +298,7 @@ export function RiskDetailOverviewTab({
                 <>
                     {activeControls.length === 0 && draftControls.length === 0 && archivedControls.length === 0 ? (
                         <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                            <p className="text-xs text-slate-600 font-medium">No controls linked to this risk.</p>
+                            <p className="text-xs text-slate-600 font-medium">{t('overview.no_controls_linked', { ns: 'risks' })}</p>
                         </div>
                     ) : (
                         <>
@@ -316,7 +318,7 @@ export function RiskDetailOverviewTab({
                                 <div className="mt-8">
                                     <h4 className="text-[10px] font-black text-amber-500/70 uppercase tracking-widest mb-4 flex items-center gap-2">
                                         <span className="w-2 h-2 rounded-full bg-amber-500/50"></span>
-                                        Draft Controls ({draftControls.length})
+                                        {t('overview.draft_controls', { ns: 'risks', count: draftControls.length })}
                                     </h4>
                                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-60">
                                         {draftControls.map((link) => (
@@ -327,7 +329,7 @@ export function RiskDetailOverviewTab({
                                             />
                                         ))}
                                     </div>
-                                    <p className="text-[10px] text-slate-600 italic mt-3">Draft controls are not yet active and won't be included in compliance metrics.</p>
+                                    <p className="text-[10px] text-slate-600 italic mt-3">{t('overview.draft_controls_help', { ns: 'risks' })}</p>
                                 </div>
                             )}
 
@@ -335,7 +337,7 @@ export function RiskDetailOverviewTab({
                                 <div className="mt-8">
                                     <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 flex items-center gap-2">
                                         <span className="w-2 h-2 rounded-full bg-slate-600"></span>
-                                        Archived Controls ({archivedControls.length})
+                                        {t('overview.archived_controls', { ns: 'risks', count: archivedControls.length })}
                                     </h4>
                                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-40 hover:opacity-100 transition-opacity">
                                         {archivedControls.map((link) => (
@@ -360,7 +362,7 @@ export function RiskDetailOverviewTab({
                         }}
                         className="w-full mt-6 py-3 border border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-all"
                     >
-                        Manage Existing Links
+                        {t('overview.manage_existing_links', { ns: 'risks' })}
                     </button>
                 </PermissionGate>
 
@@ -395,13 +397,13 @@ export function RiskDetailOverviewTab({
                 <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6">
                     <div className="flex items-center gap-3">
                         <Handshake className="h-5 w-5 text-indigo-400" />
-                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">Linked Vendors</h3>
+                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('overview.linked_vendors', { ns: 'risks' })}</h3>
                     </div>
                 </div>
 
                 {linkedVendors.length === 0 ? (
                     <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                        <p className="text-xs text-slate-600 font-medium">No vendors linked to this risk.</p>
+                        <p className="text-xs text-slate-600 font-medium">{t('overview.no_vendors_linked', { ns: 'risks' })}</p>
                     </div>
                 ) : (
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -414,7 +416,7 @@ export function RiskDetailOverviewTab({
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <p className="text-sm font-bold text-white truncate">{vendor.name}</p>
-                                        <p className="text-[10px] text-slate-500 truncate">{vendor.department_name || 'Unassigned'}</p>
+                                        <p className="text-[10px] text-slate-500 truncate">{vendor.department_name || t('overview.unassigned', { ns: 'risks' })}</p>
                                     </div>
                                     <span className="px-2 py-0.5 rounded-full text-[10px] font-black border text-amber-400 bg-amber-400/10 border-amber-400/20 whitespace-nowrap">
                                         {vendor.risk_score_1_5}/5
@@ -439,16 +441,16 @@ export function RiskDetailOverviewTab({
             </motion.div>
 
             {/* Timestamps */}
-            <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">
-                <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Created: {new Date(risk.created_at).toLocaleDateString()}
+                <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">
+                    <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                    {t('common:labels.created_at')}: {new Date(risk.created_at).toLocaleDateString(i18n.language)}
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                    {t('common:labels.updated_at')}: {new Date(risk.updated_at).toLocaleDateString(i18n.language)}
+                    </div>
                 </div>
-                <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Updated: {new Date(risk.updated_at).toLocaleDateString()}
-                </div>
-            </div>
         </>
     );
 }

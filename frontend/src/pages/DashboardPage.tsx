@@ -45,6 +45,7 @@ import { KRIBreachHistoryChart } from '@/components/dashboard/KRIBreachHistoryCh
 import { RiskCommitteeSection } from '@/components/dashboard/RiskCommitteeSection';
 import { IssueAgingChart } from '@/components/dashboard/IssueAgingChart';
 import { OpenIssuesBySeverityChart } from '@/components/dashboard/OpenIssuesBySeverityChart';
+import { IssuesSummaryCard } from '@/components/dashboard/IssuesSummaryCard';
 import { DASHBOARD_POLL_MS } from '@/config/constants';
 
 const container = {
@@ -321,29 +322,9 @@ export function DashboardPage() {
                             <motion.div
                                 initial={{ opacity: 0, y: 16 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="glass-card"
+                                className="h-full"
                             >
-                                <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-300">
-                                    {t('issues.summary.title')}
-                                </h3>
-                                <div className="space-y-2 text-sm text-slate-300">
-                                    <div className="flex justify-between">
-                                        <span>{t('issues.summary.open')}</span>
-                                        <span className="font-semibold text-white">{issueSummary.open_issues}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>{t('issues.summary.overdue')}</span>
-                                        <span className="font-semibold text-white">{issueSummary.overdue_issues}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>{t('issues.summary.high_critical_open')}</span>
-                                        <span className="font-semibold text-white">{issueSummary.high_severity_open}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>{t('issues.summary.median_age_days')}</span>
-                                        <span className="font-semibold text-white">{issueSummary.median_days_open}</span>
-                                    </div>
-                                </div>
+                                <IssuesSummaryCard issueSummary={issueSummary} />
                             </motion.div>
 
                             <motion.div

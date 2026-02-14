@@ -47,6 +47,7 @@
             "overdue": "Overdue",
             "high_critical_open": "High/Critical Open",
             "median_age_days": "Median Age (days)",
+            "aggregate_metric_hint": "Aggregate metric (no direct filter)",
             "open_by_age": "Open Issues by Age",
             "open_by_severity": "Open Issues by Severity",
             "open_counted": "Open issues counted: {{count}}"

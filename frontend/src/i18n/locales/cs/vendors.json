@@ -1,524 +1,532 @@
 {
-    "title": "Dodavatelé",
-    "subtitle": "Katalog dodavatelů třetích stran",
-    "labels": {
-        "loading": "Načítání...",
-        "unassigned": "Bez oddělení"
-    },
+  "title": "Dodavatelé",
+  "subtitle": "Katalog dodavatelů třetích stran",
+  "labels": {
+    "loading": "Načítání...",
+    "unassigned": "Bez oddělení"
+  },
+  "actions": {
+    "new": "Nový dodavatel",
+    "edit": "Upravit",
+    "save": "Uložit",
+    "create": "Vytvořit",
+    "cancel": "Zrušit",
+    "export": "Export",
+    "refresh": "Obnovit",
+    "unarchive": "Obnovit z archivu"
+  },
+  "filters": {
+    "search_placeholder": "Hledat dodavatele...",
+    "all_statuses": "Všechny stavy",
+    "all_types": "Všechny typy"
+  },
+  "columns": {
+    "name": "Dodavatel",
+    "department": "Oddělení",
+    "owner": "Vlastník",
+    "type": "Typ",
+    "risk_score": "Skóre rizika",
+    "status": "Stav"
+  },
+  "status": {
+    "active": "Aktivní",
+    "inactive": "Neaktivní"
+  },
+  "type": {
+    "ict": "ICT",
+    "outsourcing": "Outsourcing",
+    "professional_services": "Profesionální služby",
+    "partner": "Partner",
+    "other": "Jiné"
+  },
+  "flags": {
+    "supports_core_function": "Podporuje důležitou klíčovou funkci",
+    "dora_relevant": "DORA relevantní",
+    "significant_vendor": "Významný dodavatel",
+    "has_alternatives": "Má alternativní poskytovatele"
+  },
+  "detail": {
+    "overview": "Přehled",
+    "ownership": "Vlastnictví",
+    "classification": "Klasifikace"
+  },
+  "tabs": {
+    "risk_factors": "Rizikové faktory",
+    "linked_risks": "Navázaná rizika",
+    "linked_controls": "Navázané kontroly",
+    "assessments": "Hodnocení",
+    "schedule": "Plán",
+    "contract_controls": "Smluvní kontroly",
+    "resilience": "Odolnost",
+    "dependencies": "Závislosti",
+    "incidents": "Incidenty",
+    "remediation": "Nápravná opatření",
+    "sla": "SLA",
+    "signals": "Signály"
+  },
+  "signals": {
+    "subtitle": "Volitelné externí signály pro monitoring dodavatele.",
+    "empty": "Zatím nejsou žádné signály.",
+    "last_fetched": "Naposledy staženo",
+    "details": "Detaily",
     "actions": {
-        "new": "Nový dodavatel",
-        "edit": "Upravit",
-        "save": "Uložit",
-        "create": "Vytvořit",
-        "cancel": "Zrušit",
-        "export": "Export",
-        "refresh": "Obnovit",
-        "unarchive": "Obnovit z archivu"
+      "refresh": "Obnovit signály",
+      "refreshing": "Obnovuji..."
+    }
+  },
+  "incidents": {
+    "subtitle": "Evidujte incidenty a významná porušení u dodavatele.",
+    "empty": "Zatím nejsou žádné incidenty.",
+    "confirm_delete": "Smazat tento incident?",
+    "actions": {
+      "add": "Přidat incident",
+      "save": "Uložit"
     },
-    "filters": {
-        "search_placeholder": "Hledat dodavatele...",
-        "all_statuses": "Všechny stavy",
-        "all_types": "Všechny typy"
-    },
-    "columns": {
-        "name": "Dodavatel",
-        "department": "Oddělení",
-        "owner": "Vlastník",
-        "type": "Typ",
-        "risk_score": "Skóre rizika",
-        "status": "Stav"
-    },
-    "status": {
-        "active": "Aktivní",
-        "inactive": "Neaktivní"
+    "fields": {
+      "is_major": "Významný incident",
+      "summary": "Shrnutí",
+      "details": "Detail (volitelné)"
     },
     "type": {
-        "ict": "ICT",
-        "outsourcing": "Outsourcing",
-        "professional_services": "Profesionální služby",
-        "partner": "Partner",
-        "other": "Jiné"
+      "security": "Bezpečnost",
+      "operational": "Provozní",
+      "regulatory_breach": "Regulatorní porušení",
+      "contract_breach": "Porušení smlouvy",
+      "other": "Jiné"
     },
-    "flags": {
-        "supports_core_function": "Podporuje důležitou klíčovou funkci",
-        "dora_relevant": "DORA relevantní",
-        "significant_vendor": "Významný dodavatel",
-        "has_alternatives": "Má alternativní poskytovatele"
-    },
-    "detail": {
-        "overview": "Přehled",
-        "ownership": "Vlastnictví",
-        "classification": "Klasifikace"
-    },
-    "tabs": {
-        "risk_factors": "Rizikové faktory",
-        "linked_risks": "Navázaná rizika",
-        "linked_controls": "Navázané kontroly",
-        "assessments": "Hodnocení",
-        "schedule": "Plán",
-        "contract_controls": "Smluvní kontroly",
-        "resilience": "Odolnost",
-        "dependencies": "Závislosti",
-        "incidents": "Incidenty",
-        "remediation": "Nápravná opatření",
-        "sla": "SLA",
-        "signals": "Signály"
-    },
-    "signals": {
-        "subtitle": "Volitelné externí signály pro monitoring dodavatele.",
-        "empty": "Zatím nejsou žádné signály.",
-        "last_fetched": "Naposledy staženo",
-        "details": "Detaily",
-        "actions": {
-            "refresh": "Obnovit signály",
-            "refreshing": "Obnovuji..."
-        }
-    },
-    "incidents": {
-        "subtitle": "Evidujte incidenty a významná porušení u dodavatele.",
-        "empty": "Zatím nejsou žádné incidenty.",
-        "confirm_delete": "Smazat tento incident?",
-        "actions": {
-            "add": "Přidat incident",
-            "save": "Uložit"
-        },
-        "fields": {
-            "is_major": "Významný incident",
-            "summary": "Shrnutí",
-            "details": "Detail (volitelné)"
-        },
-        "type": {
-            "security": "Bezpečnost",
-            "operational": "Provozní",
-            "regulatory_breach": "Regulatorní porušení",
-            "contract_breach": "Porušení smlouvy",
-            "other": "Jiné"
-        },
-        "severity": {
-            "low": "Nízká",
-            "medium": "Střední",
-            "high": "Vysoká",
-            "critical": "Kritická"
-        }
-    },
-    "remediation": {
-        "subtitle": "Sledujte nápravná opatření a odpovědnosti.",
-        "empty": "Zatím nejsou žádná nápravná opatření.",
-        "confirm_delete": "Smazat toto opatření?",
-        "actions": {
-            "add": "Přidat opatření",
-            "save": "Uložit"
-        },
-        "fields": {
-            "description": "Popis"
-        },
-        "status": {
-            "open": "Otevřené",
-            "in_progress": "Probíhá",
-            "done": "Hotovo"
-        }
-    },
-    "sla": {
-        "subtitle": "Sledujte hodnoty SLA v čase a označujte porušení limitů.",
-        "empty": "Zatím nejsou žádná SLA.",
-        "include_archived": "Zobrazit archivované",
-        "current": "Aktuálně",
-        "limits": "Limity",
-        "last_reported": "Naposledy reportováno",
-        "badges": {
-            "archived": "Archivováno"
-        },
-        "actions": {
-            "add": "Přidat SLA",
-            "manage": "Spravovat",
-            "archive": "Archivovat"
-        },
-        "fields": {
-            "metric_name": "Název metriky",
-            "metric_name_placeholder": "např. dostupnost, doba odezvy",
-            "description": "Popis",
-            "description_placeholder": "Volitelné poznámky k definici SLA",
-            "current_value": "Aktuální hodnota",
-            "current_value_edit_hint": "Aktuální hodnota (použijte Zapsat hodnotu)",
-            "unit": "Jednotka",
-            "lower_limit": "Spodní limit (porušení)",
-            "upper_limit": "Horní limit (porušení)",
-            "frequency": "Frekvence reportingu",
-            "reporting_owner": "Odpovědná osoba"
-        },
-        "frequency": {
-            "daily": "Denně",
-            "weekly": "Týdně",
-            "monthly": "Měsíčně",
-            "quarterly": "Čtvrtletně",
-            "annually": "Ročně"
-        },
-        "owner": {
-            "unassigned": "Nepřiřazeno"
-        },
-        "modal": {
-            "create_title": "Nové SLA dodavatele",
-            "edit_title": "Upravit SLA dodavatele",
-            "subtitle": "Definujte limity SLA a zapisujte hodnoty v čase."
-        },
-        "record": {
-            "title": "Zapsat hodnotu",
-            "save": "Zapsat",
-            "saving": "Ukládání..."
-        },
-        "confirm_archive_title": "Archivovat SLA?",
-        "confirm_archive_message": "SLA se archivuje. Lze jej zobrazit po zapnutí archivovaných položek."
-    },
-    "assessments": {
-        "subtitle": "Workflow due diligence: návrh → kontrola → doporučení → rozhodnutí.",
-        "empty": "Zatím nejsou žádná hodnocení.",
-        "scope": {
-            "dora": "DORA",
-            "standard": "Standard",
-            "dora_scope": "Rozsah DORA",
-            "standard_scope": "Standardní rozsah"
-        },
-        "actions": {
-            "start": "Zahájit hodnocení",
-            "save": "Uložit",
-            "submit": "Odeslat",
-            "review": "Zkontrolovat",
-            "recommend": "Doporučit",
-            "approve": "Schválit",
-            "approve_with_conditions": "Schválit s podmínkami",
-            "reject": "Zamítnout"
-        },
-        "fields": {
-            "evidence": "Reference důkazů",
-            "evidence_placeholder": "https://... nebo cesta k souboru",
-            "committee_recommendation": "Doporučení komise",
-            "conditions": "Podmínky",
-            "optional": "Volitelné"
-        },
-        "template": {
-            "notes": "Poznámky",
-            "financial_stability": {
-                "title": "Finanční stabilita",
-                "annual_report_available": "Jsou dostupné výroční zprávy / finanční výkazy?",
-                "notes_placeholder": "Shrňte důkazy o finanční stabilitě..."
-            },
-            "regulatory_legal": {
-                "title": "Regulatorní / právní",
-                "gdpr_compliance": "Je potvrzena compliance s GDPR?",
-                "notes_placeholder": "Shrňte právní/regulatorní kontroly..."
-            },
-            "cyber_security": {
-                "title": "Kyber / bezpečnost",
-                "iso27001_or_equivalent": "Je zaveden ISO 27001 (nebo ekvivalent)?",
-                "notes_placeholder": "Shrňte důkazy o bezpečnostní úrovni..."
-            },
-            "bcp_dr": {
-                "title": "BCP / DR",
-                "dr_tested_last_12m": "Byl DR testován v posledních 12 měsících?",
-                "notes_placeholder": "Shrňte důkazy o odolnosti..."
-            },
-            "governance_auditability": {
-                "title": "Governance / auditovatelnost",
-                "audit_rights": "Jsou práva auditu smluvně zajištěna?",
-                "notes_placeholder": "Shrňte governance kontroly..."
-            },
-            "replaceability_subcontractors": {
-                "title": "Nahraditelnost / subdodavatelé",
-                "uses_subcontractors": "Využívá subdodavatele / čtvrté strany?",
-                "replaceability": "Nahraditelnost",
-                "notes_placeholder": "Shrňte koncentraci/nahraditelnost..."
-            },
-            "replaceability_options": {
-                "easy": "Snadná",
-                "medium": "Střední",
-                "hard": "Obtížná"
-            },
-            "dora_subcontractors": {
-                "title": "DORA — Subdodavatelé a ICT dodavatelský řetězec",
-                "subcontractor_disclosure": "Je dostupné úplné zveřejnění subdodavatelů?",
-                "notes_placeholder": "Shrňte dohled nad subdodavateli..."
-            },
-            "dora_incident_reporting": {
-                "title": "DORA — Hlášení incidentů",
-                "incident_reporting_sla": "Jsou definována SLA pro hlášení incidentů (termíny, eskalace)?",
-                "notes_placeholder": "Shrňte smluvní ustanovení pro notifikace incidentů..."
-            }
-        },
-        "item_title": "{{template}} · {{period}}"
-    },
-    "schedule": {
-        "subtitle": "Kadence přehodnocení a připomínky termínů.",
-        "months": "měsíců",
-        "trigger_reason_prompt": "Důvod (incident / new_threat / other):",
-        "actions": {
-            "start_reassessment": "Spustit přehodnocení",
-            "trigger": "Vyvolat"
-        },
-        "fields": {
-            "next_due": "Další termín",
-            "cadence": "Kadence",
-            "status": "Stav",
-            "last_decided": "Poslední rozhodnutí"
-        },
-        "status": {
-            "ok": "OK",
-            "due_soon": "Brzy",
-            "overdue": "Po termínu",
-            "unknown": "Neznámé"
-        }
-    },
-    "contract_controls": {
-        "subtitle": "Checklist požadovaných smluvních doložek/kontrol s evidencí.",
-        "not_applicable": "Nevztahuje se na tuto klasifikaci dodavatele.",
-        "actions": {
-            "save": "Uložit"
-        },
-        "templates": {
-            "ict_standard": "Standardní ICT kontroly",
-            "ict_dora_non_significant": "DORA (nevýznamný ICT dodavatel)",
-            "ict_dora_significant": "DORA (významný ICT dodavatel)"
-        },
-        "status": {
-            "met": "Splněno",
-            "partial": "Částečně",
-            "missing": "Chybí",
-            "n_a": "N/A"
-        },
-        "fields": {
-            "evidence": "Reference důkazů",
-            "notes": "Poznámky",
-            "notes_placeholder": "Volitelné"
-        },
-        "items": {
-            "audit_rights": {
-                "title": "Práva auditu",
-                "description": "Smlouva obsahuje práva auditu/přístupu (vč. subdodavatelů dle potřeby)."
-            },
-            "incident_reporting_sla": {
-                "title": "SLA hlášení incidentů",
-                "description": "Jsou definovány lhůty hlášení incidentů a eskalace."
-            },
-            "data_location_and_access": {
-                "title": "Umístění a přístup k datům",
-                "description": "Je definováno umístění dat, přístup a požadavky na přenos/vrácení."
-            },
-            "subcontractor_flowdown": {
-                "title": "Povinnosti subdodavatelů",
-                "description": "Použití subdodavatelů je kontrolováno a povinnosti jsou smluvně přeneseny."
-            },
-            "exit_assistance": {
-                "title": "Ukončení spolupráce",
-                "description": "Je smluvně zajištěna pomoc při ukončení/přechodu."
-            },
-            "dora_subcontractor_disclosure": {
-                "title": "DORA zveřejnění subdodavatelů",
-                "description": "DORA: existuje zveřejnění/registr subdodavatelů."
-            },
-            "dora_operational_resilience_testing": {
-                "title": "DORA podpora testování odolnosti",
-                "description": "DORA: smlouva podporuje požadavky na testování odolnosti."
-            },
-            "dora_enhanced_audit_and_access": {
-                "title": "DORA rozšířený audit/přístup",
-                "description": "Významný ICT: rozšířené doložky auditu a přístupu."
-            },
-            "dora_exit_strategy_and_support": {
-                "title": "DORA podpora exit strategie",
-                "description": "Významný ICT: explicitní povinnosti pro exit strategii a podporu."
-            }
-        }
-    },
-    "resilience": {
-        "subtitle": "Exit strategie a kontingenční/BCP připravenost pro kritické dodavatele.",
-        "not_required": "Pro nekritické dodavatele není vyžadováno (lze evidovat).",
-        "actions": {
-            "save": "Uložit"
-        },
-        "status": {
-            "not_started": "Nezahájeno",
-            "in_progress": "Probíhá",
-            "complete": "Hotovo"
-        },
-        "fields": {
-            "status": "Stav",
-            "reference": "Reference",
-            "notes": "Poznámky",
-            "notes_placeholder": "Volitelné",
-            "last_reviewed": "Naposledy revidováno",
-            "last_tested": "Naposledy testováno",
-            "outage_hours": "Max tolerovaný výpadek (hod)",
-            "cia": "Dopad CIA"
-        },
-        "exit_plan": {
-            "title": "Exit strategie"
-        },
-        "contingency_plan": {
-            "title": "Kontingenční plán / BCP"
-        },
-        "cia": {
-            "confidentiality": "Důvěrnost",
-            "integrity": "Integrita",
-            "authenticity": "Autentičnost",
-            "availability": "Dostupnost"
-        },
-        "contingency_required": "Kontingenční plán je vyžadován pro výpadek >24h nebo dopad CIA."
-    },
-    "dependencies": {
-        "subtitle": "Služby, podporované funkce a vztahy čtvrtých stran.",
-        "confirm_delete": "Smazat?",
-        "prompt_function": "Název podporované funkce:",
-        "concentration": {
-            "title": "Koncentrace",
-            "score": "Skóre",
-            "no_flags": "Bez flagů."
-        },
-        "relationships": {
-            "title": "Vztahy",
-            "empty": "Zatím nejsou žádné vztahy.",
-            "select_vendor": "Vyberte dodavatele",
-            "actions": {
-                "add": "Přidat"
-            },
-            "type": {
-                "subcontractor": "Subdodavatel",
-                "reseller": "Reseller",
-                "parent_company": "Mateřská společnost",
-                "other": "Jiné"
-            }
-        },
-        "graph": {
-            "title": "Graf"
-        },
-        "services": {
-            "title": "Služby",
-            "empty": "Zatím nejsou žádné služby.",
-            "service_placeholder": "Název služby",
-            "no_dependencies": "Zatím nejsou zaznamenané závislosti.",
-            "actions": {
-                "add_service": "Přidat službu",
-                "add_dependency": "Přidat závislost"
-            }
-        }
-    },
-    "risk_categories": {
-        "regulatory_legal": "Regulatorní & právní",
-        "info_security_data": "Informační bezpečnost & data",
-        "cyber_supply_chain": "Kyber / dodavatelský řetězec",
-        "operational_continuity": "Provozní kontinuita (BCP/DR)",
-        "service_quality": "Kvalita služby",
-        "financial": "Finanční",
-        "strategic_reputational": "Strategické & reputační",
-        "governance_oversight": "Governance & dohled",
-        "technology_lockin": "Technologický lock‑in",
-        "human_factor": "Lidský faktor",
-        "concentration": "Koncentrační riziko"
-    },
-    "risk_factors": {
-        "subtitle": "Kvalitativní faktory rizika dodavatele (bez skórování v MVP).",
-        "empty": "Zatím nejsou evidované rizikové faktory.",
-        "confirm_delete": "Smazat tento rizikový faktor?",
-        "actions": {
-            "add": "Přidat rizikový faktor",
-            "edit": "Upravit rizikový faktor",
-            "save": "Uložit"
-        },
-        "fields": {
-            "category": "Kategorie",
-            "description": "Popis",
-            "description_placeholder": "Popište faktor a případné poznámky / důkazy..."
-        }
-    },
-    "links": {
-        "actions": {
-            "manage": "Spravovat vazby"
-        },
-        "archived_risks": "Archivovaná rizika",
-        "archived_controls": "Archivované kontroly",
-        "dialogs": {
-            "link_risks_title": "Navázat rizika na dodavatele",
-            "link_controls_title": "Navázat kontroly na dodavatele"
-        },
-        "risks": {
-            "subtitle": "Propojte dodavatele s riziky v Registru rizik.",
-            "empty": "Zatím nejsou navázaná rizika."
-        },
-        "controls": {
-            "subtitle": "Přiřaďte kontroly, které mitigují expozici na dodavatele.",
-            "empty": "Zatím nejsou navázané kontroly."
-        }
-    },
-    "form": {
-        "sections": {
-            "identity": "Identita",
-            "ownership": "Vlastnictví a rozsah",
-            "classification": "Klasifikace"
-        },
-        "name": "Název dodavatele",
-        "name_placeholder": "Acme Cloud Ltd.",
-        "legal_name": "Právní název",
-        "registration_id": "IČ / Registrace",
-        "country": "Země",
-        "website": "Web",
-        "description": "Popis",
-        "department": "Oddělení",
-        "department_placeholder": "Vyberte oddělení",
-        "owner": "Vlastník outsourcingu",
-        "owner_placeholder": "Vyberte vlastníka",
-        "process": "Proces",
-        "process_placeholder": "IT",
-        "subprocess": "Podproces",
-        "subprocess_placeholder": "Cloud Operations",
-        "risk_score": "Skóre rizika (1–5)",
-        "status": "Stav",
-        "flags": "Příznaky",
-        "vendor_type": {
-            "label": "Typ dodavatele",
-            "ict": "ICT",
-            "outsourcing": "Outsourcing",
-            "professional_services": "Profesionální služby",
-            "partner": "Partner",
-            "other": "Jiné"
-        },
-        "replaceability": {
-            "label": "Nahraditelnost",
-            "placeholder": "Vybrat",
-            "easy": "Snadná",
-            "medium": "Střední",
-            "hard": "Obtížná"
-        },
-        "financial": {
-            "no_loss": "Bez finanční ztráty"
-        }
-    },
-    "empty_state": {
-        "no_vendors": "Žádní dodavatelé nebyli nalezeni"
-    },
-    "errors": {
-        "title": "Chyba",
-        "try_again": "Zkusit znovu",
-        "load_failed": "Nepodařilo se načíst dodavatele",
-        "save_failed": "Nepodařilo se uložit dodavatele",
-        "not_found": "Nenalezeno",
-        "vendor_not_found": "Dodavatel nebyl nalezen",
-        "name_required": "Název dodavatele je povinný",
-        "process_required": "Proces je povinný",
-        "department_required": "Oddělení je povinné",
-        "owner_required": "Vlastník outsourcingu je povinný",
-        "score_required": "Skóre rizika (1–5) je povinné"
-    },
-    "reports": {
-        "title": "Reporty dodavatelů",
-        "subtitle": "Exporty pro roční reporting řízení rizik dodavatelů a registr DORA.",
-        "not_authorized": "Nemáte přístup k reportům dodavatelů.",
-        "annual": {
-            "title": "Roční report řízení dodavatelů",
-            "year": "Rok",
-            "download_excel": "Stáhnout Excel"
-        },
-        "dora": {
-            "title": "Registr informací DORA",
-            "subtitle": "Export minimálního datasetu registru DORA pro dodavatelské vztahy.",
-            "download": "Stáhnout Excel"
-        }
+    "severity": {
+      "low": "Nízká",
+      "medium": "Střední",
+      "high": "Vysoká",
+      "critical": "Kritická"
     }
+  },
+  "remediation": {
+    "subtitle": "Sledujte nápravná opatření a odpovědnosti.",
+    "empty": "Zatím nejsou žádná nápravná opatření.",
+    "confirm_delete": "Smazat toto opatření?",
+    "actions": {
+      "add": "Přidat opatření",
+      "save": "Uložit"
+    },
+    "fields": {
+      "description": "Popis"
+    },
+    "status": {
+      "open": "Otevřené",
+      "in_progress": "Probíhá",
+      "done": "Hotovo"
+    }
+  },
+  "sla": {
+    "subtitle": "Sledujte hodnoty SLA v čase a označujte porušení limitů.",
+    "empty": "Zatím nejsou žádná SLA.",
+    "include_archived": "Zobrazit archivované",
+    "current": "Aktuálně",
+    "limits": "Limity",
+    "last_reported": "Naposledy reportováno",
+    "badges": {
+      "archived": "Archivováno"
+    },
+    "actions": {
+      "add": "Přidat SLA",
+      "manage": "Spravovat",
+      "archive": "Archivovat"
+    },
+    "fields": {
+      "metric_name": "Název metriky",
+      "metric_name_placeholder": "např. dostupnost, doba odezvy",
+      "description": "Popis",
+      "description_placeholder": "Volitelné poznámky k definici SLA",
+      "current_value": "Aktuální hodnota",
+      "current_value_edit_hint": "Aktuální hodnota (použijte Zapsat hodnotu)",
+      "unit": "Jednotka",
+      "lower_limit": "Spodní limit (porušení)",
+      "upper_limit": "Horní limit (porušení)",
+      "frequency": "Frekvence reportingu",
+      "reporting_owner": "Odpovědná osoba"
+    },
+    "frequency": {
+      "daily": "Denně",
+      "weekly": "Týdně",
+      "monthly": "Měsíčně",
+      "quarterly": "Čtvrtletně",
+      "annually": "Ročně"
+    },
+    "owner": {
+      "unassigned": "Nepřiřazeno"
+    },
+    "modal": {
+      "create_title": "Nové SLA dodavatele",
+      "edit_title": "Upravit SLA dodavatele",
+      "subtitle": "Definujte limity SLA a zapisujte hodnoty v čase."
+    },
+    "record": {
+      "title": "Zapsat hodnotu",
+      "save": "Zapsat",
+      "saving": "Ukládání..."
+    },
+    "confirm_archive_title": "Archivovat SLA?",
+    "confirm_archive_message": "SLA se archivuje. Lze jej zobrazit po zapnutí archivovaných položek."
+  },
+  "assessments": {
+    "subtitle": "Workflow due diligence: návrh → kontrola → doporučení → rozhodnutí.",
+    "empty": "Zatím nejsou žádná hodnocení.",
+    "scope": {
+      "dora": "DORA",
+      "standard": "Standard",
+      "dora_scope": "Rozsah DORA",
+      "standard_scope": "Standardní rozsah"
+    },
+    "actions": {
+      "start": "Zahájit hodnocení",
+      "save": "Uložit",
+      "submit": "Odeslat",
+      "review": "Zkontrolovat",
+      "recommend": "Doporučit",
+      "approve": "Schválit",
+      "approve_with_conditions": "Schválit s podmínkami",
+      "reject": "Zamítnout"
+    },
+    "fields": {
+      "evidence": "Reference důkazů",
+      "evidence_placeholder": "https://... nebo cesta k souboru",
+      "committee_recommendation": "Doporučení komise",
+      "conditions": "Podmínky",
+      "optional": "Volitelné"
+    },
+    "template": {
+      "notes": "Poznámky",
+      "financial_stability": {
+        "title": "Finanční stabilita",
+        "annual_report_available": "Jsou dostupné výroční zprávy / finanční výkazy?",
+        "notes_placeholder": "Shrňte důkazy o finanční stabilitě..."
+      },
+      "regulatory_legal": {
+        "title": "Regulatorní / právní",
+        "gdpr_compliance": "Je potvrzena compliance s GDPR?",
+        "notes_placeholder": "Shrňte právní/regulatorní kontroly..."
+      },
+      "cyber_security": {
+        "title": "Kyber / bezpečnost",
+        "iso27001_or_equivalent": "Je zaveden ISO 27001 (nebo ekvivalent)?",
+        "notes_placeholder": "Shrňte důkazy o bezpečnostní úrovni..."
+      },
+      "bcp_dr": {
+        "title": "BCP / DR",
+        "dr_tested_last_12m": "Byl DR testován v posledních 12 měsících?",
+        "notes_placeholder": "Shrňte důkazy o odolnosti..."
+      },
+      "governance_auditability": {
+        "title": "Governance / auditovatelnost",
+        "audit_rights": "Jsou práva auditu smluvně zajištěna?",
+        "notes_placeholder": "Shrňte governance kontroly..."
+      },
+      "replaceability_subcontractors": {
+        "title": "Nahraditelnost / subdodavatelé",
+        "uses_subcontractors": "Využívá subdodavatele / čtvrté strany?",
+        "replaceability": "Nahraditelnost",
+        "notes_placeholder": "Shrňte koncentraci/nahraditelnost..."
+      },
+      "replaceability_options": {
+        "easy": "Snadná",
+        "medium": "Střední",
+        "hard": "Obtížná"
+      },
+      "dora_subcontractors": {
+        "title": "DORA — Subdodavatelé a ICT dodavatelský řetězec",
+        "subcontractor_disclosure": "Je dostupné úplné zveřejnění subdodavatelů?",
+        "notes_placeholder": "Shrňte dohled nad subdodavateli..."
+      },
+      "dora_incident_reporting": {
+        "title": "DORA — Hlášení incidentů",
+        "incident_reporting_sla": "Jsou definována SLA pro hlášení incidentů (termíny, eskalace)?",
+        "notes_placeholder": "Shrňte smluvní ustanovení pro notifikace incidentů..."
+      }
+    },
+    "item_title": "{{template}} · {{period}}",
+    "status": {
+      "draft": "NÁVRH",
+      "submitted": "ODESLÁNO",
+      "in_review": "VE SCHVALOVÁNÍ",
+      "committee_recommended": "DOPORUČENO",
+      "approved": "SCHVÁLENO",
+      "rejected": "ZAMÍTNUTO"
+    }
+  },
+  "schedule": {
+    "subtitle": "Kadence přehodnocení a připomínky termínů.",
+    "months": "měsíců",
+    "trigger_reason_prompt": "Důvod (incident / new_threat / other):",
+    "actions": {
+      "start_reassessment": "Spustit přehodnocení",
+      "trigger": "Vyvolat"
+    },
+    "fields": {
+      "next_due": "Další termín",
+      "cadence": "Kadence",
+      "status": "Stav",
+      "last_decided": "Poslední rozhodnutí"
+    },
+    "status": {
+      "ok": "OK",
+      "due_soon": "Brzy",
+      "overdue": "Po termínu",
+      "unknown": "Neznámé"
+    }
+  },
+  "contract_controls": {
+    "subtitle": "Checklist požadovaných smluvních doložek/kontrol s evidencí.",
+    "not_applicable": "Nevztahuje se na tuto klasifikaci dodavatele.",
+    "actions": {
+      "save": "Uložit"
+    },
+    "templates": {
+      "ict_standard": "Standardní ICT kontroly",
+      "ict_dora_non_significant": "DORA (nevýznamný ICT dodavatel)",
+      "ict_dora_significant": "DORA (významný ICT dodavatel)"
+    },
+    "status": {
+      "met": "Splněno",
+      "partial": "Částečně",
+      "missing": "Chybí",
+      "n_a": "N/A"
+    },
+    "fields": {
+      "evidence": "Reference důkazů",
+      "notes": "Poznámky",
+      "notes_placeholder": "Volitelné"
+    },
+    "items": {
+      "audit_rights": {
+        "title": "Práva auditu",
+        "description": "Smlouva obsahuje práva auditu/přístupu (vč. subdodavatelů dle potřeby)."
+      },
+      "incident_reporting_sla": {
+        "title": "SLA hlášení incidentů",
+        "description": "Jsou definovány lhůty hlášení incidentů a eskalace."
+      },
+      "data_location_and_access": {
+        "title": "Umístění a přístup k datům",
+        "description": "Je definováno umístění dat, přístup a požadavky na přenos/vrácení."
+      },
+      "subcontractor_flowdown": {
+        "title": "Povinnosti subdodavatelů",
+        "description": "Použití subdodavatelů je kontrolováno a povinnosti jsou smluvně přeneseny."
+      },
+      "exit_assistance": {
+        "title": "Ukončení spolupráce",
+        "description": "Je smluvně zajištěna pomoc při ukončení/přechodu."
+      },
+      "dora_subcontractor_disclosure": {
+        "title": "DORA zveřejnění subdodavatelů",
+        "description": "DORA: existuje zveřejnění/registr subdodavatelů."
+      },
+      "dora_operational_resilience_testing": {
+        "title": "DORA podpora testování odolnosti",
+        "description": "DORA: smlouva podporuje požadavky na testování odolnosti."
+      },
+      "dora_enhanced_audit_and_access": {
+        "title": "DORA rozšířený audit/přístup",
+        "description": "Významný ICT: rozšířené doložky auditu a přístupu."
+      },
+      "dora_exit_strategy_and_support": {
+        "title": "DORA podpora exit strategie",
+        "description": "Významný ICT: explicitní povinnosti pro exit strategii a podporu."
+      }
+    }
+  },
+  "resilience": {
+    "subtitle": "Exit strategie a kontingenční/BCP připravenost pro kritické dodavatele.",
+    "not_required": "Pro nekritické dodavatele není vyžadováno (lze evidovat).",
+    "actions": {
+      "save": "Uložit"
+    },
+    "status": {
+      "not_started": "Nezahájeno",
+      "in_progress": "Probíhá",
+      "complete": "Hotovo"
+    },
+    "fields": {
+      "status": "Stav",
+      "reference": "Reference",
+      "notes": "Poznámky",
+      "notes_placeholder": "Volitelné",
+      "last_reviewed": "Naposledy revidováno",
+      "last_tested": "Naposledy testováno",
+      "outage_hours": "Max tolerovaný výpadek (hod)",
+      "cia": "Dopad CIA"
+    },
+    "exit_plan": {
+      "title": "Exit strategie"
+    },
+    "contingency_plan": {
+      "title": "Kontingenční plán / BCP"
+    },
+    "cia": {
+      "confidentiality": "Důvěrnost",
+      "integrity": "Integrita",
+      "authenticity": "Autentičnost",
+      "availability": "Dostupnost"
+    },
+    "contingency_required": "Kontingenční plán je vyžadován pro výpadek >24h nebo dopad CIA."
+  },
+  "dependencies": {
+    "subtitle": "Služby, podporované funkce a vztahy čtvrtých stran.",
+    "confirm_delete": "Smazat?",
+    "prompt_function": "Název podporované funkce:",
+    "concentration": {
+      "title": "Koncentrace",
+      "score": "Skóre",
+      "no_flags": "Bez flagů."
+    },
+    "relationships": {
+      "title": "Vztahy",
+      "empty": "Zatím nejsou žádné vztahy.",
+      "select_vendor": "Vyberte dodavatele",
+      "actions": {
+        "add": "Přidat"
+      },
+      "type": {
+        "subcontractor": "Subdodavatel",
+        "reseller": "Reseller",
+        "parent_company": "Mateřská společnost",
+        "other": "Jiné"
+      }
+    },
+    "graph": {
+      "title": "Graf"
+    },
+    "services": {
+      "title": "Služby",
+      "empty": "Zatím nejsou žádné služby.",
+      "service_placeholder": "Název služby",
+      "no_dependencies": "Zatím nejsou zaznamenané závislosti.",
+      "actions": {
+        "add_service": "Přidat službu",
+        "add_dependency": "Přidat závislost"
+      }
+    }
+  },
+  "risk_categories": {
+    "regulatory_legal": "Regulatorní & právní",
+    "info_security_data": "Informační bezpečnost & data",
+    "cyber_supply_chain": "Kyber / dodavatelský řetězec",
+    "operational_continuity": "Provozní kontinuita (BCP/DR)",
+    "service_quality": "Kvalita služby",
+    "financial": "Finanční",
+    "strategic_reputational": "Strategické & reputační",
+    "governance_oversight": "Governance & dohled",
+    "technology_lockin": "Technologický lock‑in",
+    "human_factor": "Lidský faktor",
+    "concentration": "Koncentrační riziko"
+  },
+  "risk_factors": {
+    "subtitle": "Kvalitativní faktory rizika dodavatele (bez skórování v MVP).",
+    "empty": "Zatím nejsou evidované rizikové faktory.",
+    "confirm_delete": "Smazat tento rizikový faktor?",
+    "actions": {
+      "add": "Přidat rizikový faktor",
+      "edit": "Upravit rizikový faktor",
+      "save": "Uložit"
+    },
+    "fields": {
+      "category": "Kategorie",
+      "description": "Popis",
+      "description_placeholder": "Popište faktor a případné poznámky / důkazy..."
+    }
+  },
+  "links": {
+    "actions": {
+      "manage": "Spravovat vazby"
+    },
+    "archived_risks": "Archivovaná rizika",
+    "archived_controls": "Archivované kontroly",
+    "dialogs": {
+      "link_risks_title": "Navázat rizika na dodavatele",
+      "link_controls_title": "Navázat kontroly na dodavatele"
+    },
+    "risks": {
+      "subtitle": "Propojte dodavatele s riziky v Registru rizik.",
+      "empty": "Zatím nejsou navázaná rizika."
+    },
+    "controls": {
+      "subtitle": "Přiřaďte kontroly, které mitigují expozici na dodavatele.",
+      "empty": "Zatím nejsou navázané kontroly."
+    }
+  },
+  "form": {
+    "sections": {
+      "identity": "Identita",
+      "ownership": "Vlastnictví a rozsah",
+      "classification": "Klasifikace"
+    },
+    "name": "Název dodavatele",
+    "name_placeholder": "Acme Cloud Ltd.",
+    "legal_name": "Právní název",
+    "registration_id": "IČ / Registrace",
+    "country": "Země",
+    "website": "Web",
+    "description": "Popis",
+    "department": "Oddělení",
+    "department_placeholder": "Vyberte oddělení",
+    "owner": "Vlastník outsourcingu",
+    "owner_placeholder": "Vyberte vlastníka",
+    "process": "Proces",
+    "process_placeholder": "IT",
+    "subprocess": "Podproces",
+    "subprocess_placeholder": "Cloud Operations",
+    "risk_score": "Skóre rizika (1–5)",
+    "status": "Stav",
+    "flags": "Příznaky",
+    "vendor_type": {
+      "label": "Typ dodavatele",
+      "ict": "ICT",
+      "outsourcing": "Outsourcing",
+      "professional_services": "Profesionální služby",
+      "partner": "Partner",
+      "other": "Jiné"
+    },
+    "replaceability": {
+      "label": "Nahraditelnost",
+      "placeholder": "Vybrat",
+      "easy": "Snadná",
+      "medium": "Střední",
+      "hard": "Obtížná"
+    },
+    "financial": {
+      "no_loss": "Bez finanční ztráty"
+    }
+  },
+  "empty_state": {
+    "no_vendors": "Žádní dodavatelé nebyli nalezeni"
+  },
+  "errors": {
+    "title": "Chyba",
+    "try_again": "Zkusit znovu",
+    "load_failed": "Nepodařilo se načíst dodavatele",
+    "save_failed": "Nepodařilo se uložit dodavatele",
+    "not_found": "Nenalezeno",
+    "vendor_not_found": "Dodavatel nebyl nalezen",
+    "name_required": "Název dodavatele je povinný",
+    "process_required": "Proces je povinný",
+    "department_required": "Oddělení je povinné",
+    "owner_required": "Vlastník outsourcingu je povinný",
+    "score_required": "Skóre rizika (1–5) je povinné"
+  },
+  "reports": {
+    "title": "Reporty dodavatelů",
+    "subtitle": "Exporty pro roční reporting řízení rizik dodavatelů a registr DORA.",
+    "not_authorized": "Nemáte přístup k reportům dodavatelů.",
+    "annual": {
+      "title": "Roční report řízení dodavatelů",
+      "year": "Rok",
+      "download_excel": "Stáhnout Excel"
+    },
+    "dora": {
+      "title": "Registr informací DORA",
+      "subtitle": "Export minimálního datasetu registru DORA pro dodavatelské vztahy.",
+      "download": "Stáhnout Excel"
+    }
+  }
 }

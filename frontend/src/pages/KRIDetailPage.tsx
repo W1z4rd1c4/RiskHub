@@ -152,7 +152,7 @@ export function KRIDetailPage() {
                 <h2 className="text-xl font-bold text-white mb-2">{t('access.kri_not_found')}</h2>
                 <p className="text-sm text-slate-500 mb-6">{t('access.kri_not_found_desc')}</p>
                 <Button onClick={() => navigate('/kris')} variant="outline">
-                    <ArrowLeft className="h-4 w-4 mr-2" /> {t('navigation:tabs.risk_appetite', 'Risk Appetite')}
+                    <ArrowLeft className="h-4 w-4 mr-2" /> {t('navigation:tabs.risk_appetite')}
                 </Button>
             </div>
         );
@@ -169,7 +169,7 @@ export function KRIDetailPage() {
                 className="flex items-center gap-2 text-sm text-slate-500 mb-6"
             >
                 <button onClick={() => navigate('/kris')} className="hover:text-white transition-colors flex items-center gap-1">
-                    <ArrowLeft className="h-4 w-4" /> Risk Appetite
+                    <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.risk_appetite')}
                 </button>
                 <span>/</span>
                 <span className="text-white font-medium truncate max-w-xs">{kri.metric_name}</span>
@@ -192,11 +192,11 @@ export function KRIDetailPage() {
                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${isBreaching ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                     }`}>
                                     {isBreaching ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
-                                    {isBreaching ? 'BREACH' : 'WITHIN LIMITS'}
+                                    {isBreaching ? t('kris:overview.breach') : t('kris:status.within_limits')}
                                 </span>
                                 {isOverdue && (
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                        <Clock className="h-3 w-3" /> OVERDUE
+                                        <Clock className="h-3 w-3" /> {t('kris:status.overdue')}
                                     </span>
                                 )}
                             </div>
@@ -218,7 +218,7 @@ export function KRIDetailPage() {
                     </PermissionGate>
                     {(canRecordKRI || (!!kri && !!user?.id && kri.reporting_owner_id === user.id)) && (
                         <Button onClick={() => setIsValueModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500">
-                            <Plus className="h-4 w-4 mr-1" /> Record Value
+                            <Plus className="h-4 w-4 mr-1" /> {t('kris:value_modal.title')}
                         </Button>
                     )}
                     <PermissionGate resource="risks" action="write">
@@ -249,7 +249,7 @@ export function KRIDetailPage() {
                         : 'text-slate-500 hover:text-white'
                         }`}
                 >
-                    <Target className="h-4 w-4 inline mr-2" />Overview
+                    <Target className="h-4 w-4 inline mr-2" />{t('common:labels.overview')}
                 </button>
                 <button
                     onClick={() => setActiveTab('history')}
@@ -258,7 +258,7 @@ export function KRIDetailPage() {
                         : 'text-slate-500 hover:text-white'
                         }`}
                 >
-                    <History className="h-4 w-4 inline mr-2" />History ({historyTotal})
+                    <History className="h-4 w-4 inline mr-2" />{t('common:labels.history')} ({historyTotal})
                 </button>
             </div>
 

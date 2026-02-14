@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Info, AlertTriangle, ShieldCheck } from 'lucide-react';
 import type { RiskControlLink } from '@/types/risk';
+import { useTranslation } from '@/i18n/hooks';
 
 interface ControlGaugeCardProps {
     link: RiskControlLink;
@@ -8,6 +9,7 @@ interface ControlGaugeCardProps {
 }
 
 export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
+    const { t } = useTranslation(['controls', 'common']);
     const {
         effectiveness,
         control,
@@ -48,9 +50,9 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
 
     const getEffectivenessLabel = () => {
         switch (effectiveness) {
-            case 'high': return 'Optimal';
-            case 'medium': return 'Effective';
-            case 'low': return 'Ineffective';
+            case 'high': return t('detail.effectiveness_optimal', { ns: 'controls' });
+            case 'medium': return t('detail.effectiveness_effective', { ns: 'controls' });
+            case 'low': return t('detail.effectiveness_ineffective', { ns: 'controls' });
             default: return (effectiveness as string).toUpperCase();
         }
     };
@@ -74,7 +76,7 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
                         {controlName}
                     </h4>
                     <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                        Control Detail
+                        {t('detail.control_badge', { ns: 'controls' })}
                     </span>
                 </div>
                 <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 border border-white/20 font-bold text-[10px] uppercase tracking-wide shrink-0 ${getStatusColor()}`}>
@@ -91,7 +93,7 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
                             <span className="text-xs text-slate-300 font-bold">/ {maxRiskLevel}</span>
                         </div>
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
-                            Frequency: {frequency}
+                            {t('common:labels.frequency')}: {frequency}
                         </p>
                     </div>
                 </div>
@@ -117,8 +119,8 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
                 </div>
 
                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter text-slate-400">
-                    <span>1 LEVEL MIN</span>
-                    <span>5 LEVEL MAX</span>
+                    <span>{t('detail.level_min', { ns: 'controls' })}</span>
+                    <span>{t('detail.level_max', { ns: 'controls' })}</span>
                 </div>
 
                 {notes && (

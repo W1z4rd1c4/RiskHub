@@ -44,8 +44,11 @@ export default function LoginPage() {
             localStorage.setItem('access_token', data.access_token);
             window.location.href = '/';
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'errorKeys.login_failed';
-            setErrorKey(message.startsWith('errorKeys.') ? message : 'errorKeys.login_failed');
+            if (err instanceof Error && err.message.startsWith('errorKeys.')) {
+                setErrorKey(err.message);
+            } else {
+                setErrorKey('errorKeys.login_failed');
+            }
         } finally {
             setIsLoading(null);
         }

@@ -6,6 +6,7 @@
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 import type { RiskTrendPoint } from '@/types/dashboard';
 import { useChartTheme } from '@/hooks/useChartTheme';
+import { getChartTooltipProps } from './chartTooltip';
 
 interface RiskTrendChartProps {
     data: RiskTrendPoint[];
@@ -14,6 +15,15 @@ interface RiskTrendChartProps {
 
 export function RiskTrendChart({ data, emptyMessage = 'No risk trend data available.' }: RiskTrendChartProps) {
     const chartTheme = useChartTheme();
+    const tooltipProps = getChartTooltipProps(chartTheme, {
+        contentStyle: {
+            borderRadius: '12px',
+            backdropFilter: 'blur(12px)',
+            padding: '12px 16px',
+        },
+        itemStyle: { fontWeight: 600, padding: '2px 0' },
+        labelStyle: { fontWeight: 800, letterSpacing: '0.05em', marginBottom: '8px' },
+    });
 
     if (data.length === 0) {
         return (
@@ -53,17 +63,8 @@ export function RiskTrendChart({ data, emptyMessage = 'No risk trend data availa
                         dx={-5}
                     />
                     <Tooltip
+                        {...tooltipProps}
                         cursor={{ stroke: chartTheme.cursorStroke, strokeWidth: 1 }}
-                        contentStyle={{
-                            backgroundColor: chartTheme.tooltipBackground,
-                            backdropFilter: 'blur(12px)',
-                            border: `1px solid ${chartTheme.tooltipBorder}`,
-                            borderRadius: '12px',
-                            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
-                            padding: '12px 16px',
-                        }}
-                        itemStyle={{ color: chartTheme.tooltipTextPrimary, fontSize: '12px', fontWeight: 600, padding: '2px 0' }}
-                        labelStyle={{ color: chartTheme.tooltipTextSecondary, fontWeight: 800, textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.05em', marginBottom: '8px', display: 'block' }}
                     />
                     <Legend
                         verticalAlign="top"

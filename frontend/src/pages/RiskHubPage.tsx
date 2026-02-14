@@ -7,12 +7,12 @@ import { RolesPanel, DepartmentsPanel, RiskTypesPanel, SystemSettingsPanel, Appr
 import { cn } from '@/lib/utils';
 
 const tabs = [
-    { id: 'risk-types', label: 'Risk Types', icon: Palette },
-    { id: 'settings', label: 'System Settings', icon: Settings2 },
-    { id: 'approvals', label: 'Approval Rules', icon: ShieldCheck },
-    { id: 'roles', label: 'Roles', icon: Shield },
-    { id: 'departments', label: 'Departments', icon: Building },
-    { id: 'questionnaires', label: 'Questionnaires', icon: Command },
+    { id: 'risk-types', labelKey: 'riskhub.tabs.risk_types', icon: Palette },
+    { id: 'settings', labelKey: 'riskhub.tabs.system_settings', icon: Settings2 },
+    { id: 'approvals', labelKey: 'riskhub.tabs.approval_rules', icon: ShieldCheck },
+    { id: 'roles', labelKey: 'riskhub.tabs.roles', icon: Shield },
+    { id: 'departments', labelKey: 'riskhub.tabs.departments', icon: Building },
+    { id: 'questionnaires', labelKey: 'riskhub.tabs.questionnaires', icon: Command },
 ] as const;
 
 type TabId = typeof tabs[number]['id'];
@@ -24,12 +24,12 @@ export function RiskHubPage() {
 
     // Tab labels with translations
     const tabLabels: Record<TabId, string> = {
-        'risk-types': t('riskhub.tabs.risk_types', 'Risk Types'),
-        'settings': t('riskhub.tabs.system_settings', 'System Settings'),
-        'approvals': t('riskhub.tabs.approval_rules', 'Approval Rules'),
-        'roles': t('riskhub.tabs.roles', 'Roles'),
-        'departments': t('riskhub.tabs.departments', 'Departments'),
-        'questionnaires': t('riskhub.tabs.questionnaires', 'Questionnaires'),
+        'risk-types': t('riskhub.tabs.risk_types'),
+        'settings': t('riskhub.tabs.system_settings'),
+        'approvals': t('riskhub.tabs.approval_rules'),
+        'roles': t('riskhub.tabs.roles'),
+        'departments': t('riskhub.tabs.departments'),
+        'questionnaires': t('riskhub.tabs.questionnaires'),
     };
 
     // Only CRO can access Risk Hub
@@ -46,9 +46,9 @@ export function RiskHubPage() {
                         <Command className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-white font-heading">{t('riskhub.title', 'Risk Hub')}</h1>
+                        <h1 className="text-2xl font-bold text-white font-heading">{t('riskhub.title')}</h1>
                         <p className="text-slate-400">
-                            {t('riskhub.subtitle', 'Configure risk management policies, thresholds, and approval workflows')}
+                            {t('riskhub.subtitle')}
                         </p>
                     </div>
                 </div>
@@ -88,7 +88,7 @@ export function RiskHubPage() {
 
             {/* Footer Note */}
             <div className="text-center text-sm text-slate-500">
-                {t('riskhub.footer', 'Changes are logged and auditable. All modifications take effect immediately.')}
+                {t('riskhub.footer')}
             </div>
         </div>
     );

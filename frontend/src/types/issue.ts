@@ -1,4 +1,6 @@
 export type IssueSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type IssueSeverityGroup = 'high_critical';
+export type IssueSeverityFilter = IssueSeverity | IssueSeverityGroup;
 export type IssueStatus = 'open' | 'triaged' | 'in_progress' | 'ready_for_validation' | 'closed';
 export type IssueSourceType = 'manual' | 'control_execution' | 'kri_breach' | 'audit';
 export type IssueRemediationStatus = 'draft' | 'active' | 'blocked' | 'completed';
@@ -88,9 +90,11 @@ export interface IssueListFilters {
     limit?: number;
     status?: IssueStatus;
     severity?: IssueSeverity;
+    severity_group?: IssueSeverityGroup;
     owner_user_id?: number;
     department_id?: number;
     overdue?: boolean;
+    exclude_active_exceptions?: boolean;
     linked_risk_id?: number;
     linked_control_id?: number;
     linked_vendor_id?: number;

@@ -35,6 +35,7 @@ import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { isApprovalCreatedResponse } from '@/types/approval';
+import { apiClient } from '@/services/apiClient';
 
 type TabView = 'overview' | 'history';
 
@@ -54,13 +55,13 @@ const item = {
 export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { t } = useTranslation('common');
+    const { t, i18n } = useTranslation(['common', 'controls', 'errorKeys']);
     const { t: tIssues } = useTranslation('issues');
     const { user, hasPermission } = useAuth();
     const [control, setControl] = useState<Control | null>(null);
     const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
@@ -69,9 +70,9 @@ export function ControlDetailPage() {
     const [selectedRisk, setSelectedRisk] = useState<Risk | null>(null);
     const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
     const [isLoadingRisk, setIsLoadingRisk] = useState(false);
-    const [linkedRisksError, setLinkedRisksError] = useState<string | null>(null);
-    const [linkError, setLinkError] = useState<string | null>(null);
-    const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
+    const [linkedRisksErrorKey, setLinkedRisksErrorKey] = useState<string | null>(null);
+    const [linkErrorKey, setLinkErrorKey] = useState<string | null>(null);
+    const [approvalMessage, setApprovalMessage] = useState<{ key: string; approvalId?: number; isError?: boolean } | null>(null);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
     const fetchData = useCallback(async () => {
@@ -83,10 +84,10 @@ export function ControlDetailPage() {
             setIsLoading(true);
             const ctrlData = await controlApi.getControl(ctrlId);
             setControl(ctrlData);
-            setError(null);
+            setErrorKey(null);
         } catch (err) {
             console.error('Error fetching control details:', err);
-            setError('Failed to load control details.');
+            setErrorKey(apiClient.toUiMessageKey(err));
             setIsLoading(false);
             return;
         } finally {
@@ -97,10 +98,10 @@ export function ControlDetailPage() {
         try {
             const riskData = await controlApi.getLinkedRisks(ctrlId);
             setLinkedRisks(riskData);
-            setLinkedRisksError(null);
+            setLinkedRisksErrorKey(null);
         } catch (err) {
             console.error('Error fetching linked risks:', err);
-            setLinkedRisksError('Unable to load linked risks. You may not have access to this data.');
+            setLinkedRisksErrorKey('controls:detail.linked_risks_load_failed');
         }
     }, [id]);
 
@@ -115,9 +116,11 @@ export function ControlDetailPage() {
 
             // Check if the response indicates approval was required (202)
             if (isApprovalCreatedResponse(response)) {
-                setApprovalMessage(
-                    `Archive request submitted for approval (ID: ${response.approval_id}). The control has not been archived yet.`
-                );
+                setApprovalMessage({
+                    key: 'controls:detail.archive_approval_submitted',
+                    approvalId: response.approval_id,
+                    isError: false,
+                });
                 setIsArchiveDialogOpen(false);
                 // Don't navigate away - show the approval message
                 return;
@@ -127,7 +130,7 @@ export function ControlDetailPage() {
             navigate('/controls');
         } catch (err) {
             console.error('Archive failed:', err);
-            setApprovalMessage('Failed to archive control. Please try again.');
+            setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });
         }
     };
 
@@ -136,36 +139,36 @@ export function ControlDetailPage() {
         try {
             await controlApi.restoreControl(control.id);
             await fetchData();
-            setApprovalMessage('Control restored successfully.');
+            setApprovalMessage({ key: 'controls:detail.control_restored', isError: false });
         } catch (err) {
             console.error('Restore failed:', err);
-            setApprovalMessage('Failed to restore control. Please try again.');
+            setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });
         }
     };
 
     const handleLinkRisk = async (riskId: number, effectiveness: ControlEffectiveness, notes?: string) => {
         if (!control) return;
-        setLinkError(null);
+        setLinkErrorKey(null);
         try {
             await controlApi.linkRisk(control.id, { risk_id: riskId, effectiveness, notes });
             const riskData = await controlApi.getLinkedRisks(control.id);
             setLinkedRisks(riskData);
         } catch (err) {
             console.error('Linking failed:', err);
-            setLinkError('Failed to link risk. Please try again.');
+            setLinkErrorKey(apiClient.toUiMessageKey(err));
         }
     };
 
     const handleUnlinkRisk = async (riskId: number) => {
         if (!control) return;
-        setLinkError(null);
+        setLinkErrorKey(null);
         try {
             await controlApi.unlinkRisk(control.id, riskId);
             const riskData = await controlApi.getLinkedRisks(control.id);
             setLinkedRisks(riskData);
         } catch (err) {
             console.error('Unlinking failed:', err);
-            setLinkError('Failed to unlink risk. Please try again.');
+            setLinkErrorKey(apiClient.toUiMessageKey(err));
         }
     };
 
@@ -192,7 +195,7 @@ export function ControlDetailPage() {
         );
     }
 
-    if (error || !control) {
+    if (errorKey || !control) {
         return (
             <div className="glass-card flex flex-col items-center justify-center p-20 text-center gap-4">
                 <div className="bg-rose-500/20 p-4 rounded-full">
@@ -206,7 +209,7 @@ export function ControlDetailPage() {
                     onClick={() => navigate('/controls')}
                     className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all flex items-center gap-2"
                 >
-                    <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.controls', 'Control Catalog')}
+                    <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.controls')}
                 </button>
             </div>
         );
@@ -226,16 +229,24 @@ export function ControlDetailPage() {
         <div className="space-y-8">
             {/* Approval/Error Message Banner */}
             {approvalMessage && (
-                <div className={`p-4 rounded-xl border flex items-start gap-3 ${approvalMessage.includes('Failed')
+                <div className={`p-4 rounded-xl border flex items-start gap-3 ${approvalMessage.isError
                     ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                     : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                     }`}>
                     <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                     <div>
-                        <p className="text-sm font-medium">{approvalMessage}</p>
-                        {!approvalMessage.includes('Failed') && (
+                        <p className="text-sm font-medium">
+                            {approvalMessage.approvalId
+                                ? t(approvalMessage.key, { approvalId: approvalMessage.approvalId })
+                                : (approvalMessage.key.startsWith('errorKeys.')
+                                    ? t(approvalMessage.key, { ns: 'errorKeys' })
+                                    : t(approvalMessage.key))}
+                        </p>
+                        {!approvalMessage.isError && (
                             <p className="text-xs mt-1 opacity-75">
-                                View pending approvals in the <button onClick={() => navigate('/approvals')} className="underline hover:no-underline">Approvals</button> section.
+                                {t('controls:detail.view_pending_approvals')}{' '}
+                                <button onClick={() => navigate('/approvals')} className="underline hover:no-underline">{t('navigation:tabs.approvals')}</button>
+                                {` ${t('controls:detail.section_suffix')}`}
                             </p>
                         )}
                     </div>
@@ -255,7 +266,7 @@ export function ControlDetailPage() {
                         onClick={() => navigate('/controls')}
                         className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest mb-4"
                     >
-                        <ArrowLeft className="h-3 w-3" /> Back to Catalog
+                        <ArrowLeft className="h-3 w-3" /> {t('controls:detail.back_to_catalog')}
                     </button>
                     <div className="flex items-center gap-4">
                         <h2 className="text-4xl font-black text-white tracking-tighter">{control.name}</h2>
@@ -282,7 +293,7 @@ export function ControlDetailPage() {
                         <button
                             onClick={() => navigate(`/controls/${control.id}/edit`)}
                             className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-all hover:shadow-[0_0_20px_rgba(30,132,255,0.1)]"
-                            title={control.control_owner_id === user?.id && !hasPermission('controls', 'write') ? 'Edit as Control Owner (requires approval)' : 'Edit Control'}
+                            title={control.control_owner_id === user?.id && !hasPermission('controls', 'write') ? t('controls:detail.edit_requires_approval') : t('controls:edit_control')}
                         >
                             <Edit className="h-5 w-5" />
                         </button>
@@ -292,7 +303,7 @@ export function ControlDetailPage() {
                             <button
                                 onClick={handleRestore}
                                 className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-all"
-                                title="Unarchive control"
+                                title={t('controls:actions.unarchive')}
                             >
                                 <RotateCcw className="h-5 w-5" />
                             </button>
@@ -317,7 +328,7 @@ export function ControlDetailPage() {
                         : 'text-slate-500 hover:text-white'
                         }`}
                 >
-                    <Target className="h-4 w-4 inline mr-2" />Overview
+                    <Target className="h-4 w-4 inline mr-2" />{t('controls:tabs.overview')}
                 </button>
                 <button
                     onClick={() => setActiveTab('history')}
@@ -326,7 +337,7 @@ export function ControlDetailPage() {
                         : 'text-slate-500 hover:text-white'
                         }`}
                 >
-                    <History className="h-4 w-4 inline mr-2" />Execution History
+                    <History className="h-4 w-4 inline mr-2" />{t('controls:detail.execution_history')}
                 </button>
             </div>
 
@@ -343,25 +354,25 @@ export function ControlDetailPage() {
                         <motion.div variants={item} className="glass-card flex flex-col gap-6">
                             <div className="flex items-center gap-3 border-b border-white/5 pb-4">
                                 <BarChart3 className="h-5 w-5 text-accent" />
-                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">Standard Configuration</h3>
+                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('controls:detail.standard_configuration')}</h3>
                             </div>
 
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center group">
-                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Risk Level</span>
+                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('controls:columns.risk_level')}</span>
                                     <div className={`px-3 py-1 rounded-full text-xs font-black border ${getRiskLevelColor(control.risk_level)}`}>
                                         {control.risk_level} / 5
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Frequency</span>
+                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('common:labels.frequency')}</span>
                                     <div className="flex items-center gap-2 text-white font-bold text-sm bg-white/5 px-3 py-1 rounded-lg border border-white/5">
                                         <Calendar className="h-3.5 w-3.5 text-accent" />
                                         <span className="capitalize">{control.frequency}</span>
                                     </div>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Control Form</span>
+                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('controls:detail.control_form')}</span>
                                     <span className="text-white font-bold text-sm capitalize">{control.control_form}</span>
                                 </div>
                             </div>
@@ -371,7 +382,7 @@ export function ControlDetailPage() {
                         <motion.div variants={item} className="glass-card flex flex-col gap-6">
                             <div className="flex items-center gap-3 border-b border-white/5 pb-4">
                                 <User className="h-5 w-5 text-purple-400" />
-                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">Ownership & Responsibility</h3>
+                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('controls:detail.ownership_responsibility')}</h3>
                             </div>
 
                             <div className="space-y-5">
@@ -380,8 +391,8 @@ export function ControlDetailPage() {
                                         {control.control_owner?.name?.[0] || 'U'}
                                     </div>
                                     <div>
-                                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Control Owner</p>
-                                        <p className="text-sm font-bold text-white leading-snug">{control.control_owner?.name || 'Unassigned'}</p>
+                                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('controls:fields.owner')}</p>
+                                        <p className="text-sm font-bold text-white leading-snug">{control.control_owner?.name || t('controls:detail.unassigned')}</p>
                                         <p className="text-xs text-slate-500">{control.control_owner?.email || ''}</p>
                                     </div>
                                 </div>
@@ -390,9 +401,9 @@ export function ControlDetailPage() {
                                         <Building2 className="h-4 w-4" />
                                     </div>
                                     <div>
-                                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Department / Position</p>
-                                        <p className="text-sm font-bold text-white leading-snug">{control.department?.name || 'No Dept'}</p>
-                                        <p className="text-xs text-slate-500 italic uppercase tracking-tighter text-[10px] font-bold mt-0.5">{control.process_owner_position || 'N/A'}</p>
+                                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('controls:detail.department_position')}</p>
+                                        <p className="text-sm font-bold text-white leading-snug">{control.department?.name || t('controls:detail.no_department')}</p>
+                                        <p className="text-xs text-slate-500 italic uppercase tracking-tighter text-[10px] font-bold mt-0.5">{control.process_owner_position || t('controls:detail.not_available')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -402,17 +413,17 @@ export function ControlDetailPage() {
                         <motion.div variants={item} className="glass-card flex flex-col gap-6">
                             <div className="flex items-center gap-3 border-b border-white/5 pb-4">
                                 <BookOpen className="h-5 w-5 text-amber-400" />
-                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">Methodology & Source</h3>
+                                <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('controls:detail.methodology_source')}</h3>
                             </div>
 
                             <div className="space-y-4">
                                 <div>
-                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Methodology Ref</p>
-                                    <p className="text-sm font-medium text-slate-300 bg-white/5 p-2 rounded-lg border border-white/5 font-mono truncate">{control.methodology_reference || 'N/A'}</p>
+                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">{t('controls:detail.methodology_ref')}</p>
+                                    <p className="text-sm font-medium text-slate-300 bg-white/5 p-2 rounded-lg border border-white/5 font-mono truncate">{control.methodology_reference || t('controls:detail.not_available')}</p>
                                 </div>
                                 <div>
-                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">Data Source</p>
-                                    <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-accent/30 pl-3">{control.data_source || 'Not specified'}</p>
+                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mb-1">{t('controls:detail.data_source')}</p>
+                                    <p className="text-xs text-slate-400 leading-relaxed italic border-l-2 border-accent/30 pl-3">{control.data_source || t('controls:detail.not_specified')}</p>
                                 </div>
                             </div>
                         </motion.div>
@@ -428,30 +439,30 @@ export function ControlDetailPage() {
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="font-bold text-white uppercase tracking-widest text-xs flex items-center gap-2">
                                 <ShieldAlert className="h-4 w-4 text-emerald-400" />
-                                Mitigated Risks
+                                {t('controls:detail.mitigated_risks')}
                             </h3>
                             <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-black rounded-full border border-emerald-500/20">{linkedRisks.length}</span>
                         </div>
 
                         {/* Link Error Message */}
-                        {linkError && (
+                        {linkErrorKey && (
                             <div className="mb-3 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
                                 <AlertCircle className="h-4 w-4" />
-                                {linkError}
+                                {t(linkErrorKey, { ns: 'errorKeys' })}
                             </div>
                         )}
 
                         {/* Linked Risks Error State */}
-                        {linkedRisksError ? (
+                        {linkedRisksErrorKey ? (
                             <div className="py-10 text-center border-2 border-dashed border-rose-500/20 rounded-2xl bg-rose-500/5">
                                 <AlertCircle className="h-8 w-8 text-rose-400 mx-auto mb-2" />
-                                <p className="text-xs text-rose-400 font-medium">{linkedRisksError}</p>
+                                <p className="text-xs text-rose-400 font-medium">{t(linkedRisksErrorKey)}</p>
                             </div>
                         ) : (
                             <div className="space-y-6">
                                 {activeLinkedRisks.length === 0 && archivedLinkedRisks.length === 0 ? (
                                     <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl col-span-full">
-                                        <p className="text-xs text-slate-600 font-medium">No risks linked to this control.</p>
+                                        <p className="text-xs text-slate-600 font-medium">{t('controls:empty_state.no_linked_risks')}</p>
                                     </div>
                                 ) : (
                                     <>
@@ -465,7 +476,7 @@ export function ControlDetailPage() {
                                                     >
                                                         <div className="flex justify-between items-start mb-2">
                                                             <div>
-                                                                <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || 'Unnamed Risk'}</span>
+                                                                <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || t('controls:detail.unnamed_risk')}</span>
                                                                 {link.risk?.process && <span className="text-[10px] text-slate-500 block mt-0.5">{link.risk.process}</span>}
                                                             </div>
                                                             <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${link.effectiveness === 'high' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
@@ -482,7 +493,7 @@ export function ControlDetailPage() {
                                         {archivedLinkedRisks.length > 0 && (
                                             <div>
                                                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
-                                                    Archived Risks ({archivedLinkedRisks.length})
+                                                    {t('controls:detail.archived_risks', { count: archivedLinkedRisks.length })}
                                                 </h4>
                                                 <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 opacity-70">
                                                     {archivedLinkedRisks.map((link) => (
@@ -493,7 +504,7 @@ export function ControlDetailPage() {
                                                         >
                                                             <div className="flex justify-between items-start mb-2">
                                                                 <div>
-                                                                    <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || 'Unnamed Risk'}</span>
+                                                                    <span className="text-xs font-bold text-white line-clamp-1">{link.risk?.name || t('controls:detail.unnamed_risk')}</span>
                                                                     {link.risk?.process && <span className="text-[10px] text-slate-500 block mt-0.5">{link.risk.process}</span>}
                                                                 </div>
                                                                 <span className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${link.effectiveness === 'high' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
@@ -518,7 +529,7 @@ export function ControlDetailPage() {
                                 onClick={() => setIsLinkDialogOpen(true)}
                                 className="w-full mt-4 py-3 border border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-all"
                             >
-                                Manage Risk Linkage
+                                {t('controls:detail.manage_risk_linkage')}
                             </button>
                         </PermissionGate>
 
@@ -554,7 +565,7 @@ export function ControlDetailPage() {
                     <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
                         <h3 className="font-bold text-white uppercase tracking-widest text-xs flex items-center gap-2">
                             <History className="h-4 w-4 text-accent" />
-                            Execution Audit Trail
+                            {t('controls:detail.execution_audit_trail')}
                         </h3>
                         <PermissionGate resource="controls" action="execute">
                             <button
@@ -562,7 +573,7 @@ export function ControlDetailPage() {
                                 className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2 group-hover:shadow-[0_0_15px_rgba(30,132,255,0.2)]"
                             >
                                 <Plus className="h-3.5 w-3.5" />
-                                Log Execution
+                                {t('controls:execution.log_execution')}
                             </button>
                         </PermissionGate>
                     </div>
@@ -607,7 +618,7 @@ export function ControlDetailPage() {
                     >
                         <div className="bg-[#0B1121] border border-white/10 rounded-2xl p-6 shadow-2xl flex flex-col items-center gap-4">
                             <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Fetching Risk Details</p>
+                            <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t('controls:detail.fetching_risk_details')}</p>
                         </div>
                     </motion.div>
                 )}

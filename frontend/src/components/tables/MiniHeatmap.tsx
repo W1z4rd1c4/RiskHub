@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { RiskSummary } from '@/types/risk';
+import { useTranslation } from '@/i18n/hooks';
 
 interface MiniHeatmapProps {
     risks: RiskSummary[];
@@ -9,6 +10,7 @@ interface MiniHeatmapProps {
  * A compact 5x5 heatmap showing risk distribution.
  */
 export function MiniHeatmap({ risks }: MiniHeatmapProps) {
+    const { t } = useTranslation('common');
     // Generate 5x5 matrix of counts
     const matrix = useMemo(() => {
         const m = Array(5).fill(0).map(() => Array(5).fill(0));
@@ -61,7 +63,7 @@ export function MiniHeatmap({ risks }: MiniHeatmapProps) {
                 ))}
             </div>
             <p className="text-[6px] text-slate-500 font-bold uppercase tracking-wider text-center mt-0.5">
-                Inherited Risk Heatmap
+                {t('tables.inherited_risk_heatmap')}
             </p>
         </div>
     );

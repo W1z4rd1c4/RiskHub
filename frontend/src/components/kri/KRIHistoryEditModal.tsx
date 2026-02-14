@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Edit3, AlertCircle, CheckCircle } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
+import { apiClient } from '@/services/apiClient';
 import { Button } from '@/components/ui/button';
 import type { KRIHistoryEntry, KRIHistoryEdit } from '@/types/kri';
 import { useTranslation } from '@/i18n/hooks';
@@ -16,17 +17,17 @@ interface KRIHistoryEditModalProps {
 }
 
 export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }: KRIHistoryEditModalProps) {
-    const { t } = useTranslation('kris');
+    const { t, i18n } = useTranslation(['kris', 'common', 'errorKeys']);
     const [newValue, setNewValue] = useState(entry.value.toString());
     const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [result, setResult] = useState<{ type: 'success' | 'approval'; message: string } | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [result, setResult] = useState<{ type: 'success' | 'approval'; messageKey: string; approvalId?: number } | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        setError(null);
+        setErrorKey(null);
         setResult(null);
 
         try {
@@ -38,10 +39,10 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
 
             if ('approval_id' in response) {
                 // 202 - Approval required
-                setResult({ type: 'approval', message: `Correction request submitted. Approval ID: ${response.approval_id}` });
+                setResult({ type: 'approval', messageKey: 'correction.approval_submitted_with_id', approvalId: response.approval_id });
             } else {
                 // 200 - Immediate update
-                setResult({ type: 'success', message: 'History entry corrected successfully.' });
+                setResult({ type: 'success', messageKey: 'correction.success' });
             }
 
             setTimeout(() => {
@@ -49,7 +50,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
                 onClose();
             }, 1500);
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Failed to submit correction request.');
+            setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setIsSubmitting(false);
         }
@@ -82,9 +83,9 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
                                     <Edit3 className="h-5 w-5 text-amber-400" />
                                 </div>
                                 <div>
-                                    <h2 className="text-white font-bold">Request Correction</h2>
+                                    <h2 className="text-white font-bold">{t('history_edit.request_correction', { ns: 'kris' })}</h2>
                                     <p className="text-[10px] text-slate-500 uppercase tracking-widest">
-                                        Period: {new Date(entry.period_end).toLocaleDateString()}
+                                        {t('history_edit.period', { ns: 'kris' })}: {new Date(entry.period_end).toLocaleDateString(i18n.language)}
                                     </p>
                                 </div>
                             </div>
@@ -102,20 +103,24 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
                             {result && (
                                 <div className={`p-4 rounded-lg flex items-center gap-3 ${result.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
                                     {result.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
-                                    <span className="text-sm">{result.message}</span>
+                                    <span className="text-sm">
+                                        {result.approvalId
+                                            ? t(result.messageKey, { approvalId: result.approvalId })
+                                            : t(result.messageKey)}
+                                    </span>
                                 </div>
                             )}
 
-                            {error && (
+                            {errorKey && (
                                 <div className="p-4 rounded-lg bg-rose-500/10 text-rose-400 flex items-center gap-3">
                                     <AlertCircle className="h-5 w-5" />
-                                    <span className="text-sm">{error}</span>
+                                    <span className="text-sm">{t(errorKey, { ns: 'errorKeys' })}</span>
                                 </div>
                             )}
 
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                    Original Value
+                                    {t('values.original_value', { ns: 'kris' })}
                                 </label>
                                 <div className="px-4 py-3 bg-white/5 rounded-lg text-white font-mono">
                                     {entry.value} {entry.unit}
@@ -124,7 +129,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
 
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                    Corrected Value *
+                                    {t('history_edit.corrected_value_required', { ns: 'kris' })}
                                 </label>
                                 <input
                                     type="number"
@@ -138,7 +143,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
 
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                    Reason for Correction *
+                                    {t('history_edit.reason_required', { ns: 'kris' })}
                                 </label>
                                 <textarea
                                     value={reason}
@@ -152,10 +157,10 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
 
                             <div className="flex gap-3 pt-4">
                                 <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                                    Cancel
+                                    {t('actions.cancel', { ns: 'common' })}
                                 </Button>
                                 <Button type="submit" disabled={isSubmitting || !reason.trim()} className="flex-1">
-                                    {isSubmitting ? 'Submitting...' : 'Submit Correction'}
+                                    {isSubmitting ? t('history_edit.submitting', { ns: 'kris' }) : t('correction.submit', { ns: 'kris' })}
                                 </Button>
                             </div>
                         </form>
