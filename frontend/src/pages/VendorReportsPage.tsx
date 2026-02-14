@@ -29,25 +29,25 @@ export function VendorReportsPage() {
         <PermissionGate resource="reports" action="read">
             <div className="space-y-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">{t('reports.title', 'Vendor Reports')}</h1>
-                    <p className="text-slate-500 font-medium">{t('reports.subtitle', 'Exports for annual vendor risk management reporting and DORA register.')}</p>
+                    <h1 className="text-2xl font-bold text-white">{t('reports.title')}</h1>
+                    <p className="text-slate-500 font-medium">{t('reports.subtitle')}</p>
                 </div>
 
                 {!canAccessRole ? (
                     <div className="glass-card p-6">
-                        <p className="text-slate-300 font-medium">{t('reports.not_authorized', 'You do not have access to vendor reports.')}</p>
+                        <p className="text-slate-300 font-medium">{t('reports.not_authorized')}</p>
                     </div>
                 ) : (
                     <div className="grid gap-6 lg:grid-cols-2">
                         <section className="glass-card p-6 space-y-4">
                             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                                 <Download className="h-4 w-4" />
-                                {t('reports.annual.title', 'Annual Vendor Management Report')}
+                                {t('reports.annual.title')}
                             </h3>
 
                             <div className="flex items-center gap-3">
                                 <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                                    {t('reports.annual.year', 'Year')}
+                                    {t('reports.annual.year')}
                                 </label>
                                 <input
                                     type="number"
@@ -66,7 +66,7 @@ export function VendorReportsPage() {
                                     className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center gap-2"
                                 >
                                     <FileSpreadsheet className="h-4 w-4" />
-                                    {t('reports.annual.download_excel', 'Download Excel')}
+                                    {t('reports.annual.download_excel')}
                                 </button>
                             </div>
                         </section>
@@ -74,10 +74,10 @@ export function VendorReportsPage() {
                         <section className="glass-card p-6 space-y-4">
                             <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                                 <FileSpreadsheet className="h-4 w-4" />
-                                {t('reports.dora.title', 'DORA Register of Information')}
+                                {t('reports.dora.title')}
                             </h3>
                             <p className="text-sm text-slate-300 font-medium">
-                                {t('reports.dora.subtitle', 'Export the minimum DORA register dataset for vendor arrangements.')}
+                                {t('reports.dora.subtitle')}
                             </p>
                             <button
                                 disabled={isDownloading}
@@ -85,7 +85,7 @@ export function VendorReportsPage() {
                                 className="px-4 py-2 rounded-xl bg-accent/20 border border-accent/30 text-accent font-bold hover:bg-accent/30 transition-colors disabled:opacity-60 flex items-center gap-2 w-fit"
                             >
                                 <Download className="h-4 w-4" />
-                                {t('reports.dora.download', 'Download Excel')}
+                                {t('reports.dora.download')}
                             </button>
                         </section>
                     </div>

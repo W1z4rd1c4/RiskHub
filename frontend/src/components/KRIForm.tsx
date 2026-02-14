@@ -100,7 +100,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
 
     const validateStep1 = () => {
         if (!formData.risk_id) {
-            setError(t('kris:form.validation.risk_required', 'Please select a risk to proceed.'));
+            setError(t('kris:form.validation.risk_required'));
             return false;
         }
         return true;
@@ -108,11 +108,11 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
 
     const validateStep2 = () => {
         if (!formData.metric_name?.trim()) {
-            setError(t('kris:form.validation.metric_name_required', 'Please enter a KRI name.'));
+            setError(t('kris:form.validation.metric_name_required'));
             return false;
         }
         if (!formData.description?.trim()) {
-            setError(t('kris:form.validation.description_required', 'Please enter a description.'));
+            setError(t('kris:form.validation.description_required'));
             return false;
         }
         return true;
@@ -258,7 +258,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                         <section className="animate-in fade-in slide-in-from-right-4 duration-300">
                             <h3 className="text-[10px] font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <Target className="h-4 w-4 text-accent" />
-                                {t('kris:actions.link_risk', 'Link to Risk')}
+                                {t('kris:actions.link_risk')}
                             </h3>
 
                             {selectedRisk ? (
@@ -329,7 +329,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                         {isLoadingRisks ? (
                                             <div className="p-8 text-center text-slate-500 text-sm">
                                                 <div className="animate-spin h-5 w-5 border-2 border-accent border-t-transparent rounded-full mx-auto mb-2"></div>
-                                                {t('common:loading.risk_data', 'Loading risks...')}
+                                                {t('common:loading.risk_data')}
                                             </div>
                                         ) : risks.length === 0 ? (
                                             <div className="p-8 text-center text-slate-500 text-sm">
@@ -481,11 +481,11 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                             onValueChange={(v) => handleInputChange('frequency', v)}
                                             className="w-full"
                                             options={[
-                                                { value: 'daily', label: t('frequencies.daily', 'Daily') },
-                                                { value: 'weekly', label: t('frequencies.weekly', 'Weekly') },
-                                                { value: 'monthly', label: t('frequencies.monthly', 'Monthly') },
-                                                { value: 'quarterly', label: t('frequencies.quarterly', 'Quarterly') },
-                                                { value: 'annually', label: t('frequencies.annually', 'Annually') },
+                                                { value: 'daily', label: t('frequencies.daily') },
+                                                { value: 'weekly', label: t('frequencies.weekly') },
+                                                { value: 'monthly', label: t('frequencies.monthly') },
+                                                { value: 'quarterly', label: t('frequencies.quarterly') },
+                                                { value: 'annually', label: t('frequencies.annually') },
                                             ]}
                                         />
                                     </div>
@@ -503,7 +503,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                             className="w-full"
                                             options={users.map(user => ({ value: user.id.toString(), label: `${user.name} (${user.email})` }))}
                                         />
-                                        <p className="text-[9px] text-slate-600 mt-1 ml-1">{t('kris:form.reporting_owner_hint', 'Leave empty to use Risk owner as default')}</p>
+                                        <p className="text-[9px] text-slate-600 mt-1 ml-1">{t('kris:form.reporting_owner_hint')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -545,7 +545,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                 disabled={isSubmitting}
                                 className="btn-primary px-8"
                             >
-                                {isSubmitting ? t('common:loading.generic', 'Saving...') : (isEdit ? t('kris:edit_kri') : t('kris:create_kri'))}
+                                {isSubmitting ? t('common:loading.generic') : (isEdit ? t('kris:edit_kri') : t('kris:create_kri'))}
                                 <Save className="h-4 w-4" />
                             </button>
                         </>

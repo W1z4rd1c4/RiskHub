@@ -6,6 +6,7 @@ import { RemediationPlanCard } from '@/components/issues/RemediationPlanCard';
 import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
 import { usePermissions } from '@/hooks/usePermissions';
 import { activityLogApi } from '@/services/activityLogApi';
+import { apiClient } from '@/services/apiClient';
 import { issuesApi } from '@/services/issuesApi';
 import type { ActivityLogEntry } from '@/types/activityLog';
 import type { Issue, IssueSeverity, IssueStatus } from '@/types/issue';
@@ -67,7 +68,7 @@ export function IssueDetailPage() {
     const [historyItems, setHistoryItems] = useState<ActivityLogEntry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     const issueId = id ? Number(id) : Number.NaN;
 
@@ -90,13 +91,13 @@ export function IssueDetailPage() {
     );
 
     const formattedDescription = useMemo(
-        () => issue?.description || t('detail.messages.no_description', 'No description provided.'),
+        () => issue?.description || t('detail.messages.no_description'),
         [issue?.description, t]
     );
 
     const fetchIssue = useCallback(async () => {
         if (!Number.isFinite(issueId) || issueId <= 0) {
-            setError(t('errors.not_found', 'Issue not found.'));
+            setErrorKey('errors.not_found');
             setIssue(null);
             setIsLoading(false);
             return;
@@ -105,15 +106,14 @@ export function IssueDetailPage() {
         try {
             const response = await issuesApi.get(issueId);
             setIssue(response);
-            setError(null);
+            setErrorKey(null);
         } catch (loadError) {
-            const message = loadError instanceof Error ? loadError.message : t('errors.detail_load_failed', 'Failed to load issue details.');
-            setError(message);
+            setErrorKey(apiClient.toUiMessageKey(loadError));
             setIssue(null);
         } finally {
             setIsLoading(false);
         }
-    }, [issueId, t]);
+    }, [issueId]);
 
     useEffect(() => {
         if (!canRead) {
@@ -163,16 +163,16 @@ export function IssueDetailPage() {
     };
 
     const tabs: Array<{ id: IssueDetailTab; label: string; icon: typeof Target }> = [
-        { id: 'overview', label: t('detail.tabs.overview', 'Overview'), icon: Target },
-        { id: 'workflow', label: t('detail.tabs.workflow', 'Workflow'), icon: Wrench },
-        { id: 'history', label: t('detail.tabs.history', 'History'), icon: History },
+        { id: 'overview', label: t('detail.tabs.overview'), icon: Target },
+        { id: 'workflow', label: t('detail.tabs.workflow'), icon: Wrench },
+        { id: 'history', label: t('detail.tabs.history'), icon: History },
     ];
 
     if (!canRead) {
         return (
             <div className="glass-card p-8 flex items-center gap-3 text-amber-200">
                 <AlertTriangle className="h-5 w-5" />
-                <span>{t('permissions.view_denied', 'You do not have permission to view issues.')}</span>
+                <span>{t('permissions.view_denied')}</span>
             </div>
         );
     }
@@ -181,20 +181,26 @@ export function IssueDetailPage() {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">{t('detail.loading', 'Loading issue data')}</p>
+                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">{t('detail.loading')}</p>
             </div>
         );
     }
 
-    if (error || !issue) {
+    if (errorKey || !issue) {
         return (
             <div className="glass-card flex flex-col items-center justify-center p-20 text-center gap-4">
                 <div className="bg-rose-500/20 p-4 rounded-full">
                     <AlertTriangle className="h-10 w-10 text-rose-500" />
                 </div>
                 <div>
-                    <h3 className="text-xl font-bold text-white uppercase tracking-tight">{t('detail.not_found_title', 'Issue Not Found')}</h3>
-                    <p className="text-slate-500 mt-2 font-medium">{error || t('errors.unable_to_load', 'Unable to load issue details.')}</p>
+                    <h3 className="text-xl font-bold text-white uppercase tracking-tight">{t('detail.not_found_title')}</h3>
+                    <p className="text-slate-500 mt-2 font-medium">
+                        {errorKey
+                            ? (errorKey.startsWith('errorKeys.')
+                                ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
+                                : t(errorKey))
+                            : t('errors.unable_to_load')}
+                    </p>
                 </div>
                 <button
                     type="button"
@@ -202,7 +208,7 @@ export function IssueDetailPage() {
                     className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all flex items-center gap-2"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    {t('actions.back_to_issues', 'Back to Issues')}
+                    {t('actions.back_to_issues')}
                 </button>
             </div>
         );
@@ -218,7 +224,7 @@ export function IssueDetailPage() {
                         className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest"
                     >
                         <ArrowLeft className="h-3.5 w-3.5" />
-                        {t('actions.back_to_issues', 'Back to Issues')}
+                        {t('actions.back_to_issues')}
                     </button>
 
                     <div className="flex flex-wrap items-center gap-2.5">
@@ -234,13 +240,13 @@ export function IssueDetailPage() {
                     type="button"
                     onClick={fetchIssue}
                     className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/40 transition-all"
-                    title={t('actions.refresh', 'Refresh')}
+                    title={t('actions.refresh')}
                 >
                     <RefreshCw className="h-5 w-5" />
                 </button>
             </div>
 
-            <div className="flex items-center gap-1 border-b border-white/10" role="tablist" aria-label={t('title', 'Issues')}>
+            <div className="flex items-center gap-1 border-b border-white/10" role="tablist" aria-label={t('title')}>
                 {tabs.map((tab) => {
                     const TabIcon = tab.icon;
                     const isActive = activeTab === tab.id;
@@ -266,35 +272,35 @@ export function IssueDetailPage() {
                 <section className="space-y-5" data-testid="issue-overview-panel">
                     <section className="glass-card p-6 space-y-4">
                         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            <MetaBlock label={t('detail.fields.source', 'Source')} value={sourceLabel(issue.source_type)} />
+                            <MetaBlock label={t('detail.fields.source')} value={sourceLabel(issue.source_type)} />
                             <MetaBlock
-                                label={t('detail.fields.owner', 'Owner')}
-                                value={issue.owner_user_name || t('fallbacks.unassigned', 'Unassigned')}
+                                label={t('detail.fields.owner')}
+                                value={issue.owner_user_name || t('fallbacks.unassigned')}
                             />
                             <MetaBlock
-                                label={t('detail.fields.department', 'Department')}
-                                value={issue.department_name || t('fallbacks.unknown_department', 'Unknown department')}
+                                label={t('detail.fields.department')}
+                                value={issue.department_name || t('fallbacks.unknown_department')}
                             />
                             <MetaBlock
-                                label={t('detail.fields.opened', 'Opened')}
-                                value={formatDateTime(issue.opened_at, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                                label={t('detail.fields.opened')}
+                                value={formatDateTime(issue.opened_at, i18n.language, t('fallbacks.not_set'))}
                             />
                             <MetaBlock
-                                label={t('detail.fields.due', 'Due')}
-                                value={formatDateTime(issue.due_at, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                                label={t('detail.fields.due')}
+                                value={formatDateTime(issue.due_at, i18n.language, t('fallbacks.not_set'))}
                             />
                             <MetaBlock
-                                label={t('detail.fields.created_by', 'Created by')}
-                                value={issue.created_by_name || t('fallbacks.unknown_user', 'Unknown user')}
+                                label={t('detail.fields.created_by')}
+                                value={issue.created_by_name || t('fallbacks.unknown_user')}
                             />
                         </div>
                     </section>
 
                     <section className="glass-card p-6 space-y-5">
                         <div className="space-y-3">
-                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('detail.sections.linked_entities', 'Linked Entities')}</h3>
+                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('detail.sections.linked_entities')}</h3>
                             {issue.links.length === 0 ? (
-                                <p className="text-sm text-slate-400">{t('detail.messages.no_linked_entities', 'No linked entities.')}</p>
+                                <p className="text-sm text-slate-400">{t('detail.messages.no_linked_entities')}</p>
                             ) : (
                                 <ul className="space-y-2">
                                     {issue.links.map((link) => (
@@ -303,7 +309,7 @@ export function IssueDetailPage() {
                                                 {link.linked_entity_name ||
                                                     (link.linked_entity_type
                                                         ? t(`fallbacks.unknown_${link.linked_entity_type}`, `Unknown ${link.linked_entity_type}`)
-                                                        : t('fallbacks.unknown_link', 'Unknown link'))}
+                                                        : t('fallbacks.unknown_link'))}
                                             </p>
                                         </li>
                                     ))}
@@ -312,9 +318,9 @@ export function IssueDetailPage() {
                         </div>
 
                         <div className="space-y-3">
-                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('detail.sections.exceptions', 'Exceptions')}</h3>
+                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('detail.sections.exceptions')}</h3>
                             {issue.exceptions.length === 0 ? (
-                                <p className="text-sm text-slate-400">{t('detail.messages.no_exceptions', 'No exceptions recorded.')}</p>
+                                <p className="text-sm text-slate-400">{t('detail.messages.no_exceptions')}</p>
                             ) : (
                                 <ul className="space-y-2">
                                     {issue.exceptions
@@ -327,8 +333,8 @@ export function IssueDetailPage() {
                                                         {t(`exception_status.${exception.status}`, exception.status)}
                                                     </span>
                                                     <span className="text-xs text-slate-500">
-                                                        {t('detail.messages.expires', 'Expires')}:{' '}
-                                                        {formatDateTime(exception.expires_at, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                                                        {t('detail.messages.expires')}:{' '}
+                                                        {formatDateTime(exception.expires_at, i18n.language, t('fallbacks.not_set'))}
                                                     </span>
                                                 </div>
                                                 <p className="text-sm text-slate-300">{exception.reason}</p>
@@ -336,7 +342,7 @@ export function IssueDetailPage() {
                                                     {exceptionActorName(
                                                         exception.requested_by_name,
                                                         exception.approved_by_name,
-                                                        t('fallbacks.unknown_user', 'Unknown user')
+                                                        t('fallbacks.unknown_user')
                                                     )}
                                                 </p>
                                             </li>
@@ -363,12 +369,12 @@ export function IssueDetailPage() {
                 <section className="glass-card p-6 space-y-4" data-testid="issue-history-panel">
                     {!canViewActivityLog ? (
                         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                            {t('permissions.history_denied', 'You do not have permission to view activity history for this issue.')}
+                            {t('permissions.history_denied')}
                         </div>
                     ) : isHistoryLoading ? (
-                        <p className="text-sm text-slate-400">{t('detail.messages.loading_history', 'Loading history...')}</p>
+                        <p className="text-sm text-slate-400">{t('detail.messages.loading_history')}</p>
                     ) : historyItems.length === 0 ? (
-                        <p className="text-sm text-slate-400">{t('detail.messages.no_history', 'No activity log entries found for this issue.')}</p>
+                        <p className="text-sm text-slate-400">{t('detail.messages.no_history')}</p>
                     ) : (
                         <ul className="space-y-2">
                             {historyItems.map((entry) => (
@@ -376,11 +382,11 @@ export function IssueDetailPage() {
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <p className="text-sm font-semibold text-slate-300">{entry.action.replaceAll('_', ' ')}</p>
                                         <p className="text-xs text-slate-500">
-                                            {formatDateTime(entry.created_at, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                                            {formatDateTime(entry.created_at, i18n.language, t('fallbacks.not_set'))}
                                         </p>
                                     </div>
                                     <p className="text-sm text-slate-300 mt-1">{entry.description}</p>
-                                    <p className="text-xs text-slate-500 mt-1">{entry.actor_name || t('detail.messages.system', 'System')}</p>
+                                    <p className="text-xs text-slate-500 mt-1">{entry.actor_name || t('detail.messages.system')}</p>
                                 </li>
                             ))}
                         </ul>

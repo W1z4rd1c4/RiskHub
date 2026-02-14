@@ -101,24 +101,24 @@ export function QuarterlyComparisonWidget() {
 
     // Metric labels with translations
     const metricLabels: Record<string, string> = useMemo(() => ({
-        new_risks: t('quarterly.new_risks', 'New Risks'),
-        archived_risks: t('quarterly.archived_risks', 'Archived Risks'),
-        active_risks: t('quarterly.active_risks', 'Active Risks'),
-        priority_risks: t('quarterly.priority_risks', 'Priority Risks'),
-        kri_breaches: t('quarterly.kri_breaches', 'KRI Breaches'),
-        pending_approvals: t('quarterly.pending_approvals', 'Pending Approvals'),
-        audit_activity: t('quarterly.audit_activity', 'Audit Activity'),
-        failed_audits: t('quarterly.failed_audits', 'Failed Audits'),
-        control_coverage: t('quarterly.control_coverage', 'Control Coverage %'),
-        unaudited_controls: t('quarterly.unaudited_controls', 'Unaudited Controls'),
-        orphaned_items: t('quarterly.orphaned_items', 'Orphaned Items'),
-        kri_health: t('quarterly.kri_health', 'KRI Health %'),
-        overdue_kris: t('quarterly.overdue_kris', 'Overdue KRIs'),
-        activity_volume: t('quarterly.activity_volume', 'Activity Volume'),
-        risks_without_kri: t('quarterly.risks_without_kri', 'Risks Without KRI'),
-        active_vendors: t('quarterly.active_vendors', 'Active Vendors'),
-        overdue_vendor_reassessments: t('quarterly.overdue_vendor_reassessments', 'Overdue Vendor Reassessments'),
-        vendor_sla_breaches: t('quarterly.vendor_sla_breaches', 'Vendor SLA Breaches'),
+        new_risks: t('quarterly.new_risks'),
+        archived_risks: t('quarterly.archived_risks'),
+        active_risks: t('quarterly.active_risks'),
+        priority_risks: t('quarterly.priority_risks'),
+        kri_breaches: t('quarterly.kri_breaches'),
+        pending_approvals: t('quarterly.pending_approvals'),
+        audit_activity: t('quarterly.audit_activity'),
+        failed_audits: t('quarterly.failed_audits'),
+        control_coverage: t('quarterly.control_coverage'),
+        unaudited_controls: t('quarterly.unaudited_controls'),
+        orphaned_items: t('quarterly.orphaned_items'),
+        kri_health: t('quarterly.kri_health'),
+        overdue_kris: t('quarterly.overdue_kris'),
+        activity_volume: t('quarterly.activity_volume'),
+        risks_without_kri: t('quarterly.risks_without_kri'),
+        active_vendors: t('quarterly.active_vendors'),
+        overdue_vendor_reassessments: t('quarterly.overdue_vendor_reassessments'),
+        vendor_sla_breaches: t('quarterly.vendor_sla_breaches'),
     }), [t]);
 
     // Build quarter label for API, or undefined if using defaults
@@ -192,7 +192,7 @@ export function QuarterlyComparisonWidget() {
             <div className="glass-card">
                 <div className="flex items-center gap-2 mb-6">
                     <Calendar className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison', 'Quarterly Comparison')}</h3>
+                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison')}</h3>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {Array(6).fill(0).map((_, i) => (
@@ -208,7 +208,7 @@ export function QuarterlyComparisonWidget() {
             <div className="glass-card">
                 <div className="flex items-center gap-2 mb-6">
                     <Calendar className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison', 'Quarterly Comparison')}</h3>
+                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison')}</h3>
                 </div>
                 <p className="text-slate-500 text-sm">{error || t('quarterly.no_data_available')}</p>
             </div>
@@ -229,7 +229,7 @@ export function QuarterlyComparisonWidget() {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <Calendar className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison', 'Quarterly Comparison')}</h3>
+                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison')}</h3>
                 </div>
                 {isLoading && (
                     <RefreshCw className="h-4 w-4 text-slate-400 animate-spin" />
@@ -241,7 +241,7 @@ export function QuarterlyComparisonWidget() {
                 {/* Current Period */}
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        {t('quarterly.current_period', 'Current:')}
+                        {t('quarterly.current_period')}
                     </span>
                     <ThemedSelect
                         value={currentQ?.toString() ?? '1'}
@@ -262,7 +262,7 @@ export function QuarterlyComparisonWidget() {
                 {/* Compare Period */}
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        {t('quarterly.compare_period', 'Compare:')}
+                        {t('quarterly.compare_period')}
                     </span>
                     <ThemedSelect
                         value={compareQ?.toString() ?? '4'}

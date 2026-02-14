@@ -84,16 +84,16 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
 
     const ownerOptions = useMemo(
         () => users.map((u) => ({ value: String(u.id), label: `${u.name} (${u.email})` })),
-        [t, users],
+        [users],
     );
 
     const frequencyOptions = useMemo(
         () => [
-            { value: 'daily', label: t('sla.frequency.daily', 'Daily') },
-            { value: 'weekly', label: t('sla.frequency.weekly', 'Weekly') },
-            { value: 'monthly', label: t('sla.frequency.monthly', 'Monthly') },
-            { value: 'quarterly', label: t('sla.frequency.quarterly', 'Quarterly') },
-            { value: 'annually', label: t('sla.frequency.annually', 'Annually') },
+            { value: 'daily', label: t('sla.frequency.daily') },
+            { value: 'weekly', label: t('sla.frequency.weekly') },
+            { value: 'monthly', label: t('sla.frequency.monthly') },
+            { value: 'quarterly', label: t('sla.frequency.quarterly') },
+            { value: 'annually', label: t('sla.frequency.annually') },
         ],
         [t],
     );
@@ -207,10 +207,10 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-black text-white">
-                                        {isCreate ? t('sla.modal.create_title', 'New Vendor SLA') : t('sla.modal.edit_title', 'Edit Vendor SLA')}
+                                        {isCreate ? t('sla.modal.create_title') : t('sla.modal.edit_title')}
                                     </h3>
                                     <p className="text-xs text-slate-500 font-medium">
-                                        {t('sla.modal.subtitle', 'Define monitored SLA thresholds and record values over time.')}
+                                        {t('sla.modal.subtitle')}
                                     </p>
                                 </div>
                             </div>
@@ -228,27 +228,27 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2 col-span-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                        {t('sla.fields.metric_name', 'Metric Name')}
+                                        {t('sla.fields.metric_name')}
                                     </label>
                                     <input
                                         type="text"
                                         value={formData.metric_name}
                                         onChange={(e) => setFormData({ ...formData, metric_name: e.target.value })}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                        placeholder={t('sla.fields.metric_name_placeholder', 'e.g., Uptime, Response time')}
+                                        placeholder={t('sla.fields.metric_name_placeholder')}
                                     />
                                 </div>
 
                                 <div className="space-y-2 col-span-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                        {t('sla.fields.description', 'Description')}
+                                        {t('sla.fields.description')}
                                     </label>
                                     <textarea
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                         rows={2}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                        placeholder={t('sla.fields.description_placeholder', 'Optional notes about the SLA definition')}
+                                        placeholder={t('sla.fields.description_placeholder')}
                                     />
                                 </div>
                             </div>
@@ -256,7 +256,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                        {isCreate ? t('sla.fields.current_value', 'Current Value') : t('sla.fields.current_value_edit_hint', 'Current Value (use Record Value)')}
+                                        {isCreate ? t('sla.fields.current_value') : t('sla.fields.current_value_edit_hint')}
                                     </label>
                                     <input
                                         type="number"
@@ -268,7 +268,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                        {t('sla.fields.unit', 'Unit')}
+                                        {t('sla.fields.unit')}
                                     </label>
                                     <input
                                         type="text"
@@ -283,7 +283,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                             <div className="grid grid-cols-2 gap-6 pt-2">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">
-                                        {t('sla.fields.lower_limit', 'Lower Limit (Breach)')}
+                                        {t('sla.fields.lower_limit')}
                                     </label>
                                     <input
                                         type="number"
@@ -294,7 +294,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">
-                                        {t('sla.fields.upper_limit', 'Upper Limit (Breach)')}
+                                        {t('sla.fields.upper_limit')}
                                     </label>
                                     <input
                                         type="number"
@@ -309,7 +309,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1">
                                         <Calendar className="h-3 w-3" />
-                                        {t('sla.fields.frequency', 'Reporting Frequency')}
+                                        {t('sla.fields.frequency')}
                                     </label>
                                     <ThemedSelect
                                         value={formData.frequency || 'monthly'}
@@ -321,7 +321,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1">
                                         <UserIcon className="h-3 w-3" />
-                                        {t('sla.fields.reporting_owner', 'Reporting Owner')}
+                                        {t('sla.fields.reporting_owner')}
                                     </label>
                                     <ThemedSelect
                                         value={formData.reporting_owner_id ? String(formData.reporting_owner_id) : ''}
@@ -329,7 +329,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                         className="w-full"
                                         options={ownerOptions}
                                         allowEmpty
-                                        emptyLabel={t('sla.owner.unassigned', 'Unassigned')}
+                                        emptyLabel={t('sla.owner.unassigned')}
                                     />
                                 </div>
                             </div>
@@ -337,7 +337,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                             {!isCreate && sla && (
                                 <div className="pt-2 border-t border-white/5 space-y-2">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                        {t('sla.record.title', 'Record Value')}
+                                        {t('sla.record.title')}
                                     </p>
                                     <div className="flex items-center gap-3">
                                         <input
@@ -352,7 +352,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                             disabled={isRecording || !!sla?.is_archived}
                                             className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60"
                                         >
-                                            {isRecording ? t('sla.record.saving', 'Saving...') : t('sla.record.save', 'Record')}
+                                            {isRecording ? t('sla.record.saving') : t('sla.record.save')}
                                         </button>
                                     </div>
                                 </div>
@@ -371,7 +371,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                             disabled={isDeleting}
                                             className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-bold hover:bg-emerald-500/20 transition-colors flex items-center gap-2 disabled:opacity-60"
                                         >
-                                            {t('actions.unarchive', 'Unarchive')}
+                                            {t('actions.unarchive')}
                                         </button>
                                     ) : (
                                         <button
@@ -381,7 +381,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                             className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-bold hover:bg-rose-500/20 transition-colors flex items-center gap-2 disabled:opacity-60"
                                         >
                                             <Trash2 className="h-4 w-4" />
-                                            {t('sla.actions.archive', 'Archive')}
+                                            {t('sla.actions.archive')}
                                         </button>
                                     )
                                 )}
@@ -392,7 +392,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                     onClick={onClose}
                                     className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors"
                                 >
-                                    {t('actions.cancel', 'Cancel')}
+                                    {t('actions.cancel')}
                                 </button>
                                 <button
                                     type="button"
@@ -401,7 +401,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                     className="px-4 py-2 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-colors flex items-center gap-2 disabled:opacity-60"
                                 >
                                     <Save className="h-4 w-4" />
-                                    {t('actions.save', 'Save')}
+                                    {t('actions.save')}
                                 </button>
                             </div>
                         </div>
@@ -413,10 +413,10 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                         onConfirm={() => {
                             void archive();
                         }}
-                        title={t('sla.confirm_archive_title', 'Archive SLA?')}
-                        message={t('sla.confirm_archive_message', 'This will archive the SLA. You can still view it when including archived items.')}
-                        confirmLabel={t('sla.actions.archive', 'Archive')}
-                        cancelLabel={t('actions.cancel', 'Cancel')}
+                        title={t('sla.confirm_archive_title')}
+                        message={t('sla.confirm_archive_message')}
+                        confirmLabel={t('sla.actions.archive')}
+                        cancelLabel={t('actions.cancel')}
                         variant="danger"
                         isLoading={isDeleting}
                     />

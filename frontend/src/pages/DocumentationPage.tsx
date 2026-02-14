@@ -5,9 +5,11 @@ import remarkGfm from 'remark-gfm';
 import { BookOpen, FileText, ChevronLeft, ArrowRight } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { adminApi } from '@/services/adminApi';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export function DocumentationPage() {
     const { t, i18n } = useTranslation('common');
+    const { theme } = useTheme();
     const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
     const { data: docsData, isLoading } = useQuery({
@@ -61,7 +63,30 @@ export function DocumentationPage() {
                     </div>
 
                     <div className="flex-1 p-10">
-                        <article className="prose prose-invert prose-slate prose-headings:text-white prose-a:text-accent prose-pre:bg-slate-900/50 prose-pre:border prose-pre:border-white/10 prose-table:border prose-table:border-white/10 prose-th:bg-white/5 prose-th:p-2 prose-td:p-2 prose-td:border-t prose-td:border-white/10 max-w-none">
+                        <article
+                            className={[
+                                'prose prose-slate prose-a:text-accent max-w-none',
+                                theme === 'light'
+                                    ? [
+                                        'prose-headings:text-slate-900',
+                                        'prose-pre:bg-slate-50',
+                                        'prose-pre:border-slate-200',
+                                        'prose-table:border-slate-200',
+                                        'prose-th:bg-slate-50',
+                                        'prose-td:border-slate-200',
+                                    ].join(' ')
+                                    : [
+                                        'prose-invert',
+                                        'prose-headings:text-white',
+                                        'prose-pre:bg-slate-900/50',
+                                        'prose-pre:border-white/10',
+                                        'prose-table:border-white/10',
+                                        'prose-th:bg-white/5',
+                                        'prose-td:border-white/10',
+                                    ].join(' '),
+                                'prose-pre:border prose-table:border prose-th:p-2 prose-td:p-2 prose-td:border-t',
+                            ].join(' ')}
+                        >
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{activeDoc.content || ''}</ReactMarkdown>
                         </article>
                     </div>

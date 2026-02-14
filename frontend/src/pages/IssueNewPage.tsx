@@ -19,7 +19,7 @@ export function IssueNewPage() {
         return (
             <div className="glass-card p-8 flex items-center gap-3 text-amber-200">
                 <AlertTriangle className="h-5 w-5" />
-                <span>{t('permissions.create_denied', 'You do not have permission to create issues.')}</span>
+                <span>{t('permissions.create_denied')}</span>
             </div>
         );
     }
@@ -31,9 +31,9 @@ export function IssueNewPage() {
                     <Plus className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                    <h2 className="text-3xl font-black text-white tracking-tighter">{t('new_page.title', 'Create Issue')}</h2>
+                    <h2 className="text-3xl font-black text-white tracking-tighter">{t('new_page.title')}</h2>
                     <p className="text-slate-500 font-medium tracking-tight uppercase text-[10px] tracking-widest mt-1">
-                        {t('new_page.breadcrumb', 'Issues / New Entry')}
+                        {t('new_page.breadcrumb')}
                     </p>
                 </div>
             </div>

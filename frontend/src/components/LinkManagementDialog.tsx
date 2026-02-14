@@ -244,7 +244,7 @@ export function LinkManagementDialog({
                                     <LinkIcon className="h-5 w-5 text-accent" />
                                 </div>
                                 <h2 className="text-xl font-black text-white uppercase tracking-tight">
-                                    {title ?? (!showSearch ? t('common:empty.no_connections', 'Manage existing connections') : (mode === 'control-to-risk' ? t('controls:actions.link_risk', 'Link Risks to Control') : t('risks:actions.link_control', 'Link Controls to Risk')))}
+                                    {title ?? (!showSearch ? t('common:empty.no_connections') : (mode === 'control-to-risk' ? t('controls:actions.link_risk') : t('risks:actions.link_control')))}
                                 </h2>
                             </div>
                             <button

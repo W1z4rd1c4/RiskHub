@@ -20,7 +20,7 @@ export function RiskQuestionnairesPanel() {
     const [departments, setDepartments] = useState<{ value: string; label: string }[]>([]);
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     const [departmentId, setDepartmentId] = useState<string>('');
     const [process, setProcess] = useState('');
@@ -56,7 +56,7 @@ export function RiskQuestionnairesPanel() {
 
     const fetchRisks = async () => {
         setLoading(true);
-        setError(null);
+        setErrorKey(null);
         setResult(null);
         try {
             const resp = await riskApi.getRisks({
@@ -70,7 +70,7 @@ export function RiskQuestionnairesPanel() {
             });
             setRisks(resp.items);
         } catch (e) {
-            setError(t('errors.failed_to_load', 'Failed to load'));
+            setErrorKey('errors.failed_to_load');
             console.error(e);
         } finally {
             setLoading(false);
@@ -108,7 +108,7 @@ export function RiskQuestionnairesPanel() {
 
     const handleBatchSend = async () => {
         setSending(true);
-        setError(null);
+        setErrorKey(null);
         setResult(null);
         try {
             const payload = selectAll
@@ -127,7 +127,7 @@ export function RiskQuestionnairesPanel() {
                 };
 
             if (!selectAll && selectedIds.size === 0) {
-                setError(t('riskhub.questionnaires.select_some', 'Select at least one risk.'));
+                setErrorKey('riskhub.questionnaires.select_some');
                 return;
             }
 
@@ -136,7 +136,7 @@ export function RiskQuestionnairesPanel() {
             setSelectedIds(new Set());
             await fetchRisks();
         } catch (e) {
-            setError(e instanceof Error ? e.message : t('errors.failed_to_load', 'Failed to load'));
+            setErrorKey(apiClient.toUiMessageKey(e));
         } finally {
             setSending(false);
         }
@@ -150,10 +150,10 @@ export function RiskQuestionnairesPanel() {
                 <div>
                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                         <FileText className="h-5 w-5 text-accent" />
-                        {t('riskhub.tabs.questionnaires', 'Questionnaires')}
+                        {t('riskhub.tabs.questionnaires')}
                     </h3>
                     <p className="text-slate-400 text-sm">
-                        {t('riskhub.questionnaires.subtitle', 'Batch-send risk assessment questionnaires (CRO only).')}
+                        {t('riskhub.questionnaires.subtitle')}
                     </p>
                 </div>
                 <button
@@ -166,14 +166,16 @@ export function RiskQuestionnairesPanel() {
                     )}
                 >
                     <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-                    {t('actions.refresh', 'Refresh')}
+                    {t('actions.refresh')}
                 </button>
             </div>
 
-            {error && (
+            {errorKey && (
                 <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" />
-                    {error}
+                    {errorKey.startsWith('errorKeys.')
+                        ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
+                        : t(errorKey)}
                 </div>
             )}
 
@@ -181,14 +183,14 @@ export function RiskQuestionnairesPanel() {
                 <div className="p-4 rounded-xl border bg-emerald-500/5 border-emerald-500/20 text-emerald-300">
                     <div className="flex items-center gap-2 font-bold">
                         <CheckCircle className="h-4 w-4" />
-                        {t('riskhub.questionnaires.results', 'Results')}
+                        {t('riskhub.questionnaires.results')}
                     </div>
                     <div className="mt-2 text-sm text-slate-300 space-y-1">
-                        <div>{t('riskhub.questionnaires.created', 'Created')}: {result.created_count}</div>
-                        <div>{t('riskhub.questionnaires.skipped_no_owner', 'Skipped (no owner)')}: {result.skipped_no_owner.length}</div>
-                        <div>{t('riskhub.questionnaires.skipped_open', 'Skipped (open exists)')}: {result.skipped_open_exists.length}</div>
+                        <div>{t('riskhub.questionnaires.created')}: {result.created_count}</div>
+                        <div>{t('riskhub.questionnaires.skipped_no_owner')}: {result.skipped_no_owner.length}</div>
+                        <div>{t('riskhub.questionnaires.skipped_open')}: {result.skipped_open_exists.length}</div>
                         {result.errors.length > 0 && (
-                            <div className="text-rose-300">{t('riskhub.questionnaires.errors', 'Errors')}: {result.errors.length}</div>
+                            <div className="text-rose-300">{t('riskhub.questionnaires.errors')}: {result.errors.length}</div>
                         )}
                     </div>
                 </div>
@@ -199,21 +201,21 @@ export function RiskQuestionnairesPanel() {
                     <ThemedSelect
                         value={departmentId}
                         onValueChange={setDepartmentId}
-                        placeholder={t('riskhub.questionnaires.department', 'Department')}
+                        placeholder={t('riskhub.questionnaires.department')}
                         allowEmpty
-                        emptyLabel={t('riskhub.questionnaires.all_departments', 'All Departments')}
+                        emptyLabel={t('riskhub.questionnaires.all_departments')}
                         options={departments}
                     />
                     <input
                         value={process}
                         onChange={(e) => setProcess(e.target.value)}
-                        placeholder={t('riskhub.questionnaires.process', 'Process')}
+                        placeholder={t('riskhub.questionnaires.process')}
                         className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-accent/50"
                     />
                     <input
                         value={category}
                         onChange={(e) => setCategory(e.target.value)}
-                        placeholder={t('riskhub.questionnaires.category', 'Category')}
+                        placeholder={t('riskhub.questionnaires.category')}
                         className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-accent/50"
                     />
                     <ThemedSelect
@@ -221,10 +223,10 @@ export function RiskQuestionnairesPanel() {
                         onValueChange={(v) => setStatus(v as RiskStatus | '')}
                         placeholder={t('common:labels.status')}
                         allowEmpty
-                        emptyLabel={t('riskhub.questionnaires.all_statuses', 'All Statuses')}
+                        emptyLabel={t('riskhub.questionnaires.all_statuses')}
                         options={[
-                            { value: 'active', label: t('riskhub.questionnaires.status_active', 'Active') },
-                            { value: 'emerging', label: t('riskhub.questionnaires.status_emerging', 'Emerging') },
+                            { value: 'active', label: t('riskhub.questionnaires.status_active') },
+                            { value: 'emerging', label: t('riskhub.questionnaires.status_emerging') },
                         ]}
                     />
                     <label className="flex items-center gap-2 text-xs text-slate-300 font-bold select-none">
@@ -237,7 +239,7 @@ export function RiskQuestionnairesPanel() {
                             }}
                             className="accent-accent"
                         />
-                        {t('riskhub.questionnaires.select_all', 'Select all (filters)')}
+                        {t('riskhub.questionnaires.select_all')}
                     </label>
                 </div>
 
@@ -255,16 +257,16 @@ export function RiskQuestionnairesPanel() {
                                     />
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    {t('governance.col_name', 'Name')}
+                                    {t('governance.col_name')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    {t('governance.col_description', 'Description')}
+                                    {t('governance.col_description')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    {t('governance.col_department', 'Department')}
+                                    {t('governance.col_department')}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    {t('riskhub.questionnaires.owner', 'Owner')}
+                                    {t('riskhub.questionnaires.owner')}
                                 </th>
                             </tr>
                         </thead>
@@ -272,13 +274,13 @@ export function RiskQuestionnairesPanel() {
                             {loading ? (
                                 <tr>
                                     <td colSpan={5} className="px-4 py-6 text-slate-400 text-sm">
-                                        {t('console.loading', 'Loading...')}
+                                        {t('console.loading')}
                                     </td>
                                 </tr>
                             ) : risks.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-4 py-10 text-slate-500 text-sm">
-                                        {t('riskhub.questionnaires.empty', 'No risks found for the current filters.')}
+                                        {t('riskhub.questionnaires.empty')}
                                     </td>
                                 </tr>
                             ) : (
@@ -307,8 +309,8 @@ export function RiskQuestionnairesPanel() {
                 <div className="p-4 border-t border-white/5 flex items-center justify-between">
                     <div className="text-xs text-slate-500">
                         {selectAll
-                            ? t('riskhub.questionnaires.select_all_hint', 'Will send to all matching filtered risks.')
-                            : t('riskhub.questionnaires.selected_count', '{{count}} selected', { count: selectedIds.size })}
+                            ? t('riskhub.questionnaires.select_all_hint')
+                            : t('riskhub.questionnaires.selected_count', { count: selectedIds.size })}
                     </div>
                     <button
                         onClick={handleBatchSend}
@@ -320,7 +322,7 @@ export function RiskQuestionnairesPanel() {
                         )}
                     >
                         <Send className={cn("h-4 w-4", sending && "animate-pulse")} />
-                        {t('riskhub.questionnaires.send', 'Send questionnaires')}
+                        {t('riskhub.questionnaires.send')}
                     </button>
                 </div>
             </div>

@@ -23,9 +23,9 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
 
     // Type labels with translations
     const typeLabels: Record<string, string> = {
-        risk: t('governance.type_risk', 'Risk'),
-        control: t('governance.type_control', 'Control'),
-        kri: t('governance.type_kri', 'KRI'),
+        risk: t('governance.type_risk'),
+        control: t('governance.type_control'),
+        kri: t('governance.type_kri'),
     };
 
     const filteredItems = filter === 'all'
@@ -46,9 +46,9 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
         return (
             <div className="glass-card text-center py-16">
                 <AlertTriangle className="h-12 w-12 text-emerald-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-white mb-2">{t('governance.all_clear', 'All Clear')}</h3>
+                <h3 className="text-xl font-bold text-white mb-2">{t('governance.all_clear')}</h3>
                 <p className="text-slate-500 max-w-md mx-auto">
-                    {t('governance.no_orphans', 'No orphaned items found. All risks and controls have assigned owners.')}
+                    {t('governance.no_orphans')}
                 </p>
             </div>
         );
@@ -59,7 +59,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
             <div className="p-4 border-b border-white/5 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-amber-400" />
-                    {t('governance.orphaned_items', 'Orphaned Items')} ({filteredItems.length})
+                    {t('governance.orphaned_items')} ({filteredItems.length})
                 </h3>
                 <div className="flex items-center gap-2">
                     <Filter className="h-4 w-4 text-slate-500" />
@@ -67,9 +67,9 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                         value={filter}
                         onValueChange={setFilter}
                         options={[
-                            { value: 'all', label: t('governance.all_types', 'All Types') },
-                            { value: 'risk', label: t('governance.risks_only', 'Risks Only') },
-                            { value: 'control', label: t('governance.controls_only', 'Controls Only') },
+                            { value: 'all', label: t('governance.all_types') },
+                            { value: 'risk', label: t('governance.risks_only') },
+                            { value: 'control', label: t('governance.controls_only') },
                         ]}
                     />
                 </div>
@@ -79,13 +79,13 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-white/5">
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_type', 'Type')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_name', 'Name')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_description', 'Description')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_department', 'Department')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_previous_owner', 'Previous Owner')}</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_orphaned', 'Orphaned')}</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_actions', 'Actions')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_type')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_name')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_description')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_department')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_previous_owner')}</th>
+                            <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_orphaned')}</th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">{t('governance.col_actions')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -154,7 +154,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                             className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-accent text-white hover:text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-white/10 group-hover:border-accent/50 shadow-sm active:scale-95"
                                         >
                                             <UserCheck className="h-3.5 w-3.5" />
-                                            {t('governance.resolve', 'Resolve')}
+                                            {t('governance.resolve')}
                                         </button>
                                     </td>
                                 </tr>

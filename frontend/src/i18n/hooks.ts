@@ -41,7 +41,10 @@ export function useTranslation<NS extends Namespace = 'common'>(
     ns?: NS | readonly NS[],
     options?: unknown,
 ) {
-    const result = useI18nextTranslation(ns as any, options as any);
+    const result = useI18nextTranslation(
+        ns as unknown as string | readonly string[] | undefined,
+        options as Record<string, unknown> | undefined,
+    );
     const rawT = result.t as unknown as (key: string, options?: TranslationOptions) => string;
 
     // Ensure `t` identity is stable across renders when i18next's `t` is stable.

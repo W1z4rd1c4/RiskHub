@@ -196,7 +196,7 @@ export function KRIsPage() {
                         {isBreaching ? t('filters.breach') : t('columns.ok')}
                         {kri.is_archived && (
                             <span className="ml-1 px-1 py-0.5 rounded bg-white/10 text-slate-300 border border-white/10">
-                                {t('labels.archived', 'Archived')}
+                                {t('labels.archived')}
                             </span>
                         )}
                     </span>
@@ -214,7 +214,7 @@ export function KRIsPage() {
                             data-testid={`kri-unarchive-${kri.id}`}
                             className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
                         >
-                            {t('actions.unarchive', 'Unarchive')}
+                            {t('actions.unarchive')}
                         </button>
                     )}
                     <ChevronRight className="h-4 w-4 text-slate-500" />
@@ -227,7 +227,7 @@ export function KRIsPage() {
             sortable: true,
             render: (kri) => (
                 <span className="text-white text-xs font-bold block truncate max-w-[150px]" title={kri.risk_process}>
-                    {kri.risk_process || `Risk #${kri.risk_id}`}
+                    {kri.risk_process || t('common:fallbacks.unknown_risk')}
                 </span>
             ),
         },
@@ -237,7 +237,7 @@ export function KRIsPage() {
             sortable: true,
             render: (kri) => (
                 <span className="text-slate-400 text-xs font-medium block truncate max-w-[200px]" title={kri.risk_description}>
-                    {kri.risk_description || '—'}
+                    {kri.risk_description || t('common:fallbacks.not_available')}
                 </span>
             ),
         },
@@ -279,7 +279,7 @@ export function KRIsPage() {
                         className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
                     >
                         <Download className="h-4 w-4" />
-                        {t('actions.export', 'Export')}
+                        {t('actions.export')}
                     </button>
                     <button
                         onClick={fetchKRIs}
@@ -393,17 +393,17 @@ export function KRIsPage() {
                         return (
                             <div className="space-y-3 pb-2 border-b border-white/5">
                                 <div className="grid grid-cols-2 gap-y-2">
-                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`Type: ${info.risk_type || 'N/A'}`}>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`${t('common:labels.type')}: ${info.risk_type || t('common:fallbacks.not_available')}`}>
                                         <Shield className="h-3 w-3 text-accent shrink-0" />
-                                        <span className="truncate">{info.risk_type || 'Unknown Type'}</span>
+                                        <span className="truncate">{info.risk_type || t('common:fallbacks.unknown_type')}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`Dept: ${info.risk_department_name || 'N/A'}`}>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`${t('common:labels.department')}: ${info.risk_department_name || t('common:fallbacks.not_available')}`}>
                                         <Building2 className="h-3 w-3 text-accent shrink-0" />
-                                        <span className="truncate">{info.risk_department_name || 'Unassigned'}</span>
+                                        <span className="truncate">{info.risk_department_name || t('common:fallbacks.unassigned')}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`Owner: ${info.risk_owner_name || 'N/A'}`}>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`${t('common:labels.owner')}: ${info.risk_owner_name || t('common:fallbacks.not_available')}`}>
                                         <User className="h-3 w-3 text-accent shrink-0" />
-                                        <span className="truncate">{info.risk_owner_name || 'No Owner'}</span>
+                                        <span className="truncate">{info.risk_owner_name || t('common:fallbacks.no_owner')}</span>
                                     </div>
                                 </div>
                             </div>

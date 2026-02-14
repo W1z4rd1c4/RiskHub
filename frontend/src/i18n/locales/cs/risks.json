@@ -156,7 +156,11 @@
   "matrix": {
     "title": "Riziková matice",
     "probability_axis": "Pravděpodobnost",
-    "impact_axis": "Dopad"
+    "impact_axis": "Dopad",
+    "gross_risk": "Hrubé riziko",
+    "net_risk": "Čisté riziko",
+    "cell_title": "P:{{probability}} × D:{{impact}} = {{score}}",
+    "score_label": "Skóre: {{score}}"
   },
   "scoring": {
     "inherent_risk": "Inherentní riziko",

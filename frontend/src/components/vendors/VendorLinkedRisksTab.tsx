@@ -27,7 +27,7 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
             setError(null);
         } catch (err) {
             console.error('Failed to load linked risks:', err);
-            setError(t('errors.load_failed', 'Failed to load vendors'));
+            setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
         }
@@ -67,10 +67,10 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
                 <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         <Link2 className="h-4 w-4" />
-                        {t('tabs.linked_risks', 'Linked Risks')}
+                        {t('tabs.linked_risks')}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('links.risks.subtitle', 'Connect the vendor to enterprise risks in the Risk Register.')}
+                        {t('links.risks.subtitle')}
                     </p>
                 </div>
                 {canEdit && (
@@ -79,7 +79,7 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
                         className="px-4 py-2 bg-accent/20 text-accent border border-accent/30 rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2"
                     >
                         <Plus className="h-4 w-4" />
-                        {t('links.actions.manage', 'Manage links')}
+                        {t('links.actions.manage')}
                     </button>
                 )}
             </div>
@@ -87,7 +87,7 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
             {isLoading ? (
                 <div className="flex items-center gap-3 text-slate-500 font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('labels.loading', 'Loading...')}
+                    {t('labels.loading')}
                 </div>
             ) : error ? (
                 <div className="text-rose-400 font-medium">{error}</div>
@@ -95,7 +95,7 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
                 <div className="py-12 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
                     <Link2 className="h-8 w-8 text-slate-700 mx-auto mb-2" />
                     <p className="text-xs text-slate-600 font-medium tracking-tight">
-                        {t('links.risks.empty', 'No linked risks yet.')}
+                        {t('links.risks.empty')}
                     </p>
                 </div>
             ) : (
@@ -132,7 +132,7 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
                     {archivedRisks.length > 0 && (
                         <div className="space-y-3">
                             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                {t('links.archived_risks', 'Archived risks')} ({archivedRisks.length})
+                                {t('links.archived_risks')} ({archivedRisks.length})
                             </h4>
                             <div className="space-y-3 opacity-70">
                                 {archivedRisks.map((risk) => (
@@ -169,7 +169,7 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
             {canEdit && (
                 <LinkManagementDialog
                     mode="control-to-risk"
-                    title={t('links.dialogs.link_risks_title', 'Link Risks to Vendor')}
+                    title={t('links.dialogs.link_risks_title')}
                     existingLinks={existingLinks}
                     onLink={async (targetId, _effectiveness, _notes) => handleLink(targetId)}
                     onUnlink={async (targetId) => handleUnlink(targetId)}

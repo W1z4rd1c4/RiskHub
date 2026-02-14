@@ -17,12 +17,12 @@ export function ViewSwitcher({ value, onChange, className, exclude = [] }: ViewS
     const { t } = useTranslation('common');
 
     const VIEW_OPTIONS = [
-        { value: 'all' as ViewMode, label: t('views.all', 'All') },
-        { value: 'category' as ViewMode, label: t('views.by_category', 'By Category') },
-        { value: 'department' as ViewMode, label: t('views.by_department', 'By Department') },
-        { value: 'process' as ViewMode, label: t('views.by_process', 'By Process') },
-        { value: 'risk_type' as ViewMode, label: t('views.by_risk_type', 'By Risk Type') },
-        { value: 'risk' as ViewMode, label: t('views.by_risk', 'By Risk') },
+        { value: 'all' as ViewMode, label: t('views.all') },
+        { value: 'category' as ViewMode, label: t('views.by_category') },
+        { value: 'department' as ViewMode, label: t('views.by_department') },
+        { value: 'process' as ViewMode, label: t('views.by_process') },
+        { value: 'risk_type' as ViewMode, label: t('views.by_risk_type') },
+        { value: 'risk' as ViewMode, label: t('views.by_risk') },
     ];
 
     const options = VIEW_OPTIONS.filter(opt => !exclude.includes(opt.value));

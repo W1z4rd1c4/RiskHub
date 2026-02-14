@@ -49,8 +49,8 @@ export function ExportDialog({
 
     const formatOptions = useMemo(
         () => [
-            { value: 'xlsx', label: t('placeholder-xlsx-006.xlsx', 'Excel (.xlsx)') },
-            { value: 'csv', label: t('export.formats.csv', 'CSV (.csv)') },
+            { value: 'xlsx', label: t('placeholder-xlsx-006.xlsx') },
+            { value: 'csv', label: t('export.formats.csv') },
         ],
         [t],
     );
@@ -94,7 +94,7 @@ export function ExportDialog({
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-black text-white">
-                                        {title ?? t('export.title', 'Export data')}
+                                        {title ?? t('export.title')}
                                     </h3>
                                 </div>
                             </div>
@@ -112,7 +112,7 @@ export function ExportDialog({
                         <div className="p-6 space-y-5">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                    {t('export.fields.format', 'Format')}
+                                    {t('export.fields.format')}
                                 </label>
                                 <ThemedSelect
                                     value={format}
@@ -126,7 +126,7 @@ export function ExportDialog({
 
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                    {t('export.fields.date', 'As of date')}
+                                    {t('export.fields.date')}
                                 </label>
                                 <input
                                     type="date"
@@ -145,7 +145,7 @@ export function ExportDialog({
                                 disabled={isSubmitting}
                                 className="px-5 py-2.5 rounded-xl text-slate-300 border border-white/10 hover:bg-white/5 transition-all disabled:opacity-60"
                             >
-                                {t('export.actions.cancel', t('actions.cancel', 'Cancel'))}
+                                {t('export.actions.cancel', t('actions.cancel'))}
                             </button>
                             <button
                                 type="button"
@@ -155,7 +155,7 @@ export function ExportDialog({
                                 className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all flex items-center gap-2 disabled:opacity-60"
                             >
                                 <Download className="h-4 w-4" />
-                                {t('export.actions.submit', 'Export')}
+                                {t('export.actions.submit')}
                             </button>
                         </div>
                     </motion.div>

@@ -27,7 +27,7 @@ export function IssueAgingChart({ buckets }: IssueAgingChartProps) {
                         {...tooltipProps}
                         cursor={{ fill: chartTheme.gridStroke }}
                     />
-                    <Bar dataKey="count" fill="#38bdf8" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="count" fill={chartTheme.series.primary} radius={[6, 6, 0, 0]} />
                 </BarChart>
             </ResponsiveContainer>
         </div>

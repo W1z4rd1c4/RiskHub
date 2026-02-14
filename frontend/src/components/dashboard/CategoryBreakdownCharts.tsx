@@ -14,30 +14,6 @@ interface CategoryBreakdownChartsProps {
     controlsByFrequency: Record<string, number>;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-    active: '#10b981',      // emerald-500
-    inactive: '#6b7280',    // gray-500
-    pending: '#f59e0b',     // amber-500
-    deprecated: '#ef4444',  // rose-500
-};
-
-const FORM_COLORS: Record<string, string> = {
-    preventive: '#3b82f6',  // blue-500
-    detective: '#8b5cf6',   // purple-500
-    corrective: '#f97316',  // orange-500
-};
-
-const FREQUENCY_COLORS: Record<string, string> = {
-    daily: '#0d9488',       // teal-600
-    weekly: '#14b8a6',      // teal-500
-    monthly: '#2dd4bf',     // teal-400
-    quarterly: '#5eead4',   // teal-300
-    'semi-annually': '#67e8f9', // cyan-300
-    annually: '#99f6e4',    // teal-200
-    ad_hoc: '#6b7280',      // gray-500
-    continuous: '#06b6d4',  // cyan-500
-};
-
 function formatLabel(key: string): string {
     return key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
 }
@@ -96,7 +72,7 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
                             {chartData.map((entry, index) => (
                                 <Cell
                                     key={`cell-${index}`}
-                                    fill={colors[entry.key] || '#6b7280'}
+                                    fill={colors[entry.key] || chartTheme.series.neutral}
                                     className="transition-opacity hover:opacity-80"
                                 />
                             ))}
@@ -129,7 +105,7 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
                     >
                         <div
                             className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: colors[entry.key] || '#6b7280' }}
+                            style={{ backgroundColor: colors[entry.key] || chartTheme.series.neutral }}
                         />
                         {entry.name}
                     </button>
@@ -145,6 +121,7 @@ export function CategoryBreakdownCharts({
     controlsByFrequency
 }: CategoryBreakdownChartsProps) {
     const { t } = useTranslation('dashboard');
+    const chartTheme = useChartTheme();
     const { setControlStatus, setControlForm } = useDashboardFilters();
 
     return (
@@ -152,19 +129,19 @@ export function CategoryBreakdownCharts({
             <MiniPieChart
                 title={t('charts.by_status')}
                 data={controlsByStatus}
-                colors={STATUS_COLORS}
+                colors={chartTheme.breakdown.status}
                 onSegmentClick={(key) => setControlStatus(key)}
             />
             <MiniPieChart
                 title={t('charts.by_form')}
                 data={controlsByForm}
-                colors={FORM_COLORS}
+                colors={chartTheme.breakdown.form}
                 onSegmentClick={(key) => setControlForm(key)}
             />
             <MiniPieChart
                 title={t('charts.by_frequency')}
                 data={controlsByFrequency}
-                colors={FREQUENCY_COLORS}
+                colors={chartTheme.breakdown.frequency}
             />
         </div>
     );

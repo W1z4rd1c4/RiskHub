@@ -61,8 +61,8 @@ export function KRIStatusWidget() {
             <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
                 <Clock className="h-6 w-6 text-emerald-500" />
             </div>
-            <h4 className="text-white font-bold mb-1">{t('kri.all_current', 'All KRIs Current')}</h4>
-            <p className="text-xs text-slate-500">{t('kri.no_due_soon', 'No KRIs are due soon or overdue.')}</p>
+            <h4 className="text-white font-bold mb-1">{t('kri.all_current')}</h4>
+            <p className="text-xs text-slate-500">{t('kri.no_due_soon')}</p>
         </div>
     );
 

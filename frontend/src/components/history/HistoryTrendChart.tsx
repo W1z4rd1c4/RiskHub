@@ -16,6 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { HistoryTrendPoint } from '@/types/history';
 import { useChartTheme } from '@/hooks/useChartTheme';
+import { useTranslation } from '@/i18n/hooks';
 
 interface HistoryTrendChartProps {
     data: HistoryTrendPoint[];
@@ -33,17 +34,20 @@ export function HistoryTrendChart({
     data,
     lowerLimit,
     upperLimit,
-    valueLabel = 'Value',
+    valueLabel,
     formatValue = defaultFormat,
-    emptyMessage = 'No data available',
+    emptyMessage,
     className,
 }: HistoryTrendChartProps) {
+    const { t } = useTranslation(['common', 'controls']);
     const chartTheme = useChartTheme();
+    const resolvedValueLabel = valueLabel ?? t('common:labels.value');
+    const resolvedEmptyMessage = emptyMessage ?? t('common:empty.no_data_available');
 
     if (!data || data.length === 0) {
         return (
             <div className={cn('flex items-center justify-center h-[280px] text-slate-500 text-sm', className)}>
-                {emptyMessage}
+                {resolvedEmptyMessage}
             </div>
         );
     }
@@ -57,8 +61,8 @@ export function HistoryTrendChart({
                 >
                     <defs>
                         <linearGradient id="historyTrendGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#1e84ff" stopOpacity={0.4} />
-                            <stop offset="100%" stopColor="#1e84ff" stopOpacity={0.05} />
+                            <stop offset="0%" stopColor={chartTheme.series.primary} stopOpacity={0.4} />
+                            <stop offset="100%" stopColor={chartTheme.series.primary} stopOpacity={0.05} />
                         </linearGradient>
                     </defs>
 
@@ -100,20 +104,20 @@ export function HistoryTrendChart({
                             marginBottom: '4px',
                             textTransform: 'uppercase'
                         }}
-                        formatter={(value: number | undefined) => [value !== undefined ? formatValue(value) : '—', valueLabel]}
+                        formatter={(value: number | undefined) => [value !== undefined ? formatValue(value) : t('common:fallbacks.not_available'), resolvedValueLabel]}
                     />
 
                     {/* Lower threshold reference line */}
                     {lowerLimit !== undefined && (
                         <ReferenceLine
                             y={lowerLimit}
-                            stroke="#f59e0b"
+                            stroke={chartTheme.threshold.min}
                             strokeDasharray="4 4"
                             strokeWidth={1.5}
                             label={{
-                                value: `Min: ${formatValue(lowerLimit)}`,
+                                value: `${t('controls:detail.level_min')}: ${formatValue(lowerLimit)}`,
                                 position: 'left',
-                                fill: '#f59e0b',
+                                fill: chartTheme.threshold.min,
                                 fontSize: 10,
                                 fontWeight: 700,
                             }}
@@ -124,13 +128,13 @@ export function HistoryTrendChart({
                     {upperLimit !== undefined && (
                         <ReferenceLine
                             y={upperLimit}
-                            stroke="#ef4444"
+                            stroke={chartTheme.threshold.max}
                             strokeDasharray="4 4"
                             strokeWidth={1.5}
                             label={{
-                                value: `Max: ${formatValue(upperLimit)}`,
+                                value: `${t('controls:detail.level_max')}: ${formatValue(upperLimit)}`,
                                 position: 'left',
-                                fill: '#ef4444',
+                                fill: chartTheme.threshold.max,
                                 fontSize: 10,
                                 fontWeight: 700,
                             }}
@@ -140,12 +144,12 @@ export function HistoryTrendChart({
                     <Area
                         type="monotone"
                         dataKey="value"
-                        name={valueLabel}
-                        stroke="#1e84ff"
+                        name={resolvedValueLabel}
+                        stroke={chartTheme.series.primary}
                         strokeWidth={2}
                         fill="url(#historyTrendGradient)"
-                        dot={{ fill: '#1e84ff', strokeWidth: 0, r: 3 }}
-                        activeDot={{ fill: '#1e84ff', strokeWidth: 2, stroke: '#fff', r: 5 }}
+                        dot={{ fill: chartTheme.series.primary, strokeWidth: 0, r: 3 }}
+                        activeDot={{ fill: chartTheme.series.primary, strokeWidth: 2, stroke: chartTheme.activeDotFill, r: 5 }}
                     />
                 </AreaChart>
             </ResponsiveContainer>

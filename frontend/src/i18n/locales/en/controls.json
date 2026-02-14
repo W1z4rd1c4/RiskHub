@@ -115,7 +115,8 @@
       "key_finding": "Key Finding",
       "action": "Action"
     },
-    "no_records_help": "No audit records found for the selected filters."
+    "no_records_help": "No audit records found for the selected filters.",
+    "no_findings": "No findings recorded."
   },
   "form": {
     "steps": {

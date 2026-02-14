@@ -15,12 +15,14 @@ import {
 import type { ControlTrend } from '../../types/dashboard';
 import { useChartTheme } from '@/hooks/useChartTheme';
 import { getChartTooltipProps } from './chartTooltip';
+import { useTranslation } from '@/i18n/hooks';
 
 interface ControlTrendChartProps {
     data: ControlTrend[];
 }
 
 export function ControlTrendChart({ data }: ControlTrendChartProps) {
+    const { t } = useTranslation('dashboard');
     const chartTheme = useChartTheme();
     const tooltipProps = getChartTooltipProps(chartTheme, {
         contentStyle: { padding: '12px' },
@@ -36,8 +38,8 @@ export function ControlTrendChart({ data }: ControlTrendChartProps) {
                 >
                     <defs>
                         <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.8} />
-                            <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.2} />
+                            <stop offset="0%" stopColor={chartTheme.series.secondary} stopOpacity={0.8} />
+                            <stop offset="100%" stopColor={chartTheme.series.secondary} stopOpacity={0.2} />
                         </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.gridStroke} />
@@ -59,7 +61,7 @@ export function ControlTrendChart({ data }: ControlTrendChartProps) {
                     />
                     <Bar
                         dataKey="execution_count"
-                        name="Executions"
+                        name={t('charts.executions')}
                         radius={[4, 4, 0, 0]}
                     >
                         {data.map((_, index) => (

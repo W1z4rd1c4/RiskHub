@@ -346,6 +346,7 @@ interface ActivityLogPaginationProps {
 }
 
 function ActivityLogPagination({ page, setPage, limit, total, isLoading }: ActivityLogPaginationProps) {
+    const { t } = useTranslation('common');
     const totalPages = Math.ceil(total / limit);
     // Build a bounded page window to avoid O(totalPages) rendering
     const pageNumbers: (number | 'ellipsis')[] = [];
@@ -375,7 +376,11 @@ function ActivityLogPagination({ page, setPage, limit, total, isLoading }: Activ
     return (
         <div className="flex items-center justify-between px-2 text-slate-400">
             <div className="text-sm">
-                Showing {page * limit + 1} to {Math.min((page + 1) * limit, total)} of {total} entries
+                {t('pagination.showing_range', {
+                    start: total === 0 ? 0 : page * limit + 1,
+                    end: Math.min((page + 1) * limit, total),
+                    total,
+                })}
             </div>
             <div className="flex items-center gap-2">
                 <button

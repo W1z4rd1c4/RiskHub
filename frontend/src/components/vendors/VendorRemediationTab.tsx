@@ -38,9 +38,9 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
 
     const statusOptions = useMemo(
         () => [
-            { value: 'open', label: t('remediation.status.open', 'Open') },
-            { value: 'in_progress', label: t('remediation.status.in_progress', 'In progress') },
-            { value: 'done', label: t('remediation.status.done', 'Done') },
+            { value: 'open', label: t('remediation.status.open') },
+            { value: 'in_progress', label: t('remediation.status.in_progress') },
+            { value: 'done', label: t('remediation.status.done') },
         ],
         [t],
     );
@@ -70,10 +70,10 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
                 <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         <ClipboardCheck className="h-4 w-4" />
-                        {t('tabs.remediation', 'Remediation')}
+                        {t('tabs.remediation')}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('remediation.subtitle', 'Track remediation actions and ownership.')}
+                        {t('remediation.subtitle')}
                     </p>
                 </div>
                 {canEdit && (
@@ -82,7 +82,7 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
                         className="px-4 py-2 bg-accent/20 border border-accent/30 text-accent rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2"
                     >
                         <Plus className="h-4 w-4" />
-                        {t('remediation.actions.add', 'Add action')}
+                        {t('remediation.actions.add')}
                     </button>
                 )}
             </div>
@@ -94,7 +94,7 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
                         onChange={(e) => setDescription(e.target.value)}
                         rows={2}
                         className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400"
-                        placeholder={t('remediation.fields.description', 'Description')}
+                        placeholder={t('remediation.fields.description')}
                     />
                     <ThemedSelect value={status} onValueChange={(v) => setStatus(v as VendorRemediationStatus)} options={statusOptions} />
                     <div className="flex justify-end">
@@ -104,7 +104,7 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
                             className="px-4 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/90 transition-colors disabled:opacity-60 flex items-center gap-2"
                         >
                             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                            {t('remediation.actions.save', 'Save')}
+                            {t('remediation.actions.save')}
                         </button>
                     </div>
                 </div>
@@ -113,10 +113,10 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
             {isLoading ? (
                 <div className="flex items-center gap-3 text-slate-500 font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('labels.loading', 'Loading...')}
+                    {t('labels.loading')}
                 </div>
             ) : items.length === 0 ? (
-                <p className="text-sm text-slate-500 font-medium">{t('remediation.empty', 'No remediation actions yet.')}</p>
+                <p className="text-sm text-slate-500 font-medium">{t('remediation.empty')}</p>
             ) : (
                 <div className="space-y-3">
                     {items.map((a) => (
@@ -141,7 +141,7 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
                                             />
                                             <button
                                                 onClick={async () => {
-                                                    if (!confirm(t('remediation.confirm_delete', 'Delete this action?'))) return;
+                                                    if (!confirm(t('remediation.confirm_delete'))) return;
                                                     await vendorIncidentApi.deleteRemediation(a.id);
                                                     await refresh();
                                                 }}
