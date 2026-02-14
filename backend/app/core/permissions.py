@@ -12,9 +12,8 @@ from typing import Optional
 from fastapi import HTTPException, status
 
 from app.models import User
-from app.models.user import AccessScope
 from app.models.role import RoleType
-
+from app.models.user import AccessScope
 
 # ============================================================================
 # Module-level Constants
@@ -207,6 +206,7 @@ async def can_read_risk_id(db, user: User, risk_id: int) -> bool:
         return True
 
     from sqlalchemy import select
+
     from app.models import Risk
 
     row = (await db.execute(select(Risk.id, Risk.department_id).where(Risk.id == risk_id))).one_or_none()
@@ -229,6 +229,7 @@ async def can_read_control_id(db, user: User, control_id: int) -> bool:
         return True
 
     from sqlalchemy import select
+
     from app.models import Control
 
     row = (await db.execute(select(Control.id, Control.department_id).where(Control.id == control_id))).one_or_none()
@@ -250,6 +251,7 @@ async def can_read_vendor_id(db, user: User, vendor_id: int) -> bool:
         return False
 
     from sqlalchemy import select
+
     from app.models import Vendor
 
     row = (
@@ -284,6 +286,7 @@ async def can_read_kri_id(db, user: User, kri_id: int) -> bool:
         return False
 
     from sqlalchemy import select
+
     from app.models import KeyRiskIndicator
 
     risk_id = (await db.execute(select(KeyRiskIndicator.risk_id).where(KeyRiskIndicator.id == kri_id))).scalar_one_or_none()
@@ -301,6 +304,7 @@ async def get_issue_scope_clause(db, user: User):
         SQL expression: apply as `.where(clause)` to scope issues
     """
     from sqlalchemy import or_, select
+
     from app.models import Control, ControlExecution, Issue, IssueLink
 
     dept_ids = get_user_department_ids(user)
@@ -346,6 +350,7 @@ async def can_read_issue_id(db, user: User, issue_id: int) -> bool:
         return False
 
     from sqlalchemy import select
+
     from app.models import Issue
 
     scope_clause = await get_issue_scope_clause(db, user)
@@ -385,6 +390,7 @@ async def is_issue_owner_assignable_to_department(
         return True
 
     from sqlalchemy import select
+
     from app.models import Role, User
 
     row = (
@@ -583,6 +589,7 @@ async def is_kri_reporting_owner(db, user_id: int, kri_id: int) -> bool:
     Used for granting cross-department access to assigned reporting owners.
     """
     from sqlalchemy import select
+
     from app.models import KeyRiskIndicator
     
     result = await db.execute(
@@ -600,6 +607,7 @@ async def is_risk_kri_reporting_owner(db, user_id: int, risk_id: int) -> bool:
     Used for granting cross-department READ access to risks via KRI ownership.
     """
     from sqlalchemy import select
+
     from app.models import KeyRiskIndicator
     
     result = await db.execute(
@@ -620,6 +628,7 @@ async def get_kri_ids_where_reporting_owner(db, user_id: int) -> list[int]:
     Used for including cross-department KRIs in list queries.
     """
     from sqlalchemy import select
+
     from app.models import KeyRiskIndicator
     
     result = await db.execute(
@@ -636,6 +645,7 @@ async def get_risk_ids_where_kri_reporting_owner(db, user_id: int) -> list[int]:
     Used for including cross-department risks in list queries.
     """
     from sqlalchemy import select
+
     from app.models import KeyRiskIndicator
     
     result = await db.execute(
@@ -655,6 +665,7 @@ async def is_control_owner(db, user_id: int, control_id: int) -> bool:
     Used for granting cross-department access to assigned control owners.
     """
     from sqlalchemy import select
+
     from app.models import Control
     
     result = await db.execute(
@@ -672,6 +683,7 @@ async def is_risk_control_owner(db, user_id: int, risk_id: int) -> bool:
     Used for granting cross-department READ access to risks via control ownership.
     """
     from sqlalchemy import select
+
     from app.models import Control, ControlRiskLink
     
     result = await db.execute(
@@ -693,6 +705,7 @@ async def get_control_ids_where_owner(db, user_id: int) -> list[int]:
     Used for including cross-department controls in list queries.
     """
     from sqlalchemy import select
+
     from app.models import Control
     
     result = await db.execute(
@@ -709,6 +722,7 @@ async def get_risk_ids_where_control_owner(db, user_id: int) -> list[int]:
     Used for including cross-department risks in list queries.
     """
     from sqlalchemy import select
+
     from app.models import Control, ControlRiskLink
     
     result = await db.execute(

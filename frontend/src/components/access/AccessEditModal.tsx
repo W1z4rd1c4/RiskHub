@@ -3,7 +3,7 @@
  * Privileged users can edit role, department, manager.
  * Admin/CRO can additionally edit access_scope.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Shield, Building2, User, Loader2, Check, Crown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -48,20 +48,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
 
-    useEffect(() => {
-        if (isOpen && user) {
-            setIsInitialized(false);
-            setErrorKey(null);
-            setSelectedRoleId(user.role_id);
-            setSelectedDeptId(user.department_id);
-            setSelectedManagerId(user.manager_id);
-            setSelectedScope(user.access_scope);
-            loadData();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData is stable, user?.id is the key dependency
-    }, [isOpen, user?.id]);
-
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         try {
             const [rolesData, deptsData, usersData] = await Promise.all([
                 accessApi.listAccessRoles(),
@@ -77,7 +64,19 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
             setErrorKey('errorKeys.request_failed');
             setIsInitialized(true);
         }
-    };
+    }, [user?.id]);
+
+    useEffect(() => {
+        if (isOpen && user) {
+            setIsInitialized(false);
+            setErrorKey(null);
+            setSelectedRoleId(user.role_id);
+            setSelectedDeptId(user.department_id);
+            setSelectedManagerId(user.manager_id);
+            setSelectedScope(user.access_scope);
+            void loadData();
+        }
+    }, [isOpen, loadData, user]);
 
     const handleSubmit = async () => {
         if (!user) return;

@@ -1,10 +1,12 @@
 """Service for logging activities across the system."""
-from enum import Enum as PyEnum
 from datetime import date, datetime
+from enum import Enum as PyEnum
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.logging import get_audit_logger
 from app.models import ActivityLog, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.core.logging import get_audit_logger
 
 # Structured logger for audit events (SIEM-compatible) - routes to audit.json.log
 audit_logger = get_audit_logger()

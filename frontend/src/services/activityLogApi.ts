@@ -16,8 +16,7 @@ export interface ActivityLogFilters {
 
 export const activityLogApi = {
     async list(filters: ActivityLogFilters = {}): Promise<ActivityLogListResponse> {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return api.get('/activity-log', { params: filters as any });
+        return api.get<ActivityLogListResponse>('/activity-log', { params: filters });
     },
 
     async getEntityTypes(): Promise<string[]> {

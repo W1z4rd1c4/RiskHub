@@ -7,16 +7,16 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.permissions import can_read_vendor, is_vendor_owner
-from app.core.security import require_permission, check_permission
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import User, Vendor
-from app.models.vendor_exit_plan import VendorExitPlan, VendorPlanStatus
 from app.models.vendor_contingency_plan import VendorContingencyPlan
+from app.models.vendor_exit_plan import VendorExitPlan, VendorPlanStatus
 from app.schemas.vendor_resilience import (
+    VendorContingencyPlanRead,
+    VendorExitPlanRead,
     VendorResilienceRead,
     VendorResilienceUpdate,
-    VendorExitPlanRead,
-    VendorContingencyPlanRead,
 )
 
 router = APIRouter()

@@ -92,8 +92,7 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
         loadUsers();
     }, []);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleInputChange = (field: keyof KRICreate, value: any) => {
+    const handleInputChange = <K extends keyof KRICreate>(field: K, value: KRICreate[K] | undefined) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         setError(null); // Clear error on change
     };

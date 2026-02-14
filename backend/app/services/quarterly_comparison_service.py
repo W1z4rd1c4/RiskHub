@@ -5,26 +5,26 @@ Extracted from dashboard.py to improve readability and testability.
 This service computes period-based metrics (events that happened within a quarter)
 while snapshot-based metrics are handled by snapshot_service.py.
 """
-import re
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
 from dateutil.relativedelta import relativedelta
-from sqlalchemy import select, func, and_
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import User, Control, Risk
-from app.models.activity_log import ActivityLog
-from app.models.control import ControlStatus
-from app.models.control_execution import ControlExecution, ExecutionResult
-from app.models.risk import RiskStatus
 from app.core.permissions import get_user_department_ids
 from app.core.snapshot_service import (
     capture_snapshot_metrics,
     get_quarter_label,
     get_quarter_snapshot,
 )
+from app.models import Control, Risk, User
+from app.models.activity_log import ActivityLog
+from app.models.control import ControlStatus
+from app.models.control_execution import ControlExecution, ExecutionResult
+from app.models.risk import RiskStatus
 
 logger = logging.getLogger(__name__)
 

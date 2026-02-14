@@ -1,30 +1,30 @@
 from __future__ import annotations
 
-from datetime import datetime, UTC, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
+from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import can_read_vendor, is_vendor_owner
-from app.core.security import require_permission, check_permission
-from app.core.activity_logger import log_activity, build_change_set
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.i18n import t
 from app.models import User, Vendor
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.notification import NotificationType
-from app.models.role import Role, RoleType, RolePermission
-from app.models.vendor_incident import VendorIncident, VendorIncidentType, VendorIncidentSeverity
+from app.models.role import Role, RolePermission, RoleType
+from app.models.vendor_incident import VendorIncident, VendorIncidentSeverity, VendorIncidentType
 from app.models.vendor_remediation import VendorRemediationAction, VendorRemediationStatus
 from app.schemas.vendor_incident import (
-    VendorIncidentRead,
     VendorIncidentCreate,
+    VendorIncidentRead,
     VendorIncidentUpdate,
-    VendorRemediationRead,
     VendorRemediationCreate,
+    VendorRemediationRead,
     VendorRemediationUpdate,
 )
 from app.services.notification_service import NotificationService

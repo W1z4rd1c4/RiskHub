@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from enum import Enum as PyEnum
 from datetime import datetime
+from enum import Enum as PyEnum
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Enum as SAEnum, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base

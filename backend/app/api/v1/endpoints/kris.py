@@ -1,26 +1,32 @@
 """
 API endpoints for Key Risk Indicators.
 """
-from datetime import date, datetime, UTC
+from datetime import UTC, date, datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, or_
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import selectinload, joinedload
 
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload, selectinload
+
+from app.api import deps
+from app.core.activity_logger import build_change_set, log_activity
+from app.core.pagination import MAX_KRI_PAGE_SIZE
+from app.core.permissions import check_department_access, get_user_department_ids
+from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
-from app.schemas.kri import (
-    KRICreate, KRIUpdate, KRIResponse, KRIListResponse,
-    KRIRecordValue, KRIHistoryEntry, KRIHistoryListResponse, KRIHistoryEdit,
-)
-from app.api import deps
-from app.core.permissions import get_user_department_ids, check_department_access
-from app.core.security import require_permission
-from app.core.pagination import MAX_KRI_PAGE_SIZE
-from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.kri import (
+    KRICreate,
+    KRIHistoryEdit,
+    KRIHistoryEntry,
+    KRIHistoryListResponse,
+    KRIListResponse,
+    KRIRecordValue,
+    KRIResponse,
+    KRIUpdate,
+)
 
 router = APIRouter(prefix="/kris", tags=["Key Risk Indicators"])
 
@@ -328,7 +334,7 @@ async def update_kri(
     will trigger an approval request instead of immediate update.
     """
     from app.core.permissions import can_resolve_approvals
-    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
+    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
     
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -477,9 +483,10 @@ async def delete_kri(
     - Risk Manager/CRO/Admin: deletes immediately (204)
     - Others: creates approval request (202), item stays visible
     """
-    from app.core.permissions import can_resolve_approvals
-    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType
     from fastapi.responses import Response
+
+    from app.core.permissions import can_resolve_approvals
+    from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
     
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -621,10 +628,11 @@ async def record_kri_value(
     - Privileged users (CRO/Risk Manager): apply immediately.
     - Non-privileged users: creates tiered approval (Risk Owner → Privileged if priority).
     """
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
+
     from app.core.permissions import can_resolve_approvals, has_permission, is_kri_reporting_owner
+    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
     from app.services.kri_history_service import KRIHistoryService
-    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
     from app.services.notification_service import NotificationService
     
     result = await db.execute(
@@ -751,7 +759,7 @@ async def record_kri_value(
     
     # Privileged users can record directly
     try:
-        history_entry = await KRIHistoryService.record_value(
+        await KRIHistoryService.record_value(
             db=db,
             kri=kri,
             value=data.value,
@@ -829,10 +837,9 @@ async def get_kri_history(
     size: int = Query(20, ge=1, le=100),
 ):
     """Get paginated history for a KRI."""
-    from datetime import date
-    from app.services.kri_history_service import KRIHistoryService
-    from app.schemas.kri import KRIHistoryEntry
     from app.core.permissions import is_kri_reporting_owner
+    from app.schemas.kri import KRIHistoryEntry
+    from app.services.kri_history_service import KRIHistoryService
     
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -903,10 +910,10 @@ async def correct_history_entry(
     Privileged users apply the correction immediately.
     """
     from app.core.permissions import can_resolve_approvals
-    from app.services.kri_history_service import KRIHistoryService
-    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
+    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
     from app.models.kri_history import KRIValueHistory
     from app.schemas.kri import KRIHistoryEntry
+    from app.services.kri_history_service import KRIHistoryService
     
     # Verify KRI exists and access
     result = await db.execute(

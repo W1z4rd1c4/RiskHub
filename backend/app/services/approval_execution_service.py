@@ -9,7 +9,7 @@ This module provides the core business logic for processing approval requests:
 The endpoint layer (`approvals.py`) handles HTTP concerns, routing, and orchestration.
 """
 import logging
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import HTTPException
@@ -17,15 +17,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import (
-    User, Risk, Control, KeyRiskIndicator,
-    ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType,
-)
-from app.models.risk import RiskStatus as RiskStatusEnum
-from app.models.control import ControlStatus
-from app.core.permissions import can_resolve_approvals
 from app.core.activity_logger import log_activity
+from app.core.permissions import can_resolve_approvals
+from app.models import (
+    ApprovalActionType,
+    ApprovalRequest,
+    ApprovalResourceType,
+    ApprovalStatus,
+    Control,
+    KeyRiskIndicator,
+    Risk,
+    User,
+)
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.models.control import ControlStatus
+from app.models.risk import RiskStatus as RiskStatusEnum
 
 logger = logging.getLogger(__name__)
 
@@ -231,7 +237,7 @@ async def _apply_delete_side_effects(
             approval.status = ApprovalStatus.REJECTED
             approval.resolution_notes = (
                 (approval.resolution_notes or "") + 
-                f"\nAuto-rejected: Resource was deleted before approval could be applied."
+                "\nAuto-rejected: Resource was deleted before approval could be applied."
             )
             return
         
@@ -262,7 +268,7 @@ async def _apply_delete_side_effects(
             approval.status = ApprovalStatus.REJECTED
             approval.resolution_notes = (
                 (approval.resolution_notes or "") + 
-                f"\nAuto-rejected: Resource was deleted before approval could be applied."
+                "\nAuto-rejected: Resource was deleted before approval could be applied."
             )
             return
         
@@ -296,7 +302,7 @@ async def _apply_delete_side_effects(
             approval.status = ApprovalStatus.REJECTED
             approval.resolution_notes = (
                 (approval.resolution_notes or "") + 
-                f"\nAuto-rejected: Resource was deleted before approval could be applied."
+                "\nAuto-rejected: Resource was deleted before approval could be applied."
             )
             return
         
@@ -557,6 +563,7 @@ async def _apply_kri_value_submission(
 ) -> None:
     """Apply value submission (new history entry) to a KRI."""
     from datetime import date as date_type
+
     from app.services.kri_history_service import KRIHistoryService
 
     value_change = changes.get("current_value")

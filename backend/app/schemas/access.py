@@ -1,8 +1,9 @@
 """Pydantic schemas for access management endpoints."""
 from typing import Optional
+
 from pydantic import BaseModel
 
-from app.schemas.user import RoleRead, AccessScopeEnum
+from app.schemas.user import AccessScopeEnum, RoleRead
 
 
 class PermissionRead(BaseModel):

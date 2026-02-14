@@ -11,7 +11,7 @@ from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import Select, and_, func, or_, select
+from sqlalchemy import Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -45,7 +45,11 @@ from app.models.kri_history import KRIValueHistory
 from app.models.risk import ControlRiskLink, RiskStatus
 from app.models.vendor import VendorStatus
 from app.services.export_snapshot_service import ExportSnapshotService
-from app.services.issue_visibility_service import coerce_utc, issue_has_active_approved_exception, unsuppressed_issue_clause
+from app.services.issue_visibility_service import (
+    coerce_utc,
+    issue_has_active_approved_exception,
+    unsuppressed_issue_clause,
+)
 from app.services.report_service import (
     generate_audit_trail_excel,
     generate_tabular_csv,

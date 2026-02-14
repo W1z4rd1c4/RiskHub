@@ -4,15 +4,15 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, func, update, and_, not_
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
 from app.integrations.ad_emulator_client import ADEmulatorClient
-from app.models import User, Role, Department
+from app.models import Department, Role, User
 from app.models.directory_sync_log import DirectorySyncLog, DirectorySyncStatus
 from app.schemas.directory_sync import DirectorySyncPreview, DirectoryUserDiff
 
@@ -443,8 +443,8 @@ class DirectorySyncService:
         
         Returns dict with lists of affected item IDs.
         """
-        from app.models.risk import Risk
         from app.models.control import Control
+        from app.models.risk import Risk
         
         # Find risks owned by this user
         risks_result = await db.execute(
@@ -625,8 +625,8 @@ class DirectorySyncService:
         Empty means no ACTIVE users.
         Returns number of departments cleaned up.
         """
-        from app.models.risk import Risk
         from app.models.control import Control
+        from app.models.risk import Risk
 
         # Find Uncategorised department
         uncat_result = await db.execute(select(Department).where(Department.code == "UNCAT"))

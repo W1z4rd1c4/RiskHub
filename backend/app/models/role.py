@@ -1,8 +1,15 @@
-from datetime import datetime
+from __future__ import annotations
+
 from enum import StrEnum
-from sqlalchemy import String, Boolean, ForeignKey
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 class RoleType(StrEnum):
@@ -74,7 +81,7 @@ class Role(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     
     # Relationships
-    users: Mapped[list["User"]] = relationship("User", back_populates="role")
+    users: Mapped[list[User]] = relationship("User", back_populates="role")
     permissions: Mapped[list["RolePermission"]] = relationship("RolePermission", back_populates="role", cascade="all, delete-orphan")
 
 

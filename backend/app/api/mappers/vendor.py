@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.models import Vendor
-from app.schemas.vendor import VendorRead, VendorListResponse
+from app.schemas.vendor import VendorListResponse, VendorRead
 
 
 def vendor_to_read(vendor: Vendor) -> VendorRead:

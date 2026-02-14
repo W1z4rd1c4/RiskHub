@@ -1,25 +1,33 @@
 """Risk Hub API endpoints for CRO business configuration."""
-from datetime import datetime, UTC
-from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.session import get_db
-from app.models import User, RiskTypeConfig, GlobalConfig, ApprovalScenario, Risk
-from app.models.role import RoleType
 from app.api.deps import get_current_user
 from app.core.activity_logger import log_activity
 from app.core.policy import PROTECTED_SYSTEM_ROLES, PUBLIC_CONFIG_ALLOWLIST
+from app.db.session import get_db
+from app.models import ApprovalScenario, GlobalConfig, Risk, RiskTypeConfig, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.models.role import RoleType
 from app.schemas.riskhub import (
-    RiskTypeRead, RiskTypeCreate, RiskTypeUpdate, PublicRiskTypeRead,
-    GlobalConfigRead, GlobalConfigUpdate,
-    ApprovalScenarioRead, ApprovalScenarioUpdate,
-    RoleHubRead, RoleHubCreate, RoleHubUpdate, PermissionHubRead,
-    DepartmentHubRead, DepartmentHubCreate, DepartmentHubUpdate,
+    ApprovalScenarioRead,
+    ApprovalScenarioUpdate,
+    DepartmentHubCreate,
+    DepartmentHubRead,
+    DepartmentHubUpdate,
+    GlobalConfigRead,
+    GlobalConfigUpdate,
+    PermissionHubRead,
+    PublicRiskTypeRead,
+    RiskTypeCreate,
+    RiskTypeRead,
+    RiskTypeUpdate,
+    RoleHubCreate,
+    RoleHubRead,
+    RoleHubUpdate,
 )
 
 router = APIRouter()
@@ -719,7 +727,7 @@ async def list_roles(
     include_inactive: bool = Query(False, description="Include soft-deleted roles")
 ) -> list[RoleHubRead]:
     """List all roles with permissions. CRO only."""
-    from app.models.role import Role, RolePermission, Permission
+    from app.models.role import Role, RolePermission
     
     query = select(Role).options(
         selectinload(Role.permissions).selectinload(RolePermission.permission),
@@ -754,7 +762,7 @@ async def create_role(
     cro_user: User = Depends(get_cro_user)
 ) -> RoleHubRead:
     """Create a new role. CRO only."""
-    from app.models.role import Role, RolePermission, Permission
+    from app.models.role import Permission, Role, RolePermission
     
     # Check for duplicate name
     existing = await db.execute(select(Role).where(Role.name == data.name))
@@ -829,7 +837,7 @@ async def update_role(
     cro_user: User = Depends(get_cro_user)
 ) -> RoleHubRead:
     """Update a role. CRO only."""
-    from app.models.role import Role, RolePermission, Permission
+    from app.models.role import Permission, Role, RolePermission
     
     result = await db.execute(
         select(Role)
@@ -1030,8 +1038,8 @@ async def list_departments_hub(
     include_inactive: bool = Query(False, description="Include soft-deleted departments")
 ) -> list[DepartmentHubRead]:
     """List all departments with stats. CRO only."""
+    from app.models import Control, Risk, User
     from app.models.department import Department
-    from app.models import Risk, Control, User
     
     query = select(Department).options(selectinload(Department.manager)).order_by(Department.name)
     
@@ -1162,8 +1170,8 @@ async def update_department(
     cro_user: User = Depends(get_cro_user)
 ) -> DepartmentHubRead:
     """Update a department. CRO only."""
+    from app.models import Control, Risk
     from app.models.department import Department
-    from app.models import Risk, Control
     
     result = await db.execute(
         select(Department)
@@ -1258,8 +1266,8 @@ async def delete_department(
     cro_user: User = Depends(get_cro_user)
 ) -> dict:
     """Soft-delete a department. CRO only. Cannot delete departments with users/risks/controls."""
+    from app.models import Control, Risk
     from app.models.department import Department
-    from app.models import Risk, Control
     
     result = await db.execute(
         select(Department).options(selectinload(Department.users)).where(Department.id == id)

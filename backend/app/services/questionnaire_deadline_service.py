@@ -1,16 +1,16 @@
 """Questionnaire deadline checking service for generating notifications."""
 import logging
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.i18n import t
-from app.models import RiskQuestionnaire, User
+from app.models import RiskQuestionnaire
+from app.models.global_config import ConfigDefaults, get_config_int
 from app.models.notification import Notification, NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
-from app.models.global_config import ConfigDefaults, get_config_int
 from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)

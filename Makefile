@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make <target>
 
-.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell
+.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend
 
 # Default target
 help:
@@ -23,6 +23,9 @@ help:
 	@echo "Testing:"
 	@echo "  make test         - Run backend tests"
 	@echo "  make test-e2e     - Run Playwright E2E tests"
+	@echo "  make lint         - Run frontend + backend lint"
+	@echo "  make lint-frontend - Run frontend ESLint + debt budget"
+	@echo "  make lint-backend - Run backend Ruff lint"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make logs         - Tail all Docker logs"
@@ -103,6 +106,17 @@ test-cov:
 # Run E2E tests
 test-e2e:
 	cd frontend && npx playwright test
+
+# Run frontend lint and debt budget
+lint-frontend:
+	cd frontend && npm run lint && npm run quality:debt
+
+# Run backend lint
+lint-backend:
+	cd backend && ./venv/bin/python -m ruff check .
+
+# Run full lint suite
+lint: lint-frontend lint-backend
 
 # =============================================================================
 # Utilities

@@ -241,8 +241,7 @@ export function RiskDetailOverviewTab({
                                 return (
                                     <KRIGaugeCard
                                         key={kri.id}
-                                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                        kri={kri as any}
+                                        kri={kri}
                                         isOverdue={!!overdueInfo}
                                         daysOverdue={overdueInfo?.days_overdue}
                                         onClick={() => onNavigateToKri(kri.id)}

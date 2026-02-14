@@ -5,15 +5,15 @@ Manages reporting windows, period calculations, and value recording
 with enforcement of the 15-day grace window for non-privileged users.
 """
 import logging
-from datetime import datetime, date, timedelta, UTC
+from datetime import UTC, date, datetime, timedelta
 from typing import Optional, Tuple
-from sqlalchemy import select, and_
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
-from app.models.user import User
 
 logger = logging.getLogger(__name__)
 

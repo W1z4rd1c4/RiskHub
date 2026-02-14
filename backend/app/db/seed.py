@@ -1,18 +1,32 @@
 """Seed script to populate database with initial data."""
 import asyncio
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.rbac_seed_contract import (
     RBAC_PERMISSIONS as PERMISSIONS,
-    RBAC_ROLES as ROLES,
+)
+from app.db.rbac_seed_contract import (
     RBAC_ROLE_PERMISSIONS as ROLE_PERMISSIONS,
 )
+from app.db.rbac_seed_contract import (
+    RBAC_ROLES as ROLES,
+)
 from app.db.session import async_session_maker
-from app.models import Role, Permission, RolePermission, User, Department
+from app.models import (
+    Control,
+    ControlExecution,
+    ControlRiskLink,
+    Department,
+    Permission,
+    Risk,
+    Role,
+    RolePermission,
+    User,
+)
 from app.models.user import AccessScope
-from app.models import Control, ControlExecution, Risk, ControlRiskLink
 
 # Sample departments
 DEPARTMENTS = [

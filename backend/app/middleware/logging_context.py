@@ -9,12 +9,12 @@ This middleware:
 All downstream loggers automatically include this context.
 """
 import uuid
+
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.core.logging import request_id_ctx, user_id_ctx, client_ip_ctx, get_logger
-
+from app.core.logging import client_ip_ctx, get_logger, request_id_ctx, user_id_ctx
 
 logger = get_logger("middleware.logging")
 
@@ -112,7 +112,8 @@ def _extract_user_id_from_token(token: str) -> int | None:
     Invalid/expired tokens return None (no attribution).
     """
     try:
-        from jose import jwt, JWTError
+        from jose import JWTError, jwt
+
         from app.core.config import get_settings
         
         settings = get_settings()

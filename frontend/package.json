@@ -8,6 +8,7 @@
     "dev:lan": "vite --host",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "quality:debt": "node scripts/quality/debt-budget.mjs",
     "i18n:inventory": "node scripts/i18n/inventory-ui-text.mjs",
     "i18n:scan": "node scripts/i18n/scan-hardcoded-ui.mjs",
     "i18n:validate:strict": "node scripts/i18n/validate-parity.mjs",

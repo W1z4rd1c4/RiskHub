@@ -1,7 +1,9 @@
-from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import String, Text, Integer, Boolean, ForeignKey, DateTime, func
+from enum import Enum as PyEnum
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
 
 
@@ -132,7 +134,7 @@ class ControlRiskLink(Base):
 
 
 # Import for type hints
-from app.models.department import Department
-from app.models.user import User
 from app.models.control import Control
+from app.models.department import Department
 from app.models.key_risk_indicator import KeyRiskIndicator
+from app.models.user import User

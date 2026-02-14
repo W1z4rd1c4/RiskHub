@@ -9,7 +9,7 @@
  * - ExistingLinksPanel: Display and unlink existing items
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Link as LinkIcon } from 'lucide-react';
@@ -121,32 +121,11 @@ export function LinkManagementDialog({
         }
     }, [isOpen, showSearch]);
 
-    // Search with debounce
-    useEffect(() => {
-        if (!isOpen) {
-            setSearchQuery('');
-            setSearchResults([]);
-            setSelectedTargetId(null);
-            setSelectedDeptId(null);
-            setSelectedProcess('');
-            setSelectedCategory('');
-            setIncludeArchived(false);
-            return;
-        }
-
-        const delayDebounceFn = setTimeout(() => {
-            handleSearch();
-        }, 300);
-
-        return () => clearTimeout(delayDebounceFn);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchQuery, selectedDeptId, selectedProcess, selectedCategory, includeArchived, isOpen]);
-
     // -----------------------------------------------------------------------
     // Handlers
     // -----------------------------------------------------------------------
 
-    const handleSearch = async () => {
+    const handleSearch = useCallback(async () => {
         try {
             setIsSearching(true);
             const params: Record<string, string | number | boolean> = {
@@ -170,7 +149,27 @@ export function LinkManagementDialog({
         } finally {
             setIsSearching(false);
         }
-    };
+    }, [includeArchived, linkedTargetIds, mode, searchQuery, selectedCategory, selectedDeptId, selectedProcess]);
+
+    // Search with debounce
+    useEffect(() => {
+        if (!isOpen) {
+            setSearchQuery('');
+            setSearchResults([]);
+            setSelectedTargetId(null);
+            setSelectedDeptId(null);
+            setSelectedProcess('');
+            setSelectedCategory('');
+            setIncludeArchived(false);
+            return;
+        }
+
+        const delayDebounceFn = setTimeout(() => {
+            void handleSearch();
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [handleSearch, isOpen]);
 
     const handleLink = async () => {
         if (selectedTargetId === null) return;

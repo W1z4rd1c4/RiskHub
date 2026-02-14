@@ -1,32 +1,31 @@
 """Risk questionnaire API endpoints."""
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, desc, or_
+from sqlalchemy import desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api import deps
+from app.core.activity_logger import log_activity
+from app.core.permissions import can_read_risk_id, check_department_access, get_user_department_ids
+from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import Risk, User, RiskQuestionnaire, RiskQuestionnaireClarification, Role, RolePermission
+from app.i18n import t
+from app.models import Risk, RiskQuestionnaire, RiskQuestionnaireClarification, Role, RolePermission, User
+from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.models.notification import NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.role import RoleType
 from app.schemas.risk_questionnaire import (
-    RiskQuestionnaireListItemRead,
-    RiskQuestionnaireRead,
-    RiskQuestionnaireDraftUpdate,
-    RiskQuestionnaireSubmit,
     RiskQuestionnaireClarificationCreate,
     RiskQuestionnaireClarificationRead,
     RiskQuestionnaireClarificationRespond,
+    RiskQuestionnaireDraftUpdate,
+    RiskQuestionnaireListItemRead,
+    RiskQuestionnaireRead,
+    RiskQuestionnaireSubmit,
 )
-from app.core.permissions import check_department_access, get_user_department_ids, can_read_risk_id
-from app.core.security import require_permission
-from app.core.activity_logger import log_activity
-from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.models.notification import NotificationType
 from app.services.notification_service import NotificationService
-from app.i18n import t
 from app.services.risk_questionnaire_service import (
     QUESTIONNAIRE_TEMPLATE_KEY,
     QUESTIONNAIRE_TEMPLATE_VERSION,
@@ -43,7 +42,7 @@ risk_router = APIRouter(prefix="/risks")
 
 
 async def _get_risk_for_read(db: AsyncSession, current_user: User, risk_id: int) -> Risk:
-    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
+    from app.core.permissions import is_risk_control_owner, is_risk_kri_reporting_owner
 
     result = await db.execute(select(Risk).where(Risk.id == risk_id))
     risk = result.scalar_one_or_none()

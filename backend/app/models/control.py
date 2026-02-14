@@ -1,7 +1,9 @@
-from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import String, Text, Integer, ForeignKey, DateTime, func
+from enum import Enum as PyEnum
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
 
 
@@ -107,7 +109,7 @@ class Control(Base):
 
 
 # Import for type hints (to avoid circular imports)
-from app.models.user import User
-from app.models.department import Department
 from app.models.control_execution import ControlExecution
+from app.models.department import Department
 from app.models.risk import ControlRiskLink
+from app.models.user import User
