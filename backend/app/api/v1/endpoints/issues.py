@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, func, or_, select
@@ -68,6 +68,7 @@ from app.schemas.issue import (
     IssueUpdate,
 )
 from app.services.issue_workflow_service import IssueWorkflowService
+from app.services.issue_visibility_service import unsuppressed_issue_clause
 from app.services.notification_service import NotificationService
 
 router = APIRouter()
@@ -548,9 +549,11 @@ async def list_issues(
     limit: int = Query(50, ge=1, le=100),
     status: Optional[IssueStatus] = None,
     severity: Optional[IssueSeverity] = None,
+    severity_group: Optional[Literal["high_critical"]] = Query(None),
     owner_user_id: Optional[int] = None,
     department_id: Optional[int] = None,
     overdue: Optional[bool] = None,
+    exclude_active_exceptions: bool = Query(False),
     linked_risk_id: Optional[int] = None,
     linked_control_id: Optional[int] = None,
     linked_vendor_id: Optional[int] = None,
@@ -560,6 +563,7 @@ async def list_issues(
     sort_order: Optional[str] = Query(None),
 ) -> IssueListResponse:
     query = select(Issue)
+    now = datetime.now(UTC)
     scope_clause = await get_issue_scope_clause(db, current_user)
     if scope_clause is not None:
         query = query.where(scope_clause)
@@ -568,17 +572,20 @@ async def list_issues(
         query = query.where(Issue.department_id == department_id)
     if status is not None:
         query = query.where(Issue.status == status.value)
-    if severity is not None:
+    if severity_group == "high_critical":
+        query = query.where(Issue.severity.in_((IssueSeverity.high.value, IssueSeverity.critical.value)))
+    elif severity is not None:
         query = query.where(Issue.severity == severity.value)
     if owner_user_id is not None:
         query = query.where(Issue.owner_user_id == owner_user_id)
+    if exclude_active_exceptions:
+        query = query.where(unsuppressed_issue_clause(now))
     if not include_closed:
         query = query.where(Issue.status != IssueStatus.closed.value)
     if search and search.strip():
         pattern = f"%{search.strip()}%"
         query = query.where(or_(Issue.title.ilike(pattern), Issue.description.ilike(pattern)))
 
-    now = datetime.now(UTC)
     if overdue is True:
         query = query.where(and_(Issue.due_at.is_not(None), Issue.due_at < now, Issue.status != IssueStatus.closed.value))
     if overdue is False:

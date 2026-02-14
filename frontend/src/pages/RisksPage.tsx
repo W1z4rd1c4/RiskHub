@@ -247,7 +247,10 @@ export function RisksPage() {
                             <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
                         )}
                         {pendingApprovalIds.has(risk.id) && (
-                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20" title="Changes Pending Approval">
+                            <div
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20"
+                                title={t('columns.pending_tooltip')}
+                            >
                                 <Lock className="h-2.5 w-2.5" />
                                 {t('columns.pending')}
                             </div>
@@ -501,7 +504,7 @@ export function RisksPage() {
                             ? 'bg-amber-400/20 border-amber-400/50 text-amber-400'
                             : 'glass text-slate-400 hover:text-white'
                             }`}
-                        title="Priority Risks"
+                        title={t('filters.priority_only')}
                     >
                         <Star className="h-5 w-5" />
                     </button>
@@ -514,7 +517,7 @@ export function RisksPage() {
                                 setSearchParams(newParams);
                             }}
                             className="p-2.5 rounded-xl border bg-rose-400/20 border-rose-400/50 text-rose-400"
-                            title="Critical Only (click to clear)"
+                            title={t('filters.critical_only_clear')}
                         >
                             <AlertTriangle className="h-5 w-5" />
                         </button>
@@ -526,7 +529,7 @@ export function RisksPage() {
                                 setSearchParams({});
                             }}
                             className="p-2.5 rounded-xl border bg-rose-400/20 border-rose-400/50 text-rose-400"
-                            title="Breached Only (click to clear)"
+                            title={t('filters.breached_only_clear')}
                         >
                             <AlertCircle className="h-5 w-5" />
                         </button>
@@ -636,15 +639,15 @@ export function RisksPage() {
                                     </div>
                                     <span className="text-[10px] text-slate-500">{risk.process}</span>
                                 </div>
-                                <span className={`px - 2 py - 0.5 rounded - md text - [10px] font - bold uppercase ${getStatusColor(risk.status)} `}>
+                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getStatusColor(risk.status)}`}>
                                     {risk.status}
                                 </span>
                             </div>
                             <div className="flex items-center gap-4">
-                                <div className={`px - 2.5 py - 1 rounded - full text - [10px] font - black border ${getScoreColor(risk.gross_score)} `}>
+                                <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(risk.gross_score)}`}>
                                     G: {risk.gross_score}
                                 </div>
-                                <div className={`px - 2.5 py - 1 rounded - full text - [10px] font - black border ${getScoreColor(risk.net_score)} `}>
+                                <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(risk.net_score)}`}>
                                     N: {risk.net_score}
                                 </div>
                                 <ChevronRight className="h-4 w-4 text-slate-500" />

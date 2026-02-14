@@ -165,8 +165,8 @@ export function AuditTrailPage() {
                                         <div className="bg-white/5 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6">
                                             <History className="h-8 w-8 text-slate-700" />
                                         </div>
-                                        <p className="text-white font-bold text-lg">No execution records found</p>
-                                        <p className="text-slate-500 max-w-xs mx-auto mt-2 font-medium">Try adjusting your filters or log a new control execution.</p>
+                                        <p className="text-white font-bold text-lg">{t('common:empty.no_executions')}</p>
+                                        <p className="text-slate-500 max-w-xs mx-auto mt-2 font-medium">{t('audit_trail.no_records_help')}</p>
                                     </td>
                                 </tr>
                             ) : (
@@ -209,7 +209,7 @@ export function AuditTrailPage() {
                                                         </div>
                                                     ))
                                                 ) : (
-                                                    <span className="text-xs text-slate-600 italic">No linked risks</span>
+                                                    <span className="text-xs text-slate-600 italic">{t('common:empty.no_linked_risks')}</span>
                                                 )}
                                             </div>
                                         </td>

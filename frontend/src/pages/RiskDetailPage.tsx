@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { riskApi } from '@/services/riskApi';
 import { kriApi } from '@/services/kriApi';
+import { apiClient } from '@/services/apiClient';
 import type { Risk, RiskControlLink, ControlEffectiveness } from '@/types/risk';
 import type { OverdueKRI } from '@/types/kri';
 import type { HistoryTimelineItem } from '@/types/history';
@@ -41,7 +42,7 @@ export function RiskDetailPage() {
     const [linkedControls, setLinkedControls] = useState<RiskControlLink[]>([]);
     const [linkedVendors, setLinkedVendors] = useState<Vendor[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
     const [dialogMode, setDialogMode] = useState<'both' | 'search-only' | 'links-only'>('both');
@@ -50,8 +51,8 @@ export function RiskDetailPage() {
     // Delete confirmation dialog state
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [approvalMessage, setApprovalMessage] = useState<string | null>(null);
-    const [linkError, setLinkError] = useState<string | null>(null);
+    const [approvalMessage, setApprovalMessage] = useState<{ key: string; isError: boolean; values?: Record<string, unknown> } | null>(null);
+    const [linkErrorKey, setLinkErrorKey] = useState<string | null>(null);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
     // KRI History State
@@ -76,10 +77,10 @@ export function RiskDetailPage() {
             setLinkedControls(controlsData);
             setLinkedVendors(vendorsData);
             setOverdueKRIs(overdueData);
-            setError(null);
+            setErrorKey(null);
         } catch (err) {
             console.error('Error fetching risk details:', err);
-            setError('Failed to load risk details.');
+            setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setIsLoading(false);
         }
@@ -121,7 +122,7 @@ export function RiskDetailPage() {
                             badge: entry.breach_status === 'within' ? 'OK' : 'BREACH',
                             meta: [
                                 { label: 'KRI', value: kri.metric_name },
-                                { label: 'Recorded by', value: entry.recorded_by_name ?? 'System' },
+                                { label: t('risks:history.recorded_by'), value: entry.recorded_by_name ?? t('risks:history.system') },
                             ],
                         });
                     }
@@ -153,7 +154,11 @@ export function RiskDetailPage() {
             // Check if the response indicates approval was required (202)
             if (isApprovalCreatedResponse(response)) {
                 setApprovalMessage(
-                    `Archive request submitted for approval (ID: ${response.approval_id}). The risk has not been archived yet.`
+                    {
+                        key: 'risks:messages.archive_submitted_for_approval',
+                        isError: false,
+                        values: { approvalId: response.approval_id },
+                    }
                 );
                 setIsDeleteDialogOpen(false);
                 // Don't navigate away - show the approval message
@@ -164,7 +169,7 @@ export function RiskDetailPage() {
             navigate('/risks');
         } catch (err) {
             console.error('Error deleting risk:', err);
-            setApprovalMessage('Failed to archive risk. Please try again.');
+            setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });
         } finally {
             setIsDeleting(false);
             setIsDeleteDialogOpen(false);
@@ -176,36 +181,36 @@ export function RiskDetailPage() {
         try {
             await riskApi.restoreRisk(risk.id);
             await fetchData();
-            setApprovalMessage('Risk restored successfully.');
+            setApprovalMessage({ key: 'risks:messages.restore_success', isError: false });
         } catch (err) {
             console.error('Error restoring risk:', err);
-            setApprovalMessage('Failed to restore risk. Please try again.');
+            setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });
         }
     };
 
     const handleLinkControl = async (controlId: number, effectiveness: ControlEffectiveness, notes?: string) => {
         if (!risk) return;
-        setLinkError(null);
+        setLinkErrorKey(null);
         try {
             await riskApi.linkControl(risk.id, { control_id: controlId, effectiveness, notes });
             const controlsData = await riskApi.getLinkedControls(risk.id);
             setLinkedControls(controlsData);
         } catch (err) {
             console.error('Linking failed:', err);
-            setLinkError('Failed to link control. Please try again.');
+            setLinkErrorKey(apiClient.toUiMessageKey(err));
         }
     };
 
     const handleUnlinkControl = async (controlId: number) => {
         if (!risk) return;
-        setLinkError(null);
+        setLinkErrorKey(null);
         try {
             await riskApi.unlinkControl(risk.id, controlId);
             const controlsData = await riskApi.getLinkedControls(risk.id);
             setLinkedControls(controlsData);
         } catch (err) {
             console.error('Unlinking failed:', err);
-            setLinkError('Failed to unlink control. Please try again.');
+            setLinkErrorKey(apiClient.toUiMessageKey(err));
         }
     };
 
@@ -228,7 +233,7 @@ export function RiskDetailPage() {
         );
     }
 
-    if (error || !risk) {
+    if (errorKey || !risk) {
         return (
             <div className="glass-card flex flex-col items-center justify-center p-20 text-center gap-4">
                 <div className="bg-rose-500/20 p-4 rounded-full">
@@ -236,13 +241,15 @@ export function RiskDetailPage() {
                 </div>
                 <div>
                     <h3 className="text-xl font-bold text-white uppercase tracking-tight">{t('access.risk_not_found')}</h3>
-                    <p className="text-slate-500 mt-2 font-medium">{t('errors.not_found')}</p>
+                    <p className="text-slate-500 mt-2 font-medium">
+                        {errorKey ? t(errorKey, { ns: 'errorKeys' }) : t('errors.not_found')}
+                    </p>
                 </div>
                 <button
                     onClick={() => navigate('/risks')}
                     className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all flex items-center gap-2"
                 >
-                    <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.risks', 'Risk Register')}
+                    <ArrowLeft className="h-4 w-4" /> {t('navigation:tabs.risks')}
                 </button>
             </div>
         );
@@ -252,16 +259,24 @@ export function RiskDetailPage() {
         <div className="space-y-8">
             {/* Approval/Error Message Banner */}
             {approvalMessage && (
-                <div className={`p-4 rounded-xl border flex items-start gap-3 ${approvalMessage.includes('Failed')
+                <div className={`p-4 rounded-xl border flex items-start gap-3 ${approvalMessage.isError
                     ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                     : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                     }`}>
                     <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                     <div>
-                        <p className="text-sm font-medium">{approvalMessage}</p>
-                        {!approvalMessage.includes('Failed') && (
+                        <p className="text-sm font-medium">
+                            {approvalMessage.isError
+                                ? t(approvalMessage.key, { ns: 'errorKeys' })
+                                : t(approvalMessage.key, approvalMessage.values)}
+                        </p>
+                        {!approvalMessage.isError && (
                             <p className="text-xs mt-1 opacity-75">
-                                View pending approvals in the <button onClick={() => navigate('/approvals')} className="underline hover:no-underline">Approvals</button> section.
+                                {t('risks:messages.view_pending_approvals_prefix')}{' '}
+                                <button onClick={() => navigate('/approvals')} className="underline hover:no-underline">
+                                    {t('navigation:tabs.approvals')}
+                                </button>{' '}
+                                {t('risks:messages.view_pending_approvals_suffix')}
                             </p>
                         )}
                     </div>
@@ -275,11 +290,11 @@ export function RiskDetailPage() {
             )}
 
             {/* Link Error Message */}
-            {linkError && (
+            {linkErrorKey && (
                 <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" />
-                    {linkError}
-                    <button onClick={() => setLinkError(null)} className="ml-auto opacity-50 hover:opacity-100">
+                    {t(linkErrorKey, { ns: 'errorKeys' })}
+                    <button onClick={() => setLinkErrorKey(null)} className="ml-auto opacity-50 hover:opacity-100">
                         <XCircle className="h-3 w-3" />
                     </button>
                 </div>
@@ -292,7 +307,7 @@ export function RiskDetailPage() {
                         onClick={() => navigate('/risks')}
                         className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest mb-4"
                     >
-                        <ArrowLeft className="h-3 w-3" /> Back to Register
+                        <ArrowLeft className="h-3 w-3" /> {t('risks:actions.back_to_register')}
                     </button>
                     <div className="flex items-center gap-4">
                         <h2 className="text-4xl font-black text-white tracking-tighter">{risk.name}</h2>
@@ -316,7 +331,7 @@ export function RiskDetailPage() {
                             className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-300 hover:text-white hover:border-accent/50 transition-all flex items-center gap-2"
                         >
                             <FileText className="h-4 w-4" />
-                            {tIssues('actions.new_issue', 'New Issue')}
+                            {tIssues('actions.new_issue')}
                         </button>
                     </PermissionGate>
                     <PermissionGate resource="risks" action="write">
@@ -332,7 +347,7 @@ export function RiskDetailPage() {
                             <button
                                 onClick={handleRestore}
                                 className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-all"
-                                title="Unarchive risk"
+                                title={t('risks:tooltips.unarchive_risk')}
                             >
                                 <RotateCcw className="h-5 w-5" />
                             </button>
@@ -358,7 +373,7 @@ export function RiskDetailPage() {
                         }`}
                 >
                     <Target className="h-4 w-4 inline mr-2" />
-                    {t('risks:tabs.overview', 'Overview')}
+                    {t('risks:tabs.overview')}
                 </button>
                 <button
                     onClick={() => setActiveTab('history')}
@@ -368,7 +383,7 @@ export function RiskDetailPage() {
                         }`}
                 >
                     <History className="h-4 w-4 inline mr-2" />
-                    {t('risks:tabs.history', 'KRI History')}
+                    {t('risks:tabs.history')}
                 </button>
                 <button
                     onClick={() => setActiveTab('assessment')}
@@ -378,7 +393,7 @@ export function RiskDetailPage() {
                         }`}
                 >
                     <FileText className="h-4 w-4 inline mr-2" />
-                    {t('risks:tabs.assessment', 'Risk Assessment')}
+                    {t('risks:tabs.assessment')}
                 </button>
             </div>
 
@@ -427,14 +442,14 @@ export function RiskDetailPage() {
                 isOpen={isDeleteDialogOpen}
                 onClose={() => setIsDeleteDialogOpen(false)}
                 onConfirm={handleDelete}
-                title="Archive Risk"
-                message={`"${risk?.name}"\n\nThis will move the risk to archived status.`}
-                confirmLabel="Archive"
+                title={t('risks:confirmation.archive_title')}
+                message={t('risks:confirmation.archive_message', { riskName: risk?.name })}
+                confirmLabel={t('common:actions.archive')}
                 variant="danger"
                 isLoading={isDeleting}
                 showInput
-                inputLabel="Reason for archiving"
-                inputPlaceholder="Why is this risk being archived?"
+                inputLabel={t('common:labels.archive_reason')}
+                inputPlaceholder={t('common:labels.archive_reason_placeholder')}
             />
 
             <IssueQuickCreateModal

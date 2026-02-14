@@ -8,6 +8,7 @@ import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import { departmentApi } from '@/services/departmentApi';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
+import { apiClient } from '@/services/apiClient';
 import type { RiskSummary } from '@/types/risk';
 import type { UserRead } from '@/types/user';
 import type { DepartmentSummary } from '@/services/departmentApi';
@@ -33,6 +34,7 @@ interface UserOption {
 
 export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: ResolveOrphanModalProps) {
     const { t } = useTranslation('common');
+    const { t: tAdmin } = useTranslation('admin');
     const [users, setUsers] = useState<UserOption[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(null);
@@ -41,7 +43,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
     const [allRisks, setAllRisks] = useState<RiskSummary[]>([]);
     const [linkedRisks, setLinkedRisks] = useState<import('@/types/control').ControlRiskLink[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [riskSearchQuery, setRiskSearchQuery] = useState('');
     const [selectedDeptFilter, setSelectedDeptFilter] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
             setSelectedUserId(null);
             setSelectedDepartmentId(null);
             setSelectedRiskId(null);
-            setError(null);
+            setErrorKey(null);
             setSearchQuery('');
             setRiskSearchQuery('');
             setSelectedDeptFilter(null);
@@ -111,7 +113,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
             setTimeout(() => setIsInitialized(true), 150);
         } catch (err) {
             console.error('Failed to initialize resolution data:', err);
-            setError('Failed to load required configuration data.');
+            setErrorKey(apiClient.toUiMessageKey(err));
         }
     };
 
@@ -148,7 +150,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
     const handleSubmit = async () => {
         if (!orphan) return;
         setIsSubmitting(true);
-        setError(null);
+        setErrorKey(null);
 
         try {
             await orphanedItemsApi.resolveOrphan(orphan.id, {
@@ -160,7 +162,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
             onClose();
         } catch (err: unknown) {
             console.error('Failed to resolve orphan:', err);
-            setError(err instanceof Error ? err.message : 'Failed to assign owner');
+            setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setIsSubmitting(false);
         }
@@ -229,9 +231,13 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                         <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
                             <div>
                                 <h3 className="text-xl font-bold text-white tracking-tight">
-                                    {isKri ? 'Link to Risk' : 'Resolve Orphaned Item'}
+                                    {isKri
+                                        ? tAdmin('governance.resolve_modal.link_to_risk')
+                                        : tAdmin('governance.resolve_modal.resolve_orphaned_item')}
                                 </h3>
-                                <p className="text-xs text-slate-500 font-medium">Configure ownership and alignment</p>
+                                <p className="text-xs text-slate-500 font-medium">
+                                    {tAdmin('governance.resolve_modal.configure_ownership')}
+                                </p>
                             </div>
                             <button
                                 onClick={onClose}
@@ -247,7 +253,9 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                             {!isInitialized && (
                                 <div className="py-20 flex flex-col items-center justify-center gap-4">
                                     <Loader2 className="h-10 w-10 text-accent animate-spin" />
-                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Initialising Configuration...</p>
+                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                                        {tAdmin('governance.resolve_modal.initializing')}
+                                    </p>
                                 </div>
                             )}
 
@@ -292,7 +300,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                             <div className="space-y-4">
                                                 <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                     <Target className="h-4 w-4 text-accent" />
-                                                    Select Risk to Link
+                                                    {tAdmin('governance.resolve_modal.select_risk_to_link')}
                                                 </h5>
                                                 <div className="space-y-3">
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -340,7 +348,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                             <div className="space-y-4">
                                                 <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                     <User className="h-4 w-4 text-emerald-400" />
-                                                    Assign New Owner
+                                                    {tAdmin('governance.resolve_modal.assign_new_owner')}
                                                 </h5>
                                                 <div className="space-y-4">
                                                     <div className="flex items-center gap-3">
@@ -394,7 +402,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                             <div className="space-y-4">
                                                 <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                     <Building2 className="h-4 w-4 text-blue-400" />
-                                                    Select Department
+                                                    {tAdmin('governance.resolve_modal.select_department')}
                                                 </h5>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                                     {allDepartments.map(dept => (
@@ -417,10 +425,10 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
 
                         {/* Footer Section - Polished */}
                         <div className="p-6 border-t border-white/5 bg-white/5">
-                            {error && (
+                            {errorKey && (
                                 <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-2">
                                     <ShieldAlert className="h-4 w-4" />
-                                    {error}
+                                    {t(errorKey, { ns: 'errorKeys' })}
                                 </div>
                             )}
 
@@ -430,17 +438,17 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                         {(shouldShowOwner && !selectedUserId) ? (
                                             <>
                                                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                                                Owner Selection Required
+                                                {tAdmin('governance.resolve_modal.owner_selection_required')}
                                             </>
                                         ) : (shouldShowRisk && !selectedRiskId) ? (
                                             <>
                                                 <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-                                                Risk Linkage Required
+                                                {tAdmin('governance.resolve_modal.risk_linkage_required')}
                                             </>
                                         ) : (
                                             <>
                                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                Verified Ready
+                                                {tAdmin('governance.resolve_modal.verified_ready')}
                                             </>
                                         )}
                                     </p>
@@ -450,7 +458,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                         onClick={onClose}
                                         className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
                                     >
-                                        Cancel
+                                        {t('actions.cancel')}
                                     </button>
                                     <button
                                         onClick={handleSubmit}
@@ -464,7 +472,11 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                         className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent text-white text-xs font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg active:scale-95"
                                     >
                                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
-                                        {isSubmitting ? 'Resolving...' : (isKri ? 'Link Risk' : 'Resolve Item')}
+                                        {isSubmitting
+                                            ? tAdmin('governance.resolve_modal.resolving')
+                                            : (isKri
+                                                ? tAdmin('governance.resolve_modal.link_risk')
+                                                : tAdmin('governance.resolve_modal.resolve_item'))}
                                     </button>
                                 </div>
                             </div>

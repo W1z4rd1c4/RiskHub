@@ -133,8 +133,8 @@ export function ActivityLogPage() {
                         <Activity className="h-6 w-6 text-accent" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold">Activity Log</h1>
-                        <p className="text-slate-400 text-sm">Monitor system-wide changes and compliance events</p>
+                        <h1 className="text-3xl font-bold">{t('admin:activity_log.title')}</h1>
+                        <p className="text-slate-400 text-sm">{t('activity_log.subtitle')}</p>
                     </div>
                 </div>
                 <button
@@ -222,6 +222,7 @@ interface ActivityLogEntriesProps {
 }
 
 function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: ActivityLogEntriesProps) {
+    const { t } = useTranslation('common');
     if (isLoading && entries.length === 0) {
         return (
             <div className="flex flex-col gap-3">
@@ -236,8 +237,8 @@ function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: Activity
         return (
             <div className="flex flex-col items-center justify-center py-20 bg-rose-500/5 rounded-3xl border border-rose-500/20 text-rose-400">
                 <ShieldX className="h-12 w-12 mb-4" />
-                <p className="font-semibold">Access Denied</p>
-                <p className="text-sm text-slate-500 mt-1">You don't have permission to view activity logs.</p>
+                <p className="font-semibold">{t('access.denied')}</p>
+                <p className="text-sm text-slate-500 mt-1">{t('access.denied_activity_log')}</p>
             </div>
         );
     }
@@ -246,13 +247,13 @@ function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: Activity
         return (
             <div className="flex flex-col items-center justify-center py-20 bg-amber-500/5 rounded-3xl border border-amber-500/20 text-amber-400">
                 <AlertCircle className="h-12 w-12 mb-4" />
-                <p className="font-semibold">Failed to Load</p>
-                <p className="text-sm text-slate-500 mt-1">There was an error loading activity logs. Please try again.</p>
+                <p className="font-semibold">{t('activity_log.failed_to_load')}</p>
+                <p className="text-sm text-slate-500 mt-1">{t('activity_log.failed_to_load_help')}</p>
                 <button
                     onClick={onRetry}
                     className="mt-4 px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 rounded-xl text-sm transition-colors"
                 >
-                    Retry
+                    {t('actions.refresh')}
                 </button>
             </div>
         );
@@ -262,8 +263,8 @@ function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: Activity
         return (
             <div className="flex flex-col items-center justify-center py-20 bg-white/5 rounded-3xl border border-white/5 text-slate-400">
                 <Activity className="h-12 w-12 mb-4 opacity-20" />
-                <p>No activity logs found</p>
-                <p className="text-sm text-slate-500 mt-1">Try adjusting your filters or date range.</p>
+                <p>{t('empty.no_activity_logs')}</p>
+                <p className="text-sm text-slate-500 mt-1">{t('activity_log.try_adjusting_filters')}</p>
             </div>
         );
     }

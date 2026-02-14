@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Building, Plus, Edit, Trash2, RotateCcw, AlertCircle, Users, Activity, Shield } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { accessApi } from '@/services/accessApi';
+import { apiClient } from '@/services/apiClient';
 import type { DepartmentHubCreate, DepartmentHubUpdate, DepartmentHubRead } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -21,14 +22,14 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
     const [code, setCode] = useState('');
     const [managerId, setManagerId] = useState<number | undefined>(undefined);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen) {
             setName(department?.name || '');
             setCode(department?.code || '');
             setManagerId(department?.manager_id || undefined);
-            setError(null);
+            setErrorKey(null);
         }
     }, [isOpen, department]);
 
@@ -41,7 +42,7 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
+        setErrorKey(null);
         setSaving(true);
         try {
             if (department) {
@@ -61,8 +62,7 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
             }
             onClose();
         } catch (err: unknown) {
-            const error = err as { response?: { data?: { detail?: string } }; message?: string };
-            setError(error.response?.data?.detail || error.message || t('admin:departments_panel.modal.errors.save_failed'));
+            setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setSaving(false);
         }
@@ -115,10 +115,10 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
                         />
                     </div>
 
-                    {error && (
+                    {errorKey && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                             <AlertCircle className="h-4 w-4" />
-                            {error}
+                            {t(errorKey, { ns: 'errorKeys' })}
                         </div>
                     )}
 
@@ -151,6 +151,7 @@ export function DepartmentsPanel() {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingDept, setEditingDept] = useState<DepartmentHubRead | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<DepartmentHubRead | null>(null);
+    const [actionErrorKey, setActionErrorKey] = useState<string | null>(null);
 
     const { data: departments, isLoading } = useQuery({
         queryKey: ['departments', showInactive],
@@ -191,7 +192,7 @@ export function DepartmentsPanel() {
                 await deleteMutation.mutateAsync(deleteConfirm.id);
                 setDeleteConfirm(null);
             } catch (error: unknown) {
-                alert(error instanceof Error ? error.message : "Failed to delete department");
+                setActionErrorKey(apiClient.toUiMessageKey(error));
             }
         }
     };
@@ -202,6 +203,12 @@ export function DepartmentsPanel() {
 
     return (
         <div className="space-y-4">
+            {actionErrorKey && (
+                <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                    <AlertCircle className="h-4 w-4" />
+                    {t(actionErrorKey, { ns: 'errorKeys' })}
+                </div>
+            )}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Building className="h-5 w-5 text-accent" />

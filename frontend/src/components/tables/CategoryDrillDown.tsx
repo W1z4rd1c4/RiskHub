@@ -4,6 +4,7 @@
 import { useState, useMemo } from 'react';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/i18n/hooks';
 
 interface CategoryStats {
     total: number;
@@ -48,6 +49,7 @@ export function CategoryDrillDown<T extends Record<string, any>>({
     hideHighRisk,
     renderBody,
 }: CategoryDrillDownProps<T>) {
+    const { t } = useTranslation('common');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
     // Group the data with stats
@@ -88,12 +90,12 @@ export function CategoryDrillDown<T extends Record<string, any>>({
                         className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all"
                     >
                         <ArrowLeft className="h-4 w-4" />
-                        Back
+                        {t('actions.back')}
                     </button>
                     <div className="flex items-center gap-3">
                         <h3 className="text-xl font-bold text-white">{label}</h3>
                         <span className="px-2 py-1 rounded-full bg-accent/20 text-accent text-xs font-bold">
-                            {selectedGroup.stats.total} items
+                            {t('tables.items_count', { count: selectedGroup.stats.total })}
                         </span>
                     </div>
                 </div>
@@ -118,7 +120,7 @@ export function CategoryDrillDown<T extends Record<string, any>>({
     if (groups.length === 0) {
         return (
             <div className="glass-card text-center py-12">
-                <p className="text-slate-400">No data available</p>
+                <p className="text-slate-400">{t('empty.no_data_available')}</p>
             </div>
         );
     }
@@ -166,7 +168,7 @@ export function CategoryDrillDown<T extends Record<string, any>>({
                                 {!hideHighRisk && group.stats.highRiskCount !== undefined && group.stats.highRiskCount > 0 && (
                                     <div>
                                         <p className="text-xl font-bold text-rose-400">{group.stats.highRiskCount}</p>
-                                        <p className="text-xs text-slate-500 uppercase tracking-wider">High Risk</p>
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('tables.high_risk')}</p>
                                     </div>
                                 )}
                             </div>

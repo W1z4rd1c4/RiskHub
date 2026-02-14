@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { userApi } from '@/services/userApi';
+import { apiClient } from '@/services/apiClient';
 import { departmentApi } from '@/services/departmentApi';
 import type { UserCreate, Role } from '@/types/user';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -19,7 +20,7 @@ import { useTranslation } from '@/i18n/hooks';
 
 export function UserNewPage() {
     const navigate = useNavigate();
-    const { t } = useTranslation('admin');
+    const { t } = useTranslation(['admin', 'common', 'errorKeys']);
     const { canManageUsers } = usePermissions();
     const [isLoading, setIsLoading] = useState(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,7 +35,7 @@ export function UserNewPage() {
         manager_id: null,
         is_active: true
     });
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     // Redirect if no permission to manage users
     useEffect(() => {
@@ -95,14 +96,14 @@ export function UserNewPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
-        setError(null);
+        setErrorKey(null);
 
         try {
             await userApi.createUser(formData);
             navigate('/users');
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (err: any) {
-            setError(err.response?.data?.detail || 'Failed to create user. Please check your data.');
+        } catch (err: unknown) {
+            setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setIsLoading(false);
         }
@@ -116,7 +117,7 @@ export function UserNewPage() {
                     className="group flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
                 >
                     <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-                    Back to Users
+                    {t('user_new.back_to_users', { ns: 'admin' })}
                 </button>
             </div>
 
@@ -125,15 +126,15 @@ export function UserNewPage() {
                     <UserPlus className="h-6 w-6 text-accent" />
                 </div>
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Add New User</h1>
-                    <p className="text-slate-400">Create a new platform user with specific role and department.</p>
+                    <h1 className="text-3xl font-bold text-white">{t('user_new.title', { ns: 'admin' })}</h1>
+                    <p className="text-slate-400">{t('user_new.subtitle', { ns: 'admin' })}</p>
                 </div>
             </div>
 
-            {error && (
+            {errorKey && (
                 <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3">
                     <Shield className="h-5 w-5 shrink-0" />
-                    <p>{error}</p>
+                    <p>{t(errorKey, { ns: 'errorKeys' })}</p>
                 </div>
             )}
 
@@ -142,11 +143,11 @@ export function UserNewPage() {
                     <div className="glass-card p-6 space-y-4">
                         <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
                             <UserIcon className="h-5 w-5 text-accent" />
-                            Personal Information
+                            {t('user_new.personal_information', { ns: 'admin' })}
                         </h2>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">Full Name</label>
+                            <label className="text-sm font-medium text-slate-300">{t('user_new.full_name', { ns: 'admin' })}</label>
                             <div className="relative">
                                 <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
                                 <input
@@ -161,7 +162,7 @@ export function UserNewPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">Email Address</label>
+                            <label className="text-sm font-medium text-slate-300">{t('user_new.email_address', { ns: 'admin' })}</label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
                                 <input
@@ -176,7 +177,7 @@ export function UserNewPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">Password</label>
+                            <label className="text-sm font-medium text-slate-300">{t('user_new.password', { ns: 'admin' })}</label>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
                                 <input
@@ -194,11 +195,11 @@ export function UserNewPage() {
                     <div className="glass-card p-6 space-y-4">
                         <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
                             <Shield className="h-5 w-5 text-accent" />
-                            Role & Access
+                            {t('user_new.role_access', { ns: 'admin' })}
                         </h2>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">Platform Role</label>
+                            <label className="text-sm font-medium text-slate-300">{t('user_new.platform_role', { ns: 'admin' })}</label>
                             <div className="relative">
                                 <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
                                 <ThemedSelect
@@ -211,7 +212,7 @@ export function UserNewPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-300">Department</label>
+                            <label className="text-sm font-medium text-slate-300">{t('common:labels.department')}</label>
                             <div className="relative">
                                 <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 pointer-events-none z-10" />
                                 <ThemedSelect
@@ -235,7 +236,7 @@ export function UserNewPage() {
                                 onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
                             />
                             <label htmlFor="is_active" className="text-sm font-medium text-slate-300">
-                                This user is active and can log in immediately
+                                {t('user_new.active_immediately', { ns: 'admin' })}
                             </label>
                         </div>
                     </div>
@@ -247,7 +248,7 @@ export function UserNewPage() {
                         onClick={() => navigate('/users')}
                         className="px-6 py-2 rounded-xl text-slate-300 hover:bg-white/5 transition-all"
                     >
-                        Cancel
+                        {t('actions.cancel', { ns: 'common' })}
                     </button>
                     <button
                         disabled={isLoading}
@@ -256,7 +257,7 @@ export function UserNewPage() {
                         {isLoading ? (
                             <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : <Save className="h-5 w-5" />}
-                        Create User
+                        {t('users.create_user', { ns: 'admin' })}
                     </button>
                 </div>
             </form>

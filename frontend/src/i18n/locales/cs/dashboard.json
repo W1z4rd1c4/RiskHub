@@ -47,6 +47,7 @@
             "overdue": "Po termínu",
             "high_critical_open": "Vysoké/Kritické otevřené",
             "median_age_days": "Medián stáří (dny)",
+            "aggregate_metric_hint": "Souhrnná metrika (bez přímého filtru)",
             "open_by_age": "Otevřené nálezy podle stáří",
             "open_by_severity": "Otevřené nálezy podle závažnosti",
             "open_counted": "Počet otevřených nálezů: {{count}}"

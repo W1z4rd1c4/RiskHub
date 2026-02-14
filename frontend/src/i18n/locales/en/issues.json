@@ -34,6 +34,7 @@
     "all_statuses": "All statuses",
     "all_severities": "All severities",
     "overdue_only": "Overdue only",
+    "exclude_active_exceptions": "Exclude active exceptions",
     "include_closed": "Include closed"
   },
   "columns": {
@@ -55,7 +56,8 @@
     "low": "Low",
     "medium": "Medium",
     "high": "High",
-    "critical": "Critical"
+    "critical": "Critical",
+    "high_critical": "High + Critical"
   },
   "source": {
     "manual": "Manual",

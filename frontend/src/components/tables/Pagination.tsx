@@ -25,19 +25,23 @@ export function Pagination({
     const { t } = useTranslation('common');
     const canGoPrev = currentPage > 1;
     const canGoNext = currentPage < totalPages;
-
-    const startItem = (currentPage - 1) * itemsPerPage + 1;
-    const endItem = Math.min(currentPage * itemsPerPage, totalItems ?? currentPage * itemsPerPage);
+    const hasItems = totalItems !== undefined && totalItems > 0;
+    const startItem = hasItems ? (currentPage - 1) * itemsPerPage + 1 : 0;
+    const endItem = hasItems ? Math.min(currentPage * itemsPerPage, totalItems ?? currentPage * itemsPerPage) : 0;
 
     return (
         <div className={cn('flex items-center justify-between', className)}>
             <div className="text-sm text-slate-400">
                 {totalItems !== undefined ? (
-                    <>
-                        {t('pagination.showing')} <span className="font-medium text-white">{startItem}</span> {t('pagination.to')}{' '}
-                        <span className="font-medium text-white">{endItem}</span> {t('pagination.of')}{' '}
-                        <span className="font-medium text-white">{totalItems}</span> {t('labels.results')}
-                    </>
+                    hasItems ? (
+                        <>
+                            {t('pagination.showing')} <span className="font-medium text-white">{startItem}</span> {t('pagination.to')}{' '}
+                            <span className="font-medium text-white">{endItem}</span> {t('pagination.of')}{' '}
+                            <span className="font-medium text-white">{totalItems}</span> {t('labels.results')}
+                        </>
+                    ) : (
+                        <>{t('labels.no_results')}</>
+                    )
                 ) : (
                     <>
                         {t('pagination.page')} <span className="font-medium text-white">{currentPage}</span> {t('pagination.of')}{' '}

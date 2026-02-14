@@ -7,7 +7,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { adminApi } from '@/services/adminApi';
 
 export function DocumentationPage() {
-    const { i18n } = useTranslation();
+    const { t, i18n } = useTranslation('common');
     const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
     const { data: docsData, isLoading } = useQuery({
@@ -22,20 +22,20 @@ export function DocumentationPage() {
         return (
             <div className="flex flex-col items-center justify-center h-96 text-slate-400">
                 <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin mb-4" />
-                <p>Loading platform documentation...</p>
+                <p>{t('loading.platform_docs')}</p>
             </div>
         );
     }
 
     if (docs.length === 0) {
         return (
-            <div className="glass-card flex flex-col items-center justify-center py-24 text-slate-500">
-                <BookOpen className="h-16 w-16 mb-4 opacity-10" />
-                <h3 className="text-xl font-semibold text-white mb-2">No Documentation Available</h3>
-                <p>There are currently no instruction manuals seeded in the platform.</p>
-            </div>
-        );
-    }
+                <div className="glass-card flex flex-col items-center justify-center py-24 text-slate-500">
+                    <BookOpen className="h-16 w-16 mb-4 opacity-10" />
+                    <h3 className="text-xl font-semibold text-white mb-2">{t('empty.no_documentation')}</h3>
+                    <p>{t('documentation.no_manuals_seeded')}</p>
+                </div>
+            );
+        }
 
     // Detail View
     if (activeDoc) {
@@ -46,7 +46,7 @@ export function DocumentationPage() {
                     className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-sm font-medium rounded-xl transition-all border border-white/10"
                 >
                     <ChevronLeft className="h-4 w-4" />
-                    Back to Library
+                    {t('documentation.back_to_library')}
                 </button>
 
                 <div className="glass-card min-h-[600px] flex flex-col overflow-hidden">
@@ -54,7 +54,7 @@ export function DocumentationPage() {
                         <div>
                             <h2 className="text-2xl font-bold text-white">{activeDoc.title}</h2>
                             <div className="flex items-center gap-2 mt-1">
-                                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wider rounded">Platform Manual</span>
+                                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wider rounded">{t('documentation.platform_manual')}</span>
                                 <span className="text-[10px] text-slate-500">v1.0.0</span>
                             </div>
                         </div>
@@ -79,9 +79,9 @@ export function DocumentationPage() {
                         <BookOpen className="h-10 w-10 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold text-white font-heading">Documentation Library</h1>
+                        <h1 className="text-3xl font-bold text-white font-heading">{t('documentation.library_title')}</h1>
                         <p className="text-slate-400 text-lg mt-1">
-                            Browse instruction manuals and technical integration guides
+                            {t('documentation.library_subtitle')}
                         </p>
                     </div>
                 </div>
@@ -102,7 +102,7 @@ export function DocumentationPage() {
                             {doc.content.replace(/[#*`]/g, '').slice(0, 150)}...
                         </p>
                         <div className="flex items-center gap-2 text-accent text-sm font-semibold mt-auto">
-                            View Manual
+                            {t('documentation.view_manual')}
                             <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                         </div>
                     </button>

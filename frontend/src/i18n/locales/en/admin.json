@@ -1,556 +1,718 @@
 {
+  "title": "Admin Console",
+  "page_subtitle": "Platform administration, system health, and user management",
+  "tabs": {
+    "users": "Users",
+    "departments": "Departments",
+    "risk_hub": "Risk Hub",
+    "logs": "System Logs",
+    "documentation": "Documentation",
+    "health": "System Health",
+    "application_logs": "Application Logs",
+    "audit_logs": "Audit Logs",
+    "sessions": "Active Sessions"
+  },
+  "console": {
     "title": "Admin Console",
-    "page_subtitle": "Platform administration, system health, and user management",
-    "tabs": {
-        "users": "Users",
-        "departments": "Departments",
-        "risk_hub": "Risk Hub",
-        "logs": "System Logs",
-        "documentation": "Documentation",
-        "health": "System Health",
-        "application_logs": "Application Logs",
-        "audit_logs": "Audit Logs",
-        "sessions": "Active Sessions"
+    "subtitle": "Platform administration, system health, and user management",
+    "loading": "Loading...",
+    "export_csv": "Export CSV",
+    "export_json": "Export JSON",
+    "manual_refresh": "Manual refresh"
+  },
+  "health": {
+    "title": "System Health",
+    "loading": "Loading system health...",
+    "refresh": "Refresh",
+    "database": "Database",
+    "connected": "Connected",
+    "error": "Error",
+    "latency": "Latency",
+    "uptime": "Uptime",
+    "since_restart": "Since last restart",
+    "memory": "Memory",
+    "process_memory": "Process memory usage",
+    "active_users": "Active Users",
+    "in_last_24h": "In last 24 hours"
+  },
+  "application_logs": {
+    "title": "Application Logs",
+    "loading": "Loading logs...",
+    "all_events": "All Events",
+    "columns": {
+      "time": "Time",
+      "level": "Level",
+      "event": "Event",
+      "user": "User",
+      "details": "Details"
+    }
+  },
+  "audit": {
+    "title": "Log Rotation Settings",
+    "max_file_size": "Max File Size (MB)",
+    "max_file_size_hint": "Maximum size per log file before rotation.",
+    "retention_count": "Retention Count (Files)",
+    "retention_count_hint": "Number of backup files to keep.",
+    "note": "Configure rotation for application and audit logs independently.",
+    "save_settings": "Save Settings",
+    "saving": "Saving...",
+    "event_feed": "Audit Event Feed",
+    "live": "Live",
+    "all_events": "All Events",
+    "last_n": "Last {{count}}",
+    "no_events": "No audit events found in current log window.",
+    "view": "View",
+    "columns": {
+      "timestamp": "Timestamp",
+      "event": "Event",
+      "user": "User",
+      "client_ip": "Client IP",
+      "details": "Details"
+    }
+  },
+  "sessions": {
+    "title": "Active Sessions",
+    "description": "Users with activity in the last 24 hours",
+    "loading": "Loading sessions...",
+    "online": "Online",
+    "offline": "Offline",
+    "revoked": "Revoked",
+    "revoke": "Revoke",
+    "access_revoked": "Access Revoked",
+    "revoke_confirm": "Revoke session for {{name}}?",
+    "columns": {
+      "user": "User",
+      "email": "Email",
+      "role": "Role",
+      "department": "Department",
+      "last_activity": "Last Activity",
+      "status": "Status",
+      "actions": "Actions"
+    }
+  },
+  "users": {
+    "title": "User Management",
+    "create_user": "Create User",
+    "edit_user": "Edit User",
+    "delete_user": "Delete User",
+    "sync_ad": "Sync from AD",
+    "fields": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "department": "Department",
+      "status": "Status",
+      "last_login": "Last Login",
+      "permissions": "Permissions"
     },
-    "console": {
-        "title": "Admin Console",
-        "subtitle": "Platform administration, system health, and user management",
-        "loading": "Loading..."
+    "roles": {
+      "admin": "Administrator",
+      "cro": "Chief Risk Officer",
+      "risk_manager": "Risk Manager",
+      "department_manager": "Department Manager",
+      "risk_owner": "Risk Owner",
+      "control_owner": "Control Owner",
+      "kri_owner": "KRI Owner",
+      "viewer": "Viewer"
     },
-    "health": {
-        "title": "System Health",
-        "loading": "Loading system health...",
-        "refresh": "Refresh",
-        "database": "Database",
-        "connected": "Connected",
-        "error": "Error",
-        "latency": "Latency",
-        "uptime": "Uptime",
-        "since_restart": "Since last restart",
-        "memory": "Memory",
-        "process_memory": "Process memory usage",
-        "active_users": "Active Users",
-        "in_last_24h": "In last 24 hours"
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "pending": "Pending"
     },
-    "application_logs": {
-        "title": "Application Logs",
-        "loading": "Loading logs...",
-        "all_events": "All Events",
-        "columns": {
-            "time": "Time",
-            "level": "Level",
-            "event": "Event",
-            "user": "User",
-            "details": "Details"
-        }
+    "subtitle": "Manage user accounts and permissions."
+  },
+  "departments": {
+    "title": "Department Management",
+    "create_department": "Create Department",
+    "edit_department": "Edit Department",
+    "delete_department": "Delete Department",
+    "fields": {
+      "name": "Department Name",
+      "code": "Department Code",
+      "manager": "Department Manager",
+      "parent": "Parent Department",
+      "risk_count": "Risk Count",
+      "control_count": "Control Count"
+    }
+  },
+  "risk_hub": {
+    "title": "Risk Hub Configuration",
+    "general": "General Settings",
+    "thresholds": "Approval Thresholds",
+    "risk_types": "Risk Types",
+    "notifications": "Notification Settings",
+    "total_asset_value": "Total Asset Value"
+  },
+  "logs": {
+    "title": "System Logs",
+    "application_logs": "Application Logs",
+    "audit_logs": "Audit Logs",
+    "log_level": "Log Level",
+    "log_rotation": "Log Rotation",
+    "recent_logs": "Recent Logs"
+  },
+  "documentation": {
+    "title": "Documentation Management",
+    "upload": "Upload Document",
+    "categories": "Categories",
+    "visibility": "Visibility"
+  },
+  "activity_log": {
+    "title": "Activity Log",
+    "audit_trail": "Audit Trail",
+    "view_modes": {
+      "chronological": "Chronological",
+      "by_person": "By Person",
+      "by_department": "By Department",
+      "by_risk": "By Risk"
     },
-    "audit": {
-        "title": "Log Rotation Settings",
-        "max_file_size": "Max File Size (MB)",
-        "max_file_size_hint": "Maximum size per log file before rotation.",
-        "retention_count": "Retention Count (Files)",
-        "retention_count_hint": "Number of backup files to keep.",
-        "note": "Configure rotation for application and audit logs independently.",
-        "save_settings": "Save Settings",
-        "saving": "Saving...",
-        "event_feed": "Audit Event Feed",
-        "live": "Live",
-        "all_events": "All Events",
-        "last_n": "Last {{count}}",
-        "no_events": "No audit events found in current log window.",
-        "view": "View",
-        "columns": {
-            "timestamp": "Timestamp",
-            "event": "Event",
-            "user": "User",
-            "client_ip": "Client IP",
-            "details": "Details"
-        }
+    "view_label": "View"
+  },
+  "access": {
+    "title": "Access Management",
+    "subtitle": "Manage user access, roles, and permissions across the platform.",
+    "directory_sync_denied": "You do not have permission to manage directory sync.",
+    "permission_matrix": "Permission Matrix",
+    "access_scope": "Access Scope",
+    "add_user": "Add User",
+    "search_placeholder": "Search by name or email...",
+    "filter_by_capability": "Filter by Capability:",
+    "all_permissions": "All Permissions",
+    "any_action": "Any Action",
+    "clear": "Clear",
+    "of_users": "{{count}} of {{total}} users",
+    "stats": {
+      "total_users": "Total Users",
+      "active": "Active",
+      "privileged": "Privileged",
+      "sys_admins": "Sys Admins"
     },
-    "sessions": {
-        "title": "Active Sessions",
-        "description": "Users with activity in the last 24 hours",
-        "loading": "Loading sessions...",
-        "online": "Online",
-        "offline": "Offline",
-        "revoked": "Revoked",
-        "revoke": "Revoke",
-        "access_revoked": "Access Revoked",
-        "revoke_confirm": "Revoke session for {{name}}?",
-        "columns": {
-            "user": "User",
-            "email": "Email",
-            "role": "Role",
-            "department": "Department",
-            "last_activity": "Last Activity",
-            "status": "Status",
-            "actions": "Actions"
-        }
+    "roles": {
+      "all": "All Roles",
+      "admins": "Admins",
+      "cros": "CROs",
+      "risk_managers": "Risk Managers",
+      "dept_heads": "Dept Heads",
+      "control_owners": "Control Owners"
     },
-    "users": {
-        "title": "User Management",
-        "create_user": "Create User",
-        "edit_user": "Edit User",
-        "delete_user": "Delete User",
-        "sync_ad": "Sync from AD",
-        "fields": {
-            "name": "Name",
-            "email": "Email",
-            "role": "Role",
-            "department": "Department",
-            "status": "Status",
-            "last_login": "Last Login",
-            "permissions": "Permissions"
-        },
-        "roles": {
-            "admin": "Administrator",
-            "cro": "Chief Risk Officer",
-            "risk_manager": "Risk Manager",
-            "department_manager": "Department Manager",
-            "risk_owner": "Risk Owner",
-            "control_owner": "Control Owner",
-            "kri_owner": "KRI Owner",
-            "viewer": "Viewer"
-        },
-        "status": {
-            "active": "Active",
-            "inactive": "Inactive",
-            "pending": "Pending"
-        },
-        "subtitle": "Manage user accounts and permissions."
+    "scopes": {
+      "global": "Global",
+      "department": "Department",
+      "manager": "Manager",
+      "platform": "Platform",
+      "all": "All Scopes"
     },
-    "departments": {
-        "title": "Department Management",
-        "create_department": "Create Department",
-        "edit_department": "Edit Department",
-        "delete_department": "Delete Department",
-        "fields": {
-            "name": "Department Name",
-            "code": "Department Code",
-            "manager": "Department Manager",
-            "parent": "Parent Department",
-            "risk_count": "Risk Count",
-            "control_count": "Control Count"
-        }
+    "table": {
+      "user": "User",
+      "role_department": "Role & Department",
+      "scope": "Scope",
+      "permissions": "Permissions",
+      "status": "Status",
+      "actions": "Actions",
+      "no_department": "No department",
+      "view_only": "View only",
+      "no_users_found": "No users found matching your criteria."
     },
-    "risk_hub": {
-        "title": "Risk Hub Configuration",
-        "general": "General Settings",
-        "thresholds": "Approval Thresholds",
-        "risk_types": "Risk Types",
-        "notifications": "Notification Settings",
-        "total_asset_value": "Total Asset Value"
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
     },
-    "logs": {
-        "title": "System Logs",
-        "application_logs": "Application Logs",
-        "audit_logs": "Audit Logs",
-        "log_level": "Log Level",
-        "log_rotation": "Log Rotation",
-        "recent_logs": "Recent Logs"
+    "capabilities": {
+      "platform_admin": "Platform Administration Capabilities",
+      "riskhub": "Risk Hub Capabilities",
+      "effective_permissions": "Effective Permissions",
+      "user_management": "User Management",
+      "user_management_desc": "Add, edit, deactivate users",
+      "system_health": "System Health",
+      "system_health_desc": "Monitor database, memory",
+      "technical_logs": "Technical Logs",
+      "technical_logs_desc": "View activity and security logs",
+      "session_management": "Session Management",
+      "session_management_desc": "View and revoke user sessions",
+      "risk_types": "Risk Types",
+      "risk_types_desc": "Create, edit, delete risk categories",
+      "global_config": "Global Config",
+      "global_config_desc": "Set thresholds and system settings",
+      "approval_rules": "Approval Rules",
+      "approval_rules_desc": "Configure approval scenarios",
+      "all_business_data": "All Business Data",
+      "all_business_data_desc": "Full access to risks, controls, KRIs",
+      "platform_admin_note": "Platform Admin has no access to business data (risks, controls, KRIs)",
+      "cro_note": "Chief Risk Officer has full business configuration access via Risk Hub"
     },
-    "documentation": {
-        "title": "Documentation Management",
-        "upload": "Upload Document",
-        "categories": "Categories",
-        "visibility": "Visibility"
-    },
-    "activity_log": {
-        "title": "Activity Log",
-        "audit_trail": "Audit Trail",
-        "view_modes": {
-            "chronological": "Chronological",
-            "by_person": "By Person",
-            "by_department": "By Department",
-            "by_risk": "By Risk"
-        }
-    },
-    "access": {
-        "title": "Access Management",
-        "subtitle": "Manage user access, roles, and permissions across the platform.",
-        "directory_sync_denied": "You do not have permission to manage directory sync.",
-        "permission_matrix": "Permission Matrix",
-        "access_scope": "Access Scope",
-        "add_user": "Add User",
-        "search_placeholder": "Search by name or email...",
-        "filter_by_capability": "Filter by Capability:",
-        "all_permissions": "All Permissions",
-        "any_action": "Any Action",
-        "clear": "Clear",
-        "of_users": "{{count}} of {{total}} users",
-        "stats": {
-            "total_users": "Total Users",
-            "active": "Active",
-            "privileged": "Privileged",
-            "sys_admins": "Sys Admins"
-        },
-        "roles": {
-            "all": "All Roles",
-            "admins": "Admins",
-            "cros": "CROs",
-            "risk_managers": "Risk Managers",
-            "dept_heads": "Dept Heads",
-            "control_owners": "Control Owners"
-        },
-        "scopes": {
-            "global": "Global",
-            "department": "Department",
-            "manager": "Manager",
-            "platform": "Platform",
-            "all": "All Scopes"
-        },
-        "table": {
-            "user": "User",
-            "role_department": "Role & Department",
-            "scope": "Scope",
-            "permissions": "Permissions",
-            "status": "Status",
-            "actions": "Actions",
-            "no_department": "No department",
-            "view_only": "View only",
-            "no_users_found": "No users found matching your criteria."
-        },
-        "status": {
-            "active": "Active",
-            "inactive": "Inactive"
-        },
-        "capabilities": {
-            "platform_admin": "Platform Administration Capabilities",
-            "riskhub": "Risk Hub Capabilities",
-            "effective_permissions": "Effective Permissions",
-            "user_management": "User Management",
-            "user_management_desc": "Add, edit, deactivate users",
-            "system_health": "System Health",
-            "system_health_desc": "Monitor database, memory",
-            "technical_logs": "Technical Logs",
-            "technical_logs_desc": "View activity and security logs",
-            "session_management": "Session Management",
-            "session_management_desc": "View and revoke user sessions",
-            "risk_types": "Risk Types",
-            "risk_types_desc": "Create, edit, delete risk categories",
-            "global_config": "Global Config",
-            "global_config_desc": "Set thresholds and system settings",
-            "approval_rules": "Approval Rules",
-            "approval_rules_desc": "Configure approval scenarios",
-            "all_business_data": "All Business Data",
-            "all_business_data_desc": "Full access to risks, controls, KRIs",
-            "platform_admin_note": "Platform Admin has no access to business data (risks, controls, KRIs)",
-            "cro_note": "Chief Risk Officer has full business configuration access via Risk Hub"
-        },
-        "resources": {
-            "risks": "⚠️ Risks",
-            "controls": "🛡️ Controls",
-            "users": "👥 Users",
-            "reports": "📊 Reports",
-            "approvals": "✅ Approvals",
-            "departments": "🏢 Departments"
-        },
-        "actions": {
-            "edit_access": "Edit Access",
-            "activate": "Activate",
-            "deactivate": "Deactivate",
-            "can_view": "Can View",
-            "can_edit": "Can Edit",
-            "can_delete": "Can Delete"
-        }
-    },
-    "directory": {
-        "title": "Directory Integration",
-        "subtitle": "Sync users from the external AD Emulator into RiskHub.",
-        "sync_operations": "Sync Operations",
-        "preview_changes": "Preview Changes",
-        "apply_sync": "Apply Sync",
-        "sync_preview_results": "Sync Preview Results",
-        "sync_history": "Sync History",
-        "latest_error": "Latest Error:",
-        "no_changes": "No changes detected. Sync is up to date.",
-        "more_errors": " (+{{count}} more)",
-        "metrics": {
-            "created": "Created",
-            "updated": "Updated",
-            "deactivated": "Deactivated",
-            "disabled": "Disabled"
-        }
-    },
-    "governance": {
-        "title": "Governance Oversight",
-        "subtitle": "Manage orphaned risks, controls and KRIs that require administrative reassignment.",
-        "loading": "Loading Governance Data...",
-        "refresh": "Refresh Data",
-        "live_status": "Live System Status",
-        "pending_orphans": "Pending Orphans",
-        "orphaned_controls": "Orphaned Controls",
-        "orphaned_kris": "Orphaned KRIs",
-        "uncategorised": "Uncategorised",
-        "risks": "Risks",
-        "controls": "Controls",
-        "kris": "KRIs",
-        "total": "Total",
-        "action_required": "Action Required",
-        "critical": "Critical",
-        "needs_linkage": "Needs Linkage",
-        "grand_total": "Grand Total",
-        "orphaned_risks_section": "Orphaned Risks",
-        "orphaned_controls_section": "Orphaned Controls",
-        "orphaned_kris_section": "Orphaned KRIs",
-        "resolve": "Resolve",
-        "all_types": "All Types",
-        "risks_only": "Risks Only",
-        "controls_only": "Controls Only",
-        "orphaned_items": "Orphaned Items",
-        "all_clear": "All Clear",
-        "no_orphans": "No orphaned items found. All risks and controls have assigned owners.",
-        "col_type": "Type",
-        "col_name": "Name",
-        "col_description": "Description",
-        "col_department": "Department",
-        "col_previous_owner": "Previous Owner",
-        "col_orphaned": "Orphaned",
-        "col_actions": "Actions",
-        "type_risk": "Risk",
-        "type_control": "Control",
-        "type_kri": "KRI"
-    },
-    "riskhub": {
-        "title": "Risk Hub",
-        "subtitle": "Configure risk management policies, thresholds, and approval workflows",
-        "footer": "Changes are logged and auditable. All modifications take effect immediately.",
-        "tabs": {
-            "risk_types": "Risk Types",
-            "system_settings": "System Settings",
-            "approval_rules": "Approval Rules",
-            "roles": "Roles",
-            "departments": "Departments",
-            "questionnaires": "Questionnaires"
-        },
-        "questionnaires": {
-            "select_some": "Select at least one risk.",
-            "subtitle": "Batch-send risk assessment questionnaires (CRO only).",
-            "results": "Results",
-            "created": "Created",
-            "skipped_no_owner": "Skipped (no owner)",
-            "skipped_open": "Skipped (open exists)",
-            "errors": "Errors",
-            "department": "Department",
-            "all_departments": "All Departments",
-            "process": "Process",
-            "category": "Category",
-            "all_statuses": "All Statuses",
-            "status_active": "Active",
-            "status_emerging": "Emerging",
-            "select_all": "Select all (filters)",
-            "owner": "Owner",
-            "empty": "No risks found for the current filters.",
-            "select_all_hint": "Will send to all matching filtered risks.",
-            "selected_count": "{{count}} selected",
-            "send": "Send questionnaires"
-        }
-    },
-    "roles_panel": {
-        "title": "Platform Roles",
-        "show_deleted": "Show deleted",
-        "add_role": "Add Role",
-        "columns": {
-            "role_name": "Role Name",
-            "permissions": "Permissions",
-            "users": "Users"
-        },
-        "badges": {
-            "admin_permissions": "Admin Permissions",
-            "full_access": "Full Access",
-            "system": "System",
-            "active": "Active",
-            "deleted": "Deleted"
-        },
-        "actions": {
-            "edit_disabled": "{{role}} role cannot be edited",
-            "restore": "Restore"
-        },
-        "delete_confirm": "Are you sure you want to delete {{name}}?",
-        "cannot_delete_assigned": "Cannot delete: {{count}} users are assigned to this role.",
-        "modal": {
-            "edit_title": "Edit Role",
-            "new_title": "New Role",
-            "fields": {
-                "role_identifier": "Role Identifier",
-                "display_name": "Display Name",
-                "permissions": "Permissions"
-            },
-            "placeholders": {
-                "role_identifier": "e.g., junior_analyst",
-                "display_name": "e.g., Junior Risk Analyst",
-                "description": "Role responsibilities..."
-            },
-            "hints": {
-                "role_identifier": "Unique internal ID (lowercase, underscores)"
-            },
-            "loading_permissions": "Loading permissions...",
-            "saving": "Saving...",
-            "save_role": "Save Role",
-            "errors": {
-                "save_failed": "Failed to save"
-            }
-        }
-    },
-    "departments_panel": {
-        "title": "Departments",
-        "show_deleted": "Show deleted",
-        "add_department": "Add Department",
-        "columns": {
-            "name_code": "Name / Code",
-            "manager": "Manager",
-            "users": "Users",
-            "risks": "Risks",
-            "controls": "Controls"
-        },
-        "badges": {
-            "active": "Active",
-            "deleted": "Deleted"
-        },
-        "actions": {
-            "restore": "Restore"
-        },
-        "delete_confirm": "Are you sure you want to delete {{name}}?",
-        "delete_blocked_title": "Cannot delete because of linked items:",
-        "linked_counts": {
-            "users": "Users: {{count}}",
-            "risks": "Risks: {{count}}",
-            "controls": "Controls: {{count}}"
-        },
-        "modal": {
-            "edit_title": "Edit Department",
-            "new_title": "New Department",
-            "fields": {
-                "department_name": "Department Name",
-                "code_optional": "Code (Optional)"
-            },
-            "placeholders": {
-                "department_name": "e.g., IT Security",
-                "code": "e.g., IT_SEC",
-                "no_manager": "-- No Manager --"
-            },
-            "hints": {
-                "code": "Short identifier, uppercase"
-            },
-            "saving": "Saving...",
-            "save_department": "Save Department",
-            "errors": {
-                "save_failed": "Failed to save"
-            }
-        }
-    },
-    "risk_types_panel": {
-        "title": "Risk Types",
-        "show_deleted": "Show deleted",
-        "add_type": "Add Type",
-        "columns": {
-            "color": "Color",
-            "code": "Code",
-            "display_name": "Display Name",
-            "risks": "Risks"
-        },
-        "badges": {
-            "system": "System",
-            "active": "Active",
-            "deleted": "Deleted"
-        },
-        "actions": {
-            "restore": "Restore"
-        },
-        "delete_confirm": "Are you sure you want to delete {{name}}?",
-        "delete_warning": "⚠️ {{count}} risks will become uncategorized.",
-        "modal": {
-            "edit_title": "Edit Risk Type",
-            "new_title": "New Risk Type",
-            "fields": {
-                "code": "Code",
-                "display_name": "Display Name",
-                "color": "Color",
-                "sort_order": "Sort Order"
-            },
-            "placeholders": {
-                "code": "e.g., compliance",
-                "display_name": "e.g., Compliance Risk",
-                "description": "Brief description of this risk category"
-            },
-            "hints": {
-                "code": "Lowercase letters, numbers, underscores only"
-            },
-            "saving": "Saving...",
-            "errors": {
-                "save_failed": "Failed to save"
-            }
-        }
-    },
-    "approval_scenarios": {
-        "title": "Approval Scenarios",
-        "subtitle": "Configure which business actions require approval before execution.",
-        "requires_approval": "Requires Approval",
-        "approver_roles": "Approver Roles",
-        "enabled": "Enabled",
-        "disabled": "Disabled",
-        "configure": "Configure",
-        "columns": {
-            "scenario": "Scenario",
-            "approvers": "Approvers"
-        },
-        "special_roles": {
-            "risk_owner_dynamic": "Risk Owner (Dynamic)"
-        },
-        "modal": {
-            "configure": "Configure: {{name}}",
-            "select_roles": "Select roles...",
-            "roles_selected": "{{count}} role(s) selected"
-        }
-    },
-    "system_settings": {
-        "title": "System Settings",
-        "saved": "Saved",
-        "errors": {
-            "save_failed": "Failed to save"
-        },
-        "categories": {
-            "risk_thresholds": {
-                "label": "Risk Thresholds",
-                "description": "Configure score thresholds for risk classification"
-            },
-            "approvals": {
-                "label": "Approval Settings",
-                "description": "Control which actions require approval workflows"
-            },
-            "notifications": {
-                "label": "Notification Settings",
-                "description": "Configure reminder and escalation timing"
-            }
-        }
-    },
-    "confirmations": {
-        "delete_department": "Delete Department?",
-        "delete_department_desc": "This action will permanently delete the department. This cannot be undone.",
-        "delete_risk_type": "Delete Risk Type?",
-        "delete_risk_type_desc": "This action will permanently delete the risk type. This cannot be undone.",
-        "delete_role": "Delete Role?",
-        "delete_role_desc": "This action will permanently delete the role. This cannot be undone."
-    },
-    "errors": {
-        "failed_to_load_settings": "Failed to load settings",
-        "failed_to_load_risk_types": "Failed to load risk types",
-        "failed_to_load_approval_scenarios": "Failed to load approval scenarios",
-        "failed_to_load": "Failed to load"
-    },
-    "labels": {
-        "no_permissions": "No permissions",
-        "no_manager": "No manager"
-    },
-    "form": {
-        "placeholders": {
-            "name": "John Doe",
-            "email": "john@example.com",
-            "password": "••••••••",
-            "no_department_scoping": "No Department Scoping"
-        }
+    "resources": {
+      "risks": "⚠️ Risks",
+      "controls": "🛡️ Controls",
+      "users": "👥 Users",
+      "reports": "📊 Reports",
+      "approvals": "✅ Approvals",
+      "departments": "🏢 Departments"
     },
     "actions": {
-        "refresh": "Refresh"
+      "edit_access": "Edit Access",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "can_view": "Can View",
+      "can_edit": "Can Edit",
+      "can_delete": "Can Delete"
+    },
+    "modal": {
+      "title": "Edit Access Settings",
+      "permissions_count": "{{count}} permissions",
+      "reports_to": "Reports To",
+      "no_manager_top_level": "No manager (Top Level)",
+      "unsaved_changes": "Unsaved changes",
+      "no_changes": "No changes",
+      "scope_descriptions": {
+        "global": "Full system access",
+        "department": "Access within user's department",
+        "manager": "Access to direct reports only"
+      }
+    },
+    "matrix": {
+      "resource": "Resource",
+      "permissions_capabilities": "Permissions & Capabilities",
+      "click_to_toggle": "Click items to toggle permissions.",
+      "resources": {
+        "users": {
+          "label": "Users",
+          "description": "Platform users & access"
+        },
+        "risks": {
+          "label": "Risks",
+          "description": "Risk register & KRIs"
+        },
+        "controls": {
+          "label": "Controls",
+          "description": "Catalog & execution"
+        },
+        "approvals": {
+          "label": "Approvals",
+          "description": "Workflow requests"
+        },
+        "reports": {
+          "label": "Reports",
+          "description": "Analytics & exports"
+        },
+        "dashboard": {
+          "label": "Dashboard",
+          "description": "Metrics & KPIs"
+        },
+        "notifications": {
+          "label": "Notifications",
+          "description": "Alerts & updates"
+        },
+        "departments": {
+          "label": "Departments",
+          "description": "Orgs & hierarchy"
+        }
+      },
+      "actions": {
+        "users": {
+          "read": "View profiles",
+          "write": "Create/Edit",
+          "delete": "Remove"
+        },
+        "risks": {
+          "read": "View register",
+          "write": "Create/Edit",
+          "delete": "Archive"
+        },
+        "controls": {
+          "read": "View catalog",
+          "write": "Log actions",
+          "delete": "Remove"
+        },
+        "approvals": {
+          "read": "View requests",
+          "write": "Approve/Reject"
+        },
+        "reports": {
+          "read": "View reports",
+          "write": "Generate"
+        },
+        "dashboard": {
+          "read": "View metrics"
+        },
+        "notifications": {
+          "read": "View alerts",
+          "write": "Settings"
+        },
+        "departments": {
+          "read": "View list",
+          "write": "Edit structure"
+        }
+      },
+      "show_all_capabilities": "Show all capabilities",
+      "show_all_permissions": "Show all permissions"
     }
+  },
+  "directory": {
+    "title": "Directory Integration",
+    "subtitle": "Sync users from the external AD Emulator into RiskHub.",
+    "sync_operations": "Sync Operations",
+    "preview_changes": "Preview Changes",
+    "apply_sync": "Apply Sync",
+    "sync_preview_results": "Sync Preview Results",
+    "sync_history": "Sync History",
+    "latest_error": "Latest Error:",
+    "no_changes": "No changes detected. Sync is up to date.",
+    "more_errors": " (+{{count}} more)",
+    "metrics": {
+      "created": "Created",
+      "updated": "Updated",
+      "deactivated": "Deactivated",
+      "disabled": "Disabled"
+    }
+  },
+  "governance": {
+    "title": "Governance Oversight",
+    "subtitle": "Manage orphaned risks, controls and KRIs that require administrative reassignment.",
+    "loading": "Loading Governance Data...",
+    "refresh": "Refresh Data",
+    "live_status": "Live System Status",
+    "pending_orphans": "Pending Orphans",
+    "orphaned_controls": "Orphaned Controls",
+    "orphaned_kris": "Orphaned KRIs",
+    "uncategorised": "Uncategorised",
+    "risks": "Risks",
+    "controls": "Controls",
+    "kris": "KRIs",
+    "total": "Total",
+    "action_required": "Action Required",
+    "critical": "Critical",
+    "needs_linkage": "Needs Linkage",
+    "grand_total": "Grand Total",
+    "orphaned_risks_section": "Orphaned Risks",
+    "orphaned_controls_section": "Orphaned Controls",
+    "orphaned_kris_section": "Orphaned KRIs",
+    "resolve": "Resolve",
+    "all_types": "All Types",
+    "risks_only": "Risks Only",
+    "controls_only": "Controls Only",
+    "orphaned_items": "Orphaned Items",
+    "all_clear": "All Clear",
+    "no_orphans": "No orphaned items found. All risks and controls have assigned owners.",
+    "col_type": "Type",
+    "col_name": "Name",
+    "col_description": "Description",
+    "col_department": "Department",
+    "col_previous_owner": "Previous Owner",
+    "col_orphaned": "Orphaned",
+    "col_actions": "Actions",
+    "type_risk": "Risk",
+    "type_control": "Control",
+    "type_kri": "KRI",
+    "quick_view": {
+      "title": "Item Preview",
+      "initializing": "Initialising Preview...",
+      "business_analysis": "Business Analysis",
+      "methodology": "Methodology",
+      "frequency": "Frequency",
+      "rating": "Rating",
+      "category": "Category",
+      "audit_view": "System Audit View",
+      "close_preview": "Close Preview",
+      "defaults": {
+        "manual": "Manual",
+        "periodic": "Periodic",
+        "active": "Active",
+        "strategic": "Strategic"
+      }
+    },
+    "resolve_modal": {
+      "link_to_risk": "Link to Risk",
+      "resolve_orphaned_item": "Resolve Orphaned Item",
+      "configure_ownership": "Configure ownership and alignment",
+      "initializing": "Initialising Configuration...",
+      "select_risk_to_link": "Select Risk to Link",
+      "assign_new_owner": "Assign New Owner",
+      "select_department": "Select Department",
+      "owner_selection_required": "Owner Selection Required",
+      "risk_linkage_required": "Risk Linkage Required",
+      "verified_ready": "Verified Ready",
+      "resolving": "Resolving...",
+      "link_risk": "Link Risk",
+      "resolve_item": "Resolve Item"
+    }
+  },
+  "riskhub": {
+    "title": "Risk Hub",
+    "subtitle": "Configure risk management policies, thresholds, and approval workflows",
+    "footer": "Changes are logged and auditable. All modifications take effect immediately.",
+    "tabs": {
+      "risk_types": "Risk Types",
+      "system_settings": "System Settings",
+      "approval_rules": "Approval Rules",
+      "roles": "Roles",
+      "departments": "Departments",
+      "questionnaires": "Questionnaires"
+    },
+    "questionnaires": {
+      "select_some": "Select at least one risk.",
+      "subtitle": "Batch-send risk assessment questionnaires (CRO only).",
+      "results": "Results",
+      "created": "Created",
+      "skipped_no_owner": "Skipped (no owner)",
+      "skipped_open": "Skipped (open exists)",
+      "errors": "Errors",
+      "department": "Department",
+      "all_departments": "All Departments",
+      "process": "Process",
+      "category": "Category",
+      "all_statuses": "All Statuses",
+      "status_active": "Active",
+      "status_emerging": "Emerging",
+      "select_all": "Select all (filters)",
+      "owner": "Owner",
+      "empty": "No risks found for the current filters.",
+      "select_all_hint": "Will send to all matching filtered risks.",
+      "selected_count": "{{count}} selected",
+      "send": "Send questionnaires"
+    }
+  },
+  "roles_panel": {
+    "title": "Platform Roles",
+    "show_deleted": "Show deleted",
+    "add_role": "Add Role",
+    "columns": {
+      "role_name": "Role Name",
+      "permissions": "Permissions",
+      "users": "Users"
+    },
+    "badges": {
+      "admin_permissions": "Admin Permissions",
+      "full_access": "Full Access",
+      "system": "System",
+      "active": "Active",
+      "deleted": "Deleted"
+    },
+    "actions": {
+      "edit_disabled": "{{role}} role cannot be edited",
+      "restore": "Restore"
+    },
+    "delete_confirm": "Are you sure you want to delete {{name}}?",
+    "cannot_delete_assigned": "Cannot delete: {{count}} users are assigned to this role.",
+    "modal": {
+      "edit_title": "Edit Role",
+      "new_title": "New Role",
+      "fields": {
+        "role_identifier": "Role Identifier",
+        "display_name": "Display Name",
+        "permissions": "Permissions"
+      },
+      "placeholders": {
+        "role_identifier": "e.g., junior_analyst",
+        "display_name": "e.g., Junior Risk Analyst",
+        "description": "Role responsibilities..."
+      },
+      "hints": {
+        "role_identifier": "Unique internal ID (lowercase, underscores)"
+      },
+      "loading_permissions": "Loading permissions...",
+      "saving": "Saving...",
+      "save_role": "Save Role",
+      "errors": {
+        "save_failed": "Failed to save"
+      }
+    }
+  },
+  "departments_panel": {
+    "title": "Departments",
+    "show_deleted": "Show deleted",
+    "add_department": "Add Department",
+    "columns": {
+      "name_code": "Name / Code",
+      "manager": "Manager",
+      "users": "Users",
+      "risks": "Risks",
+      "controls": "Controls"
+    },
+    "badges": {
+      "active": "Active",
+      "deleted": "Deleted"
+    },
+    "actions": {
+      "restore": "Restore"
+    },
+    "delete_confirm": "Are you sure you want to delete {{name}}?",
+    "delete_blocked_title": "Cannot delete because of linked items:",
+    "linked_counts": {
+      "users": "Users: {{count}}",
+      "risks": "Risks: {{count}}",
+      "controls": "Controls: {{count}}"
+    },
+    "modal": {
+      "edit_title": "Edit Department",
+      "new_title": "New Department",
+      "fields": {
+        "department_name": "Department Name",
+        "code_optional": "Code (Optional)"
+      },
+      "placeholders": {
+        "department_name": "e.g., IT Security",
+        "code": "e.g., IT_SEC",
+        "no_manager": "-- No Manager --"
+      },
+      "hints": {
+        "code": "Short identifier, uppercase"
+      },
+      "saving": "Saving...",
+      "save_department": "Save Department",
+      "errors": {
+        "save_failed": "Failed to save"
+      }
+    }
+  },
+  "risk_types_panel": {
+    "title": "Risk Types",
+    "show_deleted": "Show deleted",
+    "add_type": "Add Type",
+    "columns": {
+      "color": "Color",
+      "code": "Code",
+      "display_name": "Display Name",
+      "risks": "Risks"
+    },
+    "badges": {
+      "system": "System",
+      "active": "Active",
+      "deleted": "Deleted"
+    },
+    "actions": {
+      "restore": "Restore"
+    },
+    "delete_confirm": "Are you sure you want to delete {{name}}?",
+    "delete_warning": "⚠️ {{count}} risks will become uncategorized.",
+    "modal": {
+      "edit_title": "Edit Risk Type",
+      "new_title": "New Risk Type",
+      "fields": {
+        "code": "Code",
+        "display_name": "Display Name",
+        "color": "Color",
+        "sort_order": "Sort Order"
+      },
+      "placeholders": {
+        "code": "e.g., compliance",
+        "display_name": "e.g., Compliance Risk",
+        "description": "Brief description of this risk category"
+      },
+      "hints": {
+        "code": "Lowercase letters, numbers, underscores only"
+      },
+      "saving": "Saving...",
+      "errors": {
+        "save_failed": "Failed to save"
+      }
+    }
+  },
+  "approval_scenarios": {
+    "title": "Approval Scenarios",
+    "subtitle": "Configure which business actions require approval before execution.",
+    "requires_approval": "Requires Approval",
+    "approver_roles": "Approver Roles",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "configure": "Configure",
+    "columns": {
+      "scenario": "Scenario",
+      "approvers": "Approvers"
+    },
+    "special_roles": {
+      "risk_owner_dynamic": "Risk Owner (Dynamic)"
+    },
+    "modal": {
+      "configure": "Configure: {{name}}",
+      "select_roles": "Select roles...",
+      "roles_selected": "{{count}} role(s) selected"
+    }
+  },
+  "system_settings": {
+    "title": "System Settings",
+    "saved": "Saved",
+    "errors": {
+      "save_failed": "Failed to save"
+    },
+    "categories": {
+      "risk_thresholds": {
+        "label": "Risk Thresholds",
+        "description": "Configure score thresholds for risk classification"
+      },
+      "approvals": {
+        "label": "Approval Settings",
+        "description": "Control which actions require approval workflows"
+      },
+      "notifications": {
+        "label": "Notification Settings",
+        "description": "Configure reminder and escalation timing"
+      }
+    }
+  },
+  "confirmations": {
+    "delete_department": "Delete Department?",
+    "delete_department_desc": "This action will permanently delete the department. This cannot be undone.",
+    "delete_risk_type": "Delete Risk Type?",
+    "delete_risk_type_desc": "This action will permanently delete the risk type. This cannot be undone.",
+    "delete_role": "Delete Role?",
+    "delete_role_desc": "This action will permanently delete the role. This cannot be undone."
+  },
+  "errors": {
+    "failed_to_load_settings": "Failed to load settings",
+    "failed_to_load_risk_types": "Failed to load risk types",
+    "failed_to_load_approval_scenarios": "Failed to load approval scenarios",
+    "failed_to_load": "Failed to load"
+  },
+  "labels": {
+    "no_permissions": "No permissions",
+    "no_manager": "No manager"
+  },
+  "form": {
+    "placeholders": {
+      "name": "John Doe",
+      "email": "john@example.com",
+      "password": "••••••••",
+      "no_department_scoping": "No Department Scoping"
+    }
+  },
+  "actions": {
+    "refresh": "Refresh"
+  },
+  "user_new": {
+    "back_to_users": "Back to Users",
+    "title": "Add New User",
+    "subtitle": "Create a new platform user with specific role and department.",
+    "personal_information": "Personal Information",
+    "full_name": "Full Name",
+    "email_address": "Email Address",
+    "password": "Password",
+    "role_access": "Role & Access",
+    "platform_role": "Platform Role",
+    "active_immediately": "This user is active and can log in immediately"
+  },
+  "user_detail": {
+    "user_not_found": "User not found.",
+    "return_to_list": "Return to list",
+    "back_to_users": "Back to Users",
+    "deactivated": "Deactivated",
+    "joined": "Joined",
+    "edit_profile": "Edit Profile",
+    "view_profile": "View Profile",
+    "view_only_access": "You have view-only access to user profiles",
+    "profile_updated": "Profile updated successfully!",
+    "security": "Security",
+    "deactivate_account": "Deactivate account",
+    "deactivate_help": "Temporarily block this user from accessing the platform.",
+    "deactivate_account_action": "Deactivate Account",
+    "reactivate_account_action": "Reactivate Account",
+    "organization": "Organization",
+    "reports_to": "Reports To",
+    "no_direct_manager": "No Direct Manager",
+    "last_update": "Last Update",
+    "platform_permissions": "Platform Permissions",
+    "permissions_inherited": "Permissions are inherited from the user's role.",
+    "full_access_granted": "Full System Access Granted",
+    "scoped_permissions": "Scoped permissions apply based on department assignment."
+  }
 }

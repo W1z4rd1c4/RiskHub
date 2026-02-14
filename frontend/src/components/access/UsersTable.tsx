@@ -132,7 +132,7 @@ export function UsersTable({
                                                 <button
                                                     onClick={() => onToggleExpand(user.id)}
                                                     className="p-1 text-slate-500 hover:text-white rounded transition-colors"
-                                                    title="Show all capabilities"
+                                                    title={t('access.matrix.show_all_capabilities')}
                                                 >
                                                     {expandedUserId === user.id
                                                         ? <ChevronDown className="h-4 w-4" />
@@ -150,7 +150,7 @@ export function UsersTable({
                                                 <button
                                                     onClick={() => onToggleExpand(user.id)}
                                                     className="p-1 text-slate-500 hover:text-white rounded transition-colors"
-                                                    title="Show all capabilities"
+                                                    title={t('access.matrix.show_all_capabilities')}
                                                 >
                                                     {expandedUserId === user.id
                                                         ? <ChevronDown className="h-4 w-4" />
@@ -165,7 +165,7 @@ export function UsersTable({
                                                 <button
                                                     onClick={() => onToggleExpand(user.id)}
                                                     className="p-1 text-slate-500 hover:text-white rounded transition-colors"
-                                                    title="Show all permissions"
+                                                    title={t('access.matrix.show_all_permissions')}
                                                 >
                                                     {expandedUserId === user.id
                                                         ? <ChevronDown className="h-4 w-4" />
@@ -191,7 +191,7 @@ export function UsersTable({
                                                 <button
                                                     onClick={() => onEditAccess(user)}
                                                     className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
-                                                    title="Edit Access"
+                                                    title={t('access.actions.edit_access')}
                                                 >
                                                     <Edit2 className="h-4 w-4" />
                                                 </button>

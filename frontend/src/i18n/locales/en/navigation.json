@@ -36,6 +36,7 @@
     "tabs": {
         "controls": "Control Catalog",
         "risk_appetite": "Risk Appetite",
-        "risks": "Risk Register"
+        "risks": "Risk Register",
+        "approvals": "Approvals"
     }
 }

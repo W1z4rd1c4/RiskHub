@@ -6,6 +6,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useTranslation } from '@/i18n/hooks';
 import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
 import { useChartTheme } from '@/hooks/useChartTheme';
+import { getChartTooltipProps } from './chartTooltip';
 
 interface CategoryBreakdownChartsProps {
     controlsByStatus: Record<string, number>;
@@ -51,6 +52,11 @@ interface MiniPieChartProps {
 function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps) {
     const { t } = useTranslation('dashboard');
     const chartTheme = useChartTheme();
+    const tooltipProps = getChartTooltipProps(chartTheme, {
+        contentStyle: {
+            padding: '8px 12px',
+        },
+    });
     const chartData = Object.entries(data).map(([key, value]) => ({
         name: t(`charts.${key}`, formatLabel(key)),
         value,
@@ -96,15 +102,7 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
                             ))}
                         </Pie>
                         <Tooltip
-                            contentStyle={{
-                                backgroundColor: chartTheme.tooltipBackground,
-                                border: `1px solid ${chartTheme.tooltipBorder}`,
-                                borderRadius: '8px',
-                                backdropFilter: 'blur(8px)',
-                                padding: '8px 12px',
-                            }}
-                            itemStyle={{ color: chartTheme.tooltipTextPrimary, fontSize: '12px' }}
-                            labelStyle={{ color: chartTheme.tooltipTextSecondary, fontSize: '10px', fontWeight: 700 }}
+                            {...tooltipProps}
                             formatter={(value, name) => {
                                 const val = (value as number) ?? 0;
                                 const label = (name as string) ?? '';

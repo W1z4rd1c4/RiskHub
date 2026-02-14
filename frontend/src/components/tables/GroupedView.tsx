@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/i18n/hooks';
 
 interface GroupedViewProps<T> {
     data: T[];
@@ -30,6 +31,7 @@ export function GroupedView<T extends Record<string, any>>({
     className,
     defaultExpanded = true,
 }: GroupedViewProps<T>) {
+    const { t } = useTranslation('common');
     // Group the data
     const groups: GroupData<T>[] = data.reduce((acc, item) => {
         const key = String(item[groupBy] ?? 'Uncategorized');
@@ -64,7 +66,7 @@ export function GroupedView<T extends Record<string, any>>({
     if (groups.length === 0) {
         return (
             <div className="glass-card text-center py-12">
-                <p className="text-slate-400">No data available</p>
+                <p className="text-slate-400">{t('empty.no_data_available')}</p>
             </div>
         );
     }

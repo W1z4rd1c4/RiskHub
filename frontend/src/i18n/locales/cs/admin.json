@@ -1,556 +1,718 @@
 {
+  "title": "Administrace",
+  "page_subtitle": "Správa platformy, stav systému a správa uživatelů",
+  "tabs": {
+    "users": "Uživatelé",
+    "departments": "Oddělení",
+    "risk_hub": "Risk Hub",
+    "logs": "Systémové logy",
+    "documentation": "Dokumentace",
+    "health": "Stav systému",
+    "application_logs": "Aplikační logy",
+    "audit_logs": "Auditní logy",
+    "sessions": "Aktivní relace"
+  },
+  "console": {
     "title": "Administrace",
-    "page_subtitle": "Správa platformy, stav systému a správa uživatelů",
-    "tabs": {
-        "users": "Uživatelé",
-        "departments": "Oddělení",
-        "risk_hub": "Risk Hub",
-        "logs": "Systémové logy",
-        "documentation": "Dokumentace",
-        "health": "Stav systému",
-        "application_logs": "Aplikační logy",
-        "audit_logs": "Auditní logy",
-        "sessions": "Aktivní relace"
+    "subtitle": "Správa platformy, stav systému a správa uživatelů",
+    "loading": "Načítání...",
+    "export_csv": "Export CSV",
+    "export_json": "Export JSON",
+    "manual_refresh": "Ruční obnovení"
+  },
+  "health": {
+    "title": "Stav systému",
+    "loading": "Načítání stavu systému...",
+    "refresh": "Obnovit",
+    "database": "Databáze",
+    "connected": "Připojeno",
+    "error": "Chyba",
+    "latency": "Latence",
+    "uptime": "Doba provozu",
+    "since_restart": "Od posledního restartu",
+    "memory": "Paměť",
+    "process_memory": "Využití paměti procesu",
+    "active_users": "Aktivní uživatelé",
+    "in_last_24h": "Za posledních 24 hodin"
+  },
+  "application_logs": {
+    "title": "Aplikační logy",
+    "loading": "Načítání logů...",
+    "all_events": "Všechny události",
+    "columns": {
+      "time": "Čas",
+      "level": "Úroveň",
+      "event": "Událost",
+      "user": "Uživatel",
+      "details": "Podrobnosti"
+    }
+  },
+  "audit": {
+    "title": "Nastavení rotace logů",
+    "max_file_size": "Maximální velikost souboru (MB)",
+    "max_file_size_hint": "Maximální velikost log souboru před rotací.",
+    "retention_count": "Počet uchovávaných souborů",
+    "retention_count_hint": "Počet záložních souborů k uchování.",
+    "note": "Nastavte rotaci pro aplikační a auditní logy samostatně.",
+    "save_settings": "Uložit nastavení",
+    "saving": "Ukládání...",
+    "event_feed": "Auditní události",
+    "live": "Živě",
+    "all_events": "Všechny události",
+    "last_n": "Posledních {{count}}",
+    "no_events": "Nebyly nalezeny žádné auditní události v aktuálním okně.",
+    "view": "Zobrazit",
+    "columns": {
+      "timestamp": "Časové razítko",
+      "event": "Událost",
+      "user": "Uživatel",
+      "client_ip": "IP klienta",
+      "details": "Podrobnosti"
+    }
+  },
+  "sessions": {
+    "title": "Aktivní relace",
+    "description": "Uživatelé s aktivitou za posledních 24 hodin",
+    "loading": "Načítání relací...",
+    "online": "Online",
+    "offline": "Offline",
+    "revoked": "Zrušeno",
+    "revoke": "Zrušit",
+    "access_revoked": "Přístup zrušen",
+    "revoke_confirm": "Zrušit relaci pro {{name}}?",
+    "columns": {
+      "user": "Uživatel",
+      "email": "E-mail",
+      "role": "Role",
+      "department": "Oddělení",
+      "last_activity": "Poslední aktivita",
+      "status": "Stav",
+      "actions": "Akce"
+    }
+  },
+  "users": {
+    "title": "Správa uživatelů",
+    "create_user": "Vytvořit uživatele",
+    "edit_user": "Upravit uživatele",
+    "delete_user": "Smazat uživatele",
+    "sync_ad": "Synchronizovat z AD",
+    "fields": {
+      "name": "Jméno",
+      "email": "E-mail",
+      "role": "Role",
+      "department": "Oddělení",
+      "status": "Stav",
+      "last_login": "Poslední přihlášení",
+      "permissions": "Oprávnění"
     },
-    "console": {
-        "title": "Administrace",
-        "subtitle": "Správa platformy, stav systému a správa uživatelů",
-        "loading": "Načítání..."
+    "roles": {
+      "admin": "Administrátor",
+      "cro": "Chief Risk Officer",
+      "risk_manager": "Risk Manager",
+      "department_manager": "Vedoucí oddělení",
+      "risk_owner": "Vlastník rizika",
+      "control_owner": "Vlastník kontroly",
+      "kri_owner": "Vlastník KRI",
+      "viewer": "Čtenář"
     },
-    "health": {
-        "title": "Stav systému",
-        "loading": "Načítání stavu systému...",
-        "refresh": "Obnovit",
-        "database": "Databáze",
-        "connected": "Připojeno",
-        "error": "Chyba",
-        "latency": "Latence",
-        "uptime": "Doba provozu",
-        "since_restart": "Od posledního restartu",
-        "memory": "Paměť",
-        "process_memory": "Využití paměti procesu",
-        "active_users": "Aktivní uživatelé",
-        "in_last_24h": "Za posledních 24 hodin"
+    "status": {
+      "active": "Aktivní",
+      "inactive": "Neaktivní",
+      "pending": "Čeká"
     },
-    "application_logs": {
-        "title": "Aplikační logy",
-        "loading": "Načítání logů...",
-        "all_events": "Všechny události",
-        "columns": {
-            "time": "Čas",
-            "level": "Úroveň",
-            "event": "Událost",
-            "user": "Uživatel",
-            "details": "Podrobnosti"
-        }
+    "subtitle": "Spravujte uživatelské účty a oprávnění."
+  },
+  "departments": {
+    "title": "Správa oddělení",
+    "create_department": "Vytvořit oddělení",
+    "edit_department": "Upravit oddělení",
+    "delete_department": "Smazat oddělení",
+    "fields": {
+      "name": "Název oddělení",
+      "code": "Kód oddělení",
+      "manager": "Vedoucí oddělení",
+      "parent": "Nadřazené oddělení",
+      "risk_count": "Počet rizik",
+      "control_count": "Počet kontrol"
+    }
+  },
+  "risk_hub": {
+    "title": "Konfigurace Risk Hub",
+    "general": "Obecná nastavení",
+    "thresholds": "Schvalovací prahy",
+    "risk_types": "Typy rizik",
+    "notifications": "Nastavení oznámení",
+    "total_asset_value": "Celková hodnota aktiv"
+  },
+  "logs": {
+    "title": "Systémové logy",
+    "application_logs": "Aplikační logy",
+    "audit_logs": "Auditní logy",
+    "log_level": "Úroveň logování",
+    "log_rotation": "Rotace logů",
+    "recent_logs": "Nedávné logy"
+  },
+  "documentation": {
+    "title": "Správa dokumentace",
+    "upload": "Nahrát dokument",
+    "categories": "Kategorie",
+    "visibility": "Viditelnost"
+  },
+  "activity_log": {
+    "title": "Auditní stopa",
+    "audit_trail": "Forenzní záznam",
+    "view_modes": {
+      "chronological": "Chronologicky",
+      "by_person": "Podle osoby",
+      "by_department": "Podle oddělení",
+      "by_risk": "Podle rizika"
     },
-    "audit": {
-        "title": "Nastavení rotace logů",
-        "max_file_size": "Maximální velikost souboru (MB)",
-        "max_file_size_hint": "Maximální velikost log souboru před rotací.",
-        "retention_count": "Počet uchovávaných souborů",
-        "retention_count_hint": "Počet záložních souborů k uchování.",
-        "note": "Nastavte rotaci pro aplikační a auditní logy samostatně.",
-        "save_settings": "Uložit nastavení",
-        "saving": "Ukládání...",
-        "event_feed": "Auditní události",
-        "live": "Živě",
-        "all_events": "Všechny události",
-        "last_n": "Posledních {{count}}",
-        "no_events": "Nebyly nalezeny žádné auditní události v aktuálním okně.",
-        "view": "Zobrazit",
-        "columns": {
-            "timestamp": "Časové razítko",
-            "event": "Událost",
-            "user": "Uživatel",
-            "client_ip": "IP klienta",
-            "details": "Podrobnosti"
-        }
+    "view_label": "Zobrazení"
+  },
+  "access": {
+    "title": "Správa přístupu",
+    "subtitle": "Správa přístupu uživatelů, rolí a oprávnění na platformě.",
+    "directory_sync_denied": "Nemáte oprávnění spravovat synchronizaci adresáře.",
+    "permission_matrix": "Matice oprávnění",
+    "access_scope": "Rozsah přístupu",
+    "add_user": "Přidat uživatele",
+    "search_placeholder": "Hledat podle jména nebo e-mailu...",
+    "filter_by_capability": "Filtrovat podle schopnosti:",
+    "all_permissions": "Všechna oprávnění",
+    "any_action": "Jakákoliv akce",
+    "clear": "Vymazat",
+    "of_users": "{{count}} z {{total}} uživatelů",
+    "stats": {
+      "total_users": "Celkem uživatelů",
+      "active": "Aktivní",
+      "privileged": "Privilegovaní",
+      "sys_admins": "Sys Admins"
     },
-    "sessions": {
-        "title": "Aktivní relace",
-        "description": "Uživatelé s aktivitou za posledních 24 hodin",
-        "loading": "Načítání relací...",
-        "online": "Online",
-        "offline": "Offline",
-        "revoked": "Zrušeno",
-        "revoke": "Zrušit",
-        "access_revoked": "Přístup zrušen",
-        "revoke_confirm": "Zrušit relaci pro {{name}}?",
-        "columns": {
-            "user": "Uživatel",
-            "email": "E-mail",
-            "role": "Role",
-            "department": "Oddělení",
-            "last_activity": "Poslední aktivita",
-            "status": "Stav",
-            "actions": "Akce"
-        }
+    "roles": {
+      "all": "Všechny role",
+      "admins": "Administrátoři",
+      "cros": "CROs",
+      "risk_managers": "Risk Manažeři",
+      "dept_heads": "Vedoucí oddělení",
+      "control_owners": "Vlastníci kontrol"
     },
-    "users": {
-        "title": "Správa uživatelů",
-        "create_user": "Vytvořit uživatele",
-        "edit_user": "Upravit uživatele",
-        "delete_user": "Smazat uživatele",
-        "sync_ad": "Synchronizovat z AD",
-        "fields": {
-            "name": "Jméno",
-            "email": "E-mail",
-            "role": "Role",
-            "department": "Oddělení",
-            "status": "Stav",
-            "last_login": "Poslední přihlášení",
-            "permissions": "Oprávnění"
-        },
-        "roles": {
-            "admin": "Administrátor",
-            "cro": "Chief Risk Officer",
-            "risk_manager": "Risk Manager",
-            "department_manager": "Vedoucí oddělení",
-            "risk_owner": "Vlastník rizika",
-            "control_owner": "Vlastník kontroly",
-            "kri_owner": "Vlastník KRI",
-            "viewer": "Čtenář"
-        },
-        "status": {
-            "active": "Aktivní",
-            "inactive": "Neaktivní",
-            "pending": "Čeká"
-        },
-        "subtitle": "Spravujte uživatelské účty a oprávnění."
+    "scopes": {
+      "global": "Globální",
+      "department": "Oddělení",
+      "manager": "Manažer",
+      "platform": "Platforma",
+      "all": "Všechny rozsahy"
     },
-    "departments": {
-        "title": "Správa oddělení",
-        "create_department": "Vytvořit oddělení",
-        "edit_department": "Upravit oddělení",
-        "delete_department": "Smazat oddělení",
-        "fields": {
-            "name": "Název oddělení",
-            "code": "Kód oddělení",
-            "manager": "Vedoucí oddělení",
-            "parent": "Nadřazené oddělení",
-            "risk_count": "Počet rizik",
-            "control_count": "Počet kontrol"
-        }
+    "table": {
+      "user": "Uživatel",
+      "role_department": "Role a oddělení",
+      "scope": "Rozsah",
+      "permissions": "Oprávnění",
+      "status": "Stav",
+      "actions": "Akce",
+      "no_department": "Bez oddělení",
+      "view_only": "Pouze náhled",
+      "no_users_found": "Nebyli nalezeni žádní uživatelé odpovídající vašim kritériím."
     },
-    "risk_hub": {
-        "title": "Konfigurace Risk Hub",
-        "general": "Obecná nastavení",
-        "thresholds": "Schvalovací prahy",
-        "risk_types": "Typy rizik",
-        "notifications": "Nastavení oznámení",
-        "total_asset_value": "Celková hodnota aktiv"
-    },
-    "logs": {
-        "title": "Systémové logy",
-        "application_logs": "Aplikační logy",
-        "audit_logs": "Auditní logy",
-        "log_level": "Úroveň logování",
-        "log_rotation": "Rotace logů",
-        "recent_logs": "Nedávné logy"
-    },
-    "documentation": {
-        "title": "Správa dokumentace",
-        "upload": "Nahrát dokument",
-        "categories": "Kategorie",
-        "visibility": "Viditelnost"
-    },
-    "activity_log": {
-        "title": "Auditní stopa",
-        "audit_trail": "Forenzní záznam",
-        "view_modes": {
-            "chronological": "Chronologicky",
-            "by_person": "Podle osoby",
-            "by_department": "Podle oddělení",
-            "by_risk": "Podle rizika"
-        }
-    },
-    "access": {
-        "title": "Správa přístupu",
-        "subtitle": "Správa přístupu uživatelů, rolí a oprávnění na platformě.",
-        "directory_sync_denied": "Nemáte oprávnění spravovat synchronizaci adresáře.",
-        "permission_matrix": "Matice oprávnění",
-        "access_scope": "Rozsah přístupu",
-        "add_user": "Přidat uživatele",
-        "search_placeholder": "Hledat podle jména nebo e-mailu...",
-        "filter_by_capability": "Filtrovat podle schopnosti:",
-        "all_permissions": "Všechna oprávnění",
-        "any_action": "Jakákoliv akce",
-        "clear": "Vymazat",
-        "of_users": "{{count}} z {{total}} uživatelů",
-        "stats": {
-            "total_users": "Celkem uživatelů",
-            "active": "Aktivní",
-            "privileged": "Privilegovaní",
-            "sys_admins": "Sys Admins"
-        },
-        "roles": {
-            "all": "Všechny role",
-            "admins": "Administrátoři",
-            "cros": "CROs",
-            "risk_managers": "Risk Manažeři",
-            "dept_heads": "Vedoucí oddělení",
-            "control_owners": "Vlastníci kontrol"
-        },
-        "scopes": {
-            "global": "Globální",
-            "department": "Oddělení",
-            "manager": "Manažer",
-            "platform": "Platforma",
-            "all": "Všechny rozsahy"
-        },
-        "table": {
-            "user": "Uživatel",
-            "role_department": "Role a oddělení",
-            "scope": "Rozsah",
-            "permissions": "Oprávnění",
-            "status": "Stav",
-            "actions": "Akce",
-            "no_department": "Bez oddělení",
-            "view_only": "Pouze náhled",
-            "no_users_found": "Nebyli nalezeni žádní uživatelé odpovídající vašim kritériím."
-        },
-        "status": {
-            "active": "Aktivní",
-            "inactive": "Neaktivní"
-        },
-        "actions": {
-            "edit_access": "Upravit přístup",
-            "activate": "Aktivovat",
-            "deactivate": "Deaktivovat",
-            "can_view": "Může zobrazit",
-            "can_edit": "Může upravit",
-            "can_delete": "Může smazat"
-        },
-        "resources": {
-            "risks": "⚠️ Rizika",
-            "controls": "🛡️ Kontroly",
-            "users": "👥 Uživatelé",
-            "reports": "📊 Reporty",
-            "approvals": "✅ Schválení",
-            "departments": "🏢 Oddělení"
-        },
-        "capabilities": {
-            "platform_admin": "Schopnosti správy platformy",
-            "riskhub": "Schopnosti Risk Hub",
-            "effective_permissions": "Efektivní oprávnění",
-            "user_management": "Správa uživatelů",
-            "user_management_desc": "Přidávání, úprava, deaktivace uživatelů",
-            "system_health": "Stav systému",
-            "system_health_desc": "Monitorování databáze, paměti",
-            "technical_logs": "Technické logy",
-            "technical_logs_desc": "Zobrazení logů aktivit a bezpečnosti",
-            "session_management": "Správa relací",
-            "session_management_desc": "Zobrazení a zrušení uživatelských relací",
-            "risk_types": "Typy rizik",
-            "risk_types_desc": "Vytváření, úprava, mazání kategorií rizik",
-            "global_config": "Globální konfigurace",
-            "global_config_desc": "Nastavení prahových hodnot a systému",
-            "approval_rules": "Pravidla schvalování",
-            "approval_rules_desc": "Konfigurace scénářů schvalování",
-            "all_business_data": "Všechna obchodní data",
-            "all_business_data_desc": "Plný přístup k rizikům, kontrolám, KRI",
-            "platform_admin_note": "Administrátor platformy nemá přístup k obchodním datům (rizika, kontroly, KRI)",
-            "cro_note": "Chief Risk Officer má plný přístup ke konfiguraci obchodních procesů přes Risk Hub"
-        }
-    },
-    "directory": {
-        "title": "Integrace adresáře",
-        "subtitle": "Synchronizujte uživatele z externího AD Emulatoru do RiskHub.",
-        "sync_operations": "Operace synchronizace",
-        "preview_changes": "Náhled změn",
-        "apply_sync": "Použít synchronizaci",
-        "sync_preview_results": "Výsledky náhledu synchronizace",
-        "sync_history": "Historie synchronizace",
-        "latest_error": "Poslední chyba:",
-        "no_changes": "Nebyly detekovány žádné změny. Synchronizace je aktuální.",
-        "more_errors": " (+{{count}} dalších)",
-        "metrics": {
-            "created": "Vytvořeno",
-            "updated": "Aktualizováno",
-            "deactivated": "Deaktivováno",
-            "disabled": "Vypnuto"
-        }
-    },
-    "governance": {
-        "title": "Dohled nad správou",
-        "subtitle": "Správa osiřelých rizik, kontrol a KRI, které vyžadují administrativní přeřazení.",
-        "loading": "Načítání dat správy...",
-        "refresh": "Obnovit data",
-        "live_status": "Živý stav systému",
-        "pending_orphans": "Čekající položky",
-        "orphaned_controls": "Osiřelé kontroly",
-        "orphaned_kris": "Osiřelé KRI",
-        "uncategorised": "Bez kategorie",
-        "risks": "Rizika",
-        "controls": "Kontroly",
-        "kris": "KRI",
-        "total": "Celkem",
-        "action_required": "Vyžaduje akci",
-        "critical": "Kritické",
-        "needs_linkage": "Vyžaduje propojení",
-        "grand_total": "Celkový součet",
-        "orphaned_risks_section": "Osiřelá rizika",
-        "orphaned_controls_section": "Osiřelé kontroly",
-        "orphaned_kris_section": "Osiřelé KRI",
-        "resolve": "Vyřešit",
-        "all_types": "Všechny typy",
-        "risks_only": "Pouze rizika",
-        "controls_only": "Pouze kontroly",
-        "orphaned_items": "Osiřelé položky",
-        "all_clear": "Vše v pořádku",
-        "no_orphans": "Nebyly nalezeny žádné osiřelé položky. Všechna rizika a kontroly mají přiřazené vlastníky.",
-        "col_type": "Typ",
-        "col_name": "Název",
-        "col_description": "Popis",
-        "col_department": "Oddělení",
-        "col_previous_owner": "Předchozí vlastník",
-        "col_orphaned": "Osiřelo",
-        "col_actions": "Akce",
-        "type_risk": "Riziko",
-        "type_control": "Kontrola",
-        "type_kri": "KRI"
-    },
-    "riskhub": {
-        "title": "Risk Hub",
-        "subtitle": "Konfigurace politik řízení rizik, prahových hodnot a schvalovacích workflow",
-        "footer": "Změny jsou zaznamenávány a auditovatelné. Všechny úpravy se projeví okamžitě.",
-        "tabs": {
-            "risk_types": "Typy rizik",
-            "system_settings": "Nastavení systému",
-            "approval_rules": "Pravidla schvalování",
-            "roles": "Role",
-            "departments": "Oddělení",
-            "questionnaires": "Dotazníky"
-        },
-        "questionnaires": {
-            "select_some": "Vyberte alespoň jedno riziko.",
-            "subtitle": "Hromadné odeslání dotazníků hodnocení rizik (pouze CRO).",
-            "results": "Výsledky",
-            "created": "Vytvořeno",
-            "skipped_no_owner": "Přeskočeno (bez vlastníka)",
-            "skipped_open": "Přeskočeno (existuje otevřený)",
-            "errors": "Chyby",
-            "department": "Oddělení",
-            "all_departments": "Všechna oddělení",
-            "process": "Proces",
-            "category": "Kategorie",
-            "all_statuses": "Všechny stavy",
-            "status_active": "Aktivní",
-            "status_emerging": "Vznikající",
-            "select_all": "Vybrat vše (filtry)",
-            "owner": "Vlastník",
-            "empty": "Pro aktuální filtry nebyla nalezena žádná rizika.",
-            "select_all_hint": "Odešle se všem rizikům odpovídajícím filtrům.",
-            "selected_count": "Vybráno: {{count}}",
-            "send": "Odeslat dotazníky"
-        }
-    },
-    "roles_panel": {
-        "title": "Role platformy",
-        "show_deleted": "Zobrazit smazané",
-        "add_role": "Přidat roli",
-        "columns": {
-            "role_name": "Název role",
-            "permissions": "Oprávnění",
-            "users": "Uživatelé"
-        },
-        "badges": {
-            "admin_permissions": "Oprávnění admina",
-            "full_access": "Plný přístup",
-            "system": "Systém",
-            "active": "Aktivní",
-            "deleted": "Smazané"
-        },
-        "actions": {
-            "edit_disabled": "Roli {{role}} nelze upravit",
-            "restore": "Obnovit"
-        },
-        "delete_confirm": "Opravdu chcete smazat {{name}}?",
-        "cannot_delete_assigned": "Nelze smazat: k této roli je přiřazeno {{count}} uživatelů.",
-        "modal": {
-            "edit_title": "Upravit roli",
-            "new_title": "Nová role",
-            "fields": {
-                "role_identifier": "Identifikátor role",
-                "display_name": "Zobrazovaný název",
-                "permissions": "Oprávnění"
-            },
-            "placeholders": {
-                "role_identifier": "např. junior_analyst",
-                "display_name": "např. Junior Risk Analyst",
-                "description": "Odpovědnosti role..."
-            },
-            "hints": {
-                "role_identifier": "Unikátní interní ID (malá písmena, podtržítka)"
-            },
-            "loading_permissions": "Načítání oprávnění...",
-            "saving": "Ukládání...",
-            "save_role": "Uložit roli",
-            "errors": {
-                "save_failed": "Uložení se nezdařilo"
-            }
-        }
-    },
-    "departments_panel": {
-        "title": "Oddělení",
-        "show_deleted": "Zobrazit smazané",
-        "add_department": "Přidat oddělení",
-        "columns": {
-            "name_code": "Název / Kód",
-            "manager": "Vedoucí",
-            "users": "Uživatelé",
-            "risks": "Rizika",
-            "controls": "Kontroly"
-        },
-        "badges": {
-            "active": "Aktivní",
-            "deleted": "Smazané"
-        },
-        "actions": {
-            "restore": "Obnovit"
-        },
-        "delete_confirm": "Opravdu chcete smazat {{name}}?",
-        "delete_blocked_title": "Nelze smazat kvůli navázaným položkám:",
-        "linked_counts": {
-            "users": "Uživatelé: {{count}}",
-            "risks": "Rizika: {{count}}",
-            "controls": "Kontroly: {{count}}"
-        },
-        "modal": {
-            "edit_title": "Upravit oddělení",
-            "new_title": "Nové oddělení",
-            "fields": {
-                "department_name": "Název oddělení",
-                "code_optional": "Kód (volitelné)"
-            },
-            "placeholders": {
-                "department_name": "např. IT Security",
-                "code": "např. IT_SEC",
-                "no_manager": "-- Bez vedoucího --"
-            },
-            "hints": {
-                "code": "Krátký identifikátor, velká písmena"
-            },
-            "saving": "Ukládání...",
-            "save_department": "Uložit oddělení",
-            "errors": {
-                "save_failed": "Uložení se nezdařilo"
-            }
-        }
-    },
-    "risk_types_panel": {
-        "title": "Typy rizik",
-        "show_deleted": "Zobrazit smazané",
-        "add_type": "Přidat typ",
-        "columns": {
-            "color": "Barva",
-            "code": "Kód",
-            "display_name": "Zobrazovaný název",
-            "risks": "Rizika"
-        },
-        "badges": {
-            "system": "Systém",
-            "active": "Aktivní",
-            "deleted": "Smazané"
-        },
-        "actions": {
-            "restore": "Obnovit"
-        },
-        "delete_confirm": "Opravdu chcete smazat {{name}}?",
-        "delete_warning": "⚠️ {{count}} rizik bude bez kategorie.",
-        "modal": {
-            "edit_title": "Upravit typ rizika",
-            "new_title": "Nový typ rizika",
-            "fields": {
-                "code": "Kód",
-                "display_name": "Zobrazovaný název",
-                "color": "Barva",
-                "sort_order": "Pořadí"
-            },
-            "placeholders": {
-                "code": "např. compliance",
-                "display_name": "např. Compliance Risk",
-                "description": "Stručný popis této kategorie rizika"
-            },
-            "hints": {
-                "code": "Pouze malá písmena, čísla a podtržítka"
-            },
-            "saving": "Ukládání...",
-            "errors": {
-                "save_failed": "Uložení se nezdařilo"
-            }
-        }
-    },
-    "approval_scenarios": {
-        "title": "Scénáře schvalování",
-        "subtitle": "Nastavte, které obchodní akce vyžadují schválení před provedením.",
-        "requires_approval": "Vyžaduje schválení",
-        "approver_roles": "Role schvalovatelů",
-        "enabled": "Povoleno",
-        "disabled": "Zakázáno",
-        "configure": "Nastavit",
-        "columns": {
-            "scenario": "Scénář",
-            "approvers": "Schvalovatelé"
-        },
-        "special_roles": {
-            "risk_owner_dynamic": "Vlastník rizika (dynamický)"
-        },
-        "modal": {
-            "configure": "Nastavit: {{name}}",
-            "select_roles": "Vyberte role...",
-            "roles_selected": "Vybráno rolí: {{count}}"
-        }
-    },
-    "system_settings": {
-        "title": "Nastavení systému",
-        "saved": "Uloženo",
-        "errors": {
-            "save_failed": "Uložení se nezdařilo"
-        },
-        "categories": {
-            "risk_thresholds": {
-                "label": "Prahy rizik",
-                "description": "Nastavte hranice skóre pro klasifikaci rizik"
-            },
-            "approvals": {
-                "label": "Nastavení schvalování",
-                "description": "Určete, které akce vyžadují schvalovací workflow"
-            },
-            "notifications": {
-                "label": "Nastavení oznámení",
-                "description": "Nastavte načasování připomínek a eskalací"
-            }
-        }
-    },
-    "confirmations": {
-        "delete_department": "Smazat oddělení?",
-        "delete_department_desc": "Tato akce trvale odstraní oddělení. Tuto akci nelze vrátit zpět.",
-        "delete_risk_type": "Smazat typ rizika?",
-        "delete_risk_type_desc": "Tato akce trvale odstraní typ rizika. Tuto akci nelze vrátit zpět.",
-        "delete_role": "Smazat roli?",
-        "delete_role_desc": "Tato akce trvale odstraní roli. Tuto akci nelze vrátit zpět."
-    },
-    "errors": {
-        "failed_to_load_settings": "Nepodařilo se načíst nastavení",
-        "failed_to_load_risk_types": "Nepodařilo se načíst typy rizik",
-        "failed_to_load_approval_scenarios": "Nepodařilo se načíst scénáře schvalování",
-        "failed_to_load": "Nepodařilo se načíst"
-    },
-    "labels": {
-        "no_permissions": "Žádná oprávnění",
-        "no_manager": "Bez vedoucího"
-    },
-    "form": {
-        "placeholders": {
-            "name": "Jan Novák",
-            "email": "jan@example.com",
-            "password": "••••••••",
-            "no_department_scoping": "Bez omezení na oddělení"
-        }
+    "status": {
+      "active": "Aktivní",
+      "inactive": "Neaktivní"
     },
     "actions": {
-        "refresh": "Obnovit"
+      "edit_access": "Upravit přístup",
+      "activate": "Aktivovat",
+      "deactivate": "Deaktivovat",
+      "can_view": "Může zobrazit",
+      "can_edit": "Může upravit",
+      "can_delete": "Může smazat"
+    },
+    "resources": {
+      "risks": "⚠️ Rizika",
+      "controls": "🛡️ Kontroly",
+      "users": "👥 Uživatelé",
+      "reports": "📊 Reporty",
+      "approvals": "✅ Schválení",
+      "departments": "🏢 Oddělení"
+    },
+    "capabilities": {
+      "platform_admin": "Schopnosti správy platformy",
+      "riskhub": "Schopnosti Risk Hub",
+      "effective_permissions": "Efektivní oprávnění",
+      "user_management": "Správa uživatelů",
+      "user_management_desc": "Přidávání, úprava, deaktivace uživatelů",
+      "system_health": "Stav systému",
+      "system_health_desc": "Monitorování databáze, paměti",
+      "technical_logs": "Technické logy",
+      "technical_logs_desc": "Zobrazení logů aktivit a bezpečnosti",
+      "session_management": "Správa relací",
+      "session_management_desc": "Zobrazení a zrušení uživatelských relací",
+      "risk_types": "Typy rizik",
+      "risk_types_desc": "Vytváření, úprava, mazání kategorií rizik",
+      "global_config": "Globální konfigurace",
+      "global_config_desc": "Nastavení prahových hodnot a systému",
+      "approval_rules": "Pravidla schvalování",
+      "approval_rules_desc": "Konfigurace scénářů schvalování",
+      "all_business_data": "Všechna obchodní data",
+      "all_business_data_desc": "Plný přístup k rizikům, kontrolám, KRI",
+      "platform_admin_note": "Administrátor platformy nemá přístup k obchodním datům (rizika, kontroly, KRI)",
+      "cro_note": "Chief Risk Officer má plný přístup ke konfiguraci obchodních procesů přes Risk Hub"
+    },
+    "modal": {
+      "title": "Upravit nastavení přístupu",
+      "permissions_count": "{{count}} oprávnění",
+      "reports_to": "Nadřízený",
+      "no_manager_top_level": "Bez nadřízeného (nejvyšší úroveň)",
+      "unsaved_changes": "Neuložené změny",
+      "no_changes": "Bez změn",
+      "scope_descriptions": {
+        "global": "Plný přístup k celému systému",
+        "department": "Přístup v rámci oddělení uživatele",
+        "manager": "Přístup pouze k přímým podřízeným"
+      }
+    },
+    "matrix": {
+      "resource": "Zdroj",
+      "permissions_capabilities": "Oprávnění a schopnosti",
+      "click_to_toggle": "Kliknutím přepnete oprávnění.",
+      "resources": {
+        "users": {
+          "label": "Uživatelé",
+          "description": "Uživatelé platformy a přístupy"
+        },
+        "risks": {
+          "label": "Rizika",
+          "description": "Registr rizik a KRI"
+        },
+        "controls": {
+          "label": "Kontroly",
+          "description": "Katalog a vykonávání"
+        },
+        "approvals": {
+          "label": "Schválení",
+          "description": "Workflow požadavky"
+        },
+        "reports": {
+          "label": "Reporty",
+          "description": "Analytika a exporty"
+        },
+        "dashboard": {
+          "label": "Přehled",
+          "description": "Metriky a KPI"
+        },
+        "notifications": {
+          "label": "Oznámení",
+          "description": "Upozornění a aktualizace"
+        },
+        "departments": {
+          "label": "Oddělení",
+          "description": "Organizace a hierarchie"
+        }
+      },
+      "actions": {
+        "users": {
+          "read": "Zobrazit profily",
+          "write": "Vytvořit/Upravit",
+          "delete": "Odebrat"
+        },
+        "risks": {
+          "read": "Zobrazit registr",
+          "write": "Vytvořit/Upravit",
+          "delete": "Archivovat"
+        },
+        "controls": {
+          "read": "Zobrazit katalog",
+          "write": "Logovat akce",
+          "delete": "Odebrat"
+        },
+        "approvals": {
+          "read": "Zobrazit požadavky",
+          "write": "Schválit/Zamítnout"
+        },
+        "reports": {
+          "read": "Zobrazit reporty",
+          "write": "Generovat"
+        },
+        "dashboard": {
+          "read": "Zobrazit metriky"
+        },
+        "notifications": {
+          "read": "Zobrazit upozornění",
+          "write": "Nastavení"
+        },
+        "departments": {
+          "read": "Zobrazit seznam",
+          "write": "Upravit strukturu"
+        }
+      },
+      "show_all_capabilities": "Zobrazit všechny schopnosti",
+      "show_all_permissions": "Zobrazit všechna oprávnění"
     }
+  },
+  "directory": {
+    "title": "Integrace adresáře",
+    "subtitle": "Synchronizujte uživatele z externího AD Emulatoru do RiskHub.",
+    "sync_operations": "Operace synchronizace",
+    "preview_changes": "Náhled změn",
+    "apply_sync": "Použít synchronizaci",
+    "sync_preview_results": "Výsledky náhledu synchronizace",
+    "sync_history": "Historie synchronizace",
+    "latest_error": "Poslední chyba:",
+    "no_changes": "Nebyly detekovány žádné změny. Synchronizace je aktuální.",
+    "more_errors": " (+{{count}} dalších)",
+    "metrics": {
+      "created": "Vytvořeno",
+      "updated": "Aktualizováno",
+      "deactivated": "Deaktivováno",
+      "disabled": "Vypnuto"
+    }
+  },
+  "governance": {
+    "title": "Dohled nad správou",
+    "subtitle": "Správa osiřelých rizik, kontrol a KRI, které vyžadují administrativní přeřazení.",
+    "loading": "Načítání dat správy...",
+    "refresh": "Obnovit data",
+    "live_status": "Živý stav systému",
+    "pending_orphans": "Čekající položky",
+    "orphaned_controls": "Osiřelé kontroly",
+    "orphaned_kris": "Osiřelé KRI",
+    "uncategorised": "Bez kategorie",
+    "risks": "Rizika",
+    "controls": "Kontroly",
+    "kris": "KRI",
+    "total": "Celkem",
+    "action_required": "Vyžaduje akci",
+    "critical": "Kritické",
+    "needs_linkage": "Vyžaduje propojení",
+    "grand_total": "Celkový součet",
+    "orphaned_risks_section": "Osiřelá rizika",
+    "orphaned_controls_section": "Osiřelé kontroly",
+    "orphaned_kris_section": "Osiřelé KRI",
+    "resolve": "Vyřešit",
+    "all_types": "Všechny typy",
+    "risks_only": "Pouze rizika",
+    "controls_only": "Pouze kontroly",
+    "orphaned_items": "Osiřelé položky",
+    "all_clear": "Vše v pořádku",
+    "no_orphans": "Nebyly nalezeny žádné osiřelé položky. Všechna rizika a kontroly mají přiřazené vlastníky.",
+    "col_type": "Typ",
+    "col_name": "Název",
+    "col_description": "Popis",
+    "col_department": "Oddělení",
+    "col_previous_owner": "Předchozí vlastník",
+    "col_orphaned": "Osiřelo",
+    "col_actions": "Akce",
+    "type_risk": "Riziko",
+    "type_control": "Kontrola",
+    "type_kri": "KRI",
+    "quick_view": {
+      "title": "Náhled položky",
+      "initializing": "Inicializace náhledu...",
+      "business_analysis": "Business analýza",
+      "methodology": "Metodika",
+      "frequency": "Frekvence",
+      "rating": "Hodnocení",
+      "category": "Kategorie",
+      "audit_view": "Systémový auditní pohled",
+      "close_preview": "Zavřít náhled",
+      "defaults": {
+        "manual": "Manuální",
+        "periodic": "Periodická",
+        "active": "Aktivní",
+        "strategic": "Strategické"
+      }
+    },
+    "resolve_modal": {
+      "link_to_risk": "Propojit s rizikem",
+      "resolve_orphaned_item": "Vyřešit osiřelou položku",
+      "configure_ownership": "Nastavte vlastnictví a přiřazení",
+      "initializing": "Inicializace konfigurace...",
+      "select_risk_to_link": "Vyberte riziko k propojení",
+      "assign_new_owner": "Přiřadit nového vlastníka",
+      "select_department": "Vyberte oddělení",
+      "owner_selection_required": "Je vyžadován výběr vlastníka",
+      "risk_linkage_required": "Je vyžadováno propojení s rizikem",
+      "verified_ready": "Ověřeno, připraveno",
+      "resolving": "Probíhá řešení...",
+      "link_risk": "Propojit riziko",
+      "resolve_item": "Vyřešit položku"
+    }
+  },
+  "riskhub": {
+    "title": "Risk Hub",
+    "subtitle": "Konfigurace politik řízení rizik, prahových hodnot a schvalovacích workflow",
+    "footer": "Změny jsou zaznamenávány a auditovatelné. Všechny úpravy se projeví okamžitě.",
+    "tabs": {
+      "risk_types": "Typy rizik",
+      "system_settings": "Nastavení systému",
+      "approval_rules": "Pravidla schvalování",
+      "roles": "Role",
+      "departments": "Oddělení",
+      "questionnaires": "Dotazníky"
+    },
+    "questionnaires": {
+      "select_some": "Vyberte alespoň jedno riziko.",
+      "subtitle": "Hromadné odeslání dotazníků hodnocení rizik (pouze CRO).",
+      "results": "Výsledky",
+      "created": "Vytvořeno",
+      "skipped_no_owner": "Přeskočeno (bez vlastníka)",
+      "skipped_open": "Přeskočeno (existuje otevřený)",
+      "errors": "Chyby",
+      "department": "Oddělení",
+      "all_departments": "Všechna oddělení",
+      "process": "Proces",
+      "category": "Kategorie",
+      "all_statuses": "Všechny stavy",
+      "status_active": "Aktivní",
+      "status_emerging": "Vznikající",
+      "select_all": "Vybrat vše (filtry)",
+      "owner": "Vlastník",
+      "empty": "Pro aktuální filtry nebyla nalezena žádná rizika.",
+      "select_all_hint": "Odešle se všem rizikům odpovídajícím filtrům.",
+      "selected_count": "Vybráno: {{count}}",
+      "send": "Odeslat dotazníky"
+    }
+  },
+  "roles_panel": {
+    "title": "Role platformy",
+    "show_deleted": "Zobrazit smazané",
+    "add_role": "Přidat roli",
+    "columns": {
+      "role_name": "Název role",
+      "permissions": "Oprávnění",
+      "users": "Uživatelé"
+    },
+    "badges": {
+      "admin_permissions": "Oprávnění admina",
+      "full_access": "Plný přístup",
+      "system": "Systém",
+      "active": "Aktivní",
+      "deleted": "Smazané"
+    },
+    "actions": {
+      "edit_disabled": "Roli {{role}} nelze upravit",
+      "restore": "Obnovit"
+    },
+    "delete_confirm": "Opravdu chcete smazat {{name}}?",
+    "cannot_delete_assigned": "Nelze smazat: k této roli je přiřazeno {{count}} uživatelů.",
+    "modal": {
+      "edit_title": "Upravit roli",
+      "new_title": "Nová role",
+      "fields": {
+        "role_identifier": "Identifikátor role",
+        "display_name": "Zobrazovaný název",
+        "permissions": "Oprávnění"
+      },
+      "placeholders": {
+        "role_identifier": "např. junior_analyst",
+        "display_name": "např. Junior Risk Analyst",
+        "description": "Odpovědnosti role..."
+      },
+      "hints": {
+        "role_identifier": "Unikátní interní ID (malá písmena, podtržítka)"
+      },
+      "loading_permissions": "Načítání oprávnění...",
+      "saving": "Ukládání...",
+      "save_role": "Uložit roli",
+      "errors": {
+        "save_failed": "Uložení se nezdařilo"
+      }
+    }
+  },
+  "departments_panel": {
+    "title": "Oddělení",
+    "show_deleted": "Zobrazit smazané",
+    "add_department": "Přidat oddělení",
+    "columns": {
+      "name_code": "Název / Kód",
+      "manager": "Vedoucí",
+      "users": "Uživatelé",
+      "risks": "Rizika",
+      "controls": "Kontroly"
+    },
+    "badges": {
+      "active": "Aktivní",
+      "deleted": "Smazané"
+    },
+    "actions": {
+      "restore": "Obnovit"
+    },
+    "delete_confirm": "Opravdu chcete smazat {{name}}?",
+    "delete_blocked_title": "Nelze smazat kvůli navázaným položkám:",
+    "linked_counts": {
+      "users": "Uživatelé: {{count}}",
+      "risks": "Rizika: {{count}}",
+      "controls": "Kontroly: {{count}}"
+    },
+    "modal": {
+      "edit_title": "Upravit oddělení",
+      "new_title": "Nové oddělení",
+      "fields": {
+        "department_name": "Název oddělení",
+        "code_optional": "Kód (volitelné)"
+      },
+      "placeholders": {
+        "department_name": "např. IT Security",
+        "code": "např. IT_SEC",
+        "no_manager": "-- Bez vedoucího --"
+      },
+      "hints": {
+        "code": "Krátký identifikátor, velká písmena"
+      },
+      "saving": "Ukládání...",
+      "save_department": "Uložit oddělení",
+      "errors": {
+        "save_failed": "Uložení se nezdařilo"
+      }
+    }
+  },
+  "risk_types_panel": {
+    "title": "Typy rizik",
+    "show_deleted": "Zobrazit smazané",
+    "add_type": "Přidat typ",
+    "columns": {
+      "color": "Barva",
+      "code": "Kód",
+      "display_name": "Zobrazovaný název",
+      "risks": "Rizika"
+    },
+    "badges": {
+      "system": "Systém",
+      "active": "Aktivní",
+      "deleted": "Smazané"
+    },
+    "actions": {
+      "restore": "Obnovit"
+    },
+    "delete_confirm": "Opravdu chcete smazat {{name}}?",
+    "delete_warning": "⚠️ {{count}} rizik bude bez kategorie.",
+    "modal": {
+      "edit_title": "Upravit typ rizika",
+      "new_title": "Nový typ rizika",
+      "fields": {
+        "code": "Kód",
+        "display_name": "Zobrazovaný název",
+        "color": "Barva",
+        "sort_order": "Pořadí"
+      },
+      "placeholders": {
+        "code": "např. compliance",
+        "display_name": "např. Compliance Risk",
+        "description": "Stručný popis této kategorie rizika"
+      },
+      "hints": {
+        "code": "Pouze malá písmena, čísla a podtržítka"
+      },
+      "saving": "Ukládání...",
+      "errors": {
+        "save_failed": "Uložení se nezdařilo"
+      }
+    }
+  },
+  "approval_scenarios": {
+    "title": "Scénáře schvalování",
+    "subtitle": "Nastavte, které obchodní akce vyžadují schválení před provedením.",
+    "requires_approval": "Vyžaduje schválení",
+    "approver_roles": "Role schvalovatelů",
+    "enabled": "Povoleno",
+    "disabled": "Zakázáno",
+    "configure": "Nastavit",
+    "columns": {
+      "scenario": "Scénář",
+      "approvers": "Schvalovatelé"
+    },
+    "special_roles": {
+      "risk_owner_dynamic": "Vlastník rizika (dynamický)"
+    },
+    "modal": {
+      "configure": "Nastavit: {{name}}",
+      "select_roles": "Vyberte role...",
+      "roles_selected": "Vybráno rolí: {{count}}"
+    }
+  },
+  "system_settings": {
+    "title": "Nastavení systému",
+    "saved": "Uloženo",
+    "errors": {
+      "save_failed": "Uložení se nezdařilo"
+    },
+    "categories": {
+      "risk_thresholds": {
+        "label": "Prahy rizik",
+        "description": "Nastavte hranice skóre pro klasifikaci rizik"
+      },
+      "approvals": {
+        "label": "Nastavení schvalování",
+        "description": "Určete, které akce vyžadují schvalovací workflow"
+      },
+      "notifications": {
+        "label": "Nastavení oznámení",
+        "description": "Nastavte načasování připomínek a eskalací"
+      }
+    }
+  },
+  "confirmations": {
+    "delete_department": "Smazat oddělení?",
+    "delete_department_desc": "Tato akce trvale odstraní oddělení. Tuto akci nelze vrátit zpět.",
+    "delete_risk_type": "Smazat typ rizika?",
+    "delete_risk_type_desc": "Tato akce trvale odstraní typ rizika. Tuto akci nelze vrátit zpět.",
+    "delete_role": "Smazat roli?",
+    "delete_role_desc": "Tato akce trvale odstraní roli. Tuto akci nelze vrátit zpět."
+  },
+  "errors": {
+    "failed_to_load_settings": "Nepodařilo se načíst nastavení",
+    "failed_to_load_risk_types": "Nepodařilo se načíst typy rizik",
+    "failed_to_load_approval_scenarios": "Nepodařilo se načíst scénáře schvalování",
+    "failed_to_load": "Nepodařilo se načíst"
+  },
+  "labels": {
+    "no_permissions": "Žádná oprávnění",
+    "no_manager": "Bez vedoucího"
+  },
+  "form": {
+    "placeholders": {
+      "name": "Jan Novák",
+      "email": "jan@example.com",
+      "password": "••••••••",
+      "no_department_scoping": "Bez omezení na oddělení"
+    }
+  },
+  "actions": {
+    "refresh": "Obnovit"
+  },
+  "user_new": {
+    "back_to_users": "Zpět na uživatele",
+    "title": "Přidat nového uživatele",
+    "subtitle": "Vytvořte nového uživatele platformy s konkrétní rolí a oddělením.",
+    "personal_information": "Osobní informace",
+    "full_name": "Celé jméno",
+    "email_address": "E-mailová adresa",
+    "password": "Heslo",
+    "role_access": "Role a přístup",
+    "platform_role": "Role na platformě",
+    "active_immediately": "Tento uživatel je aktivní a může se přihlásit okamžitě"
+  },
+  "user_detail": {
+    "user_not_found": "Uživatel nebyl nalezen.",
+    "return_to_list": "Zpět na seznam",
+    "back_to_users": "Zpět na uživatele",
+    "deactivated": "Deaktivovaný",
+    "joined": "Přidán",
+    "edit_profile": "Upravit profil",
+    "view_profile": "Zobrazit profil",
+    "view_only_access": "Máte pouze přístup pro čtení k profilům uživatelů",
+    "profile_updated": "Profil byl úspěšně aktualizován!",
+    "security": "Zabezpečení",
+    "deactivate_account": "Deaktivovat účet",
+    "deactivate_help": "Dočasně zablokuje tohoto uživatele před přístupem do platformy.",
+    "deactivate_account_action": "Deaktivovat účet",
+    "reactivate_account_action": "Znovu aktivovat účet",
+    "organization": "Organizace",
+    "reports_to": "Nadřízený",
+    "no_direct_manager": "Bez přímého nadřízeného",
+    "last_update": "Poslední aktualizace",
+    "platform_permissions": "Oprávnění platformy",
+    "permissions_inherited": "Oprávnění se dědí z role uživatele.",
+    "full_access_granted": "Udělena plná oprávnění systému",
+    "scoped_permissions": "Uplatní se omezená oprávnění podle přiřazeného oddělení."
+  }
 }
