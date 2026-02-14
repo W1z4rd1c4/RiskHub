@@ -1,32 +1,31 @@
 """
 Control execution endpoints with RBAC and department scoping.
 """
-from typing import Any, List, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import Any, List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
 from sqlalchemy.orm import selectinload
 
-from app.db.session import get_db
-from app.models.control_execution import ControlExecution as ControlExecutionModel
-from app.models.control import Control as ControlModel
-from app.models.user import User as UserModel
-from app.models.risk import ControlRiskLink
-from app.schemas import execution as schemas
 from app.api import deps
-from app.models import User
 from app.core.permissions import (
     can_access_department_id,
+    check_department_access,
     get_control_ids_where_owner,
     get_risk_ids_where_control_owner,
     get_risk_ids_where_kri_reporting_owner,
     get_user_department_ids,
-    check_department_access,
     is_control_owner,
 )
-from app.core.security import require_permission, check_permission
-from sqlalchemy import or_
+from app.core.security import check_permission, require_permission
+from app.db.session import get_db
+from app.models import User
+from app.models.control import Control as ControlModel
+from app.models.control_execution import ControlExecution as ControlExecutionModel
+from app.models.risk import ControlRiskLink
+from app.schemas import execution as schemas
 
 router = APIRouter()
 

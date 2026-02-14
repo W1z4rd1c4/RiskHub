@@ -1,32 +1,32 @@
 from __future__ import annotations
 
-from datetime import datetime, date, UTC, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, and_, desc
+from sqlalchemy import and_, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
+from app.api.mappers.vendor_sla import sla_to_read
+from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import can_read_vendor, can_read_vendor_id
-from app.core.security import require_permission, check_permission
-from app.core.activity_logger import log_activity, build_change_set
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.i18n import t
 from app.models import User, Vendor
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.models.global_config import ConfigDefaults, get_config_float
 from app.models.notification import Notification, NotificationType
 from app.models.role import Role, RolePermission, RoleType
-from app.models.vendor_sla import VendorSLA, VendorSLAFrequency
-from app.models.global_config import ConfigDefaults, get_config_float
+from app.models.vendor_sla import VendorSLA
 from app.schemas.vendor_sla import (
-    VendorSLARead,
     VendorSLACreate,
-    VendorSLAUpdate,
     VendorSLAHistoryResponse,
+    VendorSLARead,
+    VendorSLAUpdate,
     VendorSLAValueCreate,
 )
-from app.api.mappers.vendor_sla import sla_to_read
 from app.services.kri_history_service import KRIHistoryService
 from app.services.notification_service import NotificationService
 from app.services.vendor_sla_history_service import VendorSLAHistoryService

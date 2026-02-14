@@ -1,17 +1,17 @@
 """Service for managing orphaned items (risks/controls without owners)."""
 import logging
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.permissions import get_user_department_ids
+from app.models.control import Control
+from app.models.department import Department
 from app.models.orphaned_item import OrphanedItem
 from app.models.risk import Risk
-from app.models.control import Control
 from app.models.user import User
-from app.models.department import Department
-from app.core.permissions import get_user_department_ids
 
 logger = logging.getLogger(__name__)
 
@@ -288,8 +288,9 @@ class OrphanedItemService:
             OrphanedItem.status == "pending"
         )
         
-        from app.models.key_risk_indicator import KeyRiskIndicator
         from sqlalchemy.orm import selectinload
+
+        from app.models.key_risk_indicator import KeyRiskIndicator
         
         stmt = (
             select(KeyRiskIndicator)
@@ -586,7 +587,6 @@ class OrphanedItemService:
         
         Returns list of dicts matching OrphanedItemDetail schema.
         """
-        from app.models.department import Department
         from sqlalchemy.orm import selectinload
         
         query = select(OrphanedItem).options(

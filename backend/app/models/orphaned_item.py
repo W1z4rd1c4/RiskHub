@@ -1,7 +1,9 @@
 """OrphanedItem model for tracking orphaned risks/controls when users are deactivated."""
 from datetime import datetime
-from sqlalchemy import String, Integer, ForeignKey, DateTime, func
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
 
 

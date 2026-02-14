@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.core.permissions import can_read_vendor
-from app.core.security import require_permission, check_permission
 from app.core.pagination import MAX_VENDOR_SIGNALS
+from app.core.permissions import can_read_vendor
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import User, Vendor
 from app.models.vendor_external_signal import VendorExternalSignal

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Integer, ForeignKey, DateTime, func, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Integer, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -25,6 +25,6 @@ class VendorRiskLink(Base):
     )
 
 
-from app.models.vendor import Vendor
 from app.models.risk import Risk
+from app.models.vendor import Vendor
 

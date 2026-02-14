@@ -1,4 +1,7 @@
 import { apiClient } from './apiClient';
+import type { ControlSummary } from '@/types/control';
+import type { KeyRiskIndicator } from '@/types/kri';
+import type { RiskSummary } from '@/types/risk';
 
 export interface DepartmentSummary {
     id: number;
@@ -80,9 +83,8 @@ export const departmentApi = {
             status?: string;
             min_net_score?: number;
         }
-    ) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return apiClient.get<any>(`/departments/${id}/risks`, { params });
+    ): Promise<RiskSummary[]> => {
+        return apiClient.get<RiskSummary[]>(`/departments/${id}/risks`, { params });
     },
 
     /**
@@ -95,9 +97,8 @@ export const departmentApi = {
             limit?: number;
             status?: string;
         }
-    ) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return apiClient.get<any>(`/departments/${id}/controls`, { params });
+    ): Promise<ControlSummary[]> => {
+        return apiClient.get<ControlSummary[]>(`/departments/${id}/controls`, { params });
     },
 
     /**
@@ -109,8 +110,7 @@ export const departmentApi = {
             skip?: number;
             limit?: number;
         }
-    ) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return apiClient.get<any>(`/departments/${id}/kris`, { params });
+    ): Promise<KeyRiskIndicator[]> => {
+        return apiClient.get<KeyRiskIndicator[]>(`/departments/${id}/kris`, { params });
     },
 };

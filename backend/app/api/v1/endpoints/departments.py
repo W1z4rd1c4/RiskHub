@@ -1,36 +1,35 @@
 from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.sql import case
 
+from app.api.mappers.risk import risk_to_summary
+from app.core.pagination import DEFAULT_PAGE_SIZE, DEPARTMENT_RECENT_EXECUTIONS_LIMIT, MAX_PAGE_SIZE
+from app.core.permissions import check_department_access, get_user_department_ids
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import Department, User, Risk, Control, ControlExecution, KeyRiskIndicator
+from app.models import Control, ControlExecution, Department, KeyRiskIndicator, Risk, User
+from app.models.control import ControlStatus
+from app.models.global_config import ConfigDefaults, build_risk_level_ranges
 from app.models.risk import RiskStatus
-from app.models.control import ControlStatus, ControlForm, ControlFrequency
 from app.schemas.control import (
     ControlFormEnum,
     ControlStatusEnum,
+    ControlSummary,
     normalize_control_frequency,
 )
 from app.schemas.department import (
-    DepartmentRead,
-    DepartmentSummary,
-    DepartmentDetail,
-    RiskDistribution,
     ControlStats,
+    DepartmentDetail,
+    DepartmentSummary,
     RecentExecution,
+    RiskDistribution,
 )
-from app.schemas.risk import RiskSummary
-from app.schemas.control import ControlSummary
 from app.schemas.kri import KRIResponse
-from app.core.permissions import get_user_department_ids, check_department_access
-from app.core.security import require_permission, check_permission
-from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, DEPARTMENT_RECENT_EXECUTIONS_LIMIT
-from app.models.global_config import ConfigDefaults, build_risk_level_ranges
-from app.api.mappers.risk import risk_to_summary
-
+from app.schemas.risk import RiskSummary
 
 router = APIRouter()
 

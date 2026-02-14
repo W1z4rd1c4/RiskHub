@@ -9,12 +9,13 @@ Detects the user's preferred language from:
 Adds the detected locale to request.state.locale for use in endpoints.
 """
 
+from typing import Callable
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from typing import Callable
 
-from app.i18n import get_locale_from_header, DEFAULT_LOCALE
+from app.i18n import DEFAULT_LOCALE, get_locale_from_header
 
 
 class LanguageMiddleware(BaseHTTPMiddleware):

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { AlertCircle, CheckCircle, FileText, RefreshCw, Send } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { departmentApi } from '@/services/departmentApi';
@@ -54,7 +54,7 @@ export function RiskQuestionnairesPanel() {
         };
     }, [category, departmentId, process, status]);
 
-    const fetchRisks = async () => {
+    const fetchRisks = useCallback(async () => {
         setLoading(true);
         setErrorKey(null);
         setResult(null);
@@ -75,12 +75,11 @@ export function RiskQuestionnairesPanel() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filters.category, filters.department_id, filters.process, filters.status]);
 
     useEffect(() => {
-        fetchRisks();
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchRisks uses current filters
-    }, [filters.department_id, filters.process, filters.category, filters.status]);
+        void fetchRisks();
+    }, [fetchRisks]);
 
     const toggleRisk = (id: number) => {
         setSelectedIds(prev => {

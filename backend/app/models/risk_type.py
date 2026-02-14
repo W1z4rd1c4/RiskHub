@@ -1,7 +1,9 @@
 """RiskTypeConfig model for dynamic risk type management."""
 from datetime import datetime
-from sqlalchemy import String, Text, Integer, Boolean, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db.base import Base
 
 

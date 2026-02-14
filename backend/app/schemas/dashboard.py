@@ -1,8 +1,8 @@
 """
 Dashboard Schemas for Executive and Department-level Metrics
 """
+
 from pydantic import BaseModel, Field
-from typing import Optional
 
 
 class DashboardSummaryResponse(BaseModel):

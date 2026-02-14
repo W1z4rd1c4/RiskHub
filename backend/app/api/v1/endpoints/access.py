@@ -8,10 +8,9 @@ from app.api import deps
 from app.core.permissions import get_effective_permissions, get_scope_label, is_privileged_user
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
-from app.models import User, Role, RolePermission
+from app.models import Role, RolePermission, User
 from app.models.user import AccessScope
-from app.schemas.access import AccessUserRead, AccessUserUpdate, RoleWithPermissions, PermissionRead
-
+from app.schemas.access import AccessUserRead, AccessUserUpdate, PermissionRead, RoleWithPermissions
 
 router = APIRouter()
 

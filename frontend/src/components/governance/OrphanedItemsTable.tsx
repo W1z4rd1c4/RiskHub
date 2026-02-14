@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useTranslation } from '@/i18n/hooks';
@@ -20,6 +20,7 @@ const typeIcons: Record<string, typeof ShieldAlert> = {
 export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTableProps) {
     const { t } = useTranslation('admin');
     const [filter, setFilter] = useState<string>('all');
+    const [now, setNow] = useState(() => Date.now());
 
     // Type labels with translations
     const typeLabels: Record<string, string> = {
@@ -32,9 +33,9 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
         ? items
         : items.filter(item => item.item_type === filter);
 
-    // Memoize the current time to avoid calling Date.now() on every render
-    // eslint-disable-next-line react-hooks/purity, react-hooks/exhaustive-deps -- Intentional: refresh timestamp when items change
-    const now = useMemo(() => Date.now(), [items]);
+    useEffect(() => {
+        setNow(Date.now());
+    }, [items]);
 
     const isOld = (dateStr: string) => {
         const date = new Date(dateStr);

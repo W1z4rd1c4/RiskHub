@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -13,7 +13,7 @@ from app.i18n import t
 from app.models import User, Vendor
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.notification import NotificationType
-from app.models.role import Role, RoleType, RolePermission
+from app.models.role import Role, RolePermission, RoleType
 from app.models.vendor_assessment import (
     VendorAssessment,
     VendorAssessmentScope,

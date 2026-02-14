@@ -1,17 +1,19 @@
 """Risk questionnaire model for per-risk assessment questionnaires."""
-from enum import Enum as PyEnum
 from datetime import datetime
+from enum import Enum as PyEnum
 
 from sqlalchemy import (
+    JSON,
     DateTime,
     ForeignKey,
     Index,
     Integer,
-    JSON,
     String,
     Text,
-    Enum as SAEnum,
     func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

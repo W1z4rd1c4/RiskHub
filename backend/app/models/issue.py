@@ -8,7 +8,6 @@ from enum import Enum as PyEnum
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
@@ -16,6 +15,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

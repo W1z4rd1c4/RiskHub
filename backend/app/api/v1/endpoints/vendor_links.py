@@ -6,18 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.core.permissions import can_read_vendor, is_vendor_owner, can_read_risk_id, can_read_control_id
+from app.core.permissions import can_read_control_id, can_read_risk_id, can_read_vendor, is_vendor_owner
 from app.core.security import check_permission
 from app.db.session import get_db
 from app.models import (
+    Control,
+    Risk,
     User,
     Vendor,
-    Risk,
-    Control,
-    VendorRiskLink,
     VendorControlLink,
+    VendorRiskLink,
 )
-from app.schemas.vendor_links import VendorRiskLinkCreate, VendorControlLinkCreate, LinkedRiskRead, LinkedControlRead
+from app.schemas.vendor_links import LinkedControlRead, LinkedRiskRead, VendorControlLinkCreate, VendorRiskLinkCreate
 
 router = APIRouter()
 

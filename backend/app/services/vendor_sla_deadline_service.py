@@ -3,21 +3,21 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, date, timedelta, UTC
+from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.i18n import t
 from app.models import User
-from app.models.notification import Notification, NotificationType
-from app.models.role import Role, RoleType, RolePermission
-from app.models.vendor_sla import VendorSLA
 from app.models.global_config import ConfigDefaults, get_config_float, get_config_int
+from app.models.notification import Notification, NotificationType
+from app.models.role import Role, RolePermission, RoleType
+from app.models.vendor_sla import VendorSLA
+from app.services.kri_history_service import KRIHistoryService
 from app.services.notification_service import NotificationService
 from app.services.vendor_sla_history_service import VendorSLAHistoryService
-from app.services.kri_history_service import KRIHistoryService
 
 logger = logging.getLogger(__name__)
 

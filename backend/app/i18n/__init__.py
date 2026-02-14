@@ -16,12 +16,13 @@ Usage:
     message = get_message(request, 'errors.not_found')
 """
 
-from typing import Optional, Dict, Any
 from functools import lru_cache
+from typing import Any, Dict, Optional
+
+from .cs import MESSAGES as CS_MESSAGES
 
 # Import message dictionaries
 from .en import MESSAGES as EN_MESSAGES
-from .cs import MESSAGES as CS_MESSAGES
 
 # Supported locales
 SUPPORTED_LOCALES = {'en', 'cs'}

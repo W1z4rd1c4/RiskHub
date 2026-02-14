@@ -1,31 +1,35 @@
 from typing import Optional
-from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, or_, func, asc, desc
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.session import get_db
-from app.models import User, Risk, Control, ControlRiskLink, KeyRiskIndicator, RiskTypeConfig, Vendor, VendorRiskLink
-from app.schemas.risk import (
-    RiskCreate, RiskUpdate, RiskRead, RiskSummary, RiskListResponse,
-    RiskStatusEnum,
-    ControlRiskLinkFromRisk, ControlRiskLinkRead, ControlEffectivenessEnum,
-)
 from app.api import deps
-from app.core.permissions import (
-    get_user_department_ids,
-    check_department_access,
-    is_control_owner,
-    can_read_vendor,
-    can_read_risk_id,
-)
-from app.core.security import require_permission, check_permission
-from app.core.activity_logger import log_activity, build_change_set
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.api.mappers.risk import risk_to_summary
 from app.api.mappers.vendor import vendor_to_read
+from app.core.activity_logger import build_change_set, log_activity
+from app.core.permissions import (
+    can_read_risk_id,
+    can_read_vendor,
+    check_department_access,
+    get_user_department_ids,
+    is_control_owner,
+)
+from app.core.security import check_permission, require_permission
+from app.db.session import get_db
+from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk, RiskTypeConfig, User, Vendor, VendorRiskLink
+from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.risk import (
+    ControlRiskLinkFromRisk,
+    ControlRiskLinkRead,
+    RiskCreate,
+    RiskListResponse,
+    RiskRead,
+    RiskStatusEnum,
+    RiskUpdate,
+)
 
 router = APIRouter()
 
@@ -113,7 +117,7 @@ async def list_risks(
     Also includes risks where user is reporting owner of any linked KRI or control owner.
     Returns paginated response with total count.
     """
-    from app.core.permissions import get_risk_ids_where_kri_reporting_owner, get_risk_ids_where_control_owner
+    from app.core.permissions import get_risk_ids_where_control_owner, get_risk_ids_where_kri_reporting_owner
     from app.models.risk import ControlRiskLink
     
     base_query = select(Risk)
@@ -255,7 +259,7 @@ async def get_risk(
     current_user: User = Depends(require_permission("risks", "read")),
 ):
     """Get a single risk with all relationships."""
-    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
+    from app.core.permissions import is_risk_control_owner, is_risk_kri_reporting_owner
     
     result = await db.execute(
         select(Risk)
@@ -310,8 +314,6 @@ async def create_risk(
     auto_generated = not risk_id_code
     
     MAX_RETRIES = 5
-    last_error = None
-    
     for attempt in range(MAX_RETRIES):
         try:
             if auto_generated:
@@ -369,9 +371,8 @@ async def create_risk(
             )
             return result.scalar_one()
             
-        except IntegrityError as e:
+        except IntegrityError:
             await db.rollback()
-            last_error = e
             
             # Only retry for auto-generated IDs (user-provided ID collision should fail)
             if not auto_generated:
@@ -403,9 +404,9 @@ async def update_risk(
     Non-privileged users changing sensitive fields (owner, department, category, is_priority)
     will trigger an approval request instead of immediate update.
     """
+
     from app.core.permissions import can_resolve_approvals, has_sensitive_field_changes
-    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
-    import json
+    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
     
     result = await db.execute(
         select(Risk).where(Risk.id == risk_id)
@@ -600,9 +601,10 @@ async def delete_risk(
     - Risk Manager/CRO/Admin: deletes immediately (204)
     - Others: creates approval request (202), item stays visible
     """
-    from app.core.permissions import check_department_access, can_resolve_approvals
-    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType
     from fastapi.responses import Response
+
+    from app.core.permissions import can_resolve_approvals, check_department_access
+    from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
     
     result = await db.execute(
         select(Risk).where(Risk.id == risk_id)
@@ -802,8 +804,8 @@ async def link_risk_to_control(
     current_user: User = Depends(require_permission("risks", "write")),
 ):
     """Link a risk to a control."""
+    from app.core.permissions import is_risk_control_owner, is_risk_kri_reporting_owner
     from app.models import Control
-    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
     
     # Verify risk exists
     result = await db.execute(
@@ -883,7 +885,7 @@ async def unlink_risk_from_control(
     current_user: User = Depends(require_permission("risks", "write")),
 ):
     """Remove link between risk and control."""
-    from app.core.permissions import is_risk_kri_reporting_owner, is_risk_control_owner
+    from app.core.permissions import is_risk_control_owner, is_risk_kri_reporting_owner
     
     result = await db.execute(
         select(ControlRiskLink)

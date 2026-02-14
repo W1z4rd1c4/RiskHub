@@ -4,10 +4,12 @@ KRI Value History model for tracking historical KRI values over periods.
 Stores snapshots of KRI measurements with period boundaries for 
 time-series analysis and historical reporting.
 """
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Optional
-from sqlalchemy import String, Float, ForeignKey, DateTime, Date, Index, func
+
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
 
 

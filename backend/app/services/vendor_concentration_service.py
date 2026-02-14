@@ -6,8 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Vendor
-from app.models.vendor_service import VendorService, VendorDependency
 from app.models.vendor_relationship import VendorRelationship
+from app.models.vendor_service import VendorDependency, VendorService
 
 
 @dataclass(frozen=True)

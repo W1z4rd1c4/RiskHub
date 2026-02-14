@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, UTC, date
+from datetime import UTC, date, datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import select

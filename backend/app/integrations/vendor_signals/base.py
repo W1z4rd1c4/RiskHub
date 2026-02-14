@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, Any
+from typing import Any, Protocol
 
 from app.models.vendor import Vendor
 

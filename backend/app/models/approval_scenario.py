@@ -1,9 +1,11 @@
 """ApprovalScenario model for configurable approval workflow rules."""
-from datetime import datetime
-from sqlalchemy import String, Text, Boolean, ForeignKey, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.db.base import Base
 import json
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base
 
 
 class ApprovalScenario(Base):

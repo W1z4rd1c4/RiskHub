@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-import logging
-from datetime import datetime, timedelta, UTC
 import calendar
+import logging
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, and_
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.permissions import can_read_vendor_id
 from app.i18n import t
 from app.models import User, Vendor
 from app.models.notification import Notification, NotificationType
 from app.models.role import Role, RolePermission, RoleType
-from app.core.permissions import can_read_vendor_id
 from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)

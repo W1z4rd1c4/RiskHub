@@ -1,6 +1,41 @@
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import health, auth, users, access, controls, risks, issues, vendors, vendor_risk_factors, vendor_links, vendor_assessments, vendor_contract_controls, vendor_resilience, vendor_dependencies, vendor_incidents, vendor_slas, vendor_reports, vendor_signals, dashboard, departments, reports, executions, kris, approvals, notifications, admin, directory, orphaned_items, lookups, activity_log, riskhub, riskhub_questionnaires, preferences, risk_questionnaires
+from app.api.v1.endpoints import (
+    access,
+    activity_log,
+    admin,
+    approvals,
+    auth,
+    controls,
+    dashboard,
+    departments,
+    directory,
+    executions,
+    health,
+    issues,
+    kris,
+    lookups,
+    notifications,
+    orphaned_items,
+    preferences,
+    reports,
+    risk_questionnaires,
+    riskhub,
+    riskhub_questionnaires,
+    risks,
+    users,
+    vendor_assessments,
+    vendor_contract_controls,
+    vendor_dependencies,
+    vendor_incidents,
+    vendor_links,
+    vendor_reports,
+    vendor_resilience,
+    vendor_risk_factors,
+    vendor_signals,
+    vendor_slas,
+    vendors,
+)
 
 api_router = APIRouter()
 

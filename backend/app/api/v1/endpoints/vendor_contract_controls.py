@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -8,16 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.permissions import can_read_vendor, is_vendor_owner
-from app.core.security import require_permission, check_permission
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import User, Vendor
 from app.models.vendor_contract_control import VendorContractControl, VendorContractControlStatus
 from app.schemas.vendor_contract_control import (
-    VendorContractControlsResponse,
-    VendorContractControlTemplate,
     VendorContractControlItem,
     VendorContractControlsBulkUpdate,
+    VendorContractControlsResponse,
     VendorContractControlStatusEnum,
+    VendorContractControlTemplate,
 )
 
 router = APIRouter()

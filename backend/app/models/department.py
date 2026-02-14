@@ -1,6 +1,8 @@
 from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, func, ForeignKey
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
 
 
@@ -36,7 +38,7 @@ class Department(Base):
 
 
 # Import for type hints
-from app.models.user import User
 from app.models.control import Control
 from app.models.risk import Risk
+from app.models.user import User
 from app.models.vendor import Vendor

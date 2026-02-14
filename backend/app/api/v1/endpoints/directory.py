@@ -1,8 +1,9 @@
 """Directory integration endpoints (sync only)."""
-import hmac
 import hashlib
+import hmac
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Header, Request
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,8 +14,8 @@ from app.db.session import get_db
 from app.models import User
 from app.models.directory_sync_log import DirectorySyncLog
 from app.schemas.directory_sync import (
-    DirectorySyncPreview,
     DirectorySyncLogRead,
+    DirectorySyncPreview,
     WebhookPayload,
     WebhookResponse,
 )
@@ -184,7 +185,7 @@ async def receive_webhook(
         logger.warning(f"Webhook validation failed: {e}")
         raise HTTPException(status_code=400, detail="Invalid webhook data")
         
-    except Exception as e:
+    except Exception:
         # Processing error - 500 (retry)
         # Note: sync_single_user is idempotent (upsert pattern) so retries are safe
         logger.exception("Webhook processing failed")

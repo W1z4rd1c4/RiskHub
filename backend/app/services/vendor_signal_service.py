@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, UTC, timedelta
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
