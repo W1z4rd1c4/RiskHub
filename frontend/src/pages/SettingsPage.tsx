@@ -13,11 +13,11 @@ export function SettingsPage() {
     const [activeTab, setActiveTab] = useState<TabId>('profile');
 
     const tabs = [
-        { id: 'profile' as TabId, label: t('tabs.profile', 'Profile'), icon: User },
-        { id: 'appearance' as TabId, label: t('tabs.appearance', 'Appearance'), icon: Palette },
-        { id: 'localization' as TabId, label: t('tabs.localization', 'Localization'), icon: Globe },
-        { id: 'notifications' as TabId, label: t('tabs.notifications', 'Notifications'), icon: Bell },
-        { id: 'documentation' as TabId, label: t('tabs.documentation', 'Help & Docs'), icon: BookOpen },
+        { id: 'profile' as TabId, label: t('tabs.profile'), icon: User },
+        { id: 'appearance' as TabId, label: t('tabs.appearance'), icon: Palette },
+        { id: 'localization' as TabId, label: t('tabs.localization'), icon: Globe },
+        { id: 'notifications' as TabId, label: t('tabs.notifications'), icon: Bell },
+        { id: 'documentation' as TabId, label: t('tabs.documentation'), icon: BookOpen },
     ];
 
     return (
@@ -29,9 +29,9 @@ export function SettingsPage() {
                         <User className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-white font-heading">{t('title', 'Platform Settings')}</h1>
+                        <h1 className="text-2xl font-bold text-white font-heading">{t('title')}</h1>
                         <p className="text-slate-400">
-                            {t('page_subtitle', 'Manage your profile and personalize your experience')}
+                            {t('page_subtitle')}
                         </p>
                     </div>
                 </div>

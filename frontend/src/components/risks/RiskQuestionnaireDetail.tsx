@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import type { Risk } from '@/types/risk';
 import type { RiskQuestionnaireClarification, RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
+import { apiClient } from '@/services/apiClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthz } from '@/authz/useAuthz';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
@@ -46,7 +47,7 @@ export function RiskQuestionnaireDetail({
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
     const [questionnaire, setQuestionnaire] = useState<RiskQuestionnaireDetail | null>(null);
     const [answers, setAnswers] = useState<Record<string, unknown>>({});
     const [missingKeys, setMissingKeys] = useState<string[]>([]);
@@ -93,7 +94,7 @@ export function RiskQuestionnaireDetail({
 
 	        const load = async () => {
 	            if (!isOpen || !questionnaireId) return;
-	            setError(null);
+		            setErrorKey(null);
 	            setMissingKeys([]);
 	            setLoading(true);
 	            try {
@@ -112,7 +113,7 @@ export function RiskQuestionnaireDetail({
 	                setCompareMode(defaultCompareMode);
 	            } catch (e) {
 	                if (cancelled) return;
-	                setError(e instanceof Error ? e.message : t('errors.generic'));
+		                setErrorKey(apiClient.toUiMessageKey(e));
 	            } finally {
 	                if (!cancelled) setLoading(false);
 	            }
@@ -122,7 +123,7 @@ export function RiskQuestionnaireDetail({
 	        return () => {
 	            cancelled = true;
 	        };
-	    }, [canSubmit, isOpen, questionnaireId, t]);
+		    }, [canSubmit, defaultCompareMode, isOpen, questionnaireId]);
 
     useEffect(() => {
         let cancelled = false;
@@ -178,13 +179,13 @@ export function RiskQuestionnaireDetail({
     const handleSave = async () => {
         if (!questionnaire) return;
         setSaving(true);
-        setError(null);
+        setErrorKey(null);
         try {
             const updated = await riskQuestionnairesApi.saveDraft(questionnaire.id, answers);
             setQuestionnaire(updated);
             onChanged?.();
         } catch (e) {
-            setError(e instanceof Error ? e.message : t('errors.generic'));
+            setErrorKey(apiClient.toUiMessageKey(e));
         } finally {
             setSaving(false);
         }
@@ -192,9 +193,9 @@ export function RiskQuestionnaireDetail({
 
     const handleSubmit = async () => {
         if (!questionnaire) return;
-        setError(null);
+        setErrorKey(null);
         if (!validate()) {
-            setError(t('risks:questionnaire.validation_missing', 'Please answer all required questions.'));
+            setErrorKey('risks:questionnaire.validation_missing');
             return;
         }
         setSubmitting(true);
@@ -203,7 +204,7 @@ export function RiskQuestionnaireDetail({
             setQuestionnaire(updated);
             onChanged?.();
         } catch (e) {
-            setError(e instanceof Error ? e.message : t('errors.generic'));
+            setErrorKey(apiClient.toUiMessageKey(e));
         } finally {
             setSubmitting(false);
         }
@@ -218,8 +219,8 @@ export function RiskQuestionnaireDetail({
     const formatWorstCaseImpactOptionLabel = (level: number): string => {
         const meta = IMPACT_DESCRIPTIONS[level];
         if (!meta) return String(level);
-        const range = formatFinancialRange(level, totalAssets, t('risks:form.financial.no_loss', 'No financial loss'));
-        return `${level} — ${t(meta.labelKey, meta.labelKey)} — ${t(meta.descriptionKey, meta.descriptionKey)}. ${t('risks:form.financial.loss', 'Loss')}: ${range}`;
+        const range = formatFinancialRange(level, totalAssets, t('risks:form.financial.no_loss'));
+        return `${level} — ${t(meta.labelKey, meta.labelKey)} — ${t(meta.descriptionKey, meta.descriptionKey)}. ${t('risks:form.financial.loss')}: ${range}`;
     };
 
     const likelihoodOptions = [1, 2, 3, 4, 5].map(level => ({
@@ -233,7 +234,7 @@ export function RiskQuestionnaireDetail({
     }));
 
     const renderAnswer = (key: string, value: unknown) => {
-        if (value === undefined || value === null) return t('labels.unknown', 'Unknown');
+        if (value === undefined || value === null) return t('labels.unknown');
         if (typeof value === 'boolean') return value ? t('actions.yes') : t('actions.no');
         if (key === LIKELIHOOD_12M_KEY) {
             const level = typeof value === 'number' ? value : typeof value === 'string' ? Number.parseInt(value, 10) : NaN;
@@ -291,7 +292,7 @@ export function RiskQuestionnaireDetail({
 
     const handleRequestClarification = async (sectionKey: string) => {
         if (!questionnaire) return;
-        setError(null);
+        setErrorKey(null);
         try {
             await riskQuestionnairesApi.createClarification(questionnaire.id, {
                 section_key: sectionKey,
@@ -304,13 +305,13 @@ export function RiskQuestionnaireDetail({
             setRequestMessage('');
             setRequestQuestionKeys([]);
         } catch (e) {
-            setError(e instanceof Error ? e.message : t('errors.generic'));
+            setErrorKey(apiClient.toUiMessageKey(e));
         }
     };
 
     const handleRespondClarification = async (clarificationId: number) => {
         if (!questionnaire) return;
-        setError(null);
+        setErrorKey(null);
         try {
             await riskQuestionnairesApi.respondClarification(questionnaire.id, clarificationId, {
                 response_message: responseMessage.trim(),
@@ -320,12 +321,12 @@ export function RiskQuestionnaireDetail({
             setRespondingClarificationId(null);
             setResponseMessage('');
         } catch (e) {
-            setError(e instanceof Error ? e.message : t('errors.generic'));
+            setErrorKey(apiClient.toUiMessageKey(e));
         }
     };
 
     const close = () => {
-        setError(null);
+        setErrorKey(null);
         setMissingKeys([]);
         setRequestingSectionKey(null);
         setRequestMessage('');
@@ -360,35 +361,35 @@ export function RiskQuestionnaireDetail({
                                 <div className="min-w-0">
                                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
                                         <FileText className="h-5 w-5 text-accent" />
-                                        {t('risks:questionnaire.title', 'Risk Assessment Questionnaire')}
+                                        {t('risks:questionnaire.title')}
                                     </h3>
                                     {questionnaire && (
                                         <div className="mt-2 text-xs text-slate-500 space-y-1">
                                             <div className="flex items-center gap-2">
                                                 <Clock className="h-3.5 w-3.5" />
-                                                <span>{t('risks:questionnaire.meta.sent', 'Sent')}:</span>
+                                                <span>{t('risks:questionnaire.meta.sent')}:</span>
                                                 <span className="text-slate-300">{new Date(questionnaire.sent_at).toLocaleString()}</span>
                                                 <span className="mx-2 opacity-30">•</span>
                                                 <Calendar className="h-3.5 w-3.5" />
-                                                <span>{t('risks:questionnaire.meta.due', 'Due')}:</span>
+                                                <span>{t('risks:questionnaire.meta.due')}:</span>
                                                 <span className={cn("text-slate-300", isOverdue && "text-rose-400 font-bold")}>
                                                     {new Date(questionnaire.due_at).toLocaleDateString()}
                                                 </span>
                                                 {isOverdue && (
                                                     <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-rose-500/10 border-rose-500/20 text-rose-400">
-                                                        {t('risks:questionnaire.status.overdue', 'Overdue')}
+                                                        {t('risks:questionnaire.status.overdue')}
                                                     </span>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <span>{t('risks:questionnaire.meta.status', 'Status')}:</span>
+                                                <span>{t('risks:questionnaire.meta.status')}:</span>
                                                 <span className="text-slate-300">{questionnaire.status}</span>
                                                 <span className="mx-2 opacity-30">•</span>
-                                                <span>{t('risks:questionnaire.meta.assignee', 'Assignee')}:</span>
-                                                <span className="text-slate-300">{questionnaire.assigned_to_user_name ?? questionnaire.assigned_to_user_id}</span>
+                                                <span>{t('risks:questionnaire.meta.assignee')}:</span>
+                                                <span className="text-slate-300">{questionnaire.assigned_to_user_name ?? t('common:fallbacks.unknown_user')}</span>
                                                 <span className="mx-2 opacity-30">•</span>
-                                                <span>{t('risks:questionnaire.meta.sender', 'Sender')}:</span>
-                                                <span className="text-slate-300">{questionnaire.sent_by_user_name ?? questionnaire.sent_by_user_id}</span>
+                                                <span>{t('risks:questionnaire.meta.sender')}:</span>
+                                                <span className="text-slate-300">{questionnaire.sent_by_user_name ?? t('common:fallbacks.unknown_user')}</span>
                                                 <span className="mx-2 opacity-30">•</span>
                                                 <button
                                                     onClick={() => setCompareMode(v => !v)}
@@ -399,7 +400,7 @@ export function RiskQuestionnaireDetail({
                                                             : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
                                                     )}
                                                 >
-                                                    {t('risks:questionnaire.compare_toggle', 'Compare to last cycle')}
+                                                    {t('risks:questionnaire.compare_toggle')}
                                                 </button>
                                             </div>
                                         </div>
@@ -416,11 +417,15 @@ export function RiskQuestionnaireDetail({
                             <div className="p-6 max-h-[70vh] overflow-y-auto">
                                 {loading ? (
                                     <div className="text-slate-400">{t('loading.generic')}</div>
-                                ) : error ? (
+                                ) : errorKey ? (
                                     <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm flex items-start gap-2">
                                         <AlertCircle className="h-4 w-4 mt-0.5" />
                                         <div className="flex-1">
-                                            <p className="font-medium">{error}</p>
+                                            <p className="font-medium">
+                                                {errorKey.startsWith('errorKeys.')
+                                                    ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
+                                                    : t(errorKey)}
+                                            </p>
                                             {missingKeys.length > 0 && (
                                                 <ul className="mt-2 list-disc list-inside text-xs text-rose-300/80">
                                                     {missingKeys.map(k => (
@@ -434,7 +439,7 @@ export function RiskQuestionnaireDetail({
                                     <div className="space-y-6">
                                         {compareMode && previousCycleLoaded && !hasPreviousCycle && (
                                             <div className="text-xs text-slate-500">
-                                                {t('risks:questionnaire.no_previous_cycle', 'No previous cycle available.')}
+                                                {t('risks:questionnaire.no_previous_cycle')}
                                             </div>
                                         )}
 
@@ -453,7 +458,7 @@ export function RiskQuestionnaireDetail({
                                                             }}
                                                             className="text-[10px] font-black uppercase tracking-widest text-accent hover:text-accent/80"
                                                         >
-                                                            {t('risks:questionnaire.request_clarification', 'Request clarification')}
+                                                            {t('risks:questionnaire.request_clarification')}
                                                         </button>
                                                     )}
                                                 </div>
@@ -461,18 +466,18 @@ export function RiskQuestionnaireDetail({
                                                 {requestingSectionKey === section.titleKey && (
                                                     <div className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-3">
                                                         <p className="text-xs font-bold text-slate-300">
-                                                            {t('risks:questionnaire.clarification_request_label', 'Clarification request')}
+                                                            {t('risks:questionnaire.clarification_request_label')}
                                                         </p>
                                                         <textarea
                                                             value={requestMessage}
                                                             onChange={(e) => setRequestMessage(e.target.value)}
                                                             rows={3}
                                                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-accent/50 transition-all resize-none"
-                                                            placeholder={t('risks:questionnaire.clarification_request_placeholder', 'What needs clarification?')}
+                                                            placeholder={t('risks:questionnaire.clarification_request_placeholder')}
                                                         />
                                                         <div className="space-y-2">
                                                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                                                                {t('risks:questionnaire.clarification_optional_questions', 'Optional: highlight questions')}
+                                                                {t('risks:questionnaire.clarification_optional_questions')}
                                                             </p>
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                                                 {section.questions.map(q => {
@@ -526,31 +531,31 @@ export function RiskQuestionnaireDetail({
                                                                 <div key={c.id} className="p-4 rounded-xl border border-white/10 bg-white/5 space-y-2">
                                                                     <div className="flex items-center justify-between gap-3">
                                                                         <p className="text-xs font-bold text-slate-300">
-                                                                            {t('risks:questionnaire.clarification', 'Clarification')}
+                                                                            {t('risks:questionnaire.clarification')}
                                                                         </p>
                                                                         {open && (
                                                                             <span className="text-[10px] font-black uppercase tracking-widest text-amber-400">
-                                                                                {t('risks:questionnaire.clarification_open', 'Open')}
+                                                                                {t('risks:questionnaire.clarification_open')}
                                                                             </span>
                                                                         )}
                                                                     </div>
                                                                     <p className="text-sm text-white whitespace-pre-wrap">{c.request_message}</p>
                                                                     <p className="text-[10px] text-slate-500">
-                                                                        {t('risks:questionnaire.clarification_requested_by', 'Requested by')}{' '}
-                                                                        {c.requested_by_user_name ?? c.requested_by_user_id} •{' '}
+                                                                        {t('risks:questionnaire.clarification_requested_by')}{' '}
+                                                                        {c.requested_by_user_name ?? t('common:fallbacks.unknown_user')} •{' '}
                                                                         {new Date(c.requested_at).toLocaleString()}
                                                                     </p>
 
                                                                     {c.response_message ? (
                                                                         <div className="mt-3 border-t border-white/10 pt-3 space-y-1">
                                                                             <p className="text-xs font-bold text-slate-300">
-                                                                                {t('risks:questionnaire.clarification_response', 'Response')}
+                                                                                {t('risks:questionnaire.clarification_response')}
                                                                             </p>
                                                                             <p className="text-sm text-white whitespace-pre-wrap">{c.response_message}</p>
                                                                             {c.responded_at && (
                                                                                 <p className="text-[10px] text-slate-500">
-                                                                                    {t('risks:questionnaire.clarification_responded_by', 'Responded by')}{' '}
-                                                                                    {c.responded_by_user_name ?? c.responded_by_user_id} •{' '}
+                                                                                    {t('risks:questionnaire.clarification_responded_by')}{' '}
+                                                                                    {c.responded_by_user_name ?? t('common:fallbacks.unknown_user')} •{' '}
                                                                                     {new Date(c.responded_at).toLocaleString()}
                                                                                 </p>
                                                                             )}
@@ -565,7 +570,7 @@ export function RiskQuestionnaireDetail({
                                                                                     }}
                                                                                     className="text-xs text-accent hover:text-accent/80 font-bold"
                                                                                 >
-                                                                                    {t('risks:questionnaire.respond', 'Respond')}
+                                                                                    {t('risks:questionnaire.respond')}
                                                                                 </button>
                                                                             ) : (
                                                                                 <>
@@ -574,7 +579,7 @@ export function RiskQuestionnaireDetail({
                                                                                         onChange={(e) => setResponseMessage(e.target.value)}
                                                                                         rows={3}
                                                                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white outline-none focus:border-accent/50 transition-all resize-none"
-                                                                                        placeholder={t('risks:questionnaire.clarification_response_placeholder', 'Write a response...')}
+                                                                                        placeholder={t('risks:questionnaire.clarification_response_placeholder')}
                                                                                     />
                                                                                     <div className="flex items-center justify-end gap-2">
                                                                                         <button
@@ -627,12 +632,12 @@ export function RiskQuestionnaireDetail({
                                                                         </p>
                                                                         {changed && (
                                                                             <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent">
-                                                                                {t('risks:questionnaire.changed', 'Changed')}
+                                                                                {t('risks:questionnaire.changed')}
                                                                             </span>
                                                                         )}
                                                                         {required && (
                                                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                                                {t('risks:questionnaire.required', 'Required')}
+                                                                                {t('risks:questionnaire.required')}
                                                                             </span>
                                                                         )}
                                                                     </div>
@@ -641,7 +646,7 @@ export function RiskQuestionnaireDetail({
                                                                     </div>
                                                                     {changed && (
                                                                         <div className="text-xs text-slate-500">
-                                                                            {t('risks:questionnaire.previous', 'Previous')}: {renderAnswer(q.key, getPreviousAnswer(q.key))}
+                                                                            {t('risks:questionnaire.previous')}: {renderAnswer(q.key, getPreviousAnswer(q.key))}
                                                                         </div>
                                                                     )}
                                                                     {helperText && (
@@ -662,12 +667,12 @@ export function RiskQuestionnaireDetail({
                                                                     </p>
                                                                     {changed && (
                                                                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent">
-                                                                            {t('risks:questionnaire.changed', 'Changed')}
+                                                                            {t('risks:questionnaire.changed')}
                                                                         </span>
                                                                     )}
                                                                     {required && (
                                                                         <span className={cn("text-[10px] font-black uppercase tracking-widest", missing ? "text-rose-400" : "text-slate-500")}>
-                                                                            {t('risks:questionnaire.required', 'Required')}
+                                                                            {t('risks:questionnaire.required')}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -769,7 +774,7 @@ export function RiskQuestionnaireDetail({
 
                                                                 {changed && (
                                                                     <div className="text-xs text-slate-500">
-                                                                        {t('risks:questionnaire.previous', 'Previous')}: {renderAnswer(q.key, getPreviousAnswer(q.key))}
+                                                                        {t('risks:questionnaire.previous')}: {renderAnswer(q.key, getPreviousAnswer(q.key))}
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -785,7 +790,7 @@ export function RiskQuestionnaireDetail({
                             <div className="p-6 border-t border-white/5 bg-white/[0.02] flex items-center justify-between gap-3">
                                 <div className="text-xs text-slate-500">
                                     {!canSubmit && (
-                                        <span>{t('risks:questionnaire.readonly_hint', 'Read-only: you are not assigned to submit this questionnaire.')}</span>
+                                        <span>{t('risks:questionnaire.readonly_hint')}</span>
                                     )}
                                 </div>
 
@@ -802,7 +807,7 @@ export function RiskQuestionnaireDetail({
                                                 )}
                                             >
                                                 <Save className="h-4 w-4" />
-                                                {t('risks:questionnaire.actions.save', 'Save progress')}
+                                                {t('risks:questionnaire.actions.save')}
                                             </button>
                                             <button
                                                 onClick={handleSubmit}

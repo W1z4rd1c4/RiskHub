@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Loader2, Edit3 } from 'lucide-react';
 import type { HistoryTimelineItem, HistoryStatus } from '@/types/history';
 import { formatDistanceToNow } from 'date-fns';
+import { useTranslation } from '@/i18n/hooks';
 
 interface HistoryTimelineProps {
     items: HistoryTimelineItem[];
@@ -40,11 +41,15 @@ const metaToneColors: Record<HistoryStatus, string> = {
 export function HistoryTimeline({
     items,
     loading = false,
-    emptyMessage = 'No history available',
+    emptyMessage,
     className,
     onItemAction,
-    actionLabel = 'Request Correction'
+    actionLabel
 }: HistoryTimelineProps) {
+    const { t } = useTranslation('common');
+    const resolvedEmptyMessage = emptyMessage ?? t('empty.no_history_available');
+    const resolvedActionLabel = actionLabel ?? t('actions.request_correction');
+
     if (loading) {
         return (
             <div className={cn('flex items-center justify-center py-12', className)}>
@@ -56,7 +61,7 @@ export function HistoryTimeline({
     if (!items || items.length === 0) {
         return (
             <div className={cn('text-center py-12 text-slate-500 text-sm', className)}>
-                {emptyMessage}
+                {resolvedEmptyMessage}
             </div>
         );
     }
@@ -137,7 +142,7 @@ export function HistoryTimeline({
                                         className="mt-3 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg transition-colors flex items-center gap-1.5"
                                     >
                                         <Edit3 className="h-3 w-3" />
-                                        {actionLabel}
+                                        {resolvedActionLabel}
                                     </button>
                                 )}
                             </div>

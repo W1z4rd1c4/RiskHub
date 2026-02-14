@@ -85,6 +85,36 @@ function getStringFromInitializer(initializer) {
   return null;
 }
 
+function collectUiExpressionLiterals(expr, acc = []) {
+  if (!expr) return acc;
+  if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
+    acc.push(expr);
+    return acc;
+  }
+
+  if (ts.isParenthesizedExpression(expr)) {
+    collectUiExpressionLiterals(expr.expression, acc);
+    return acc;
+  }
+
+  if (
+    ts.isBinaryExpression(expr) &&
+    (expr.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+      expr.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
+  ) {
+    collectUiExpressionLiterals(expr.right, acc);
+    return acc;
+  }
+
+  if (ts.isConditionalExpression(expr)) {
+    collectUiExpressionLiterals(expr.whenTrue, acc);
+    collectUiExpressionLiterals(expr.whenFalse, acc);
+    return acc;
+  }
+
+  return acc;
+}
+
 function normalizeUiText(value) {
   return value.replace(/\s+/g, ' ').trim();
 }
@@ -112,7 +142,20 @@ async function main() {
 
   const files = await walk(SRC_DIR);
   const violations = [];
-  const UI_ATTRS = new Set(['label', 'placeholder', 'title', 'aria-label', 'aria-placeholder', 'alt']);
+  const UI_ATTRS = new Set([
+    'label',
+    'placeholder',
+    'title',
+    'aria-label',
+    'aria-placeholder',
+    'alt',
+    'emptyMessage',
+    'emptyLabel',
+    'actionLabel',
+    'helperText',
+    'description',
+    'caption',
+  ]);
   const UI_OBJECT_KEYS = new Set([
     'label',
     'title',
@@ -125,6 +168,20 @@ async function main() {
     'description',
     'caption',
     'tooltip',
+    'emptyMessage',
+    'emptyLabel',
+    'actionLabel',
+  ]);
+  const UI_PARAM_DEFAULTS = new Set([
+    'label',
+    'title',
+    'placeholder',
+    'emptyMessage',
+    'emptyLabel',
+    'actionLabel',
+    'helperText',
+    'description',
+    'caption',
   ]);
 
   for (const file of files) {
@@ -152,11 +209,36 @@ async function main() {
       if (ts.isJsxAttribute(node)) {
         const name = getPropName(node.name);
         if (UI_ATTRS.has(name)) {
-          const raw = normalizeUiText(getStringFromInitializer(node.initializer) || '');
-          if (raw && !isNoiseText(raw) && !matchesAnyPattern(raw, tokenAllowlist)) {
+          const direct = normalizeUiText(getStringFromInitializer(node.initializer) || '');
+          if (direct && !isNoiseText(direct) && !matchesAnyPattern(direct, tokenAllowlist)) {
             const pos = toLineCol(content, node.getStart(sf));
-            violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'prop', text: raw });
+            violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'prop', text: direct });
           }
+
+          if (ts.isJsxExpression(node.initializer) && node.initializer.expression) {
+            const literals = collectUiExpressionLiterals(node.initializer.expression);
+            for (const literalNode of literals) {
+              const raw = normalizeUiText(literalNode.text);
+              if (!raw || isNoiseText(raw) || matchesAnyPattern(raw, tokenAllowlist)) continue;
+              const pos = toLineCol(content, literalNode.getStart(sf));
+              violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'prop-expr', text: raw });
+            }
+          }
+        }
+      }
+
+      if (ts.isParameter(node) && ts.isObjectBindingPattern(node.name)) {
+        for (const element of node.name.elements) {
+          if (!element.initializer) continue;
+          if (!ts.isIdentifier(element.name)) continue;
+          const propName = (element.propertyName && ts.isIdentifier(element.propertyName))
+            ? element.propertyName.text
+            : element.name.text;
+          if (!UI_PARAM_DEFAULTS.has(propName)) continue;
+          const raw = normalizeUiText(getTextFromLiteral(element.initializer) || '');
+          if (!raw || isNoiseText(raw) || matchesAnyPattern(raw, tokenAllowlist)) continue;
+          const pos = toLineCol(content, element.initializer.getStart(sf));
+          violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'param-default', text: raw });
         }
       }
 
@@ -199,6 +281,30 @@ async function main() {
                 violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'prop-expr', text: raw });
               }
             }
+          }
+        } else if (
+          parent &&
+          ts.isBinaryExpression(parent) &&
+          (parent.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+            parent.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) &&
+          parent.right === node &&
+          ts.isJsxExpression(parent.parent)
+        ) {
+          const raw = normalizeUiText(node.text);
+          if (raw && !isNoiseText(raw) && !matchesAnyPattern(raw, tokenAllowlist)) {
+            const pos = toLineCol(content, node.getStart(sf));
+            violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'jsx-fallback', text: raw });
+          }
+        } else if (
+          parent &&
+          ts.isConditionalExpression(parent) &&
+          (parent.whenTrue === node || parent.whenFalse === node) &&
+          ts.isJsxExpression(parent.parent)
+        ) {
+          const raw = normalizeUiText(node.text);
+          if (raw && !isNoiseText(raw) && !matchesAnyPattern(raw, tokenAllowlist)) {
+            const pos = toLineCol(content, node.getStart(sf));
+            violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'jsx-conditional', text: raw });
           }
         }
       }

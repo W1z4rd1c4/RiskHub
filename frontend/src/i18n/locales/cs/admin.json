@@ -224,7 +224,8 @@
       "deactivate": "Deaktivovat",
       "can_view": "Může zobrazit",
       "can_edit": "Může upravit",
-      "can_delete": "Může smazat"
+      "can_delete": "Může smazat",
+      "reactivate": "Reaktivovat"
     },
     "resources": {
       "risks": "⚠️ Rizika",
@@ -346,6 +347,11 @@
       },
       "show_all_capabilities": "Zobrazit všechny schopnosti",
       "show_all_permissions": "Zobrazit všechna oprávnění"
+    },
+    "confirmation": {
+      "deactivate_user_title": "Deaktivovat uživatele",
+      "reactivate_user_title": "Reaktivovat uživatele",
+      "toggle_user_message": "Opravdu chcete {{action}} uživatele {{name}}?"
     }
   },
   "directory": {

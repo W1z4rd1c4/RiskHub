@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import type { RiskDistributionItem } from '../../types/dashboard';
+import { useTranslation } from '@/i18n/hooks';
 
 interface RiskDistributionMatrixProps {
     distribution: RiskDistributionItem[];
@@ -12,6 +13,8 @@ interface RiskDistributionMatrixProps {
  * Cells with count > 0 are clickable for drill-down.
  */
 export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistributionMatrixProps) {
+    const { t } = useTranslation('dashboard');
+
     const getCountForCell = (p: number, i: number) => {
         const item = distribution.find(d => d.probability === p && d.impact === i);
         return item ? item.count : 0;
@@ -54,7 +57,7 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                 {/* Y-axis label */}
                 <div className="flex flex-col items-center justify-center mr-2">
                     <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] -rotate-90 whitespace-nowrap">
-                        Probability
+                        {t('risk_distribution_matrix.axis.probability')}
                     </span>
                 </div>
 
@@ -74,7 +77,7 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                                         onKeyDown={(e) => handleKeyDown(e, p, i)}
                                         tabIndex={isClickable ? 0 : -1}
                                         role={isClickable ? 'button' : undefined}
-                                        aria-label={isClickable ? `View ${count} risks at probability ${p}, impact ${i}` : undefined}
+                                        aria-label={isClickable ? t('risk_distribution_matrix.cell_aria', { count, probability: p, impact: i }) : undefined}
                                         className={`
                                             w-16 h-16
                                             rounded-xl flex flex-col items-center justify-center
@@ -84,14 +87,14 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                                             ${isClickable ? 'cursor-pointer focus:ring-2 focus:ring-accent focus:outline-none hover:opacity-80' : ''}
                                         `}
                                         style={getCellStyle(p, i)}
-                                        title={`P:${p} × I:${i} | ${count} Risks${isClickable ? ' - Click to view' : ''}`}
+                                        title={`${t('risk_distribution_matrix.cell_title', { probability: p, impact: i, count })}${isClickable ? t('risk_distribution_matrix.click_to_view') : ''}`}
                                         whileHover={isClickable ? { scale: 1.08, y: -3 } : undefined}
                                         whileTap={isClickable ? { scale: 0.95 } : undefined}
                                     >
                                         {count > 0 && (
                                             <>
                                                 <span className="text-white font-black text-2xl leading-none">{count}</span>
-                                                <span className="text-[9px] text-white/70 font-bold uppercase mt-1">Risks</span>
+                                                <span className="text-[9px] text-white/70 font-bold uppercase mt-1">{t('risk_distribution_matrix.risks')}</span>
                                             </>
                                         )}
                                     </motion.div>
@@ -104,26 +107,26 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
 
             {/* X-axis label */}
             <span className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mt-4">
-                Impact
+                {t('risk_distribution_matrix.axis.impact')}
             </span>
 
             {/* Legend */}
             <div className="flex gap-4 mt-8">
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-emerald-500/40" />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Low</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.low')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-amber-500/40" />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Med</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.medium')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-orange-500/40" />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">High</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.high')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-rose-500/40" />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Critical</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.critical')}</span>
                 </div>
             </div>
 

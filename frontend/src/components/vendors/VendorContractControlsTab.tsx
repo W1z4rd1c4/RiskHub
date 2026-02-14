@@ -69,10 +69,10 @@ export function VendorContractControlsTab({ vendorId, canEdit }: VendorContractC
                 <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         <CheckSquare className="h-4 w-4" />
-                        {t('tabs.contract_controls', 'Contract Controls')}
+                        {t('tabs.contract_controls')}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('contract_controls.subtitle', 'Checklist of required clauses/controls with evidence links.')}
+                        {t('contract_controls.subtitle')}
                     </p>
                 </div>
 
@@ -83,7 +83,7 @@ export function VendorContractControlsTab({ vendorId, canEdit }: VendorContractC
                         className="px-4 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                        {t('contract_controls.actions.save', 'Save')}
+                        {t('contract_controls.actions.save')}
                     </button>
                 )}
             </div>
@@ -91,7 +91,7 @@ export function VendorContractControlsTab({ vendorId, canEdit }: VendorContractC
             {isLoading ? (
                 <div className="flex items-center gap-3 text-slate-500 font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('labels.loading', 'Loading...')}
+                    {t('labels.loading')}
                 </div>
             ) : !data ? (
                 <div className="text-slate-500 font-medium">—</div>
@@ -124,7 +124,7 @@ export function VendorContractControlsTab({ vendorId, canEdit }: VendorContractC
                                                     )}
                                                     {!item.applies && (
                                                         <p className="text-[11px] text-slate-500 font-medium">
-                                                            {t('contract_controls.not_applicable', 'Not applicable for this vendor classification.')}
+                                                            {t('contract_controls.not_applicable')}
                                                         </p>
                                                     )}
                                                 </div>
@@ -145,10 +145,10 @@ export function VendorContractControlsTab({ vendorId, canEdit }: VendorContractC
                                                                 }))
                                                             }
                                                             options={[
-                                                                { value: 'met', label: t('contract_controls.status.met', 'Met') },
-                                                                { value: 'partial', label: t('contract_controls.status.partial', 'Partial') },
-                                                                { value: 'missing', label: t('contract_controls.status.missing', 'Missing') },
-                                                                { value: 'n_a', label: t('contract_controls.status.n_a', 'N/A') },
+                                                                { value: 'met', label: t('contract_controls.status.met') },
+                                                                { value: 'partial', label: t('contract_controls.status.partial') },
+                                                                { value: 'missing', label: t('contract_controls.status.missing') },
+                                                                { value: 'n_a', label: t('contract_controls.status.n_a') },
                                                             ]}
                                                             placeholder="Status"
                                                             disabled={disabled}
@@ -164,7 +164,7 @@ export function VendorContractControlsTab({ vendorId, canEdit }: VendorContractC
                                             <div className="grid gap-3 md:grid-cols-2">
                                                 <div className="space-y-1">
                                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                        {t('contract_controls.fields.evidence', 'Evidence reference')}
+                                                        {t('contract_controls.fields.evidence')}
                                                     </p>
                                                     <input
                                                         value={evidence}
@@ -186,7 +186,7 @@ export function VendorContractControlsTab({ vendorId, canEdit }: VendorContractC
                                                 </div>
                                                 <div className="space-y-1">
                                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                        {t('contract_controls.fields.notes', 'Notes')}
+                                                        {t('contract_controls.fields.notes')}
                                                     </p>
                                                     <input
                                                         value={notes}
@@ -203,7 +203,7 @@ export function VendorContractControlsTab({ vendorId, canEdit }: VendorContractC
                                                         }
                                                         disabled={disabled}
                                                         className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium disabled:opacity-60"
-                                                        placeholder={t('contract_controls.fields.notes_placeholder', 'Optional')}
+                                                        placeholder={t('contract_controls.fields.notes_placeholder')}
                                                     />
                                                 </div>
                                             </div>

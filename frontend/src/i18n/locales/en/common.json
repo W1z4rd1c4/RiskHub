@@ -29,7 +29,16 @@
     "unarchive": "Unarchive",
     "view_all": "View all →",
     "add_control": "Add control",
-    "mark_all_read": "Mark all as read"
+    "mark_all_read": "Mark all as read",
+    "request_correction": "Request correction",
+    "deleting": "Deleting...",
+    "retry": "Retry"
+  },
+  "brand": {
+    "name": "RiskHub"
+  },
+  "formats": {
+    "excel": "Excel"
   },
   "export": {
     "button": "Export",
@@ -87,7 +96,8 @@
     "control": "Control",
     "risk": "Risk",
     "results": "results",
-    "archived": "Archived"
+    "archived": "Archived",
+    "by": "by"
   },
   "errors": {
     "generic": "An error occurred. Please try again.",
@@ -123,7 +133,8 @@
     "showing": "Showing",
     "to": "to",
     "entries": "entries",
-    "per_page": "per page"
+    "per_page": "per page",
+    "showing_range": "Showing {{start}} to {{end}} of {{total}} entries"
   },
   "date": {
     "today": "Today",
@@ -199,7 +210,9 @@
     "no_kris_department": "No KRIs found for this department.",
     "no_users_department": "No users found for this department.",
     "all_caught_up": "All caught up!",
-    "nothing_to_show": "Nothing to show yet"
+    "nothing_to_show": "Nothing to show yet",
+    "no_high_risk_items": "No high-risk items found.",
+    "no_history_available": "No history available"
   },
   "access": {
     "denied": "Access Denied",
@@ -238,7 +251,11 @@
     "confirm_linkage": "Confirm Linkage",
     "change": "Change",
     "owner_information": "Owner Information",
-    "create_link": "Create Link"
+    "create_link": "Create Link",
+    "search_results": "Search results",
+    "initial_suggestions": "Initial suggestions",
+    "result_singular": "item",
+    "result_plural": "items"
   },
   "approval": {
     "submitted_for_approval": "Submitted for approval"
@@ -270,5 +287,18 @@
     "items_count": "{{count}} items",
     "high_risk": "High risk",
     "inherited_risk_heatmap": "Inherited risk heatmap"
+  },
+  "fallbacks": {
+    "unknown": "Unknown",
+    "unknown_user": "Unknown user",
+    "unknown_risk": "Unknown risk",
+    "unknown_vendor": "Unknown vendor",
+    "unassigned": "Unassigned",
+    "not_available": "N/A",
+    "no_owner": "No owner",
+    "system": "System",
+    "no_data": "No data",
+    "unknown_type": "Unknown type",
+    "unknown_control": "Unknown control"
   }
 }

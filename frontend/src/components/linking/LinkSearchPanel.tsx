@@ -110,6 +110,10 @@ export function LinkSearchPanel({
     };
 
     const selectedResult = searchResults.find(r => r.id === selectedTargetId);
+    const listHeading = searchQuery ? t('linking.search_results') : t('linking.initial_suggestions');
+    const resultCountLabel = searchResults.length === 1
+        ? t('linking.result_singular')
+        : t('linking.result_plural');
 
     return (
         <section className="space-y-4">
@@ -148,7 +152,7 @@ export function LinkSearchPanel({
                         checked={includeArchived}
                         onChange={(e) => onIncludeArchivedChange(e.target.checked)}
                     />
-                    {t('filters.include_archived', 'Include archived')}
+                    {t('filters.include_archived')}
                 </label>
 
                 {/* Filter Dropdowns */}
@@ -196,10 +200,10 @@ export function LinkSearchPanel({
                 <div className="space-y-3">
                     <div className="flex items-center justify-between px-1">
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                            {searchQuery ? t('common:labels.no_results', 'Search Results') : t('common:labels.details', 'Initial Suggestions')}
+                            {listHeading}
                         </span>
                         <span className="text-[10px] text-slate-600 font-medium">
-                            {searchResults.length} {searchResults.length === 1 ? t('common:labels.details', 'item') : t('common:labels.results', 'items')}
+                            {searchResults.length} {resultCountLabel}
                         </span>
                     </div>
 
@@ -216,7 +220,7 @@ export function LinkSearchPanel({
                                             <span>{mode === 'control-to-risk' ? result.description : result.name}</span>
                                             {result.status === 'archived' && (
                                                 <span className="px-1 py-0.5 rounded bg-white/10 border border-white/10 text-slate-300 text-[9px] uppercase tracking-widest">
-                                                    {t('labels.archived', 'Archived')}
+                                                    {t('labels.archived')}
                                                 </span>
                                             )}
                                         </span>
@@ -253,7 +257,7 @@ export function LinkSearchPanel({
                                                 }}
                                                 className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest"
                                             >
-                                                {t('actions.unarchive', 'Unarchive')}
+                                                {t('actions.unarchive')}
                                             </span>
                                         )}
                                         {mode === 'risk-to-control' && (

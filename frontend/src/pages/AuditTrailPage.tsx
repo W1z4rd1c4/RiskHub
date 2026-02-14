@@ -84,8 +84,8 @@ export function AuditTrailPage() {
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-black text-white mb-2">{t('audit_trail.title', 'Audit Trail')}</h2>
-                    <p className="text-slate-500 font-medium">{t('audit_trail.subtitle', 'Global log of all control executions and compliance checks.')}</p>
+                    <h2 className="text-3xl font-black text-white mb-2">{t('audit_trail.title')}</h2>
+                    <p className="text-slate-500 font-medium">{t('audit_trail.subtitle')}</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -106,15 +106,15 @@ export function AuditTrailPage() {
                         <ThemedSelect
                             value={resultFilter}
                             onValueChange={(v) => setResultFilter(v as ExecutionResult | '')}
-                            placeholder={t('audit_trail.all_results', 'All Results')}
+                            placeholder={t('audit_trail.all_results')}
                             allowEmpty
-                            emptyLabel={t('audit_trail.all_results', 'All Results')}
+                            emptyLabel={t('audit_trail.all_results')}
                             className="flex-1"
                             options={[
-                                { value: 'passed', label: t('results.passed', 'Passed') },
-                                { value: 'failed', label: t('results.failed', 'Failed') },
-                                { value: 'warning', label: t('results.warning', 'Warning') },
-                                { value: 'not_applicable', label: t('results.not_applicable', 'N/A') },
+                                { value: 'passed', label: t('results.passed') },
+                                { value: 'failed', label: t('results.failed') },
+                                { value: 'warning', label: t('results.warning') },
+                                { value: 'not_applicable', label: t('results.not_applicable') },
                             ]}
                         />
                     </div>
@@ -123,7 +123,7 @@ export function AuditTrailPage() {
 
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-500 px-4">
                         <ClipboardCheck className="h-4 w-4" />
-                        {t('audit_trail.total_records', '{{count}} Total Records', { count: executions.length })}
+                        {t('audit_trail.total_records', { count: executions.length })}
                     </div>
                 </div>
             </div>
@@ -133,14 +133,14 @@ export function AuditTrailPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-white/5 bg-white/[0.02]">
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.date_time', 'Date/Time')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.control', 'Control')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.owner', 'Owner')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.risk', 'Risk')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.executor', 'Executor')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">{t('audit_trail.columns.result', 'Result')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.key_finding', 'Key Finding')}</th>
-                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">{t('audit_trail.columns.action', 'Action')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.date_time')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.control')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.owner')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.risk')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.executor')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center">{t('audit_trail.columns.result')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">{t('audit_trail.columns.key_finding')}</th>
+                                <th className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-right">{t('audit_trail.columns.action')}</th>
                             </tr>
                         </thead>
                         <tbody
@@ -189,14 +189,14 @@ export function AuditTrailPage() {
                                         <td className="px-6 py-5">
                                             <div className="flex flex-col">
                                                 <span className="text-sm font-bold text-white group-hover:text-accent transition-colors truncate max-w-[200px]">
-                                                    {exec.control_name || exec.control?.name || `Control #${exec.control_id}`}
+                                                    {exec.control_name || exec.control?.name || t('common:fallbacks.unknown_control')}
                                                 </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-2">
                                                 <Shield className="h-3 w-3 text-slate-500" />
-                                                <span className="text-xs font-bold text-slate-400">{exec.control_owner_name || 'Unassigned'}</span>
+                                                <span className="text-xs font-bold text-slate-400">{exec.control_owner_name || t('common:fallbacks.unassigned')}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
@@ -218,20 +218,20 @@ export function AuditTrailPage() {
                                                 <div className="w-6 h-6 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-[10px] font-black text-accent">
                                                     <User className="h-3 w-3" />
                                                 </div>
-                                                <span className="text-xs font-bold text-slate-400">{exec.executed_by_name || exec.executed_by?.name || 'System Admin'}</span>
+                                                <span className="text-xs font-bold text-slate-400">{exec.executed_by_name || exec.executed_by?.name || t('common:fallbacks.system')}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
                                             <div className="flex justify-center">
                                                 <div className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${getResultColor(exec.result)}`}>
                                                     {getResultIcon(exec.result)}
-                                                    {exec.result.replace('_', ' ')}
+                                                    {t(`results.${exec.result}`)}
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
                                             <p className="text-xs text-slate-400 font-medium line-clamp-1 italic max-w-xs">
-                                                "{exec.findings || 'No findings recorded.'}"
+                                                "{exec.findings || t('audit_trail.no_findings')}"
                                             </p>
                                         </td>
                                         <td className="px-6 py-5 text-right">

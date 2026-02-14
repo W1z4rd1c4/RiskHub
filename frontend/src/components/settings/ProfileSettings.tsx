@@ -63,26 +63,26 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
 
     // Permission labels with translations
     const permissionLabels: Record<string, string> = {
-        'risks:read': t('permissions.risks_read', 'View Risks'),
-        'risks:write': t('permissions.risks_write', 'Create & Edit Risks'),
-        'risks:delete': t('permissions.risks_delete', 'Delete Risks'),
-        'controls:read': t('permissions.controls_read', 'View Controls'),
-        'controls:write': t('permissions.controls_write', 'Create & Edit Controls'),
-        'controls:delete': t('permissions.controls_delete', 'Delete Controls'),
-        'controls:execute': t('permissions.controls_execute', 'Log Control Executions'),
-        'kri:submit': t('permissions.kri_submit', 'Submit KRI Values'),
-        'approvals:read': t('permissions.approvals_read', 'View Approvals'),
-        'approvals:write': t('permissions.approvals_write', 'Manage Approvals'),
-        'users:read': t('permissions.users_read', 'View Users'),
-        'users:write': t('permissions.users_write', 'Manage Users'),
-        'activity_log:read': t('permissions.activity_log_read', 'View Activity Log'),
-        'departments:read': t('permissions.departments_read', 'View Departments'),
-        'reports:read': t('permissions.reports_read', 'View Reports'),
-        'vendors:read': t('permissions.vendors_read', 'View Vendors'),
-        'vendors:write': t('permissions.vendors_write', 'Create & Edit Vendors'),
-        'vendors:delete': t('permissions.vendors_delete', 'Archive Vendors'),
-        'vendor_contracts:write': t('permissions.vendor_contracts_write', 'Edit Vendor Contracts'),
-        '*:*': t('permissions.super_admin', 'Super Admin (All Permissions)'),
+        'risks:read': t('permissions.risks_read'),
+        'risks:write': t('permissions.risks_write'),
+        'risks:delete': t('permissions.risks_delete'),
+        'controls:read': t('permissions.controls_read'),
+        'controls:write': t('permissions.controls_write'),
+        'controls:delete': t('permissions.controls_delete'),
+        'controls:execute': t('permissions.controls_execute'),
+        'kri:submit': t('permissions.kri_submit'),
+        'approvals:read': t('permissions.approvals_read'),
+        'approvals:write': t('permissions.approvals_write'),
+        'users:read': t('permissions.users_read'),
+        'users:write': t('permissions.users_write'),
+        'activity_log:read': t('permissions.activity_log_read'),
+        'departments:read': t('permissions.departments_read'),
+        'reports:read': t('permissions.reports_read'),
+        'vendors:read': t('permissions.vendors_read'),
+        'vendors:write': t('permissions.vendors_write'),
+        'vendors:delete': t('permissions.vendors_delete'),
+        'vendor_contracts:write': t('permissions.vendor_contracts_write'),
+        '*:*': t('permissions.super_admin'),
     };
 
     const effectivePermissions = user.effective_permissions ?? user.permissions ?? [];
@@ -94,7 +94,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
             <section>
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <User className="h-5 w-5 text-accent" />
-                    {t('profile.your_identity', 'Your Identity')}
+                    {t('profile.your_identity')}
                 </h3>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-6">
                     <div className="flex items-center gap-4 mb-6">
@@ -114,7 +114,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
                                 <Mail className="h-3 w-3" />
-                                {t('profile.email', 'Email Address')}
+                                {t('profile.email')}
                             </label>
                             <p className="text-white font-medium">{user.email}</p>
                         </div>
@@ -123,16 +123,16 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
                                 <Building className="h-3 w-3" />
-                                {t('profile.department', 'Department')}
+                                {t('profile.department')}
                             </label>
-                            <p className="text-white font-medium">{user.department_name || 'Not Assigned'}</p>
+                            <p className="text-white font-medium">{user.department_name || t('common:fallbacks.unassigned')}</p>
                         </div>
 
                         {/* Role */}
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
                                 <Shield className="h-3 w-3" />
-                                {t('profile.role', 'Role')}
+                                {t('profile.role')}
                             </label>
                             <div className="flex items-center gap-2">
                                 <span className="px-3 py-1 bg-accent/20 text-accent rounded-full text-sm font-medium">
@@ -145,7 +145,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                         <div className="space-y-1">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
                                 <Key className="h-3 w-3" />
-                                {t('profile.access_scope', 'Access Scope')}
+                                {t('profile.access_scope')}
                             </label>
                             <p className="text-white font-medium">{user.scope_label}</p>
                         </div>
@@ -154,7 +154,7 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
 
                 {/* AD Notice */}
                 <p className="text-xs text-slate-500 mt-3 italic">
-                    {t('profile.ad_notice', 'Your profile is managed by your organization\'s Active Directory. Contact your IT administrator to update your information.')}
+                    {t('profile.ad_notice')}
                 </p>
             </section>
 
@@ -162,16 +162,16 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
             <section>
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <Key className="h-5 w-5 text-accent" />
-                    {t('profile.your_permissions', 'Your Permissions')}
+                    {t('profile.your_permissions')}
                 </h3>
                 <div className="bg-white/5 border border-white/10 rounded-xl p-6">
                     {effectivePermissions.includes('*:*') && (
                         <div className="mb-4 px-3 py-2 rounded-lg border border-yellow-500/20 bg-yellow-500/10 text-yellow-300 text-sm font-medium">
-                            {t('profile.all_permissions', 'All permissions')} <span className="font-mono">(*:*)</span>
+                            {t('profile.all_permissions')} <span className="font-mono">(*:*)</span>
                         </div>
                     )}
                     {Object.keys(groupedPermissions).length === 0 ? (
-                        <p className="text-slate-400 text-center py-4">{t('profile.no_permissions_assigned', 'No permissions assigned')}</p>
+                        <p className="text-slate-400 text-center py-4">{t('profile.no_permissions_assigned')}</p>
                     ) : (
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {Object.entries(groupedPermissions).map(([resource, perms]) => (

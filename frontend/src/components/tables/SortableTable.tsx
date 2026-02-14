@@ -4,6 +4,7 @@
 import { useState, useMemo } from 'react';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/i18n/hooks';
 
 export type SortDirection = 'asc' | 'desc' | null;
 
@@ -29,20 +30,21 @@ interface SortableTableProps<T> {
     onSort?: (key: string, direction: SortDirection) => void;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function SortableTable<T extends Record<string, any>>({
+export function SortableTable<T extends Record<string, unknown>>({
     data,
     columns,
     keyExtractor,
     onRowClick,
     className,
-    emptyMessage = 'No data available',
+    emptyMessage,
     sortKey: controlledSortKey,
     sortDirection: controlledSortDirection,
     onSort,
 }: SortableTableProps<T>) {
+    const { t } = useTranslation('common');
     const [internalSortKey, setInternalSortKey] = useState<string | null>(null);
     const [internalSortDirection, setInternalSortDirection] = useState<SortDirection>(null);
+    const resolvedEmptyMessage = emptyMessage ?? t('empty.no_data_available');
 
     const isControlled = onSort !== undefined;
     const currentSortKey = isControlled ? controlledSortKey : internalSortKey;
@@ -108,7 +110,7 @@ export function SortableTable<T extends Record<string, any>>({
     if (data.length === 0) {
         return (
             <div className="glass-card text-center py-12">
-                <p className="text-slate-400">{emptyMessage}</p>
+                <p className="text-slate-400">{resolvedEmptyMessage}</p>
             </div>
         );
     }

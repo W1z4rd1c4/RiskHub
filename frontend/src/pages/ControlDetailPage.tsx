@@ -55,7 +55,7 @@ const item = {
 export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { t, i18n } = useTranslation(['common', 'controls', 'errorKeys']);
+    const { t } = useTranslation(['common', 'controls', 'errorKeys']);
     const { t: tIssues } = useTranslation('issues');
     const { user, hasPermission } = useAuth();
     const [control, setControl] = useState<Control | null>(null);
@@ -285,7 +285,7 @@ export function ControlDetailPage() {
                             className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-300 hover:text-white hover:border-accent/50 transition-all flex items-center gap-2"
                         >
                             <FileText className="h-4 w-4" />
-                            {tIssues('actions.new_issue', 'New Issue')}
+                            {tIssues('actions.new_issue')}
                         </button>
                     </PermissionGate>
                     {/* Edit button: show for controls:write OR control owner */}
@@ -616,7 +616,7 @@ export function ControlDetailPage() {
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/40 backdrop-blur-[2px]"
                     >
-                        <div className="bg-[#0B1121] border border-white/10 rounded-2xl p-6 shadow-2xl flex flex-col items-center gap-4">
+                        <div className="glass-card !p-6 shadow-2xl flex flex-col items-center gap-4">
                             <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
                             <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t('controls:detail.fetching_risk_details')}</p>
                         </div>

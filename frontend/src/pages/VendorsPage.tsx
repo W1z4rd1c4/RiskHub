@@ -76,7 +76,7 @@ export function VendorsPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, debouncedSearch, limit, sortDirection, sortField, statusFilter, t, typeFilter]);
+    }, [currentPage, debouncedSearch, limit, sortDirection, sortField, statusFilter, typeFilter]);
 
     const handleRestoreVendor = useCallback(async (vendorId: number, e: MouseEvent) => {
         e.stopPropagation();
@@ -95,7 +95,7 @@ export function VendorsPage() {
     const columns: Column<Vendor>[] = useMemo(() => [
         {
             key: 'name',
-            label: t('columns.name', 'Vendor'),
+            label: t('columns.name'),
             sortable: true,
             render: (vendor) => (
                 <div className="flex flex-col gap-0.5">
@@ -106,18 +106,18 @@ export function VendorsPage() {
         },
         {
             key: 'department_name',
-            label: t('columns.department', 'Department'),
+            label: t('columns.department'),
             sortable: true,
             render: (vendor) => (
                 <div className="flex items-center gap-2 text-xs text-slate-300">
                     <Building2 className="h-3 w-3 text-accent" />
-                    <span>{vendor.department_name || t('labels.unassigned', 'Unassigned')}</span>
+                    <span>{vendor.department_name || t('labels.unassigned')}</span>
                 </div>
             ),
         },
         {
             key: 'outsourcing_owner_name',
-            label: t('columns.owner', 'Owner'),
+            label: t('columns.owner'),
             sortable: false,
             render: (vendor) => (
                 <div className="flex items-center gap-2 text-xs text-slate-300">
@@ -128,7 +128,7 @@ export function VendorsPage() {
         },
         {
             key: 'vendor_type',
-            label: t('columns.type', 'Type'),
+            label: t('columns.type'),
             sortable: true,
             render: (vendor) => (
                 <span className="text-xs font-medium text-slate-400">{t(`type.${vendor.vendor_type}`, vendor.vendor_type)}</span>
@@ -136,7 +136,7 @@ export function VendorsPage() {
         },
         {
             key: 'risk_score_1_5',
-            label: t('columns.risk_score', 'Risk Score'),
+            label: t('columns.risk_score'),
             sortable: true,
             className: 'text-center',
             render: (vendor) => (
@@ -149,7 +149,7 @@ export function VendorsPage() {
         },
         {
             key: 'status',
-            label: t('columns.status', 'Status'),
+            label: t('columns.status'),
             sortable: true,
             render: (vendor) => (
                 <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase text-slate-300 bg-white/5 border border-white/10">
@@ -169,7 +169,7 @@ export function VendorsPage() {
                             data-testid={`vendor-unarchive-${vendor.id}`}
                             className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
                         >
-                            {t('actions.unarchive', 'Unarchive')}
+                            {t('actions.unarchive')}
                         </button>
                     )}
                     <ChevronRight className="h-4 w-4 text-slate-500 ml-auto" />
@@ -209,8 +209,8 @@ export function VendorsPage() {
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">{t('title', 'Vendors')}</h1>
-                    <p className="text-slate-500 font-medium mt-1">{t('subtitle', 'Third-party vendor catalog')}</p>
+                    <h1 className="text-3xl font-bold text-white">{t('title')}</h1>
+                    <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
@@ -220,7 +220,7 @@ export function VendorsPage() {
                         className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
                     >
                         <Download className="h-4 w-4" />
-                        {t('actions.export', 'Export')}
+                        {t('actions.export')}
                     </button>
                     <PermissionGate resource="vendors" action="write">
                         <button
@@ -229,7 +229,7 @@ export function VendorsPage() {
                             className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all flex items-center gap-2"
                         >
                             <Plus className="h-5 w-5" />
-                            {t('actions.new', 'New Vendor')}
+                            {t('actions.new')}
                         </button>
                     </PermissionGate>
                 </div>
@@ -241,7 +241,7 @@ export function VendorsPage() {
                     <input
                         data-testid="vendors-search-input"
                         type="text"
-                        placeholder={t('filters.search_placeholder', 'Search vendors...')}
+                        placeholder={t('filters.search_placeholder')}
                         value={search}
                         onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); setVendors([]); }}
                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
@@ -255,32 +255,32 @@ export function VendorsPage() {
                             setCurrentPage(1);
                             setVendors([]);
                         }}
-                        placeholder={t('filters.all_statuses', 'All statuses')}
+                        placeholder={t('filters.all_statuses')}
                         allowEmpty
-                        emptyLabel={t('filters.all_statuses', 'All statuses')}
+                        emptyLabel={t('filters.all_statuses')}
                         triggerTestId="vendors-status-filter-trigger"
                         contentTestId="vendors-status-filter-content"
                         optionTestIdPrefix="vendors-status-filter-option"
                         options={[
-                            { value: 'active', label: t('status.active', 'Active') },
-                            { value: 'inactive', label: t('status.inactive', 'Inactive') },
+                            { value: 'active', label: t('status.active') },
+                            { value: 'inactive', label: t('status.inactive') },
                         ]}
                     />
                     <ThemedSelect
                         value={typeFilter}
                         onValueChange={(v) => { setTypeFilter(v as VendorType | ''); setCurrentPage(1); setVendors([]); }}
-                        placeholder={t('filters.all_types', 'All types')}
+                        placeholder={t('filters.all_types')}
                         allowEmpty
-                        emptyLabel={t('filters.all_types', 'All types')}
+                        emptyLabel={t('filters.all_types')}
                         triggerTestId="vendors-type-filter-trigger"
                         contentTestId="vendors-type-filter-content"
                         optionTestIdPrefix="vendors-type-filter-option"
                         options={[
-                            { value: 'ict', label: t('type.ict', 'ICT') },
-                            { value: 'outsourcing', label: t('type.outsourcing', 'Outsourcing') },
-                            { value: 'professional_services', label: t('type.professional_services', 'Professional services') },
-                            { value: 'partner', label: t('type.partner', 'Partner') },
-                            { value: 'other', label: t('type.other', 'Other') },
+                            { value: 'ict', label: t('type.ict') },
+                            { value: 'outsourcing', label: t('type.outsourcing') },
+                            { value: 'professional_services', label: t('type.professional_services') },
+                            { value: 'partner', label: t('type.partner') },
+                            { value: 'other', label: t('type.other') },
                         ]}
                     />
                     <button
@@ -297,10 +297,10 @@ export function VendorsPage() {
                 <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
                     <AlertCircle className="h-12 w-12 text-rose-500" />
                     <div>
-                        <p className="text-white font-bold text-xl">{t('errors.title', 'Error')}</p>
+                        <p className="text-white font-bold text-xl">{t('errors.title')}</p>
                         <p className="text-slate-500 max-w-sm mx-auto">{t(errorKey, { ns: 'errorKeys' })}</p>
                     </div>
-                    <button onClick={fetchVendors} className="text-accent font-bold hover:underline">{t('errors.try_again', 'Try again')}</button>
+                    <button onClick={fetchVendors} className="text-accent font-bold hover:underline">{t('errors.try_again')}</button>
                 </div>
             ) : isLoading ? (
                 <div className="glass-card !p-0 overflow-hidden">
@@ -336,7 +336,7 @@ export function VendorsPage() {
                         columns={columns}
                         keyExtractor={(v) => v.id}
                         onRowClick={(v) => navigate(`/vendors/${v.id}`)}
-                        emptyMessage={t('empty_state.no_vendors', 'No vendors found')}
+                        emptyMessage={t('empty_state.no_vendors')}
                         onSort={handleSort}
                         sortKey={sortField}
                         sortDirection={sortDirection}

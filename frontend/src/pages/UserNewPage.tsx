@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     UserPlus,
     ArrowLeft,
@@ -13,18 +13,23 @@ import { useNavigate } from 'react-router-dom';
 import { userApi } from '@/services/userApi';
 import { apiClient } from '@/services/apiClient';
 import { departmentApi } from '@/services/departmentApi';
+import type { DepartmentSummary } from '@/services/departmentApi';
 import type { UserCreate, Role } from '@/types/user';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+
+// Safe roles that can be selected by default (non-privileged)
+const SAFE_ROLE_NAMES = ['control_owner', 'viewer', 'department_head'];
+// Privileged roles that should never be auto-selected
+const PRIVILEGED_ROLE_NAMES = ['admin', 'cro', 'risk_manager'];
 
 export function UserNewPage() {
     const navigate = useNavigate();
     const { t } = useTranslation(['admin', 'common', 'errorKeys']);
     const { canManageUsers } = usePermissions();
     const [isLoading, setIsLoading] = useState(false);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [departments, setDepartments] = useState<any[]>([]);
+    const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [formData, setFormData] = useState<UserCreate>({
         email: '',
@@ -44,19 +49,7 @@ export function UserNewPage() {
         }
     }, [canManageUsers, navigate]);
 
-    useEffect(() => {
-        if (canManageUsers) {
-            fetchDepartments();
-            fetchRoles();
-        }
-    }, [canManageUsers]);
-
-    // Safe roles that can be selected by default (non-privileged)
-    const SAFE_ROLE_NAMES = ['control_owner', 'viewer', 'department_head'];
-    // Privileged roles that should never be auto-selected
-    const PRIVILEGED_ROLE_NAMES = ['admin', 'cro', 'risk_manager'];
-
-    const fetchRoles = async () => {
+    const fetchRoles = useCallback(async () => {
         try {
             const data = await userApi.listRoles();
             setRoles(data);
@@ -82,16 +75,23 @@ export function UserNewPage() {
         } catch (err) {
             console.error('Failed to fetch roles:', err);
         }
-    };
+    }, []);
 
-    const fetchDepartments = async () => {
+    const fetchDepartments = useCallback(async () => {
         try {
             const data = await departmentApi.getDepartments();
             setDepartments(data);
         } catch (err) {
             console.error('Failed to fetch departments:', err);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (canManageUsers) {
+            fetchDepartments();
+            fetchRoles();
+        }
+    }, [canManageUsers, fetchDepartments, fetchRoles]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -101,7 +101,6 @@ export function UserNewPage() {
         try {
             await userApi.createUser(formData);
             navigate('/users');
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: unknown) {
             setErrorKey(apiClient.toUiMessageKey(err));
         } finally {

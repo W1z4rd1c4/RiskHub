@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCircle, AlertCircle, Clock, AlertTriangle, X } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormattedDate, useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
 import { NOTIFICATIONS_DROPDOWN_LIMIT, NOTIFICATIONS_POLL_MS } from '@/config/constants';
@@ -57,24 +57,6 @@ function getNotificationIcon(type: NotificationType) {
 }
 
 /**
- * Format relative time (e.g., "5 minutes ago").
- */
-function formatTimeAgo(dateString: string): string {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-}
-
-/**
  * Get navigation path for notification resource.
  */
 function vendorTabForNotification(type: NotificationType): string | null {
@@ -121,7 +103,9 @@ function getResourcePath(notification: Notification): string | null {
 
 export function NotificationBell() {
     const navigate = useNavigate();
-    const { t } = useTranslation('common');
+    const { t: tCommon } = useTranslation('common');
+    const { t } = useTranslation('notifications');
+    const { formatRelativeDate } = useFormattedDate();
     const [isOpen, setIsOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -223,7 +207,8 @@ export function NotificationBell() {
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="relative p-2 rounded-full hover:bg-white/10 transition-colors"
-                aria-label="Notifications"
+                aria-label={t('aria.bell')}
+                data-testid="notification-bell-button"
             >
                 <Bell className="h-5 w-5 text-slate-400 hover:text-white transition-colors" />
                 {unreadCount > 0 && (
@@ -235,10 +220,10 @@ export function NotificationBell() {
 
             {/* Dropdown Panel */}
             {isOpen && (
-                <div className="absolute left-0 mt-2 w-80 rounded-xl overflow-hidden shadow-2xl z-50 backdrop-blur-xl bg-slate-900/95 border border-white/10">
+                <div className="absolute left-0 mt-2 w-80 rounded-xl overflow-hidden shadow-2xl z-50 glass">
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                        <h3 className="text-sm font-semibold text-white">Notifications</h3>
+                        <h3 className="text-sm font-semibold text-white">{t('title')}</h3>
                         <button
                             onClick={() => setIsOpen(false)}
                             className="p-1 rounded-full hover:bg-white/10"
@@ -250,11 +235,11 @@ export function NotificationBell() {
                     {/* Notification List */}
                     <div className="max-h-[40rem] overflow-y-auto">
                         {loading ? (
-                            <div className="p-4 text-center text-slate-400">{t('loading.generic')}</div>
+                            <div className="p-4 text-center text-slate-400">{tCommon('loading.generic')}</div>
                         ) : notifications.length === 0 ? (
                             <div className="p-8 text-center text-slate-400">
                                 <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                <p>{t('empty.no_notifications')}</p>
+                                <p>{tCommon('empty.no_notifications')}</p>
                             </div>
                         ) : (
                             <div className="divide-y divide-white/5">
@@ -284,7 +269,7 @@ export function NotificationBell() {
                                                     {notification.message}
                                                 </p>
                                                 <p className="text-[10px] text-slate-500 mt-1">
-                                                    {formatTimeAgo(notification.created_at)}
+                                                    {formatRelativeDate(notification.created_at)}
                                                 </p>
                                             </div>
                                         </div>
@@ -301,14 +286,14 @@ export function NotificationBell() {
                                 onClick={handleMarkAllAsRead}
                                 className="text-xs text-accent hover:text-accent/80 font-medium"
                             >
-                                {t('actions.mark_all_read')}
+                                {tCommon('actions.mark_all_read')}
                             </button>
                         )}
                         <button
                             onClick={handleViewAll}
                             className="text-xs text-slate-400 hover:text-white font-medium ml-auto"
                         >
-                            {t('actions.view_all')}
+                            {tCommon('actions.view_all')}
                         </button>
                     </div>
                 </div>

@@ -3,6 +3,7 @@ import { AlertTriangle, Loader2, PlusCircle, X } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { issuesApi } from '@/services/issuesApi';
+import { apiClient } from '@/services/apiClient';
 import type { Issue, IssueContextEntityType, IssueSeverity } from '@/types/issue';
 import { ISSUE_FIELD, ISSUE_LABEL, ISSUE_TEXTAREA } from './issueUi';
 
@@ -48,14 +49,14 @@ export function IssueQuickCreateModal({
     const [dueAt, setDueAt] = useState('');
     const [description, setDescription] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     const severityOptions = useMemo(
         () => [
-            { value: 'low', label: t('severity.low', 'Low') },
-            { value: 'medium', label: t('severity.medium', 'Medium') },
-            { value: 'high', label: t('severity.high', 'High') },
-            { value: 'critical', label: t('severity.critical', 'Critical') },
+            { value: 'low', label: t('severity.low') },
+            { value: 'medium', label: t('severity.medium') },
+            { value: 'high', label: t('severity.high') },
+            { value: 'critical', label: t('severity.critical') },
         ],
         [t]
     );
@@ -66,12 +67,12 @@ export function IssueQuickCreateModal({
         }
         const seedTitle = defaultTitlePrefix
             ? `${defaultTitlePrefix}: ${contextEntityLabel}`
-            : `${t('quick_create.default_title_prefix', 'Issue from')}: ${contextEntityLabel}`;
+            : `${t('quick_create.default_title_prefix')}: ${contextEntityLabel}`;
         setTitle(seedTitle);
         setSeverity('medium');
         setDueAt(toDateTimeInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)));
         setDescription('');
-        setError(null);
+        setErrorKey(null);
         setIsSubmitting(false);
     }, [contextEntityLabel, defaultTitlePrefix, isOpen, t]);
 
@@ -81,12 +82,12 @@ export function IssueQuickCreateModal({
 
     const handleSubmit = async () => {
         if (!title.trim()) {
-            setError(t('errors.title_required', 'Title is required.'));
+            setErrorKey('errors.title_required');
             return;
         }
 
         setIsSubmitting(true);
-        setError(null);
+        setErrorKey(null);
         try {
             const created = await issuesApi.createContextual({
                 entity_type: contextEntityType,
@@ -99,11 +100,7 @@ export function IssueQuickCreateModal({
             onCreated(created);
             onClose();
         } catch (createError) {
-            const message =
-                createError instanceof Error
-                    ? createError.message
-                    : t('errors.create_failed', 'Issue creation failed');
-            setError(message);
+            setErrorKey(apiClient.toUiMessageKey(createError));
         } finally {
             setIsSubmitting(false);
         }
@@ -115,7 +112,7 @@ export function IssueQuickCreateModal({
                 type="button"
                 className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
                 onClick={onClose}
-                aria-label={t('quick_create.close', 'Close quick create modal')}
+                aria-label={t('quick_create.close')}
             />
 
             <div
@@ -127,43 +124,47 @@ export function IssueQuickCreateModal({
                 <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1">
                         <h3 id="issue-quick-create-title" className="text-xl font-black text-white tracking-tight">
-                            {t('quick_create.title', 'Create Issue')}
+                            {t('quick_create.title')}
                         </h3>
                         <p className="text-sm text-slate-400">
-                            {t('quick_create.context_label', 'Source')}: <span className="text-slate-200">{contextEntityLabel}</span>
+                            {t('quick_create.context_label')}: <span className="text-slate-200">{contextEntityLabel}</span>
                         </p>
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
                         className="p-2 rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
-                        aria-label={t('quick_create.close', 'Close quick create modal')}
+                        aria-label={t('quick_create.close')}
                     >
                         <X className="h-4 w-4" />
                     </button>
                 </div>
 
-                {error && (
+                {errorKey && (
                     <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200 flex items-start gap-2">
                         <AlertTriangle className="h-4 w-4 mt-0.5" />
-                        <span>{error}</span>
+                        <span>
+                            {errorKey.startsWith('errorKeys.')
+                                ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
+                                : t(errorKey)}
+                        </span>
                     </div>
                 )}
 
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-1.5 md:col-span-2">
-                        <label className={ISSUE_LABEL}>{t('form.fields.title', 'Title')}</label>
+                        <label className={ISSUE_LABEL}>{t('form.fields.title')}</label>
                         <input
                             type="text"
                             value={title}
                             onChange={(event) => setTitle(event.target.value)}
                             className={ISSUE_FIELD}
-                            placeholder={t('form.placeholders.title', 'Issue title')}
+                            placeholder={t('form.placeholders.title')}
                         />
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className={ISSUE_LABEL}>{t('form.fields.severity', 'Severity')}</label>
+                        <label className={ISSUE_LABEL}>{t('form.fields.severity')}</label>
                         <ThemedSelect
                             value={severity}
                             onValueChange={(value) => setSeverity(value as IssueSeverity)}
@@ -173,7 +174,7 @@ export function IssueQuickCreateModal({
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className={ISSUE_LABEL}>{t('form.fields.due_date', 'Due date')}</label>
+                        <label className={ISSUE_LABEL}>{t('form.fields.due_date')}</label>
                         <input
                             type="datetime-local"
                             value={dueAt}
@@ -183,12 +184,12 @@ export function IssueQuickCreateModal({
                     </div>
 
                     <div className="space-y-1.5 md:col-span-2">
-                        <label className={ISSUE_LABEL}>{t('form.fields.description', 'Description')}</label>
+                        <label className={ISSUE_LABEL}>{t('form.fields.description')}</label>
                         <textarea
                             value={description}
                             onChange={(event) => setDescription(event.target.value)}
                             className={ISSUE_TEXTAREA}
-                            placeholder={t('quick_create.description_placeholder', 'Optional context for remediation')}>
+                            placeholder={t('quick_create.description_placeholder')}>
                         </textarea>
                     </div>
                 </div>
@@ -200,7 +201,7 @@ export function IssueQuickCreateModal({
                         className="rounded-xl border border-white/15 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
                         disabled={isSubmitting}
                     >
-                        {t('actions.cancel', 'Cancel')}
+                        {t('actions.cancel')}
                     </button>
                     <button
                         type="button"
@@ -210,8 +211,8 @@ export function IssueQuickCreateModal({
                     >
                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusCircle className="h-4 w-4" />}
                         {isSubmitting
-                            ? t('quick_create.creating', 'Creating...')
-                            : t('quick_create.submit', 'Create Issue')}
+                            ? t('quick_create.creating')
+                            : t('quick_create.submit')}
                     </button>
                 </div>
             </div>

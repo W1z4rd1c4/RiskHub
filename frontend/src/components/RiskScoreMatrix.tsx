@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
+import { useTranslation } from '@/i18n/hooks';
 
 interface RiskScoreMatrixProps {
     probability: number;  // 1-5
@@ -28,6 +29,7 @@ export function RiskScoreMatrix({
     onSelect,
     thresholds: overrideThresholds
 }: RiskScoreMatrixProps) {
+    const { t } = useTranslation('risks');
     const score = probability * impact;
 
     // Get thresholds from Risk Hub config (with optional overrides)
@@ -79,14 +81,14 @@ export function RiskScoreMatrix({
         <div className="flex flex-col items-center">
             {/* Type label - color matches score threshold */}
             <div className={`${labelClass} font-black uppercase tracking-widest mb-3 ${getTitleColorClass(score)}`}>
-                {type === 'gross' ? 'Gross Risk' : 'Net Risk'}
+                {type === 'gross' ? t('matrix.gross_risk') : t('matrix.net_risk')}
             </div>
 
             <div className="flex gap-1">
                 {/* Y-axis label */}
                 <div className="flex flex-col items-center justify-center mr-1">
                     <span className={`${labelClass} text-slate-500 font-bold -rotate-90 whitespace-nowrap`}>
-                        Probability
+                        {t('matrix.probability_axis')}
                     </span>
                 </div>
 
@@ -111,7 +113,7 @@ export function RiskScoreMatrix({
                                         }
                                     `}
                                     onClick={() => onSelect?.(p, i)}
-                                    title={`P:${p} × I:${i} = ${p * i}`}
+                                    title={t('matrix.cell_title', { probability: p, impact: i, score: p * i })}
                                 >
                                     {isSelected(p, i) && (
                                         <span className="text-white font-black">{p * i}</span>
@@ -125,12 +127,12 @@ export function RiskScoreMatrix({
 
             {/* X-axis label */}
             <span className={`${labelClass} text-slate-500 font-bold mt-2`}>
-                Impact
+                {t('matrix.impact_axis')}
             </span>
 
             {/* Score display */}
             <div className={`mt-3 px-4 py-1.5 rounded-full font-black text-sm ${getScoreColorClass(score)}`}>
-                Score: {score}
+                {t('matrix.score_label', { score })}
             </div>
         </div>
     );

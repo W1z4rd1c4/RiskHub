@@ -211,7 +211,7 @@ export function DashboardPage() {
             path: '/risks',
         },
         {
-            title: t('stats.vendors', 'Vendors'),
+            title: t('stats.vendors'),
             value: summary?.total_vendors ?? 0,
             icon: Handshake,
             color: 'text-blue-400',

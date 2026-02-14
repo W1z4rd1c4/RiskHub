@@ -102,7 +102,10 @@
     "timezone": "Timezone",
     "coming_soon": "Coming Soon",
     "coming_soon_message": "Full language translation is currently in development. Your preference will be saved and applied automatically once translations are available.",
-    "current_preference": "Current language preference:"
+    "current_preference": "Current language preference:",
+    "active_translation": "Active Translation",
+    "active_translation_message": "Language switching is now active. The interface will be progressively translated.",
+    "preference_persistence_note": "Language preference is saved locally on this device and will persist across sessions."
   },
   "languages": {
     "en": "English",

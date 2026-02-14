@@ -29,7 +29,16 @@
     "unarchive": "Obnovit z archivu",
     "view_all": "Zobrazit vše →",
     "add_control": "Přidat kontrolu",
-    "mark_all_read": "Označit vše jako přečtené"
+    "mark_all_read": "Označit vše jako přečtené",
+    "request_correction": "Požádat o opravu",
+    "deleting": "Mazání...",
+    "retry": "Zkusit znovu"
+  },
+  "brand": {
+    "name": "RiskHub"
+  },
+  "formats": {
+    "excel": "Excel"
   },
   "export": {
     "button": "Export",
@@ -87,7 +96,8 @@
     "control": "Kontrola",
     "risk": "Riziko",
     "results": "výsledků",
-    "archived": "Archivované"
+    "archived": "Archivované",
+    "by": "od"
   },
   "errors": {
     "generic": "Došlo k chybě. Zkuste to prosím znovu.",
@@ -123,7 +133,8 @@
     "showing": "Zobrazeno",
     "to": "až",
     "entries": "záznamů",
-    "per_page": "na stránku"
+    "per_page": "na stránku",
+    "showing_range": "Zobrazeno {{start}} až {{end}} z {{total}} záznamů"
   },
   "date": {
     "today": "Dnes",
@@ -199,7 +210,9 @@
     "no_kris_department": "Pro toto oddělení nebyly nalezeny žádné KRI.",
     "no_users_department": "Pro toto oddělení nebyli nalezeni žádní uživatelé.",
     "all_caught_up": "Vše přečteno!",
-    "nothing_to_show": "Zatím nic k zobrazení"
+    "nothing_to_show": "Zatím nic k zobrazení",
+    "no_high_risk_items": "Nebyly nalezeny žádné položky s vysokým rizikem.",
+    "no_history_available": "Žádná historie není k dispozici"
   },
   "access": {
     "denied": "Přístup zamítnut",
@@ -238,7 +251,11 @@
     "confirm_linkage": "Potvrdit propojení",
     "change": "Změnit",
     "owner_information": "Informace o vlastníkovi",
-    "create_link": "Vytvořit propojení"
+    "create_link": "Vytvořit propojení",
+    "search_results": "Výsledky hledání",
+    "initial_suggestions": "Počáteční návrhy",
+    "result_singular": "položka",
+    "result_plural": "položek"
   },
   "approval": {
     "submitted_for_approval": "Odesláno ke schválení"
@@ -270,5 +287,18 @@
     "items_count": "{{count}} položek",
     "high_risk": "Vysoké riziko",
     "inherited_risk_heatmap": "Heatmapa zděděného rizika"
+  },
+  "fallbacks": {
+    "unknown": "Neznámé",
+    "unknown_user": "Neznámý uživatel",
+    "unknown_risk": "Neznámé riziko",
+    "unknown_vendor": "Neznámý dodavatel",
+    "unassigned": "Nepřiřazeno",
+    "not_available": "N/A",
+    "no_owner": "Bez vlastníka",
+    "system": "Systém",
+    "no_data": "Žádná data",
+    "unknown_type": "Neznámý typ",
+    "unknown_control": "Neznámá kontrola"
   }
 }

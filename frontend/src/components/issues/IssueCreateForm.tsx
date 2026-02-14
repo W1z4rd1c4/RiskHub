@@ -4,6 +4,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 import { issuesApi } from '@/services/issuesApi';
+import { apiClient } from '@/services/apiClient';
 import type {
     Issue,
     IssueCreatePayload,
@@ -23,10 +24,10 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
     const { t } = useTranslation('issues');
 
     const severityOptions: Array<{ label: string; value: IssueSeverity }> = [
-        { label: t('severity.low', 'Low'), value: 'low' },
-        { label: t('severity.medium', 'Medium'), value: 'medium' },
-        { label: t('severity.high', 'High'), value: 'high' },
-        { label: t('severity.critical', 'Critical'), value: 'critical' },
+        { label: t('severity.low'), value: 'low' },
+        { label: t('severity.medium'), value: 'medium' },
+        { label: t('severity.high'), value: 'high' },
+        { label: t('severity.critical'), value: 'critical' },
     ];
 
     const [title, setTitle] = useState('');
@@ -40,7 +41,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
     const [ownerOptions, setOwnerOptions] = useState<IssueOwnerLookup[]>([]);
     const [isOwnersLoading, setIsOwnersLoading] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -56,7 +57,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                 if (cancelled) {
                     return;
                 }
-                setError(t('errors.load_departments_failed', 'Failed to load department options.'));
+                setErrorKey('errors.load_departments_failed');
             });
         return () => {
             cancelled = true;
@@ -95,7 +96,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                 }
                 setOwnerOptions([]);
                 setOwnerId('');
-                setError(t('errors.load_owners_failed', 'Failed to load owner options.'));
+                setErrorKey('errors.load_owners_failed');
             })
             .finally(() => {
                 if (!cancelled) {
@@ -110,12 +111,12 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
 
     const handleCreateIssue = async () => {
         if (!title.trim()) {
-            setError(t('errors.title_required', 'Title is required.'));
+            setErrorKey('errors.title_required');
             return;
         }
         const parsedDepartmentId = Number(departmentId);
         if (!Number.isFinite(parsedDepartmentId) || parsedDepartmentId <= 0) {
-            setError(t('errors.department_required', 'Department is required.'));
+            setErrorKey('errors.department_required');
             return;
         }
 
@@ -130,13 +131,12 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
         };
 
         setIsCreating(true);
-        setError(null);
+        setErrorKey(null);
         try {
             const created = await issuesApi.create(payload);
             onCreated(created);
         } catch (createError) {
-            const message = createError instanceof Error ? createError.message : t('errors.create_failed', 'Issue creation failed');
-            setError(message);
+            setErrorKey(apiClient.toUiMessageKey(createError));
         } finally {
             setIsCreating(false);
         }
@@ -144,26 +144,28 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
 
     return (
         <section className={cn('space-y-6', className)}>
-            {error && (
+            {errorKey && (
                 <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
-                    {error}
+                    {errorKey.startsWith('errorKeys.')
+                        ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
+                        : t(errorKey)}
                 </div>
             )}
 
             <div className="grid gap-5 md:grid-cols-2">
                 <div className="space-y-1.5 md:col-span-2">
-                    <label className={ISSUE_LABEL}>{t('form.fields.title', 'Title')}</label>
+                    <label className={ISSUE_LABEL}>{t('form.fields.title')}</label>
                     <input
                         type="text"
                         value={title}
                         onChange={(event) => setTitle(event.target.value)}
-                        placeholder={t('form.placeholders.title', 'Issue title')}
+                        placeholder={t('form.placeholders.title')}
                         className={ISSUE_FIELD}
                     />
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className={ISSUE_LABEL}>{t('form.fields.severity', 'Severity')}</label>
+                    <label className={ISSUE_LABEL}>{t('form.fields.severity')}</label>
                     <ThemedSelect
                         value={severity}
                         onValueChange={(value) => setSeverity(value as IssueSeverity)}
@@ -173,7 +175,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className={ISSUE_LABEL}>{t('form.fields.department', 'Department')}</label>
+                    <label className={ISSUE_LABEL}>{t('form.fields.department')}</label>
                     <ThemedSelect
                         value={departmentId}
                         onValueChange={setDepartmentId}
@@ -182,14 +184,14 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                             label: `${department.name} (${department.code})`,
                         }))}
                         allowEmpty
-                        emptyLabel={t('form.placeholders.department', 'Select department')}
-                        placeholder={t('form.placeholders.department', 'Select department')}
+                        emptyLabel={t('form.placeholders.department')}
+                        placeholder={t('form.placeholders.department')}
                         className="w-full"
                     />
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className={ISSUE_LABEL}>{t('form.fields.owner', 'Owner')}</label>
+                    <label className={ISSUE_LABEL}>{t('form.fields.owner')}</label>
                     <ThemedSelect
                         value={ownerId}
                         onValueChange={setOwnerId}
@@ -200,19 +202,19 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                         allowEmpty
                         emptyLabel={
                             !departmentId
-                                ? t('form.placeholders.select_department_first', 'Select department first')
+                                ? t('form.placeholders.select_department_first')
                                 : isOwnersLoading
-                                    ? t('form.placeholders.loading_owners', 'Loading owners...')
-                                    : t('fallbacks.unassigned', 'Unassigned')
+                                    ? t('form.placeholders.loading_owners')
+                                    : t('fallbacks.unassigned')
                         }
-                        placeholder={t('form.placeholders.owner', 'Unassigned')}
+                        placeholder={t('form.placeholders.owner')}
                         disabled={!departmentId || isOwnersLoading}
                         className="w-full"
                     />
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className={ISSUE_LABEL}>{t('form.fields.due_date', 'Due date')}</label>
+                    <label className={ISSUE_LABEL}>{t('form.fields.due_date')}</label>
                     <input
                         type="datetime-local"
                         value={dueAt}
@@ -222,11 +224,11 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                 </div>
 
                 <div className="space-y-1.5 md:col-span-2">
-                    <label className={ISSUE_LABEL}>{t('form.fields.description', 'Description')}</label>
+                    <label className={ISSUE_LABEL}>{t('form.fields.description')}</label>
                     <textarea
                         value={description}
                         onChange={(event) => setDescription(event.target.value)}
-                        placeholder={t('form.placeholders.description', 'Describe remediation context and expected outcome')}
+                        placeholder={t('form.placeholders.description')}
                         className={ISSUE_TEXTAREA}
                     />
                 </div>
@@ -240,7 +242,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                         className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest"
                     >
                         <X className="h-4 w-4" />
-                        {t('actions.cancel', 'Cancel')}
+                        {t('actions.cancel')}
                     </button>
                 ) : (
                     <span />
@@ -254,7 +256,7 @@ export function IssueCreateForm({ onCreated, className, onCancel }: IssueCreateF
                 >
                     <span className="inline-flex items-center gap-2">
                         <PlusCircle className="h-4 w-4" />
-                        {isCreating ? t('actions.creating', 'Creating...') : t('actions.create_issue', 'Create Issue')}
+                        {isCreating ? t('actions.creating') : t('actions.create_issue')}
                     </span>
                 </button>
             </div>
