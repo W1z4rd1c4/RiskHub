@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Info, Clock } from 'lucide-react';
 import type { KeyRiskIndicator } from '@/types/kri';
 import { useTranslation } from '@/i18n/hooks';
+import { useStatusTheme } from '@/hooks/useStatusTheme';
 
 interface KRIGaugeCardProps {
     kri: KeyRiskIndicator;
@@ -12,6 +13,7 @@ interface KRIGaugeCardProps {
 
 export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeCardProps) {
     const { t } = useTranslation(['kris', 'common']);
+    const statusTheme = useStatusTheme();
     const {
         metric_name,
         current_value,
@@ -29,15 +31,15 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
     };
 
     const getStatusColor = () => {
-        if (breach_status !== 'within') return 'text-rose-400';
-        if (isNearLimit()) return 'text-amber-400';
-        return 'text-emerald-400';
+        if (breach_status !== 'within') return statusTheme.control.lowText;
+        if (isNearLimit()) return statusTheme.control.mediumText;
+        return statusTheme.control.highText;
     };
 
     const getBarColor = () => {
-        if (breach_status !== 'within') return 'bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.4)]';
-        if (isNearLimit()) return 'bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)]';
-        return 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]';
+        if (breach_status !== 'within') return statusTheme.kri.breachGauge;
+        if (isNearLimit()) return statusTheme.kri.warningGauge;
+        return statusTheme.kri.withinGauge;
     };
 
     const getStatusIcon = () => {
@@ -122,7 +124,7 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
 
                     {/* Tolerance Zone (Green area) */}
                     <div
-                        className="absolute h-2 bg-emerald-500/20 rounded-full"
+                        className="absolute h-2 rounded-full bg-emerald-500/20"
                         style={{
                             left: `${lowerPct}%`,
                             width: `${upperPct - lowerPct}%`
@@ -133,12 +135,12 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
                     <div
                         className="absolute w-0.5 h-4 bg-white/20"
                         style={{ left: `${lowerPct}%` }}
-                        title={`Lower Limit: ${formatNumber(lower_limit)}`}
+                        title={t('overview.lower_limit', { ns: 'kris', value: formatNumber(lower_limit) })}
                     />
                     <div
                         className="absolute w-0.5 h-4 bg-white/20"
                         style={{ left: `${upperPct}%` }}
-                        title={`Upper Limit: ${formatNumber(upper_limit)}`}
+                        title={t('overview.upper_limit', { ns: 'kris', value: formatNumber(upper_limit) })}
                     />
 
                     {/* Current Value Pointer */}
@@ -150,8 +152,8 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
                 </div>
 
                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter text-slate-400">
-                    <span>{formatNumber(lower_limit)} {unit} MIN</span>
-                    <span>{formatNumber(upper_limit)} {unit} MAX</span>
+                    <span>{t('overview.min_value', { ns: 'kris', value: formatNumber(lower_limit), unit })}</span>
+                    <span>{t('overview.max_value', { ns: 'kris', value: formatNumber(upper_limit), unit })}</span>
                 </div>
             </div>
         </motion.div>

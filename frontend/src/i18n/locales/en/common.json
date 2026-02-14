@@ -107,6 +107,7 @@
     "not_found": "The requested resource was not found.",
     "validation": "Please check your input and try again.",
     "server": "Server error. Please try again later.",
+    "load_department_detail_failed": "Failed to load department details.",
     "required_field": "This field is required.",
     "invalid_format": "Invalid format.",
     "min_length": "Must be at least {{min}} characters.",
@@ -264,7 +265,13 @@
     "subtitle": "Review recorded user and system actions.",
     "failed_to_load": "Failed to load activity log.",
     "failed_to_load_help": "Please try again or adjust your filters.",
-    "try_adjusting_filters": "Try adjusting filters or date range."
+    "try_adjusting_filters": "Try adjusting filters or date range.",
+    "entities": {
+      "kri": "KRI",
+      "risk": "Risk",
+      "controls": "Controls",
+      "users": "Users"
+    }
   },
   "department_detail": {
     "tabs": {

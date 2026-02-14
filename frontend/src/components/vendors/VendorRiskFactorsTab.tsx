@@ -8,6 +8,7 @@ import {
     type VendorRiskCategoryKey,
     type VendorRiskFactor,
 } from '@/types/vendorRisk';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface VendorRiskFactorsTabProps {
     vendorId: number;
@@ -26,6 +27,7 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
     const [draftDescription, setDraftDescription] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState<number | null>(null);
+    const [deleteFactorId, setDeleteFactorId] = useState<number | null>(null);
 
     const categoryOptions = useMemo(
         () => vendorRiskCategoryKeys.map((k) => ({ value: k, label: t(`risk_categories.${k}`, k) })),
@@ -109,7 +111,6 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
     };
 
     const handleDelete = async (factorId: number) => {
-        if (!confirm(t('risk_factors.confirm_delete'))) return;
         try {
             setIsDeleting(factorId);
             await vendorRiskFactorApi.deleteVendorRiskFactor(factorId);
@@ -118,6 +119,7 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
             console.error('Failed to delete vendor risk factor:', err);
         } finally {
             setIsDeleting(null);
+            setDeleteFactorId(null);
         }
     };
 
@@ -247,7 +249,7 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
                                                         <Pencil className="h-4 w-4" />
                                                     </button>
                                                     <button
-                                                        onClick={() => handleDelete(factor.id)}
+                                                        onClick={() => setDeleteFactorId(factor.id)}
                                                         disabled={isDeleting === factor.id}
                                                         className="p-2 text-slate-500 hover:text-rose-400 transition-colors rounded-lg hover:bg-rose-500/10 disabled:opacity-60 disabled:cursor-not-allowed"
                                                     >
@@ -266,6 +268,16 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
                         ))}
                 </div>
             )}
+            <ConfirmDialog
+                isOpen={deleteFactorId !== null}
+                onClose={() => setDeleteFactorId(null)}
+                onConfirm={() => deleteFactorId !== null && handleDelete(deleteFactorId)}
+                title={t('common:actions.delete')}
+                message={t('risk_factors.confirm_delete')}
+                confirmLabel={t('common:actions.delete')}
+                variant="danger"
+                isLoading={isDeleting !== null}
+            />
         </section>
     );
 }

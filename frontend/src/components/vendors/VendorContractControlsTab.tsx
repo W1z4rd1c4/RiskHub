@@ -150,7 +150,7 @@ export function VendorContractControlsTab({ vendorId, canEdit }: VendorContractC
                                                                 { value: 'missing', label: t('contract_controls.status.missing') },
                                                                 { value: 'n_a', label: t('contract_controls.status.n_a') },
                                                             ]}
-                                                            placeholder="Status"
+                                                            placeholder={t('contract_controls.fields.status')}
                                                             disabled={disabled}
                                                         />
                                                     ) : (

@@ -258,6 +258,12 @@
     "subtitle": "Reassessment cadence and due date reminders.",
     "months": "months",
     "trigger_reason_prompt": "Reason (incident / new_threat / other):",
+    "trigger_dialog": {
+      "title": "Trigger Reassessment",
+      "message": "Enter the reason for triggering an immediate reassessment.",
+      "reason_label": "Reason",
+      "reason_placeholder": "incident / new_threat / other"
+    },
     "actions": {
       "start_reassessment": "Start reassessment",
       "trigger": "Trigger"
@@ -293,6 +299,7 @@
       "n_a": "N/A"
     },
     "fields": {
+      "status": "Status",
       "evidence": "Evidence reference",
       "notes": "Notes",
       "notes_placeholder": "Optional"
@@ -375,6 +382,12 @@
     "subtitle": "Services, supported functions, and fourth-party relationships.",
     "confirm_delete": "Delete?",
     "prompt_function": "Supported function name:",
+    "add_dependency_dialog": {
+      "title": "Add Supported Function",
+      "message": "Provide the supported function name to attach to this service.",
+      "input_label": "Supported function",
+      "input_placeholder": "e.g., Payment processing"
+    },
     "concentration": {
       "title": "Concentration",
       "score": "Score",

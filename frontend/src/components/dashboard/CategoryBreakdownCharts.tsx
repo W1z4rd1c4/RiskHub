@@ -56,7 +56,7 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
         <div className="flex flex-col items-center">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">{title}</h4>
             <div className="w-44 h-44 relative">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 176 }}>
                     <PieChart>
                         <Pie
                             data={chartData}
