@@ -172,7 +172,7 @@ def setup_scheduler():
 def start_scheduler():
     """
     Start the scheduler. Call during app startup.
-    
+
     Multi-worker safety: Only starts if ENABLE_SCHEDULER=true.
     In production with multiple Uvicorn/Gunicorn workers, set ENABLE_SCHEDULER=true
     on exactly ONE worker process to avoid duplicate job executions.
@@ -182,7 +182,7 @@ def start_scheduler():
     if enable != "true":
         logger.info("Scheduler disabled (ENABLE_SCHEDULER != 'true')")
         return
-    
+
     if not scheduler.running:
         setup_scheduler()
         scheduler.start()

@@ -51,20 +51,20 @@ async def capture_snapshot_metrics(
 ) -> dict:
     """
     Capture current state metrics that represent point-in-time snapshots.
-    
+
     These are the metrics that cannot be derived from period-based events
     and need to be captured at quarter boundaries for accurate comparisons.
-    
+
     Args:
         db: Database session
         department_ids: Optional list of department IDs to scope metrics (None = global)
-        
+
     Returns:
         Dictionary of snapshot metric values
     """
     # Priority risks (current state)
     priority_conditions = [
-        Risk.is_priority == True,
+        Risk.is_priority.is_(True),
         Risk.status != RiskStatus.archived.value,
     ]
     if department_ids is not None:
@@ -72,7 +72,7 @@ async def capture_snapshot_metrics(
     priority_count = await db.scalar(
         select(func.count(Risk.id)).where(*priority_conditions)
     )
-    
+
     # KRI breaches (current state)
     kri_breach_query = select(func.count(KeyRiskIndicator.id)).where(
         or_(
@@ -86,7 +86,7 @@ async def capture_snapshot_metrics(
             .where(Risk.department_id.in_(department_ids))
         )
     kri_breaches = await db.scalar(kri_breach_query)
-    
+
     # Pending approvals (current state)
     pending_status_values = [ApprovalStatus.PENDING.value, ApprovalStatus.PENDING_PRIVILEGED.value]
     pending_approval_conditions = [
@@ -114,7 +114,7 @@ async def capture_snapshot_metrics(
             .where(*pending_approval_conditions, Risk.department_id.in_(department_ids))
         )
         pending_approvals = (pending_risks or 0) + (pending_controls or 0) + (pending_kris or 0)
-    
+
     # Control coverage (current state)
     total_active_risk_conditions = [Risk.status == RiskStatus.active.value]
     if department_ids is not None:
@@ -122,7 +122,7 @@ async def capture_snapshot_metrics(
     total_active_risks = await db.scalar(
         select(func.count(Risk.id)).where(*total_active_risk_conditions)
     ) or 1
-    
+
     risks_with_controls_query = (
         select(func.count(Risk.id.distinct()))
         .select_from(Risk)
@@ -133,7 +133,7 @@ async def capture_snapshot_metrics(
         risks_with_controls_query = risks_with_controls_query.where(Risk.department_id.in_(department_ids))
     risks_with_controls = await db.scalar(risks_with_controls_query)
     control_coverage = round((risks_with_controls or 0) / total_active_risks * 100)
-    
+
     # Orphaned items (current state)
     if department_ids is None:
         orphaned_items = await db.scalar(
@@ -151,7 +151,7 @@ async def capture_snapshot_metrics(
             .where(OrphanedItem.resolved_at.is_(None), Control.department_id.in_(department_ids))
         )
         orphaned_items = (orphaned_risks or 0) + (orphaned_controls or 0)
-    
+
     # KRI health (current state)
     total_kris_query = select(func.count(KeyRiskIndicator.id))
     kris_within_query = select(func.count(KeyRiskIndicator.id)).where(
@@ -168,7 +168,7 @@ async def capture_snapshot_metrics(
     total_kris = await db.scalar(total_kris_query) or 1
     kris_within = await db.scalar(kris_within_query)
     kri_health = round((kris_within or 0) / total_kris * 100)
-    
+
     # Overdue KRIs (current state)
     overdue_kris_query = select(func.count(KeyRiskIndicator.id)).where(
         KeyRiskIndicator.last_period_end.isnot(None),
@@ -179,7 +179,7 @@ async def capture_snapshot_metrics(
             Risk.department_id.in_(department_ids)
         )
     overdue_kris = await db.scalar(overdue_kris_query)
-    
+
     # Risks without KRI (current state)
     risks_with_kri = select(KeyRiskIndicator.risk_id.distinct())
     risks_without_kri_query = select(func.count(Risk.id)).where(
@@ -189,7 +189,7 @@ async def capture_snapshot_metrics(
     if department_ids is not None:
         risks_without_kri_query = risks_without_kri_query.where(Risk.department_id.in_(department_ids))
     risks_without_kri = await db.scalar(risks_without_kri_query)
-    
+
     # Active risks (current state) - only count active, not emerging
     active_conditions = [
         Risk.status == RiskStatus.active.value,
@@ -215,7 +215,7 @@ async def capture_snapshot_metrics(
     )
 
     vendor_sla_breaches_query = select(func.count(VendorSLA.id)).where(
-        VendorSLA.is_archived == False,
+        VendorSLA.is_archived.is_(False),
         or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit),
     )
     if department_ids is not None:
@@ -224,7 +224,7 @@ async def capture_snapshot_metrics(
             Vendor.status == "active",
         )
     vendor_sla_breaches = await db.scalar(vendor_sla_breaches_query)
-    
+
     return {
         "priority_risks": priority_count or 0,
         "kri_breaches": kri_breaches or 0,
@@ -254,7 +254,7 @@ async def save_quarter_snapshot(
 ) -> QuarterlyMetricSnapshot:
     """
     Save a quarterly metric snapshot to the database.
-    
+
     Args:
         db: Database session
         quarter_label: Quarter label like '2026-Q1'
@@ -265,7 +265,7 @@ async def save_quarter_snapshot(
         snapshot_type: Type of snapshot
         captured_by_user_id: Optional user ID who triggered capture
         notes: Optional notes
-        
+
     Returns:
         Created or updated snapshot
     """
@@ -278,7 +278,7 @@ async def save_quarter_snapshot(
         )
     )
     snapshot = existing.scalar_one_or_none()
-    
+
     if snapshot:
         # Update existing snapshot
         snapshot.metrics = metrics
@@ -301,7 +301,7 @@ async def save_quarter_snapshot(
             notes=notes,
         )
         db.add(snapshot)
-    
+
     await db.flush()
     return snapshot
 
@@ -313,12 +313,12 @@ async def get_quarter_snapshot(
 ) -> Optional[QuarterlyMetricSnapshot]:
     """
     Retrieve a quarterly metric snapshot.
-    
+
     Args:
         db: Database session
         quarter_label: Quarter label like '2026-Q1'
         department_id: Optional department ID (None = global)
-        
+
     Returns:
         Snapshot if found, None otherwise
     """
@@ -340,13 +340,13 @@ async def capture_current_quarter_snapshot(
 ) -> QuarterlyMetricSnapshot:
     """
     Capture a snapshot for the current quarter.
-    
+
     Args:
         db: Database session
         department_ids: Optional department IDs for scoped capture
         captured_by_user_id: Optional user ID who triggered capture
         notes: Optional notes
-        
+
     Returns:
         Created snapshot
     """
@@ -354,13 +354,13 @@ async def capture_current_quarter_snapshot(
     quarter_label = get_quarter_label(now)
     year = now.year
     quarter_number = get_quarter_number(now)
-    
+
     # Capture metrics
     metrics = await capture_snapshot_metrics(db, department_ids)
-    
+
     # Determine department_id for storage (None for global)
     dept_id = None if department_ids is None else (department_ids[0] if len(department_ids) == 1 else None)
-    
+
     # Save snapshot
     return await save_quarter_snapshot(
         db=db,

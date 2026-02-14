@@ -9,12 +9,11 @@ from app.core.permissions import get_effective_permissions, get_scope_label, is_
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
+from app.models.role import RoleType
 from app.models.user import AccessScope
 from app.schemas.access import AccessUserRead, AccessUserUpdate, PermissionRead, RoleWithPermissions
 
 router = APIRouter()
-
-from app.models.role import RoleType
 
 ADMIN_PRIVILEGED_ROLES: set[RoleType] = {RoleType.ADMIN, RoleType.CRO}
 
@@ -22,7 +21,7 @@ ADMIN_PRIVILEGED_ROLES: set[RoleType] = {RoleType.ADMIN, RoleType.CRO}
 def _require_privileged(user: User) -> None:
     """
     Require that the user has global (privileged) access scope.
-    
+
     Used for endpoints that are restricted to platform-wide admins.
     Raises 403 if user lacks GLOBAL access scope.
     """
@@ -33,7 +32,7 @@ def _require_privileged(user: User) -> None:
 def _can_manage_privileged_status(user: User) -> bool:
     """
     Check if user can modify privileged status of other users.
-    
+
     Only admin and CRO roles can change user roles or access scopes.
     This is stricter than _require_privileged - not all privileged users
     can manage privileged status, only admin/CRO.
@@ -126,17 +125,17 @@ async def list_department_access_users(
     Returns only users in the caller's department.
     """
     from app.models.role import RoleType
-    
+
     # Allow department heads and privileged users
     is_dept_head = current_user.role and current_user.role.name == RoleType.DEPARTMENT_HEAD
     is_priv = is_privileged_user(current_user)
-    
+
     if not is_dept_head and not is_priv:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only department heads or privileged users can view department access"
         )
-    
+
     if not current_user.department_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -145,7 +144,7 @@ async def list_department_access_users(
 
     query = select(User).options(
         *user_selectinload_options(include_permissions=True)
-    ).where(User.department_id == current_user.department_id).where(User.is_active == True)
+    ).where(User.department_id == current_user.department_id).where(User.is_active.is_(True))
 
     result = await db.execute(query)
     users = result.scalars().all()
@@ -165,7 +164,7 @@ async def list_access_roles(
         .options(
             selectinload(Role.permissions).selectinload(RolePermission.permission)
         )
-        .where(Role.is_active == True)
+        .where(Role.is_active.is_(True))
     )
     roles = result.scalars().all()
     return [_build_role_with_permissions(role) for role in roles]
@@ -200,24 +199,24 @@ async def update_access_user(
     # Role change guardrails
     if "role_id" in update_data:
         new_role_id = update_data["role_id"]
-        
+
         # Get new role to check if it's privileged
         if new_role_id != user.role_id:
             new_role_result = await db.execute(select(Role).where(Role.id == new_role_id))
             new_role = new_role_result.scalar_one_or_none()
             if not new_role:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role_id")
-            
+
             old_role_is_privileged = user.role and user.role.name in ADMIN_PRIVILEGED_ROLES
             new_role_is_privileged = new_role.name in ADMIN_PRIVILEGED_ROLES
-            
+
             # Prevent demoting yourself from admin/CRO
             if current_user.id == user.id and old_role_is_privileged and not new_role_is_privileged:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Cannot demote yourself from admin/CRO role"
                 )
-            
+
             # Prevent demoting the last admin/CRO
             if old_role_is_privileged and not new_role_is_privileged:
                 remaining = await db.execute(

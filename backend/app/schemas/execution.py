@@ -29,7 +29,7 @@ class ControlExecution(ControlExecutionBase):
     id: int
     executed_at: datetime
     created_at: datetime
-    
+
     # Nested relations (simplified for list)
     executed_by_name: Optional[str] = None
     control_name: Optional[str] = None

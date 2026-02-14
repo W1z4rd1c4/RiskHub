@@ -58,18 +58,18 @@ class ApprovalRequestRead(BaseModel):
     pending_changes: dict | None = None
     status: ApprovalStatusEnum
     reason: str
-    
+
     requested_by_id: int
     requested_by_name: str | None = None
     requested_by_email: str | None = None
-    
+
     resolved_by_id: int | None = None
     resolved_by_name: str | None = None
     resolved_at: datetime | None = None
     resolution_notes: str | None = None
-    
+
     created_at: datetime
-    
+
     model_config = {"from_attributes": True}
 
 

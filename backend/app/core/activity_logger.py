@@ -113,7 +113,7 @@ async def log_activity(
 ) -> ActivityLog:
     """
     Log an activity to the activity log.
-    
+
     Args:
         db: Database session
         entity_type: Type of entity (risk, control, etc.)
@@ -124,7 +124,7 @@ async def log_activity(
         department_id: Associated department (for scoping)
         changes: Dict of field changes {field: {old: v1, new: v2}}
         description: Human-readable description (auto-generated if not provided)
-    
+
     Returns:
         Created ActivityLog entry
     """
@@ -132,7 +132,7 @@ async def log_activity(
         description = _generate_description(entity_type, entity_name, action, changes)
     description = _truncate_text(description, MAX_DESCRIPTION_LENGTH) or ""
     changes = _truncate_changes(_normalize_changes(changes))
-    
+
     entry = ActivityLog(
         entity_type=entity_type.value,
         entity_id=entity_id,
@@ -145,7 +145,7 @@ async def log_activity(
         description=description,
     )
     db.add(entry)
-    
+
     # Emit structured log for SIEM integration
     audit_logger.info(
         action.value,
@@ -160,7 +160,7 @@ async def log_activity(
         changes=changes,
         description=description,
     )
-    
+
     # Note: commit handled by caller's transaction
     return entry
 
@@ -185,11 +185,11 @@ def _generate_description(
     }
     verb = action_verbs.get(action, action.value)
     entity_label = entity_type.value.replace("_", " ").title()
-    
+
     desc = f"{verb.capitalize()} {entity_label}: {entity_name}"
-    
+
     if changes and action == ActivityAction.UPDATE:
         fields = ", ".join(changes.keys())
         desc += f" (fields: {fields})"
-    
+
     return desc

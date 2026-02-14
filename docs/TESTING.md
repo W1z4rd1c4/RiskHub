@@ -340,6 +340,14 @@ python3 -m pytest --ignore=tests/test_concurrency_stress.py -x
 cd frontend && npx playwright test --workers=5
 ```
 
+### 5.4 Canonical Quality Gate Command
+
+Run this before opening a PR when touching frontend/backend application code:
+
+```bash
+make lint && cd frontend && npm run i18n:test && npx tsc --noEmit
+```
+
 ---
 
 ## 6. Test Categories Reference

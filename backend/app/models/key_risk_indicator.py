@@ -29,18 +29,18 @@ class KRIFrequency(str, PyEnum):
 class KeyRiskIndicator(Base):
     """
     Key Risk Indicator linked to a Risk.
-    
+
     Tracks a specific metric with tolerance limits.
     Breach status is computed based on current_value vs limits.
     Supports historization with reporting frequency and ownership.
     """
     __tablename__ = "key_risk_indicators"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
-    
+
     # Required FK - each KRI must belong to a Risk
     risk_id: Mapped[int] = mapped_column(ForeignKey("risks.id"), index=True)
-    
+
     # Core KRI fields
     metric_name: Mapped[str] = mapped_column(String(500))
     description: Mapped[str] = mapped_column(Text)
@@ -48,31 +48,31 @@ class KeyRiskIndicator(Base):
     lower_limit: Mapped[float] = mapped_column(Float)
     upper_limit: Mapped[float] = mapped_column(Float)
     unit: Mapped[str] = mapped_column(String(50), default="%")
-    
+
     # Reporting frequency (how often this KRI should be updated)
     frequency: Mapped[str] = mapped_column(String(20), default=KRIFrequency.quarterly.value)
-    
+
     # Reporting owner - who is responsible for updating this KRI
     # If null, responsibility falls back to the linked Risk owner (handled in service layer)
     reporting_owner_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
-    
+
     # Period tracking for historization
     last_period_end: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     last_reported_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    
+
     # Timestamps
     last_updated: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    
+
     # Archive fields (soft-delete) - matches Risk/Control pattern
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", index=True)
     archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     archived_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
-    
+
     # Relationships
     risk: Mapped["Risk"] = relationship("Risk", back_populates="kris")
     reporting_owner: Mapped[Optional["User"]] = relationship(
-        "User", 
+        "User",
         foreign_keys=[reporting_owner_id],
     )
     archived_by: Mapped[Optional["User"]] = relationship(
@@ -80,12 +80,12 @@ class KeyRiskIndicator(Base):
         foreign_keys=[archived_by_id],
     )
     history_entries: Mapped[list["KRIValueHistory"]] = relationship(
-        "KRIValueHistory", 
-        back_populates="kri", 
+        "KRIValueHistory",
+        back_populates="kri",
         cascade="all, delete-orphan",
         order_by="desc(KRIValueHistory.recorded_at)"
     )
-    
+
     @property
     def breach_status(self) -> str:
         """Compute breach status based on value vs limits."""

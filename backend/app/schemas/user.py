@@ -22,7 +22,7 @@ class RoleBase(BaseModel):
 class RoleRead(RoleBase):
     """Schema for reading Role."""
     id: int
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -66,7 +66,7 @@ class UserRead(BaseModel):
     manager_name: Optional[str] = None  # Manager's name
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -84,7 +84,7 @@ class UserBrief(BaseModel):
     department_id: Optional[int] = None
     department_name: Optional[str] = None
 
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -113,5 +113,5 @@ class DepartmentRead(DepartmentBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = {"from_attributes": True}

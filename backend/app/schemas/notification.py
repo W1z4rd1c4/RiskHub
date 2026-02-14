@@ -59,7 +59,7 @@ class NotificationRead(NotificationBase):
     is_read: bool
     created_at: datetime
     expires_at: datetime | None = None
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -102,7 +102,7 @@ class NotificationPreferences(BaseModel):
     issue_overdue: bool = True
     issue_exception_requested: bool = True
     issue_exception_approved: bool = True
-    
+
     model_config = {"from_attributes": True}
 
 

@@ -53,10 +53,13 @@ const queryClient = new QueryClient({
 });
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isPreferencesHydrated } = useAuth();
   const { t } = useTranslation('common');
+  const preferencesReady = isPreferencesHydrated ?? true;
 
-  if (isLoading) return <div className="flex items-center justify-center min-h-screen">{t('loading.generic')}</div>;
+  if (isLoading || (isAuthenticated && !preferencesReady)) {
+    return <div className="flex items-center justify-center min-h-screen">{t('loading.generic')}</div>;
+  }
   if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return <>{children}</>;

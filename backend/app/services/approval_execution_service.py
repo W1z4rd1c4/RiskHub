@@ -68,7 +68,7 @@ EDITABLE_FIELDS = {
 
 async def load_approval(db: AsyncSession, approval_id: int) -> ApprovalRequest:
     """Load an approval with required relationships.
-    
+
     Raises HTTPException 404 if not found.
     """
     result = await db.execute(
@@ -115,10 +115,10 @@ def assert_can_approve(
     current_user: User,
 ) -> tuple[bool, bool]:
     """Check if current_user can approve the given approval.
-    
+
     Returns:
         Tuple of (is_privileged, is_primary_approver)
-    
+
     Raises:
         HTTPException 403 if user cannot approve
         HTTPException 400 if approval is not in a pending state
@@ -161,9 +161,9 @@ def apply_status_transition(
     is_primary_approver: bool,
 ) -> bool:
     """Apply the status transition for an approval.
-    
+
     Mutates the approval object in place.
-    
+
     Returns:
         True if side effects (DELETE/EDIT) should be applied,
         False if transitioning to PENDING_PRIVILEGED (no side effects yet).
@@ -224,7 +224,7 @@ async def _apply_delete_side_effects(
     current_user: User,
 ) -> None:
     """Archive the resource for a DELETE approval.
-    
+
     If the resource no longer exists (orphaned approval), the approval is marked
     as REJECTED with an explanatory note for audit purposes.
     """
@@ -236,11 +236,11 @@ async def _apply_delete_side_effects(
             logger.warning(f"Approval #{approval.id}: Risk {approval.resource_id} no longer exists")
             approval.status = ApprovalStatus.REJECTED
             approval.resolution_notes = (
-                (approval.resolution_notes or "") + 
+                (approval.resolution_notes or "") +
                 "\nAuto-rejected: Resource was deleted before approval could be applied."
             )
             return
-        
+
         old_status = risk.status
         risk.status = RiskStatusEnum.archived.value
         await log_activity(
@@ -267,11 +267,11 @@ async def _apply_delete_side_effects(
             logger.warning(f"Approval #{approval.id}: Control {approval.resource_id} no longer exists")
             approval.status = ApprovalStatus.REJECTED
             approval.resolution_notes = (
-                (approval.resolution_notes or "") + 
+                (approval.resolution_notes or "") +
                 "\nAuto-rejected: Resource was deleted before approval could be applied."
             )
             return
-        
+
         old_status = control.status
         control.status = ControlStatus.archived.value
         control.updated_by_id = current_user.id
@@ -301,11 +301,11 @@ async def _apply_delete_side_effects(
             logger.warning(f"Approval #{approval.id}: KRI {approval.resource_id} no longer exists")
             approval.status = ApprovalStatus.REJECTED
             approval.resolution_notes = (
-                (approval.resolution_notes or "") + 
+                (approval.resolution_notes or "") +
                 "\nAuto-rejected: Resource was deleted before approval could be applied."
             )
             return
-        
+
         old_is_archived = kri.is_archived
         kri.is_archived = True
         # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
@@ -340,7 +340,7 @@ async def _apply_edit_risk_control(
     current_user: User,
 ) -> None:
     """Apply pending_changes to Risk or Control.
-    
+
     For risks: also recomputes derived scores (gross_score, net_score) if probability/impact changed.
     For controls: also sets updated_by_id for audit attribution.
     """
@@ -355,7 +355,7 @@ async def _apply_edit_risk_control(
             allowed_fields = EDITABLE_FIELDS.get("risk", set())
             applied_changes: dict = {}
             rejected_fields: list[str] = []
-            
+
             for field, vals in changes.items():
                 if field not in allowed_fields:
                     rejected_fields.append(field)
@@ -363,29 +363,29 @@ async def _apply_edit_risk_control(
                 if hasattr(risk, field):
                     setattr(risk, field, vals.get("new"))
                     applied_changes[field] = vals
-            
+
             # Log rejected fields (security audit, no values logged)
             if rejected_fields:
                 logger.warning(
                     f"Approval #{approval.id}: Rejected non-whitelisted fields for risk: {rejected_fields}"
                 )
-            
+
             # Recompute derived scores if probability/impact changed
             gross_inputs_changed = any(k in applied_changes for k in ("gross_probability", "gross_impact"))
             net_inputs_changed = any(k in applied_changes for k in ("net_probability", "net_impact"))
-            
+
             if gross_inputs_changed:
                 old_gross_score = risk.gross_score
                 risk.gross_score = risk.gross_probability * risk.gross_impact
                 if risk.gross_score != old_gross_score:
                     applied_changes["gross_score"] = {"old": old_gross_score, "new": risk.gross_score}
-            
+
             if net_inputs_changed:
                 old_net_score = risk.net_score
                 risk.net_score = risk.net_probability * risk.net_impact
                 if risk.net_score != old_net_score:
                     applied_changes["net_score"] = {"old": old_net_score, "new": risk.net_score}
-            
+
             if applied_changes:
                 await log_activity(
                     db,
@@ -406,7 +406,7 @@ async def _apply_edit_risk_control(
             allowed_fields = EDITABLE_FIELDS.get("control", set())
             applied_changes: dict = {}
             rejected_fields: list[str] = []
-            
+
             for field, vals in changes.items():
                 if field not in allowed_fields:
                     rejected_fields.append(field)
@@ -414,13 +414,13 @@ async def _apply_edit_risk_control(
                 if hasattr(control, field):
                     setattr(control, field, vals.get("new"))
                     applied_changes[field] = vals
-            
+
             # Log rejected fields (security audit, no values logged)
             if rejected_fields:
                 logger.warning(
                     f"Approval #{approval.id}: Rejected non-whitelisted fields for control: {rejected_fields}"
                 )
-            
+
             # Set audit attribution for control edits
             if applied_changes:
                 control.updated_by_id = current_user.id
@@ -448,7 +448,7 @@ async def _apply_edit_kri(
     current_user: User,
 ) -> None:
     """Apply pending_changes to KRI.
-    
+
     Three distinct flows based on pending_changes shape:
     1. History correction: `history_entry_id` present
     2. Value submission: `period_end` and `current_value` present
@@ -762,7 +762,7 @@ async def apply_side_effects(
     current_user: User,
 ) -> None:
     """Apply the side effects for an approved request.
-    
+
     - DELETE: archive the resource
     - EDIT: apply pending_changes to the resource
     """

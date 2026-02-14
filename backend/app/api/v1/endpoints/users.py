@@ -29,7 +29,7 @@ async def list_users(
 ):
     """
     List users with filtering (admin-only).
-    
+
     Args:
         skip: Number of records to skip
         limit: Maximum number of records to return
@@ -37,23 +37,23 @@ async def list_users(
         role_id: Optional filter by role
         current_user: Authenticated user
         db: Database session
-        
+
     Returns:
         List of users
-        
+
     Raises:
         HTTPException: If user doesn't have permission
     """
     if not can_manage_users(current_user):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     query = select(User).options(*user_selectinload_options())
-    
+
     if department_id:
         query = query.where(User.department_id == department_id)
     if role_id:
         query = query.where(User.role_id == role_id)
-    
+
     result = await db.execute(query.offset(skip).limit(limit))
     return result.scalars().all()
 
@@ -66,28 +66,28 @@ async def create_user(
 ):
     """
     Create new user (admin-only).
-    
+
     Args:
         user_data: User creation data
         current_user: Authenticated user
         db: Database session
-        
+
     Returns:
         Created user
-        
+
     Raises:
         HTTPException: If user doesn't have permission or email exists
     """
     if not can_manage_users(current_user):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     # Check if email already exists
     result = await db.execute(
         select(User).where(User.email == user_data.email)
     )
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     # Create user
     new_user = User(
         email=user_data.email,
@@ -98,10 +98,10 @@ async def create_user(
         is_active=user_data.is_active,
         hashed_password=get_password_hash(user_data.password)
     )
-    
+
     db.add(new_user)
     await db.flush()
-    
+
     # Log activity within the same transaction
     await log_activity(
         db,
@@ -114,7 +114,7 @@ async def create_user(
     )
     await db.commit()
     await db.refresh(new_user)
-    
+
     # Reload with all relationships to ensure they are available for schema validation
     # This prevents MissingGreenlet errors in async context
     result = await db.execute(
@@ -131,7 +131,7 @@ async def list_roles(
     current_user: User = Depends(deps.get_current_user),
 ):
     """List all available roles. Requires authentication."""
-    result = await db.execute(select(Role).where(Role.is_active == True))
+    result = await db.execute(select(Role).where(Role.is_active.is_(True)))
     return result.scalars().all()
 
 
@@ -147,12 +147,12 @@ async def lookup_users(
 ):
     """
     Scoped user lookup for pickers/dropdowns.
-    
+
     Returns users visible to the current user based on their access scope:
     - GLOBAL: All active users
     - DEPARTMENT: Same-department users
     - MANAGER: Self + direct reports
-    
+
     Args:
         q: Optional text search (name or email)
         include_inactive: Include inactive users (default False)
@@ -164,15 +164,15 @@ async def lookup_users(
 
     from app.core.pagination import MAX_LOOKUP_SIZE
     from app.models.user import AccessScope
-    
+
     # Enforce max lookup size
     limit = min(limit, MAX_LOOKUP_SIZE)
-    
+
     query = select(User).options(
         selectinload(User.role),
         selectinload(User.department),
     )
-    
+
     # Apply scope filtering based on current user's access
     if current_user.access_scope == AccessScope.GLOBAL:
         # Global users see everyone
@@ -202,11 +202,11 @@ async def lookup_users(
                 User.manager_id == current_user.id
             )
         )
-    
+
     # Apply active filter
     if not include_inactive:
-        query = query.where(User.is_active == True)
-    
+        query = query.where(User.is_active.is_(True))
+
     # Apply text search
     if q:
         search_term = f"%{q}%"
@@ -216,11 +216,11 @@ async def lookup_users(
                 User.email.ilike(search_term)
             )
         )
-    
+
     # Deterministic ordering for stable paging
     result = await db.execute(query.order_by(User.id).offset(skip).limit(limit))
     users = result.scalars().all()
-    
+
     return [
         UserLookup(
             id=u.id,
@@ -243,31 +243,31 @@ async def get_user(
 ):
     """
     Get user by ID.
-    
+
     Args:
         user_id: User ID
         current_user: Authenticated user
         db: Database session
-        
+
     Returns:
         User details
-        
+
     Raises:
         HTTPException: If user doesn't have permission or user not found
     """
     if not can_manage_users(current_user) and current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     result = await db.execute(
         select(User)
         .options(*user_selectinload_options())
         .where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     return user
 
 
@@ -280,30 +280,30 @@ async def update_user(
 ):
     """
     Update user (admin-only).
-    
+
     Args:
         user_id: User ID
         user_data: User update data
         current_user: Authenticated user
         db: Database session
-        
+
     Returns:
         Updated user
-        
+
     Raises:
         HTTPException: If user doesn't have permission or user not found
     """
     if not can_manage_users(current_user):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     result = await db.execute(
         select(User).where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     # Check email uniqueness if changing email
     if user_data.email and user_data.email != user.email:
         email_check = await db.execute(
@@ -315,17 +315,17 @@ async def update_user(
     # Update fields
     update_data = user_data.model_dump(exclude_unset=True)
     password = update_data.pop("password", None)
-    
+
     extra_changes = {}
     if password is not None:
         user.hashed_password = get_password_hash(password)
         extra_changes["password_changed"] = {"old": None, "new": True}
-    
+
     changes = build_change_set(user, update_data, extra_changes=extra_changes)
-    
+
     for field, value in update_data.items():
         setattr(user, field, value)
-    
+
     # Log activity within the same transaction
     await log_activity(
         db,
@@ -340,7 +340,7 @@ async def update_user(
     )
     await db.commit()
     await db.refresh(user)
-    
+
     # Reload with all relationships
     result = await db.execute(
         select(User)
@@ -361,14 +361,14 @@ async def get_user_subordinates(
     Requires: admin/manager access OR self-lookup.
     """
     from app.core.permissions import can_manage_users
-    
+
     # Allow self-lookup or admin/manager access
     if current_user.id != user_id and not can_manage_users(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied - can only view own subordinates or requires admin access"
         )
-    
+
     result = await db.execute(
         select(User)
         .options(
@@ -381,10 +381,10 @@ async def get_user_subordinates(
         .where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     return user.subordinates
 
 
@@ -410,10 +410,10 @@ async def mock_login(
         .where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
-    
+
     if not user:
         return {"error": "User not found"}
-    
+
     return {
         "message": f"Mock login successful. Use header: X-Mock-User-Id: {user_id}",
         "user": {

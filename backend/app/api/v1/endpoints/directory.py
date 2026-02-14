@@ -34,12 +34,12 @@ def _require_admin(current_user: User) -> None:
 def _verify_webhook_signature(payload: bytes, signature: str | None, secret: str) -> None:
     """
     Verify HMAC-SHA256 signature for webhook payload.
-    
+
     Args:
         payload: Raw request body bytes
         signature: X-Webhook-Signature header value (format: sha256=<hex>)
         secret: Webhook secret from config
-        
+
     Raises:
         HTTPException: 401 if signature is invalid or missing
         HTTPException: 500 if secret not configured in production
@@ -56,27 +56,27 @@ def _verify_webhook_signature(payload: bytes, signature: str | None, secret: str
             status_code=500,
             detail="Webhook secret not configured (required in production)"
         )
-    
+
     if not signature:
         raise HTTPException(
             status_code=401,
             detail="Missing X-Webhook-Signature header"
         )
-    
+
     # Expected format: sha256=<hex>
     if not signature.startswith("sha256="):
         raise HTTPException(
             status_code=401,
             detail="Invalid signature format"
         )
-    
+
     provided_hash = signature[7:]  # Strip "sha256=" prefix
     expected_hash = hmac.new(
         secret.encode(),
         payload,
         hashlib.sha256
     ).hexdigest()
-    
+
     if not hmac.compare_digest(provided_hash, expected_hash):
         raise HTTPException(
             status_code=401,
@@ -126,21 +126,21 @@ async def receive_webhook(
 ):
     """
     Receive webhook notifications from AD Emulator.
-    
+
     This endpoint is called by AD Emulator when directory users are created,
     updated, deactivated, or activated. It automatically syncs the affected
     user to RiskHub.
-    
+
     Security: Requires valid HMAC-SHA256 signature in X-Webhook-Signature header
     when WEBHOOK_SECRET is configured.
     """
     # Get raw body for signature verification
     body = await request.body()
-    
+
     # Verify signature
     settings = get_settings()
     _verify_webhook_signature(body, x_webhook_signature, settings.webhook_secret)
-    
+
     # Parse payload after verification
     import json
     try:
@@ -149,42 +149,42 @@ async def receive_webhook(
     except Exception as e:
         logger.warning(f"Webhook payload parse failed: {e}")
         raise HTTPException(status_code=400, detail="Invalid webhook payload")
-    
+
     logger.info(
         f"Received webhook: {payload.event_type} for user {payload.data.external_id} "
         f"({payload.data.email or 'no email'})"
     )
-    
+
     try:
         # Convert Pydantic model to dict for sync service
         user_data = payload.data.model_dump()
-        
+
         # Trigger automatic sync for this single user
         result = await DirectorySyncService.sync_single_user(
             db=db,
             user_data=user_data,
             event_type=payload.event_type,
         )
-        
+
         action = result.get("action", "unknown")
         orphaned_count = result.get("orphaned_items", {}).get("total", 0)
-        
+
         logger.info(
             f"Webhook processed: {payload.event_type} -> {action}, "
             f"user_id={result.get('user_id')}, orphaned_count={orphaned_count}"
         )
-        
+
         return WebhookResponse(
             status="processed",
             action=action,
             orphaned_count=orphaned_count,
         )
-        
+
     except ValueError as e:
         # Validation/business logic error - 400 (don't retry)
         logger.warning(f"Webhook validation failed: {e}")
         raise HTTPException(status_code=400, detail="Invalid webhook data")
-        
+
     except Exception:
         # Processing error - 500 (retry)
         # Note: sync_single_user is idempotent (upsert pattern) so retries are safe

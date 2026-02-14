@@ -104,7 +104,7 @@ async def _get_active_user_with_permissions(db: AsyncSession, user_id: int) -> U
             .options(
                 selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
             )
-            .where(User.id == user_id, User.is_active == True)
+            .where(User.id == user_id, User.is_active.is_(True))
         )
     ).scalar_one_or_none()
 
@@ -214,7 +214,7 @@ async def _notify_exception_requested(db: AsyncSession, *, issue: Issue, actor: 
         .join(RolePermission, RolePermission.role_id == Role.id)
         .join(Permission, RolePermission.permission_id == Permission.id)
         .where(
-            User.is_active == True,
+            User.is_active.is_(True),
             User.access_scope == AccessScope.GLOBAL,
             Permission.resource.in_(("issues", "*")),
             Permission.action.in_(("approve", "*")),
@@ -488,7 +488,7 @@ async def list_issue_departments(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("issues", "write")),
 ) -> list[IssueDepartmentLookup]:
-    query = select(Department).where(Department.is_active == True)
+    query = select(Department).where(Department.is_active.is_(True))
     allowed_department_ids = get_user_department_ids(current_user)
     if allowed_department_ids is not None:
         if not allowed_department_ids:
@@ -517,7 +517,7 @@ async def list_issue_assignable_owners(
                 selectinload(User.department),
             )
             .where(
-                User.is_active == True,
+                User.is_active.is_(True),
                 Role.name != RoleType.ADMIN,
                 or_(
                     User.access_scope == AccessScope.GLOBAL,

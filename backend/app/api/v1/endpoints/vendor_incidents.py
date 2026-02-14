@@ -55,7 +55,7 @@ async def _users_by_roles(db: AsyncSession, roles: set[RoleType]) -> list[User]:
         select(User)
         .join(Role, User.role_id == Role.id)
         .options(permission_load)
-        .where(User.is_active == True)
+        .where(User.is_active.is_(True))
         .where(Role.name.in_(role_names))
     )
     result = await db.execute(stmt)

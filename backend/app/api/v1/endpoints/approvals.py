@@ -77,7 +77,7 @@ async def _get_approval_department_id(db: AsyncSession, approval: ApprovalReques
 def _build_approval_read(approval: ApprovalRequest) -> dict:
     """Build ApprovalRequestRead dict from model with user names."""
     pending_changes = approval.pending_changes
-    
+
     return {
         "id": approval.id,
         "resource_type": approval.resource_type.value,
@@ -145,7 +145,7 @@ async def create_approval_request(
         check_department_access(resource.risk.department_id, current_user)
         resource_name = (resource.metric_name or f"KRI-{resource.id}")[:50]
         department_id = resource.risk.department_id
-    
+
     # Check for existing pending request (both PENDING and PENDING_PRIVILEGED)
     existing = await db.execute(
         select(ApprovalRequest).where(
@@ -156,7 +156,7 @@ async def create_approval_request(
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Deletion request already pending for this resource")
-    
+
     # Create approval request
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType(request_data.resource_type.value),
@@ -166,7 +166,7 @@ async def create_approval_request(
         reason=request_data.reason,
         status=ApprovalStatus.PENDING,
     )
-    
+
     try:
         db.add(approval)
         await db.flush()
@@ -178,7 +178,7 @@ async def create_approval_request(
                 detail="An approval request is already pending for this action."
             )
         raise
-    
+
     await log_activity(
         db,
         entity_type=ActivityEntityType.APPROVAL,
@@ -189,7 +189,7 @@ async def create_approval_request(
         department_id=department_id,
     )
     await db.commit()
-    
+
     # Reload with relationships
     result = await db.execute(
         select(ApprovalRequest)
@@ -197,7 +197,7 @@ async def create_approval_request(
         .where(ApprovalRequest.id == approval.id)
     )
     approval = result.scalar_one()
-    
+
     # Notify approvers about the new request (within same transaction context)
     try:
         await NotificationService.notify_approvers(db, approval)
@@ -205,7 +205,7 @@ async def create_approval_request(
     except Exception as e:
         await db.rollback()
         logger.warning(f"Failed to notify approvers for approval #{approval.id}: {e}")
-    
+
     return _build_approval_read(approval)
 
 
@@ -226,7 +226,7 @@ async def list_approval_requests(
     """
     logger.info(f"List approvals: user={current_user.id} can_resolve={can_resolve_approvals(current_user)} filter={status_filter} my={my_requests}")
     base_query = select(ApprovalRequest)
-    
+
     # Permission-based filtering
     if can_resolve_approvals(current_user):
         # Privileged users can see all, but can filter to just their own
@@ -235,7 +235,7 @@ async def list_approval_requests(
     else:
         # Non-privileged users only see their own
         base_query = base_query.where(ApprovalRequest.requested_by_id == current_user.id)
-    
+
     # Apply filters
     if status_filter:
         if status_filter == ApprovalStatusEnum.pending:
@@ -247,21 +247,21 @@ async def list_approval_requests(
             base_query = base_query.where(ApprovalRequest.status == ApprovalStatus(status_filter.value.upper()))
     if resource_type:
         base_query = base_query.where(ApprovalRequest.resource_type == ApprovalResourceType(resource_type.value))
-    
+
     # Count total
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Fetch with pagination
     query = base_query.options(
         selectinload(ApprovalRequest.requested_by),
         selectinload(ApprovalRequest.resolved_by)
     ).offset(skip).limit(limit).order_by(ApprovalRequest.created_at.desc())
-    
+
     result = await db.execute(query)
     approvals = result.scalars().all()
-    
+
     valid_items = []
     for a in approvals:
         try:
@@ -291,14 +291,14 @@ async def get_approval_request(
         .where(ApprovalRequest.id == approval_id)
     )
     approval = result.scalar_one_or_none()
-    
+
     if not approval:
         raise HTTPException(status_code=404, detail="Approval request not found")
-    
+
     # Permission check: requester or privileged user
     if approval.requested_by_id != current_user.id and not can_resolve_approvals(current_user):
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     return _build_approval_read(approval)
 
 
@@ -312,7 +312,7 @@ async def approve_request(
 ):
     """
     Approve a pending request and execute the action.
-    
+
     Tiered approval flow:
     - Privileged users (CRO/Admin/Risk Manager): can approve any PENDING or PENDING_PRIVILEGED request.
     - Primary approver (Risk Owner): can approve PENDING requests they own.
@@ -325,17 +325,17 @@ async def approve_request(
         load_approval,
         log_approval_approve,
     )
-    
+
     logger.info(f"Processing approval request {approval_id}")
-    
+
     # 1) Load approval with relationships
     approval = await load_approval(db, approval_id)
-    
+
     # 2) Authorize
     is_privileged, is_primary_approver = assert_can_approve(approval, current_user)
-    
+
     previous_status = approval.status
-    
+
     # 3) Transition status
     should_apply_changes = apply_status_transition(
         approval,
@@ -344,15 +344,15 @@ async def approve_request(
         is_privileged=is_privileged,
         is_primary_approver=is_primary_approver,
     )
-    
+
     # 4) Apply side effects if approved
     if should_apply_changes:
         await apply_side_effects(db, approval, current_user)
-        
+
         # Log approval APPROVE action
         if approval.status == ApprovalStatus.APPROVED:
             await log_approval_approve(db, approval, current_user, previous_status)
-        
+
         # Commit changes
         try:
             logger.info("Flushing and committing changes...")
@@ -368,7 +368,7 @@ async def approve_request(
     else:
         # PENDING → PENDING_PRIVILEGED: Log escalation and notify privileged users
         from app.services.approval_execution_service import get_approval_department_id
-        
+
         # Log ESCALATE activity for audit trail
         department_id = await get_approval_department_id(db, approval)
         await log_activity(
@@ -382,13 +382,13 @@ async def approve_request(
             changes={"status": {"old": previous_status.value, "new": approval.status.value}},
             description=f"Escalated to privileged approval by {current_user.name}",
         )
-        
+
         try:
             await NotificationService.notify_approvers(db, approval)
         except Exception as e:
             logger.warning(f"Failed to notify approvers for PENDING_PRIVILEGED approval #{approval.id}: {e}")
         await db.commit()
-    
+
     # Reload with relationships for response
     result = await db.execute(
         select(ApprovalRequest)
@@ -396,7 +396,7 @@ async def approve_request(
         .where(ApprovalRequest.id == approval.id)
     )
     approval = result.scalar_one()
-    
+
     # Notify requester in background (fresh DB session)
     if approval.status == ApprovalStatus.APPROVED and isinstance(db.bind, AsyncEngine):
         background_tasks.add_task(
@@ -405,7 +405,7 @@ async def approve_request(
             approval.id,
             True,
         )
-    
+
     return _build_approval_read(approval)
 
 
@@ -424,30 +424,30 @@ async def reject_request(
     """
     if not can_resolve_approvals(current_user):
         raise HTTPException(status_code=403, detail="Only Risk Manager, CRO, or Admin can reject requests")
-    
+
     result = await db.execute(
         select(ApprovalRequest)
         .options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
         .where(ApprovalRequest.id == approval_id)
     )
     approval = result.scalar_one_or_none()
-    
+
     if not approval:
         raise HTTPException(status_code=404, detail="Approval request not found")
-    
+
     # Allow rejecting any pending status (PENDING or PENDING_PRIVILEGED)
     if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
         raise HTTPException(status_code=400, detail=f"Cannot reject request with status: {approval.status.value}")
-    
+
     previous_status = approval.status
-    
+
     # Update approval status
     approval.status = ApprovalStatus.REJECTED
     approval.resolved_by_id = current_user.id
     # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
     approval.resolved_at = datetime.now(UTC).replace(tzinfo=None)
     approval.resolution_notes = resolve_data.resolution_notes
-    
+
     department_id = await _get_approval_department_id(db, approval)
     await log_activity(
         db,
@@ -460,7 +460,7 @@ async def reject_request(
         changes={"status": {"old": previous_status.value, "new": approval.status.value}},
     )
     await db.commit()
-    
+
     # Reload with relationships
     result = await db.execute(
         select(ApprovalRequest)
@@ -468,7 +468,7 @@ async def reject_request(
         .where(ApprovalRequest.id == approval.id)
     )
     approval = result.scalar_one()
-    
+
     # Notify requester in the background (fresh DB session)
     if isinstance(db.bind, AsyncEngine):
         background_tasks.add_task(
@@ -477,7 +477,7 @@ async def reject_request(
             approval.id,
             False,
         )
-    
+
     return _build_approval_read(approval)
 
 
@@ -497,26 +497,26 @@ async def cancel_request(
         .where(ApprovalRequest.id == approval_id)
     )
     approval = result.scalar_one_or_none()
-    
+
     if not approval:
         raise HTTPException(status_code=404, detail="Approval request not found")
-    
+
     # §5.5: Request creator OR privileged users can cancel PENDING/PENDING_PRIVILEGED requests
     is_requester = approval.requested_by_id == current_user.id
     is_privileged = can_resolve_approvals(current_user)
-    
+
     if not is_requester and not is_privileged:
         raise HTTPException(status_code=403, detail="Only the requester or privileged users can cancel requests")
-    
+
     if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
         raise HTTPException(status_code=400, detail=f"Cannot cancel request with status: {approval.status.value}")
-    
+
     # Update status
     approval.status = ApprovalStatus.CANCELLED
     approval.resolved_by_id = current_user.id
     # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
     approval.resolved_at = datetime.now(UTC).replace(tzinfo=None)
-    
+
     # Log activity for cancellation - distinguish self vs privileged
     department_id = await _get_approval_department_id(db, approval)
     if is_requester:
@@ -533,16 +533,16 @@ async def cancel_request(
         department_id=department_id,
         description=cancel_description,
     )
-    
+
     # Notify approvers about cancellation
     await NotificationService.notify_approvers_cancelled(
         db=db,
         approval=approval,
         cancelled_by_user=current_user,
     )
-    
+
     await db.commit()
-    
+
     # Reload with relationships
     result = await db.execute(
         select(ApprovalRequest)
@@ -550,7 +550,7 @@ async def cancel_request(
         .where(ApprovalRequest.id == approval.id)
     )
     approval = result.scalar_one()
-    
+
     return _build_approval_read(approval)
 
 
@@ -578,7 +578,7 @@ async def get_pending_count(
             select(func.count()).select_from(ApprovalRequest).where(
                 or_(
                     # Own pending requests
-                    (ApprovalRequest.status == ApprovalStatus.PENDING) & 
+                    (ApprovalRequest.status == ApprovalStatus.PENDING) &
                     (ApprovalRequest.requested_by_id == current_user.id),
                     # Requests where user is primary approver
                     (ApprovalRequest.status == ApprovalStatus.PENDING) &
@@ -586,7 +586,7 @@ async def get_pending_count(
                 )
             )
         )
-    
+
     count = result.scalar() or 0
     return {"count": count}
 
@@ -606,21 +606,21 @@ async def list_my_approval_requests(
         ApprovalRequest.primary_approver_id == current_user.id,
         ApprovalRequest.status == ApprovalStatus.PENDING
     )
-    
+
     # Count total
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Fetch with pagination
     query = base_query.options(
         selectinload(ApprovalRequest.requested_by),
         selectinload(ApprovalRequest.resolved_by)
     ).offset(skip).limit(limit).order_by(ApprovalRequest.created_at.desc())
-    
+
     result = await db.execute(query)
     approvals = result.scalars().all()
-    
+
     return ApprovalRequestListResponse(
         items=[_build_approval_read(a) for a in approvals],
         total=total,

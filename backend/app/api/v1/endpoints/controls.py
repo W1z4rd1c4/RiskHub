@@ -51,12 +51,12 @@ def _build_pending_changes(control: "Control", update_data: dict) -> dict:
 async def _first_high_risk_linked_risk(db: "AsyncSession", control_id: int) -> tuple[bool, "Risk | None"]:
     """
     Scan linked risks for the first one that qualifies as high-risk for approvals.
-    
+
     Returns:
         (is_high_risk, risk): Tuple of whether a high-risk link exists and the first such risk (or None).
     """
     from app.core.permissions import is_high_risk_for_approval_async
-    
+
     result = await db.execute(
         select(Risk).join(ControlRiskLink).where(ControlRiskLink.control_id == control_id)
     )
@@ -74,12 +74,12 @@ async def _apply_department_scoping(
 ):
     """
     Apply department-based scoping to a Control query.
-    
+
     - Restricted users see only their departments + controls they own
     - Privileged users can optionally filter by department_id
     """
     from app.core.permissions import get_control_ids_where_owner
-    
+
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:  # User is restricted to specific departments
         control_owner_ids = await get_control_ids_where_owner(db, current_user.id)
@@ -94,7 +94,7 @@ async def _apply_department_scoping(
             query = query.where(Control.department_id.in_(dept_ids))
     elif department_id_filter:  # Privileged user can filter by specific department
         query = query.where(Control.department_id == department_id_filter)
-    
+
     return query
 
 
@@ -105,7 +105,7 @@ def _apply_process_category_filters(query, process: str | None, category: str | 
     """
     if not process and not category:
         return query
-    
+
     query = query.join(Control.risk_links).join(ControlRiskLink.risk)
     if process:
         query = query.where(Risk.process == process)
@@ -137,24 +137,24 @@ async def list_controls(
     Returns paginated response with total count.
     """
     base_query = select(Control)
-    
+
     # Apply department-based scoping
     base_query = await _apply_department_scoping(db, base_query, current_user, department_id)
-    
+
     # Status filter
     if status:
         base_query = base_query.where(Control.status == status.value)
     elif not include_archived:
         # Default: exclude archived
         base_query = base_query.where(Control.status != ControlStatusEnum.archived.value)
-    
+
     # Join for secondary search fields (Risk via ControlRiskLink)
     from sqlalchemy.orm import aliased
 
     from app.models.department import Department
-    
+
     RiskDept = aliased(Department)
-    
+
     base_query = base_query.outerjoin(Control.department)
     base_query = base_query.outerjoin(Control.risk_links).outerjoin(ControlRiskLink.risk)
     base_query = base_query.outerjoin(RiskDept, Risk.department_id == RiskDept.id)
@@ -173,18 +173,18 @@ async def list_controls(
                 RiskDept.name.ilike(search_pattern),
             )
         )
-    
+
     # Distinct because of risk joins
     base_query = base_query.distinct()
 
     # Apply optional process/category filters
     base_query = _apply_process_category_filters(base_query, process, category)
-    
+
     # Get total count before pagination
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Apply pagination and ordering with eager loading
     query = base_query.options(
         selectinload(Control.department),
@@ -194,10 +194,10 @@ async def list_controls(
             selectinload(Risk.department)
         )
     ).offset(skip).limit(limit).order_by(Control.name)
-    
+
     result = await db.execute(query)
     controls = result.scalars().all()
-    
+
     # Map to summary with department_name and risk info
     from app.core.permissions import (
         can_access_department_id,
@@ -220,7 +220,7 @@ async def list_controls(
         risk_visible = False
         if first_risk and can_read_risks:
             risk_visible = can_access_department_id(current_user, first_risk.department_id) or (first_risk.id in cross_dept_risk_ids)
-        
+
         items.append(ControlSummary(
             id=c.id,
             name=c.name,
@@ -239,7 +239,7 @@ async def list_controls(
             risk_owner_name=first_risk.owner.name if (first_risk and risk_visible and first_risk.owner) else None,
             risk_department_name=first_risk.department.name if (first_risk and risk_visible and first_risk.department) else None,
         ))
-    
+
     return ControlListResponse(items=items, total=total, skip=skip, limit=limit)
 
 
@@ -251,7 +251,7 @@ async def get_control(
 ):
     """Get a single control with all relationships."""
     from app.core.permissions import is_control_owner
-    
+
     result = await db.execute(
         select(Control)
         .options(
@@ -261,20 +261,20 @@ async def get_control(
         .where(Control.id == control_id)
     )
     control = result.scalar_one_or_none()
-    
+
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
-    
+
     # Allow access if user is control owner (cross-department)
     if await is_control_owner(db, current_user.id, control_id):
         return control
-    
+
     # Otherwise verify department access
     try:
         check_department_access(control.department_id, current_user)
     except HTTPException:
         raise HTTPException(status_code=404, detail="Control not found")
-    
+
     return control
 
 
@@ -287,7 +287,7 @@ async def create_control(
     """Create a new control. Requires controls:write permission."""
     # Verify department access
     check_department_access(control_data.department_id, current_user)
-    
+
     control = Control(
         name=control_data.name,
         description=control_data.description,
@@ -307,10 +307,10 @@ async def create_control(
         created_by_id=current_user.id,
         updated_by_id=current_user.id,
     )
-    
+
     db.add(control)
     await db.flush()
-    
+
     # Log activity within the same transaction
     await log_activity(
         db,
@@ -323,7 +323,7 @@ async def create_control(
     )
     await db.commit()
     await db.refresh(control)
-    
+
     # Reload with relationships
     result = await db.execute(
         select(Control)
@@ -355,32 +355,32 @@ async def update_control(
         is_control_owner,
     )
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
-    
+
     result = await db.execute(
         select(Control).where(Control.id == control_id)
     )
     control = result.scalar_one_or_none()
-    
+
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
-    
+
     # Check permission: either controls:write or is control owner
     has_write = check_permission(current_user, "controls", "write")
     is_owner = await is_control_owner(db, current_user.id, control_id)
-    
+
     if not has_write and not is_owner:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Permission denied: controls:write or control owner required"
         )
-    
+
     # Verify department access (skipped for control owners)
     if not is_owner:
         check_department_access(control.department_id, current_user)
-    
+
     # Update fields
     update_data = control_data.model_dump(exclude_unset=True)
-    
+
     # Check for pending DELETE request (block any updates if delete is pending)
     existing_delete = await db.execute(
         select(ApprovalRequest).where(
@@ -392,7 +392,7 @@ async def update_control(
     )
     if existing_delete.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Cannot update control while deletion is pending approval")
-    
+
     # Check for approval requirements (non-privileged users only)
     if not can_resolve_approvals(current_user):
         from app.core.approval_helpers import (
@@ -400,19 +400,19 @@ async def update_control(
             create_approval_request_with_audit,
             get_primary_approver_for_control,
         )
-        
+
         requires_approval = False
         approval_reason = ""
         pending_changes = {}
         is_priority_linked = False
-        
+
         # Check 1: Is control linked to critical risk?
         is_priority_linked, high_risk = await _first_high_risk_linked_risk(db, control.id)
         if is_priority_linked and high_risk:
             requires_approval = True
             approval_reason = f"Edit to control linked to critical risk {high_risk.risk_id_code}"
             pending_changes = _build_pending_changes(control, update_data)
-        
+
         # Check 2: Sensitive field changes (even if not linked to critical risk)
         if not requires_approval:
             old_data = {"control_owner_id": control.control_owner_id, "department_id": control.department_id}
@@ -421,7 +421,7 @@ async def update_control(
                 requires_approval = True
                 approval_reason = f"Change to sensitive fields: {', '.join(changed.keys())}"
                 pending_changes = changed
-        
+
         # Check 3: Owner edits always require approval (even non-critical controls)
         if not requires_approval and is_owner:
             requires_approval = True
@@ -430,7 +430,7 @@ async def update_control(
             # Check if any linked risk is priority
             is_priority_linked = await check_control_requires_privileged_approval(db, control.id)
 
-        
+
         if requires_approval:
             # Check for existing pending edit request
             existing = await db.execute(
@@ -443,10 +443,10 @@ async def update_control(
             )
             if existing.scalar_one_or_none():
                 raise HTTPException(status_code=400, detail="Edit request already pending for this control")
-            
+
             # Get primary approver (Risk Owner of highest-priority linked risk)
             primary_approver_id = await get_primary_approver_for_control(db, control.id)
-            
+
             name_snippet = control.name[:50] if control.name else ""
             approval = ApprovalRequest(
                 resource_type=ApprovalResourceType.CONTROL,
@@ -460,19 +460,19 @@ async def update_control(
                 primary_approver_id=primary_approver_id,
                 requires_privileged_approval=is_priority_linked,
             )
-            
+
             await create_approval_request_with_audit(
                 db,
                 approval=approval,
                 actor=current_user,
                 department_id=control.department_id,
             )
-            
+
             # Notify Approvers
             try:
                 from app.models.notification import NotificationType
                 from app.services.notification_service import NotificationService
-                
+
                 # 1. Notify Primary Approver (Risk Owner)
                 if primary_approver_id:
                     await NotificationService.create_notification(
@@ -484,16 +484,16 @@ async def update_control(
                         resource_type="approval",
                         resource_id=approval.id,
                     )
-                
+
                 # 2. Notify other privileged approvers (CROs, Risk Managers)
                 await NotificationService.notify_approvers(db, approval)
-                
+
                 await db.commit()
             except Exception as e:
                 await db.rollback()
                 import logging
                 logging.getLogger(__name__).warning(f"Failed to notify approvers for control edit approval #{approval.id}: {e}")
-            
+
             from fastapi.responses import JSONResponse
             return JSONResponse(
                 status_code=status.HTTP_202_ACCEPTED,
@@ -507,16 +507,16 @@ async def update_control(
                     "requires_privileged_approval": is_priority_linked
                 }
             )
-    
+
     changes = build_change_set(control, update_data)
-    
+
     for field, value in update_data.items():
         if hasattr(value, "value"):  # Handle enums
             value = value.value
         setattr(control, field, value)
-    
+
     control.updated_by_id = current_user.id
-    
+
     # Log activity within the same transaction
     await log_activity(
         db,
@@ -530,7 +530,7 @@ async def update_control(
     )
     await db.commit()
     await db.refresh(control)
-    
+
     # Reload with relationships
     result = await db.execute(
         select(Control)
@@ -559,23 +559,23 @@ async def delete_control(
 
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
-    
+
     result = await db.execute(
         select(Control).where(Control.id == control_id)
     )
     control = result.scalar_one_or_none()
-    
+
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
-    
+
     # Verify department access
     check_department_access(control.department_id, current_user)
-    
+
     # Privileged users can delete immediately
     if can_resolve_approvals(current_user):
         control.status = ControlStatusEnum.archived.value
         control.updated_by_id = current_user.id
-        
+
         # Log activity within the same transaction
         await log_activity(
             db,
@@ -587,9 +587,9 @@ async def delete_control(
             department_id=control.department_id,
         )
         await db.commit()
-        
+
         return Response(status_code=status.HTTP_204_NO_CONTENT)
-    
+
     # Check for existing pending request (both PENDING and PENDING_PRIVILEGED)
     existing = await db.execute(
         select(ApprovalRequest).where(
@@ -600,10 +600,10 @@ async def delete_control(
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Deletion request already pending")
-    
+
     # Create approval request - ITEM STAYS VISIBLE
     name_snippet = control.name[:50] if control.name else ""
-    
+
     # Get primary approver (Risk Owner of highest-priority linked risk)
     from app.core.approval_helpers import (
         check_control_requires_privileged_approval,
@@ -614,9 +614,9 @@ async def delete_control(
     primary_approver_id = await get_primary_approver_for_control(db, control.id)
     if primary_approver_id == current_user.id:
         primary_approver_id = None  # Prevent self-approval
-    
+
     requires_privileged = await check_control_requires_privileged_approval(db, control.id)
-    
+
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.CONTROL,
         resource_id=control.id,
@@ -628,22 +628,22 @@ async def delete_control(
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=requires_privileged,
     )
-    
+
     await create_approval_request_with_audit(
         db,
         approval=approval,
         actor=current_user,
         department_id=control.department_id,
     )
-    
+
     # Needs logic to find primary approver for delete requests as well
     from app.core.approval_helpers import get_primary_approver_for_control
     primary_approver_id = await get_primary_approver_for_control(db, control.id)
-    
+
     try:
         from app.models.notification import NotificationType
         from app.services.notification_service import NotificationService
-        
+
         # 1. Notify Primary Approver
         if primary_approver_id:
             await NotificationService.create_notification(
@@ -655,10 +655,10 @@ async def delete_control(
                 resource_type="approval",
                 resource_id=approval.id,
             )
-        
+
         # 2. Notify other privileged approvers (CROs, Risk Managers)
         await NotificationService.notify_approvers(db, approval)
-        
+
         await db.commit()
     except Exception as e:
         await db.rollback()
@@ -765,24 +765,24 @@ async def log_execution(
 ):
     """Log a control execution. Requires controls:execute and (department access OR control ownership)."""
     from app.core.permissions import is_control_owner
-    
+
     # Verify control exists
     result = await db.execute(
         select(Control).where(Control.id == control_id)
     )
     control = result.scalar_one_or_none()
-    
+
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
-    
+
     # Verify access: department OR control owner
     is_owner = await is_control_owner(db, current_user.id, control_id)
     if not is_owner:
         check_department_access(control.department_id, current_user)
-    
+
     executed_at = datetime.now(UTC).replace(tzinfo=None)
     next_scheduled = calculate_next_scheduled(control.frequency, executed_at)
-    
+
     execution = ControlExecution(
         control_id=control_id,
         executed_by_id=current_user.id,
@@ -793,11 +793,11 @@ async def log_execution(
         notes=execution_data.notes,
         next_scheduled=next_scheduled,
     )
-    
+
     db.add(execution)
     await db.commit()
     await db.refresh(execution)
-    
+
     # Reload with relationships
     result = await db.execute(
         select(ControlExecution)
@@ -817,7 +817,7 @@ async def list_executions(
 ):
     """List execution history for a control."""
     from app.core.permissions import is_control_owner
-    
+
     # Verify control exists
     result = await db.execute(
         select(Control).where(Control.id == control_id)
@@ -825,7 +825,7 @@ async def list_executions(
     control = result.scalar_one_or_none()
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
-    
+
     # Verify access: department OR control owner
     is_owner = await is_control_owner(db, current_user.id, control_id)
     if not is_owner:
@@ -833,7 +833,7 @@ async def list_executions(
             check_department_access(control.department_id, current_user)
         except HTTPException:
             raise HTTPException(status_code=404, detail="Control not found")
-    
+
     result = await db.execute(
         select(ControlExecution)
         .options(selectinload(ControlExecution.executed_by))
@@ -860,7 +860,7 @@ async def list_control_risks(
         get_risk_ids_where_kri_reporting_owner,
         is_control_owner,
     )
-    
+
     # Verify control exists
     result = await db.execute(
         select(Control).where(Control.id == control_id)
@@ -868,7 +868,7 @@ async def list_control_risks(
     control = result.scalar_one_or_none()
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
-    
+
     # Allow access via control ownership (cross-department) per BUSINESS_LOGIC.md §7.1
     is_owner = await is_control_owner(db, current_user.id, control_id)
     if not is_owner:
@@ -877,7 +877,7 @@ async def list_control_risks(
             check_department_access(control.department_id, current_user)
         except HTTPException:
             raise HTTPException(status_code=404, detail="Control not found")
-    
+
     result = await db.execute(
         select(ControlRiskLink)
         .options(
@@ -921,7 +921,7 @@ async def link_control_to_risk(
     """Link a control to a risk."""
     from app.core.permissions import is_control_owner, is_risk_control_owner, is_risk_kri_reporting_owner
     from app.models import Risk
-    
+
     # Verify control exists
     result = await db.execute(
         select(Control).where(Control.id == control_id)
@@ -929,12 +929,12 @@ async def link_control_to_risk(
     control = result.scalar_one_or_none()
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
-    
+
     # Allow access via control ownership (cross-department) per BUSINESS_LOGIC.md §7.1
     is_ctrl_owner = await is_control_owner(db, current_user.id, control_id)
     if not is_ctrl_owner:
         check_department_access(control.department_id, current_user)
-    
+
     # Verify risk exists
     result = await db.execute(
         select(Risk).where(Risk.id == link_data.risk_id)
@@ -942,7 +942,7 @@ async def link_control_to_risk(
     risk = result.scalar_one_or_none()
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
-    
+
     # Verify access to risk (ownership OR department) - prevents linking to inaccessible risks
     has_risk_access = False
     if await is_risk_kri_reporting_owner(db, current_user.id, link_data.risk_id):
@@ -957,10 +957,10 @@ async def link_control_to_risk(
             has_risk_access = True
         except HTTPException:
             pass
-    
+
     if not has_risk_access:
         raise HTTPException(status_code=403, detail="Access denied to risk")
-    
+
     # Check if link already exists
     result = await db.execute(
         select(ControlRiskLink)
@@ -969,18 +969,18 @@ async def link_control_to_risk(
     )
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Link already exists")
-    
+
     link = ControlRiskLink(
         control_id=control_id,
         risk_id=link_data.risk_id,
         effectiveness=link_data.effectiveness.value,
         notes=link_data.notes,
     )
-    
+
     db.add(link)
     await db.commit()
     await db.refresh(link)
-    
+
     # Reload with relationships
     result = await db.execute(
         select(ControlRiskLink)
@@ -1002,17 +1002,17 @@ async def unlink_control_from_risk(
 ):
     """Remove link between control and risk."""
     from app.core.permissions import is_control_owner, is_risk_control_owner, is_risk_kri_reporting_owner
-    
+
     result = await db.execute(
         select(ControlRiskLink)
         .where(ControlRiskLink.control_id == control_id)
         .where(ControlRiskLink.risk_id == risk_id)
     )
     link = result.scalar_one_or_none()
-    
+
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
-    
+
     # Verify access for control (ownership or department)
     result = await db.execute(select(Control).where(Control.id == control_id))
     control = result.scalar_one_or_none()
@@ -1020,7 +1020,7 @@ async def unlink_control_from_risk(
         is_ctrl_owner = await is_control_owner(db, current_user.id, control_id)
         if not is_ctrl_owner:
             check_department_access(control.department_id, current_user)
-    
+
     # Verify access for risk (ownership or department)
     result = await db.execute(select(Risk).where(Risk.id == risk_id))
     risk = result.scalar_one_or_none()
@@ -1038,9 +1038,9 @@ async def unlink_control_from_risk(
                 has_risk_access = True
             except HTTPException:
                 pass
-        
+
         if not has_risk_access:
             raise HTTPException(status_code=403, detail="Access denied to risk")
-    
+
     await db.delete(link)
     await db.commit()

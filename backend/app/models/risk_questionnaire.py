@@ -1,6 +1,7 @@
 """Risk questionnaire model for per-risk assessment questionnaires."""
 from datetime import datetime
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     JSON,
@@ -18,6 +19,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.risk import Risk
+    from app.models.user import User
 
 
 class RiskQuestionnaireStatus(str, PyEnum):
@@ -113,8 +118,3 @@ class RiskQuestionnaireClarification(Base):
     __table_args__ = (
         Index("ix_risk_questionnaire_clarifications_questionnaire_section", "questionnaire_id", "section_key"),
     )
-
-
-# Import for type hints
-from app.models.risk import Risk
-from app.models.user import User

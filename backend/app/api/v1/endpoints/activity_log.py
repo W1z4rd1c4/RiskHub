@@ -34,7 +34,7 @@ async def list_activity_logs(
 ):
     """
     List activity log entries with filters.
-    
+
     Access control:
     - Privileged users see all entries
     - Department heads see only their department's entries
@@ -42,7 +42,7 @@ async def list_activity_logs(
     Note: `search` defaults to the last 90 days unless an explicit date range is provided.
     """
     query = select(ActivityLog)
-    
+
     # Access control: department scoping
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:  # Non-privileged user
@@ -50,7 +50,7 @@ async def list_activity_logs(
             # User has no department access
             return ActivityLogListResponse(items=[], total=0, skip=skip, limit=limit)
         query = query.where(ActivityLog.department_id.in_(dept_ids))
-    
+
     # Apply filters
     if entity_type:
         query = query.where(ActivityLog.entity_type.in_(entity_type))
@@ -79,17 +79,17 @@ async def list_activity_logs(
         query = query.where(ActivityLog.created_at >= date_from)
     if date_to:
         query = query.where(ActivityLog.created_at <= date_to)
-    
+
     # Count total
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Fetch entries with pagination (newest first)
     query = query.order_by(ActivityLog.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     entries = result.scalars().all()
-    
+
     return ActivityLogListResponse(
         items=[ActivityLogRead.model_validate(e) for e in entries],
         total=total,

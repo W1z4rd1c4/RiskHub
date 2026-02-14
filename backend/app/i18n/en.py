@@ -20,7 +20,7 @@ MESSAGES = {
         'request_timeout': 'Request timeout',
         'service_unavailable': 'Service temporarily unavailable',
     },
-    
+
     # Validation messages
     'validation': {
         'required': 'This field is required',
@@ -39,7 +39,7 @@ MESSAGES = {
         'future_date': 'Date must be in the future',
         'past_date': 'Date must be in the past',
     },
-    
+
     # Approval workflow messages
     'approvals': {
         'request_created': 'Approval request created',
@@ -53,7 +53,7 @@ MESSAGES = {
         'privileged_required': 'Privileged approval required',
         'resolution_notes_required': 'Resolution notes are required',
     },
-    
+
     # Notification messages
     'notifications': {
         'kri_value_due': 'KRI value submission due',
@@ -97,7 +97,7 @@ MESSAGES = {
         'vendor_sla_breach_detected_title': 'Vendor SLA breached',
         'vendor_sla_breach_detected_message': "SLA '{sla_name}' for vendor '{vendor_name}' breached the limit.",
     },
-    
+
     # Activity log action descriptions
     'activity': {
         # Risk actions
@@ -106,14 +106,14 @@ MESSAGES = {
         'risk_archived': 'Archived risk',
         'risk_deleted': 'Deleted risk',
         'risk_restored': 'Restored risk',
-        
+
         # Control actions
         'control_created': 'Created control',
         'control_updated': 'Updated control',
         'control_archived': 'Archived control',
         'control_deleted': 'Deleted control',
         'control_executed': 'Executed control',
-        
+
         # KRI actions
         'kri_created': 'Created KRI',
         'kri_updated': 'Updated KRI',
@@ -121,17 +121,17 @@ MESSAGES = {
         'kri_deleted': 'Deleted KRI',
         'kri_value_submitted': 'Submitted KRI value',
         'kri_value_corrected': 'Corrected KRI value',
-        
+
         # Approval actions
         'approval_created': 'Created approval request',
         'approval_approved': 'Approved request',
         'approval_rejected': 'Rejected request',
         'approval_cancelled': 'Cancelled request',
-        
+
         # Link actions
         'link_created': 'Created link between {source} and {target}',
         'link_removed': 'Removed link between {source} and {target}',
-        
+
         # User actions
         'user_login': 'User logged in',
         'user_logout': 'User logged out',
@@ -139,7 +139,7 @@ MESSAGES = {
         'user_updated': 'Updated user',
         'user_deactivated': 'Deactivated user',
     },
-    
+
     # Entity type names
     'entities': {
         'risk': 'Risk',
@@ -149,7 +149,7 @@ MESSAGES = {
         'department': 'Department',
         'approval': 'Approval Request',
     },
-    
+
     # Status labels
     'status': {
         'active': 'Active',
@@ -162,7 +162,7 @@ MESSAGES = {
         'monitoring': 'Monitoring',
         'closed': 'Closed',
     },
-    
+
     # Success messages
     'success': {
         'created': '{entity} created successfully',

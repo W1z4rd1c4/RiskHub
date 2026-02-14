@@ -53,9 +53,9 @@ class KRIResponse(KRIBase):
     is_archived: bool = False
     archived_at: Optional[datetime] = None
     archived_by_id: Optional[int] = None
-    
+
     # Description is inherited from KRIBase, explicitly included in response
-    
+
     # Optional metadata for grouping
     risk_category: Optional[str] = None
     risk_process: Optional[str] = None
@@ -66,17 +66,17 @@ class KRIResponse(KRIBase):
     risk_owner_name: Optional[str] = None
     risk_department_name: Optional[str] = None
     department_name: Optional[str] = None
-    
+
     # Reporting ownership display
     reporting_owner_name: Optional[str] = None
-    
+
     # Period tracking
     last_period_end: Optional[date] = None
     last_reported_at: Optional[datetime] = None
-    
+
     last_updated: datetime
     created_at: datetime
-    
+
     @computed_field
     @property
     def breach_status(self) -> Literal["above", "below", "within"]:
@@ -86,7 +86,7 @@ class KRIResponse(KRIBase):
         elif self.current_value > self.upper_limit:
             return "above"
         return "within"
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -114,7 +114,7 @@ class KRIHistoryEntry(BaseModel):
     breach_status: str
     recorded_by_id: Optional[int] = None
     recorded_by_name: Optional[str] = None
-    
+
     model_config = {"from_attributes": True}
 
 

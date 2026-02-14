@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.department import Department
+    from app.models.risk import Risk
+    from app.models.vendor import Vendor
 class VendorService(Base):
     __tablename__ = "vendor_services"
 
@@ -55,8 +59,3 @@ class VendorDependency(Base):
     vendor_service: Mapped["VendorService"] = relationship("VendorService", back_populates="dependencies", lazy="selectin")
     risk: Mapped["Risk | None"] = relationship("Risk", lazy="selectin")
     department: Mapped["Department | None"] = relationship("Department", lazy="selectin")
-
-
-from app.models.department import Department
-from app.models.risk import Risk
-from app.models.vendor import Vendor

@@ -1,0 +1,140 @@
+name: Lint
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint (Frontend + Backend)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Frontend lint
+        run: |
+          set -euo pipefail
+          npm run lint | tee ../lint-frontend.log
+        working-directory: frontend
+
+      - name: Frontend debt budget
+        run: |
+          set -euo pipefail
+          npm run quality:debt -- --report-json | tee ../lint-frontend-debt.log
+        working-directory: frontend
+
+      - name: Frontend cleanup audit contract
+        run: |
+          set -euo pipefail
+          npm run cleanup:deadcode | tee ../lint-frontend-cleanup.log
+          grep -q "Candidates: 0" cleanup-audit/unreachable.md
+          grep -q "DirectoryEmulatorPage" cleanup-audit/dormant.md
+          if git ls-files | grep -q '^frontend/playwright-report/'; then
+            echo "Tracked playwright-report artifacts are not allowed."
+            exit 1
+          fi
+        working-directory: frontend
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install backend lint dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+        working-directory: backend
+
+      - name: Backend lint (Ruff hard gate)
+        run: |
+          set -euo pipefail
+          ruff check app | tee ../lint-backend-ruff.log
+        working-directory: backend
+
+      - name: Validate ratchet status documentation contract
+        run: |
+          set -euo pipefail
+          test -f docs/quality/lint-ratchet-status.md
+          grep -q "^## Required Sections" docs/quality/lint-ratchet-status.md
+          grep -q "^## Ratchet Classes" docs/quality/lint-ratchet-status.md
+          grep -q "^## Notes" docs/quality/lint-ratchet-status.md
+          test -f docs/quality/baseline/e712-app.txt
+          test -f docs/quality/baseline/e402-app.txt
+
+      - name: Compute Ruff ratchet class counts
+        run: |
+          set -euo pipefail
+          E712_COUNT="$(ruff check app --select E712 --output-format json | python -c 'import json,sys; print(len(json.load(sys.stdin)))')"
+          E402_COUNT="$(ruff check app --select E402 --output-format json | python -c 'import json,sys; print(len(json.load(sys.stdin)))')"
+          echo "E712_COUNT=${E712_COUNT}" >> "$GITHUB_ENV"
+          echo "E402_COUNT=${E402_COUNT}" >> "$GITHUB_ENV"
+          echo "Ruff ratchet counts: E712=${E712_COUNT}, E402=${E402_COUNT}"
+        working-directory: backend
+
+      - name: Write lint baseline summary
+        run: |
+          {
+            echo "# Lint Summary";
+            echo "";
+            echo "- Frontend lint: PASS";
+            echo "- Frontend debt budget: PASS";
+            echo "- Frontend cleanup audit contract: PASS";
+            echo "- Backend Ruff hard gate (backend/app): PASS";
+            echo "- Ruff ratchet status: E712=${E712_COUNT}, E402=${E402_COUNT}";
+          } > lint-summary.md
+
+      - name: Upload lint evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-evidence
+          path: |
+            lint-summary.md
+            lint-frontend.log
+            lint-frontend-debt.log
+            lint-frontend-cleanup.log
+            lint-backend-ruff.log
+            frontend/quality-audit/debt.json
+          retention-days: 30
+
+  ruff-informational:
+    name: Ruff Informational (Full backend tree)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install backend lint dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+        working-directory: backend
+
+      - name: Run full backend Ruff report (informational)
+        run: ruff check --config backend/ruff.toml backend --output-format=github

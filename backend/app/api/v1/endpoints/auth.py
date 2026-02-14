@@ -20,14 +20,14 @@ router = APIRouter()
 async def login(credentials: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Authenticate user and return JWT token.
-    
+
     Args:
         credentials: Email and password
         db: Database session
-        
+
     Returns:
         JWT access token and user information
-        
+
     Raises:
         HTTPException: If credentials are invalid or user is inactive
     """
@@ -40,21 +40,21 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
             detail=f"Account temporarily locked due to too many failed attempts. Try again in {lockout_remaining} seconds.",
             headers={"Retry-After": str(lockout_remaining)}
         )
-    
+
     # Eager load role and permissions
     permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-    
+
     result = await db.execute(
         select(User)
         .options(permission_load, selectinload(User.department))
         .where(User.email == credentials.email)
     )
     user = result.scalar_one_or_none()
-    
+
     if not user or not user.hashed_password:
         # Track failed attempt
         is_now_locked, info = await account_lockout.record_failed_attempt(credentials.email)
-        
+
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType
         await log_activity(
@@ -68,11 +68,11 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
         )
         await db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     if not verify_password(credentials.password, user.hashed_password):
         # Track failed attempt
         is_now_locked, info = await account_lockout.record_failed_attempt(credentials.email)
-        
+
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType
         await log_activity(
@@ -86,16 +86,16 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
         )
         await db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     if not user.is_active:
         raise HTTPException(status_code=403, detail="User account is inactive")
-    
+
     # Create JWT token
     access_token = create_access_token(data={"sub": user.email, "user_id": user.id})
 
     # Clear lockout tracking on successful login
     await account_lockout.record_successful_login(credentials.email)
-    
+
     effective_permissions = get_effective_permissions(user)
     scope_label = get_scope_label(user)
     # Build user response
@@ -112,7 +112,7 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
         "access_scope": user.access_scope,
         "scope_label": scope_label,
     }
-    
+
     from app.core.activity_logger import log_activity
     from app.models.activity_log import ActivityAction, ActivityEntityType
 
@@ -126,9 +126,9 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
         entity_name=user.name,
         description=f"User logged in: {user.email}"
     )
-    
+
     await db.commit()
-    
+
     return TokenResponse(access_token=access_token, user=user_data)
 
 
@@ -136,16 +136,16 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
 async def get_current_user_info(current_user: User = Depends(deps.get_current_user)):
     """
     Get current authenticated user information.
-    
+
     Args:
         current_user: Authenticated user from JWT token
-        
+
     Returns:
         Current user details
     """
     # Ensure relationships are loaded if they weren't (though deps usually loads them)
     # The permissions are needed for the response
-    
+
     effective_permissions = get_effective_permissions(current_user)
     return UserBrief(
         id=current_user.id,
@@ -166,7 +166,7 @@ async def get_current_user_info(current_user: User = Depends(deps.get_current_us
 async def logout():
     """
     Logout endpoint (client-side token removal).
-    
+
     Returns:
         Success message
     """
@@ -178,44 +178,44 @@ async def demo_login(user_id: int, db: AsyncSession = Depends(get_db)):
     """
     Demo login endpoint - allows direct login by user ID.
     ONLY works in development mode with mock auth enabled.
-    
+
     Args:
         user_id: The ID of the demo user to log in as
         db: Database session
-        
+
     Returns:
         JWT access token and user information
     """
     from app.core.config import get_settings
-    
+
     settings = get_settings()
-    
+
     # Security check - only allow in demo/debug mode
     if not settings.debug or not settings.mock_auth_enabled:
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="Demo login is only available in development mode"
         )
-    
+
     # Eager load role and permissions
     permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-    
+
     result = await db.execute(
         select(User)
         .options(permission_load, selectinload(User.department))
         .where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
-    
+
     if not user:
         raise HTTPException(status_code=404, detail="Demo user not found")
-    
+
     if not user.is_active:
         raise HTTPException(status_code=403, detail="User account is inactive")
-    
+
     # Create JWT token
     access_token = create_access_token(data={"sub": user.email, "user_id": user.id})
-    
+
     effective_permissions = get_effective_permissions(user)
     scope_label = get_scope_label(user)
     # Build user response
@@ -246,7 +246,7 @@ async def demo_login(user_id: int, db: AsyncSession = Depends(get_db)):
         entity_name=user.name,
         description=f"User logged in (demo): {user.email}"
     )
-    
+
     await db.commit()
-    
+
     return TokenResponse(access_token=access_token, user=user_data)
