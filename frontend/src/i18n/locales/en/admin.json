@@ -56,12 +56,18 @@
     "note": "Configure rotation for application and audit logs independently.",
     "save_settings": "Save Settings",
     "saving": "Saving...",
+    "settings_saved_notice": "Log settings updated. Changes require backend restart to take full effect.",
     "event_feed": "Audit Event Feed",
     "live": "Live",
     "all_events": "All Events",
     "last_n": "Last {{count}}",
     "no_events": "No audit events found in current log window.",
     "view": "View",
+    "details_modal": {
+      "title": "Audit Event Details",
+      "copy": "Copy JSON",
+      "copied": "Copied"
+    },
     "columns": {
       "timestamp": "Timestamp",
       "event": "Event",

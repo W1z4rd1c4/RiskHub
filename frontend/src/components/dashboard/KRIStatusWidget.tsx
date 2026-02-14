@@ -139,8 +139,7 @@ export function KRIStatusWidget() {
                     return (
                         <motion.div
                             key={kri.kri_id}
-                            whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
-                            className="p-4 cursor-pointer group flex items-center justify-between"
+                            className="p-4 cursor-pointer group flex items-center justify-between hover:bg-white/5 transition-colors"
                             onClick={() => navigate(`/kris/${kri.kri_id}`)}
                         >
                             <div className="flex-1 min-w-0 mr-4">

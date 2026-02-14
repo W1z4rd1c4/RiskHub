@@ -92,11 +92,11 @@ const getDiffPair = (delta: unknown): { old: string; new: string; isLegacy: bool
 // Tab definitions
 // ─────────────────────────────────────────────────────────────
 
-const TABS: { id: ActiveTab; label: string }[] = [
-    { id: 'kri', label: 'KRI' },
-    { id: 'risk', label: 'Risk' },
-    { id: 'control', label: 'Controls' },
-    { id: 'user', label: 'Users' },
+const TABS: { id: ActiveTab; labelKey: string }[] = [
+    { id: 'kri', labelKey: 'activity_log.entities.kri' },
+    { id: 'risk', labelKey: 'activity_log.entities.risk' },
+    { id: 'control', labelKey: 'activity_log.entities.controls' },
+    { id: 'user', labelKey: 'activity_log.entities.users' },
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -157,7 +157,7 @@ export function ActivityLogPage() {
                             : 'text-slate-400 hover:text-white hover:bg-white/5'
                             }`}
                     >
-                        {tab.label}
+                        {t(tab.labelKey)}
                     </button>
                 ))}
             </div>

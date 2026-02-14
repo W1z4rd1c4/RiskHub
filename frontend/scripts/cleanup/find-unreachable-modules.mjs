@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import ts from 'typescript';
 
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, 'src');
@@ -28,9 +29,13 @@ async function walk(dir, acc = []) {
     }
     if (!entry.isFile()) continue;
     if (!isSourceFile(full)) continue;
-    acc.push(full);
+    acc.push(path.normalize(full));
   }
   return acc;
+}
+
+function toRelative(absPath) {
+  return path.relative(ROOT, absPath).replaceAll(path.sep, '/');
 }
 
 function resolveImport(fromFile, specifier, fileSet) {
@@ -49,26 +54,82 @@ function resolveImport(fromFile, specifier, fileSet) {
   ];
 
   for (const candidate of candidates) {
-    if (fileSet.has(path.normalize(candidate))) return path.normalize(candidate);
+    const normalized = path.normalize(candidate);
+    if (fileSet.has(normalized)) return normalized;
   }
   return null;
 }
 
-function extractSpecifiers(content) {
-  const matches = [];
-  const patterns = [
-    /import\s+(?:[^'";]+?\s+from\s+)?['"]([^'"]+)['"]/g,
-  ];
+function parseModule(file, content) {
+  const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  const sf = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true, kind);
 
-  for (const re of patterns) {
-    re.lastIndex = 0;
-    while (true) {
-      const m = re.exec(content);
-      if (!m) break;
-      matches.push(m[1]);
+  const imports = [];
+  const namedReExports = [];
+  const exportAllSpecs = [];
+
+  for (const statement of sf.statements) {
+    if (ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier)) {
+      const specifier = statement.moduleSpecifier.text;
+      const clause = statement.importClause;
+      const namedImports = [];
+      let hasDefaultImport = false;
+      let hasNamespaceImport = false;
+
+      if (clause) {
+        hasDefaultImport = Boolean(clause.name);
+        if (clause.namedBindings) {
+          if (ts.isNamespaceImport(clause.namedBindings)) {
+            hasNamespaceImport = true;
+          } else if (ts.isNamedImports(clause.namedBindings)) {
+            for (const element of clause.namedBindings.elements) {
+              const imported = element.propertyName ? element.propertyName.text : element.name.text;
+              namedImports.push(imported);
+            }
+          }
+        }
+      }
+
+      imports.push({ specifier, namedImports, hasDefaultImport, hasNamespaceImport });
+      continue;
+    }
+
+    if (ts.isExportDeclaration(statement) && statement.moduleSpecifier && ts.isStringLiteral(statement.moduleSpecifier)) {
+      const specifier = statement.moduleSpecifier.text;
+      if (!statement.exportClause) {
+        exportAllSpecs.push(specifier);
+        continue;
+      }
+      if (ts.isNamedExports(statement.exportClause)) {
+        for (const element of statement.exportClause.elements) {
+          const imported = element.propertyName ? element.propertyName.text : element.name.text;
+          const exported = element.name.text;
+          namedReExports.push({ specifier, imported, exported });
+        }
+      }
     }
   }
-  return matches;
+
+  return { imports, namedReExports, exportAllSpecs };
+}
+
+function buildBarrelNamedMap(barrelFile, fileSet, moduleInfoCache) {
+  const info = moduleInfoCache.get(barrelFile);
+  if (!info || info.namedReExports.length === 0) return new Map();
+
+  const map = new Map();
+  for (const entry of info.namedReExports) {
+    const target = resolveImport(barrelFile, entry.specifier, fileSet);
+    if (!target) continue;
+    map.set(entry.exported, target);
+  }
+  return map;
+}
+
+function isLikelyBarrel(file, moduleInfoCache) {
+  const base = path.basename(file);
+  const info = moduleInfoCache.get(file);
+  return base === 'index.ts' || base === 'index.tsx' || Boolean(info?.namedReExports.length);
 }
 
 function classify(file, refs) {
@@ -77,113 +138,189 @@ function classify(file, refs) {
   return 'runtime-unreachable';
 }
 
-function reasonFor(classification) {
+function reasonFor(classification, confidenceTag) {
+  if (confidenceTag === 'dormant-routed') {
+    return 'Page is exported from barrel but not imported into App route graph.';
+  }
   if (classification === 'no-ref') return 'No imports/exports reference this module.';
   if (classification === 'test-only') return 'Referenced only from test files.';
   return 'Referenced by non-test modules, but unreachable from runtime entrypoint.';
 }
 
-function toRelative(absPath) {
-  return path.relative(ROOT, absPath).replaceAll(path.sep, '/');
-}
-
 function extractPageExports(content) {
   const exports = [];
-  const re = /export\s+\{([^}]+)\}\s+from\s+['"](\.\/[^'"]+)['"]/g;
-  while (true) {
-    const match = re.exec(content);
-    if (!match) break;
-    const names = match[1]
-      .split(',')
-      .map((name) => name.trim())
-      .filter(Boolean);
-    for (const rawName of names) {
-      const aliasMatch = rawName.match(/^(.+?)\s+as\s+(.+)$/);
-      const exportedName = aliasMatch ? aliasMatch[2].trim() : rawName.trim();
-      exports.push({ name: exportedName, specifier: match[2] });
+  const sf = ts.createSourceFile('pages/index.ts', content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+
+  for (const statement of sf.statements) {
+    if (!ts.isExportDeclaration(statement)) continue;
+    if (!statement.moduleSpecifier || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    if (!statement.exportClause || !ts.isNamedExports(statement.exportClause)) continue;
+
+    const specifier = statement.moduleSpecifier.text;
+    for (const element of statement.exportClause.elements) {
+      exports.push({
+        name: element.name.text,
+        specifier,
+      });
     }
   }
+
   return exports;
 }
 
 function extractPagesBarrelImports(content) {
   const imported = new Set();
-  const re = /import\s*\{\s*([^}]*)\s*\}\s*from\s*['"]@\/pages['"]/g;
-  while (true) {
-    const match = re.exec(content);
-    if (!match) break;
-    const parts = match[1]
-      .split(',')
-      .map((part) => part.trim())
-      .filter(Boolean);
-    for (const part of parts) {
-      const aliasMatch = part.match(/^(.+?)\s+as\s+.+$/);
-      imported.add((aliasMatch ? aliasMatch[1] : part).trim());
+  const sf = ts.createSourceFile('App.tsx', content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+
+  for (const statement of sf.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    if (statement.moduleSpecifier.text !== '@/pages') continue;
+
+    const clause = statement.importClause;
+    if (!clause || !clause.namedBindings || !ts.isNamedImports(clause.namedBindings)) continue;
+
+    for (const element of clause.namedBindings.elements) {
+      const importedName = element.propertyName ? element.propertyName.text : element.name.text;
+      imported.add(importedName);
     }
   }
+
   return imported;
 }
 
 function extractDirectPageImports(content) {
   const importedModules = new Set();
-  const re = /import\s+[^;]+?\s+from\s*['"](?:@\/pages|\.\/pages)\/([^'"]+)['"]/g;
-  while (true) {
-    const match = re.exec(content);
-    if (!match) break;
-    importedModules.add(match[1].replace(/\.(ts|tsx)$/, ''));
+  const sf = ts.createSourceFile('App.tsx', content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+
+  for (const statement of sf.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
+
+    const specifier = statement.moduleSpecifier.text;
+    if (!specifier.startsWith('@/pages/') && !specifier.startsWith('./pages/')) continue;
+
+    const moduleName = specifier
+      .replace(/^@\/pages\//, '')
+      .replace(/^\.\/pages\//, '')
+      .replace(/\.(ts|tsx)$/, '');
+
+    importedModules.add(moduleName);
   }
+
   return importedModules;
 }
 
 async function main() {
-  const filesAbs = await walk(SRC_DIR);
-  const files = filesAbs.map((p) => path.normalize(p));
+  const files = await walk(SRC_DIR);
   const fileSet = new Set(files);
 
-  const refsByTarget = new Map(files.map((f) => [f, []]));
-  const edges = new Map(files.map((f) => [f, []]));
+  const moduleInfoCache = new Map();
+  const fileContents = new Map();
 
   for (const file of files) {
     const content = await fs.readFile(file, 'utf8');
-    const imports = extractSpecifiers(content);
-    for (const specifier of imports) {
-      const resolved = resolveImport(file, specifier, fileSet);
+    fileContents.set(file, content);
+    moduleInfoCache.set(file, parseModule(file, content));
+  }
+
+  const refsByTarget = new Map(files.map((f) => [f, []]));
+  const edges = new Map(files.map((f) => [f, new Set()]));
+
+  const addEdge = (fromFile, toFile, specifier) => {
+    edges.get(fromFile).add(toFile);
+    refsByTarget.get(toFile).push({
+      relativeReferrer: toRelative(fromFile),
+      specifier,
+    });
+  };
+
+  for (const file of files) {
+    const info = moduleInfoCache.get(file);
+    for (const imp of info.imports) {
+      const resolved = resolveImport(file, imp.specifier, fileSet);
       if (!resolved) continue;
-      edges.get(file).push(resolved);
-      refsByTarget.get(resolved).push({
-        relativeReferrer: toRelative(file),
-        specifier,
-      });
+
+      // Preserve runtime reachability for the import source itself.
+      addEdge(file, resolved, imp.specifier);
+
+      if (imp.namedImports.length > 0 && isLikelyBarrel(resolved, moduleInfoCache)) {
+        const namedMap = buildBarrelNamedMap(resolved, fileSet, moduleInfoCache);
+        for (const importedName of imp.namedImports) {
+          const target = namedMap.get(importedName);
+          if (!target) continue;
+          addEdge(file, target, `${imp.specifier}#${importedName}`);
+        }
+      }
+    }
+
+    for (const reExport of info.namedReExports) {
+      const resolved = resolveImport(file, reExport.specifier, fileSet);
+      if (!resolved) continue;
+      addEdge(file, resolved, `${reExport.specifier}#${reExport.imported}`);
+    }
+
+    for (const exportAllSpec of info.exportAllSpecs) {
+      const resolved = resolveImport(file, exportAllSpec, fileSet);
+      if (!resolved) continue;
+      addEdge(file, resolved, `${exportAllSpec}#*`);
     }
   }
 
   const entry = path.normalize(path.join(SRC_DIR, 'main.tsx'));
   const reachable = new Set();
   const queue = [];
+
   if (fileSet.has(entry)) {
-    queue.push(entry);
     reachable.add(entry);
+    queue.push(entry);
   }
 
   while (queue.length > 0) {
     const current = queue.shift();
     for (const dep of edges.get(current) || []) {
-      if (!reachable.has(dep)) {
-        reachable.add(dep);
-        queue.push(dep);
-      }
+      if (reachable.has(dep)) continue;
+      reachable.add(dep);
+      queue.push(dep);
     }
   }
 
+  const pagesIndexPath = path.join(SRC_DIR, 'pages', 'index.ts');
+  const appPath = path.join(SRC_DIR, 'App.tsx');
+  const pagesIndexContent = fileContents.get(path.normalize(pagesIndexPath)) || '';
+  const appContent = fileContents.get(path.normalize(appPath)) || '';
+
+  const exportedPages = extractPageExports(pagesIndexContent);
+  const routedImports = extractPagesBarrelImports(appContent);
+  const directPageImports = extractDirectPageImports(appContent);
+
+  const dormantPages = exportedPages.filter((entryInfo) => {
+    const moduleName = entryInfo.specifier.replace('./', '');
+    return !routedImports.has(entryInfo.name) && !directPageImports.has(moduleName);
+  });
+
+  const dormantFileSet = new Set(
+    dormantPages.map((entryInfo) => `src/pages/${entryInfo.specifier.replace('./', '')}.tsx`),
+  );
+
   const unreachable = files.filter((file) => !reachable.has(file));
+
   const records = unreachable
     .map((file) => {
       const refs = refsByTarget.get(file) || [];
-      const classification = classify(file, refs);
+      const rel = toRelative(file);
+      const classification = classify(rel, refs);
+      const confidenceTag = dormantFileSet.has(rel)
+        ? 'dormant-routed'
+        : refs.length === 0
+          ? 'proven-unused'
+          : 'indirectly-reachable';
+
       return {
-        file: toRelative(file),
+        file: rel,
         classification,
-        reason: reasonFor(classification),
+        confidence_tag: confidenceTag,
+        reason: reasonFor(classification, confidenceTag),
         refs,
       };
     })
@@ -199,46 +336,34 @@ async function main() {
     `- Entry: \`src/main.tsx\``,
     `- Candidates: ${records.length}`,
     '',
-    '| File | Classification | Reason | Refs |',
-    '|---|---|---|---|',
+    '| File | Classification | Confidence Tag | Reason | Refs |',
+    '|---|---|---|---|---|',
   ];
 
   for (const record of records) {
     const refText = record.refs.length === 0
       ? 'none'
       : record.refs.map((ref) => `\`${ref.relativeReferrer}\``).join(', ');
-    lines.push(`| \`${record.file}\` | ${record.classification} | ${record.reason} | ${refText} |`);
+    lines.push(`| \`${record.file}\` | ${record.classification} | ${record.confidence_tag} | ${record.reason} | ${refText} |`);
   }
 
   await fs.writeFile(path.join(OUT_DIR, 'unreachable.md'), `${lines.join('\n')}\n`, 'utf8');
 
-  const pagesIndexPath = path.join(SRC_DIR, 'pages', 'index.ts');
-  const appPath = path.join(SRC_DIR, 'App.tsx');
-  const [pagesIndexContent, appContent] = await Promise.all([
-    fs.readFile(pagesIndexPath, 'utf8').catch(() => ''),
-    fs.readFile(appPath, 'utf8').catch(() => ''),
-  ]);
-  const exportedPages = extractPageExports(pagesIndexContent);
-  const routedImports = extractPagesBarrelImports(appContent);
-  const directPageImports = extractDirectPageImports(appContent);
-  const dormantPages = exportedPages.filter((entry) => {
-    const moduleName = entry.specifier.replace('./', '');
-    return !routedImports.has(entry.name) && !directPageImports.has(moduleName);
-  });
-
   const dormantLines = [
     '# Frontend Dormant Page Audit',
     '',
-    `- Source barrel: \`src/pages/index.ts\``,
-    `- Route import source: \`src/App.tsx\``,
+    '- Source barrel: `src/pages/index.ts`',
+    '- Route import source: `src/App.tsx`',
     `- Dormant page exports: ${dormantPages.length}`,
     '',
     '| Page Module | Reason |',
     '|---|---|',
   ];
-  for (const entry of dormantPages) {
-    dormantLines.push(`| \`src/pages/${entry.specifier.replace('./', '')}.tsx\` | Exported as \`${entry.name}\` but not imported into App routes. |`);
+
+  for (const entryInfo of dormantPages) {
+    dormantLines.push(`| \`src/pages/${entryInfo.specifier.replace('./', '')}.tsx\` | Exported as \`${entryInfo.name}\` but not imported into App routes. |`);
   }
+
   await fs.writeFile(path.join(OUT_DIR, 'dormant.md'), `${dormantLines.join('\n')}\n`, 'utf8');
 
   console.log(`Wrote ${records.length} unreachable module records.`);

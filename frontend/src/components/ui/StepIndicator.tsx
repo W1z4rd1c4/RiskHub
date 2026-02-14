@@ -48,7 +48,7 @@ export function StepIndicator({
                     >
                         <div
                             className={`w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${isActive
-                                    ? 'bg-accent border-accent text-white shadow-[0_0_15px_rgba(30,132,255,0.3)]'
+                                    ? 'bg-accent border-accent text-white shadow-lg shadow-accent/25'
                                     : isCompleted
                                         ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
                                         : 'bg-white/5 border-white/10 text-slate-500'

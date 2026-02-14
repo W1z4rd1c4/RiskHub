@@ -258,6 +258,12 @@
     "subtitle": "Kadence přehodnocení a připomínky termínů.",
     "months": "měsíců",
     "trigger_reason_prompt": "Důvod (incident / new_threat / other):",
+    "trigger_dialog": {
+      "title": "Spustit přehodnocení",
+      "message": "Zadejte důvod pro okamžité spuštění přehodnocení.",
+      "reason_label": "Důvod",
+      "reason_placeholder": "incident / new_threat / other"
+    },
     "actions": {
       "start_reassessment": "Spustit přehodnocení",
       "trigger": "Vyvolat"
@@ -293,6 +299,7 @@
       "n_a": "N/A"
     },
     "fields": {
+      "status": "Stav",
       "evidence": "Reference důkazů",
       "notes": "Poznámky",
       "notes_placeholder": "Volitelné"
@@ -375,6 +382,12 @@
     "subtitle": "Služby, podporované funkce a vztahy čtvrtých stran.",
     "confirm_delete": "Smazat?",
     "prompt_function": "Název podporované funkce:",
+    "add_dependency_dialog": {
+      "title": "Přidat podporovanou funkci",
+      "message": "Zadejte název podporované funkce, kterou chcete připojit ke službě.",
+      "input_label": "Podporovaná funkce",
+      "input_placeholder": "např. Zpracování plateb"
+    },
     "concentration": {
       "title": "Koncentrace",
       "score": "Skóre",

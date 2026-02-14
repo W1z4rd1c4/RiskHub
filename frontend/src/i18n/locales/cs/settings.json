@@ -91,7 +91,8 @@
     "vendor_sla_near_breach_desc": "Když se plnění SLA blíží porušení",
     "vendor_sla_breach_detected": "Zjištěno porušení SLA",
     "vendor_sla_breach_detected_desc": "Když je zjištěno porušení SLA",
-    "persistence_note": "Vaše preference jsou automaticky ukládány a synchronizovány napříč zařízeními."
+    "persistence_note": "Vaše preference jsou automaticky ukládány a synchronizovány napříč zařízeními.",
+    "load_failed": "Nepodařilo se načíst nastavení notifikací."
   },
   "localization": {
     "title": "Nastavení jazyka",

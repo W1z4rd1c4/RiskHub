@@ -91,7 +91,8 @@
     "vendor_sla_near_breach_desc": "When SLA performance is close to breaching",
     "vendor_sla_breach_detected": "SLA breach detected",
     "vendor_sla_breach_detected_desc": "When an SLA breach is detected",
-    "persistence_note": "Your preferences are saved automatically and synced across devices."
+    "persistence_note": "Your preferences are saved automatically and synced across devices.",
+    "load_failed": "Failed to load notification preferences."
   },
   "localization": {
     "title": "Localization Settings",

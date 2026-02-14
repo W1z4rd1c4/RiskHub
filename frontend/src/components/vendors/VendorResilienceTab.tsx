@@ -187,7 +187,7 @@ export function VendorResilienceTab({ vendorId, canEdit }: VendorResilienceTabPr
                                     value={exitStatus}
                                     onValueChange={(v) => setExitStatus(v as VendorPlanStatus)}
                                     options={statusOptions}
-                                    placeholder="Status"
+                                    placeholder={t('resilience.fields.status')}
                                     disabled={!canEdit}
                                 />
                             </div>
@@ -273,7 +273,7 @@ export function VendorResilienceTab({ vendorId, canEdit }: VendorResilienceTabPr
                                     value={contStatus}
                                     onValueChange={(v) => setContStatus(v as VendorPlanStatus)}
                                     options={statusOptions}
-                                    placeholder="Status"
+                                    placeholder={t('resilience.fields.status')}
                                     disabled={!canEdit}
                                 />
                             </div>

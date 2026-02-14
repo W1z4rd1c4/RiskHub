@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '@/i18n/hooks';
 import {
     Server, Users, Activity, Terminal, RefreshCw,
     Database, Clock, MemoryStick,
-    UserX, Shield, FileDown, Settings2
+    UserX, Shield, FileDown, Settings2, Copy, Check
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthz } from '@/authz/useAuthz';
-import { adminApi, type LogConfig } from '@/services/adminApi';
+import { adminApi, type ActiveSession, type LogConfig } from '@/services/adminApi';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 const tabDefs = [
     { id: 'health', labelKey: 'tabs.health', icon: Activity },
@@ -25,6 +26,7 @@ type TabId = typeof tabDefs[number]['id'];
 function LogSettingsPanel() {
     const { t } = useTranslation('admin');
     const queryClient = useQueryClient();
+    const [showSavedNotice, setShowSavedNotice] = useState(false);
     const { data: config, isLoading } = useQuery({
         queryKey: ['logConfig'],
         queryFn: () => adminApi.getLogConfig(),
@@ -34,7 +36,7 @@ function LogSettingsPanel() {
         mutationFn: (newConfig: LogConfig) => adminApi.updateLogConfig(newConfig),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['logConfig'] });
-            alert('Log settings updated. Changes require backend restart to take full effect.');
+            setShowSavedNotice(true);
         },
     });
 
@@ -44,6 +46,12 @@ function LogSettingsPanel() {
     if (config && !form && !isLoading) {
         setForm(config);
     }
+
+    useEffect(() => {
+        if (!showSavedNotice) return;
+        const timeout = window.setTimeout(() => setShowSavedNotice(false), 3500);
+        return () => window.clearTimeout(timeout);
+    }, [showSavedNotice]);
 
     if (isLoading || !form) return null;
 
@@ -113,9 +121,16 @@ function LogSettingsPanel() {
             </div>
 
             <div className="mt-4 flex items-center justify-between">
-                <p className="text-xs text-amber-500/80 italic">
-                    {t('audit.note')}
-                </p>
+                <div className="space-y-1">
+                    <p className="text-xs text-amber-500/80 italic">
+                        {t('audit.note')}
+                    </p>
+                    {showSavedNotice && (
+                        <p className="text-xs text-emerald-400 font-medium">
+                            {t('audit.settings_saved_notice')}
+                        </p>
+                    )}
+                </div>
                 <button
                     onClick={() => mutation.mutate(form)}
                     disabled={mutation.isPending}
@@ -133,6 +148,8 @@ function AuditLogsPanel() {
     const [lines, setLines] = useState<number>(100);
     const [eventFilter, setEventFilter] = useState<string>('');
     const [autoRefresh, setAutoRefresh] = useState(false);
+    const [selectedLogExtra, setSelectedLogExtra] = useState<Record<string, unknown> | null>(null);
+    const [copied, setCopied] = useState(false);
 
     const { data, isLoading, refetch } = useQuery({
         queryKey: ['adminAuditLogs', lines, eventFilter],
@@ -176,6 +193,18 @@ function AuditLogsPanel() {
 
     const logs = data?.entries || [];
     const eventTypes = [...new Set(logs.map(l => l.event || ''))].filter(Boolean);
+    const detailsJson = selectedLogExtra ? JSON.stringify(selectedLogExtra, null, 2) : '';
+
+    const copyDetails = async () => {
+        if (!detailsJson) return;
+        try {
+            await navigator.clipboard.writeText(detailsJson);
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 1500);
+        } catch (err) {
+            console.error('Failed to copy audit log details:', err);
+        }
+    };
 
     return (
         <div className="space-y-4">
@@ -268,7 +297,7 @@ function AuditLogsPanel() {
                             logs.map((log, idx) => (
                                 <tr key={`${log.timestamp}-${idx}`} className="hover:bg-white/5 transition-colors">
                                     <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
-                                        {log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}
+                                        {log.timestamp ? new Date(log.timestamp).toLocaleString() : t('common:fallbacks.not_available')}
                                     </td>
                                     <td className="py-3 px-4">
                                         <span className={cn(
@@ -278,19 +307,19 @@ function AuditLogsPanel() {
                                             log.event?.includes('delete') && "bg-red-500/20 text-red-400",
                                             !log.event?.includes('create') && !log.event?.includes('update') && !log.event?.includes('delete') && "bg-blue-500/20 text-blue-400"
                                         )}>
-                                            {log.event?.replace(/_/g, ' ') || 'UNKNOWN'}
+                                            {log.event?.replace(/_/g, ' ') || t('common:fallbacks.unknown')}
                                         </span>
                                     </td>
                                     <td className="py-3 px-4 text-white font-medium">
-                                        USR-{log.user_id || 'SYS'}
+                                        {log.user_id ? `USR-${log.user_id}` : t('common:fallbacks.system')}
                                     </td>
                                     <td className="py-3 px-4 text-slate-500 font-mono text-xs">
-                                        {log.client_ip || '—'}
+                                        {log.client_ip || t('common:fallbacks.not_available')}
                                     </td>
                                     <td className="py-3 px-4 text-right">
                                         <button
                                             className="text-xs text-accent hover:underline"
-                                            onClick={() => alert(JSON.stringify(log.extra, null, 2))}
+                                            onClick={() => setSelectedLogExtra(log.extra || {})}
                                         >
                                             {t('audit.view')}
                                         </button>
@@ -301,6 +330,50 @@ function AuditLogsPanel() {
                     </tbody>
                 </table>
             </div>
+
+            <AnimatePresence>
+                {selectedLogExtra && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+                            onClick={() => setSelectedLogExtra(null)}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.96 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.96 }}
+                            className="relative w-full max-w-2xl max-h-[80vh] glass-card !p-0 overflow-hidden shadow-2xl"
+                        >
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-white/[0.02]">
+                                <h4 className="text-sm font-bold text-white">{t('audit.details_modal.title')}</h4>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={copyDetails}
+                                        className="px-3 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors flex items-center gap-2"
+                                    >
+                                        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                                        {copied ? t('audit.details_modal.copied') : t('audit.details_modal.copy')}
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedLogExtra(null)}
+                                        className="px-3 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors"
+                                    >
+                                        {t('common:actions.close')}
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="p-5 max-h-[60vh] overflow-auto">
+                                <pre className="text-xs text-slate-300 whitespace-pre-wrap break-all bg-black/20 border border-white/10 rounded-xl p-4">
+                                    {detailsJson}
+                                </pre>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -455,9 +528,9 @@ function LogsPanel() {
                                     </span>
                                 </td>
                                 <td className="py-2 px-3 text-white">{log.event_type}</td>
-                                <td className="py-2 px-3 text-slate-400">{log.user_name || '—'}</td>
+                                <td className="py-2 px-3 text-slate-400">{log.user_name || t('common:fallbacks.unknown_user')}</td>
                                 <td className="py-2 px-3 text-slate-500 max-w-xs truncate" title={log.details || ''}>
-                                    {log.details || '—'}
+                                    {log.details || t('common:fallbacks.not_available')}
                                 </td>
                             </tr>
                         ))}
@@ -471,6 +544,7 @@ function LogsPanel() {
 function SessionsPanel() {
     const { t } = useTranslation('admin');
     const queryClient = useQueryClient();
+    const [pendingRevokeSession, setPendingRevokeSession] = useState<ActiveSession | null>(null);
 
     const { data: sessions, isLoading } = useQuery({
         queryKey: ['adminSessions'],
@@ -481,6 +555,13 @@ function SessionsPanel() {
         mutationFn: (userId: number) => adminApi.revokeSession(userId),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adminSessions'] }),
     });
+
+    const handleConfirmRevoke = () => {
+        if (!pendingRevokeSession) return;
+        revokeMutation.mutate(pendingRevokeSession.user_id, {
+            onSettled: () => setPendingRevokeSession(null),
+        });
+    };
 
     if (isLoading) {
         return <div className="text-slate-400 text-center py-8">{t('sessions.loading')}</div>;
@@ -552,7 +633,7 @@ function SessionsPanel() {
                                             {session.role}
                                         </span>
                                     </td>
-                                    <td className="py-3 px-4 text-slate-400">{session.department || '—'}</td>
+                                    <td className="py-3 px-4 text-slate-400">{session.department || t('common:fallbacks.not_available')}</td>
                                     <td className="py-3 px-4 text-slate-500">
                                         {lastActivityDate.toLocaleString()}
                                     </td>
@@ -570,11 +651,7 @@ function SessionsPanel() {
                                     <td className="py-3 px-4 text-right">
                                         {!isRevoked && (
                                             <button
-                                                onClick={() => {
-                                                    if (confirm(t('sessions.revoke_confirm', { name: session.user_name }))) {
-                                                        revokeMutation.mutate(session.user_id);
-                                                    }
-                                                }}
+                                                onClick={() => setPendingRevokeSession(session)}
                                                 className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-colors ml-auto"
                                             >
                                                 <UserX className="h-4 w-4" />
@@ -591,6 +668,16 @@ function SessionsPanel() {
                     </tbody>
                 </table>
             </div>
+            <ConfirmDialog
+                isOpen={pendingRevokeSession !== null}
+                onClose={() => setPendingRevokeSession(null)}
+                onConfirm={handleConfirmRevoke}
+                title={t('sessions.revoke')}
+                message={t('sessions.revoke_confirm', { name: pendingRevokeSession?.user_name ?? '' })}
+                confirmLabel={t('sessions.revoke')}
+                variant="warning"
+                isLoading={revokeMutation.isPending}
+            />
         </div>
     );
 }
