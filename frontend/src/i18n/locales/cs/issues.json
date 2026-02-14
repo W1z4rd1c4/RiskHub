@@ -34,6 +34,7 @@
     "all_statuses": "Všechny stavy",
     "all_severities": "Všechny závažnosti",
     "overdue_only": "Pouze po termínu",
+    "exclude_active_exceptions": "Vyloučit aktivní výjimky",
     "include_closed": "Včetně uzavřených"
   },
   "columns": {
@@ -55,7 +56,8 @@
     "low": "Nízká",
     "medium": "Střední",
     "high": "Vysoká",
-    "critical": "Kritická"
+    "critical": "Kritická",
+    "high_critical": "Vysoká + Kritická"
   },
   "source": {
     "manual": "Manuální",

@@ -4,6 +4,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { Plus, Search, RefreshCw, AlertCircle, Building2, User, ChevronRight, Download } from 'lucide-react';
 import { vendorApi } from '@/services/vendorApi';
 import { reportApi } from '@/services/reportApi';
+import { apiClient } from '@/services/apiClient';
 import type { Vendor, VendorStatus, VendorType } from '@/types/vendor';
 import { PermissionGate } from '@/components/PermissionGate';
 import { SortableTable, Pagination } from '@/components/tables';
@@ -29,7 +30,7 @@ export function VendorsPage() {
     const [vendors, setVendors] = useState<Vendor[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<VendorStatus | ''>('active');
@@ -67,15 +68,11 @@ export function VendorsPage() {
 
             setVendors(res.items);
             setTotalCount(res.total);
-            setError(null);
+            setErrorKey(null);
             hasLoadedVendorsRef.current = true;
         } catch (err) {
             console.error('Error fetching vendors:', err);
-            const message =
-                err instanceof Error
-                    ? err.message
-                    : t('errors.load_failed', 'Failed to load vendors');
-            setError(message || t('errors.load_failed', 'Failed to load vendors'));
+            setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setIsLoading(false);
         }
@@ -296,12 +293,12 @@ export function VendorsPage() {
                 </div>
             </div>
 
-            {error ? (
+            {errorKey ? (
                 <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
                     <AlertCircle className="h-12 w-12 text-rose-500" />
                     <div>
                         <p className="text-white font-bold text-xl">{t('errors.title', 'Error')}</p>
-                        <p className="text-slate-500 max-w-sm mx-auto">{error}</p>
+                        <p className="text-slate-500 max-w-sm mx-auto">{t(errorKey, { ns: 'errorKeys' })}</p>
                     </div>
                     <button onClick={fetchVendors} className="text-accent font-bold hover:underline">{t('errors.try_again', 'Try again')}</button>
                 </div>

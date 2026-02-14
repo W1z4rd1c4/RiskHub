@@ -210,10 +210,10 @@ function AuditLogsPanel() {
                         value={lines.toString()}
                         onValueChange={(v) => setLines(parseInt(v))}
                         options={[
-                            { value: '50', label: 'Last 50' },
-                            { value: '100', label: 'Last 100' },
-                            { value: '200', label: 'Last 200' },
-                            { value: '500', label: 'Last 500' },
+                            { value: '50', label: t('audit.last_n', { count: 50 }) },
+                            { value: '100', label: t('audit.last_n', { count: 100 }) },
+                            { value: '200', label: t('audit.last_n', { count: 200 }) },
+                            { value: '500', label: t('audit.last_n', { count: 500 }) },
                         ]}
                     />
 
@@ -221,7 +221,7 @@ function AuditLogsPanel() {
                         <button
                             onClick={exportToCSV}
                             className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition-colors border border-white/10"
-                            title="Export to CSV"
+                            title={t('console.export_csv')}
                         >
                             <FileDown className="h-4 w-4" />
                             CSV
@@ -229,7 +229,7 @@ function AuditLogsPanel() {
                         <button
                             onClick={exportToJSON}
                             className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition-colors border border-white/10"
-                            title="Export to JSON"
+                            title={t('console.export_json')}
                         >
                             <FileDown className="h-4 w-4" />
                             JSON
@@ -239,7 +239,7 @@ function AuditLogsPanel() {
                     <button
                         onClick={() => refetch()}
                         className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
-                        title="Manual Refresh"
+                        title={t('console.manual_refresh')}
                     >
                         <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
                     </button>

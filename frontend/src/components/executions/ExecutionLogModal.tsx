@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, AlertTriangle, XCircle, MinusCircle, Loader2 } from 'lucide-react';
 import { executionApi } from '@/services/executionApi';
+import { apiClient } from '@/services/apiClient';
 import type { ControlExecutionCreate } from '@/services/executionApi';
 import { useTranslation } from '@/i18n/hooks';
 
@@ -15,16 +16,16 @@ interface ExecutionLogModalProps {
 }
 
 const RESULTS = [
-    { value: 'passed' as const, label: 'Passed', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-    { value: 'failed' as const, label: 'Failed', icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-400/10' },
-    { value: 'warning' as const, label: 'Issues Found', icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-400/10' },
-    { value: 'not_applicable' as const, label: 'N/A', icon: MinusCircle, color: 'text-slate-400', bg: 'bg-slate-400/10' },
+    { value: 'passed' as const, labelKey: 'controls:results.passed', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
+    { value: 'failed' as const, labelKey: 'controls:results.failed', icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-400/10' },
+    { value: 'warning' as const, labelKey: 'controls:executions.issues_found', icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-400/10' },
+    { value: 'not_applicable' as const, labelKey: 'controls:results.not_applicable', icon: MinusCircle, color: 'text-slate-400', bg: 'bg-slate-400/10' },
 ];
 
 export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onSuccess }: ExecutionLogModalProps) {
-    const { t } = useTranslation('controls');
+    const { t } = useTranslation(['controls', 'common', 'errorKeys']);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
     const [formData, setFormData] = useState<Omit<ControlExecutionCreate, 'control_id'>>({
         result: 'passed',
         findings: '',
@@ -36,7 +37,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        setError(null);
+        setErrorKey(null);
 
         try {
             await executionApi.createExecution({
@@ -47,7 +48,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
             onSuccess?.();
             onClose();
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : 'Failed to log execution');
+            setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setIsSubmitting(false);
         }
@@ -76,8 +77,8 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                         {/* Header */}
                         <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                             <div>
-                                <h3 className="text-xl font-bold text-white mb-1">Log Control Execution</h3>
-                                <p className="text-sm text-slate-500 font-medium">Recording performance for: <span className="text-accent">{controlName}</span></p>
+                                <h3 className="text-xl font-bold text-white mb-1">{t('executions.log_execution')}</h3>
+                                <p className="text-sm text-slate-500 font-medium">{t('executions.recording_performance_for')}: <span className="text-accent">{controlName}</span></p>
                             </div>
                             <button
                                 onClick={onClose}
@@ -89,16 +90,16 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
 
                         {/* Form */}
                         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-                            {error && (
+                            {errorKey && (
                                 <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm font-medium flex gap-3">
                                     <AlertTriangle className="h-5 w-5 shrink-0" />
-                                    {error}
+                                    {t(errorKey, { ns: 'errorKeys' })}
                                 </div>
                             )}
 
                             {/* Result Selection */}
                             <div className="space-y-3">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Execution Result</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.execution_result')}</label>
                                 <div className="grid grid-cols-2 gap-3">
                                     {RESULTS.map((res) => (
                                         <button
@@ -112,7 +113,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                                         >
                                             <res.icon className={`h-5 w-5 ${formData.result === res.value ? res.color : 'text-slate-500'}`} />
                                             <span className={`text-sm font-bold ${formData.result === res.value ? 'text-white' : ''}`}>
-                                                {res.label}
+                                                {t(res.labelKey)}
                                             </span>
                                         </button>
                                     ))}
@@ -121,7 +122,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
 
                             {/* Findings */}
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Findings / Observations</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.findings_observations')}</label>
                                 <textarea
                                     value={formData.findings}
                                     onChange={(e) => setFormData({ ...formData, findings: e.target.value })}
@@ -132,7 +133,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
 
                             {/* Evidence Reference */}
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Evidence Reference (Link/File ID)</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.evidence_reference')}</label>
                                 <input
                                     type="text"
                                     value={formData.evidence_reference}
@@ -144,7 +145,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
 
                             {/* Next Scheduled */}
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Next Scheduled Execution (Optional)</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.next_scheduled_optional')}</label>
                                 <input
                                     type="date"
                                     value={formData.next_scheduled}
@@ -155,7 +156,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
 
                             {/* Additional Notes */}
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Additional Notes</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.additional_notes')}</label>
                                 <textarea
                                     value={formData.notes}
                                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -172,7 +173,7 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                                 onClick={onClose}
                                 className="px-6 py-2.5 rounded-xl border border-white/10 text-sm font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all"
                             >
-                                Cancel
+                                {t('actions.cancel', { ns: 'common' })}
                             </button>
                             <button
                                 type="button"
@@ -183,10 +184,10 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                                 {isSubmitting ? (
                                     <>
                                         <Loader2 className="h-4 w-4 animate-spin" />
-                                        Logging...
+                                        {t('executions.logging')}
                                     </>
                                 ) : (
-                                    'Log Execution'
+                                    t('executions.log_execution')
                                 )}
                             </button>
                         </div>

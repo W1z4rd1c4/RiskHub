@@ -28,8 +28,10 @@ interface VendorExportFilters extends ReportFilters {
 
 interface IssueExportFilters extends ReportFilters {
     severity?: string | null;
+    severityGroup?: 'high_critical' | null;
     ownerUserId?: number | null;
     overdueOnly?: boolean | null;
+    excludeActiveExceptions?: boolean | null;
 }
 
 interface ExportRequest<TFilters> {
@@ -216,8 +218,10 @@ export const reportApi = {
             department_id: filters.departmentId,
             status: filters.status,
             severity: filters.severity,
+            severity_group: filters.severityGroup,
             owner_user_id: filters.ownerUserId,
             overdue_only: filters.overdueOnly,
+            exclude_active_exceptions: filters.excludeActiveExceptions,
         });
     },
 };

@@ -187,7 +187,7 @@ export function ControlsPage() {
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-white">{control.name}</span>
                     {pendingApprovalIds.has(control.id) && (
-                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20" title="Changes Pending Approval">
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-amber-400/10 text-amber-400 border border-amber-400/20" title={t('columns.pending_changes_title')}>
                             <Lock className="h-2.5 w-2.5" />
                             {t('columns.pending')}
                         </div>

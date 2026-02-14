@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Palette, Plus, Edit, Trash2, RotateCcw, AlertCircle } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
+import { apiClient } from '@/services/apiClient';
 import type { RiskType, RiskTypeCreate, RiskTypeUpdate } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
@@ -21,7 +22,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
     const [color, setColor] = useState('#64748b');
     const [sortOrder, setSortOrder] = useState(0);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -30,13 +31,13 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
             setDescription(riskType?.description || '');
             setColor(riskType?.color || '#64748b');
             setSortOrder(riskType?.sort_order || 0);
-            setError(null);
+            setErrorKey(null);
         }
     }, [isOpen, riskType]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError(null);
+        setErrorKey(null);
         setSaving(true);
         try {
             if (riskType) {
@@ -48,7 +49,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
             }
             onClose();
         } catch (err) {
-            setError(err instanceof Error ? err.message : t('admin:risk_types_panel.modal.errors.save_failed'));
+            setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setSaving(false);
         }
@@ -133,10 +134,10 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
                         </div>
                     </div>
 
-                    {error && (
+                    {errorKey && (
                         <div className="flex items-center gap-2 text-red-400 text-sm">
                             <AlertCircle className="h-4 w-4" />
-                            {error}
+                            {t(errorKey, { ns: 'errorKeys' })}
                         </div>
                     )}
 

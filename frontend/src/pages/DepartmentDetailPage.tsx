@@ -451,7 +451,7 @@ export function DepartmentDetailPage() {
             {department.recent_executions.length === 0 ? (
                 <div className="p-12 text-center">
                     <Calendar className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-                    <p className="text-slate-500">No recent control executions</p>
+                    <p className="text-slate-500">{t('common:empty.no_recent_executions')}</p>
                 </div>
             ) : (
                 <div className="divide-y divide-white/5">
@@ -595,7 +595,7 @@ export function DepartmentDetailPage() {
                         : 'text-slate-500 hover:text-white'
                         }`}
                 >
-                    Risks ({getRiskCount()})
+                    {t('department_detail.tabs.risks', { count: getRiskCount() })}
                 </button>
                 <button
                     onClick={() => setActiveTab('users')}
@@ -604,7 +604,7 @@ export function DepartmentDetailPage() {
                         : 'text-slate-500 hover:text-white'
                         }`}
                 >
-                    Users ({department.user_count})
+                    {t('department_detail.tabs.users', { count: department.user_count })}
                 </button>
                 <button
                     onClick={() => setActiveTab('controls')}
@@ -613,7 +613,7 @@ export function DepartmentDetailPage() {
                         : 'text-slate-500 hover:text-white'
                         }`}
                 >
-                    Controls ({department.control_count})
+                    {t('department_detail.tabs.controls', { count: department.control_count })}
                 </button>
                 <button
                     onClick={() => setActiveTab('kris')}
@@ -622,7 +622,7 @@ export function DepartmentDetailPage() {
                         : 'text-slate-500 hover:text-white'
                         }`}
                 >
-                    KRIs ({department.kri_count})
+                    {t('department_detail.tabs.kris', { count: department.kri_count })}
                 </button>
                 <button
                     onClick={() => setActiveTab('activity')}
@@ -631,7 +631,7 @@ export function DepartmentDetailPage() {
                         : 'text-slate-500 hover:text-white'
                         }`}
                 >
-                    Recent Activity ({department.recent_executions.length})
+                    {t('department_detail.tabs.recent_activity', { count: department.recent_executions.length })}
                 </button>
             </div>
 

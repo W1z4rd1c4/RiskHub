@@ -1,143 +1,208 @@
 {
-    "title": "Risk Appetite",
-    "page_subtitle": "Monitor Key Risk Indicators and appetite breaches.",
-    "new_kri": "New KRI",
-    "create_kri": "Create KRI",
-    "edit_kri": "Edit KRI",
-    "view_kri": "View KRI",
-    "delete_kri": "Delete KRI",
-    "fields": {
-        "name": "KRI Name",
-        "description": "Description",
-        "unit": "Unit of Measure",
-        "department": "Department",
-        "owner": "KRI Owner",
-        "linked_risk": "Linked Risk",
-        "frequency": "Reporting Frequency",
-        "current_value": "Current Value",
-        "target_value": "Target Value",
-        "lower_limit": "Lower Limit",
-        "upper_limit": "Upper Limit",
-        "status": "Status",
-        "last_reported": "Last Reported",
-        "next_due": "Next Due"
+  "title": "Risk Appetite",
+  "page_subtitle": "Monitor Key Risk Indicators and appetite breaches.",
+  "new_kri": "New KRI",
+  "create_kri": "Create KRI",
+  "edit_kri": "Edit KRI",
+  "view_kri": "View KRI",
+  "delete_kri": "Delete KRI",
+  "fields": {
+    "name": "KRI Name",
+    "description": "Description",
+    "unit": "Unit of Measure",
+    "department": "Department",
+    "owner": "KRI Owner",
+    "linked_risk": "Linked Risk",
+    "frequency": "Reporting Frequency",
+    "current_value": "Current Value",
+    "target_value": "Target Value",
+    "lower_limit": "Lower Limit",
+    "upper_limit": "Upper Limit",
+    "status": "Status",
+    "last_reported": "Last Reported",
+    "next_due": "Next Due"
+  },
+  "frequencies": {
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "quarterly": "Quarterly",
+    "annually": "Annually"
+  },
+  "status": {
+    "within_limits": "Within Limits",
+    "warning": "Warning",
+    "breached": "Breached",
+    "not_reported": "Not Reported",
+    "overdue": "Overdue"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "values": "Value History",
+    "history": "Change History"
+  },
+  "values": {
+    "submit_value": "Submit Value",
+    "correct_value": "Correct Value",
+    "value": "Value",
+    "date": "Date",
+    "submitted_by": "Submitted By",
+    "notes": "Notes",
+    "correction": "Correction",
+    "original_value": "Original Value"
+  },
+  "thresholds": {
+    "title": "Thresholds",
+    "tolerance_limits": "Tolerance Limits",
+    "early_warning": "Early Warning System",
+    "breach_level": "Breach Level"
+  },
+  "filters": {
+    "all_frequencies": "All Frequencies",
+    "all_departments": "All Departments",
+    "all_owners": "All Owners",
+    "all": "All",
+    "within": "Within",
+    "breach": "Breach",
+    "breached_only": "Breached Only",
+    "overdue": "Overdue",
+    "archived": "Archived",
+    "overdue_only": "Overdue Only",
+    "include_archived": "Include archived",
+    "search_placeholder": "Search by metric name..."
+  },
+  "empty_state": {
+    "no_kris": "No KRIs found matching your criteria.",
+    "no_values": "No value history",
+    "no_linked_risk": "No linked risk",
+    "no_group": "No KRIs in this group."
+  },
+  "columns": {
+    "metric": "Metric",
+    "value": "Value",
+    "limits": "Limits",
+    "status": "Status",
+    "risk": "Risk",
+    "description": "Description",
+    "ok": "OK"
+  },
+  "actions": {
+    "link_risk": "Link Risk",
+    "unarchive": "Unarchive",
+    "export": "Export",
+    "export_excel": "Export Excel"
+  },
+  "alerts": {
+    "breach_alert": "Breach Alert",
+    "value_breached": "This KRI has breached its limits",
+    "overdue_alert": "Value submission overdue"
+  },
+  "form": {
+    "validation": {
+      "risk_required": "Please select a risk to proceed.",
+      "metric_name_required": "Please enter a KRI name.",
+      "description_required": "Please enter a description."
     },
-    "frequencies": {
-        "daily": "Daily",
-        "weekly": "Weekly",
-        "monthly": "Monthly",
-        "quarterly": "Quarterly",
-        "annually": "Annually"
+    "units": {
+      "percentage": "% (Percentage)",
+      "count": "Count",
+      "days": "Days",
+      "hours": "Hours",
+      "ratio": "Ratio"
     },
-    "status": {
-        "within_limits": "Within Limits",
-        "warning": "Warning",
-        "breached": "Breached",
-        "not_reported": "Not Reported",
-        "overdue": "Overdue"
-    },
-    "tabs": {
-        "overview": "Overview",
-        "values": "Value History",
-        "history": "Change History"
-    },
-    "values": {
-        "submit_value": "Submit Value",
-        "correct_value": "Correct Value",
-        "value": "Value",
-        "date": "Date",
-        "submitted_by": "Submitted By",
-        "notes": "Notes",
-        "correction": "Correction",
-        "original_value": "Original Value"
-    },
-    "thresholds": {
-        "title": "Thresholds",
-        "tolerance_limits": "Tolerance Limits",
-        "early_warning": "Early Warning System",
-        "breach_level": "Breach Level"
-    },
-    "filters": {
-        "all_frequencies": "All Frequencies",
-        "all_departments": "All Departments",
-        "all_owners": "All Owners",
-        "all": "All",
-        "within": "Within",
-        "breach": "Breach",
-        "breached_only": "Breached Only",
-        "overdue": "Overdue",
-        "archived": "Archived",
-        "overdue_only": "Overdue Only",
-        "include_archived": "Include archived",
-        "search_placeholder": "Search by metric name..."
-    },
-    "empty_state": {
-        "no_kris": "No KRIs found matching your criteria.",
-        "no_values": "No value history",
-        "no_linked_risk": "No linked risk",
-        "no_group": "No KRIs in this group."
-    },
-    "columns": {
-        "metric": "Metric",
-        "value": "Value",
-        "limits": "Limits",
-        "status": "Status",
-        "risk": "Risk",
-        "description": "Description",
-        "ok": "OK"
-    },
-    "actions": {
-        "link_risk": "Link Risk",
-        "unarchive": "Unarchive",
-        "export": "Export",
-        "export_excel": "Export Excel"
-    },
-    "alerts": {
-        "breach_alert": "Breach Alert",
-        "value_breached": "This KRI has breached its limits",
-        "overdue_alert": "Value submission overdue"
-    },
-    "form": {
-        "validation": {
-            "risk_required": "Please select a risk to proceed.",
-            "metric_name_required": "Please enter a KRI name.",
-            "description_required": "Please enter a description."
-        },
-        "units": {
-            "percentage": "% (Percentage)",
-            "count": "Count",
-            "days": "Days",
-            "hours": "Hours",
-            "ratio": "Ratio"
-        },
-        "reporting_owner_hint": "Leave empty to use Risk owner as default",
-        "placeholders": {
-            "metric_name": "e.g. Customer complaint rate",
-            "description": "Describe what this KRI measures and why it matters...",
-            "search_risks": "Search by risk ID, name...",
-            "all_departments": "All Departments",
-            "all_processes": "All Processes",
-            "all_categories": "All Categories",
-            "reporting_owner_default": "Risk Owner (Default)",
-            "correction_reason": "Explain why this correction is needed..."
-        }
-    },
-    "correction": {
-        "title": "Correct KRI Value",
-        "current_value": "Current Value",
-        "new_value": "Corrected Value",
-        "reason": "Correction Reason",
-        "reason_placeholder": "Explain why this value needs correction...",
-        "warning": "Value corrections require CRO approval",
-        "submit": "Submit Correction",
-        "success": "Correction submitted for approval"
-    },
-    "overdue": {
-        "badge": "Overdue",
-        "days_overdue": "{{days}} days overdue",
-        "last_submission": "Last submission: {{date}}"
-    },
-    "labels": {
-        "archived": "Archived"
+    "reporting_owner_hint": "Leave empty to use Risk owner as default",
+    "placeholders": {
+      "metric_name": "e.g. Customer complaint rate",
+      "description": "Describe what this KRI measures and why it matters...",
+      "search_risks": "Search by risk ID, name...",
+      "all_departments": "All Departments",
+      "all_processes": "All Processes",
+      "all_categories": "All Categories",
+      "reporting_owner_default": "Risk Owner (Default)",
+      "correction_reason": "Explain why this correction is needed..."
     }
+  },
+  "correction": {
+    "title": "Correct KRI Value",
+    "current_value": "Current Value",
+    "new_value": "Corrected Value",
+    "reason": "Correction Reason",
+    "reason_placeholder": "Explain why this value needs correction...",
+    "warning": "Value corrections require CRO approval",
+    "submit": "Submit Correction",
+    "success": "Correction submitted for approval"
+  },
+  "overdue": {
+    "badge": "Overdue",
+    "days_overdue": "{{days}} days overdue",
+    "last_submission": "Last submission: {{date}}"
+  },
+  "labels": {
+    "archived": "Archived"
+  },
+  "comparison": {
+    "breach_status": "Breach Status",
+    "period_end": "Period End",
+    "lower_limit": "Lower Limit",
+    "upper_limit": "Upper Limit",
+    "recorded_by": "Recorded By",
+    "system": "System",
+    "need_two_entries": "Need at least 2 history entries to compare.",
+    "compare_records": "Compare Records",
+    "analyze_changes": "Analyze changes between two reporting periods",
+    "distinct_periods_required": "Difference calculation requires two distinct periods.",
+    "delta_analysis": "Delta Analysis"
+  },
+  "modal": {
+    "framework": "Key Risk Indicator Framework",
+    "metric_name": "Metric Name",
+    "current_value_readonly": "Current Value (use Record Value)",
+    "unit_examples": "Unit (%, EUR, etc.)",
+    "lower_limit_breach": "Lower Limit (Breach)",
+    "upper_limit_breach": "Upper Limit (Breach)",
+    "last_updated": "Last Updated",
+    "create_indicator": "Create indicator",
+    "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
+  },
+  "value_modal": {
+    "title": "Record Value",
+    "success_recorded": "Value recorded successfully!",
+    "submitted_for_approval": "Submitted for approval",
+    "submitted_for_approval_help": "Your value submission has been sent for review by a Risk Manager or Admin. You'll be notified once it's approved.",
+    "approval_notice": "Your submission will require approval from a Risk Manager or Admin before being applied.",
+    "current_value": "Current Value:",
+    "last_period_end": "Last Period End:",
+    "new_value_required": "New Value *",
+    "backdate_optional": "Backdate Period End (Optional)",
+    "backdate_hint": "Leave empty to record for current period"
+  },
+  "overview": {
+    "reporting": "Reporting",
+    "last_period_end": "Last Period End",
+    "due_date": "Due Date",
+    "central_systems": "Central Systems",
+    "unassigned": "Unassigned",
+    "view_complete_risk_analysis": "View Complete Risk Analysis",
+    "metadata": "Metadata",
+    "kri_id": "KRI ID",
+    "last_updated": "Last Updated",
+    "breach": "BREACH",
+    "metric_detail": "Metric Detail",
+    "optimal": "Optimal"
+  },
+  "history_edit": {
+    "request_correction": "Request Correction",
+    "period": "Period",
+    "corrected_value_required": "Corrected value is required.",
+    "reason_required": "Reason is required.",
+    "submitting": "Submitting..."
+  },
+  "history_tab": {
+    "value_trend": "Value Trend",
+    "empty_message": "No history entries found.",
+    "record_timeline": "Record Timeline",
+    "entries_count": "{{count}} entries",
+    "compare_periods": "Compare Periods",
+    "need_two_entries_compare": "Select at least two entries to compare."
+  }
 }

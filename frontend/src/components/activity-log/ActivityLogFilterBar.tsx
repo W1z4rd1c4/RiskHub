@@ -39,13 +39,6 @@ export interface ActivityLogFilterBarProps {
     risks: { id: number; name: string }[];
 }
 
-const VIEW_MODES: { id: ViewMode; label: string }[] = [
-    { id: 'chronological', label: 'Chronological' },
-    { id: 'by_person', label: 'By Person' },
-    { id: 'by_department', label: 'By Department' },
-    { id: 'by_risk', label: 'By Risk' },
-];
-
 /**
  * Activity log filter bar component.
  * Renders the view mode selector, entity pickers, and search/date/action filters.
@@ -72,15 +65,21 @@ export function ActivityLogFilterBar({
     departments,
     risks,
 }: ActivityLogFilterBarProps) {
-    const { t } = useTranslation('common');
+    const { t } = useTranslation(['common', 'admin']);
+    const viewModes: { id: ViewMode; label: string }[] = [
+        { id: 'chronological', label: t('activity_log.view_modes.chronological', { ns: 'admin' }) },
+        { id: 'by_person', label: t('activity_log.view_modes.by_person', { ns: 'admin' }) },
+        { id: 'by_department', label: t('activity_log.view_modes.by_department', { ns: 'admin' }) },
+        { id: 'by_risk', label: t('activity_log.view_modes.by_risk', { ns: 'admin' }) },
+    ];
 
     return (
         <>
             {/* View Mode Selector */}
             <div className="flex flex-wrap items-center gap-4 p-4 glass-card rounded-2xl border border-white/5">
-                <span className="text-sm font-medium text-slate-400">View:</span>
+                <span className="text-sm font-medium text-slate-400">{t('activity_log.view_label', { ns: 'admin' })}</span>
                 <div className="flex items-center gap-1">
-                    {VIEW_MODES.map(mode => (
+                    {viewModes.map(mode => (
                         <button
                             key={mode.id}
                             onClick={() => onViewModeChange(mode.id)}

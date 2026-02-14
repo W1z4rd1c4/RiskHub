@@ -1,524 +1,532 @@
 {
-    "title": "Vendors",
-    "subtitle": "Third-party vendor catalog",
-    "labels": {
-        "loading": "Loading...",
-        "unassigned": "Unassigned"
-    },
+  "title": "Vendors",
+  "subtitle": "Third-party vendor catalog",
+  "labels": {
+    "loading": "Loading...",
+    "unassigned": "Unassigned"
+  },
+  "actions": {
+    "new": "New Vendor",
+    "edit": "Edit",
+    "save": "Save",
+    "create": "Create",
+    "cancel": "Cancel",
+    "export": "Export",
+    "refresh": "Refresh",
+    "unarchive": "Unarchive"
+  },
+  "filters": {
+    "search_placeholder": "Search vendors...",
+    "all_statuses": "All statuses",
+    "all_types": "All types"
+  },
+  "columns": {
+    "name": "Vendor",
+    "department": "Department",
+    "owner": "Owner",
+    "type": "Type",
+    "risk_score": "Risk Score",
+    "status": "Status"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "type": {
+    "ict": "ICT",
+    "outsourcing": "Outsourcing",
+    "professional_services": "Professional services",
+    "partner": "Partner",
+    "other": "Other"
+  },
+  "flags": {
+    "supports_core_function": "Supports core function",
+    "dora_relevant": "DORA relevant",
+    "significant_vendor": "Significant vendor",
+    "has_alternatives": "Has alternative providers"
+  },
+  "detail": {
+    "overview": "Overview",
+    "ownership": "Ownership",
+    "classification": "Classification"
+  },
+  "tabs": {
+    "risk_factors": "Risk Factors",
+    "linked_risks": "Linked Risks",
+    "linked_controls": "Linked Controls",
+    "assessments": "Assessments",
+    "schedule": "Schedule",
+    "contract_controls": "Contract Controls",
+    "resilience": "Resilience",
+    "dependencies": "Dependencies",
+    "incidents": "Incidents",
+    "remediation": "Remediation",
+    "sla": "SLA",
+    "signals": "Signals"
+  },
+  "signals": {
+    "subtitle": "Optional external signals for vendor monitoring.",
+    "empty": "No signals yet.",
+    "last_fetched": "Last fetched",
+    "details": "Details",
     "actions": {
-        "new": "New Vendor",
-        "edit": "Edit",
-        "save": "Save",
-        "create": "Create",
-        "cancel": "Cancel",
-        "export": "Export",
-        "refresh": "Refresh",
-        "unarchive": "Unarchive"
+      "refresh": "Refresh signals",
+      "refreshing": "Refreshing..."
+    }
+  },
+  "incidents": {
+    "subtitle": "Record vendor incidents and major breaches.",
+    "empty": "No incidents yet.",
+    "confirm_delete": "Delete this incident?",
+    "actions": {
+      "add": "Add incident",
+      "save": "Save"
     },
-    "filters": {
-        "search_placeholder": "Search vendors...",
-        "all_statuses": "All statuses",
-        "all_types": "All types"
-    },
-    "columns": {
-        "name": "Vendor",
-        "department": "Department",
-        "owner": "Owner",
-        "type": "Type",
-        "risk_score": "Risk Score",
-        "status": "Status"
-    },
-    "status": {
-        "active": "Active",
-        "inactive": "Inactive"
+    "fields": {
+      "is_major": "Major incident",
+      "summary": "Summary",
+      "details": "Details (optional)"
     },
     "type": {
-        "ict": "ICT",
-        "outsourcing": "Outsourcing",
-        "professional_services": "Professional services",
-        "partner": "Partner",
-        "other": "Other"
+      "security": "Security",
+      "operational": "Operational",
+      "regulatory_breach": "Regulatory breach",
+      "contract_breach": "Contract breach",
+      "other": "Other"
     },
-    "flags": {
-        "supports_core_function": "Supports core function",
-        "dora_relevant": "DORA relevant",
-        "significant_vendor": "Significant vendor",
-        "has_alternatives": "Has alternative providers"
-    },
-    "detail": {
-        "overview": "Overview",
-        "ownership": "Ownership",
-        "classification": "Classification"
-    },
-    "tabs": {
-        "risk_factors": "Risk Factors",
-        "linked_risks": "Linked Risks",
-        "linked_controls": "Linked Controls",
-        "assessments": "Assessments",
-        "schedule": "Schedule",
-        "contract_controls": "Contract Controls",
-        "resilience": "Resilience",
-        "dependencies": "Dependencies",
-        "incidents": "Incidents",
-        "remediation": "Remediation",
-        "sla": "SLA",
-        "signals": "Signals"
-    },
-    "signals": {
-        "subtitle": "Optional external signals for vendor monitoring.",
-        "empty": "No signals yet.",
-        "last_fetched": "Last fetched",
-        "details": "Details",
-        "actions": {
-            "refresh": "Refresh signals",
-            "refreshing": "Refreshing..."
-        }
-    },
-    "incidents": {
-        "subtitle": "Record vendor incidents and major breaches.",
-        "empty": "No incidents yet.",
-        "confirm_delete": "Delete this incident?",
-        "actions": {
-            "add": "Add incident",
-            "save": "Save"
-        },
-        "fields": {
-            "is_major": "Major incident",
-            "summary": "Summary",
-            "details": "Details (optional)"
-        },
-        "type": {
-            "security": "Security",
-            "operational": "Operational",
-            "regulatory_breach": "Regulatory breach",
-            "contract_breach": "Contract breach",
-            "other": "Other"
-        },
-        "severity": {
-            "low": "Low",
-            "medium": "Medium",
-            "high": "High",
-            "critical": "Critical"
-        }
-    },
-    "remediation": {
-        "subtitle": "Track remediation actions and ownership.",
-        "empty": "No remediation actions yet.",
-        "confirm_delete": "Delete this action?",
-        "actions": {
-            "add": "Add action",
-            "save": "Save"
-        },
-        "fields": {
-            "description": "Description"
-        },
-        "status": {
-            "open": "Open",
-            "in_progress": "In progress",
-            "done": "Done"
-        }
-    },
-    "sla": {
-        "subtitle": "Track SLA values over time and flag threshold breaches.",
-        "empty": "No SLAs configured yet.",
-        "include_archived": "Include archived",
-        "current": "Current",
-        "limits": "Limits",
-        "last_reported": "Last reported",
-        "badges": {
-            "archived": "Archived"
-        },
-        "actions": {
-            "add": "Add SLA",
-            "manage": "Manage",
-            "archive": "Archive"
-        },
-        "fields": {
-            "metric_name": "Metric Name",
-            "metric_name_placeholder": "e.g., Uptime, Response time",
-            "description": "Description",
-            "description_placeholder": "Optional notes about the SLA definition",
-            "current_value": "Current Value",
-            "current_value_edit_hint": "Current Value (use Record Value)",
-            "unit": "Unit",
-            "lower_limit": "Lower Limit (Breach)",
-            "upper_limit": "Upper Limit (Breach)",
-            "frequency": "Reporting Frequency",
-            "reporting_owner": "Reporting Owner"
-        },
-        "frequency": {
-            "daily": "Daily",
-            "weekly": "Weekly",
-            "monthly": "Monthly",
-            "quarterly": "Quarterly",
-            "annually": "Annually"
-        },
-        "owner": {
-            "unassigned": "Unassigned"
-        },
-        "modal": {
-            "create_title": "New Vendor SLA",
-            "edit_title": "Edit Vendor SLA",
-            "subtitle": "Define monitored SLA thresholds and record values over time."
-        },
-        "record": {
-            "title": "Record Value",
-            "save": "Record",
-            "saving": "Saving..."
-        },
-        "confirm_archive_title": "Archive SLA?",
-        "confirm_archive_message": "This will archive the SLA. You can still view it when including archived items."
-    },
-    "assessments": {
-        "subtitle": "Due diligence workflow: draft → review → recommendation → decision.",
-        "empty": "No assessments yet.",
-        "scope": {
-            "dora": "DORA",
-            "standard": "Standard",
-            "dora_scope": "DORA scope",
-            "standard_scope": "Standard scope"
-        },
-        "actions": {
-            "start": "Start assessment",
-            "save": "Save",
-            "submit": "Submit",
-            "review": "Review",
-            "recommend": "Recommend",
-            "approve": "Approve",
-            "approve_with_conditions": "Approve with conditions",
-            "reject": "Reject"
-        },
-        "fields": {
-            "evidence": "Evidence reference",
-            "evidence_placeholder": "https://... or file path",
-            "committee_recommendation": "Committee recommendation",
-            "conditions": "Conditions",
-            "optional": "Optional"
-        },
-        "template": {
-            "notes": "Notes",
-            "financial_stability": {
-                "title": "Financial Stability",
-                "annual_report_available": "Annual report / financial statements available?",
-                "notes_placeholder": "Summarize financial stability evidence..."
-            },
-            "regulatory_legal": {
-                "title": "Regulatory / Legal",
-                "gdpr_compliance": "GDPR compliance confirmed?",
-                "notes_placeholder": "Summarize legal/regulatory checks..."
-            },
-            "cyber_security": {
-                "title": "Cyber / Security",
-                "iso27001_or_equivalent": "ISO 27001 (or equivalent) in place?",
-                "notes_placeholder": "Summarize security posture evidence..."
-            },
-            "bcp_dr": {
-                "title": "BCP / DR",
-                "dr_tested_last_12m": "DR tested in last 12 months?",
-                "notes_placeholder": "Summarize resilience evidence..."
-            },
-            "governance_auditability": {
-                "title": "Governance / Auditability",
-                "audit_rights": "Audit rights are contractually ensured?",
-                "notes_placeholder": "Summarize governance controls..."
-            },
-            "replaceability_subcontractors": {
-                "title": "Replaceability / Subcontractors",
-                "uses_subcontractors": "Uses subcontractors / fourth parties?",
-                "replaceability": "Replaceability",
-                "notes_placeholder": "Summarize concentration/replaceability..."
-            },
-            "replaceability_options": {
-                "easy": "Easy",
-                "medium": "Medium",
-                "hard": "Hard"
-            },
-            "dora_subcontractors": {
-                "title": "DORA — Subcontractors & ICT Supply Chain",
-                "subcontractor_disclosure": "Full subcontractor disclosure available?",
-                "notes_placeholder": "Summarize subcontractor oversight..."
-            },
-            "dora_incident_reporting": {
-                "title": "DORA — Incident Reporting",
-                "incident_reporting_sla": "Incident reporting SLAs defined (timelines, escalation)?",
-                "notes_placeholder": "Summarize incident notification clauses..."
-            }
-        },
-        "item_title": "{{template}} · {{period}}"
-    },
-    "schedule": {
-        "subtitle": "Reassessment cadence and due date reminders.",
-        "months": "months",
-        "trigger_reason_prompt": "Reason (incident / new_threat / other):",
-        "actions": {
-            "start_reassessment": "Start reassessment",
-            "trigger": "Trigger"
-        },
-        "fields": {
-            "next_due": "Next due",
-            "cadence": "Cadence",
-            "status": "Status",
-            "last_decided": "Last decision"
-        },
-        "status": {
-            "ok": "OK",
-            "due_soon": "Due soon",
-            "overdue": "Overdue",
-            "unknown": "Unknown"
-        }
-    },
-    "contract_controls": {
-        "subtitle": "Checklist of required clauses/controls with evidence links.",
-        "not_applicable": "Not applicable for this vendor classification.",
-        "actions": {
-            "save": "Save"
-        },
-        "templates": {
-            "ict_standard": "Standard ICT controls",
-            "ict_dora_non_significant": "DORA (non-significant ICT vendor)",
-            "ict_dora_significant": "DORA (significant ICT vendor)"
-        },
-        "status": {
-            "met": "Met",
-            "partial": "Partial",
-            "missing": "Missing",
-            "n_a": "N/A"
-        },
-        "fields": {
-            "evidence": "Evidence reference",
-            "notes": "Notes",
-            "notes_placeholder": "Optional"
-        },
-        "items": {
-            "audit_rights": {
-                "title": "Audit rights",
-                "description": "Contract includes audit/access rights (incl. subcontractors where applicable)."
-            },
-            "incident_reporting_sla": {
-                "title": "Incident reporting SLAs",
-                "description": "Incident notification timelines and escalation obligations are defined."
-            },
-            "data_location_and_access": {
-                "title": "Data location & access",
-                "description": "Data location, access, and portability/return requirements are defined."
-            },
-            "subcontractor_flowdown": {
-                "title": "Subcontractor obligations",
-                "description": "Subcontractor use is controlled and obligations flow down contractually."
-            },
-            "exit_assistance": {
-                "title": "Exit provisions",
-                "description": "Exit assistance / transition support is contractually ensured."
-            },
-            "dora_subcontractor_disclosure": {
-                "title": "DORA subcontractor disclosure",
-                "description": "DORA-relevant: subcontractor disclosure/register is available."
-            },
-            "dora_operational_resilience_testing": {
-                "title": "DORA resilience testing support",
-                "description": "DORA-relevant: contract supports resilience testing requirements."
-            },
-            "dora_enhanced_audit_and_access": {
-                "title": "DORA enhanced audit/access",
-                "description": "Significant ICT: enhanced audit and access clauses are present."
-            },
-            "dora_exit_strategy_and_support": {
-                "title": "DORA exit strategy support",
-                "description": "Significant ICT: exit strategy and support obligations are explicit."
-            }
-        }
-    },
-    "resilience": {
-        "subtitle": "Exit strategy and contingency/BCP readiness for critical vendors.",
-        "not_required": "Not required for non-critical vendors (still recordable for completeness).",
-        "actions": {
-            "save": "Save"
-        },
-        "status": {
-            "not_started": "Not started",
-            "in_progress": "In progress",
-            "complete": "Complete"
-        },
-        "fields": {
-            "status": "Status",
-            "reference": "Reference",
-            "notes": "Notes",
-            "notes_placeholder": "Optional",
-            "last_reviewed": "Last reviewed",
-            "last_tested": "Last tested",
-            "outage_hours": "Max tolerable outage (hours)",
-            "cia": "CIA impact"
-        },
-        "exit_plan": {
-            "title": "Exit strategy"
-        },
-        "contingency_plan": {
-            "title": "Contingency plan / BCP"
-        },
-        "cia": {
-            "confidentiality": "Confidentiality",
-            "integrity": "Integrity",
-            "authenticity": "Authenticity",
-            "availability": "Availability"
-        },
-        "contingency_required": "Contingency plan required for >24h outage or CIA impact."
-    },
-    "dependencies": {
-        "subtitle": "Services, supported functions, and fourth-party relationships.",
-        "confirm_delete": "Delete?",
-        "prompt_function": "Supported function name:",
-        "concentration": {
-            "title": "Concentration",
-            "score": "Score",
-            "no_flags": "No flags."
-        },
-        "relationships": {
-            "title": "Relationships",
-            "empty": "No relationships yet.",
-            "select_vendor": "Select vendor",
-            "actions": {
-                "add": "Add"
-            },
-            "type": {
-                "subcontractor": "Subcontractor",
-                "reseller": "Reseller",
-                "parent_company": "Parent company",
-                "other": "Other"
-            }
-        },
-        "graph": {
-            "title": "Graph"
-        },
-        "services": {
-            "title": "Services",
-            "empty": "No services yet.",
-            "service_placeholder": "Service name",
-            "no_dependencies": "No dependencies recorded.",
-            "actions": {
-                "add_service": "Add service",
-                "add_dependency": "Add dependency"
-            }
-        }
-    },
-    "risk_categories": {
-        "regulatory_legal": "Regulatory & Legal",
-        "info_security_data": "Information Security & Data",
-        "cyber_supply_chain": "Cyber / Supply Chain",
-        "operational_continuity": "Operational Continuity (BCP/DR)",
-        "service_quality": "Service Quality",
-        "financial": "Financial",
-        "strategic_reputational": "Strategic & Reputational",
-        "governance_oversight": "Governance & Oversight",
-        "technology_lockin": "Technology Lock-in",
-        "human_factor": "Human Factor",
-        "concentration": "Concentration Risk"
-    },
-    "risk_factors": {
-        "subtitle": "Record qualitative third‑party risk factors (no scoring in MVP).",
-        "empty": "No risk factors yet.",
-        "confirm_delete": "Delete this risk factor?",
-        "actions": {
-            "add": "Add risk factor",
-            "edit": "Edit risk factor",
-            "save": "Save"
-        },
-        "fields": {
-            "category": "Category",
-            "description": "Description",
-            "description_placeholder": "Describe the factor and any notes/evidence..."
-        }
-    },
-    "links": {
-        "actions": {
-            "manage": "Manage links"
-        },
-        "archived_risks": "Archived risks",
-        "archived_controls": "Archived controls",
-        "dialogs": {
-            "link_risks_title": "Link Risks to Vendor",
-            "link_controls_title": "Link Controls to Vendor"
-        },
-        "risks": {
-            "subtitle": "Connect the vendor to enterprise risks in the Risk Register.",
-            "empty": "No linked risks yet."
-        },
-        "controls": {
-            "subtitle": "Assign controls that mitigate vendor exposure.",
-            "empty": "No linked controls yet."
-        }
-    },
-    "form": {
-        "sections": {
-            "identity": "Identity",
-            "ownership": "Ownership & Scope",
-            "classification": "Classification"
-        },
-        "name": "Vendor Name",
-        "name_placeholder": "Acme Cloud Ltd.",
-        "legal_name": "Legal Name",
-        "registration_id": "Registration ID",
-        "country": "Country",
-        "website": "Website",
-        "description": "Description",
-        "department": "Department",
-        "department_placeholder": "Select department",
-        "owner": "Outsourcing Owner",
-        "owner_placeholder": "Select owner",
-        "process": "Process",
-        "process_placeholder": "IT",
-        "subprocess": "Subprocess",
-        "subprocess_placeholder": "Cloud Operations",
-        "risk_score": "Risk Score (1–5)",
-        "status": "Status",
-        "flags": "Flags",
-        "vendor_type": {
-            "label": "Vendor Type",
-            "ict": "ICT",
-            "outsourcing": "Outsourcing",
-            "professional_services": "Professional services",
-            "partner": "Partner",
-            "other": "Other"
-        },
-        "replaceability": {
-            "label": "Replaceability",
-            "placeholder": "Select",
-            "easy": "Easy",
-            "medium": "Medium",
-            "hard": "Hard"
-        },
-        "financial": {
-            "no_loss": "No financial loss"
-        }
-    },
-    "empty_state": {
-        "no_vendors": "No vendors found"
-    },
-    "errors": {
-        "title": "Error",
-        "try_again": "Try again",
-        "load_failed": "Failed to load vendors",
-        "save_failed": "Failed to save vendor",
-        "not_found": "Not found",
-        "vendor_not_found": "Vendor not found",
-        "name_required": "Vendor name is required",
-        "process_required": "Process is required",
-        "department_required": "Department is required",
-        "owner_required": "Outsourcing owner is required",
-        "score_required": "Risk score (1–5) is required"
-    },
-    "reports": {
-        "title": "Vendor Reports",
-        "subtitle": "Exports for annual vendor risk management reporting and DORA register.",
-        "not_authorized": "You do not have access to vendor reports.",
-        "annual": {
-            "title": "Annual Vendor Management Report",
-            "year": "Year",
-            "download_excel": "Download Excel"
-        },
-        "dora": {
-            "title": "DORA Register of Information",
-            "subtitle": "Export the minimum DORA register dataset for vendor arrangements.",
-            "download": "Download Excel"
-        }
+    "severity": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
     }
+  },
+  "remediation": {
+    "subtitle": "Track remediation actions and ownership.",
+    "empty": "No remediation actions yet.",
+    "confirm_delete": "Delete this action?",
+    "actions": {
+      "add": "Add action",
+      "save": "Save"
+    },
+    "fields": {
+      "description": "Description"
+    },
+    "status": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "done": "Done"
+    }
+  },
+  "sla": {
+    "subtitle": "Track SLA values over time and flag threshold breaches.",
+    "empty": "No SLAs configured yet.",
+    "include_archived": "Include archived",
+    "current": "Current",
+    "limits": "Limits",
+    "last_reported": "Last reported",
+    "badges": {
+      "archived": "Archived"
+    },
+    "actions": {
+      "add": "Add SLA",
+      "manage": "Manage",
+      "archive": "Archive"
+    },
+    "fields": {
+      "metric_name": "Metric Name",
+      "metric_name_placeholder": "e.g., Uptime, Response time",
+      "description": "Description",
+      "description_placeholder": "Optional notes about the SLA definition",
+      "current_value": "Current Value",
+      "current_value_edit_hint": "Current Value (use Record Value)",
+      "unit": "Unit",
+      "lower_limit": "Lower Limit (Breach)",
+      "upper_limit": "Upper Limit (Breach)",
+      "frequency": "Reporting Frequency",
+      "reporting_owner": "Reporting Owner"
+    },
+    "frequency": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "annually": "Annually"
+    },
+    "owner": {
+      "unassigned": "Unassigned"
+    },
+    "modal": {
+      "create_title": "New Vendor SLA",
+      "edit_title": "Edit Vendor SLA",
+      "subtitle": "Define monitored SLA thresholds and record values over time."
+    },
+    "record": {
+      "title": "Record Value",
+      "save": "Record",
+      "saving": "Saving..."
+    },
+    "confirm_archive_title": "Archive SLA?",
+    "confirm_archive_message": "This will archive the SLA. You can still view it when including archived items."
+  },
+  "assessments": {
+    "subtitle": "Due diligence workflow: draft → review → recommendation → decision.",
+    "empty": "No assessments yet.",
+    "scope": {
+      "dora": "DORA",
+      "standard": "Standard",
+      "dora_scope": "DORA scope",
+      "standard_scope": "Standard scope"
+    },
+    "actions": {
+      "start": "Start assessment",
+      "save": "Save",
+      "submit": "Submit",
+      "review": "Review",
+      "recommend": "Recommend",
+      "approve": "Approve",
+      "approve_with_conditions": "Approve with conditions",
+      "reject": "Reject"
+    },
+    "fields": {
+      "evidence": "Evidence reference",
+      "evidence_placeholder": "https://... or file path",
+      "committee_recommendation": "Committee recommendation",
+      "conditions": "Conditions",
+      "optional": "Optional"
+    },
+    "template": {
+      "notes": "Notes",
+      "financial_stability": {
+        "title": "Financial Stability",
+        "annual_report_available": "Annual report / financial statements available?",
+        "notes_placeholder": "Summarize financial stability evidence..."
+      },
+      "regulatory_legal": {
+        "title": "Regulatory / Legal",
+        "gdpr_compliance": "GDPR compliance confirmed?",
+        "notes_placeholder": "Summarize legal/regulatory checks..."
+      },
+      "cyber_security": {
+        "title": "Cyber / Security",
+        "iso27001_or_equivalent": "ISO 27001 (or equivalent) in place?",
+        "notes_placeholder": "Summarize security posture evidence..."
+      },
+      "bcp_dr": {
+        "title": "BCP / DR",
+        "dr_tested_last_12m": "DR tested in last 12 months?",
+        "notes_placeholder": "Summarize resilience evidence..."
+      },
+      "governance_auditability": {
+        "title": "Governance / Auditability",
+        "audit_rights": "Audit rights are contractually ensured?",
+        "notes_placeholder": "Summarize governance controls..."
+      },
+      "replaceability_subcontractors": {
+        "title": "Replaceability / Subcontractors",
+        "uses_subcontractors": "Uses subcontractors / fourth parties?",
+        "replaceability": "Replaceability",
+        "notes_placeholder": "Summarize concentration/replaceability..."
+      },
+      "replaceability_options": {
+        "easy": "Easy",
+        "medium": "Medium",
+        "hard": "Hard"
+      },
+      "dora_subcontractors": {
+        "title": "DORA — Subcontractors & ICT Supply Chain",
+        "subcontractor_disclosure": "Full subcontractor disclosure available?",
+        "notes_placeholder": "Summarize subcontractor oversight..."
+      },
+      "dora_incident_reporting": {
+        "title": "DORA — Incident Reporting",
+        "incident_reporting_sla": "Incident reporting SLAs defined (timelines, escalation)?",
+        "notes_placeholder": "Summarize incident notification clauses..."
+      }
+    },
+    "item_title": "{{template}} · {{period}}",
+    "status": {
+      "draft": "DRAFT",
+      "submitted": "SUBMITTED",
+      "in_review": "IN REVIEW",
+      "committee_recommended": "RECOMMENDED",
+      "approved": "APPROVED",
+      "rejected": "REJECTED"
+    }
+  },
+  "schedule": {
+    "subtitle": "Reassessment cadence and due date reminders.",
+    "months": "months",
+    "trigger_reason_prompt": "Reason (incident / new_threat / other):",
+    "actions": {
+      "start_reassessment": "Start reassessment",
+      "trigger": "Trigger"
+    },
+    "fields": {
+      "next_due": "Next due",
+      "cadence": "Cadence",
+      "status": "Status",
+      "last_decided": "Last decision"
+    },
+    "status": {
+      "ok": "OK",
+      "due_soon": "Due soon",
+      "overdue": "Overdue",
+      "unknown": "Unknown"
+    }
+  },
+  "contract_controls": {
+    "subtitle": "Checklist of required clauses/controls with evidence links.",
+    "not_applicable": "Not applicable for this vendor classification.",
+    "actions": {
+      "save": "Save"
+    },
+    "templates": {
+      "ict_standard": "Standard ICT controls",
+      "ict_dora_non_significant": "DORA (non-significant ICT vendor)",
+      "ict_dora_significant": "DORA (significant ICT vendor)"
+    },
+    "status": {
+      "met": "Met",
+      "partial": "Partial",
+      "missing": "Missing",
+      "n_a": "N/A"
+    },
+    "fields": {
+      "evidence": "Evidence reference",
+      "notes": "Notes",
+      "notes_placeholder": "Optional"
+    },
+    "items": {
+      "audit_rights": {
+        "title": "Audit rights",
+        "description": "Contract includes audit/access rights (incl. subcontractors where applicable)."
+      },
+      "incident_reporting_sla": {
+        "title": "Incident reporting SLAs",
+        "description": "Incident notification timelines and escalation obligations are defined."
+      },
+      "data_location_and_access": {
+        "title": "Data location & access",
+        "description": "Data location, access, and portability/return requirements are defined."
+      },
+      "subcontractor_flowdown": {
+        "title": "Subcontractor obligations",
+        "description": "Subcontractor use is controlled and obligations flow down contractually."
+      },
+      "exit_assistance": {
+        "title": "Exit provisions",
+        "description": "Exit assistance / transition support is contractually ensured."
+      },
+      "dora_subcontractor_disclosure": {
+        "title": "DORA subcontractor disclosure",
+        "description": "DORA-relevant: subcontractor disclosure/register is available."
+      },
+      "dora_operational_resilience_testing": {
+        "title": "DORA resilience testing support",
+        "description": "DORA-relevant: contract supports resilience testing requirements."
+      },
+      "dora_enhanced_audit_and_access": {
+        "title": "DORA enhanced audit/access",
+        "description": "Significant ICT: enhanced audit and access clauses are present."
+      },
+      "dora_exit_strategy_and_support": {
+        "title": "DORA exit strategy support",
+        "description": "Significant ICT: exit strategy and support obligations are explicit."
+      }
+    }
+  },
+  "resilience": {
+    "subtitle": "Exit strategy and contingency/BCP readiness for critical vendors.",
+    "not_required": "Not required for non-critical vendors (still recordable for completeness).",
+    "actions": {
+      "save": "Save"
+    },
+    "status": {
+      "not_started": "Not started",
+      "in_progress": "In progress",
+      "complete": "Complete"
+    },
+    "fields": {
+      "status": "Status",
+      "reference": "Reference",
+      "notes": "Notes",
+      "notes_placeholder": "Optional",
+      "last_reviewed": "Last reviewed",
+      "last_tested": "Last tested",
+      "outage_hours": "Max tolerable outage (hours)",
+      "cia": "CIA impact"
+    },
+    "exit_plan": {
+      "title": "Exit strategy"
+    },
+    "contingency_plan": {
+      "title": "Contingency plan / BCP"
+    },
+    "cia": {
+      "confidentiality": "Confidentiality",
+      "integrity": "Integrity",
+      "authenticity": "Authenticity",
+      "availability": "Availability"
+    },
+    "contingency_required": "Contingency plan required for >24h outage or CIA impact."
+  },
+  "dependencies": {
+    "subtitle": "Services, supported functions, and fourth-party relationships.",
+    "confirm_delete": "Delete?",
+    "prompt_function": "Supported function name:",
+    "concentration": {
+      "title": "Concentration",
+      "score": "Score",
+      "no_flags": "No flags."
+    },
+    "relationships": {
+      "title": "Relationships",
+      "empty": "No relationships yet.",
+      "select_vendor": "Select vendor",
+      "actions": {
+        "add": "Add"
+      },
+      "type": {
+        "subcontractor": "Subcontractor",
+        "reseller": "Reseller",
+        "parent_company": "Parent company",
+        "other": "Other"
+      }
+    },
+    "graph": {
+      "title": "Graph"
+    },
+    "services": {
+      "title": "Services",
+      "empty": "No services yet.",
+      "service_placeholder": "Service name",
+      "no_dependencies": "No dependencies recorded.",
+      "actions": {
+        "add_service": "Add service",
+        "add_dependency": "Add dependency"
+      }
+    }
+  },
+  "risk_categories": {
+    "regulatory_legal": "Regulatory & Legal",
+    "info_security_data": "Information Security & Data",
+    "cyber_supply_chain": "Cyber / Supply Chain",
+    "operational_continuity": "Operational Continuity (BCP/DR)",
+    "service_quality": "Service Quality",
+    "financial": "Financial",
+    "strategic_reputational": "Strategic & Reputational",
+    "governance_oversight": "Governance & Oversight",
+    "technology_lockin": "Technology Lock-in",
+    "human_factor": "Human Factor",
+    "concentration": "Concentration Risk"
+  },
+  "risk_factors": {
+    "subtitle": "Record qualitative third‑party risk factors (no scoring in MVP).",
+    "empty": "No risk factors yet.",
+    "confirm_delete": "Delete this risk factor?",
+    "actions": {
+      "add": "Add risk factor",
+      "edit": "Edit risk factor",
+      "save": "Save"
+    },
+    "fields": {
+      "category": "Category",
+      "description": "Description",
+      "description_placeholder": "Describe the factor and any notes/evidence..."
+    }
+  },
+  "links": {
+    "actions": {
+      "manage": "Manage links"
+    },
+    "archived_risks": "Archived risks",
+    "archived_controls": "Archived controls",
+    "dialogs": {
+      "link_risks_title": "Link Risks to Vendor",
+      "link_controls_title": "Link Controls to Vendor"
+    },
+    "risks": {
+      "subtitle": "Connect the vendor to enterprise risks in the Risk Register.",
+      "empty": "No linked risks yet."
+    },
+    "controls": {
+      "subtitle": "Assign controls that mitigate vendor exposure.",
+      "empty": "No linked controls yet."
+    }
+  },
+  "form": {
+    "sections": {
+      "identity": "Identity",
+      "ownership": "Ownership & Scope",
+      "classification": "Classification"
+    },
+    "name": "Vendor Name",
+    "name_placeholder": "Acme Cloud Ltd.",
+    "legal_name": "Legal Name",
+    "registration_id": "Registration ID",
+    "country": "Country",
+    "website": "Website",
+    "description": "Description",
+    "department": "Department",
+    "department_placeholder": "Select department",
+    "owner": "Outsourcing Owner",
+    "owner_placeholder": "Select owner",
+    "process": "Process",
+    "process_placeholder": "IT",
+    "subprocess": "Subprocess",
+    "subprocess_placeholder": "Cloud Operations",
+    "risk_score": "Risk Score (1–5)",
+    "status": "Status",
+    "flags": "Flags",
+    "vendor_type": {
+      "label": "Vendor Type",
+      "ict": "ICT",
+      "outsourcing": "Outsourcing",
+      "professional_services": "Professional services",
+      "partner": "Partner",
+      "other": "Other"
+    },
+    "replaceability": {
+      "label": "Replaceability",
+      "placeholder": "Select",
+      "easy": "Easy",
+      "medium": "Medium",
+      "hard": "Hard"
+    },
+    "financial": {
+      "no_loss": "No financial loss"
+    }
+  },
+  "empty_state": {
+    "no_vendors": "No vendors found"
+  },
+  "errors": {
+    "title": "Error",
+    "try_again": "Try again",
+    "load_failed": "Failed to load vendors",
+    "save_failed": "Failed to save vendor",
+    "not_found": "Not found",
+    "vendor_not_found": "Vendor not found",
+    "name_required": "Vendor name is required",
+    "process_required": "Process is required",
+    "department_required": "Department is required",
+    "owner_required": "Outsourcing owner is required",
+    "score_required": "Risk score (1–5) is required"
+  },
+  "reports": {
+    "title": "Vendor Reports",
+    "subtitle": "Exports for annual vendor risk management reporting and DORA register.",
+    "not_authorized": "You do not have access to vendor reports.",
+    "annual": {
+      "title": "Annual Vendor Management Report",
+      "year": "Year",
+      "download_excel": "Download Excel"
+    },
+    "dora": {
+      "title": "DORA Register of Information",
+      "subtitle": "Export the minimum DORA register dataset for vendor arrangements.",
+      "download": "Download Excel"
+    }
+  }
 }

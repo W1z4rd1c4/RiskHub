@@ -48,7 +48,7 @@ export function DocumentationSettings() {
                             <h2 className="text-2xl font-bold text-white">{selectedDoc.title}</h2>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wider rounded">
-                                    User Guide
+                                    {t('documentation.user_guide')}
                                 </span>
                                 <span className="text-[10px] text-slate-500">v1.0.0</span>
                             </div>

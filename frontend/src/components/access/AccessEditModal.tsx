@@ -9,6 +9,7 @@ import { X, Shield, Building2, User, Loader2, Check, Crown } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '@/i18n/hooks';
 import { accessApi } from '@/services/accessApi';
+import { apiClient } from '@/services/apiClient';
 import { departmentApi } from '@/services/departmentApi';
 import { userApi } from '@/services/userApi';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -24,15 +25,15 @@ interface AccessEditModalProps {
     onSaved: () => void;
 }
 
-const SCOPE_OPTIONS: { value: AccessScopeEnum; label: string; description: string }[] = [
-    { value: 'global', label: 'Global', description: 'Full system access' },
-    { value: 'department', label: 'Department', description: "Access within user's department" },
-    { value: 'manager', label: 'Manager', description: 'Access to direct reports only' },
+const SCOPE_OPTIONS: { value: AccessScopeEnum; labelKey: string; descriptionKey: string }[] = [
+    { value: 'global', labelKey: 'admin:access.scopes.global', descriptionKey: 'admin:access.modal.scope_descriptions.global' },
+    { value: 'department', labelKey: 'admin:access.scopes.department', descriptionKey: 'admin:access.modal.scope_descriptions.department' },
+    { value: 'manager', labelKey: 'admin:access.scopes.manager', descriptionKey: 'admin:access.modal.scope_descriptions.manager' },
 ];
 
 export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditModalProps) {
     const { canManagePrivileged, canEditAccessUsers } = usePermissions();
-    const { t } = useTranslation('common');
+    const { t } = useTranslation(['common', 'admin', 'errorKeys']);
 
     const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
@@ -44,13 +45,13 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
     const [selectedScope, setSelectedScope] = useState<AccessScopeEnum>('manager');
 
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
 
     useEffect(() => {
         if (isOpen && user) {
             setIsInitialized(false);
-            setError(null);
+            setErrorKey(null);
             setSelectedRoleId(user.role_id);
             setSelectedDeptId(user.department_id);
             setSelectedManagerId(user.manager_id);
@@ -73,7 +74,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
             setTimeout(() => setIsInitialized(true), 100);
         } catch (err) {
             console.error('Failed to load data:', err);
-            setError('Failed to load configuration data');
+            setErrorKey('errorKeys.request_failed');
             setIsInitialized(true);
         }
     };
@@ -81,12 +82,12 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
     const handleSubmit = async () => {
         if (!user) return;
         if (!canEditAccessUsers) {
-            setError('Only Admin or CRO can update access settings');
+            setErrorKey('errorKeys.forbidden');
             return;
         }
 
         setIsSubmitting(true);
-        setError(null);
+        setErrorKey(null);
 
         try {
             const update: AccessUserUpdate = {};
@@ -109,7 +110,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
             onClose();
         } catch (err: unknown) {
             console.error('Failed to update user access:', err);
-            setError(err instanceof Error ? err.message : 'Failed to update access settings');
+            setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setIsSubmitting(false);
         }
@@ -149,7 +150,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                         <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
                             <div>
                                 <h3 className="text-xl font-bold text-white tracking-tight">
-                                    Edit Access Settings
+                                    {t('access.modal.title', { ns: 'admin' })}
                                 </h3>
                                 <p className="text-xs text-slate-500 font-medium">{user.name}</p>
                             </div>
@@ -178,7 +179,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                     <div className="space-y-3">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                             <Shield className="h-4 w-4 text-purple-400" />
-                                            Role
+                                            {t('common:labels.role')}
                                         </label>
                                         <div className="grid grid-cols-2 gap-2">
                                             {roles.map((role) => (
@@ -193,7 +194,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                                     <p className={`text-sm font-bold ${selectedRoleId === role.id ? 'text-purple-400' : 'text-white'}`}>
                                                         {role.display_name}
                                                     </p>
-                                                    <p className="text-[10px] text-slate-500">{role.permissions.length} permissions</p>
+                                                    <p className="text-[10px] text-slate-500">{t('access.modal.permissions_count', { ns: 'admin', count: role.permissions.length })}</p>
                                                 </button>
                                             ))}
                                         </div>
@@ -203,14 +204,14 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                     <div className="space-y-3">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                             <Building2 className="h-4 w-4 text-blue-400" />
-                                            Department
+                                            {t('common:labels.department')}
                                         </label>
                                         <ThemedSelect
                                             value={selectedDeptId?.toString() ?? ''}
                                             onValueChange={(v) => setSelectedDeptId(v ? Number(v) : null)}
-                                            placeholder="No department"
+                                            placeholder={t('access.table.no_department', { ns: 'admin' })}
                                             allowEmpty
-                                            emptyLabel="No department"
+                                            emptyLabel={t('access.table.no_department', { ns: 'admin' })}
                                             className="w-full"
                                             options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
                                         />
@@ -220,14 +221,14 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                     <div className="space-y-3">
                                         <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                             <User className="h-4 w-4 text-emerald-400" />
-                                            Reports To
+                                            {t('access.modal.reports_to', { ns: 'admin' })}
                                         </label>
                                         <ThemedSelect
                                             value={selectedManagerId?.toString() ?? ''}
                                             onValueChange={(v) => setSelectedManagerId(v ? Number(v) : null)}
-                                            placeholder="No manager (Top Level)"
+                                            placeholder={t('access.modal.no_manager_top_level', { ns: 'admin' })}
                                             allowEmpty
-                                            emptyLabel="No manager (Top Level)"
+                                            emptyLabel={t('access.modal.no_manager_top_level', { ns: 'admin' })}
                                             className="w-full"
                                             options={allUsers.map(u => ({ value: u.id.toString(), label: u.name }))}
                                         />
@@ -238,7 +239,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                         <div className="space-y-3">
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                 <Crown className="h-4 w-4 text-amber-400" />
-                                                Access Scope
+                                                {t('access.access_scope', { ns: 'admin' })}
                                             </label>
                                             <div className="space-y-2">
                                                 {SCOPE_OPTIONS.map((option) => (
@@ -256,9 +257,9 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                                         </div>
                                                         <div>
                                                             <p className={`text-sm font-bold ${selectedScope === option.value ? 'text-amber-400' : 'text-white'}`}>
-                                                                {option.label}
+                                                                {t(option.labelKey)}
                                                             </p>
-                                                            <p className="text-[10px] text-slate-500">{option.description}</p>
+                                                            <p className="text-[10px] text-slate-500">{t(option.descriptionKey)}</p>
                                                         </div>
                                                     </button>
                                                 ))}
@@ -271,9 +272,9 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
 
                         {/* Footer */}
                         <div className="p-6 border-t border-white/5 bg-white/5">
-                            {error && (
+                            {errorKey && (
                                 <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-[10px] font-bold uppercase tracking-wider">
-                                    {error}
+                                    {t(errorKey, { ns: 'errorKeys' })}
                                 </div>
                             )}
 
@@ -282,12 +283,12 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                     {hasChanges ? (
                                         <>
                                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                            Unsaved changes
+                                            {t('access.modal.unsaved_changes', { ns: 'admin' })}
                                         </>
                                     ) : (
                                         <>
                                             <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />
-                                            No changes
+                                            {t('access.modal.no_changes', { ns: 'admin' })}
                                         </>
                                     )}
                                 </span>
@@ -296,7 +297,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                         onClick={onClose}
                                         className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
                                     >
-                                        Cancel
+                                        {t('actions.cancel', { ns: 'common' })}
                                     </button>
                                     <button
                                         onClick={handleSubmit}
@@ -304,7 +305,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                         className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent text-white text-xs font-black uppercase tracking-widest rounded-xl hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-lg active:scale-95"
                                     >
                                         {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                                        {isSubmitting ? 'Saving...' : 'Save Changes'}
+                                        {isSubmitting ? t('loading.generic', { ns: 'common' }) : t('actions.save', { ns: 'common' })}
                                     </button>
                                 </div>
                             </div>
