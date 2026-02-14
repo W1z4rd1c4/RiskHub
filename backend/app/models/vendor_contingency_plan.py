@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy import Enum as SAEnum
@@ -11,7 +12,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 from app.models.vendor_exit_plan import VendorPlanStatus
 
-
+if TYPE_CHECKING:
+    from app.models.vendor import Vendor
 class VendorContingencyPlan(Base):
     __tablename__ = "vendor_contingency_plans"
 
@@ -53,7 +55,3 @@ class VendorContingencyPlan(Base):
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="contingency_plan", lazy="selectin")
 
     __table_args__ = (UniqueConstraint("vendor_id", name="uq_vendor_contingency_plans_vendor_id"),)
-
-
-from app.models.vendor import Vendor
-

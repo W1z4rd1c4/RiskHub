@@ -49,7 +49,7 @@ async def _users_by_roles(db: AsyncSession, roles: set[RoleType]) -> list[User]:
         select(User)
         .join(Role, User.role_id == Role.id)
         .options(permission_load)
-        .where(User.is_active == True)
+        .where(User.is_active.is_(True))
         .where(Role.name.in_(role_names))
     )
     result = await db.execute(stmt)
@@ -123,7 +123,7 @@ async def list_vendor_slas(
 
     stmt = select(VendorSLA).options(selectinload(VendorSLA.vendor), selectinload(VendorSLA.reporting_owner))
     if not include_archived:
-        stmt = stmt.where(VendorSLA.is_archived == False)
+        stmt = stmt.where(VendorSLA.is_archived.is_(False))
     if vendor_id is not None:
         stmt = stmt.where(VendorSLA.vendor_id == vendor_id)
     stmt = stmt.order_by(desc(VendorSLA.last_updated))
@@ -442,7 +442,7 @@ async def vendor_slas_due_soon(
     current_user: User = Depends(require_permission("vendors", "read")),
     vendor_id: int | None = None,
 ):
-    stmt = select(VendorSLA).where(VendorSLA.is_archived == False).options(selectinload(VendorSLA.vendor))
+    stmt = select(VendorSLA).where(VendorSLA.is_archived.is_(False)).options(selectinload(VendorSLA.vendor))
     if vendor_id is not None:
         stmt = stmt.where(VendorSLA.vendor_id == vendor_id)
     slas = (await db.execute(stmt)).scalars().all()
@@ -466,7 +466,7 @@ async def vendor_slas_overdue(
     current_user: User = Depends(require_permission("vendors", "read")),
     vendor_id: int | None = None,
 ):
-    stmt = select(VendorSLA).where(VendorSLA.is_archived == False).options(selectinload(VendorSLA.vendor))
+    stmt = select(VendorSLA).where(VendorSLA.is_archived.is_(False)).options(selectinload(VendorSLA.vendor))
     if vendor_id is not None:
         stmt = stmt.where(VendorSLA.vendor_id == vendor_id)
     slas = (await db.execute(stmt)).scalars().all()

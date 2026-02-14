@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class KRIDeadlineService:
     """Service for checking KRI deadlines and breach status, generating notifications."""
-    
+
     # Class-level defaults (used if DB config is unavailable)
     # These are now sourced from ConfigDefaults for consistency
     NEAR_BREACH_THRESHOLD = ConfigDefaults.NEAR_BREACH_THRESHOLD
@@ -28,7 +28,7 @@ class KRIDeadlineService:
     REPORTING_GRACE_DAYS = ConfigDefaults.REPORTING_GRACE_DAYS
     ADVANCE_REMINDER_DAYS = ConfigDefaults.ADVANCE_REMINDER_DAYS
     OVERDUE_REMINDER_WEEKS = ConfigDefaults.OVERDUE_REMINDER_WEEKS
-    
+
     @staticmethod
     async def _load_config(db: AsyncSession) -> dict:
         """Load notification timing config from database once."""
@@ -49,12 +49,12 @@ class KRIDeadlineService:
                 db, "overdue_reminder_weeks", ConfigDefaults.OVERDUE_REMINDER_WEEKS
             ),
         }
-    
+
     @staticmethod
     def _due_date(period_end: date) -> date:
         """Calculate due date for a period (period_end + grace days)."""
         return KRIHistoryService.due_date(period_end)
-    
+
     @staticmethod
     def _reporting_owner_id(kri: KeyRiskIndicator) -> int | None:
         """Get reporting owner, falling back to risk owner."""
@@ -63,7 +63,7 @@ class KRIDeadlineService:
         if kri.risk and kri.risk.owner_id:
             return kri.risk.owner_id
         return None
-    
+
     @staticmethod
     async def check_kri_deadlines(db: AsyncSession) -> dict[str, int]:
         """
@@ -73,14 +73,14 @@ class KRIDeadlineService:
         3. Overdue (every N weeks after due date if not updated)
         4. Near breach (value >= threshold towards upper limit)
         5. Breached (value exceeds limits)
-        
+
         Notification timing values are sourced from global_config.
-        
+
         Returns counts by notification type.
         """
         # Load config once at start
         config = await KRIDeadlineService._load_config(db)
-        
+
         results = {
             "due_soon": 0,
             "deadline": 0,
@@ -90,13 +90,13 @@ class KRIDeadlineService:
             "total_kris_checked": 0,
             "notifications_created": 0,
         }
-        
+
         today = date.today()
-        
+
         # Fetch all ACTIVE (non-archived) KRIs with their relationships
         stmt = (
             select(KeyRiskIndicator)
-            .where(KeyRiskIndicator.is_archived == False)
+            .where(KeyRiskIndicator.is_archived.is_(False))
             .options(
                 selectinload(KeyRiskIndicator.risk),
                 selectinload(KeyRiskIndicator.reporting_owner),
@@ -104,31 +104,31 @@ class KRIDeadlineService:
         )
         result = await db.execute(stmt)
         kris = result.scalars().all()
-        
+
         results["total_kris_checked"] = len(kris)
-        
+
         # Get all Risk Managers/CROs for escalation
         risk_managers = await KRIDeadlineService._get_risk_managers(db)
-        
+
         for kri in kris:
             try:
                 _, current_period_end = KRIHistoryService.period_bounds_for_date(today, kri.frequency)
                 _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, kri.frequency)
-                
+
                 if kri.last_period_end and kri.last_period_end >= latest_closed_end:
                     period_end = current_period_end
                 else:
                     period_end = latest_closed_end
-                
+
                 due = KRIDeadlineService._due_date(period_end)
                 reporting_owner = KRIDeadlineService._reporting_owner_id(kri)
-                
+
                 # Check if already reported for this period
                 already_reported = kri.last_period_end and kri.last_period_end >= period_end
-                
+
                 if not already_reported:
                     # === REPORTING DEADLINE CHECKS ===
-                    
+
                     # 1. Advance reminder (N days before period end)
                     advance_date = period_end - timedelta(days=config["advance_reminder_days"])
                     if today == advance_date:
@@ -146,7 +146,7 @@ class KRIDeadlineService:
                             )
                             results["notifications_created"] += 1
                             results["due_soon"] += 1
-                    
+
                     # 2. Deadline notification (on due date)
                     elif today == due:
                         if reporting_owner and not await KRIDeadlineService._check_duplicate_notification(
@@ -163,12 +163,12 @@ class KRIDeadlineService:
                             )
                             results["notifications_created"] += 1
                             results["deadline"] += 1
-                    
+
                     # 3. Overdue reminder (every N weeks after due date)
                     elif today > due:
                         days_overdue = (today - due).days
                         overdue_weeks = days_overdue // 7
-                        
+
                         # Send reminder every N weeks
                         if overdue_weeks > 0 and overdue_weeks % config["overdue_reminder_weeks"] == 0:
                             if reporting_owner and not await KRIDeadlineService._check_duplicate_notification(
@@ -185,10 +185,10 @@ class KRIDeadlineService:
                                 )
                                 results["notifications_created"] += 1
                                 results["overdue"] += 1
-                
+
                 # === BREACH CHECKS (existing logic) ===
                 breach_status = kri.breach_status
-                
+
                 if breach_status in ("above", "below"):
                     # KRI is breached - notify
                     if not await KRIDeadlineService._check_duplicate_notification(
@@ -206,7 +206,7 @@ class KRIDeadlineService:
                                 resource_id=kri.id,
                             )
                             results["notifications_created"] += 1
-                        
+
                         # Also notify risk managers for escalation
                         for rm in risk_managers:
                             if rm.id == owner_id:
@@ -223,15 +223,15 @@ class KRIDeadlineService:
                                     resource_id=kri.id,
                                 )
                                 results["notifications_created"] += 1
-                        
+
                         results["breached"] += 1
-                
+
                 else:
                     # Check if near breach (within configured threshold of upper limit)
                     range_size = kri.upper_limit - kri.lower_limit
                     if range_size > 0:
                         threshold_value = kri.lower_limit + (range_size * config["near_breach_threshold"])
-                        
+
                         if kri.current_value >= threshold_value:
                             if not await KRIDeadlineService._check_duplicate_notification(
                                 db, kri.id, NotificationType.KRI_NEAR_BREACH, lookback_days=config["duplicate_lookback_days"]
@@ -249,15 +249,15 @@ class KRIDeadlineService:
                                     )
                                     results["notifications_created"] += 1
                                     results["near_breach"] += 1
-                                    
+
             except Exception as e:
                 logger.error(f"Error checking KRI {kri.id}: {e}")
                 continue
-        
+
         await db.commit()
         logger.info(f"KRI deadline check complete: {results}")
         return results
-    
+
     @staticmethod
     async def _check_duplicate_notification(
         db: AsyncSession,
@@ -268,12 +268,12 @@ class KRIDeadlineService:
         """
         Check if a notification of the same type was sent for this KRI recently.
         Prevents spamming users with the same notification.
-        
+
         Returns True if duplicate exists (should skip), False if OK to send.
         """
         # Use naive datetime for SQLite compatibility (tests), PostgreSQL handles both
         cutoff_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=lookback_days)
-        
+
         stmt = (
             select(Notification)
             .where(
@@ -288,9 +288,9 @@ class KRIDeadlineService:
         )
         result = await db.execute(stmt)
         existing = result.scalar_one_or_none()
-        
+
         return existing is not None
-    
+
     @staticmethod
     async def _get_risk_managers(db: AsyncSession) -> list[User]:
         """Get all users with Risk Manager, CRO, or Admin roles for escalation."""
@@ -302,7 +302,7 @@ class KRIDeadlineService:
             select(User)
             .join(Role, User.role_id == Role.id)
             .options(permission_load)
-            .where(User.is_active == True)
+            .where(User.is_active.is_(True))
             .where(Role.name.in_(role_names))
         )
         result = await db.execute(stmt)

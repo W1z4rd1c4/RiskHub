@@ -134,7 +134,7 @@ class UserBriefForControl(BaseModel):
     id: int
     name: str
     email: str
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -143,7 +143,7 @@ class DepartmentBriefForControl(BaseModel):
     id: int
     name: str
     code: str
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -156,7 +156,7 @@ class ControlRead(ControlBase):
     updated_by_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -178,7 +178,7 @@ class ControlSummary(BaseModel):
     risk_name: Optional[str] = None
     risk_owner_name: Optional[str] = None
     risk_department_name: Optional[str] = None
-    
+
     model_config = {"from_attributes": True}
 
     @field_validator('frequency', mode='before')
@@ -218,5 +218,5 @@ class ControlExecutionRead(BaseModel):
     notes: Optional[str] = None
     next_scheduled: Optional[datetime] = None
     created_at: datetime
-    
+
     model_config = {"from_attributes": True}

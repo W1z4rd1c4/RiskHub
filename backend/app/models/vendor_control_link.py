@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.control import Control
+    from app.models.vendor import Vendor
 class VendorControlLink(Base):
     __tablename__ = "vendor_control_links"
 
@@ -23,8 +26,3 @@ class VendorControlLink(Base):
     __table_args__ = (
         UniqueConstraint("vendor_id", "control_id", name="uq_vendor_control_link"),
     )
-
-
-from app.models.control import Control
-from app.models.vendor import Vendor
-

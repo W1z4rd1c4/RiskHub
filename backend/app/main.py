@@ -71,7 +71,7 @@ async def lifespan(app: FastAPI):
     """Application lifecycle management."""
     # Startup
     logger.info("startup", message="RiskHub application starting")
-    
+
     # Apply log rotation settings from global configuration
     await _apply_log_rotation_config()
 
@@ -124,35 +124,35 @@ async def _apply_log_rotation_config():
 
         from app.db.session import async_session_maker
         from app.models.global_config import GlobalConfig
-        
+
         async with async_session_maker() as db:
             # Fetch app log settings
             app_size_result = await db.execute(
                 select(GlobalConfig).where(GlobalConfig.key == "app_log_rotation_size_mb")
             )
             app_size_config = app_size_result.scalar_one_or_none()
-            
+
             app_count_result = await db.execute(
                 select(GlobalConfig).where(GlobalConfig.key == "app_log_retention_count")
             )
             app_count_config = app_count_result.scalar_one_or_none()
-            
+
             # Fetch audit log settings
             audit_size_result = await db.execute(
                 select(GlobalConfig).where(GlobalConfig.key == "audit_log_rotation_size_mb")
             )
             audit_size_config = audit_size_result.scalar_one_or_none()
-            
+
             audit_count_result = await db.execute(
                 select(GlobalConfig).where(GlobalConfig.key == "audit_log_retention_count")
             )
             audit_count_config = audit_count_result.scalar_one_or_none()
-            
+
             app_rotation_size = int(app_size_config.value) if app_size_config else None
             app_retention = int(app_count_config.value) if app_count_config else None
             audit_rotation_size = int(audit_size_config.value) if audit_size_config else None
             audit_retention = int(audit_count_config.value) if audit_count_config else None
-            
+
             if any([app_rotation_size, app_retention, audit_rotation_size, audit_retention]):
                 configure_logging(
                     app_rotation_size_mb=app_rotation_size,

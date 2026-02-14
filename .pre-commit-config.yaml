@@ -27,10 +27,14 @@ repos:
 
   # Python linting
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4
+    rev: v0.6.9
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [--config=backend/ruff.toml, backend/app]
+      - id: ruff
+        name: Ruff (manual autofix)
+        args: [--config=backend/ruff.toml, --fix, backend/app]
+        stages: [manual]
 
   # Python security - Bandit
   - repo: https://github.com/PyCQA/bandit
@@ -54,5 +58,12 @@ repos:
         entry: npm run lint
         language: system
         files: \.(js|jsx|ts|tsx)$
+        pass_filenames: false
+        args: ["--prefix", "frontend"]
+      - id: frontend-debt-budget
+        name: Frontend Debt Budget
+        entry: npm run quality:debt
+        language: system
+        files: \.(ts|tsx)$
         pass_filenames: false
         args: ["--prefix", "frontend"]

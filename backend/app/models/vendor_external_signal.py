@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy import Enum as SAEnum
@@ -11,7 +12,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.vendor import Vendor
 class VendorExternalSignalStatus(str, PyEnum):
     ok = "ok"
     error = "error"
@@ -47,7 +49,3 @@ class VendorExternalSignal(Base):
     __table_args__ = (
         Index("ix_vendor_external_signals_vendor_provider_fetched", "vendor_id", "provider_key", "fetched_at"),
     )
-
-
-from app.models.vendor import Vendor
-

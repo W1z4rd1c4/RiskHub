@@ -90,7 +90,7 @@ async def _count_active_users_by_dept(db: AsyncSession) -> dict[int, int]:
     """Active user count per department."""
     result = await db.execute(
         select(User.department_id, func.count(User.id))
-        .where(User.is_active == True)
+        .where(User.is_active.is_(True))
         .group_by(User.department_id)
     )
     return dict(result.all())
@@ -108,7 +108,7 @@ async def _count_risks_by_dept(db: AsyncSession) -> dict[int, int]:
 
 async def _count_high_risks_by_dept(db: AsyncSession) -> dict[int, int]:
     """Non-archived risk count with net_score >= HIGH_RISK_MIN_NET_SCORE per department.
-    
+
     Uses ConfigDefaults.HIGH_RISK_MIN_NET_SCORE (10) for consistency with dashboard.
     """
     result = await db.execute(
@@ -182,13 +182,13 @@ async def list_departments(
     """
     # 1. Load visible departments
     active_dept_ids = select(User.department_id).where(
-        and_(User.department_id.isnot(None), User.is_active == True)
+        and_(User.department_id.isnot(None), User.is_active.is_(True))
     ).distinct()
 
     query = (
         select(Department)
-        .where(or_(Department.is_system == True, Department.id.in_(active_dept_ids)))
-        .where(Department.is_active == True)
+        .where(or_(Department.is_system.is_(True), Department.id.in_(active_dept_ids)))
+        .where(Department.is_active.is_(True))
         .order_by(Department.name)
     )
     dept_ids = _get_scoped_department_ids(current_user)
@@ -239,15 +239,15 @@ async def get_department(
     Metrics: risk_distribution uses RISK_LEVEL_RANGES; control_stats groups by form/frequency.
     """
     dept = await _assert_department_in_scope(department_id, db, current_user)
-    
+
     # Count active users only (consistent with list_departments)
     user_count_result = await db.execute(
         select(func.count(User.id)).where(
-            and_(User.department_id == department_id, User.is_active == True)
+            and_(User.department_id == department_id, User.is_active.is_(True))
         )
     )
     user_count = user_count_result.scalar() or 0
-    
+
     # Count risks
     risk_count_result = await db.execute(
         select(func.count(Risk.id)).where(
@@ -258,7 +258,7 @@ async def get_department(
         )
     )
     risk_count = risk_count_result.scalar() or 0
-    
+
     # Count controls (non-archived)
     control_count_result = await db.execute(
         select(func.count(Control.id)).where(
@@ -269,7 +269,7 @@ async def get_department(
         )
     )
     control_count = control_count_result.scalar() or 0
-    
+
     # Count KRIs (only from non-archived risks)
     kri_count_result = await db.execute(
         select(func.count(KeyRiskIndicator.id))
@@ -317,7 +317,7 @@ async def get_department(
         high=int(getattr(risk_distribution_row, "high") or 0),
         critical=int(getattr(risk_distribution_row, "critical") or 0),
     )
-    
+
     # Risk by status (single grouped query)
     risk_by_status_stmt = (
         select(Risk.status, func.count(Risk.id))
@@ -339,7 +339,7 @@ async def get_department(
         by_form={},
         by_frequency={}
     )
-    
+
     # Controls by status (single grouped query for the two statuses we expose)
     control_status_stmt = (
         select(Control.status, func.count(Control.id))
@@ -354,7 +354,7 @@ async def get_department(
     status_counts = {row[0]: row[1] for row in (await db.execute(control_status_stmt)).all()}
     control_stats.active = int(status_counts.get(ControlStatus.active.value, 0))
     control_stats.inactive = int(status_counts.get(ControlStatus.inactive.value, 0))
-    
+
     # Controls by form (single grouped query; preserves prior behavior including archived controls)
     control_form_stmt = (
         select(Control.control_form, func.count(Control.id))
@@ -362,7 +362,7 @@ async def get_department(
         .group_by(Control.control_form)
     )
     control_stats.by_form = {row[0]: row[1] for row in (await db.execute(control_form_stmt)).all() if row[0] and row[1] > 0}
-    
+
     # Controls by frequency (single grouped query; preserves prior behavior including archived controls)
     control_frequency_stmt = (
         select(Control.frequency, func.count(Control.id))
@@ -372,7 +372,7 @@ async def get_department(
     control_stats.by_frequency = {
         row[0]: row[1] for row in (await db.execute(control_frequency_stmt)).all() if row[0] and row[1] > 0
     }
-    
+
     # Recent executions
     exec_result = await db.execute(
         select(ControlExecution)
@@ -386,7 +386,7 @@ async def get_department(
         .limit(DEPARTMENT_RECENT_EXECUTIONS_LIMIT)
     )
     executions = exec_result.scalars().all()
-    
+
     recent_executions = [
         RecentExecution(
             id=ex.id,
@@ -398,7 +398,7 @@ async def get_department(
         )
         for ex in executions
     ]
-    
+
     return DepartmentDetail(
         id=dept.id,
         name=dept.name,
@@ -438,7 +438,7 @@ async def list_department_risks(
         raise HTTPException(status_code=403, detail="Permission denied: risks:read")
 
     await _assert_department_in_scope(department_id, db, current_user)
-    
+
     # Load risks with their KRIs eagerly
     query = (
         select(Risk)
@@ -449,21 +449,21 @@ async def list_department_risks(
         )
         .where(Risk.department_id == department_id)
     )
-    
+
     if status:
         query = query.where(Risk.status == status)
     else:
         query = query.where(Risk.status != RiskStatus.archived.value)
-    
+
     # Apply min_net_score filter for high-risk filtering
     if min_net_score is not None:
         query = query.where(Risk.net_score >= min_net_score)
-    
+
     query = query.offset(skip).limit(limit).order_by(Risk.risk_id_code)
-    
+
     result = await db.execute(query)
     risks = result.scalars().all()
-    
+
     return [risk_to_summary(r) for r in risks]
 
 
@@ -487,24 +487,24 @@ async def list_department_controls(
         raise HTTPException(status_code=403, detail="Permission denied: controls:read")
 
     await _assert_department_in_scope(department_id, db, current_user)
-    
+
     query = select(Control).where(Control.department_id == department_id)
-    
+
     if status:
         query = query.where(Control.status == status)
     else:
         # Default: exclude archived
         query = query.where(Control.status != ControlStatus.archived.value)
-    
+
     # Eager load relationships for ControlSummary fields
     query = query.options(
         selectinload(Control.department),
         selectinload(Control.control_owner)
     ).offset(skip).limit(limit).order_by(Control.name)
-    
+
     result = await db.execute(query)
     controls = result.scalars().all()
-    
+
     # Map to ControlSummary with populated fields
     return [
         ControlSummary(
@@ -542,7 +542,7 @@ async def list_department_kris(
         raise HTTPException(status_code=403, detail="Permission denied: risks:read")
 
     await _assert_department_in_scope(department_id, db, current_user)
-    
+
     # Query KRIs via Risk (exclude archived risks)
     query = (
         select(KeyRiskIndicator)
@@ -561,10 +561,10 @@ async def list_department_kris(
         .offset(skip)
         .limit(limit)
     )
-    
+
     result = await db.execute(query)
     kris = result.scalars().unique().all()
-    
+
     # Map to response with metadata (same logic as in kris.py)
     items = []
     for k in kris:
@@ -580,5 +580,5 @@ async def list_department_kris(
             if k.risk.department:
                 res.department_name = k.risk.department.name
         items.append(res)
-        
+
     return items

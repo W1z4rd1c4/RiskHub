@@ -38,12 +38,12 @@ async def list_orphaned_items(
 ):
     """
     List orphaned items requiring administrative attention.
-    
+
     Returns orphaned risks/controls with details about the item and previous owner.
     Admin or CRO role required.
     """
     _require_admin_or_cro(current_user)
-    
+
     orphans = await OrphanedItemService.get_pending_orphans_with_details(
         db=db,
         item_type=item_type,
@@ -74,7 +74,7 @@ async def get_orphan_stats(
 ):
     """
     Get statistics about orphaned items.
-    
+
     Returns counts by type and status for dashboard widgets.
     Any authenticated user can view stats.
     """
@@ -90,15 +90,15 @@ async def get_orphan_detail(
 ):
     """
     Get detailed information about a specific orphaned item.
-    
+
     Admin or CRO role required.
     """
     _require_admin_or_cro(current_user)
-    
+
     orphan = await OrphanedItemService.get_orphan_detail(db, orphan_id)
     if not orphan:
         raise HTTPException(status_code=404, detail="Orphaned item not found")
-    
+
     return orphan
 
 
@@ -111,13 +111,13 @@ async def resolve_orphan(
 ):
     """
     Resolve an orphaned item by assigning a new owner.
-    
+
     Updates the underlying risk/control's owner and marks the orphan as resolved.
     Admin role required.
     """
     if not can_manage_users(current_user):
         raise HTTPException(status_code=403, detail="Admin role required")
-    
+
     try:
         orphan = await OrphanedItemService.resolve_orphan(
             db=db,
@@ -127,12 +127,12 @@ async def resolve_orphan(
             department_id=body.department_id,
             target_risk_id=body.target_risk_id,
         )
-        
+
         return {
             "status": "resolved",
             "orphan_id": orphan.id,
             "new_owner_id": body.new_owner_id,
         }
-        
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

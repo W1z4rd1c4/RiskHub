@@ -113,7 +113,7 @@ lint-frontend:
 
 # Run backend lint
 lint-backend:
-	cd backend && ./venv/bin/python -m ruff check .
+	cd backend && ./venv/bin/python -m ruff check app
 
 # Run full lint suite
 lint: lint-frontend lint-backend

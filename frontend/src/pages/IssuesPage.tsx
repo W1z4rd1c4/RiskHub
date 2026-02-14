@@ -368,6 +368,7 @@ export function IssuesPage() {
                         <button
                             type="button"
                             onClick={() => navigate('/issues/new')}
+                            data-testid="issues-create-button"
                             className="btn-primary"
                         >
                             <Plus className="h-5 w-5" />

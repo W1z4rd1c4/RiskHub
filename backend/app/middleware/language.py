@@ -21,18 +21,18 @@ from app.i18n import DEFAULT_LOCALE, get_locale_from_header
 class LanguageMiddleware(BaseHTTPMiddleware):
     """
     Middleware to detect and set the request language.
-    
+
     The detected locale is stored in request.state.locale and can be
     accessed by endpoints to return translated responses.
     """
-    
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Get Accept-Language header
         accept_language = request.headers.get('Accept-Language', '')
-        
+
         # Detect locale from header
         locale = get_locale_from_header(accept_language)
-        
+
         # TODO: Check user preference if authenticated
         # This would require access to the current user, which may not be
         # available at middleware level. Could be implemented as:
@@ -40,24 +40,24 @@ class LanguageMiddleware(BaseHTTPMiddleware):
         #       user_locale = request.state.user.preferred_language
         #       if user_locale:
         #           locale = user_locale
-        
+
         # Store locale in request state for endpoint access
         request.state.locale = locale
-        
+
         # Process request and add Content-Language header to response
         response = await call_next(request)
         response.headers['Content-Language'] = locale
-        
+
         return response
 
 
 def get_request_locale(request: Request) -> str:
     """
     Get the locale from the request state.
-    
+
     Args:
         request: The Starlette/FastAPI request object
-        
+
     Returns:
         The detected locale code (e.g., 'en', 'cs')
     """

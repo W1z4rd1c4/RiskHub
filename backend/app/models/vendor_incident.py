@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy import Enum as SAEnum
@@ -11,7 +12,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.vendor import Vendor
 class VendorIncidentType(str, PyEnum):
     security = "security"
     operational = "operational"
@@ -74,6 +76,3 @@ class VendorIncident(Base):
     __table_args__ = (
         Index("ix_vendor_incidents_vendor_major", "vendor_id", "is_major"),
     )
-
-
-from app.models.vendor import Vendor

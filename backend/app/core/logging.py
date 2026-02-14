@@ -59,7 +59,7 @@ class NonAuditFilter(logging.Filter):
 def get_log_settings() -> tuple[int, int, int, int]:
     """
     Get log rotation settings from Risk Hub config or defaults.
-    
+
     Returns:
         Tuple of (app_size_bytes, app_count, audit_size_bytes, audit_count)
     """
@@ -95,7 +95,7 @@ def configure_logging(
 ) -> structlog.BoundLogger:
     """
     Configure structlog with JSON rendering and dual file output.
-    
+
     Args:
         log_level: Minimum log level (DEBUG, INFO, WARNING, ERROR)
         json_console: Whether to render JSON to console (True for prod)
@@ -103,17 +103,17 @@ def configure_logging(
         app_retention_count: Number of app backup files to keep (default from config)
         audit_rotation_size_mb: Max size per audit log file in MB (default from config)
         audit_retention_count: Number of audit backup files to keep (default from config)
-    
+
     Returns:
         Configured structlog logger
     """
     # Ensure logs directory exists
     log_dir = Path(__file__).parent.parent.parent / "logs"
     log_dir.mkdir(exist_ok=True)
-    
+
     app_log_file = str(log_dir / "app.json.log")
     audit_log_file = str(log_dir / "audit.json.log")
-    
+
     # Get rotation settings (separate for app and audit handlers)
     default_app_size, default_app_count, default_audit_size, default_audit_count = get_log_settings()
 
@@ -128,15 +128,15 @@ def configure_logging(
             app_retention_count = retention_count
         if audit_retention_count is None:
             audit_retention_count = retention_count
-    
+
     # App handler settings
     app_size_bytes = (app_rotation_size_mb * 1024 * 1024) if app_rotation_size_mb else default_app_size
     app_backup_count = app_retention_count if app_retention_count else default_app_count
-    
+
     # Audit handler settings
     audit_size_bytes = (audit_rotation_size_mb * 1024 * 1024) if audit_rotation_size_mb else default_audit_size
     audit_backup_count = audit_retention_count if audit_retention_count else default_audit_count
-    
+
     # Shared processors for both structlog and stdlib logging
     shared_processors: list[structlog.types.Processor] = [
         structlog.stdlib.add_log_level,
@@ -146,7 +146,7 @@ def configure_logging(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.UnicodeDecoder(),
     ]
-    
+
     # Configure structlog
     structlog.configure(
         processors=shared_processors + [
@@ -156,7 +156,7 @@ def configure_logging(
         wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
-    
+
     # JSON formatter for file handlers
     json_formatter = structlog.stdlib.ProcessorFormatter(
         foreign_pre_chain=shared_processors,
@@ -165,7 +165,7 @@ def configure_logging(
             structlog.processors.JSONRenderer(),
         ],
     )
-    
+
     # Console formatter (JSON or pretty based on env)
     console_formatter = structlog.stdlib.ProcessorFormatter(
         foreign_pre_chain=shared_processors,
@@ -174,7 +174,7 @@ def configure_logging(
             structlog.dev.ConsoleRenderer() if not json_console else structlog.processors.JSONRenderer(),
         ],
     )
-    
+
     # App file handler - general logs (excludes audit)
     app_handler = logging.handlers.RotatingFileHandler(
         app_log_file,
@@ -185,7 +185,7 @@ def configure_logging(
     app_handler.setFormatter(json_formatter)
     app_handler.setLevel(logging.DEBUG)
     app_handler.addFilter(NonAuditFilter())  # Exclude audit events
-    
+
     # Audit file handler - security/audit events only
     audit_handler = logging.handlers.RotatingFileHandler(
         audit_log_file,
@@ -196,30 +196,30 @@ def configure_logging(
     audit_handler.setFormatter(json_formatter)
     audit_handler.setLevel(logging.DEBUG)
     audit_handler.addFilter(AuditFilter())  # Only audit events
-    
+
     # Console handler (all logs)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(console_formatter)
     console_handler.setLevel(getattr(logging, log_level.upper()))
-    
+
     # Configure root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG)
-    
+
     # Remove existing handlers to avoid duplicates on reload
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-    
+
     root_logger.addHandler(app_handler)
     root_logger.addHandler(audit_handler)
     root_logger.addHandler(console_handler)
-    
+
     # Adjust uvicorn loggers to use same format
     for logger_name in ["uvicorn", "uvicorn.access", "uvicorn.error"]:
         uvicorn_logger = logging.getLogger(logger_name)
         uvicorn_logger.handlers = []
         uvicorn_logger.propagate = True
-    
+
     # Get a structlog logger to return
     return structlog.get_logger("riskhub")
 
@@ -244,7 +244,7 @@ def get_audit_logger() -> structlog.BoundLogger:
 def get_log_directory() -> Path:
     """
     Get the log directory path used by configure_logging().
-    
+
     This is the single source of truth for log file locations.
     Returns:
         Path to the logs directory (backend/logs/)
@@ -255,42 +255,42 @@ def get_log_directory() -> Path:
 def tail_log_file(log_path: Path, line_count: int = 100) -> tuple[list[str], int]:
     """
     Efficiently read the last N lines from a log file.
-    
+
     Uses reverse reading to avoid scanning the entire file.
-    
+
     Args:
         log_path: Path to the log file
         line_count: Number of lines to retrieve
-    
+
     Returns:
         Tuple of (list of lines, total line count estimate)
     """
     if not log_path.exists():
         return [], 0
-    
+
     lines: list[str] = []
     file_size = log_path.stat().st_size
-    
+
     if file_size == 0:
         return [], 0
-    
+
     # Read in chunks from the end
     chunk_size = 8192
     buffer = ""
-    
+
     with open(log_path, "rb") as f:
         # Start from end
         remaining = file_size
-        
+
         while remaining > 0 and len(lines) < line_count:
             # Read chunk
             read_size = min(chunk_size, remaining)
             remaining -= read_size
             f.seek(remaining)
             chunk = f.read(read_size).decode("utf-8", errors="replace")
-            
+
             buffer = chunk + buffer
-            
+
             # Extract complete lines
             while "\n" in buffer and len(lines) < line_count:
                 last_newline = buffer.rfind("\n")
@@ -311,18 +311,18 @@ def tail_log_file(log_path: Path, line_count: int = 100) -> tuple[list[str], int
                     buffer = buffer[:last_newline + 1]
                     if line.strip():
                         lines.append(line)
-    
+
     # Add any remaining content
     if buffer.strip() and len(lines) < line_count:
         for line in buffer.strip().split("\n"):
             if line.strip() and len(lines) < line_count:
                 lines.append(line)
-    
+
     # Reverse to get chronological order (oldest first)
     lines.reverse()
-    
+
     # Estimate total lines (rough approximation)
     avg_line_size = file_size / max(len(lines), 1) if lines else 100
     total_estimate = int(file_size / avg_line_size) if avg_line_size > 0 else 0
-    
+
     return lines[-line_count:], total_estimate

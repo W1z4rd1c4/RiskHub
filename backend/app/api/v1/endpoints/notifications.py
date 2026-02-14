@@ -47,29 +47,29 @@ async def list_notifications(
     """
     # Base query for user's notifications
     base_query = select(Notification).where(Notification.user_id == current_user.id)
-    
+
     # Filter unread only if requested
     if unread_only:
-        base_query = base_query.where(Notification.is_read == False)
-    
+        base_query = base_query.where(Notification.is_read.is_(False))
+
     # Count total
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Count unread (always returned regardless of filter)
     unread_count_query = select(func.count()).where(
         Notification.user_id == current_user.id,
-        Notification.is_read == False
+        Notification.is_read.is_(False)
     )
     unread_result = await db.execute(unread_count_query)
     unread_count = unread_result.scalar() or 0
-    
+
     # Fetch with pagination
     query = base_query.offset(skip).limit(limit).order_by(Notification.created_at.desc())
     result = await db.execute(query)
     notifications = result.scalars().all()
-    
+
     return NotificationListResponse(
         items=[_build_notification_read(n) for n in notifications],
         total=total,
@@ -90,7 +90,7 @@ async def get_unread_count(
     result = await db.execute(
         select(func.count()).where(
             Notification.user_id == current_user.id,
-            Notification.is_read == False
+            Notification.is_read.is_(False)
         )
     )
     count = result.scalar() or 0
@@ -120,10 +120,10 @@ async def update_notification_preferences(
     # Merge with update (only non-None fields)
     updates = {k: v for k, v in preferences.model_dump().items() if v is not None}
     new_prefs = {**existing, **updates}
-    
+
     current_user.notification_preferences = new_prefs
     await db.commit()
-    
+
     defaults = NotificationPreferences()
     return NotificationPreferences(**{**defaults.model_dump(), **new_prefs})
 
@@ -143,22 +143,22 @@ async def mark_as_read(
         select(Notification).where(Notification.id == notification_id)
     )
     notification = result.scalar_one_or_none()
-    
+
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
-    
+
     # Security: only owner can mark as read
     if notification.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Notification not found")
-    
+
     notification.is_read = True
     await db.commit()
-    
+
     # Return current unread count for UI sync
     count_result = await db.execute(
         select(func.count()).where(
             Notification.user_id == current_user.id,
-            Notification.is_read == False
+            Notification.is_read.is_(False)
         )
     )
     unread_count = count_result.scalar() or 0
@@ -177,7 +177,7 @@ async def mark_all_as_read(
         update(Notification)
         .where(
             Notification.user_id == current_user.id,
-            Notification.is_read == False
+            Notification.is_read.is_(False)
         )
         .values(is_read=True)
     )
@@ -199,7 +199,7 @@ async def trigger_kri_deadline_check(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Only Admin, CRO, or Risk Manager can trigger."
         )
-    
+
     result = await KRIDeadlineService.check_kri_deadlines(db)
     return {"status": "completed", "results": result}
 
