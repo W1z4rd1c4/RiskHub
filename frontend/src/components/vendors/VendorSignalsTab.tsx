@@ -55,17 +55,17 @@ export function VendorSignalsTab({ vendorId, canRefresh }: VendorSignalsTabProps
                 <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         <Radar className="h-4 w-4" />
-                        {t('tabs.signals', 'Signals')}
+                        {t('tabs.signals')}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('signals.subtitle', 'Optional external signals for vendor monitoring.')}
+                        {t('signals.subtitle')}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={refresh}
                         className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                        title={t('actions.refresh', 'Refresh')}
+                        title={t('actions.refresh')}
                     >
                         <RefreshCcw className="h-4 w-4 text-slate-300" />
                     </button>
@@ -85,7 +85,7 @@ export function VendorSignalsTab({ vendorId, canRefresh }: VendorSignalsTabProps
                             disabled={isRefreshing}
                             className="px-4 py-2 bg-accent/20 border border-accent/30 text-accent rounded-xl font-bold hover:bg-accent/30 transition-colors disabled:opacity-60"
                         >
-                            {isRefreshing ? t('signals.actions.refreshing', 'Refreshing...') : t('signals.actions.refresh', 'Refresh signals')}
+                            {isRefreshing ? t('signals.actions.refreshing') : t('signals.actions.refresh')}
                         </button>
                     )}
                 </div>
@@ -94,10 +94,10 @@ export function VendorSignalsTab({ vendorId, canRefresh }: VendorSignalsTabProps
             {isLoading ? (
                 <div className="flex items-center gap-3 text-slate-500 font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('labels.loading', 'Loading...')}
+                    {t('labels.loading')}
                 </div>
             ) : grouped.length === 0 ? (
-                <p className="text-sm text-slate-500 font-medium">{t('signals.empty', 'No signals yet.')}</p>
+                <p className="text-sm text-slate-500 font-medium">{t('signals.empty')}</p>
             ) : (
                 <div className="space-y-4">
                     {grouped.map((g) => (
@@ -107,7 +107,7 @@ export function VendorSignalsTab({ vendorId, canRefresh }: VendorSignalsTabProps
                                     <p className="text-sm text-white font-bold">{g.provider}</p>
                                     {g.latest && (
                                         <p className="text-xs text-slate-500 font-medium">
-                                            {t('signals.last_fetched', 'Last fetched')}: {new Date(g.latest.fetched_at).toLocaleString()}
+                                            {t('signals.last_fetched')}: {new Date(g.latest.fetched_at).toLocaleString()}
                                         </p>
                                     )}
                                 </div>
@@ -125,7 +125,7 @@ export function VendorSignalsTab({ vendorId, canRefresh }: VendorSignalsTabProps
 
                             <details className="pt-2">
                                 <summary className="cursor-pointer text-sm text-slate-300 font-bold">
-                                    {t('signals.details', 'Details')}
+                                    {t('signals.details')}
                                 </summary>
                                 <div className="mt-2 space-y-3">
                                     {g.items.slice(0, 5).map((s) => (

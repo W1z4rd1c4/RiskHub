@@ -43,7 +43,7 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative w-full max-w-2xl bg-[#0B1121] border border-white/10 rounded-2xl overflow-hidden flex flex-col shadow-2xl"
+                        className="relative w-full max-w-2xl glass-card !p-0 overflow-hidden flex flex-col shadow-2xl"
                     >
                         {/* Header */}
                         <div className="p-6 border-b border-white/10 bg-white/5 flex items-start justify-between">

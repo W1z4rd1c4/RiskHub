@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCircle, AlertCircle, Clock, AlertTriangle, Check, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+import { useFormattedDate, useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
 
@@ -30,24 +30,6 @@ function getNotificationIcon(type: NotificationType, size: 'sm' | 'md' = 'md') {
 }
 
 /**
- * Format relative time.
- */
-function formatTimeAgo(dateString: string): string {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
-}
-
-/**
  * Get navigation path for notification resource.
  */
 function getResourcePath(resourceType?: string, resourceId?: number): string | null {
@@ -69,7 +51,9 @@ function getResourcePath(resourceType?: string, resourceId?: number): string | n
 
 export function NotificationsPage() {
     const navigate = useNavigate();
-    const { t } = useTranslation('common');
+    const { t } = useTranslation('notifications');
+    const { t: tCommon } = useTranslation('common');
+    const { formatRelativeDate } = useFormattedDate();
     const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [total, setTotal] = useState(0);
@@ -78,7 +62,7 @@ export function NotificationsPage() {
     const [page, setPage] = useState(0);
     const limit = 20;
 
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async () => {
         setLoading(true);
         try {
             const response = await notificationsApi.list({
@@ -94,11 +78,11 @@ export function NotificationsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeTab, limit, page]);
 
     useEffect(() => {
         fetchNotifications();
-    }, [activeTab, page]);
+    }, [fetchNotifications]);
 
     const handleNotificationClick = async (notification: Notification) => {
         // Mark as read
@@ -138,9 +122,9 @@ export function NotificationsPage() {
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-white font-heading">Notifications</h1>
+                    <h1 className="text-3xl font-bold text-white font-heading">{t('title')}</h1>
                     <p className="text-slate-400 mt-1">
-                        {unreadCount > 0 ? `${unreadCount} ${t('labels.all').toLowerCase()} ${t('labels.all').toLowerCase() === 'all' ? 'unread' : ''}`.replace('all ', '') : t('empty.all_caught_up')}
+                        {unreadCount > 0 ? t('subtitle.unread_count', { count: unreadCount }) : tCommon('empty.all_caught_up')}
                     </p>
                 </div>
                 {unreadCount > 0 && (
@@ -149,7 +133,7 @@ export function NotificationsPage() {
                         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent/10 text-accent hover:bg-accent/20 transition-colors text-sm font-medium"
                     >
                         <Check className="h-4 w-4" />
-                        {t('actions.mark_all_read')}
+                        {tCommon('actions.mark_all_read')}
                     </button>
                 )}
             </div>
@@ -163,7 +147,7 @@ export function NotificationsPage() {
                         : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                         }`}
                 >
-                    All
+                    {t('tabs.all')}
                 </button>
                 <button
                     onClick={() => { setActiveTab('unread'); setPage(0); }}
@@ -172,7 +156,7 @@ export function NotificationsPage() {
                         : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                         }`}
                 >
-                    Unread
+                    {t('tabs.unread')}
                     {unreadCount > 0 && (
                         <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                             {unreadCount}
@@ -184,13 +168,13 @@ export function NotificationsPage() {
             {/* Notification List */}
             <div className="glass-card overflow-hidden">
                 {loading ? (
-                    <div className="p-8 text-center text-slate-400">{t('loading.generic')}</div>
+                    <div className="p-8 text-center text-slate-400">{tCommon('loading.generic')}</div>
                 ) : notifications.length === 0 ? (
                     <div className="p-12 text-center text-slate-400">
                         <Bell className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                        <p className="text-lg font-medium text-white">{t('empty.no_notifications')}</p>
+                        <p className="text-lg font-medium text-white">{tCommon('empty.no_notifications')}</p>
                         <p className="text-sm mt-1">
-                            {activeTab === 'unread' ? t('empty.all_caught_up') : t('empty.nothing_to_show')}
+                            {activeTab === 'unread' ? tCommon('empty.all_caught_up') : tCommon('empty.nothing_to_show')}
                         </p>
                     </div>
                 ) : (
@@ -216,7 +200,7 @@ export function NotificationsPage() {
                                                 <span className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
                                             )}
                                             <span className="text-xs text-slate-500 ml-auto">
-                                                {formatTimeAgo(notification.created_at)}
+                                                {formatRelativeDate(notification.created_at)}
                                             </span>
                                         </div>
                                         <p className="text-sm text-slate-400">
@@ -241,7 +225,7 @@ export function NotificationsPage() {
                         <ChevronLeft className="h-5 w-5" />
                     </button>
                     <span className="text-sm text-slate-400">
-                        Page {page + 1} of {totalPages}
+                        {t('pagination.page_of', { page: page + 1, total: totalPages })}
                     </span>
                     <button
                         onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}

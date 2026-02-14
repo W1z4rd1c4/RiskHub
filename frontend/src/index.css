@@ -374,6 +374,32 @@
   background-color: rgba(0, 0, 0, 0.08) !important;
 }
 
+/* Light theme - Hover text colors (prevent white-on-white) */
+.theme-light .hover\:text-white:hover {
+  color: #0f172a !important;
+}
+
+.theme-light .group:hover .group-hover\:text-white {
+  color: #0f172a !important;
+}
+
+.theme-light .text-white\/60 {
+  color: rgba(15, 23, 42, 0.6) !important;
+}
+
+.theme-light .text-white\/70 {
+  color: rgba(15, 23, 42, 0.7) !important;
+}
+
+.theme-light .text-white\/80 {
+  color: rgba(15, 23, 42, 0.8) !important;
+}
+
+/* Exception: accent-hover buttons should keep white text on hover */
+.theme-light .hover\:bg-accent:hover.hover\:text-white:hover {
+  color: #ffffff !important;
+}
+
 /* Light theme - Scrollbar */
 .theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
   background-color: rgba(0, 0, 0, 0.2) !important;

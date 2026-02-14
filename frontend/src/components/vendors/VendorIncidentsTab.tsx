@@ -45,21 +45,21 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
 
     const typeOptions = useMemo(
         () => [
-            { value: 'security', label: t('incidents.type.security', 'Security') },
-            { value: 'operational', label: t('incidents.type.operational', 'Operational') },
-            { value: 'regulatory_breach', label: t('incidents.type.regulatory_breach', 'Regulatory breach') },
-            { value: 'contract_breach', label: t('incidents.type.contract_breach', 'Contract breach') },
-            { value: 'other', label: t('incidents.type.other', 'Other') },
+            { value: 'security', label: t('incidents.type.security') },
+            { value: 'operational', label: t('incidents.type.operational') },
+            { value: 'regulatory_breach', label: t('incidents.type.regulatory_breach') },
+            { value: 'contract_breach', label: t('incidents.type.contract_breach') },
+            { value: 'other', label: t('incidents.type.other') },
         ],
         [t],
     );
 
     const severityOptions = useMemo(
         () => [
-            { value: 'low', label: t('incidents.severity.low', 'Low') },
-            { value: 'medium', label: t('incidents.severity.medium', 'Medium') },
-            { value: 'high', label: t('incidents.severity.high', 'High') },
-            { value: 'critical', label: t('incidents.severity.critical', 'Critical') },
+            { value: 'low', label: t('incidents.severity.low') },
+            { value: 'medium', label: t('incidents.severity.medium') },
+            { value: 'high', label: t('incidents.severity.high') },
+            { value: 'critical', label: t('incidents.severity.critical') },
         ],
         [t],
     );
@@ -94,10 +94,10 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
                 <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         <AlertOctagon className="h-4 w-4" />
-                        {t('tabs.incidents', 'Incidents')}
+                        {t('tabs.incidents')}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('incidents.subtitle', 'Record vendor incidents and major breaches.')}
+                        {t('incidents.subtitle')}
                     </p>
                 </div>
 
@@ -107,7 +107,7 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
                         className="px-4 py-2 bg-accent/20 border border-accent/30 text-accent rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2"
                     >
                         <Plus className="h-4 w-4" />
-                        {t('incidents.actions.add', 'Add incident')}
+                        {t('incidents.actions.add')}
                     </button>
                 )}
             </div>
@@ -120,20 +120,20 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
                     </div>
                     <label className="flex items-center gap-2 text-sm text-slate-200 font-medium">
                         <input type="checkbox" checked={isMajor} onChange={(e) => setIsMajor(e.target.checked)} />
-                        {t('incidents.fields.is_major', 'Major incident')}
+                        {t('incidents.fields.is_major')}
                     </label>
                     <input
                         value={summary}
                         onChange={(e) => setSummary(e.target.value)}
                         className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400"
-                        placeholder={t('incidents.fields.summary', 'Summary')}
+                        placeholder={t('incidents.fields.summary')}
                     />
                     <textarea
                         value={details}
                         onChange={(e) => setDetails(e.target.value)}
                         rows={3}
                         className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400"
-                        placeholder={t('incidents.fields.details', 'Details (optional)')}
+                        placeholder={t('incidents.fields.details')}
                     />
                     <div className="flex justify-end">
                         <button
@@ -142,7 +142,7 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
                             className="px-4 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/90 transition-colors disabled:opacity-60 flex items-center gap-2"
                         >
                             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                            {t('incidents.actions.save', 'Save')}
+                            {t('incidents.actions.save')}
                         </button>
                     </div>
                 </div>
@@ -151,10 +151,10 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
             {isLoading ? (
                 <div className="flex items-center gap-3 text-slate-500 font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('labels.loading', 'Loading...')}
+                    {t('labels.loading')}
                 </div>
             ) : items.length === 0 ? (
-                <p className="text-sm text-slate-500 font-medium">{t('incidents.empty', 'No incidents yet.')}</p>
+                <p className="text-sm text-slate-500 font-medium">{t('incidents.empty')}</p>
             ) : (
                 <div className="space-y-3">
                     {items.map((i) => (
@@ -167,7 +167,7 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
                                     {canEdit && (
                                         <button
                                             onClick={async () => {
-                                                if (!confirm(t('incidents.confirm_delete', 'Delete this incident?'))) return;
+                                                if (!confirm(t('incidents.confirm_delete'))) return;
                                                 await vendorIncidentApi.deleteIncident(i.id);
                                                 await refresh();
                                             }}

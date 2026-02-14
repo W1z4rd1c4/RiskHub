@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import {
     Users,
@@ -47,14 +47,7 @@ export function UsersPage() {
         directoryUsers: directoryUsers,
     });
 
-    useEffect(() => {
-        // Wait for user to be loaded before fetching
-        if (currentUser) {
-            fetchUsers();
-        }
-    }, [authz.canManageAccess, isDepartmentHead, currentUser]);
-
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         try {
             setIsLoading(true);
             if (authz.canManageAccess) {
@@ -78,7 +71,14 @@ export function UsersPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [authz.canManageAccess, isDepartmentHead]);
+
+    useEffect(() => {
+        // Wait for user to be loaded before fetching
+        if (currentUser) {
+            fetchUsers();
+        }
+    }, [currentUser, fetchUsers]);
 
     const handleToggleClick = (user: AccessUserRead) => {
         setUserToToggle(user);
@@ -231,9 +231,12 @@ export function UsersPage() {
                 isOpen={confirmDialogOpen}
                 onClose={() => { setConfirmDialogOpen(false); setUserToToggle(null); }}
                 onConfirm={toggleUserStatus}
-                title={userToToggle?.is_active ? 'Deactivate User' : 'Reactivate User'}
-                message={`Are you sure you want to ${userToToggle?.is_active ? 'deactivate' : 'reactivate'} ${userToToggle?.name}?`}
-                confirmLabel={userToToggle?.is_active ? 'Deactivate' : 'Reactivate'}
+                title={userToToggle?.is_active ? t('access.confirmation.deactivate_user_title') : t('access.confirmation.reactivate_user_title')}
+                message={t('access.confirmation.toggle_user_message', {
+                    action: userToToggle?.is_active ? t('access.actions.deactivate') : t('access.actions.reactivate'),
+                    name: userToToggle?.name ?? '',
+                })}
+                confirmLabel={userToToggle?.is_active ? t('access.actions.deactivate') : t('access.actions.reactivate')}
                 variant={userToToggle?.is_active ? 'danger' : 'info'}
                 isLoading={isToggling}
             />

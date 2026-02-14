@@ -1,0 +1,17 @@
+{
+  "title": "Notifications",
+  "subtitle": {
+    "unread_count": "{{count}} unread"
+  },
+  "tabs": {
+    "all": "All",
+    "unread": "Unread"
+  },
+  "pagination": {
+    "page_of": "Page {{page}} of {{total}}"
+  },
+  "aria": {
+    "bell": "Notifications"
+  }
+}
+

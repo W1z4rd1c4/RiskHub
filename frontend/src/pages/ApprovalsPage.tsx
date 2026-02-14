@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '@/i18n/hooks';
@@ -41,11 +41,10 @@ export default function ApprovalsPage() {
     // Expanded rows state (for edits)
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
-    const fetchApprovals = async () => {
+    const fetchApprovals = useCallback(async () => {
         try {
             setLoading(true);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const params: any = { limit: 100 }; // Fetch mostly everything for now
+            const params: { limit: number; status?: 'pending'; my_requests?: boolean } = { limit: 100 };
 
             if (filter === 'pending') {
                 params.status = 'pending';
@@ -69,14 +68,14 @@ export default function ApprovalsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filter, canResolve]);
 
     useEffect(() => {
         if (filter === 'risk_assessment') return;
         fetchApprovals();
-    }, [filter, canResolve]);
+    }, [filter, fetchApprovals]);
 
-    const fetchQuestionnaires = async () => {
+    const fetchQuestionnaires = useCallback(async () => {
         try {
             setQuestionnairesLoading(true);
             const items = await riskQuestionnairesApi.inbox();
@@ -86,13 +85,12 @@ export default function ApprovalsPage() {
         } finally {
             setQuestionnairesLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         if (filter !== 'risk_assessment') return;
         fetchQuestionnaires();
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchQuestionnaires is stable enough for this page
-    }, [filter]);
+    }, [filter, fetchQuestionnaires]);
 
     const handleResolve = async () => {
         if (isSubmitting) return; // Guard against double-submit
@@ -176,9 +174,12 @@ export default function ApprovalsPage() {
 
     const questionnaireStatusLabel = (q: RiskQuestionnaireListItem) => {
         const overdue = q.status !== 'submitted' && new Date(q.due_at).getTime() < Date.now();
-        if (overdue) return 'Overdue';
-        if (q.status === 'sent') return 'Pending';
-        if (q.status === 'in_progress') return 'In progress';
+        if (overdue) return t('risks:questionnaire.status.overdue');
+
+        if (q.status === 'sent') return t('risks:questionnaire.status.sent');
+        if (q.status === 'in_progress') return t('risks:questionnaire.status.in_progress');
+        if (q.status === 'submitted') return t('risks:questionnaire.status.submitted');
+
         return q.status;
     };
 
@@ -195,7 +196,7 @@ export default function ApprovalsPage() {
                 <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-3 rounded-xl flex items-center gap-2 mb-4">
                     <X className="h-5 w-5" />
                     <span>{errorKey.startsWith('errorKeys.') ? t(errorKey, { ns: 'errorKeys' }) : t(errorKey)}</span>
-                    <button onClick={fetchApprovals} className="ml-auto text-sm underline hover:text-rose-300">Retry</button>
+                    <button onClick={fetchApprovals} className="ml-auto text-sm underline hover:text-rose-300">{t('common:actions.retry')}</button>
                 </div>
             )}
 
@@ -232,7 +233,7 @@ export default function ApprovalsPage() {
                             : "text-slate-400 hover:text-white hover:bg-white/5"
                     )}
                 >
-                    {t('tabs.risk_assessment', 'Risk Assessment')}
+                    {t('tabs.risk_assessment')}
                 </button>
                 <button
                     onClick={() => setFilter('all')}
@@ -279,20 +280,20 @@ export default function ApprovalsPage() {
                                                 {questionnaireStatusLabel(q)}
                                             </span>
                                             <div className="text-xs text-slate-500">
-                                                Due {new Date(q.due_at).toLocaleDateString()}
+                                                {t('risks:questionnaire.meta.due')} {new Date(q.due_at).toLocaleDateString()}
                                             </div>
                                         </div>
 
                                         <div className="flex-1 min-w-0">
                                             <h3 className="text-base font-bold text-white mb-1 truncate">
-                                                {q.risk_name ?? `Risk #${q.risk_id}`}
+                                                {q.risk_name ?? t('common:fallbacks.unknown_risk')}
                                             </h3>
                                             <div className="flex items-center gap-4 text-xs text-slate-500">
                                                 <span className="flex items-center gap-1">
                                                     <Clock className="h-3 w-3" />
-                                                    Sent {new Date(q.sent_at).toLocaleDateString()}
+                                                    {t('risks:questionnaire.meta.sent')} {new Date(q.sent_at).toLocaleDateString()}
                                                 </span>
-                                                <span>by <span className="text-accent">{q.sent_by_user_name ?? q.sent_by_user_id}</span></span>
+                                                <span>by <span className="text-accent">{q.sent_by_user_name ?? t('common:fallbacks.unknown_user')}</span></span>
                                             </div>
                                         </div>
 
@@ -301,7 +302,7 @@ export default function ApprovalsPage() {
                                                 onClick={() => navigate(`/risks/${q.risk_id}`)}
                                                 className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 hover:border-white/20 transition-all text-sm"
                                             >
-                                                Open
+                                                {t('risks:questionnaires.open')}
                                             </button>
                                         </div>
                                     </div>
@@ -368,7 +369,16 @@ export default function ApprovalsPage() {
                                         <div className="mt-3 pt-3 border-t border-white/5">
                                             <div className="flex items-center gap-4 text-xs text-slate-500 mb-1">
                                                 <span className={approval.status === 'approved' ? 'text-emerald-400' : 'text-rose-400'}>
-                                                    {approval.status === 'approved' ? 'Approved' : 'Rejected'} on {new Date(approval.resolved_at).toLocaleDateString()} at {new Date(approval.resolved_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    {approval.status === 'approved'
+                                                        ? t('labels.approved_on', {
+                                                            date: new Date(approval.resolved_at).toLocaleDateString(),
+                                                            time: new Date(approval.resolved_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                                        })
+                                                        : t('labels.rejected_on', {
+                                                            date: new Date(approval.resolved_at).toLocaleDateString(),
+                                                            time: new Date(approval.resolved_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                                        })
+                                                    }
                                                 </span>
                                                 {approval.resolved_by_name && (
                                                     <span>by <span className="text-accent">{approval.resolved_by_name}</span></span>
@@ -408,14 +418,14 @@ export default function ApprovalsPage() {
                                                 <button
                                                     onClick={() => { setSelectedApproval(approval); setDialogMode('approve'); }}
                                                     className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors border border-emerald-500/20"
-                                                    title="Approve"
+                                                    title={t('common:actions.approve')}
                                                 >
                                                     <Check className="h-4 w-4" />
                                                 </button>
                                                 <button
                                                     onClick={() => { setSelectedApproval(approval); setDialogMode('reject'); }}
                                                     className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors border border-rose-500/20"
-                                                    title="Reject"
+                                                    title={t('common:actions.reject')}
                                                 >
                                                     <X className="h-4 w-4" />
                                                 </button>
@@ -482,7 +492,7 @@ export default function ApprovalsPage() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="relative w-full max-w-lg bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
+                            className="relative w-full max-w-lg glass rounded-2xl shadow-2xl overflow-hidden"
                         >
                             <div className="p-6">
                                 <h3 className="text-xl font-bold text-white mb-2">

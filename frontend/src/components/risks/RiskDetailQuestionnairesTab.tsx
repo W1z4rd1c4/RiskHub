@@ -10,6 +10,7 @@ import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import { RiskQuestionnaireDetail } from './RiskQuestionnaireDetail';
 import { getRiskOwnerReassessmentQuestionKeys } from './riskQuestionnaireQuestions';
+import { apiClient } from '@/services/apiClient';
 
 interface RiskDetailQuestionnairesTabProps {
     risk: Risk;
@@ -32,7 +33,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
     const [items, setItems] = useState<RiskQuestionnaireListItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [latestSubmitted, setLatestSubmitted] = useState<RiskQuestionnaireDetailType | null>(null);
@@ -57,16 +58,18 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
         })[0];
     }, [items]);
 
+    const latestSubmittedId = latestSubmittedItem?.id;
+
     useEffect(() => {
         let cancelled = false;
         const loadLatest = async () => {
-            if (!latestSubmittedItem) {
+            if (!latestSubmittedId) {
                 setLatestSubmitted(null);
                 return;
             }
             setLatestSubmittedLoading(true);
             try {
-                const detail = await riskQuestionnairesApi.get(latestSubmittedItem.id, { includePrevious: true });
+                const detail = await riskQuestionnairesApi.get(latestSubmittedId, { includePrevious: true });
                 if (cancelled) return;
                 setLatestSubmitted(detail);
             } catch {
@@ -80,34 +83,34 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
         return () => {
             cancelled = true;
         };
-    }, [latestSubmittedItem?.id]);
+    }, [latestSubmittedId]);
 
     const statusBadge = (status: string, overdue: boolean) => {
         if (overdue) {
             return (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-rose-500/10 border-rose-500/20 text-rose-400">
-                    {t('risks:questionnaire.status.overdue', 'Overdue')}
+                    {t('risks:questionnaire.status.overdue')}
                 </span>
             );
         }
         if (status === 'sent') {
             return (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-amber-500/10 border-amber-500/20 text-amber-400">
-                    {t('risks:questionnaire.status.sent', 'Pending')}
+                    {t('risks:questionnaire.status.sent')}
                 </span>
             );
         }
         if (status === 'in_progress') {
             return (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-accent/10 border-accent/20 text-accent">
-                    {t('risks:questionnaire.status.in_progress', 'In progress')}
+                    {t('risks:questionnaire.status.in_progress')}
                 </span>
             );
         }
         if (status === 'submitted') {
             return (
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-emerald-500/10 border-emerald-500/20 text-emerald-400">
-                    {t('risks:questionnaire.status.submitted', 'Submitted')}
+                    {t('risks:questionnaire.status.submitted')}
                 </span>
             );
         }
@@ -120,12 +123,12 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
 
     const refresh = async () => {
         setLoading(true);
-        setError(null);
+        setErrorKey(null);
         try {
             const data = await riskQuestionnairesApi.listForRisk(risk.id);
             setItems(data);
         } catch (e) {
-            setError(e instanceof Error ? e.message : t('errors.generic'));
+            setErrorKey(apiClient.toUiMessageKey(e));
         } finally {
             setLoading(false);
         }
@@ -139,21 +142,21 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
     const handleSend = async () => {
         if (!canSend) return;
         setMessage(null);
-        setError(null);
+        setErrorKey(null);
         setSending(true);
         try {
             await riskQuestionnairesApi.sendForRisk(risk.id);
-            setMessage(t('risks:questionnaires.send_success', 'Questionnaire sent.'));
+            setMessage(t('risks:questionnaires.send_success'));
             await refresh();
         } catch (e) {
-            const msg = e instanceof Error ? e.message : t('errors.generic');
+            const msg = e instanceof Error ? e.message : '';
             if (msg.toLowerCase().includes('open questionnaire already exists')) {
-                setMessage(t('risks:questionnaires.send_open_exists', 'An open questionnaire already exists. Opening it.'));
+                setMessage(t('risks:questionnaires.send_open_exists'));
                 await refresh();
                 if (openItem) setSelectedId(openItem.id);
                 return;
             }
-            setError(msg);
+            setErrorKey(apiClient.toUiMessageKey(e));
         } finally {
             setSending(false);
         }
@@ -185,7 +188,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
 
     const latestLikelihood = (latestSubmitted?.answers?.['risk_assessment.q11_likelihood_12m'] ?? null) as number | null;
     const latestWorstCaseImpact = (latestSubmitted?.answers?.['risk_assessment.q12_worst_case_impact'] ?? null) as number | null;
-    const worstCaseRange = latestWorstCaseImpact ? formatFinancialRange(latestWorstCaseImpact, totalAssets, t('risks:form.financial.no_loss', 'No financial loss')) : '';
+    const worstCaseRange = latestWorstCaseImpact ? formatFinancialRange(latestWorstCaseImpact, totalAssets, t('risks:form.financial.no_loss')) : '';
 
     return (
         <div className="glass-card !p-0 overflow-hidden">
@@ -195,10 +198,12 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                 </div>
             )}
 
-            {error && (
+            {errorKey && (
                 <div className="p-4 border-b border-rose-500/20 text-sm text-rose-400 bg-rose-500/10 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" />
-                    {error}
+                    {errorKey.startsWith('errorKeys.')
+                        ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
+                        : t(errorKey)}
                 </div>
             )}
 
@@ -206,23 +211,23 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                 <div>
                     <h3 className="text-xs font-black text-white uppercase tracking-widest mb-2 flex items-center gap-2">
                         <FileText className="h-4 w-4 text-accent" />
-                        {t('risks:questionnaires.title', 'Risk Assessment')}
+                        {t('risks:questionnaires.title')}
                     </h3>
                     <p className="text-slate-500 text-sm">
-                        {t('risks:questionnaires.subtitle', 'Questionnaire history and current status for this risk.')}
+                        {t('risks:questionnaires.subtitle')}
                     </p>
 
                     {openItem && (
                         <div className="mt-3 flex items-center gap-3">
                             {statusBadge(openItem.status, isOverdue(openItem))}
                             <span className="text-xs text-slate-400">
-                                {t('risks:questionnaires.current_due', 'Due')}: {formatDate(openItem.due_at)}
+                                {t('risks:questionnaires.current_due')}: {formatDate(openItem.due_at)}
                             </span>
                             <button
                                 onClick={() => setSelectedId(openItem.id)}
                                 className="text-xs text-accent hover:text-accent/80 font-bold"
                             >
-                                {t('risks:questionnaires.open', 'Open')}
+                                {t('risks:questionnaires.open')}
                             </button>
                         </div>
                     )}
@@ -238,14 +243,14 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                                 "bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50",
                                 (sending || !risk.owner_id) && "opacity-50 cursor-not-allowed"
                             )}
-                            title={!risk.owner_id ? t('risks:questionnaires.send_requires_owner', 'Set a risk owner to send a questionnaire.') : undefined}
+                            title={!risk.owner_id ? t('risks:questionnaires.send_requires_owner') : undefined}
                         >
                             {!risk.owner_id ? <UserX className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-                            {t('risks:questionnaires.send', 'Send questionnaire')}
+                            {t('risks:questionnaires.send')}
                         </button>
                         {!risk.owner_id && (
                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                                {t('risks:questionnaires.owner_required', 'Owner required')}
+                                {t('risks:questionnaires.owner_required')}
                             </p>
                         )}
                     </div>
@@ -254,27 +259,27 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
 
             <div className="p-6 border-b border-white/5 bg-white/[0.02]">
                 <h4 className="text-[10px] font-black text-white uppercase tracking-widest mb-3">
-                    {t('risks:questionnaires.assessment_summary_title', 'Assessment Summary')}
+                    {t('risks:questionnaires.assessment_summary_title')}
                 </h4>
 
                 {latestSubmittedLoading ? (
                     <div className="text-sm text-slate-400">{t('loading.generic')}</div>
                 ) : !latestSubmitted ? (
                     <div className="text-sm text-slate-500">
-                        {t('risks:questionnaires.assessment_summary_empty', 'No submitted assessment yet.')}
+                        {t('risks:questionnaires.assessment_summary_empty')}
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                                {t('risks:questionnaires.assessment_summary_submitted_at', 'Submitted')}
+                                {t('risks:questionnaires.assessment_summary_submitted_at')}
                             </p>
                             <p className="text-sm text-white">{formatDate(latestSubmitted.submitted_at)}</p>
                         </div>
 
                         <div className="space-y-1">
                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                                {t('risks:questionnaires.assessment_summary_changed_count', 'Changed vs last cycle')}
+                                {t('risks:questionnaires.assessment_summary_changed_count')}
                             </p>
                             <p className="text-sm text-white">
                                 {changedCount === null ? '—' : `${changedCount}`}
@@ -283,14 +288,14 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
 
                         <div className="space-y-1">
                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                                {t('risks:questionnaires.assessment_summary_likelihood', 'Likelihood (12m)')}
+                                {t('risks:questionnaires.assessment_summary_likelihood')}
                             </p>
                             <p className="text-sm text-white">{latestLikelihood ?? '—'}</p>
                         </div>
 
                         <div className="space-y-1">
                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-                                {t('risks:questionnaires.assessment_summary_worst_case_impact', 'Worst-case impact')}
+                                {t('risks:questionnaires.assessment_summary_worst_case_impact')}
                             </p>
                             <p className="text-sm text-white">
                                 {latestWorstCaseImpact ? `${latestWorstCaseImpact}${worstCaseRange ? ` • ${worstCaseRange}` : ''}` : '—'}
@@ -308,19 +313,19 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                                 {t('common:labels.status')}
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                {t('risks:questionnaires.columns.sent_at', 'Sent')}
+                                {t('risks:questionnaires.columns.sent_at')}
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                {t('risks:questionnaires.columns.due_at', 'Due')}
+                                {t('risks:questionnaires.columns.due_at')}
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                {t('risks:questionnaires.columns.submitted_at', 'Submitted')}
+                                {t('risks:questionnaires.columns.submitted_at')}
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                {t('risks:questionnaires.columns.sent_by', 'Sent by')}
+                                {t('risks:questionnaires.columns.sent_by')}
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                {t('risks:questionnaires.columns.submitted_by', 'Submitted by')}
+                                {t('risks:questionnaires.columns.submitted_by')}
                             </th>
                         </tr>
                     </thead>
@@ -334,7 +339,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                         ) : items.length === 0 ? (
                             <tr>
                                 <td colSpan={6} className="px-4 py-10 text-slate-500 text-sm">
-                                    {t('risks:questionnaires.empty', 'No questionnaires have been sent for this risk yet.')}
+                                    {t('risks:questionnaires.empty')}
                                 </td>
                             </tr>
                         ) : (
@@ -350,8 +355,10 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                                     <td className="px-4 py-3 text-sm text-slate-300">{formatDate(q.sent_at)}</td>
                                     <td className="px-4 py-3 text-sm text-slate-300">{formatDate(q.due_at)}</td>
                                     <td className="px-4 py-3 text-sm text-slate-300">{formatDate(q.submitted_at)}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-300">{q.sent_by_user_name ?? q.sent_by_user_id}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-300">{q.submitted_by_user_name ?? (q.submitted_by_user_id ?? '—')}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-300">{q.sent_by_user_name ?? t('common:fallbacks.unknown_user')}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-300">
+                                        {q.submitted_by_user_name ?? (q.submitted_by_user_id ? t('common:fallbacks.unknown_user') : t('common:labels.none'))}
+                                    </td>
                                 </tr>
                             ))
                         )}

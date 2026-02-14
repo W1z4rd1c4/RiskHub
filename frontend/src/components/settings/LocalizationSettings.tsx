@@ -94,12 +94,10 @@ export function LocalizationSettings() {
                     <CheckCircle className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
                     <div>
                         <h4 className="font-semibold text-emerald-400 mb-1">
-                            {language === 'cs' ? 'Aktivní překlad' : 'Active Translation'}
+                            {t('localization.active_translation')}
                         </h4>
                         <p className="text-sm text-slate-400">
-                            {language === 'cs'
-                                ? 'Čeština je nyní aktivní. Rozhraní se postupně překládá do vybraného jazyka.'
-                                : 'Language switching is now active. The interface will be progressively translated.'}
+                            {t('localization.active_translation_message')}
                         </p>
                     </div>
                 </div>
@@ -118,9 +116,7 @@ export function LocalizationSettings() {
 
             {/* Note */}
             <p className="text-xs text-slate-500 italic">
-                {language === 'cs'
-                    ? 'Jazyková preference je uložena lokálně na tomto zařízení a přetrvá i po restartu.'
-                    : 'Language preference is saved locally on this device and will persist across sessions.'}
+                {t('localization.preference_persistence_note')}
             </p>
         </div>
     );

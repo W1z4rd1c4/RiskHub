@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
 
     ArrowLeft,
@@ -18,6 +18,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { userApi } from '@/services/userApi';
 import { apiClient } from '@/services/apiClient';
 import { departmentApi } from '@/services/departmentApi';
+import type { DepartmentSummary } from '@/services/departmentApi';
 import type { UserRead, UserUpdate, Role } from '@/types/user';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -31,8 +32,7 @@ export function UserDetailPage() {
     const { t } = useTranslation(['admin', 'common', 'errorKeys']);
     const { canManageUsers } = usePermissions();
     const [user, setUser] = useState<UserRead | null>(null);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [departments, setDepartments] = useState<any[]>([]);
+    const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -47,13 +47,7 @@ export function UserDetailPage() {
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
-    useEffect(() => {
-        if (id) {
-            fetchData();
-        }
-    }, [id]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             setIsLoading(true);
             const [userData, deptData, rolesData] = await Promise.all([
@@ -78,7 +72,13 @@ export function UserDetailPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [id]);
+
+    useEffect(() => {
+        if (id) {
+            fetchData();
+        }
+    }, [id, fetchData]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -92,7 +92,6 @@ export function UserDetailPage() {
             // Refresh local data
             await fetchData();
             setTimeout(() => setSuccess(false), 3000);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: unknown) {
             setErrorKey(apiClient.toUiMessageKey(err));
         } finally {

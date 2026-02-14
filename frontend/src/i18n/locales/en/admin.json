@@ -255,7 +255,8 @@
       "deactivate": "Deactivate",
       "can_view": "Can View",
       "can_edit": "Can Edit",
-      "can_delete": "Can Delete"
+      "can_delete": "Can Delete",
+      "reactivate": "Reactivate"
     },
     "modal": {
       "title": "Edit Access Settings",
@@ -346,6 +347,11 @@
       },
       "show_all_capabilities": "Show all capabilities",
       "show_all_permissions": "Show all permissions"
+    },
+    "confirmation": {
+      "deactivate_user_title": "Deactivate User",
+      "reactivate_user_title": "Reactivate User",
+      "toggle_user_message": "Are you sure you want to {{action}} {{name}}?"
     }
   },
   "directory": {

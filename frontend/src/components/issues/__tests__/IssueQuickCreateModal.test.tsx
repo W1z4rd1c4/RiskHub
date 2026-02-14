@@ -67,7 +67,7 @@ describe('IssueQuickCreateModal', () => {
         expect(onClose).toHaveBeenCalled();
     });
 
-    it('shows backend error on create failure', async () => {
+    it('shows localized error on create failure', async () => {
         createContextualMock.mockRejectedValueOnce(new Error('Context source not found'));
 
         render(
@@ -83,7 +83,8 @@ describe('IssueQuickCreateModal', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Create Issue' }));
 
-        expect(await screen.findByText('Context source not found')).toBeInTheDocument();
+        expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument();
+        expect(screen.queryByText('Context source not found')).not.toBeInTheDocument();
         expect(onCreated).not.toHaveBeenCalled();
     });
 });

@@ -102,7 +102,10 @@
     "timezone": "Časové pásmo",
     "coming_soon": "Již brzy",
     "coming_soon_message": "Plný překlad je v současné době ve vývoji. Vaše preference bude uložena a automaticky aplikována, jakmile budou překlady k dispozici.",
-    "current_preference": "Aktuální jazyková preference:"
+    "current_preference": "Aktuální jazyková preference:",
+    "active_translation": "Aktivní překlad",
+    "active_translation_message": "Čeština je nyní aktivní. Rozhraní se postupně překládá do vybraného jazyka.",
+    "preference_persistence_note": "Jazyková preference je uložena lokálně na tomto zařízení a přetrvá i po restartu."
   },
   "languages": {
     "en": "Angličtina",

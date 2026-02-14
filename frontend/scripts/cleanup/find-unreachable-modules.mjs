@@ -58,14 +58,15 @@ function extractSpecifiers(content) {
   const matches = [];
   const patterns = [
     /import\s+(?:[^'";]+?\s+from\s+)?['"]([^'"]+)['"]/g,
-    /export\s+[^'";]*?\s+from\s+['"]([^'"]+)['"]/g,
   ];
 
   for (const re of patterns) {
     re.lastIndex = 0;
-    let m;
-    // eslint-disable-next-line no-cond-assign
-    while ((m = re.exec(content))) matches.push(m[1]);
+    while (true) {
+      const m = re.exec(content);
+      if (!m) break;
+      matches.push(m[1]);
+    }
   }
   return matches;
 }
@@ -84,6 +85,54 @@ function reasonFor(classification) {
 
 function toRelative(absPath) {
   return path.relative(ROOT, absPath).replaceAll(path.sep, '/');
+}
+
+function extractPageExports(content) {
+  const exports = [];
+  const re = /export\s+\{([^}]+)\}\s+from\s+['"](\.\/[^'"]+)['"]/g;
+  while (true) {
+    const match = re.exec(content);
+    if (!match) break;
+    const names = match[1]
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean);
+    for (const rawName of names) {
+      const aliasMatch = rawName.match(/^(.+?)\s+as\s+(.+)$/);
+      const exportedName = aliasMatch ? aliasMatch[2].trim() : rawName.trim();
+      exports.push({ name: exportedName, specifier: match[2] });
+    }
+  }
+  return exports;
+}
+
+function extractPagesBarrelImports(content) {
+  const imported = new Set();
+  const re = /import\s*\{\s*([^}]*)\s*\}\s*from\s*['"]@\/pages['"]/g;
+  while (true) {
+    const match = re.exec(content);
+    if (!match) break;
+    const parts = match[1]
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+    for (const part of parts) {
+      const aliasMatch = part.match(/^(.+?)\s+as\s+.+$/);
+      imported.add((aliasMatch ? aliasMatch[1] : part).trim());
+    }
+  }
+  return imported;
+}
+
+function extractDirectPageImports(content) {
+  const importedModules = new Set();
+  const re = /import\s+[^;]+?\s+from\s*['"](?:@\/pages|\.\/pages)\/([^'"]+)['"]/g;
+  while (true) {
+    const match = re.exec(content);
+    if (!match) break;
+    importedModules.add(match[1].replace(/\.(ts|tsx)$/, ''));
+  }
+  return importedModules;
 }
 
 async function main() {
@@ -162,6 +211,35 @@ async function main() {
   }
 
   await fs.writeFile(path.join(OUT_DIR, 'unreachable.md'), `${lines.join('\n')}\n`, 'utf8');
+
+  const pagesIndexPath = path.join(SRC_DIR, 'pages', 'index.ts');
+  const appPath = path.join(SRC_DIR, 'App.tsx');
+  const [pagesIndexContent, appContent] = await Promise.all([
+    fs.readFile(pagesIndexPath, 'utf8').catch(() => ''),
+    fs.readFile(appPath, 'utf8').catch(() => ''),
+  ]);
+  const exportedPages = extractPageExports(pagesIndexContent);
+  const routedImports = extractPagesBarrelImports(appContent);
+  const directPageImports = extractDirectPageImports(appContent);
+  const dormantPages = exportedPages.filter((entry) => {
+    const moduleName = entry.specifier.replace('./', '');
+    return !routedImports.has(entry.name) && !directPageImports.has(moduleName);
+  });
+
+  const dormantLines = [
+    '# Frontend Dormant Page Audit',
+    '',
+    `- Source barrel: \`src/pages/index.ts\``,
+    `- Route import source: \`src/App.tsx\``,
+    `- Dormant page exports: ${dormantPages.length}`,
+    '',
+    '| Page Module | Reason |',
+    '|---|---|',
+  ];
+  for (const entry of dormantPages) {
+    dormantLines.push(`| \`src/pages/${entry.specifier.replace('./', '')}.tsx\` | Exported as \`${entry.name}\` but not imported into App routes. |`);
+  }
+  await fs.writeFile(path.join(OUT_DIR, 'dormant.md'), `${dormantLines.join('\n')}\n`, 'utf8');
 
   console.log(`Wrote ${records.length} unreachable module records.`);
 }

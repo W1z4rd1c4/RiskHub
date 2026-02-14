@@ -83,10 +83,10 @@ export function VendorSLATab({ vendorId, canEditVendor }: VendorSLATabProps) {
                 <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         <Activity className="h-4 w-4" />
-                        {t('tabs.sla', 'SLA')}
+                        {t('tabs.sla')}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('sla.subtitle', 'Track SLA values over time and flag threshold breaches.')}
+                        {t('sla.subtitle')}
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -94,7 +94,7 @@ export function VendorSLATab({ vendorId, canEditVendor }: VendorSLATabProps) {
                         type="button"
                         onClick={refresh}
                         className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                        title={t('actions.refresh', 'Refresh')}
+                        title={t('actions.refresh')}
                     >
                         <RefreshCcw className="h-4 w-4 text-slate-300" />
                     </button>
@@ -108,7 +108,7 @@ export function VendorSLATab({ vendorId, canEditVendor }: VendorSLATabProps) {
                             className="px-4 py-2 bg-accent/20 border border-accent/30 text-accent rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2"
                         >
                             <Plus className="h-4 w-4" />
-                            {t('sla.actions.add', 'Add SLA')}
+                            {t('sla.actions.add')}
                         </button>
                     )}
                 </div>
@@ -121,17 +121,17 @@ export function VendorSLATab({ vendorId, canEditVendor }: VendorSLATabProps) {
                         checked={includeArchived}
                         onChange={(e) => setIncludeArchived(e.target.checked)}
                     />
-                    {t('sla.include_archived', 'Include archived')}
+                    {t('sla.include_archived')}
                 </label>
             </div>
 
             {isLoading ? (
                 <div className="flex items-center gap-3 text-slate-500 font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('labels.loading', 'Loading...')}
+                    {t('labels.loading')}
                 </div>
             ) : ordered.length === 0 ? (
-                <p className="text-sm text-slate-500 font-medium">{t('sla.empty', 'No SLAs configured yet.')}</p>
+                <p className="text-sm text-slate-500 font-medium">{t('sla.empty')}</p>
             ) : (
                 <div className="space-y-3">
                     {ordered.map((sla) => (
@@ -145,18 +145,18 @@ export function VendorSLATab({ vendorId, canEditVendor }: VendorSLATabProps) {
                                     {statusBadge(sla)}
                                     {sla.is_archived && (
                                         <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-white/5 text-slate-300 border border-white/10">
-                                            {t('sla.badges.archived', 'Archived')}
+                                            {t('sla.badges.archived')}
                                         </span>
                                     )}
                                 </div>
                                 <p className="text-xs text-slate-500 font-medium">
-                                    {t('sla.current', 'Current')}: <span className="font-mono text-slate-300">{sla.current_value} {sla.unit}</span>{' '}
-                                    · {t('sla.limits', 'Limits')}: <span className="font-mono text-slate-300">{sla.lower_limit}–{sla.upper_limit} {sla.unit}</span>
+                                    {t('sla.current')}: <span className="font-mono text-slate-300">{sla.current_value} {sla.unit}</span>{' '}
+                                    · {t('sla.limits')}: <span className="font-mono text-slate-300">{sla.lower_limit}–{sla.upper_limit} {sla.unit}</span>
                                 </p>
                                 {sla.last_reported_at && (
                                     <p className="text-xs text-slate-600 font-medium flex items-center gap-1">
                                         <Clock className="h-3 w-3" />
-                                        {t('sla.last_reported', 'Last reported')}: {new Date(sla.last_reported_at).toLocaleString()}
+                                        {t('sla.last_reported')}: {new Date(sla.last_reported_at).toLocaleString()}
                                     </p>
                                 )}
                                 {sla.description && <p className="text-sm text-slate-200 whitespace-pre-wrap">{sla.description}</p>}
@@ -171,7 +171,7 @@ export function VendorSLATab({ vendorId, canEditVendor }: VendorSLATabProps) {
                                         }}
                                         className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-bold hover:bg-emerald-500/20 transition-colors"
                                     >
-                                        {t('actions.unarchive', 'Unarchive')}
+                                        {t('actions.unarchive')}
                                     </button>
                                 )}
                                 {(canManageItem(sla) || canCreate) && (
@@ -184,7 +184,7 @@ export function VendorSLATab({ vendorId, canEditVendor }: VendorSLATabProps) {
                                         className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors flex items-center gap-2"
                                     >
                                         <BadgeCheck className="h-4 w-4" />
-                                        {t('sla.actions.manage', 'Manage')}
+                                        {t('sla.actions.manage')}
                                     </button>
                                 )}
                             </div>

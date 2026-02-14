@@ -18,6 +18,7 @@ import {
     issueStatusClass,
 } from './issueUi';
 import { issuesApi } from '@/services/issuesApi';
+import { apiClient } from '@/services/apiClient';
 import type { Issue, IssueOwnerLookup, IssueRemediationStatus, IssueStatus } from '@/types/issue';
 
 interface RemediationPlanCardProps {
@@ -94,7 +95,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
     const [ownerOptions, setOwnerOptions] = useState<IssueOwnerLookup[]>([]);
     const [isOwnersLoading, setIsOwnersLoading] = useState<boolean>(false);
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     const isClosed = issue.status === 'closed';
     const canStartRemediation = issue.status === 'open' || issue.status === 'triaged';
@@ -111,7 +112,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
         setValidationNote(issue.validation_note ?? '');
         setExceptionReason('');
         setExceptionExpiresAt('');
-        setError(null);
+        setErrorKey(null);
         setIsSubmitting(false);
     }, [issue.id, issue.updated_at, issue.owner_user_id, issue.due_at, issue.remediation_plan, issue.validation_note]);
 
@@ -151,16 +152,16 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
     const issueStatusLabel = (status: IssueStatus): string => t(`status.${status}`, status.replaceAll('_', ' '));
     const nextStepLabel = useMemo(() => {
         if (issue.status === 'open' || issue.status === 'triaged') {
-            return t('workflow.next_step.assignment', 'Next step: assign owner and start remediation.');
+            return t('workflow.next_step.assignment');
         }
         if (issue.status === 'in_progress') {
-            return t('workflow.next_step.progress', 'Next step: update progress and handle exceptions only if needed.');
+            return t('workflow.next_step.progress');
         }
         if (issue.status === 'ready_for_validation') {
-            return t('workflow.next_step.close', 'Next step: add validation note and close the issue.');
+            return t('workflow.next_step.close');
         }
         if (issue.status === 'closed') {
-            return t('workflow.next_step.closed', 'Closed issue: summary mode.');
+            return t('workflow.next_step.closed');
         }
         return '';
     }, [issue.status, t]);
@@ -172,12 +173,11 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
 
     const runMutation = async (fn: () => Promise<void>) => {
         setIsSubmitting(true);
-        setError(null);
+        setErrorKey(null);
         try {
             await fn();
         } catch (mutationError) {
-            const message = mutationError instanceof Error ? mutationError.message : t('errors.action_failed', 'Issue workflow action failed');
-            setError(message);
+            setErrorKey(apiClient.toUiMessageKey(mutationError));
         } finally {
             setIsSubmitting(false);
         }
@@ -185,17 +185,17 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
 
     const handleAssign = async () => {
         if (!assignOwnerId) {
-            setError(t('errors.owner_required', 'Owner is required.'));
+            setErrorKey('errors.owner_required');
             return;
         }
         const ownerId = Number(assignOwnerId);
         if (!Number.isFinite(ownerId) || ownerId <= 0) {
-            setError(t('errors.owner_invalid', 'Owner selection is invalid.'));
+            setErrorKey('errors.owner_invalid');
             return;
         }
         const dueAt = toIsoOrUndefined(assignDueAt);
         if (!dueAt) {
-            setError(t('errors.due_required', 'Due date is required.'));
+            setErrorKey('errors.due_required');
             return;
         }
 
@@ -233,7 +233,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
 
     const handleRequestException = async () => {
         if (!exceptionReason.trim()) {
-            setError(t('errors.exception_reason_required', 'Exception reason is required.'));
+            setErrorKey('errors.exception_reason_required');
             return;
         }
 
@@ -247,11 +247,11 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
     const handleApproveException = async () => {
         const expiresAt = toIsoOrUndefined(exceptionExpiresAt);
         if (!expiresAt) {
-            setError(t('errors.exception_expiry_required', 'Exception expiry date is required.'));
+            setErrorKey('errors.exception_expiry_required');
             return;
         }
         if (!requestedExceptionId) {
-            setError(t('errors.no_requested_exception_for_approval', 'No requested exception is available for approval.'));
+            setErrorKey('errors.no_requested_exception_for_approval');
             return;
         }
 
@@ -267,7 +267,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
 
     const handleClose = async () => {
         if (!validationNote.trim()) {
-            setError(t('errors.validation_note_required', 'Validation note is required for closure.'));
+            setErrorKey('errors.validation_note_required');
             return;
         }
         await runMutation(async () => {
@@ -286,49 +286,51 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
             <section className={ISSUE_SECTION_CARD} data-testid="workflow-summary-card">
                 <div className={ISSUE_SECTION_HEADER}>
                     <div>
-                        <h3 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.workflow_summary', 'Workflow Summary')}</h3>
-                        <p className={ISSUE_SECTION_SUBTITLE}>{t('workflow.title', 'Remediation Workflow')}</p>
+                        <h3 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.workflow_summary')}</h3>
+                        <p className={ISSUE_SECTION_SUBTITLE}>{t('workflow.title')}</p>
                     </div>
                     <span className={issuePill(issueStatusClass(issue.status))}>{issueStatusLabel(issue.status)}</span>
                 </div>
 
-                {error && (
+                {errorKey && (
                     <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
-                        {error}
+                        {errorKey.startsWith('errorKeys.')
+                            ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
+                            : t(errorKey)}
                     </div>
                 )}
 
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     <SummaryField
-                        label={t('workflow.fields.owner', 'Owner')}
+                        label={t('workflow.fields.owner')}
                         value={
                             issue.owner_user_name ||
-                            (issue.owner_user_id ? t('fallbacks.unknown_user', 'Unknown user') : t('fallbacks.unassigned', 'Unassigned'))
+                            (issue.owner_user_id ? t('fallbacks.unknown_user') : t('fallbacks.unassigned'))
                         }
                     />
                     <SummaryField
-                        label={t('workflow.fields.due_at', 'Due at')}
-                        value={formatDate(issue.due_at, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                        label={t('workflow.fields.due_at')}
+                        value={formatDate(issue.due_at, i18n.language, t('fallbacks.not_set'))}
                     />
                     <SummaryField
-                        label={t('workflow.fields.remediation_status', 'Remediation status')}
+                        label={t('workflow.fields.remediation_status')}
                         value={
                             remediation
                                 ? t(`remediation_status.${remediation.status}`, remediation.status)
-                                : t('workflow.messages.not_created', 'Not created')
+                                : t('workflow.messages.not_created')
                         }
                     />
                     <SummaryField
-                        label={t('workflow.fields.progress', 'Progress (%)')}
+                        label={t('workflow.fields.progress')}
                         value={`${remediation?.progress_percent ?? 0}%`}
                     />
                     <SummaryField
-                        label={t('workflow.fields.target_date', 'Target date')}
-                        value={formatDate(remediation?.target_date, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                        label={t('workflow.fields.target_date')}
+                        value={formatDate(remediation?.target_date, i18n.language, t('fallbacks.not_set'))}
                     />
                     <SummaryField
-                        label={t('workflow.fields.completed_at', 'Completed at')}
-                        value={formatDate(remediation?.completed_at, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                        label={t('workflow.fields.completed_at')}
+                        value={formatDate(remediation?.completed_at, i18n.language, t('fallbacks.not_set'))}
                     />
                 </div>
                 <p className="text-sm text-slate-400">{nextStepLabel}</p>
@@ -337,17 +339,14 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
             {isClosed ? (
                 <section className={ISSUE_SECTION_CARD} data-testid="workflow-closed-card">
                     <div className={ISSUE_SECTION_HEADER}>
-                        <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.closure', 'Closure')}</h4>
+                        <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.closure')}</h4>
                     </div>
                     <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                        {t(
-                            'workflow.closed_notice',
-                            'This issue is closed. Workflow actions are hidden to keep this view focused on summary and history.'
-                        )}
+                        {t('workflow.closed_notice')}
                     </div>
                     <SummaryField
-                        label={t('workflow.fields.validation_note', 'Validation note')}
-                        value={issue.validation_note || t('fallbacks.not_set', 'Not set')}
+                        label={t('workflow.fields.validation_note')}
+                        value={issue.validation_note || t('fallbacks.not_set')}
                     />
                 </section>
             ) : (
@@ -355,13 +354,13 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                     <section className={ISSUE_SECTION_CARD} data-testid="workflow-assignment-card">
                         <div className={ISSUE_SECTION_HEADER}>
                             <div>
-                                <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.assignment', 'Assignment')}</h4>
-                                <p className={ISSUE_SECTION_SUBTITLE}>{t('workflow.fields.owner', 'Owner')} / {t('workflow.fields.due_at', 'Due at')}</p>
+                                <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.assignment')}</h4>
+                                <p className={ISSUE_SECTION_SUBTITLE}>{t('workflow.fields.owner')} / {t('workflow.fields.due_at')}</p>
                             </div>
                         </div>
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-1.5">
-                                <label className={ISSUE_LABEL}>{t('workflow.fields.owner', 'Owner')}</label>
+                                <label className={ISSUE_LABEL}>{t('workflow.fields.owner')}</label>
                                 <ThemedSelect
                                     value={assignOwnerId}
                                     onValueChange={setAssignOwnerId}
@@ -372,16 +371,16 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                                     allowEmpty
                                     emptyLabel={
                                         isOwnersLoading
-                                            ? t('form.placeholders.loading_owners', 'Loading owners...')
-                                            : t('form.placeholders.select_owner', 'Select owner')
+                                            ? t('form.placeholders.loading_owners')
+                                            : t('form.placeholders.select_owner')
                                     }
-                                    placeholder={t('form.placeholders.select_owner', 'Select owner')}
+                                    placeholder={t('form.placeholders.select_owner')}
                                     disabled={!canWrite || isOwnersLoading || isSubmitting}
                                     className="w-full"
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <label className={ISSUE_LABEL}>{t('workflow.fields.due_at', 'Due at')}</label>
+                                <label className={ISSUE_LABEL}>{t('workflow.fields.due_at')}</label>
                                 <input
                                     type="datetime-local"
                                     value={assignDueAt}
@@ -399,7 +398,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                                     disabled={isSubmitting}
                                     className={canStartRemediation ? ISSUE_SECONDARY_BUTTON : ISSUE_PRIMARY_BUTTON}
                                 >
-                                    {t('actions.assign', 'Assign')}
+                                    {t('actions.assign')}
                                 </button>
                                 {canStartRemediation && (
                                     <button
@@ -408,7 +407,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                                         disabled={isSubmitting}
                                         className={ISSUE_PRIMARY_BUTTON}
                                     >
-                                        {t('actions.start_remediation', 'Start Remediation')}
+                                        {t('actions.start_remediation')}
                                     </button>
                                 )}
                             </div>
@@ -417,11 +416,11 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
 
                     <section className={ISSUE_SECTION_CARD} data-testid="workflow-progress-card">
                         <div className={ISSUE_SECTION_HEADER}>
-                            <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.remediation_progress', 'Remediation Progress')}</h4>
+                            <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.remediation_progress')}</h4>
                         </div>
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-1.5">
-                                <label className={ISSUE_LABEL}>{t('workflow.fields.progress', 'Progress (%)')}</label>
+                                <label className={ISSUE_LABEL}>{t('workflow.fields.progress')}</label>
                                 <input
                                     type="number"
                                     min={0}
@@ -433,7 +432,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <label className={ISSUE_LABEL}>{t('workflow.fields.remediation_status', 'Remediation status')}</label>
+                                <label className={ISSUE_LABEL}>{t('workflow.fields.remediation_status')}</label>
                                 <ThemedSelect
                                     value={remediationStatus}
                                     onValueChange={setRemediationStatus}
@@ -448,11 +447,11 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                             <div className="space-y-1.5 md:col-span-2">
                                 <details className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
                                     <summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-slate-400">
-                                        {t('workflow.sections.advanced_progress', 'Advanced progress fields')}
+                                        {t('workflow.sections.advanced_progress')}
                                     </summary>
                                     <div className="mt-3 space-y-3">
                                         <div className="space-y-1.5">
-                                            <label className={ISSUE_LABEL}>{t('workflow.fields.blocker_reason', 'Blocker reason')}</label>
+                                            <label className={ISSUE_LABEL}>{t('workflow.fields.blocker_reason')}</label>
                                             <input
                                                 type="text"
                                                 value={blockerReason}
@@ -462,7 +461,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                                             />
                                         </div>
                                         <div className="space-y-1.5">
-                                            <label className={ISSUE_LABEL}>{t('workflow.fields.completion_notes', 'Completion notes')}</label>
+                                            <label className={ISSUE_LABEL}>{t('workflow.fields.completion_notes')}</label>
                                             <textarea
                                                 value={completionNotes}
                                                 onChange={(event) => setCompletionNotes(event.target.value)}
@@ -482,7 +481,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                                     disabled={isSubmitting}
                                     className={isInProgress ? ISSUE_PRIMARY_BUTTON : ISSUE_SECONDARY_BUTTON}
                                 >
-                                    {t('actions.update_progress', 'Update Progress')}
+                                    {t('actions.update_progress')}
                                 </button>
                             </div>
                         )}
@@ -490,11 +489,11 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
 
                     <section className={ISSUE_SECTION_CARD} data-testid="workflow-exception-card">
                         <div className={ISSUE_SECTION_HEADER}>
-                            <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.exception_handling', 'Exception Handling')}</h4>
+                            <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.exception_handling')}</h4>
                         </div>
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-1.5 md:col-span-2">
-                                <label className={ISSUE_LABEL}>{t('workflow.fields.exception_reason', 'Exception reason')}</label>
+                                <label className={ISSUE_LABEL}>{t('workflow.fields.exception_reason')}</label>
                                 <textarea
                                     value={exceptionReason}
                                     onChange={(event) => setExceptionReason(event.target.value)}
@@ -504,7 +503,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                             </div>
                             {canApprove && requestedExceptionId && (
                                 <div className="space-y-1.5">
-                                    <label className={ISSUE_LABEL}>{t('workflow.fields.approve_until', 'Approve until')}</label>
+                                    <label className={ISSUE_LABEL}>{t('workflow.fields.approve_until')}</label>
                                     <input
                                         type="datetime-local"
                                         value={exceptionExpiresAt}
@@ -523,7 +522,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                                     disabled={isSubmitting}
                                     className={isInProgress ? ISSUE_WARNING_BUTTON : ISSUE_SECONDARY_BUTTON}
                                 >
-                                    {t('actions.request_exception', 'Request Exception')}
+                                    {t('actions.request_exception')}
                                 </button>
                             )}
                             {canApprove && requestedExceptionId && (
@@ -533,21 +532,21 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                                     disabled={isSubmitting}
                                     className={ISSUE_SECONDARY_BUTTON}
                                 >
-                                    {t('actions.approve_exception', 'Approve Exception')}
+                                    {t('actions.approve_exception')}
                                 </button>
                             )}
                         </div>
                         {canApprove && !requestedExceptionId && (
-                            <p className="text-sm text-slate-500">{t('workflow.messages.no_requested_exception', 'No requested exception is waiting for approval.')}</p>
+                            <p className="text-sm text-slate-500">{t('workflow.messages.no_requested_exception')}</p>
                         )}
                     </section>
 
                     <section className={ISSUE_SECTION_CARD} data-testid="workflow-closure-card">
                         <div className={ISSUE_SECTION_HEADER}>
-                            <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.closure', 'Closure')}</h4>
+                            <h4 className={ISSUE_SECTION_TITLE}>{t('workflow.sections.closure')}</h4>
                         </div>
                         <div className="space-y-1.5">
-                            <label className={ISSUE_LABEL}>{t('workflow.fields.validation_note', 'Validation note')}</label>
+                            <label className={ISSUE_LABEL}>{t('workflow.fields.validation_note')}</label>
                             <textarea
                                 value={validationNote}
                                 onChange={(event) => setValidationNote(event.target.value)}
@@ -563,7 +562,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                                     disabled={isSubmitting}
                                     className={isReadyForValidation ? ISSUE_SUCCESS_BUTTON : ISSUE_SECONDARY_BUTTON}
                                 >
-                                    {t('actions.close_issue', 'Close Issue')}
+                                    {t('actions.close_issue')}
                                 </button>
                             </div>
                         )}

@@ -55,7 +55,7 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
             setError(null);
         } catch (err) {
             console.error('Failed to load vendor risk factors:', err);
-            setError(t('errors.load_failed', 'Failed to load vendors'));
+            setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
         }
@@ -109,7 +109,7 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
     };
 
     const handleDelete = async (factorId: number) => {
-        if (!confirm(t('risk_factors.confirm_delete', 'Delete this risk factor?'))) return;
+        if (!confirm(t('risk_factors.confirm_delete'))) return;
         try {
             setIsDeleting(factorId);
             await vendorRiskFactorApi.deleteVendorRiskFactor(factorId);
@@ -127,10 +127,10 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
                 <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4" />
-                        {t('tabs.risk_factors', 'Risk Factors')}
+                        {t('tabs.risk_factors')}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('risk_factors.subtitle', 'Record qualitative third‑party risk factors (no scoring in MVP).')}
+                        {t('risk_factors.subtitle')}
                     </p>
                 </div>
 
@@ -140,7 +140,7 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
                         className="px-4 py-2 bg-accent/20 text-accent border border-accent/30 rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2"
                     >
                         <Plus className="h-4 w-4" />
-                        {t('risk_factors.actions.add', 'Add')}
+                        {t('risk_factors.actions.add')}
                     </button>
                 )}
             </div>
@@ -149,7 +149,7 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
                 <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-4">
                     <div className="flex items-center justify-between">
                         <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
-                            {editing ? t('risk_factors.actions.edit', 'Edit risk factor') : t('risk_factors.actions.add', 'Add')}
+                            {editing ? t('risk_factors.actions.edit') : t('risk_factors.actions.add')}
                         </h4>
                         <button
                             onClick={closeForm}
@@ -162,25 +162,25 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
                     <div className="grid gap-3 md:grid-cols-3">
                         <div className="md:col-span-1">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                                {t('risk_factors.fields.category', 'Category')}
+                                {t('risk_factors.fields.category')}
                             </p>
                             <ThemedSelect
                                 value={draftCategory}
                                 onValueChange={(v) => setDraftCategory(v as VendorRiskCategoryKey)}
                                 options={categoryOptions}
-                                placeholder={t('risk_factors.fields.category', 'Category')}
+                                placeholder={t('risk_factors.fields.category')}
                             />
                         </div>
                         <div className="md:col-span-2">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                                {t('risk_factors.fields.description', 'Description')}
+                                {t('risk_factors.fields.description')}
                             </p>
                             <textarea
                                 value={draftDescription}
                                 onChange={(e) => setDraftDescription(e.target.value)}
                                 rows={3}
                                 className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium"
-                                placeholder={t('risk_factors.fields.description_placeholder', 'Describe the factor and any notes/evidence...')}
+                                placeholder={t('risk_factors.fields.description_placeholder')}
                             />
                         </div>
                     </div>
@@ -190,7 +190,7 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
                             onClick={closeForm}
                             className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-colors"
                         >
-                            {t('actions.cancel', 'Cancel')}
+                            {t('actions.cancel')}
                         </button>
                         <button
                             onClick={handleSave}
@@ -198,7 +198,7 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
                             className="px-4 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                         >
                             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                            {t('risk_factors.actions.save', 'Save')}
+                            {t('risk_factors.actions.save')}
                         </button>
                     </div>
                 </div>
@@ -207,14 +207,14 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
             {isLoading ? (
                 <div className="flex items-center gap-3 text-slate-500 font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('labels.loading', 'Loading...')}
+                    {t('labels.loading')}
                 </div>
             ) : error ? (
                 <div className="text-rose-400 font-medium">{error}</div>
             ) : factors.length === 0 ? (
                 <div className="py-12 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
                     <AlertTriangle className="h-8 w-8 text-slate-700 mx-auto mb-2" />
-                    <p className="text-xs text-slate-600 font-medium tracking-tight">{t('risk_factors.empty', 'No risk factors yet.')}</p>
+                    <p className="text-xs text-slate-600 font-medium tracking-tight">{t('risk_factors.empty')}</p>
                 </div>
             ) : (
                 <div className="space-y-6">

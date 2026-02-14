@@ -17,17 +17,17 @@ function statusPill(status: VendorAssessmentStatus, t: (key: string, fallback?: 
     const base = 'px-2 py-1 rounded-full text-[10px] font-black border';
     switch (status) {
         case 'draft':
-            return <span className={`${base} text-slate-300 bg-white/5 border-white/10`}>{t('assessments.status.draft', 'DRAFT')}</span>;
+            return <span className={`${base} text-slate-300 bg-white/5 border-white/10`}>{t('assessments.status.draft')}</span>;
         case 'submitted':
-            return <span className={`${base} text-blue-300 bg-blue-400/10 border-blue-400/20`}>{t('assessments.status.submitted', 'SUBMITTED')}</span>;
+            return <span className={`${base} text-blue-300 bg-blue-400/10 border-blue-400/20`}>{t('assessments.status.submitted')}</span>;
         case 'in_review':
-            return <span className={`${base} text-amber-300 bg-amber-400/10 border-amber-400/20`}>{t('assessments.status.in_review', 'IN REVIEW')}</span>;
+            return <span className={`${base} text-amber-300 bg-amber-400/10 border-amber-400/20`}>{t('assessments.status.in_review')}</span>;
         case 'committee_recommended':
-            return <span className={`${base} text-violet-300 bg-violet-400/10 border-violet-400/20`}>{t('assessments.status.committee_recommended', 'RECOMMENDED')}</span>;
+            return <span className={`${base} text-violet-300 bg-violet-400/10 border-violet-400/20`}>{t('assessments.status.committee_recommended')}</span>;
         case 'approved':
-            return <span className={`${base} text-emerald-300 bg-emerald-400/10 border-emerald-400/20`}>{t('assessments.status.approved', 'APPROVED')}</span>;
+            return <span className={`${base} text-emerald-300 bg-emerald-400/10 border-emerald-400/20`}>{t('assessments.status.approved')}</span>;
         case 'rejected':
-            return <span className={`${base} text-rose-300 bg-rose-400/10 border-rose-400/20`}>{t('assessments.status.rejected', 'REJECTED')}</span>;
+            return <span className={`${base} text-rose-300 bg-rose-400/10 border-rose-400/20`}>{t('assessments.status.rejected')}</span>;
         default:
             return <span className={`${base} text-slate-300 bg-white/5 border-white/10`}>{status}</span>;
     }
@@ -142,7 +142,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
             if (data.length && !selectedId) setSelectedId(data[0].id);
         } catch (err) {
             console.error('Failed to load vendor assessments:', err);
-            setError(t('errors.load_failed', 'Failed to load'));
+            setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
         }
@@ -258,10 +258,10 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                 <div>
                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
                         <ClipboardList className="h-4 w-4" />
-                        {t('tabs.assessments', 'Assessments')}
+                        {t('tabs.assessments')}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('assessments.subtitle', 'Due diligence workflow: draft → review → recommendation → decision.')}
+                        {t('assessments.subtitle')}
                     </p>
                 </div>
 
@@ -272,7 +272,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                         className="px-4 py-2 bg-accent/20 border border-accent/30 text-accent rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2 disabled:opacity-60"
                     >
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                        {t('assessments.actions.start', 'Start assessment')}
+                        {t('assessments.actions.start')}
                     </button>
                 )}
             </div>
@@ -280,14 +280,14 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
             {isLoading ? (
                 <div className="flex items-center gap-3 text-slate-500 font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('labels.loading', 'Loading...')}
+                    {t('labels.loading')}
                 </div>
             ) : error ? (
                 <div className="text-rose-400 font-medium">{error}</div>
             ) : items.length === 0 ? (
                 <div className="py-12 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
                     <ClipboardList className="h-8 w-8 text-slate-700 mx-auto mb-2" />
-                    <p className="text-xs text-slate-600 font-medium tracking-tight">{t('assessments.empty', 'No assessments yet.')}</p>
+                    <p className="text-xs text-slate-600 font-medium tracking-tight">{t('assessments.empty')}</p>
                 </div>
             ) : (
                 <div className="grid gap-6 lg:grid-cols-3">
@@ -307,7 +307,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                             {t('assessments.item_title', { defaultValue: 'Assessment' })} #{a.id}
                                         </p>
                                         <p className="text-xs text-slate-500 font-medium">
-                                            {a.scope === 'dora' ? t('assessments.scope.dora', 'DORA') : t('assessments.scope.standard', 'Standard')} · {new Date(a.created_at).toLocaleDateString()}
+                                            {a.scope === 'dora' ? t('assessments.scope.dora') : t('assessments.scope.standard')} · {new Date(a.created_at).toLocaleDateString()}
                                         </p>
                                     </div>
                                     {statusPill(a.status, t)}
@@ -324,7 +324,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                         <div className="flex items-center gap-2">
                                             {statusPill(selected.status, t)}
                                             <span className="text-xs text-slate-500 font-medium">
-                                                {selected.scope === 'dora' ? t('assessments.scope.dora_scope', 'DORA scope') : t('assessments.scope.standard_scope', 'Standard scope')}
+                                                {selected.scope === 'dora' ? t('assessments.scope.dora_scope') : t('assessments.scope.standard_scope')}
                                             </span>
                                         </div>
 
@@ -337,7 +337,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                                         className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-colors flex items-center gap-2 disabled:opacity-60"
                                                     >
                                                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                                        {t('assessments.actions.save', 'Save')}
+                                                        {t('assessments.actions.save')}
                                                     </button>
                                                     <button
                                                         onClick={submit}
@@ -345,7 +345,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                                         className="px-4 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/90 transition-colors flex items-center gap-2 disabled:opacity-60"
                                                     >
                                                         <Send className="h-4 w-4" />
-                                                        {t('assessments.actions.submit', 'Submit')}
+                                                        {t('assessments.actions.submit')}
                                                     </button>
                                                 </>
                                             )}
@@ -357,7 +357,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                                     className="px-4 py-2 bg-amber-500/20 border border-amber-500/30 text-amber-200 rounded-xl font-bold hover:bg-amber-500/30 transition-colors flex items-center gap-2 disabled:opacity-60"
                                                 >
                                                     <UserCheck className="h-4 w-4" />
-                                                    {t('assessments.actions.review', 'Review')}
+                                                    {t('assessments.actions.review')}
                                                 </button>
                                             )}
 
@@ -368,7 +368,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                                     className="px-4 py-2 bg-violet-500/20 border border-violet-500/30 text-violet-200 rounded-xl font-bold hover:bg-violet-500/30 transition-colors flex items-center gap-2 disabled:opacity-60"
                                                 >
                                                     <ShieldCheck className="h-4 w-4" />
-                                                    {t('assessments.actions.recommend', 'Recommend')}
+                                                    {t('assessments.actions.recommend')}
                                                 </button>
                                             )}
 
@@ -380,7 +380,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                                         className="px-4 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-200 rounded-xl font-bold hover:bg-emerald-500/30 transition-colors flex items-center gap-2 disabled:opacity-60"
                                                     >
                                                         <CheckCircle2 className="h-4 w-4" />
-                                                        {t('assessments.actions.approve', 'Approve')}
+                                                        {t('assessments.actions.approve')}
                                                     </button>
                                                     <button
                                                         onClick={() => decide('rejected')}
@@ -388,7 +388,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                                         className="px-4 py-2 bg-rose-500/20 border border-rose-500/30 text-rose-200 rounded-xl font-bold hover:bg-rose-500/30 transition-colors flex items-center gap-2 disabled:opacity-60"
                                                     >
                                                         <XCircle className="h-4 w-4" />
-                                                        {t('assessments.actions.reject', 'Reject')}
+                                                        {t('assessments.actions.reject')}
                                                     </button>
                                                 </>
                                             )}
@@ -397,14 +397,14 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
 
                                     <div className="space-y-2">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                            {t('assessments.fields.evidence', 'Evidence reference')}
+                                            {t('assessments.fields.evidence')}
                                         </p>
                                         <input
                                             value={draftEvidence}
                                             onChange={(e) => setDraftEvidence(e.target.value)}
                                             disabled={!canEditDraft}
                                             className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium disabled:opacity-60"
-                                            placeholder={t('assessments.fields.evidence_placeholder', 'https://... or file path')}
+                                            placeholder={t('assessments.fields.evidence_placeholder')}
                                         />
                                     </div>
 
@@ -412,28 +412,28 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                         <div className="grid gap-3 md:grid-cols-2">
                                             <div className="space-y-1">
                                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                    {t('assessments.fields.committee_recommendation', 'Committee recommendation')}
+                                                    {t('assessments.fields.committee_recommendation')}
                                                 </p>
                                                 <ThemedSelect
                                                     value={committeeRecommendation}
                                                     onValueChange={(v) => setCommitteeRecommendation(v as VendorCommitteeRecommendation)}
                                                     options={[
-                                                        { value: 'approve', label: t('assessments.actions.approve', 'Approve') },
-                                                        { value: 'approve_with_conditions', label: t('assessments.actions.approve_with_conditions', 'Approve with conditions') },
-                                                        { value: 'reject', label: t('assessments.actions.reject', 'Reject') },
+                                                        { value: 'approve', label: t('assessments.actions.approve') },
+                                                        { value: 'approve_with_conditions', label: t('assessments.actions.approve_with_conditions') },
+                                                        { value: 'reject', label: t('assessments.actions.reject') },
                                                     ]}
                                                     placeholder={t('common:actions.select')}
                                                 />
                                             </div>
                                             <div className="space-y-1">
                                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                    {t('assessments.fields.conditions', 'Conditions')}
+                                                    {t('assessments.fields.conditions')}
                                                 </p>
                                                 <input
                                                     value={committeeConditions}
                                                     onChange={(e) => setCommitteeConditions(e.target.value)}
                                                     className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium"
-                                                    placeholder={t('assessments.fields.optional', 'Optional')}
+                                                    placeholder={t('assessments.fields.optional')}
                                                 />
                                             </div>
                                         </div>

@@ -35,10 +35,11 @@ export function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
-    const { canManageAccess, canViewActivityLog, hasPermission } = usePermissions();
+    const { canViewActivityLog, hasPermission } = usePermissions();
     const authz = useAuthz();
     const isAdmin = authz.isPlatformAdmin;
     const { t } = useTranslation('navigation');
+    const { t: tCommon } = useTranslation('common');
     const [workflowCount, setWorkflowCount] = useState(0);
     const [orphanCount, setOrphanCount] = useState(0);
 
@@ -46,7 +47,8 @@ export function Sidebar() {
     // - Admin console should not poll business data.
     // - Questionnaire inbox requires risks:read (backend enforces).
     const canFetchQuestionnaireInbox = !isAdmin && hasPermission('risks', 'read');
-    const canFetchOrphanStats = !isAdmin && canManageAccess;
+    // - Orphan stats badge is only meaningful if the user can access Governance.
+    const canFetchOrphanStats = !isAdmin && authz.canViewGovernance;
 
     // Navigation items with translation keys
     const navigation = [
@@ -57,7 +59,7 @@ export function Sidebar() {
         { name: t('sidebar.kris'), href: '/kris', icon: Target },
         ...(hasPermission('vendors', 'read') ? [{ name: t('sidebar.vendors'), href: '/vendors', icon: Handshake }] : []),
         { name: t('sidebar.departments'), href: '/departments', icon: Building2 },
-        { name: t('sidebar.governance'), href: '/governance', icon: Scale },
+        ...(authz.canViewGovernance ? [{ name: t('sidebar.governance'), href: '/governance', icon: Scale }] : []),
         { name: t('sidebar.settings'), href: '/settings', icon: Settings },
     ];
 
@@ -99,7 +101,7 @@ export function Sidebar() {
         };
 
         // Only poll for authenticated, non-admin users. Admin console does not display business badges.
-        if (!user || isAdmin) return () => { cancelled = true; };
+        if (!user?.id || isAdmin) return () => { cancelled = true; };
 
         // Fetch immediately on mount
         fetchData();
@@ -131,9 +133,8 @@ export function Sidebar() {
 
     const navigationWithBadges = navigation.map(item => {
         if (item.href === '/governance') {
-            // Only show orphan count badge for users who can manage orphaned items
-            // Regular employees can't resolve orphaned items so badge would be misleading
-            const showBadge = canManageAccess && orphanCount > 0;
+            // Only show orphan count badge for users who can access Governance.
+            const showBadge = authz.canViewGovernance && orphanCount > 0;
             return { ...item, badge: showBadge ? orphanCount : undefined };
         }
         return item;
@@ -190,6 +191,11 @@ export function Sidebar() {
             ...(riskHubItem ? [riskHubItem] : []),
         ];
 
+    const brandName = tCommon('brand.name');
+    const brandAccentSuffix = 'Hub';
+    const hasAccentSuffix = brandName.endsWith(brandAccentSuffix);
+    const brandPrefix = hasAccentSuffix ? brandName.slice(0, -brandAccentSuffix.length) : brandName;
+
     return (
         <aside className="fixed inset-y-0 left-0 z-50 hidden lg:flex w-72 flex-col p-6">
             <div className="glass-card h-full flex flex-col p-4">
@@ -199,7 +205,14 @@ export function Sidebar() {
                             <Shield className="h-6 w-6 text-white" />
                         </div>
                         <span className="text-xl font-bold tracking-tight text-white font-heading">
-                            Risk<span className="text-accent">Hub</span>
+                            {hasAccentSuffix ? (
+                                <>
+                                    {brandPrefix}
+                                    <span className="text-accent">{brandAccentSuffix}</span>
+                                </>
+                            ) : (
+                                brandName
+                            )}
                         </span>
                     </div>
                     <NotificationBell />

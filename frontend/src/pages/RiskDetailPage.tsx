@@ -143,7 +143,7 @@ export function RiskDetailPage() {
         return () => {
             cancelled = true;
         };
-    }, [activeTab, risk?.kris]);
+    }, [activeTab, risk?.kris, t]);
 
     const handleDelete = async (reason?: string) => {
         if (!risk) return;
