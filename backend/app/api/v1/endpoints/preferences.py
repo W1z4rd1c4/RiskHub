@@ -1,10 +1,10 @@
 """User preferences endpoints for theme and language settings."""
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, field_validator
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app.api import deps
+from app.db.session import get_db
 from app.models.user import User
 
 router = APIRouter(prefix="/preferences", tags=["preferences"])

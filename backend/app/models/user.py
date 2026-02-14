@@ -1,7 +1,10 @@
-from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import String, Boolean, ForeignKey, DateTime, func, Enum as SQLEnum, JSON
+from enum import Enum as PyEnum
+
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, func
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
 
 
@@ -107,10 +110,10 @@ class User(Base):
 
 
 # Import for type hints
-from app.models.role import Role
-from app.models.department import Department
 from app.models.control import Control
 from app.models.control_execution import ControlExecution
-from app.models.risk import Risk
+from app.models.department import Department
 from app.models.notification import Notification
+from app.models.risk import Risk
+from app.models.role import Role
 from app.models.vendor import Vendor

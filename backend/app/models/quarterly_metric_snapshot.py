@@ -4,10 +4,13 @@ Quarterly Metric Snapshot model for storing historical quarter-end snapshots.
 This enables accurate quarter-over-quarter comparisons for metrics that
 represent point-in-time state rather than period-based events.
 """
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Enum as SQLAEnum, Index
-from sqlalchemy.sql import func
-from app.db.base import Base
 import enum
+
+from sqlalchemy import JSON, Column, DateTime, Index, Integer, String
+from sqlalchemy import Enum as SQLAEnum
+from sqlalchemy.sql import func
+
+from app.db.base import Base
 
 
 class SnapshotType(str, enum.Enum):

@@ -1,31 +1,37 @@
 """Approval request endpoints for deletion and edit workflows."""
-import datetime
 import logging
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
-from sqlalchemy import select, func, or_
-from sqlalchemy.ext.asyncio import AsyncSession, AsyncEngine, async_sessionmaker
-from sqlalchemy.orm import selectinload
-from sqlalchemy.exc import IntegrityError
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import selectinload
+
+from app.api import deps
+from app.core.activity_logger import log_activity
+from app.core.permissions import can_resolve_approvals, check_department_access
 from app.db.session import get_db
 from app.models import (
-    User, Risk, Control, KeyRiskIndicator,
-    ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType,
+    ApprovalRequest,
+    ApprovalResourceType,
+    ApprovalStatus,
+    Control,
+    KeyRiskIndicator,
+    Risk,
+    User,
 )
-from app.models.risk import RiskStatus as RiskStatusEnum
-from app.models.control import ControlStatus
-from app.schemas.approval_request import (
-    ApprovalRequestCreate, ApprovalRequestResolve, ApprovalRequestRead,
-    ApprovalRequestListResponse, ApprovalStatusEnum, ApprovalResourceTypeEnum,
-    ApprovalActionTypeEnum,
-)
-from app.api import deps
-from app.core.permissions import can_resolve_approvals, check_department_access
-from app.services.notification_service import NotificationService
-from app.core.activity_logger import log_activity
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.approval_request import (
+    ApprovalRequestCreate,
+    ApprovalRequestListResponse,
+    ApprovalRequestRead,
+    ApprovalRequestResolve,
+    ApprovalResourceTypeEnum,
+    ApprovalStatusEnum,
+)
+from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -313,8 +319,11 @@ async def approve_request(
       If requires_privileged_approval, moves to PENDING_PRIVILEGED instead of applying.
     """
     from app.services.approval_execution_service import (
-        load_approval, assert_can_approve, apply_status_transition,
-        apply_side_effects, log_approval_approve,
+        apply_side_effects,
+        apply_status_transition,
+        assert_can_approve,
+        load_approval,
+        log_approval_approve,
     )
     
     logger.info(f"Processing approval request {approval_id}")

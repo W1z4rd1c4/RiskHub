@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, UserCheck, ShieldAlert, ClipboardList, Calendar, User, Search, Check, Building2, Crown, Loader2, Target } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -31,6 +31,11 @@ interface UserOption {
     department_name?: string;
     employee_type?: string;
 }
+
+type OrphanUserRead = UserRead & {
+    department_name?: string;
+    employee_type?: string;
+};
 
 export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: ResolveOrphanModalProps) {
     const { t } = useTranslation('common');
@@ -71,28 +76,40 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
         return matchesSearch && matchesDept;
     });
 
-    useEffect(() => {
-        if (isOpen) {
-            // Reset all states
-            setIsInitialized(false);
-            setLinkedRisks([]);
-            setSelectedUserId(null);
-            setSelectedDepartmentId(null);
-            setSelectedRiskId(null);
-            setErrorKey(null);
-            setSearchQuery('');
-            setRiskSearchQuery('');
-            setSelectedDeptFilter(null);
-            setSelectedRiskDept('');
-
-            if (orphan) {
-                initializeData();
-            }
+    const fetchControlStatus = useCallback(async () => {
+        if (orphan?.item_type === 'control') {
+            const risks = await controlApi.getLinkedRisks(orphan.item_id);
+            setLinkedRisks(risks);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- initializeData is stable, orphan?.id is the key dependency
-    }, [isOpen, orphan?.id]);
+    }, [orphan?.item_id, orphan?.item_type]);
 
-    const initializeData = async () => {
+    const loadDepartments = useCallback(async () => {
+        const depts = await departmentApi.getDepartments();
+        setAllDepartments(depts);
+    }, []);
+
+    const loadRisks = useCallback(async () => {
+        const res = await riskApi.getRisks({ limit: 100 });
+        setAllRisks(res.items);
+    }, []);
+
+    const loadUsers = useCallback(async () => {
+        const activeUsers = (await userApi.listUsers(0, 100)) as OrphanUserRead[];
+        setUsers(
+            activeUsers
+                .filter((u) => u.is_active)
+                .map((u) => ({
+                    id: u.id,
+                    name: u.name,
+                    email: u.email,
+                    department_id: u.department_id,
+                    department_name: u.department_name,
+                    employee_type: u.employee_type,
+                })),
+        );
+    }, []);
+
+    const initializeData = useCallback(async () => {
         try {
             // Fetch everything in parallel
             const promises: Promise<unknown>[] = [
@@ -115,37 +132,27 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
             console.error('Failed to initialize resolution data:', err);
             setErrorKey(apiClient.toUiMessageKey(err));
         }
-    };
+    }, [fetchControlStatus, loadDepartments, loadRisks, loadUsers, orphan?.item_type]);
 
-    const fetchControlStatus = async () => {
-        if (orphan?.item_type === 'control') {
-            const risks = await controlApi.getLinkedRisks(orphan.item_id);
-            setLinkedRisks(risks);
+    useEffect(() => {
+        if (isOpen) {
+            // Reset all states
+            setIsInitialized(false);
+            setLinkedRisks([]);
+            setSelectedUserId(null);
+            setSelectedDepartmentId(null);
+            setSelectedRiskId(null);
+            setErrorKey(null);
+            setSearchQuery('');
+            setRiskSearchQuery('');
+            setSelectedDeptFilter(null);
+            setSelectedRiskDept('');
+
+            if (orphan) {
+                void initializeData();
+            }
         }
-    };
-
-    const loadDepartments = async () => {
-        const depts = await departmentApi.getDepartments();
-        setAllDepartments(depts);
-    };
-
-    const loadRisks = async () => {
-        const res = await riskApi.getRisks({ limit: 100 });
-        setAllRisks(res.items);
-    };
-
-    const loadUsers = async () => {
-        const activeUsers = await userApi.listUsers(0, 100);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        setUsers(activeUsers.filter((u: UserRead) => u.is_active).map((u: any) => ({
-            id: u.id,
-            name: u.name,
-            email: u.email,
-            department_id: u.department_id,
-            department_name: u.department_name,
-            employee_type: u.employee_type,
-        })));
-    };
+    }, [initializeData, isOpen, orphan]);
 
     const handleSubmit = async () => {
         if (!orphan) return;

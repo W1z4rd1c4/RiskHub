@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from enum import Enum
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, Field
-
 
 VENDOR_RISK_TAXONOMY_KEYS: tuple[str, ...] = (
     "regulatory_legal",

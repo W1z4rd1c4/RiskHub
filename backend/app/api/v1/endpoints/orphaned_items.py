@@ -1,5 +1,6 @@
 """Orphaned items API endpoints for governance."""
 import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -7,13 +8,13 @@ from app.api import deps
 from app.core.permissions import can_manage_users
 from app.db.session import get_db
 from app.models import User
-from app.services.orphaned_item_service import OrphanedItemService
 from app.schemas.orphaned_item import (
     OrphanedItemDetail,
     OrphanedItemResolve,
     OrphanedItemStats,
     OrphanScanResponse,
 )
+from app.services.orphaned_item_service import OrphanedItemService
 
 logger = logging.getLogger(__name__)
 

@@ -20,7 +20,8 @@ import {
     Activity,
     Command,
     Server,
-    BookOpen
+    BookOpen,
+    type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -50,8 +51,15 @@ export function Sidebar() {
     // - Orphan stats badge is only meaningful if the user can access Governance.
     const canFetchOrphanStats = !isAdmin && authz.canViewGovernance;
 
+    interface SidebarItem {
+        name: string;
+        href: string;
+        icon: LucideIcon;
+        badge?: number;
+    }
+
     // Navigation items with translation keys
-    const navigation = [
+    const navigation: SidebarItem[] = [
         { name: t('sidebar.dashboard'), href: '/', icon: LayoutDashboard },
         { name: t('sidebar.controls'), href: '/controls', icon: ClipboardList },
         { name: t('sidebar.risks'), href: '/risks', icon: ShieldAlert },
@@ -119,7 +127,7 @@ export function Sidebar() {
         navigate('/landing');
     };
 
-    const workflowItem = {
+    const workflowItem: SidebarItem = {
         name: t('sidebar.approvals'),
         href: '/approvals',
         icon: ClipboardCheck,
@@ -127,7 +135,7 @@ export function Sidebar() {
     };
 
     // Access Management visible to admins, privileged users, and department heads
-    const userManagementItem = authz.canViewUsersPage
+    const userManagementItem: SidebarItem | null = authz.canViewUsersPage
         ? { name: t('sidebar.users'), href: '/users', icon: UsersIcon }
         : null;
 
@@ -140,27 +148,27 @@ export function Sidebar() {
         return item;
     });
 
-    const activityLogItem = {
+    const activityLogItem: SidebarItem = {
         name: t('sidebar.activity_log'),
         href: '/activity-log',
         icon: Activity,
     };
 
     // Risk Hub visible only to CRO
-    const riskHubItem = authz.canViewRiskHub ? {
+    const riskHubItem: SidebarItem | null = authz.canViewRiskHub ? {
         name: t('sidebar.risk_hub'),
         href: '/risk-hub',
         icon: Command,
     } : null;
 
     // Admin Console visible only to Admin
-    const adminConsoleItem = authz.canViewAdminConsole ? {
+    const adminConsoleItem: SidebarItem | null = authz.canViewAdminConsole ? {
         name: t('sidebar.admin'),
         href: '/admin',
         icon: Server,
     } : null;
 
-    const documentationItem = authz.canViewAdminConsole ? {
+    const documentationItem: SidebarItem | null = authz.canViewAdminConsole ? {
         name: t('sidebar.documentation'),
         href: '/admin/docs',
         icon: BookOpen,
@@ -172,7 +180,7 @@ export function Sidebar() {
     const settingsItem = navigationWithBadges.find((i) => i.href === '/settings');
     const businessItems = navigationWithBadges.filter((i) => i.href !== '/' && i.href !== '/settings');
 
-    const filteredNavigation = isAdmin
+    const filteredNavigation: SidebarItem[] = isAdmin
         ? [
             // Admin-only navigation (no business data)
             ...(settingsItem ? [settingsItem] : []),
@@ -236,15 +244,12 @@ export function Sidebar() {
                                     <item.icon className={cn('h-5 w-5', isActive ? 'text-white' : 'text-slate-500 group-hover:text-white')} />
                                     {item.name}
                                 </div>
-                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                {(item as any).badge && (
+                                {item.badge !== undefined && (
                                     <span className="bg-accent text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                        {(item as any).badge}
+                                        {item.badge}
                                     </span>
                                 )}
-                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                {isActive && !(item as any).badge && <ChevronRight className="h-4 w-4" />}
+                                {isActive && item.badge === undefined && <ChevronRight className="h-4 w-4" />}
                             </Link>
                         );
                     })}

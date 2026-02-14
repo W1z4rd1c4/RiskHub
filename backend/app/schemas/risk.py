@@ -1,7 +1,8 @@
-from pydantic import BaseModel, Field, field_validator, computed_field
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
 from enum import Enum
+from typing import TYPE_CHECKING, Optional
+
+from pydantic import BaseModel, Field, field_validator
 
 if TYPE_CHECKING:
     from app.schemas.kri import KRIResponse

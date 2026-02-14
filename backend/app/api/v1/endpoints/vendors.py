@@ -1,24 +1,31 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Optional
-from datetime import datetime, UTC
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, or_, func, asc, desc
+from pydantic import BaseModel, Field
+from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel, Field
 
+from app.api import deps
+from app.api.mappers.vendor import vendor_list_response, vendor_to_read
+from app.core.activity_logger import build_change_set, log_activity
+from app.core.permissions import can_read_vendor, check_department_access, get_user_department_ids, is_vendor_owner
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import User, Vendor
-from app.schemas.vendor import VendorCreate, VendorUpdate, VendorRead, VendorListResponse, VendorStatusEnum, VendorTypeEnum
-from app.api import deps
-from app.core.permissions import get_user_department_ids, check_department_access, can_read_vendor, is_vendor_owner
-from app.core.security import require_permission, check_permission
-from app.core.activity_logger import log_activity, build_change_set
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.vendor import (
+    VendorCreate,
+    VendorListResponse,
+    VendorRead,
+    VendorStatusEnum,
+    VendorTypeEnum,
+    VendorUpdate,
+)
 from app.services.vendor_reassessment_service import VendorReassessmentService
-from app.api.mappers.vendor import vendor_list_response, vendor_to_read
 
 router = APIRouter()
 

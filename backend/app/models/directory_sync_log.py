@@ -1,7 +1,9 @@
 """Directory sync log model for tracking emulator sync runs."""
-from enum import Enum as PyEnum
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime, Enum as SQLEnum, func, JSON
+from enum import Enum as PyEnum
+
+from sqlalchemy import JSON, DateTime, Integer, func
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base

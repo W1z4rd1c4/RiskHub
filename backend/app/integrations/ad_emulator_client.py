@@ -1,6 +1,7 @@
 """Client for AD Emulator integration."""
-import httpx
 from typing import Any
+
+import httpx
 
 from app.core.config import get_settings
 

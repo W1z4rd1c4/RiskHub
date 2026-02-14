@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { AlertCircle, FileText, Send, UserX } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import type { Risk } from '@/types/risk';
@@ -121,7 +121,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
         );
     };
 
-    const refresh = async () => {
+    const refresh = useCallback(async () => {
         setLoading(true);
         setErrorKey(null);
         try {
@@ -132,12 +132,11 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
         } finally {
             setLoading(false);
         }
-    };
+    }, [risk.id]);
 
     useEffect(() => {
-        refresh();
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh is stable enough for this component
-    }, [risk.id]);
+        void refresh();
+    }, [refresh]);
 
     const handleSend = async () => {
         if (!canSend) return;

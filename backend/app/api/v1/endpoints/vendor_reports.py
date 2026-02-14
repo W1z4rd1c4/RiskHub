@@ -10,19 +10,18 @@ from __future__ import annotations
 
 from datetime import datetime
 from io import BytesIO
-from typing import Optional, Literal
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api import deps
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
 from app.models.role import RoleType
-from app.services.vendor_reporting_service import VendorReportingService
 from app.services.report_service import generate_vendor_annual_report_excel, generate_vendor_dora_register_excel
+from app.services.vendor_reporting_service import VendorReportingService
 
 router = APIRouter()
 

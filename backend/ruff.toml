@@ -1,0 +1,19 @@
+target-version = "py312"
+line-length = 120
+exclude = [
+  "alembic",
+  "tests",
+  "app/tests",
+  "scripts",
+  "venv",
+  "coverage_html",
+  "logs",
+]
+
+[lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E402", "E501", "E712", "W291", "W293"]
+
+[lint.per-file-ignores]
+"alembic/versions/*.py" = ["E", "F", "W", "I"]
+"app/models/__init__.py" = ["F401"]

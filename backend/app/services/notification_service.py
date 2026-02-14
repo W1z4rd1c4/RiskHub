@@ -1,15 +1,16 @@
 """Notification service for creating and managing in-app notifications."""
 import logging
-from datetime import datetime, UTC
-from sqlalchemy import select, or_
+from datetime import UTC, datetime
+
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.notification import Notification, NotificationType
-from app.models.approval_request import ApprovalRequest, ApprovalResourceType
-from app.models.user import User, AccessScope
-from app.models.role import Permission, Role, RolePermission
 from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id, can_read_vendor_id
+from app.models.approval_request import ApprovalRequest, ApprovalResourceType
+from app.models.notification import Notification, NotificationType
+from app.models.role import Permission, Role, RolePermission
+from app.models.user import AccessScope, User
 
 logger = logging.getLogger(__name__)
 
@@ -287,7 +288,7 @@ class NotificationService:
                     db=db,
                     user_id=approver.id,
                     notification_type=NotificationType.APPROVAL_CANCELLED,
-                    title=f"Request cancelled",
+                    title="Request cancelled",
                     message=f"{cancelled_by_user.name} cancelled their {action_label} request for {approval.resource_type.value} '{approval.resource_name}'.",
                     resource_type="approval",
                     resource_id=approval.id,

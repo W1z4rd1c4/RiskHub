@@ -1,10 +1,16 @@
 """Helper functions for approval workflow."""
-from typing import Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Control, Risk, ControlRiskLink
+from app.models import Control, ControlRiskLink, Risk
+
+if TYPE_CHECKING:
+    from app.models import ApprovalRequest, User
 
 
 async def get_primary_approver_for_control(
@@ -112,7 +118,6 @@ async def get_primary_approver_for_risk(
     Returns:
         User ID of the primary approver, or None if no approver found
     """
-    from app.models import Department
     
     risk_result = await db.execute(
         select(Risk).options(selectinload(Risk.department)).where(Risk.id == risk_id)
@@ -163,11 +168,11 @@ async def create_approval_request_with_audit(
     Raises:
         HTTPException(409): If a pending approval already exists (unique constraint violation)
     """
-    from sqlalchemy.exc import IntegrityError
     from fastapi import HTTPException, status
+    from sqlalchemy.exc import IntegrityError
+
     from app.core.activity_logger import log_activity
     from app.models.activity_log import ActivityAction, ActivityEntityType
-    from app.models import ApprovalRequest
     
     try:
         db.add(approval)

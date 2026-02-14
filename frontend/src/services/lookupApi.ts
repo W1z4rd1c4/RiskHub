@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import type { DepartmentSummary } from './departmentApi';
 
 export interface UserLookupItem {
     id: number;
@@ -16,14 +17,11 @@ export const lookupApi = {
         return apiClient.get<UserLookupItem[]>('/users/lookup');
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async getDepartments(): Promise<any[]> {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return apiClient.get<any[]>('/departments');
+    async getDepartments(): Promise<DepartmentSummary[]> {
+        return apiClient.get<DepartmentSummary[]>('/departments');
     },
 
     async getRiskFilters(): Promise<{ processes: string[], categories: string[] }> {
         return apiClient.get<{ processes: string[], categories: string[] }>('/lookups/risk-filters');
     }
 };
-

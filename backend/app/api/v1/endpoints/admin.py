@@ -1,31 +1,32 @@
 """
 Admin endpoints for data maintenance operations.
 """
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 import random
 
-from app.db.session import get_db
-from app.models import Risk, Control, KeyRiskIndicator, ControlRiskLink, User
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.deps import get_current_user
+from app.db.session import get_db
+from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk, User
+from app.models.role import RoleType
 from app.schemas.admin import (
+    ActiveSessionResponse,
+    DocumentationEntry,
+    DocumentationResponse,
+    LogConfig,
+    LogConfigUpdate,
     OrphanFixResponse,
     OrphanStatsResponse,
+    RecentLogEntry,
+    RecentLogsResponse,
+    SnapshotListItem,
+    SnapshotResponse,
     SystemHealthResponse,
     SystemStatsResponse,
     TechnicalLogEntry,
-    ActiveSessionResponse,
-    RecentLogEntry,
-    RecentLogsResponse,
-    LogConfig,
-    LogConfigUpdate,
-    DocumentationEntry,
-    DocumentationResponse,
-    SnapshotResponse,
-    SnapshotListItem,
 )
-from app.models.role import RoleType
 
 router = APIRouter()
 
@@ -140,7 +141,7 @@ async def fix_orphan_mappings(
                 control_id=control.id,
                 risk_id=risk.id,
                 effectiveness='medium',
-                notes=f'Auto-assigned by admin fix-orphans endpoint',
+                notes='Auto-assigned by admin fix-orphans endpoint',
             )
             db.add(link)
             links_created += 1
@@ -171,8 +172,9 @@ async def get_system_health(
     Admin only.
     """
     import time
+    from datetime import UTC, datetime
+
     import psutil
-    from datetime import datetime, UTC
     
     # Measure database latency
     start = time.perf_counter()
@@ -208,7 +210,8 @@ async def get_system_stats(
     Get platform statistics including user counts and entity totals.
     Admin only.
     """
-    from datetime import datetime, timedelta, UTC
+    from datetime import UTC, datetime, timedelta
+
     from app.models import ApprovalRequest
     
     # Total users
@@ -259,8 +262,9 @@ async def get_technical_logs(
     Get technical/security logs from activity log.
     Admin only.
     """
-    from app.models.activity_log import ActivityLog
     from sqlalchemy.orm import selectinload
+
+    from app.models.activity_log import ActivityLog
     
     # Build query
     query = (
@@ -301,9 +305,11 @@ async def get_active_sessions(
     Get list of users with recent activity (approximation of active sessions).
     Admin only.
     """
-    from datetime import datetime, timedelta, UTC
-    from app.models.activity_log import ActivityLog
+    from datetime import UTC, datetime, timedelta
+
     from sqlalchemy.orm import selectinload
+
+    from app.models.activity_log import ActivityLog
     
     # Get users with activity in last 24 hours
     # Timezone-aware datetime works for both PostgreSQL and SQLite via SQLAlchemy
@@ -433,6 +439,7 @@ def _read_log_file(
         filter_value: Value to match for filter_key
     """
     import json
+
     from app.core.logging import get_log_directory, tail_log_file
     
     log_file = get_log_directory() / log_filename
@@ -524,8 +531,8 @@ async def get_documentation(
     Args:
         locale: Language code ('en' or 'cs'). Defaults to 'en'.
     """
-    from pathlib import Path
     import re
+    from pathlib import Path
     
     # Documentation files are in docs/ subdirectories at project root
     # Path: admin.py -> endpoints -> v1 -> api -> app -> backend -> project_root -> docs
@@ -556,7 +563,6 @@ async def get_documentation(
     
     # Define visibility based on role
     can_see_admin = role in {RoleType.ADMIN, RoleType.CRO}
-    can_see_manager = role in {RoleType.ADMIN, RoleType.CRO, RoleType.RISK_MANAGER, RoleType.DEPARTMENT_HEAD}
     
     # Admin docs (CRO and Admin only)
     if can_see_admin and admin_dir.exists():
@@ -620,8 +626,9 @@ async def update_log_config(
     Update log rotation settings (separate for app and audit logs).
     Changes require backend restart to take full effect on file handlers.
     """
-    from app.models.global_config import GlobalConfig
     from sqlalchemy import select
+
+    from app.models.global_config import GlobalConfig
     canonical = config.to_log_config()
     
     # Helper to upsert config
@@ -695,14 +702,7 @@ async def capture_quarterly_snapshot(
     This endpoint should be called at the end of each quarter to capture
     point-in-time state metrics for accurate historical comparisons.
     """
-    from app.core.snapshot_service import (
-        capture_current_quarter_snapshot,
-        get_quarter_label,
-        get_quarter_number
-    )
-    from datetime import datetime, timezone
-    
-    now = datetime.now(timezone.utc)
+    from app.core.snapshot_service import capture_current_quarter_snapshot
     
     # Capture snapshot
     snapshot = await capture_current_quarter_snapshot(

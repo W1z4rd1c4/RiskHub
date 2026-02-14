@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, date
+from datetime import date, datetime
 
 from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -31,6 +31,5 @@ class VendorSLAValueHistory(Base):
     sla: Mapped["VendorSLA"] = relationship("VendorSLA", back_populates="history_entries", lazy="selectin")
 
 
-from app.models.user import User
 from app.models.vendor_sla import VendorSLA
 

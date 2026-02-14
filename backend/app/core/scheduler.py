@@ -1,18 +1,19 @@
 """Background task scheduler for KRI deadline checking and other periodic tasks."""
 import logging
 from contextlib import asynccontextmanager
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from sqlalchemy import select
 
 from app.db.session import async_session_maker
+from app.models.vendor import Vendor
+from app.services.issue_deadline_service import IssueDeadlineService
 from app.services.kri_deadline_service import KRIDeadlineService
 from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
 from app.services.vendor_reassessment_service import VendorReassessmentService
-from app.services.vendor_sla_deadline_service import VendorSLADeadlineService
 from app.services.vendor_signal_service import VendorSignalService
-from app.services.issue_deadline_service import IssueDeadlineService
-from app.models.vendor import Vendor
-from sqlalchemy import select
+from app.services.vendor_sla_deadline_service import VendorSLADeadlineService
 
 logger = logging.getLogger(__name__)
 

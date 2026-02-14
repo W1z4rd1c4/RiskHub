@@ -3,36 +3,35 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 
 from app.api import deps
 from app.core.permissions import (
+    can_access_department_id,
     can_read_vendor,
-    is_vendor_owner,
     get_user_department_ids,
     has_permission,
-    can_access_department_id,
+    is_vendor_owner,
     redact_name_if_no_access,
 )
-from app.core.security import require_permission, check_permission
 from app.core.query_filters import vendor_visibility_clause
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import Department, Risk, User, Vendor
 from app.models.vendor_relationship import VendorRelationship, VendorRelationshipType
-from app.models.vendor_service import VendorService, VendorDependency
+from app.models.vendor_service import VendorDependency, VendorService
 from app.schemas.vendor_dependency import (
+    VendorConcentrationFlag,
+    VendorConcentrationSummary,
     VendorDependenciesResponse,
-    VendorRelationshipRead,
-    VendorRelationshipCreate,
-    VendorServiceRead,
-    VendorServiceCreate,
-    VendorServiceUpdate,
-    VendorDependencyRead,
     VendorDependencyCreate,
     VendorDependencyGraphNode,
-    VendorConcentrationSummary,
-    VendorConcentrationFlag,
+    VendorDependencyRead,
+    VendorRelationshipCreate,
+    VendorRelationshipRead,
+    VendorServiceCreate,
+    VendorServiceRead,
+    VendorServiceUpdate,
 )
 from app.services.vendor_concentration_service import VendorConcentrationService
 

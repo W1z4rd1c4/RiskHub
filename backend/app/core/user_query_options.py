@@ -6,7 +6,7 @@ to reduce duplication while preserving exact loading semantics.
 """
 from sqlalchemy.orm import selectinload
 
-from app.models import User, Role, RolePermission
+from app.models import Role, RolePermission, User
 
 
 def user_selectinload_options(*, include_permissions: bool = False) -> list:

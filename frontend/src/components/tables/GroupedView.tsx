@@ -21,8 +21,7 @@ interface GroupData<T> {
     items: T[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function GroupedView<T extends Record<string, any>>({
+export function GroupedView<T extends Record<string, unknown>>({
     data,
     groupBy,
     groupLabel,
