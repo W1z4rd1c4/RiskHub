@@ -1,6 +1,6 @@
 # i18n UI Text Inventory
 
-- Files scanned: 220
+- Files scanned: 221
 - Hardcoded count (high): 0
 - Hardcoded count (medium): 0
 - Hardcoded count (low): 0
@@ -22,20 +22,20 @@
 | `src/components/controls/ControlGaugeCard.tsx` | 0 | yes | component | high |
 | `src/components/dashboard/CategoryBreakdownCharts.tsx` | 0 | yes | component | high |
 | `src/components/dashboard/chartTooltip.ts` | 0 | no | component | high |
-| `src/components/dashboard/ControlTrendChart.tsx` | 0 | no | component | high |
+| `src/components/dashboard/ControlTrendChart.tsx` | 0 | yes | component | high |
 | `src/components/dashboard/DepartmentTable.tsx` | 0 | yes | component | high |
 | `src/components/dashboard/FilterBar.tsx` | 0 | yes | component | high |
 | `src/components/dashboard/IssueAgingChart.tsx` | 0 | no | component | high |
 | `src/components/dashboard/IssuesSummaryCard.tsx` | 0 | yes | component | high |
-| `src/components/dashboard/KRIBreachHistoryChart.tsx` | 0 | no | component | high |
+| `src/components/dashboard/KRIBreachHistoryChart.tsx` | 0 | yes | component | high |
 | `src/components/dashboard/KRIBreachWidget.tsx` | 0 | yes | component | high |
 | `src/components/dashboard/KRIStatusWidget.tsx` | 0 | yes | component | high |
 | `src/components/dashboard/OpenIssuesBySeverityChart.tsx` | 0 | yes | component | high |
 | `src/components/dashboard/QuarterlyComparisonWidget.tsx` | 0 | yes | component | high |
 | `src/components/dashboard/RiskCommitteeSection.tsx` | 0 | yes | component | high |
-| `src/components/dashboard/RiskDistributionMatrix.tsx` | 0 | no | component | high |
+| `src/components/dashboard/RiskDistributionMatrix.tsx` | 0 | yes | component | high |
 | `src/components/dashboard/RiskDrilldownModal.tsx` | 0 | yes | component | high |
-| `src/components/dashboard/RiskTrendChart.tsx` | 0 | no | component | high |
+| `src/components/dashboard/RiskTrendChart.tsx` | 0 | yes | component | high |
 | `src/components/executions/ExecutionHistory.tsx` | 0 | yes | component | high |
 | `src/components/executions/ExecutionLogModal.tsx` | 0 | yes | component | high |
 | `src/components/governance/index.ts` | 0 | no | component | high |
@@ -44,8 +44,8 @@
 | `src/components/governance/ResolveOrphanModal.tsx` | 0 | yes | component | high |
 | `src/components/history/HistoryChangeCard.tsx` | 0 | no | component | high |
 | `src/components/history/HistoryComparisonPanel.tsx` | 0 | yes | component | high |
-| `src/components/history/HistoryTimeline.tsx` | 0 | no | component | high |
-| `src/components/history/HistoryTrendChart.tsx` | 0 | no | component | high |
+| `src/components/history/HistoryTimeline.tsx` | 0 | yes | component | high |
+| `src/components/history/HistoryTrendChart.tsx` | 0 | yes | component | high |
 | `src/components/history/index.ts` | 0 | no | component | high |
 | `src/components/issues/IssueCreateForm.tsx` | 0 | yes | component | high |
 | `src/components/issues/IssueQuickCreateModal.tsx` | 0 | yes | component | high |
@@ -82,7 +82,7 @@
 | `src/components/risks/RiskDetailQuestionnairesTab.tsx` | 0 | yes | component | high |
 | `src/components/risks/RiskQuestionnaireDetail.tsx` | 0 | yes | component | high |
 | `src/components/risks/riskQuestionnaireQuestions.ts` | 0 | no | component | high |
-| `src/components/RiskScoreMatrix.tsx` | 0 | no | component | high |
+| `src/components/RiskScoreMatrix.tsx` | 0 | yes | component | high |
 | `src/components/settings/AppearanceSettings.tsx` | 0 | yes | component | high |
 | `src/components/settings/DocumentationSettings.tsx` | 0 | yes | component | high |
 | `src/components/settings/index.ts` | 0 | no | component | high |
@@ -94,7 +94,7 @@
 | `src/components/tables/index.ts` | 0 | no | component | high |
 | `src/components/tables/MiniHeatmap.tsx` | 0 | yes | component | high |
 | `src/components/tables/Pagination.tsx` | 0 | yes | component | high |
-| `src/components/tables/SortableTable.tsx` | 0 | no | component | high |
+| `src/components/tables/SortableTable.tsx` | 0 | yes | component | high |
 | `src/components/tables/ViewSwitcher.tsx` | 0 | yes | component | high |
 | `src/components/ui/button.tsx` | 0 | no | component | high |
 | `src/components/ui/select.tsx` | 0 | no | component | high |
@@ -129,6 +129,7 @@
 | `src/hooks/usePendingApprovalIds.ts` | 0 | no | hook | medium |
 | `src/hooks/usePermissions.ts` | 0 | no | hook | medium |
 | `src/hooks/useRiskHubConfig.ts` | 0 | no | hook | medium |
+| `src/hooks/useStatusTheme.ts` | 0 | no | hook | medium |
 | `src/hooks/useUsersPageFilters.ts` | 0 | no | hook | medium |
 | `src/lib/approvalUi.ts` | 0 | no | other | low |
 | `src/lib/utils.ts` | 0 | no | other | low |

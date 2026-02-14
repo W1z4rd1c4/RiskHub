@@ -214,7 +214,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
                                 <button
                                     onClick={handleSave}
                                     disabled={isSaving}
-                                    className="px-8 py-2.5 bg-accent rounded-xl text-slate-950 text-xs font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(30,132,255,0.4)] transition-all flex items-center gap-2 disabled:opacity-50"
+                                    className="px-8 py-2.5 bg-accent rounded-xl text-slate-950 text-xs font-black uppercase tracking-widest hover:shadow-lg hover:shadow-accent/35 transition-all flex items-center gap-2 disabled:opacity-50"
                                 >
                                     {isSaving ? t('common:loading.generic') : <><Save className="h-4 w-4" /> {t('value_modal.title', { ns: 'kris' })}</>}
                                 </button>

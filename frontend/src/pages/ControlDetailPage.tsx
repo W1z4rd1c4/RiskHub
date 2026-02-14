@@ -216,7 +216,7 @@ export function ControlDetailPage() {
     }
 
     const getRiskLevelColor = (level: number) => {
-        if (level >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20 shadow-[0_0_15px_rgba(251,113,133,0.1)]';
+        if (level >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20 shadow-lg shadow-rose-500/20';
         if (level >= 4) return 'text-orange-400 bg-orange-400/10 border-orange-400/20';
         if (level >= 3) return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
         return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
@@ -292,7 +292,7 @@ export function ControlDetailPage() {
                     {(hasPermission('controls', 'write') || control.control_owner_id === user?.id) && (
                         <button
                             onClick={() => navigate(`/controls/${control.id}/edit`)}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-all hover:shadow-[0_0_20px_rgba(30,132,255,0.1)]"
+                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-all hover:shadow-lg hover:shadow-accent/20"
                             title={control.control_owner_id === user?.id && !hasPermission('controls', 'write') ? t('controls:detail.edit_requires_approval') : t('controls:edit_control')}
                         >
                             <Edit className="h-5 w-5" />
@@ -570,7 +570,7 @@ export function ControlDetailPage() {
                         <PermissionGate resource="controls" action="execute">
                             <button
                                 onClick={() => setIsLogModalOpen(true)}
-                                className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2 group-hover:shadow-[0_0_15px_rgba(30,132,255,0.2)]"
+                                className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2 group-hover:shadow-lg group-hover:shadow-accent/30"
                             >
                                 <Plus className="h-3.5 w-3.5" />
                                 {t('controls:execution.log_execution')}

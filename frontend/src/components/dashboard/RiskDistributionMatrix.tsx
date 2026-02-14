@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import type { RiskDistributionItem } from '../../types/dashboard';
 import { useTranslation } from '@/i18n/hooks';
+import { useStatusTheme } from '@/hooks/useStatusTheme';
 
 interface RiskDistributionMatrixProps {
     distribution: RiskDistributionItem[];
@@ -14,27 +15,24 @@ interface RiskDistributionMatrixProps {
  */
 export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistributionMatrixProps) {
     const { t } = useTranslation('dashboard');
+    const statusTheme = useStatusTheme();
 
     const getCountForCell = (p: number, i: number) => {
         const item = distribution.find(d => d.probability === p && d.impact === i);
         return item ? item.count : 0;
     };
 
-    /** Returns inline style for cell background color - uses inline styles to bypass theme CSS overrides */
+    /** Returns inline style for cell background color based on semantic status palette. */
     const getCellStyle = (p: number, i: number): React.CSSProperties => {
         const score = p * i;
         const count = getCountForCell(p, i);
         if (count === 0) {
-            return { backgroundColor: 'rgba(255, 255, 255, 0.02)', opacity: 0.2 };
+            return { backgroundColor: statusTheme.matrix.emptyCell, opacity: 0.2 };
         }
-        // Critical (rose-500/40)
-        if (score >= 16) return { backgroundColor: 'rgba(244, 63, 94, 0.4)' };
-        // High (orange-500/40)
-        if (score >= 10) return { backgroundColor: 'rgba(249, 115, 22, 0.4)' };
-        // Medium (amber-500/40)
-        if (score >= 5) return { backgroundColor: 'rgba(245, 158, 11, 0.4)' };
-        // Low (emerald-500/40)
-        return { backgroundColor: 'rgba(16, 185, 129, 0.4)' };
+        if (score >= 16) return { backgroundColor: statusTheme.matrix.critical };
+        if (score >= 10) return { backgroundColor: statusTheme.matrix.high };
+        if (score >= 5) return { backgroundColor: statusTheme.matrix.medium };
+        return { backgroundColor: statusTheme.matrix.low };
     };
 
     const handleCellClick = (p: number, i: number) => {
@@ -113,19 +111,19 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
             {/* Legend */}
             <div className="flex gap-4 mt-8">
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-sm bg-emerald-500/40" />
+                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: statusTheme.matrix.low }} />
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.low')}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-sm bg-amber-500/40" />
+                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: statusTheme.matrix.medium }} />
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.medium')}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-sm bg-orange-500/40" />
+                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: statusTheme.matrix.high }} />
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.high')}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-sm bg-rose-500/40" />
+                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: statusTheme.matrix.critical }} />
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.critical')}</span>
                 </div>
             </div>

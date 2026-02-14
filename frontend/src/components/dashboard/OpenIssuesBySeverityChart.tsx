@@ -16,7 +16,7 @@ export function OpenIssuesBySeverityChart({ items }: OpenIssuesBySeverityChartPr
 
     return (
         <div className="h-[240px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 240 }}>
                 <PieChart>
                     <Pie data={items} dataKey="count" nameKey="severity" outerRadius={84} innerRadius={40} paddingAngle={2}>
                         {items.map((item) => (

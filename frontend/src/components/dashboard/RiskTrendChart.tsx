@@ -38,7 +38,7 @@ export function RiskTrendChart({ data, emptyMessage }: RiskTrendChartProps) {
 
     return (
         <div className="relative group/chart">
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={260} initialDimension={{ width: 1, height: 260 }}>
                 <AreaChart data={data} margin={{ top: 20, right: 10, left: -25, bottom: 0 }}>
                     <defs>
                         <linearGradient id="totalGradientNew" x1="0" y1="0" x2="0" y2="1">

@@ -7,6 +7,7 @@ import { vendorDependencyApi } from '@/services/vendorDependencyApi';
 import { vendorApi } from '@/services/vendorApi';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { VendorDependencyGraph } from './VendorDependencyGraph';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface VendorDependenciesTabProps {
     vendor: Vendor;
@@ -24,6 +25,8 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
     const [newRelType, setNewRelType] = useState<VendorRelationshipType>('subcontractor');
 
     const [newServiceName, setNewServiceName] = useState('');
+    const [addDependencyServiceId, setAddDependencyServiceId] = useState<number | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<{ kind: 'relationship' | 'service' | 'dependency'; id: number } | null>(null);
 
     const refresh = useCallback(async () => {
         try {
@@ -84,17 +87,39 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
         }
     };
 
-    const addDependency = async (serviceId: number) => {
-        const fn = prompt(t('dependencies.prompt_function'))?.trim();
+    const addDependency = async (supportedFunctionName?: string) => {
+        if (addDependencyServiceId === null) return;
+        const fn = supportedFunctionName?.trim();
         if (!fn) return;
         try {
             setIsSaving(true);
-            await vendorDependencyApi.createDependency(serviceId, { supported_function_name: fn });
+            await vendorDependencyApi.createDependency(addDependencyServiceId, { supported_function_name: fn });
             await refresh();
         } catch (err) {
             console.error('Failed to create dependency:', err);
         } finally {
             setIsSaving(false);
+            setAddDependencyServiceId(null);
+        }
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!pendingDelete) return;
+        try {
+            setIsSaving(true);
+            if (pendingDelete.kind === 'relationship') {
+                await vendorDependencyApi.deleteRelationship(pendingDelete.id);
+            } else if (pendingDelete.kind === 'service') {
+                await vendorDependencyApi.deleteService(pendingDelete.id);
+            } else {
+                await vendorDependencyApi.deleteDependency(pendingDelete.id);
+            }
+            await refresh();
+        } catch (err) {
+            console.error('Failed to delete vendor dependency item:', err);
+        } finally {
+            setIsSaving(false);
+            setPendingDelete(null);
         }
     };
 
@@ -116,7 +141,7 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
                     {t('labels.loading')}
                 </div>
             ) : !data ? (
-                <div className="text-slate-500 font-medium">—</div>
+                <div className="text-slate-500 font-medium">{t('common:fallbacks.not_available')}</div>
             ) : (
                 <div className="space-y-6">
                     <div className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-2">
@@ -165,7 +190,7 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
                                                 { value: 'parent_company', label: t('dependencies.relationships.type.parent_company') },
                                                 { value: 'other', label: t('dependencies.relationships.type.other') },
                                             ]}
-                                            placeholder="Type"
+                                            placeholder={t('common:labels.type')}
                                         />
                                     </div>
                                     <button
@@ -193,11 +218,7 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
                                             </div>
                                             {canEdit && (
                                                 <button
-                                                    onClick={async () => {
-                                                        if (!confirm(t('dependencies.confirm_delete'))) return;
-                                                        await vendorDependencyApi.deleteRelationship(r.id);
-                                                        await refresh();
-                                                    }}
+                                                    onClick={() => setPendingDelete({ kind: 'relationship', id: r.id })}
                                                     className="p-2 text-rose-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
@@ -254,18 +275,14 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
                                                 {canEdit && (
                                                     <div className="flex gap-2">
                                                         <button
-                                                            onClick={() => addDependency(s.id)}
+                                                            onClick={() => setAddDependencyServiceId(s.id)}
                                                             className="px-3 py-2 bg-accent/20 border border-accent/30 text-accent rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2"
                                                         >
                                                             <Plus className="h-4 w-4" />
                                                             {t('dependencies.services.actions.add_dependency')}
                                                         </button>
                                                         <button
-                                                            onClick={async () => {
-                                                                if (!confirm(t('dependencies.confirm_delete'))) return;
-                                                                await vendorDependencyApi.deleteService(s.id);
-                                                                await refresh();
-                                                            }}
+                                                            onClick={() => setPendingDelete({ kind: 'service', id: s.id })}
                                                             className="p-2 text-rose-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
                                                         >
                                                             <Trash2 className="h-4 w-4" />
@@ -283,18 +300,14 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
                                                     {s.dependencies.map((d) => (
                                                         <div key={d.id} className="p-3 bg-white/[0.02] border border-white/10 rounded-xl flex items-center justify-between">
                                                             <div>
-                                                                <p className="text-sm text-slate-200 font-bold">{d.supported_function_name || '—'}</p>
+                                                                <p className="text-sm text-slate-200 font-bold">{d.supported_function_name || t('common:fallbacks.not_available')}</p>
                                                                 <p className="text-xs text-slate-500 font-medium">
-                                                                    {d.department_name || '—'} {d.risk_name ? `· ${d.risk_name}` : ''}
+                                                                    {d.department_name || t('common:fallbacks.not_available')} {d.risk_name ? `· ${d.risk_name}` : ''}
                                                                 </p>
                                                             </div>
                                                             {canEdit && (
                                                                 <button
-                                                                    onClick={async () => {
-                                                                        if (!confirm(t('dependencies.confirm_delete'))) return;
-                                                                        await vendorDependencyApi.deleteDependency(d.id);
-                                                                        await refresh();
-                                                                    }}
+                                                                    onClick={() => setPendingDelete({ kind: 'dependency', id: d.id })}
                                                                     className="p-2 text-rose-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
                                                                 >
                                                                     <Trash2 className="h-4 w-4" />
@@ -312,6 +325,30 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
                     </div>
                 </div>
             )}
+            <ConfirmDialog
+                isOpen={addDependencyServiceId !== null}
+                onClose={() => setAddDependencyServiceId(null)}
+                onConfirm={addDependency}
+                title={t('dependencies.add_dependency_dialog.title')}
+                message={t('dependencies.add_dependency_dialog.message')}
+                confirmLabel={t('dependencies.services.actions.add_dependency')}
+                variant="info"
+                isLoading={isSaving}
+                showInput
+                inputLabel={t('dependencies.add_dependency_dialog.input_label')}
+                inputPlaceholder={t('dependencies.add_dependency_dialog.input_placeholder')}
+                inputRequired
+            />
+            <ConfirmDialog
+                isOpen={pendingDelete !== null}
+                onClose={() => setPendingDelete(null)}
+                onConfirm={handleConfirmDelete}
+                title={t('common:actions.delete')}
+                message={t('dependencies.confirm_delete')}
+                confirmLabel={t('common:actions.delete')}
+                variant="danger"
+                isLoading={isSaving}
+            />
         </section>
     );
 }

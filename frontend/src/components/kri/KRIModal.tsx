@@ -272,7 +272,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                 <button
                                     onClick={handleSave}
                                     disabled={isSaving || !formData.metric_name}
-                                    className="px-8 py-2.5 bg-accent rounded-xl text-slate-950 text-xs font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(30,132,255,0.4)] transition-all flex items-center gap-2 disabled:opacity-50"
+                                    className="px-8 py-2.5 bg-accent rounded-xl text-slate-950 text-xs font-black uppercase tracking-widest hover:shadow-lg hover:shadow-accent/35 transition-all flex items-center gap-2 disabled:opacity-50"
                                 >
                                     {isSaving ? t('loading.generic', { ns: 'common' }) : <><Save className="h-4 w-4" /> {isCreate ? t('modal.create_indicator', { ns: 'kris' }) : t('actions.save', { ns: 'common' })}</>}
                                 </button>

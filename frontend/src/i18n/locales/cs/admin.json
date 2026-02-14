@@ -56,12 +56,18 @@
     "note": "Nastavte rotaci pro aplikační a auditní logy samostatně.",
     "save_settings": "Uložit nastavení",
     "saving": "Ukládání...",
+    "settings_saved_notice": "Nastavení logů bylo aktualizováno. Změny se plně projeví po restartu backendu.",
     "event_feed": "Auditní události",
     "live": "Živě",
     "all_events": "Všechny události",
     "last_n": "Posledních {{count}}",
     "no_events": "Nebyly nalezeny žádné auditní události v aktuálním okně.",
     "view": "Zobrazit",
+    "details_modal": {
+      "title": "Detail auditní události",
+      "copy": "Kopírovat JSON",
+      "copied": "Zkopírováno"
+    },
     "columns": {
       "timestamp": "Časové razítko",
       "event": "Událost",

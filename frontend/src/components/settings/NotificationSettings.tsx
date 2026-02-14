@@ -45,7 +45,7 @@ export function NotificationSettings() {
     const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
     const [loading, setLoading] = useState(true);
     const [updating, setUpdating] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     useEffect(() => {
         loadPreferences();
@@ -54,11 +54,11 @@ export function NotificationSettings() {
     const loadPreferences = async () => {
         try {
             setLoading(true);
-            setError(null);
+            setErrorKey(null);
             const prefs = await notificationsApi.getPreferences();
             setPreferences(prefs);
         } catch (err) {
-            setError('Failed to load preferences');
+            setErrorKey('notifications.load_failed');
             console.error('Failed to load notification preferences:', err);
         } finally {
             setLoading(false);
@@ -104,17 +104,17 @@ export function NotificationSettings() {
         );
     }
 
-    if (error) {
+    if (errorKey) {
         return (
             <div className="text-center py-8">
                 <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-                <p className="text-slate-400 mb-4">{error}</p>
+                <p className="text-slate-400 mb-4">{t(errorKey)}</p>
                 <button
                     onClick={loadPreferences}
                     className="flex items-center gap-2 mx-auto px-4 py-2 bg-accent/20 text-accent rounded-lg hover:bg-accent/30 transition-colors"
                 >
                     <RefreshCw className="h-4 w-4" />
-                    Retry
+                    {t('common:actions.retry')}
                 </button>
             </div>
         );

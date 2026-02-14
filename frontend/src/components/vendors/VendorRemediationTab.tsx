@@ -4,6 +4,7 @@ import { CheckCircle2, ClipboardCheck, Loader2, Plus, Save, Trash2 } from 'lucid
 import { vendorIncidentApi } from '@/services/vendorIncidentApi';
 import type { VendorRemediationAction, VendorRemediationStatus } from '@/types/vendorIncident';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface VendorRemediationTabProps {
     vendorId: number;
@@ -19,6 +20,7 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
     const [showForm, setShowForm] = useState(false);
     const [description, setDescription] = useState('');
     const [status, setStatus] = useState<VendorRemediationStatus>('open');
+    const [deleteActionId, setDeleteActionId] = useState<number | null>(null);
 
     const refresh = useCallback(async () => {
         try {
@@ -61,6 +63,18 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
             console.error('Failed to create remediation:', err);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleConfirmDelete = async () => {
+        if (deleteActionId === null) return;
+        try {
+            await vendorIncidentApi.deleteRemediation(deleteActionId);
+            await refresh();
+        } catch (err) {
+            console.error('Failed to delete remediation:', err);
+        } finally {
+            setDeleteActionId(null);
         }
     };
 
@@ -140,11 +154,7 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
                                                 options={statusOptions}
                                             />
                                             <button
-                                                onClick={async () => {
-                                                    if (!confirm(t('remediation.confirm_delete'))) return;
-                                                    await vendorIncidentApi.deleteRemediation(a.id);
-                                                    await refresh();
-                                                }}
+                                                onClick={() => setDeleteActionId(a.id)}
                                                 className="p-2 text-rose-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -158,6 +168,15 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
                     ))}
                 </div>
             )}
+            <ConfirmDialog
+                isOpen={deleteActionId !== null}
+                onClose={() => setDeleteActionId(null)}
+                onConfirm={handleConfirmDelete}
+                title={t('common:actions.delete')}
+                message={t('remediation.confirm_delete')}
+                confirmLabel={t('common:actions.delete')}
+                variant="danger"
+            />
         </section>
     );
 }

@@ -31,7 +31,7 @@ export function ControlTrendChart({ data }: ControlTrendChartProps) {
 
     return (
         <div className="w-full h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 300 }}>
                 <BarChart
                     data={data}
                     margin={{ top: 20, right: 30, left: 0, bottom: 0 }}

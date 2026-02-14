@@ -7,6 +7,7 @@ import {
     SelectValue,
 } from "./select"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "@/i18n/hooks"
 
 export interface SelectOption {
     value: string
@@ -41,15 +42,19 @@ export function ThemedSelect({
     value,
     onValueChange,
     options,
-    placeholder = "Select...",
+    placeholder,
     className,
     disabled = false,
     allowEmpty = false,
-    emptyLabel = "All",
+    emptyLabel,
     triggerTestId,
     contentTestId,
     optionTestIdPrefix,
 }: ThemedSelectProps) {
+    const { t } = useTranslation('common')
+    const resolvedPlaceholder = placeholder ?? t('actions.select')
+    const resolvedEmptyLabel = emptyLabel ?? t('labels.all')
+
     // Translate external "" to internal sentinel
     const internalValue = value === "" ? EMPTY_SENTINEL : value
 
@@ -61,10 +66,10 @@ export function ThemedSelect({
     // Build options list with optional empty option (using sentinel)
     const allOptions = React.useMemo(() => {
         if (allowEmpty) {
-            return [{ value: EMPTY_SENTINEL, label: emptyLabel }, ...options]
+            return [{ value: EMPTY_SENTINEL, label: resolvedEmptyLabel }, ...options]
         }
         return options
-    }, [options, allowEmpty, emptyLabel])
+    }, [options, allowEmpty, resolvedEmptyLabel])
 
     const optionTestIdForValue = (optionValue: string): string | undefined => {
         if (!optionTestIdPrefix) {
@@ -77,7 +82,7 @@ export function ThemedSelect({
     return (
         <Select value={internalValue} onValueChange={handleValueChange} disabled={disabled}>
             <SelectTrigger className={cn("min-w-[130px]", className)} data-testid={triggerTestId}>
-                <SelectValue placeholder={placeholder} />
+                <SelectValue placeholder={resolvedPlaceholder} />
             </SelectTrigger>
             <SelectContent data-testid={contentTestId}>
                 {allOptions.map((option) => (

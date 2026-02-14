@@ -13,7 +13,7 @@ export function IssueAgingChart({ buckets }: IssueAgingChartProps) {
 
     return (
         <div className="h-[240px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 240 }}>
                 <BarChart data={buckets} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.gridStroke} />
                     <XAxis

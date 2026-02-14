@@ -107,6 +107,7 @@
     "not_found": "Požadovaný zdroj nebyl nalezen.",
     "validation": "Zkontrolujte prosím zadání a zkuste to znovu.",
     "server": "Chyba serveru. Zkuste to prosím později.",
+    "load_department_detail_failed": "Nepodařilo se načíst detail oddělení.",
     "required_field": "Toto pole je povinné.",
     "invalid_format": "Neplatný formát.",
     "min_length": "Musí obsahovat alespoň {{min}} znaků.",
@@ -264,7 +265,13 @@
     "subtitle": "Přehled zaznamenaných akcí uživatelů a systému.",
     "failed_to_load": "Nepodařilo se načíst log aktivit.",
     "failed_to_load_help": "Zkuste to prosím znovu nebo upravte filtry.",
-    "try_adjusting_filters": "Zkuste upravit filtry nebo časový rozsah."
+    "try_adjusting_filters": "Zkuste upravit filtry nebo časový rozsah.",
+    "entities": {
+      "kri": "KRI",
+      "risk": "Riziko",
+      "controls": "Kontroly",
+      "users": "Uživatelé"
+    }
   },
   "department_detail": {
     "tabs": {

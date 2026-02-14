@@ -285,7 +285,7 @@ export function KRIsPage() {
                         onClick={fetchKRIs}
                         data-testid="kris-refresh-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
-                        title="Refresh"
+                        title={t('common:actions.refresh')}
                     >
                         <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
                     </button>
