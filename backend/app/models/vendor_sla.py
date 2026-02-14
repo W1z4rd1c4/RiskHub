@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from enum import Enum as PyEnum
-from datetime import datetime, date
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship

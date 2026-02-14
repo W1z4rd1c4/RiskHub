@@ -1,49 +1,50 @@
 """
 Dashboard API endpoints for executive and department-level metrics.
 """
-from typing import Optional, Literal
 import logging
-from datetime import datetime, UTC
-from fastapi import APIRouter, Depends, Query, Response, HTTPException, status
-from sqlalchemy import select, func, and_, or_, cast, String, case, desc
+from datetime import UTC, datetime
+from typing import Literal, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import and_, case, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.session import get_db
-from app.models import User, Control, Risk, Department, ControlExecution, Vendor, VendorSLA, Issue
-from app.models.control import ControlStatus, ControlForm, ControlFrequency
-from app.models.issue import IssueSeverity, IssueStatus
-from app.models.risk import RiskStatus
-from app.schemas.dashboard import (
-    DashboardSummaryResponse,
-    DepartmentMetrics,
-    RiskDistributionResponse,
-    RiskDistributionItem,
-    ControlFrequencyTrend,
-    RiskTrendPoint,
-    KRIBreachTrendPoint,
-    IssueDashboardSummaryResponse,
-    IssueAgingResponse,
-    IssueAgingBucket,
-    IssueSeverityBreakdownItem,
-    IssueSeverityBreakdownResponse,
-)
-from app.models.kri_history import KRIValueHistory
-from app.models.key_risk_indicator import KeyRiskIndicator
 from app.api import deps
-from app.core.permissions import get_user_department_ids, get_issue_scope_clause, has_permission
-from app.core.security import require_permission
-from app.models.global_config import ConfigDefaults, build_risk_level_ranges
 from app.core.limits import (
     DASHBOARD_CONTROL_TREND_WEEKS,
-    DASHBOARD_TREND_MONTHS,
-    DASHBOARD_TOP_CRITICAL_RISKS,
     DASHBOARD_RECENT_ACTIVITY,
-    DASHBOARD_TOP_DEPARTMENT_EXPOSURE,
-    DASHBOARD_TOP_CRITICAL_VENDORS,
-    DASHBOARD_TOP_OVERDUE_VENDORS,
     DASHBOARD_TOP_BREACHED_SLAS,
+    DASHBOARD_TOP_CRITICAL_RISKS,
+    DASHBOARD_TOP_CRITICAL_VENDORS,
+    DASHBOARD_TOP_DEPARTMENT_EXPOSURE,
     DASHBOARD_TOP_MAJOR_INCIDENTS,
+    DASHBOARD_TOP_OVERDUE_VENDORS,
+    DASHBOARD_TREND_MONTHS,
+)
+from app.core.permissions import get_issue_scope_clause, get_user_department_ids, has_permission
+from app.core.security import require_permission
+from app.db.session import get_db
+from app.models import Control, ControlExecution, Department, Issue, Risk, User, Vendor, VendorSLA
+from app.models.control import ControlForm, ControlFrequency, ControlStatus
+from app.models.global_config import ConfigDefaults, build_risk_level_ranges
+from app.models.issue import IssueSeverity, IssueStatus
+from app.models.key_risk_indicator import KeyRiskIndicator
+from app.models.kri_history import KRIValueHistory
+from app.models.risk import RiskStatus
+from app.schemas.dashboard import (
+    ControlFrequencyTrend,
+    DashboardSummaryResponse,
+    DepartmentMetrics,
+    IssueAgingBucket,
+    IssueAgingResponse,
+    IssueDashboardSummaryResponse,
+    IssueSeverityBreakdownItem,
+    IssueSeverityBreakdownResponse,
+    KRIBreachTrendPoint,
+    RiskDistributionItem,
+    RiskDistributionResponse,
+    RiskTrendPoint,
 )
 from app.services.issue_visibility_service import coerce_utc, issue_has_active_approved_exception
 
@@ -247,14 +248,14 @@ async def get_dashboard_summary(
     
     # Controls by status
     controls_by_status = {}
-    for status in ControlStatus:
-        conditions = [Control.status == status.value] + control_conditions
+    for control_status_enum in ControlStatus:
+        conditions = [Control.status == control_status_enum.value] + control_conditions
         result = await db.execute(
             select(func.count(Control.id)).where(and_(*conditions))
         )
         count = result.scalar() or 0
         if count > 0:
-            controls_by_status[status.value] = count
+            controls_by_status[control_status_enum.value] = count
     
     # Controls by form
     controls_by_form = {}
@@ -289,14 +290,14 @@ async def get_dashboard_summary(
     
     # Risks by status
     risks_by_status = {}
-    for status in RiskStatus:
-        conditions = [Risk.status == status.value] + risk_conditions
+    for risk_status_enum in RiskStatus:
+        conditions = [Risk.status == risk_status_enum.value] + risk_conditions
         result = await db.execute(
             select(func.count(Risk.id)).where(and_(*conditions))
         )
         count = result.scalar() or 0
         if count > 0:
-            risks_by_status[status.value] = count
+            risks_by_status[risk_status_enum.value] = count
     
     # Critical risks (net_score >= critical threshold)
     critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
@@ -882,7 +883,6 @@ async def get_quarterly_comparison(
         )
     except ValueError as e:
         # Invalid quarter format
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception("Error in quarterly-comparison endpoint: %s", str(e))
@@ -902,8 +902,9 @@ async def get_available_periods(
         - current_quarter: Current quarter label (e.g., '2026-Q1')
     """
     from datetime import datetime, timezone
-    from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot
+
     from app.core.snapshot_service import get_quarter_label
+    from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot
 
     if not has_permission(current_user, "risks", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
@@ -946,12 +947,14 @@ async def get_committee_summary(
     Returns high-level overview with key decision points.
     """
     from datetime import datetime, timedelta
-    from app.models.activity_log import ActivityLog
-    from app.core.permissions import get_user_department_ids
-    from app.models.vendor import Vendor
-    from app.models.vendor_sla import VendorSLA
-    from app.models.vendor_incident import VendorIncident
+
     from sqlalchemy.orm import joinedload
+
+    from app.core.permissions import get_user_department_ids
+    from app.models.activity_log import ActivityLog
+    from app.models.vendor import Vendor
+    from app.models.vendor_incident import VendorIncident
+    from app.models.vendor_sla import VendorSLA
 
     if not has_permission(current_user, "risks", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
@@ -960,7 +963,6 @@ async def get_committee_summary(
     
     # Top 5 critical risks (by net_score, priority first)
     # Eager load owner and department
-    from sqlalchemy.orm import joinedload
     critical_risks_query = (
         select(Risk)
         .options(joinedload(Risk.owner), joinedload(Risk.department))

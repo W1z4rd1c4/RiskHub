@@ -2,12 +2,12 @@
 Report generation service for Excel and CSV exports.
 """
 import csv
-from io import BytesIO
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Optional
+from io import BytesIO
+from typing import TYPE_CHECKING
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 if TYPE_CHECKING:
     from app.models.control import Control

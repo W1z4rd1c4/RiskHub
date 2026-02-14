@@ -2,7 +2,6 @@
 
 from app.models.role import RoleType
 
-
 PROTECTED_SYSTEM_ROLES: set[RoleType] = {
     RoleType.ADMIN,
     RoleType.CRO,

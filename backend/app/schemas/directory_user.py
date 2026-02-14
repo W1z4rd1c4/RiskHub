@@ -1,6 +1,7 @@
 """Pydantic schemas for directory emulator users."""
 from datetime import datetime
 from typing import Optional
+
 from pydantic import BaseModel, EmailStr, Field
 
 

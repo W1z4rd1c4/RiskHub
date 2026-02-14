@@ -1,17 +1,17 @@
 """Authentication endpoints for login, logout, and current user."""
-from fastapi import APIRouter, Depends, HTTPException, status
-from starlette.requests import Request
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from starlette.requests import Request
 
-from app.db.session import get_db
-from app.schemas.auth import LoginRequest, TokenResponse
-from app.schemas.user import UserRead, UserBrief
-from app.models import User, Role, RolePermission
-from app.core.security import verify_password, create_access_token
-from app.core.permissions import get_effective_permissions, get_scope_label
 from app.api import deps
+from app.core.permissions import get_effective_permissions, get_scope_label
+from app.core.security import create_access_token, verify_password
+from app.db.session import get_db
+from app.models import Role, RolePermission, User
+from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.user import UserBrief
 
 router = APIRouter()
 

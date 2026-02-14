@@ -5,14 +5,15 @@ This middleware implements:
 1. Security headers (CSP, HSTS, X-Frame-Options, etc.)
 2. Rate limiting for sensitive endpoints
 """
-import time
 import ipaddress
+import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple, Union
+
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response, JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from app.core.config import get_settings
 from app.core.logging import get_logger

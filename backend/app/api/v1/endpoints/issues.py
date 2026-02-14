@@ -8,7 +8,6 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api import deps
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import (
     can_access_department_id,
@@ -18,8 +17,8 @@ from app.core.permissions import (
     can_read_risk_id,
     can_read_vendor_id,
     can_write_issue_id,
-    get_user_department_ids,
     get_issue_scope_clause,
+    get_user_department_ids,
     is_issue_owner_assignable_to_department,
 )
 from app.core.security import require_permission
@@ -48,27 +47,27 @@ from app.models.user import AccessScope
 from app.schemas.issue import (
     IssueAssignRequest,
     IssueCloseRequest,
-    IssueCreate,
     IssueContextEntityTypeEnum,
     IssueContextualCreate,
+    IssueCreate,
     IssueDepartmentLookup,
     IssueExceptionApproveRequest,
     IssueExceptionRead,
-    IssueExceptionRevokeRequest,
     IssueExceptionRequestCreate,
+    IssueExceptionRevokeRequest,
     IssueLinkCreate,
     IssueLinkRead,
     IssueListResponse,
+    IssueOwnerLookup,
     IssueProgressUpdateRequest,
     IssueRead,
     IssueRemediationPlanRead,
-    IssueOwnerLookup,
     IssueStartRemediationRequest,
     IssueSummary,
     IssueUpdate,
 )
-from app.services.issue_workflow_service import IssueWorkflowService
 from app.services.issue_visibility_service import unsuppressed_issue_clause
+from app.services.issue_workflow_service import IssueWorkflowService
 from app.services.notification_service import NotificationService
 
 router = APIRouter()

@@ -1,17 +1,18 @@
 """Notification API endpoints for listing and managing user notifications."""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api import deps
+from app.core.permissions import can_resolve_approvals
 from app.db.session import get_db
 from app.models import User
 from app.models.notification import Notification
 from app.schemas.notification import (
-    NotificationRead, NotificationListResponse,
-    NotificationPreferences, NotificationPreferencesUpdate,
+    NotificationListResponse,
+    NotificationPreferences,
+    NotificationPreferencesUpdate,
 )
-from app.api import deps
-from app.core.permissions import can_resolve_approvals
 from app.services.kri_deadline_service import KRIDeadlineService
 
 router = APIRouter()

@@ -1,16 +1,17 @@
 """KRI deadline and breach checking service for generating notifications."""
 import logging
-from datetime import datetime, date, timedelta, UTC
-from sqlalchemy import select, and_
+from datetime import UTC, date, datetime, timedelta
+
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.permissions import can_read_kri_id
+from app.models.global_config import ConfigDefaults, get_config_float, get_config_int
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.notification import Notification, NotificationType
-from app.models.user import User
 from app.models.role import Role, RolePermission, RoleType
-from app.models.global_config import ConfigDefaults, get_config_int, get_config_float
-from app.core.permissions import can_read_kri_id
+from app.models.user import User
 from app.services.kri_history_service import KRIHistoryService
 from app.services.notification_service import NotificationService
 

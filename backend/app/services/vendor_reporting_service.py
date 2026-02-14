@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.permissions import get_user_department_ids
-from app.models import Department, User, Vendor
+from app.models import User, Vendor
 from app.models.vendor_contingency_plan import VendorContingencyPlan
 from app.models.vendor_exit_plan import VendorExitPlan
 from app.models.vendor_incident import VendorIncident

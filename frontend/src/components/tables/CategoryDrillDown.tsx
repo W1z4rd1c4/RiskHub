@@ -34,8 +34,7 @@ interface GroupData<T> {
     stats: CategoryStats;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function CategoryDrillDown<T extends Record<string, any>>({
+export function CategoryDrillDown<T extends Record<string, unknown>>({
     data,
     groupBy,
     groupLabel,

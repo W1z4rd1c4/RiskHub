@@ -147,18 +147,15 @@ class ApiClient {
         return this.request<T>(endpoint, { ...options, method: 'GET' });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    post<T>(endpoint: string, body: any, options?: RequestOptions) {
+    post<T, B = unknown>(endpoint: string, body: B, options?: RequestOptions) {
         return this.request<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    put<T>(endpoint: string, body: any, options?: RequestOptions) {
+    put<T, B = unknown>(endpoint: string, body: B, options?: RequestOptions) {
         return this.request<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    patch<T>(endpoint: string, body: any, options?: RequestOptions) {
+    patch<T, B = unknown>(endpoint: string, body: B, options?: RequestOptions) {
         return this.request<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) });
     }
 

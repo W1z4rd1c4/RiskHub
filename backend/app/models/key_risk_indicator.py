@@ -2,17 +2,19 @@
 Key Risk Indicator (KRI) model for risk appetite monitoring.
 Each KRI must be linked to a Risk.
 """
+from datetime import date, datetime
 from enum import Enum as PyEnum
-from datetime import datetime, date
-from typing import Optional, TYPE_CHECKING
-from sqlalchemy import String, Text, Float, ForeignKey, DateTime, Date, Boolean, func
+from typing import TYPE_CHECKING, Optional
+
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
 
 if TYPE_CHECKING:
+    from app.models.kri_history import KRIValueHistory
     from app.models.risk import Risk
     from app.models.user import User
-    from app.models.kri_history import KRIValueHistory
 
 
 class KRIFrequency(str, PyEnum):

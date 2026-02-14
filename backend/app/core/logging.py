@@ -21,7 +21,6 @@ from typing import Any
 
 import structlog
 
-
 # Context variables for request tracking
 request_id_ctx: ContextVar[str | None] = ContextVar("request_id", default=None)
 user_id_ctx: ContextVar[int | None] = ContextVar("user_id", default=None)

@@ -5,7 +5,6 @@ and follow project conventions (schemas in dedicated modules).
 """
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ============================================================================
 # Risk Types Schemas
 # ============================================================================

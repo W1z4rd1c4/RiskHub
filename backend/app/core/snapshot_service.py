@@ -6,18 +6,16 @@ for truthful quarter-over-quarter comparisons.
 """
 from datetime import datetime, timezone
 from typing import Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_, and_, cast, String
-from dateutil.relativedelta import relativedelta
 
-from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
-from app.models.risk import Risk, ControlRiskLink, RiskStatus
-from app.models.control import Control, ControlStatus
+from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.approval_request import ApprovalRequest, ApprovalResourceType, ApprovalStatus
+from app.models.control import Control
 from app.models.key_risk_indicator import KeyRiskIndicator
-from app.models.control_execution import ControlExecution, ExecutionResult
 from app.models.orphaned_item import OrphanedItem
-from app.models.approval_request import ApprovalRequest, ApprovalStatus, ApprovalResourceType
-from app.models.activity_log import ActivityLog
+from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
+from app.models.risk import ControlRiskLink, Risk, RiskStatus
 from app.models.vendor import Vendor
 from app.models.vendor_sla import VendorSLA
 

@@ -10,7 +10,6 @@ from app.models import Risk, RiskQuestionnaire, User
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.role import RoleType
 
-
 QUESTIONNAIRE_TEMPLATE_KEY = "risk_owner_reassessment"
 # New sends use v2, but v1 questionnaires remain readable/valid.
 QUESTIONNAIRE_TEMPLATE_VERSION = "v2"

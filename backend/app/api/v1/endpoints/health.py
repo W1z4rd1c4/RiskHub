@@ -2,13 +2,14 @@
 
 import time
 from datetime import datetime
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
 from app.core.config import get_settings
+from app.db.session import get_db
 
 router = APIRouter()
 

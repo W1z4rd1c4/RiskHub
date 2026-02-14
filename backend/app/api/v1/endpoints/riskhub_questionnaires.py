@@ -1,26 +1,25 @@
 """Risk Hub questionnaire endpoints (CRO-only batch send)."""
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.db.session import get_db
-from app.models import Risk, User, RiskQuestionnaire
-from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.api.v1.endpoints.riskhub import get_cro_user
+from app.core.activity_logger import log_activity
+from app.db.session import get_db
+from app.i18n import t
+from app.models import Risk, RiskQuestionnaire, User
+from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.models.notification import NotificationType
+from app.models.risk_questionnaire import RiskQuestionnaireStatus
+from app.services.notification_service import NotificationService
 from app.services.risk_questionnaire_service import (
     QUESTIONNAIRE_TEMPLATE_KEY,
     QUESTIONNAIRE_TEMPLATE_VERSION,
     create_questionnaire_instance,
 )
-from app.services.notification_service import NotificationService
-from app.models.notification import NotificationType
-from app.i18n import t
-from app.core.activity_logger import log_activity
-from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter(prefix="/riskhub/questionnaires", tags=["riskhub"])
 

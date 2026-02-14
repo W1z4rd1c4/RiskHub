@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.permissions import get_user_department_ids
+from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Risk, User
 from app.models.risk import RiskStatus
-from app.core.permissions import get_user_department_ids
-from app.core.security import require_permission
 
 router = APIRouter()
 

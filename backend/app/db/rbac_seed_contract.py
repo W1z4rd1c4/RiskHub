@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-
 RBAC_ROLES: tuple[dict[str, object], ...] = (
     {"name": "admin", "display_name": "Administrator", "description": "System administration, platform access only", "is_system": True},
     {"name": "cro", "display_name": "Chief Risk Officer", "description": "Full access, risk oversight, reporting", "is_system": True},

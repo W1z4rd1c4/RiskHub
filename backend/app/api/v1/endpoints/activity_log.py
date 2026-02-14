@@ -1,17 +1,17 @@
 """Activity Log API endpoints."""
+from datetime import UTC, datetime, timedelta
 from typing import Optional
-from datetime import datetime, UTC, timedelta
+
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func, or_, cast, String
+from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import get_db
-from app.models import User, ActivityLog
-from app.models.activity_log import ActivityEntityType, ActivityAction
-from app.schemas.activity_log import ActivityLogRead, ActivityLogListResponse
-from app.api import deps
-from app.core.security import require_permission
 from app.core.permissions import get_user_department_ids
+from app.core.security import require_permission
+from app.db.session import get_db
+from app.models import ActivityLog, User
+from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.activity_log import ActivityLogListResponse, ActivityLogRead
 
 router = APIRouter()
 

@@ -4,16 +4,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.session import get_db
-from app.models import User, Role
-from app.schemas import RoleRead, UserRead, UserBrief, UserCreate, UserUpdate
-from app.schemas.user import UserLookup
-from app.core.security import get_password_hash
-from app.core.permissions import can_manage_users
-from app.core.user_query_options import user_selectinload_options
 from app.api import deps
-from app.core.activity_logger import log_activity, build_change_set
+from app.core.activity_logger import build_change_set, log_activity
+from app.core.permissions import can_manage_users
+from app.core.security import get_password_hash
+from app.core.user_query_options import user_selectinload_options
+from app.db.session import get_db
+from app.models import Role, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas import RoleRead, UserCreate, UserRead, UserUpdate
+from app.schemas.user import UserLookup
 
 router = APIRouter()
 
@@ -160,9 +160,10 @@ async def lookup_users(
         skip: Number of records to skip (default 0)
         limit: Maximum number of records to return (default 50, max 200)
     """
-    from app.models.user import AccessScope
     from sqlalchemy import or_
+
     from app.core.pagination import MAX_LOOKUP_SIZE
+    from app.models.user import AccessScope
     
     # Enforce max lookup size
     limit = min(limit, MAX_LOOKUP_SIZE)

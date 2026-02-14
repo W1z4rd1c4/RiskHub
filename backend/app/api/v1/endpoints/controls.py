@@ -1,24 +1,32 @@
+from datetime import UTC, datetime, timedelta
 from typing import Optional
-from datetime import datetime, timedelta, UTC
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, or_, func
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
+from app.api import deps
+from app.core.activity_logger import build_change_set, log_activity
+from app.core.permissions import check_department_access, get_user_department_ids
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import User, Control, ControlExecution, ControlRiskLink, Risk
+from app.models import Control, ControlExecution, ControlRiskLink, Risk, User
+from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.control import (
-    ControlCreate, ControlUpdate, ControlRead, ControlSummary, ControlListResponse,
-    ControlExecutionCreate, ControlExecutionRead,
-    ControlFormEnum, ControlFrequencyEnum, ControlStatusEnum, normalize_control_frequency,
+    ControlCreate,
+    ControlExecutionCreate,
+    ControlExecutionRead,
+    ControlFormEnum,
+    ControlFrequencyEnum,
+    ControlListResponse,
+    ControlRead,
+    ControlStatusEnum,
+    ControlSummary,
+    ControlUpdate,
+    normalize_control_frequency,
 )
 from app.schemas.risk import ControlRiskLinkCreate, ControlRiskLinkRead
-from app.api import deps
-from app.core.permissions import get_user_department_ids, check_department_access
-from app.core.security import require_permission, check_permission
-from app.core.activity_logger import log_activity, build_change_set
-from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter()
 
@@ -141,8 +149,9 @@ async def list_controls(
         base_query = base_query.where(Control.status != ControlStatusEnum.archived.value)
     
     # Join for secondary search fields (Risk via ControlRiskLink)
-    from app.models.department import Department
     from sqlalchemy.orm import aliased
+
+    from app.models.department import Department
     
     RiskDept = aliased(Department)
     
@@ -339,14 +348,13 @@ async def update_control(
     Non-privileged users editing controls linked to critical risks or changing
     sensitive fields (owner, department) will trigger an approval request.
     """
+
     from app.core.permissions import (
         can_resolve_approvals,
         has_sensitive_field_changes,
         is_control_owner,
-        is_high_risk_for_approval_async,
     )
-    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType, ControlRiskLink
-    import json
+    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
     
     result = await db.execute(
         select(Control).where(Control.id == control_id)
@@ -387,7 +395,11 @@ async def update_control(
     
     # Check for approval requirements (non-privileged users only)
     if not can_resolve_approvals(current_user):
-        from app.core.approval_helpers import get_primary_approver_for_control, check_control_requires_privileged_approval, create_approval_request_with_audit
+        from app.core.approval_helpers import (
+            check_control_requires_privileged_approval,
+            create_approval_request_with_audit,
+            get_primary_approver_for_control,
+        )
         
         requires_approval = False
         approval_reason = ""
@@ -413,7 +425,7 @@ async def update_control(
         # Check 3: Owner edits always require approval (even non-critical controls)
         if not requires_approval and is_owner:
             requires_approval = True
-            approval_reason = f"Control owner edit requires Risk Owner approval"
+            approval_reason = "Control owner edit requires Risk Owner approval"
             pending_changes = _build_pending_changes(control, update_data)
             # Check if any linked risk is priority
             is_priority_linked = await check_control_requires_privileged_approval(db, control.id)
@@ -458,8 +470,8 @@ async def update_control(
             
             # Notify Approvers
             try:
-                from app.services.notification_service import NotificationService
                 from app.models.notification import NotificationType
+                from app.services.notification_service import NotificationService
                 
                 # 1. Notify Primary Approver (Risk Owner)
                 if primary_approver_id:
@@ -543,9 +555,10 @@ async def delete_control(
     - Risk Manager/CRO/Admin: deletes immediately (204)
     - Others: creates approval request (202), item stays visible
     """
-    from app.core.permissions import can_resolve_approvals
-    from app.models import ApprovalRequest, ApprovalStatus, ApprovalResourceType
     from fastapi.responses import Response
+
+    from app.core.permissions import can_resolve_approvals
+    from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
     
     result = await db.execute(
         select(Control).where(Control.id == control_id)
@@ -592,7 +605,11 @@ async def delete_control(
     name_snippet = control.name[:50] if control.name else ""
     
     # Get primary approver (Risk Owner of highest-priority linked risk)
-    from app.core.approval_helpers import get_primary_approver_for_control, check_control_requires_privileged_approval, create_approval_request_with_audit
+    from app.core.approval_helpers import (
+        check_control_requires_privileged_approval,
+        create_approval_request_with_audit,
+        get_primary_approver_for_control,
+    )
     from app.models import ApprovalActionType
     primary_approver_id = await get_primary_approver_for_control(db, control.id)
     if primary_approver_id == current_user.id:
@@ -624,8 +641,8 @@ async def delete_control(
     primary_approver_id = await get_primary_approver_for_control(db, control.id)
     
     try:
-        from app.services.notification_service import NotificationService
         from app.models.notification import NotificationType
+        from app.services.notification_service import NotificationService
         
         # 1. Notify Primary Approver
         if primary_approver_id:
@@ -902,8 +919,8 @@ async def link_control_to_risk(
     current_user: User = Depends(require_permission("controls", "write")),
 ):
     """Link a control to a risk."""
+    from app.core.permissions import is_control_owner, is_risk_control_owner, is_risk_kri_reporting_owner
     from app.models import Risk
-    from app.core.permissions import is_control_owner, is_risk_kri_reporting_owner, is_risk_control_owner
     
     # Verify control exists
     result = await db.execute(
@@ -984,7 +1001,7 @@ async def unlink_control_from_risk(
     current_user: User = Depends(require_permission("controls", "write")),
 ):
     """Remove link between control and risk."""
-    from app.core.permissions import is_control_owner, is_risk_kri_reporting_owner, is_risk_control_owner
+    from app.core.permissions import is_control_owner, is_risk_control_owner, is_risk_kri_reporting_owner
     
     result = await db.execute(
         select(ControlRiskLink)

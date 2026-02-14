@@ -4,9 +4,9 @@ Report generation translations module.
 Provides localized strings for PDF and Excel report generation.
 """
 
-from typing import Dict, Any
-from app.i18n import DEFAULT_LOCALE
+from typing import Any, Dict
 
+from app.i18n import DEFAULT_LOCALE
 
 # English report translations
 REPORT_STRINGS_EN: Dict[str, Any] = {

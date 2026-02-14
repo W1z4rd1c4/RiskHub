@@ -1,16 +1,17 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from urllib.parse import urlparse
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app.core.config import get_settings, Settings
 from app.api.v1.router import api_router
-from app.core.scheduler import start_scheduler, stop_scheduler
+from app.core.config import Settings, get_settings
 
 # Initialize structured logging BEFORE app creation
 from app.core.logging import configure_logging, get_logger
+from app.core.scheduler import start_scheduler, stop_scheduler
+
 configure_logging()
 logger = get_logger("main")
 
@@ -119,9 +120,10 @@ async def lifespan(app: FastAPI):
 async def _apply_log_rotation_config():
     """Apply log rotation settings from global configuration database."""
     try:
+        from sqlalchemy import select
+
         from app.db.session import async_session_maker
         from app.models.global_config import GlobalConfig
-        from sqlalchemy import select
         
         async with async_session_maker() as db:
             # Fetch app log settings
@@ -205,7 +207,7 @@ def create_app(settings: Settings) -> FastAPI:
     app.add_middleware(LoggingContextMiddleware)
 
     # Security headers middleware (CSP, HSTS, X-Frame-Options, etc.)
-    from app.middleware.security import SecurityHeadersMiddleware, RateLimitMiddleware
+    from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware
     app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
 
     # Rate limiting middleware (disabled in debug mode)

@@ -1,9 +1,12 @@
 """Activity log model for tracking all system changes."""
+from datetime import UTC, datetime
 from enum import Enum as PyEnum
 from typing import Optional
-from datetime import datetime, UTC
-from sqlalchemy import String, Integer, Text, DateTime, ForeignKey, JSON, Index, Enum as SAEnum, event
+
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text, event
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
 
 
@@ -119,5 +122,5 @@ def _prevent_activity_log_delete(mapper, connection, target) -> None:
 
 
 # Type hints
-from app.models.user import User
 from app.models.department import Department
+from app.models.user import User

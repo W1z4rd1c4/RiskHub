@@ -1,18 +1,19 @@
-from typing import Optional, Iterable
-import os
 import logging
-from datetime import datetime, timedelta, UTC
-from fastapi import Depends, HTTPException, Header, status
+import os
+from datetime import UTC, datetime, timedelta
+from typing import Iterable, Optional
+
+from fastapi import Depends, Header, HTTPException, status
+from jose import jwt
+from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from jose import JWTError, jwt
-from passlib.context import CryptContext
 
-from app.db.session import get_db
-from app.models import User, Role, RolePermission
 from app.core.config import get_settings
 from app.core.permissions import has_permission
+from app.db.session import get_db
+from app.models import Role, RolePermission, User
 
 settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

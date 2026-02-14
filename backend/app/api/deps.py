@@ -1,20 +1,21 @@
 """Dependency injection utilities for FastAPI endpoints."""
-from fastapi import Depends, HTTPException, status, Header
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, Header, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.session import get_db
 from app.core.security import decode_access_token
-from app.models import User, Role, RolePermission
+from app.db.session import get_db
+from app.models import Role, RolePermission, User
 
 security = HTTPBearer(auto_error=False)
 
 
-from app.core.config import get_settings, Settings
+from app.core.config import Settings, get_settings
 from app.core.permissions import can_view_risk_committee
+
 
 async def get_current_user(
     db: AsyncSession = Depends(get_db),
@@ -62,7 +63,7 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     # Update last_active_at (debounced 1 min to reduce DB writes)
-    from datetime import datetime, UTC, timedelta
+    from datetime import UTC, datetime, timedelta
     now = datetime.now(UTC)
     # Handle naive datetime from database (SQLite test) by treating as UTC
     last_active = user.last_active_at

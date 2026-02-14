@@ -1,7 +1,9 @@
 """GlobalConfig model for system-wide configuration settings."""
 from datetime import datetime
-from sqlalchemy import String, Text, Integer, Boolean, ForeignKey, DateTime, func
+
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.db.base import Base
 
 
@@ -83,7 +85,7 @@ class GlobalConfig(Base):
 # ============================================================================
 
 import time
-from typing import Any, Dict, Optional, TypeVar
+from typing import Any, Dict, TypeVar
 
 T = TypeVar("T")
 
@@ -247,6 +249,7 @@ def clear_config_cache() -> None:
 
 # Type hint imports
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
