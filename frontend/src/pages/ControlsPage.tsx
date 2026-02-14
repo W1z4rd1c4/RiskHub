@@ -200,7 +200,7 @@ export function ControlsPage() {
             label: t('columns.department'),
             sortable: true,
             render: (control) => (
-                <span className="text-xs font-medium text-slate-300">{control.department_name || 'Unassigned'}</span>
+                <span className="text-xs font-medium text-slate-300">{control.department_name || t('common:fallbacks.unassigned')}</span>
             ),
         },
         {
@@ -248,7 +248,7 @@ export function ControlsPage() {
                             data-testid={`control-unarchive-${control.id}`}
                             className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
                         >
-                            {t('actions.unarchive', 'Unarchive')}
+                            {t('actions.unarchive')}
                         </button>
                     )}
                     <ChevronRight className="h-4 w-4 text-slate-500" />
@@ -287,7 +287,7 @@ export function ControlsPage() {
                         className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
                     >
                         <Download className="h-4 w-4" />
-                        {t('actions.export', 'Export')}
+                        {t('actions.export')}
                     </button>
                     <PermissionGate resource="controls" action="write">
                         <button
@@ -334,9 +334,9 @@ export function ControlsPage() {
                         optionTestIdPrefix="controls-status-filter-option"
                         options={[
                             { value: 'active', label: t('status.active') },
-                            { value: 'draft', label: t('status.draft', 'Draft') },
+                            { value: 'draft', label: t('status.draft') },
                             { value: 'inactive', label: t('status.inactive') },
-                            { value: 'archived', label: t('status.archived', 'Archived') },
+                            { value: 'archived', label: t('status.archived') },
                         ]}
                     />
                     <button
@@ -415,17 +415,17 @@ export function ControlsPage() {
                         return (
                             <div className="space-y-3 pb-2 border-b border-white/5">
                                 <div className="grid grid-cols-2 gap-y-2">
-                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`Type: ${info.risk_type || 'N/A'}`}>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`${t('common:labels.type')}: ${info.risk_type || t('common:fallbacks.not_available')}`}>
                                         <Shield className="h-3 w-3 text-accent shrink-0" />
-                                        <span className="truncate">{info.risk_type || 'Unknown Type'}</span>
+                                        <span className="truncate">{info.risk_type || t('common:fallbacks.unknown_type')}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`Dept: ${info.risk_department_name || 'N/A'}`}>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`${t('common:labels.department')}: ${info.risk_department_name || t('common:fallbacks.not_available')}`}>
                                         <Building2 className="h-3 w-3 text-accent shrink-0" />
-                                        <span className="truncate">{info.risk_department_name || 'Unassigned'}</span>
+                                        <span className="truncate">{info.risk_department_name || t('common:fallbacks.unassigned')}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`Owner: ${info.risk_owner_name || 'N/A'}`}>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate" title={`${t('common:labels.owner')}: ${info.risk_owner_name || t('common:fallbacks.not_available')}`}>
                                         <User className="h-3 w-3 text-accent shrink-0" />
-                                        <span className="truncate">{info.risk_owner_name || 'No Owner'}</span>
+                                        <span className="truncate">{info.risk_owner_name || t('common:fallbacks.no_owner')}</span>
                                     </div>
                                 </div>
                             </div>

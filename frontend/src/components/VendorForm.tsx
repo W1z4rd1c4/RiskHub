@@ -146,23 +146,23 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
 
     const validate = (): boolean => {
         if (!formData.name?.trim()) {
-            setError(t('errors.name_required', 'Vendor name is required'));
+            setError(t('errors.name_required'));
             return false;
         }
         if (!formData.process?.trim()) {
-            setError(t('errors.process_required', 'Process is required'));
+            setError(t('errors.process_required'));
             return false;
         }
         if (!formData.department_id) {
-            setError(t('errors.department_required', 'Department is required'));
+            setError(t('errors.department_required'));
             return false;
         }
         if (!formData.outsourcing_owner_user_id) {
-            setError(t('errors.owner_required', 'Outsourcing owner is required'));
+            setError(t('errors.owner_required'));
             return false;
         }
         if (!formData.risk_score_1_5 || formData.risk_score_1_5 < 1 || formData.risk_score_1_5 > 5) {
-            setError(t('errors.score_required', 'Risk score (1–5) is required'));
+            setError(t('errors.score_required'));
             return false;
         }
         return true;
@@ -205,7 +205,7 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
             onSaved(saved);
         } catch (err) {
             console.error('Failed to save vendor:', err);
-            setError(t('errors.save_failed', 'Failed to save vendor'));
+            setError(t('errors.save_failed'));
         } finally {
             setIsSubmitting(false);
         }
@@ -213,7 +213,7 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
 
     const score = formData.risk_score_1_5 || 3;
     const impact = IMPACT_DESCRIPTIONS[score as 1 | 2 | 3 | 4 | 5];
-    const financialRange = formatFinancialRange(score, totalAssets, t('form.financial.no_loss', 'No financial loss'));
+    const financialRange = formatFinancialRange(score, totalAssets, t('form.financial.no_loss'));
 
     const processSuggestions = existingProcesses.filter((p) => p.toLowerCase().includes((formData.process || '').toLowerCase()));
     const subprocessSuggestions = (subprocessesByProcess[formData.process || ''] || []).filter((p) =>
@@ -230,21 +230,21 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
             )}
 
             <section className="glass-card p-6 space-y-5">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('form.sections.identity', 'Identity')}</h3>
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('form.sections.identity')}</h3>
 
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.name', 'Vendor Name')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.name')}</label>
                         <input
                             value={formData.name || ''}
                             onChange={(e) => handleChange('name', e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none focus:border-accent/50"
-                            placeholder={t('form.name_placeholder', 'Acme Cloud Ltd.')}
+                            placeholder={t('form.name_placeholder')}
                         />
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.vendor_type.label', 'Vendor Type')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.vendor_type.label')}</label>
                         <ThemedSelect
                             value={(formData.vendor_type || 'other') as string}
                             onValueChange={(v) => handleChange('vendor_type', v)}
@@ -253,7 +253,7 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.legal_name', 'Legal Name')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.legal_name')}</label>
                         <input
                             value={formData.legal_name || ''}
                             onChange={(e) => handleChange('legal_name', e.target.value)}
@@ -262,7 +262,7 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.registration_id', 'Registration ID')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.registration_id')}</label>
                         <input
                             value={formData.registration_id || ''}
                             onChange={(e) => handleChange('registration_id', e.target.value)}
@@ -273,40 +273,40 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
             </section>
 
             <section className="glass-card p-6 space-y-5">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('form.sections.ownership', 'Ownership & Scope')}</h3>
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('form.sections.ownership')}</h3>
 
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.department', 'Department')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.department')}</label>
                         <ThemedSelect
                             value={formData.department_id ? String(formData.department_id) : ''}
                             onValueChange={(v) => handleChange('department_id', v ? Number(v) : null)}
-                            placeholder={t('form.department_placeholder', 'Select department')}
+                            placeholder={t('form.department_placeholder')}
                             allowEmpty
-                            emptyLabel={t('form.department_placeholder', 'Select department')}
+                            emptyLabel={t('form.department_placeholder')}
                             options={departmentOptions}
                         />
                     </div>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.owner', 'Outsourcing Owner')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.owner')}</label>
                         <ThemedSelect
                             value={formData.outsourcing_owner_user_id ? String(formData.outsourcing_owner_user_id) : ''}
                             onValueChange={(v) => handleChange('outsourcing_owner_user_id', v ? Number(v) : 0)}
-                            placeholder={t('form.owner_placeholder', 'Select owner')}
+                            placeholder={t('form.owner_placeholder')}
                             allowEmpty
-                            emptyLabel={t('form.owner_placeholder', 'Select owner')}
+                            emptyLabel={t('form.owner_placeholder')}
                             options={ownerOptions}
                         />
                     </div>
 
                     <div className="space-y-1.5 relative">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.process', 'Process')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.process')}</label>
                         <input
                             value={formData.process || ''}
                             onChange={(e) => handleChange('process', e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none focus:border-accent/50"
-                            placeholder={t('form.process_placeholder', 'IT')}
+                            placeholder={t('form.process_placeholder')}
                         />
                         {processSuggestions.length > 0 && (formData.process || '').length > 0 && (
                             <div className="absolute mt-1 w-full z-10 bg-slate-900/95 border border-white/10 rounded-xl overflow-hidden">
@@ -325,12 +325,12 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                     </div>
 
                     <div className="space-y-1.5 relative">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.subprocess', 'Subprocess')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.subprocess')}</label>
                         <input
                             value={formData.subprocess || ''}
                             onChange={(e) => handleChange('subprocess', e.target.value)}
                             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none focus:border-accent/50"
-                            placeholder={t('form.subprocess_placeholder', 'Cloud Operations')}
+                            placeholder={t('form.subprocess_placeholder')}
                         />
                         {subprocessSuggestions.length > 0 && (formData.subprocess || '').length > 0 && (
                             <div className="absolute mt-1 w-full z-10 bg-slate-900/95 border border-white/10 rounded-xl overflow-hidden">
@@ -351,11 +351,11 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
             </section>
 
             <section className="glass-card p-6 space-y-5">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('form.sections.classification', 'Classification')}</h3>
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('form.sections.classification')}</h3>
 
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.risk_score', 'Risk Score (1–5)')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.risk_score')}</label>
                         <div className="flex items-center gap-3">
                             <input
                                 type="range"
@@ -376,37 +376,37 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.status', 'Status')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.status')}</label>
                         <ThemedSelect
                             value={(formData.status || 'active') as string}
                             onValueChange={(v) => handleChange('status', v)}
                             options={[
-                                { value: 'active', label: t('status.active', 'Active') },
-                                { value: 'inactive', label: t('status.inactive', 'Inactive') },
+                                { value: 'active', label: t('status.active') },
+                                { value: 'inactive', label: t('status.inactive') },
                             ]}
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.replaceability.label', 'Replaceability')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.replaceability.label')}</label>
                         <ThemedSelect
                             value={formData.replaceability ? String(formData.replaceability) : ''}
                             onValueChange={(v) => handleChange('replaceability', v || null)}
-                            placeholder={t('form.replaceability.placeholder', 'Select')}
+                            placeholder={t('form.replaceability.placeholder')}
                             allowEmpty
-                            emptyLabel={t('form.replaceability.placeholder', 'Select')}
+                            emptyLabel={t('form.replaceability.placeholder')}
                             options={replaceabilityOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.flags', 'Flags')}</label>
+                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.flags')}</label>
                         <div className="space-y-2">
                             {[
-                                { key: 'supports_important_core_insurance_function' as const, label: t('flags.supports_core_function', 'Supports important core insurance function') },
-                                { key: 'dora_relevant' as const, label: t('flags.dora_relevant', 'DORA relevant') },
-                                { key: 'is_significant_vendor' as const, label: t('flags.significant_vendor', 'Significant vendor') },
-                                { key: 'has_alternative_providers' as const, label: t('flags.has_alternatives', 'Has alternative providers') },
+                                { key: 'supports_important_core_insurance_function' as const, label: t('flags.supports_core_function') },
+                                { key: 'dora_relevant' as const, label: t('flags.dora_relevant') },
+                                { key: 'is_significant_vendor' as const, label: t('flags.significant_vendor') },
+                                { key: 'has_alternative_providers' as const, label: t('flags.has_alternatives') },
                             ].map(({ key, label }: { key: VendorFlagKey; label: string }) => (
                                 <label key={key} className="flex items-center gap-2 text-sm text-slate-300">
                                     <input
@@ -431,7 +431,7 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                         className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors flex items-center gap-2"
                     >
                         <X className="h-4 w-4" />
-                        {t('actions.cancel', 'Cancel')}
+                        {t('actions.cancel')}
                     </button>
                 )}
                 <button
@@ -443,7 +443,7 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                     )}
                 >
                     <Save className={cn("h-4 w-4", isSubmitting && "animate-pulse")} />
-                    {isEdit ? t('actions.save', 'Save') : t('actions.create', 'Create')}
+                    {isEdit ? t('actions.save') : t('actions.create')}
                 </button>
             </div>
         </form>

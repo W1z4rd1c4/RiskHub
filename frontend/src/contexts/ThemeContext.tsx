@@ -54,7 +54,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         if (isValidTheme(stored) && stored !== theme) {
             setThemeState(stored);
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, theme]);
 
     const setTheme = (newTheme: Theme) => {
         setThemeState(newTheme);

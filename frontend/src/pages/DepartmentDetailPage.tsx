@@ -32,36 +32,36 @@ import type { KeyRiskIndicator } from '@/types/kri';
 // Column Definitions
 // ─────────────────────────────────────────────────────────────────────────────
 
-const getRiskColumns = (t: (key: string, fallback?: string) => string): Column<RiskSummary>[] => [
+const getRiskColumns = (t: (key: string) => string): Column<RiskSummary>[] => [
     {
         key: 'name',
-        label: t('common:labels.risk_name', 'Risk Name'),
+        label: t('common:labels.risk_name'),
         sortable: true,
         render: (risk) => <span className="font-medium text-white">{risk.name}</span>,
     },
     {
         key: 'description',
-        label: t('common:labels.description', 'Description'),
+        label: t('common:labels.description'),
         sortable: false,
         render: (risk) => (
             <span className="text-slate-400 text-xs line-clamp-2 max-w-xs">
-                {risk.description || '—'}
+                {risk.description || t('common:fallbacks.not_available')}
             </span>
         ),
     },
-    { key: 'process', label: t('common:labels.process', 'Process'), sortable: true },
-    { key: 'category', label: t('common:labels.category', 'Category'), sortable: true },
+    { key: 'process', label: t('common:labels.process'), sortable: true },
+    { key: 'category', label: t('common:labels.category'), sortable: true },
     {
         key: 'risk_type',
-        label: t('common:labels.type', 'Type'),
+        label: t('common:labels.type'),
         sortable: true,
         render: (risk) => (
-            <span className="text-slate-400 capitalize">{risk.risk_type || '—'}</span>
+            <span className="text-slate-400 capitalize">{risk.risk_type || t('common:fallbacks.not_available')}</span>
         ),
     },
     {
         key: 'status',
-        label: t('common:labels.status', 'Status'),
+        label: t('common:labels.status'),
         sortable: true,
         render: (risk) => (
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${risk.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
@@ -74,7 +74,7 @@ const getRiskColumns = (t: (key: string, fallback?: string) => string): Column<R
     },
     {
         key: 'gross_score',
-        label: t('common:labels.gross', 'Gross'),
+        label: t('common:labels.gross'),
         sortable: true,
         render: (risk) => (
             <span className={`text-sm font-black ${risk.gross_score >= 16 ? 'text-rose-400' :
@@ -88,7 +88,7 @@ const getRiskColumns = (t: (key: string, fallback?: string) => string): Column<R
     },
     {
         key: 'net_score',
-        label: t('common:labels.net', 'Net'),
+        label: t('common:labels.net'),
         sortable: true,
         render: (risk) => (
             <span className={`text-sm font-black ${risk.net_score >= 16 ? 'text-rose-400' :
@@ -102,36 +102,36 @@ const getRiskColumns = (t: (key: string, fallback?: string) => string): Column<R
     },
 ];
 
-const getControlColumns = (t: (key: string, fallback?: string) => string): Column<ControlSummary>[] => [
+const getControlColumns = (t: (key: string) => string): Column<ControlSummary>[] => [
     {
         key: 'name',
-        label: t('common:labels.name', 'Name'),
+        label: t('common:labels.name'),
         sortable: true,
         render: (control) => <span className="font-medium text-white">{control.name}</span>,
     },
     {
         key: 'description',
-        label: t('common:labels.description', 'Description'),
+        label: t('common:labels.description'),
         sortable: false,
         render: (control) => (
             <span className="text-slate-400 text-xs line-clamp-2 max-w-xs">
-                {control.description || '—'}
+                {control.description || t('common:fallbacks.not_available')}
             </span>
         ),
     },
     {
         key: 'control_owner_name',
-        label: t('common:labels.owner', 'Owner'),
+        label: t('common:labels.owner'),
         sortable: true,
         render: (control) => (
-            <span className="text-slate-300">{control.control_owner_name || '—'}</span>
+            <span className="text-slate-300">{control.control_owner_name || t('common:fallbacks.not_available')}</span>
         ),
     },
-    { key: 'control_form', label: t('common:labels.form', 'Form'), sortable: true },
-    { key: 'frequency', label: t('common:labels.frequency', 'Frequency'), sortable: true },
+    { key: 'control_form', label: t('common:labels.form'), sortable: true },
+    { key: 'frequency', label: t('common:labels.frequency'), sortable: true },
     {
         key: 'status',
-        label: t('common:labels.status', 'Status'),
+        label: t('common:labels.status'),
         sortable: true,
         render: (control) => (
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${control.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' :
@@ -143,34 +143,34 @@ const getControlColumns = (t: (key: string, fallback?: string) => string): Colum
     },
 ];
 
-const getKriColumns = (t: (key: string, fallback?: string) => string): Column<KeyRiskIndicator>[] => [
+const getKriColumns = (t: (key: string) => string): Column<KeyRiskIndicator>[] => [
     {
         key: 'metric_name',
-        label: t('common:labels.name', 'Name'),
+        label: t('common:labels.name'),
         sortable: true,
         render: (kri) => <span className="font-medium text-white">{kri.metric_name}</span>,
     },
     {
         key: 'description',
-        label: t('common:labels.description', 'Description'),
+        label: t('common:labels.description'),
         sortable: false,
         render: (kri) => (
             <span className="text-slate-400 text-xs line-clamp-2 max-w-xs">
-                {kri.description || '—'}
+                {kri.description || t('common:fallbacks.not_available')}
             </span>
         ),
     },
     {
         key: 'reporting_owner_name',
-        label: t('common:labels.owner', 'Owner'),
+        label: t('common:labels.owner'),
         sortable: true,
         render: (kri) => (
-            <span className="text-slate-300">{kri.reporting_owner_name || kri.risk_owner_name || '—'}</span>
+            <span className="text-slate-300">{kri.reporting_owner_name || kri.risk_owner_name || t('common:fallbacks.not_available')}</span>
         ),
     },
     {
         key: 'lower_limit',
-        label: t('common:labels.limits', 'Limits'),
+        label: t('common:labels.limits'),
         sortable: false,
         render: (kri) => (
             <span className="text-slate-400 text-xs font-mono">
@@ -180,7 +180,7 @@ const getKriColumns = (t: (key: string, fallback?: string) => string): Column<Ke
     },
     {
         key: 'current_value',
-        label: t('common:labels.value', 'Value'),
+        label: t('common:labels.value'),
         sortable: true,
         render: (kri) => (
             <span className={`text-sm font-black ${kri.breach_status !== 'within' ? 'text-rose-400' : 'text-emerald-400'
@@ -191,33 +191,33 @@ const getKriColumns = (t: (key: string, fallback?: string) => string): Column<Ke
     },
     {
         key: 'breach_status',
-        label: t('common:labels.status', 'Status'),
+        label: t('common:labels.status'),
         sortable: true,
         render: (kri) => (
             <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${kri.breach_status === 'within' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
                 }`}>
-                {kri.breach_status === 'within' ? 'OK' : 'Breach'}
+                {kri.breach_status === 'within' ? t('kris:columns.ok') : t('kris:filters.breach')}
             </span>
         ),
     },
     {
         key: 'frequency',
-        label: t('common:labels.frequency', 'Frequency'),
+        label: t('common:labels.frequency'),
         sortable: true,
         render: (kri) => (
-            <span className="text-slate-400 capitalize">{kri.frequency || '—'}</span>
+            <span className="text-slate-400 capitalize">{kri.frequency || t('common:fallbacks.not_available')}</span>
         ),
     },
 ];
 
-const getUserColumns = (t: (key: string, fallback?: string) => string): Column<DeptUser>[] => [
-    { key: 'name', label: t('common:labels.name', 'Name'), sortable: true, render: (u) => <span className="text-white font-medium">{u.name}</span> },
-    { key: 'email', label: t('common:labels.email', 'Email'), sortable: true },
+const getUserColumns = (t: (key: string) => string): Column<DeptUser>[] => [
+    { key: 'name', label: t('common:labels.name'), sortable: true, render: (u) => <span className="text-white font-medium">{u.name}</span> },
+    { key: 'email', label: t('common:labels.email'), sortable: true },
     {
         key: 'role_name',
-        label: t('common:labels.role', 'Role'),
+        label: t('common:labels.role'),
         sortable: true,
-        render: (u) => <span className="px-2 py-0.5 rounded-md bg-white/10 text-slate-300 text-[10px] uppercase font-bold">{u.role_name || 'Unknown'}</span>
+        render: (u) => <span className="px-2 py-0.5 rounded-md bg-white/10 text-slate-300 text-[10px] uppercase font-bold">{u.role_name || t('common:fallbacks.unknown')}</span>
     },
 ];
 
@@ -350,7 +350,7 @@ export function DepartmentDetailPage() {
             <div className="glass-card border-rose-500/50 bg-rose-500/10">
                 <div className="flex items-center gap-3 text-rose-400">
                     <AlertCircle className="h-5 w-5" />
-                    <p className="font-medium">{error || 'Department not found'}</p>
+                    <p className="font-medium">{error || t('not_found', { ns: 'errorKeys' })}</p>
                 </div>
             </div>
         );
@@ -367,7 +367,7 @@ export function DepartmentDetailPage() {
                 columns={getRiskColumns(t)}
                 keyExtractor={(risk) => risk.id}
                 onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
-                emptyMessage={riskFilter === 'high' ? 'No high-risk items found.' : 'No risks found for this department.'}
+                emptyMessage={riskFilter === 'high' ? t('common:empty.no_high_risk_items') : t('common:empty.no_risks_found')}
             />
             {riskTotalPages > 1 && (
                 <Pagination
@@ -388,7 +388,7 @@ export function DepartmentDetailPage() {
                 columns={getControlColumns(t)}
                 keyExtractor={(control) => control.id}
                 onRowClick={(control) => navigate(`/controls/${control.id}`)}
-                emptyMessage="No controls found for this department."
+                emptyMessage={t('common:empty.no_controls_department')}
             />
             {controlTotalPages > 1 && (
                 <Pagination
@@ -410,8 +410,8 @@ export function DepartmentDetailPage() {
                 keyExtractor={(kri) => kri.id}
                 onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
                 emptyMessage={kriFilter === 'breach'
-                    ? t('common:empty.no_kris_breach', 'No KRIs are currently in breach.')
-                    : t('common:empty.no_kris_department', 'No KRIs found for this department.')}
+                    ? t('common:empty.no_kris_breach')
+                    : t('common:empty.no_kris_department')}
             />
             {kriTotalPages > 1 && (
                 <Pagination
@@ -432,7 +432,7 @@ export function DepartmentDetailPage() {
                 columns={getUserColumns(t)}
                 keyExtractor={(u) => u.id}
                 onRowClick={(u) => navigate(`/users/${u.id}`)}
-                emptyMessage="No users found for this department."
+                emptyMessage={t('common:empty.no_users_department')}
             />
             {userTotalPages > 1 && (
                 <Pagination
@@ -466,7 +466,7 @@ export function DepartmentDetailPage() {
                                 <div>
                                     <p className="text-sm font-bold text-white">{execution.control_name}</p>
                                     <p className="text-xs text-slate-500">
-                                        by {execution.executed_by} • {new Date(execution.executed_at).toLocaleDateString()}
+                                        {t('common:labels.by')} {execution.executed_by} • {new Date(execution.executed_at).toLocaleDateString()}
                                     </p>
                                 </div>
                             </div>
@@ -528,7 +528,7 @@ export function DepartmentDetailPage() {
                 >
                     <div className="flex items-center gap-3 mb-2">
                         <ShieldAlert className="h-5 w-5 text-amber-400 group-hover:scale-110 transition-transform" />
-                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('common:labels.risk', 'Risks')}</p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('common:labels.risk')}</p>
                     </div>
                     <p className="text-3xl font-black text-white">{department.risk_count}</p>
                 </div>
@@ -538,7 +538,7 @@ export function DepartmentDetailPage() {
                 >
                     <div className="flex items-center gap-3 mb-2">
                         <Shield className="h-5 w-5 text-emerald-400 group-hover:scale-110 transition-transform" />
-                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('common:labels.control', 'Controls')}</p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('common:labels.control')}</p>
                     </div>
                     <p className="text-3xl font-black text-white">{department.control_count}</p>
                 </div>
@@ -555,11 +555,11 @@ export function DepartmentDetailPage() {
                 <div
                     onClick={() => { setActiveTab('kris'); setKriFilter('breach'); }}
                     className={`glass-card cursor-pointer hover:bg-white/5 transition-all group ${activeTab === 'kris' && kriFilter === 'breach' ? 'border-rose-500/50 bg-rose-500/5' : ''}`}
-                    title={t('dashboard:kri_breaches', 'KRI Breaches')}
+                    title={t('dashboard:kri_breaches')}
                 >
                     <div className="flex items-center gap-3 mb-2">
                         <TrendingDown className="h-5 w-5 text-rose-400 group-hover:scale-110 transition-transform" />
-                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:kri_breaches', 'KRI Breaches')}</p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:kri_breaches')}</p>
                     </div>
                     <p className="text-3xl font-black text-rose-400">{getKriBreachCount()}</p>
                 </div>
@@ -569,7 +569,7 @@ export function DepartmentDetailPage() {
                 >
                     <div className="flex items-center gap-3 mb-2">
                         <Users className="h-5 w-5 text-blue-400 group-hover:scale-110 transition-transform" />
-                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:active_users', 'Active Users')}</p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:active_users')}</p>
                     </div>
                     <p className="text-3xl font-black text-white">{department.user_count}</p>
                 </div>
@@ -580,7 +580,7 @@ export function DepartmentDetailPage() {
                 >
                     <div className="flex items-center gap-3 mb-2">
                         <AlertCircle className="h-5 w-5 text-rose-400 group-hover:scale-110 transition-transform" />
-                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:high_risk', 'High Risk')}</p>
+                        <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:high_risk')}</p>
                     </div>
                     <p className="text-3xl font-black text-rose-400">{department.risk_distribution.critical + department.risk_distribution.high}</p>
                 </div>

@@ -244,7 +244,6 @@ export function useActivityLogPageState(
         page,
         limit,
         debouncedSearch,
-        activeTab,
         action,
         dateFrom,
         dateTo,

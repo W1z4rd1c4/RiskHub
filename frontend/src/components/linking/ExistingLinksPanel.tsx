@@ -77,7 +77,7 @@ export function ExistingLinksPanel({
     return (
         <section className="space-y-4">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center justify-between">
-                <span>{t('common:labels.details', 'Existing Links')}</span>
+                <span>{t('common:labels.details')}</span>
                 <span className="text-accent">{existingLinks.length}</span>
             </h3>
 

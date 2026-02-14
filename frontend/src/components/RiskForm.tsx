@@ -41,9 +41,9 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
     const navigate = useNavigate();
     const { t } = useTranslation(['risks', 'common', 'errorKeys', 'approvals']);
     const steps = [
-        { id: 'identity', title: t('risks:form.steps.identity', 'Identity'), icon: Info },
-        { id: 'ownership', title: t('risks:form.steps.ownership', 'Details & Owner'), icon: User },
-        { id: 'scoring', title: t('risks:form.steps.scoring', 'Risk Assessment'), icon: Activity },
+        { id: 'identity', title: t('risks:form.steps.identity'), icon: Info },
+        { id: 'ownership', title: t('risks:form.steps.ownership'), icon: User },
+        { id: 'scoring', title: t('risks:form.steps.scoring'), icon: Activity },
     ];
     const [currentStep, setCurrentStep] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -746,7 +746,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                     <span className="mx-1">—</span>
                                                     {t(IMPACT_DESCRIPTIONS[formData.gross_impact].descriptionKey, IMPACT_DESCRIPTIONS[formData.gross_impact].descriptionKey)}.
                                                     <span className="text-slate-500 ml-1">
-                                                        {t('form.financial.loss', 'Loss')}: {formatFinancialRange(formData.gross_impact, totalAssets, t('form.financial.no_loss', 'No financial loss'))}
+                                                        {t('form.financial.loss')}: {formatFinancialRange(formData.gross_impact, totalAssets, t('form.financial.no_loss'))}
                                                     </span>
                                                 </p>
                                             )}
@@ -808,7 +808,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                                                     <span className="mx-1">—</span>
                                                     {t(IMPACT_DESCRIPTIONS[formData.net_impact].descriptionKey, IMPACT_DESCRIPTIONS[formData.net_impact].descriptionKey)}.
                                                     <span className="text-slate-500 ml-1">
-                                                        {t('form.financial.loss', 'Loss')}: {formatFinancialRange(formData.net_impact, totalAssets, t('form.financial.no_loss', 'No financial loss'))}
+                                                        {t('form.financial.loss')}: {formatFinancialRange(formData.net_impact, totalAssets, t('form.financial.no_loss'))}
                                                     </span>
                                                 </p>
                                             )}
@@ -857,7 +857,7 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                             disabled={isSubmitting}
                             className="btn-primary px-8"
                         >
-                            {isSubmitting ? t('common:loading.generic', 'Saving...') : (isEdit ? t('risks:edit_risk') : t('risks:create_risk'))}
+                            {isSubmitting ? t('common:loading.generic') : (isEdit ? t('risks:edit_risk') : t('risks:create_risk'))}
                             <Save className="h-4 w-4" />
                         </button>
                     )}

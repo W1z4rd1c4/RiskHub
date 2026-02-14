@@ -42,7 +42,6 @@ import {
 import { KRINewPage } from '@/pages/KRIForms';
 import { NotificationsPage } from '@/pages/NotificationsPage';
 import LoginPage from '@/pages/LoginPage';
-import './index.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -77,6 +76,14 @@ function RoleBasedIndex() {
   }
 
   return <DashboardPage />;
+}
+
+function GovernanceGuard() {
+  const authz = useAuthz();
+  if (!authz.canViewGovernance) {
+    return <Navigate to="/" replace />;
+  }
+  return <GovernancePage />;
 }
 
 function App() {
@@ -125,7 +132,7 @@ function App() {
                 <Route path="users" element={<UsersPage />} />
                 <Route path="users/new" element={<UserNewPage />} />
                 <Route path="users/:id" element={<UserDetailPage />} />
-                <Route path="governance" element={<GovernancePage />} />
+                <Route path="governance" element={<GovernanceGuard />} />
                 <Route path="settings" element={<SettingsPage />} />
                 {/* Risk Hub (CRO only) */}
                 <Route path="risk-hub" element={<RiskHubPage />} />

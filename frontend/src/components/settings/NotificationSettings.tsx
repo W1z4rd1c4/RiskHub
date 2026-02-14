@@ -160,9 +160,9 @@ export function NotificationSettings() {
     return (
         <div className="space-y-8">
             <div>
-                <h3 className="text-lg font-semibold mb-2">{t('notifications.title', 'Notification Preferences')}</h3>
+                <h3 className="text-lg font-semibold mb-2">{t('notifications.title')}</h3>
                 <p className="text-slate-400 text-sm">
-                    {t('notifications.subtitle', 'Choose which notifications you want to receive')}
+                    {t('notifications.subtitle')}
                 </p>
             </div>
 
@@ -173,7 +173,7 @@ export function NotificationSettings() {
                         <Bell className="h-4 w-4 text-accent" />
                     </div>
                     <h4 className="text-md font-semibold text-slate-200">
-                        {t('notifications.section_approval', 'Approval Notifications')}
+                        {t('notifications.section_approval')}
                     </h4>
                 </div>
                 <div className="space-y-1">
@@ -197,7 +197,7 @@ export function NotificationSettings() {
                         <AlertTriangle className="h-4 w-4 text-yellow-500" />
                     </div>
                     <h4 className="text-md font-semibold text-slate-200">
-                        {t('notifications.section_kri', 'KRI Notifications')}
+                        {t('notifications.section_kri')}
                     </h4>
                 </div>
                 <div className="space-y-1">
@@ -221,7 +221,7 @@ export function NotificationSettings() {
                         <Bell className="h-4 w-4 text-emerald-400" />
                     </div>
                     <h4 className="text-md font-semibold text-slate-200">
-                        {t('notifications.section_questionnaires', 'Questionnaire Notifications')}
+                        {t('notifications.section_questionnaires')}
                     </h4>
                 </div>
                 <div className="space-y-1">
@@ -245,7 +245,7 @@ export function NotificationSettings() {
                         <Bell className="h-4 w-4 text-blue-400" />
                     </div>
                     <h4 className="text-md font-semibold text-slate-200">
-                        {t('notifications.section_vendors', 'Vendor Notifications')}
+                        {t('notifications.section_vendors')}
                     </h4>
                 </div>
                 <div className="space-y-1">
@@ -264,7 +264,7 @@ export function NotificationSettings() {
 
             {/* Note */}
             <p className="text-xs text-slate-500 italic">
-                {t('notifications.persistence_note', 'Your preferences are saved automatically and synced across devices.')}
+                {t('notifications.persistence_note')}
             </p>
         </div>
     );

@@ -33,8 +33,8 @@ export function DepartmentsPage() {
         <div className="space-y-8">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-black text-white mb-2">{t('dashboard:department_exposure.title', 'Departments')}</h2>
-                    <p className="text-slate-500 font-medium">{t('dashboard:department_exposure.subtitle', 'Organizational units and their risk/control landscape.')}</p>
+                    <h2 className="text-3xl font-black text-white mb-2">{t('dashboard:department_exposure.title')}</h2>
+                    <p className="text-slate-500 font-medium">{t('dashboard:department_exposure.subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
@@ -74,7 +74,7 @@ export function DepartmentsPage() {
                 <div className="glass-card p-12 flex flex-col items-center justify-center text-center">
                     <Building2 className="h-12 w-12 text-slate-600 mb-4" />
                     <p className="text-sm font-medium text-slate-500 max-w-sm">
-                        {t('dashboard:department_exposure.empty', 'No departments found. Create your first department to get started.')}
+                        {t('dashboard:department_exposure.empty')}
                     </p>
                 </div>
             ) : (
@@ -105,7 +105,7 @@ export function DepartmentsPage() {
                                     )}
                                     {dept.high_risk_count > 0 && (
                                         <div className="px-2 py-1 rounded-full bg-rose-500/20 text-rose-400 text-[10px] font-black">
-                                            {dept.high_risk_count} {t('dashboard:risk_levels.critical', 'Critical').toUpperCase()}
+                                            {dept.high_risk_count} {t('dashboard:risk_levels.critical').toUpperCase()}
                                         </div>
                                     )}
                                 </div>
@@ -116,7 +116,7 @@ export function DepartmentsPage() {
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
                                     <Users className="h-4 w-4 text-blue-400" />
                                     <span className="text-lg font-black text-white">{dept.user_count}</span>
-                                    <span className="text-[9px] font-bold text-slate-500 uppercase">{t('dashboard:department_exposure.people', 'People')}</span>
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase">{t('dashboard:department_exposure.people')}</span>
                                 </div>
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
                                     <ShieldAlert className="h-4 w-4 text-orange-400" />
@@ -136,7 +136,7 @@ export function DepartmentsPage() {
                                 <div className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/5">
                                     <TrendingUp className="h-4 w-4 text-rose-400" />
                                     <span className="text-lg font-black text-white">{dept.total_net_score}</span>
-                                    <span className="text-[9px] font-bold text-slate-500 uppercase">{t('dashboard:department_exposure.risk_sum', 'Risk Σ')}</span>
+                                    <span className="text-[9px] font-bold text-slate-500 uppercase">{t('dashboard:department_exposure.risk_sum')}</span>
                                 </div>
                             </div>
                         </button>

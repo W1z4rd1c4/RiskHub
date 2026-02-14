@@ -156,7 +156,11 @@
   "matrix": {
     "title": "Risk Matrix",
     "probability_axis": "Probability",
-    "impact_axis": "Impact"
+    "impact_axis": "Impact",
+    "gross_risk": "Gross Risk",
+    "net_risk": "Net Risk",
+    "cell_title": "P:{{probability}} × I:{{impact}} = {{score}}",
+    "score_label": "Score: {{score}}"
   },
   "scoring": {
     "inherent_risk": "Inherent Risk",

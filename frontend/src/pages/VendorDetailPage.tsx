@@ -103,7 +103,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
             setError(null);
         } catch (err) {
             console.error('Error fetching vendor:', err);
-            setError(t('errors.not_found', 'Vendor not found'));
+            setError(t('errors.not_found'));
         } finally {
             setIsLoading(false);
         }
@@ -130,8 +130,8 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                             <ArrowLeft className="h-4 w-4 text-slate-300" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold text-white">{t('actions.new', 'New Vendor')}</h1>
-                            <p className="text-slate-500 font-medium">{t('subtitle', 'Third-party vendor catalog')}</p>
+                            <h1 className="text-2xl font-bold text-white">{t('actions.new')}</h1>
+                            <p className="text-slate-500 font-medium">{t('subtitle')}</p>
                         </div>
                     </div>
                 </div>
@@ -148,7 +148,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                 <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">{t('labels.loading', 'Loading...')}</p>
+                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">{t('labels.loading')}</p>
             </div>
         );
     }
@@ -160,14 +160,14 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     <XCircle className="h-10 w-10 text-rose-500" />
                 </div>
                 <div>
-                    <h3 className="text-xl font-bold text-white uppercase tracking-tight">{t('errors.vendor_not_found', 'Vendor not found')}</h3>
-                    <p className="text-slate-500 mt-2 font-medium">{error || t('errors.not_found', 'Not found')}</p>
+                    <h3 className="text-xl font-bold text-white uppercase tracking-tight">{t('errors.vendor_not_found')}</h3>
+                    <p className="text-slate-500 mt-2 font-medium">{error || t('errors.not_found')}</p>
                 </div>
                 <button
                     onClick={() => navigate('/vendors')}
                     className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all flex items-center gap-2"
                 >
-                    <ArrowLeft className="h-4 w-4" /> {t('title', 'Vendors')}
+                    <ArrowLeft className="h-4 w-4" /> {t('title')}
                 </button>
             </div>
         );
@@ -185,7 +185,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                             <ArrowLeft className="h-4 w-4 text-slate-300" />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold text-white">{t('actions.edit', 'Edit Vendor')}</h1>
+                            <h1 className="text-2xl font-bold text-white">{t('actions.edit')}</h1>
                             <p className="text-slate-500 font-medium">{vendor.name}</p>
                         </div>
                     </div>
@@ -224,7 +224,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                             className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors flex items-center gap-2"
                         >
                             <FileText className="h-4 w-4" />
-                            {tIssues('actions.new_issue', 'New Issue')}
+                            {tIssues('actions.new_issue')}
                         </button>
                     </PermissionGate>
                     {canEdit && (
@@ -234,7 +234,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                                 className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors flex items-center gap-2"
                             >
                                 <Edit className="h-4 w-4" />
-                                {t('actions.edit', 'Edit')}
+                                {t('actions.edit')}
                             </button>
                         </PermissionGate>
                     )}
@@ -251,7 +251,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                             className="px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 transition-colors flex items-center gap-2"
                         >
                             <RotateCcw className="h-4 w-4" />
-                            {t('actions.unarchive', 'Unarchive')}
+                            {t('actions.unarchive')}
                         </button>
                     )}
                 </div>
@@ -259,57 +259,57 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <section className="glass-card p-6 space-y-4 lg:col-span-2">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('detail.overview', 'Overview')}</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('detail.overview')}</h3>
 
                     <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-1">
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.legal_name', 'Legal Name')}</p>
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.legal_name')}</p>
                             <p className="text-sm text-slate-200">{vendor.legal_name || '—'}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.registration_id', 'Registration ID')}</p>
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.registration_id')}</p>
                             <p className="text-sm text-slate-200">{vendor.registration_id || '—'}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.country', 'Country')}</p>
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.country')}</p>
                             <p className="text-sm text-slate-200">{vendor.country || '—'}</p>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.website', 'Website')}</p>
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.website')}</p>
                             <p className="text-sm text-slate-200">{vendor.website || '—'}</p>
                         </div>
                     </div>
 
                     {vendor.description && (
                         <div className="space-y-1">
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.description', 'Description')}</p>
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.description')}</p>
                             <p className="text-sm text-slate-200 whitespace-pre-wrap">{vendor.description}</p>
                         </div>
                     )}
                 </section>
 
                 <section className="glass-card p-6 space-y-4">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('detail.ownership', 'Ownership')}</h3>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('detail.ownership')}</h3>
 
                     <div className="space-y-3">
                         <div className="flex items-center gap-3">
                             <Building2 className="h-4 w-4 text-accent" />
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('columns.department', 'Department')}</p>
-                                <p className="text-sm text-slate-200">{vendor.department_name || t('labels.unassigned', 'Unassigned')}</p>
+                                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('columns.department')}</p>
+                                <p className="text-sm text-slate-200">{vendor.department_name || t('labels.unassigned')}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <User className="h-4 w-4 text-accent" />
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('columns.owner', 'Owner')}</p>
+                                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('columns.owner')}</p>
                                 <p className="text-sm text-slate-200">{vendor.outsourcing_owner_name || '—'}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
                             <ShieldAlert className="h-4 w-4 text-accent" />
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.process', 'Process')}</p>
+                                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.process')}</p>
                                 <p className="text-sm text-slate-200">{vendor.process}{vendor.subprocess ? ` / ${vendor.subprocess}` : ''}</p>
                             </div>
                         </div>
@@ -318,13 +318,13 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
             </div>
 
             <section className="glass-card p-6 space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('detail.classification', 'Classification')}</h3>
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('detail.classification')}</h3>
 
                 <div className="flex flex-wrap gap-2">
-                    {badge(`${t('columns.risk_score', 'Risk Score')}: ${vendor.risk_score_1_5}/5`, 'text-amber-400 bg-amber-400/10 border-amber-400/20')}
-                    {vendor.supports_important_core_insurance_function && badge(t('flags.supports_core_function', 'Core function'), 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20')}
-                    {vendor.dora_relevant && badge(t('flags.dora_relevant', 'DORA'), 'text-blue-400 bg-blue-400/10 border-blue-400/20')}
-                    {vendor.is_significant_vendor && badge(t('flags.significant_vendor', 'Significant'), 'text-orange-400 bg-orange-400/10 border-orange-400/20')}
+                    {badge(`${t('columns.risk_score')}: ${vendor.risk_score_1_5}/5`, 'text-amber-400 bg-amber-400/10 border-amber-400/20')}
+                    {vendor.supports_important_core_insurance_function && badge(t('flags.supports_core_function'), 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20')}
+                    {vendor.dora_relevant && badge(t('flags.dora_relevant'), 'text-blue-400 bg-blue-400/10 border-blue-400/20')}
+                    {vendor.is_significant_vendor && badge(t('flags.significant_vendor'), 'text-orange-400 bg-orange-400/10 border-orange-400/20')}
                     {vendor.status !== 'active' && badge(t(`status.${vendor.status}`, vendor.status), 'text-slate-300 bg-white/5 border-white/10')}
                 </div>
             </section>
@@ -338,7 +338,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <AlertTriangle className="h-4 w-4 inline mr-2" />
-                    {t('tabs.risk_factors', 'Risk Factors')}
+                    {t('tabs.risk_factors')}
                 </button>
                 <button
                     onClick={() => selectTab('linked_risks')}
@@ -348,7 +348,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <Link2 className="h-4 w-4 inline mr-2" />
-                    {t('tabs.linked_risks', 'Linked Risks')}
+                    {t('tabs.linked_risks')}
                 </button>
                 <button
                     onClick={() => selectTab('linked_controls')}
@@ -358,7 +358,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <CheckSquare className="h-4 w-4 inline mr-2" />
-                    {t('tabs.linked_controls', 'Linked Controls')}
+                    {t('tabs.linked_controls')}
                 </button>
                 <button
                     onClick={() => selectTab('assessments')}
@@ -368,7 +368,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <ClipboardList className="h-4 w-4 inline mr-2" />
-                    {t('tabs.assessments', 'Assessments')}
+                    {t('tabs.assessments')}
                 </button>
                 <button
                     onClick={() => selectTab('schedule')}
@@ -378,7 +378,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <CalendarClock className="h-4 w-4 inline mr-2" />
-                    {t('tabs.schedule', 'Schedule')}
+                    {t('tabs.schedule')}
                 </button>
                 <button
                     onClick={() => selectTab('contract_controls')}
@@ -388,7 +388,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <FileCheck2 className="h-4 w-4 inline mr-2" />
-                    {t('tabs.contract_controls', 'Contract Controls')}
+                    {t('tabs.contract_controls')}
                 </button>
                 <button
                     onClick={() => selectTab('resilience')}
@@ -398,7 +398,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <Shield className="h-4 w-4 inline mr-2" />
-                    {t('tabs.resilience', 'Resilience')}
+                    {t('tabs.resilience')}
                 </button>
                 <button
                     onClick={() => selectTab('dependencies')}
@@ -408,7 +408,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <AlertTriangle className="h-4 w-4 inline mr-2" />
-                    {t('tabs.dependencies', 'Dependencies')}
+                    {t('tabs.dependencies')}
                 </button>
                 <button
                     onClick={() => selectTab('incidents')}
@@ -418,7 +418,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <AlertOctagon className="h-4 w-4 inline mr-2" />
-                    {t('tabs.incidents', 'Incidents')}
+                    {t('tabs.incidents')}
                 </button>
                 <button
                     onClick={() => selectTab('remediation')}
@@ -428,7 +428,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <ClipboardCheck className="h-4 w-4 inline mr-2" />
-                    {t('tabs.remediation', 'Remediation')}
+                    {t('tabs.remediation')}
                 </button>
                 <button
                     onClick={() => selectTab('sla')}
@@ -438,7 +438,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <Activity className="h-4 w-4 inline mr-2" />
-                    {t('tabs.sla', 'SLA')}
+                    {t('tabs.sla')}
                 </button>
                 <button
                     onClick={() => selectTab('signals')}
@@ -448,7 +448,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                         }`}
                 >
                     <Radar className="h-4 w-4 inline mr-2" />
-                    {t('tabs.signals', 'Signals')}
+                    {t('tabs.signals')}
                 </button>
             </div>
 

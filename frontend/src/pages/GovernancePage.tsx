@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { Navigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import {
     Scale,
@@ -13,6 +14,7 @@ import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import type { OrphanStats, OrphanedItem } from '@/types/orphanedItem';
 import { OrphanedItemsTable, ResolveOrphanModal, OrphanQuickViewModal } from '@/components/governance';
 import { GOVERNANCE_POLL_MS } from '@/config/constants';
+import { useAuthz } from '@/authz/useAuthz';
 
 const container = {
     hidden: { opacity: 0 },
@@ -29,7 +31,7 @@ const item = {
     show: { opacity: 1, y: 0 }
 };
 
-const GovernancePage: React.FC = () => {
+function GovernancePageInner() {
     const { t } = useTranslation('admin');
     const [stats, setStats] = useState<OrphanStats | null>(null);
     const [orphans, setOrphans] = useState<OrphanedItem[]>([]);
@@ -85,7 +87,7 @@ const GovernancePage: React.FC = () => {
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="flex flex-col items-center gap-4">
                     <RefreshCw className="h-8 w-8 text-accent animate-spin" />
-                    <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{t('governance.loading', 'Loading Governance Data...')}</p>
+                    <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">{t('governance.loading')}</p>
                 </div>
             </div>
         );
@@ -96,46 +98,46 @@ const GovernancePage: React.FC = () => {
     const statBars = [
         {
             id: 'risk' as const,
-            title: t('governance.pending_orphans', 'Pending Orphans'),
-            subtitle: t('governance.risks', 'Risks'),
+            title: t('governance.pending_orphans'),
+            subtitle: t('governance.risks'),
             value: stats?.risk_count ?? 0,
             icon: Scale,
             color: 'text-amber-400',
             bg: 'bg-amber-400/10',
-            trend: t('governance.action_required', 'Action Required'),
+            trend: t('governance.action_required'),
             clickable: true,
         },
         {
             id: 'control' as const,
-            title: t('governance.orphaned_controls', 'Orphaned Controls'),
-            subtitle: t('governance.controls', 'Controls'),
+            title: t('governance.orphaned_controls'),
+            subtitle: t('governance.controls'),
             value: stats?.control_count ?? 0,
             icon: ClipboardList,
             color: 'text-rose-400',
             bg: 'bg-rose-400/10',
-            trend: t('governance.critical', 'Critical'),
+            trend: t('governance.critical'),
             clickable: true,
         },
         {
             id: 'kri' as const,
-            title: t('governance.orphaned_kris', 'Orphaned KRIs'),
-            subtitle: t('governance.kris', 'KRIs'),
+            title: t('governance.orphaned_kris'),
+            subtitle: t('governance.kris'),
             value: stats?.kri_count ?? 0,
             icon: AlertTriangle,
             color: 'text-accent',
             bg: 'bg-accent/10',
-            trend: t('governance.needs_linkage', 'Needs Linkage'),
+            trend: t('governance.needs_linkage'),
             clickable: true,
         },
         {
             id: 'total' as const,
-            title: t('governance.uncategorised', 'Uncategorised'),
-            subtitle: t('governance.total', 'Total'),
+            title: t('governance.uncategorised'),
+            subtitle: t('governance.total'),
             value: stats?.total_count ?? 0,
             icon: Building2,
             color: 'text-slate-400',
             bg: 'bg-slate-400/10',
-            trend: t('governance.grand_total', 'Grand Total'),
+            trend: t('governance.grand_total'),
             clickable: false,
         },
     ];
@@ -144,20 +146,20 @@ const GovernancePage: React.FC = () => {
         <div className="space-y-10">
             <div className="flex justify-between items-end">
                 <div>
-                    <h2 className="text-3xl font-black text-white mb-2">{t('governance.title', 'Governance Oversight')}</h2>
-                    <p className="text-slate-500 font-medium">{t('governance.subtitle', 'Manage orphaned risks, controls and KRIs that require administrative reassignment.')}</p>
+                    <h2 className="text-3xl font-black text-white mb-2">{t('governance.title')}</h2>
+                    <p className="text-slate-500 font-medium">{t('governance.subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => fetchData()}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
-                        title={t('governance.refresh', 'Refresh Data')}
+                        title={t('governance.refresh')}
                     >
                         <RefreshCw className="h-5 w-5" />
                     </button>
                     <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        {t('governance.live_status', 'Live System Status')}
+                        {t('governance.live_status')}
                     </div>
                 </div>
             </div>
@@ -214,7 +216,7 @@ const GovernancePage: React.FC = () => {
                 <div className="flex items-center gap-3 mb-6">
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">
-                        {activeTab === 'risk' ? t('governance.orphaned_risks_section', 'Orphaned Risks') : activeTab === 'control' ? t('governance.orphaned_controls_section', 'Orphaned Controls') : t('governance.orphaned_kris_section', 'Orphaned KRIs')}
+                        {activeTab === 'risk' ? t('governance.orphaned_risks_section') : activeTab === 'control' ? t('governance.orphaned_controls_section') : t('governance.orphaned_kris_section')}
                     </span>
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 </div>
@@ -239,6 +241,15 @@ const GovernancePage: React.FC = () => {
             />
         </div>
     );
-};
+}
 
-export default GovernancePage;
+export default function GovernancePage() {
+    const authz = useAuthz();
+
+    // CRO/Admin only – prevent any orphaned-items API calls for other roles.
+    if (!authz.canViewGovernance) {
+        return <Navigate to="/" replace />;
+    }
+
+    return <GovernancePageInner />;
+}

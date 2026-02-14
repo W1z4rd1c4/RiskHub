@@ -1,0 +1,17 @@
+{
+  "title": "Oznámení",
+  "subtitle": {
+    "unread_count": "{{count}} nepřečtených"
+  },
+  "tabs": {
+    "all": "Vše",
+    "unread": "Nepřečtené"
+  },
+  "pagination": {
+    "page_of": "Strana {{page}} z {{total}}"
+  },
+  "aria": {
+    "bell": "Oznámení"
+  }
+}
+

@@ -20,6 +20,10 @@ function shouldSkipFile(file) {
   return FILE_EXCLUDE.some((re) => re.test(file));
 }
 
+function isStrictUiFile(file) {
+  return file.startsWith('src/pages/') || file.startsWith('src/components/');
+}
+
 function flatten(obj, prefix = '', out = new Set()) {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return out;
   for (const [key, value] of Object.entries(obj)) {
@@ -244,6 +248,15 @@ async function main() {
                     line: lc.line,
                     col: lc.col,
                     reason: `Fallback literal "${fallbackLiteral}" is masking missing key "${parsed.namespace}.${parsed.key}"`,
+                  });
+                }
+
+                if (fallbackLiteral && isStrictUiFile(file)) {
+                  problems.push({
+                    file,
+                    line: lc.line,
+                    col: lc.col,
+                    reason: `Fallback literal "${fallbackLiteral}" is not allowed in production UI code`,
                   });
                 }
               }

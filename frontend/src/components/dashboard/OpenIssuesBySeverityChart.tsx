@@ -8,13 +8,6 @@ interface OpenIssuesBySeverityChartProps {
     items: IssueSeverityBreakdownItem[];
 }
 
-const COLORS: Record<string, string> = {
-    low: '#22c55e',
-    medium: '#f59e0b',
-    high: '#f97316',
-    critical: '#ef4444',
-};
-
 export function OpenIssuesBySeverityChart({ items }: OpenIssuesBySeverityChartProps) {
     const { t } = useTranslation('dashboard');
     const chartTheme = useChartTheme();
@@ -27,7 +20,7 @@ export function OpenIssuesBySeverityChart({ items }: OpenIssuesBySeverityChartPr
                 <PieChart>
                     <Pie data={items} dataKey="count" nameKey="severity" outerRadius={84} innerRadius={40} paddingAngle={2}>
                         {items.map((item) => (
-                            <Cell key={item.severity} fill={COLORS[item.severity] ?? '#64748b'} />
+                            <Cell key={item.severity} fill={chartTheme.issueSeverity[item.severity] ?? chartTheme.issueSeverity.fallback} />
                         ))}
                     </Pie>
                     <Tooltip

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Edit2, Trash2, Target, AlertTriangle, CheckCircle, Plus, Clock, History, RotateCcw, FileText } from 'lucide-react';
@@ -42,11 +42,20 @@ export function KRIDetailPage() {
     // Permissions
     const { canRecordKRI, user } = usePermissions();
 
-    useEffect(() => {
-        if (id) fetchKRI(parseInt(id));
-    }, [id]);
+    const fetchHistory = useCallback(async (kriId: number) => {
+        setIsLoadingHistory(true);
+        try {
+            const response = await kriApi.getHistory(kriId, { size: 50, include_archived: true });
+            setHistory(response.items);
+            setHistoryTotal(response.total);
+        } catch (err) {
+            console.error('Failed to fetch history:', err);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    }, []);
 
-    const fetchKRI = async (kriId: number) => {
+    const fetchKRI = useCallback(async (kriId: number) => {
         setIsLoading(true);
         try {
             const data = await kriApi.getKRI(kriId, { include_archived: true });
@@ -67,20 +76,11 @@ export function KRIDetailPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [fetchHistory]);
 
-    const fetchHistory = async (kriId: number) => {
-        setIsLoadingHistory(true);
-        try {
-            const response = await kriApi.getHistory(kriId, { size: 50, include_archived: true });
-            setHistory(response.items);
-            setHistoryTotal(response.total);
-        } catch (err) {
-            console.error('Failed to fetch history:', err);
-        } finally {
-            setIsLoadingHistory(false);
-        }
-    };
+    useEffect(() => {
+        if (id) fetchKRI(parseInt(id));
+    }, [id, fetchKRI]);
 
     const handleDelete = async () => {
         if (!kri) return;
@@ -213,7 +213,7 @@ export function KRIDetailPage() {
                             variant="outline"
                             onClick={() => setIsIssueModalOpen(true)}
                         >
-                            <FileText className="h-4 w-4 mr-1" /> {tIssues('actions.new_issue', 'New Issue')}
+                            <FileText className="h-4 w-4 mr-1" /> {tIssues('actions.new_issue')}
                         </Button>
                     </PermissionGate>
                     {(canRecordKRI || (!!kri && !!user?.id && kri.reporting_owner_id === user.id)) && (
@@ -233,7 +233,7 @@ export function KRIDetailPage() {
                             </Button>
                         ) : (
                             <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-                                <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? 'Deleting...' : 'Delete'}
+                                <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? t('common:actions.deleting') : t('common:actions.delete')}
                             </Button>
                         )}
                     </PermissionGate>

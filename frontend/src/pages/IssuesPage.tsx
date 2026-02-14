@@ -12,6 +12,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { usePermissions } from '@/hooks/usePermissions';
 import { issuesApi } from '@/services/issuesApi';
 import { reportApi } from '@/services/reportApi';
+import { apiClient } from '@/services/apiClient';
 import type { IssueListFilters, IssueSeverity, IssueSeverityFilter, IssueSeverityGroup, IssueStatus, IssueSummary } from '@/types/issue';
 
 const ISSUE_STATUSES: IssueStatus[] = ['open', 'triaged', 'in_progress', 'ready_for_validation', 'closed'];
@@ -128,7 +129,7 @@ export function IssuesPage() {
     const [sortField, setSortField] = useState<IssueListFilters['sort_by'] | null>(initialSortField);
     const [sortDirection, setSortDirection] = useState<SortDirection>(initialSortDirection);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
 
@@ -140,22 +141,22 @@ export function IssuesPage() {
 
     const statusOptions: Array<{ label: string; value: IssueStatus }> = useMemo(
         () => [
-            { label: t('status.open', 'Open'), value: 'open' },
-            { label: t('status.triaged', 'Triaged'), value: 'triaged' },
-            { label: t('status.in_progress', 'In progress'), value: 'in_progress' },
-            { label: t('status.ready_for_validation', 'Ready for validation'), value: 'ready_for_validation' },
-            { label: t('status.closed', 'Closed'), value: 'closed' },
+            { label: t('status.open'), value: 'open' },
+            { label: t('status.triaged'), value: 'triaged' },
+            { label: t('status.in_progress'), value: 'in_progress' },
+            { label: t('status.ready_for_validation'), value: 'ready_for_validation' },
+            { label: t('status.closed'), value: 'closed' },
         ],
         [t]
     );
 
     const severityOptions: Array<{ label: string; value: IssueSeverityFilter }> = useMemo(
         () => [
-            { label: t('severity.low', 'Low'), value: 'low' },
-            { label: t('severity.medium', 'Medium'), value: 'medium' },
-            { label: t('severity.high', 'High'), value: 'high' },
-            { label: t('severity.critical', 'Critical'), value: 'critical' },
-            { label: t('severity.high_critical', 'High + Critical'), value: 'high_critical' },
+            { label: t('severity.low'), value: 'low' },
+            { label: t('severity.medium'), value: 'medium' },
+            { label: t('severity.high'), value: 'high' },
+            { label: t('severity.critical'), value: 'critical' },
+            { label: t('severity.high_critical'), value: 'high_critical' },
         ],
         [t]
     );
@@ -224,14 +225,13 @@ export function IssuesPage() {
             }
             setItems(response.items);
             setTotalCount(response.total);
-            setError(null);
+            setErrorKey(null);
             hasLoadedIssuesRef.current = true;
         } catch (loadError) {
             if (requestId !== latestRequestIdRef.current) {
                 return;
             }
-            const message = loadError instanceof Error ? loadError.message : t('errors.load_failed', 'Failed to load issues');
-            setError(message);
+            setErrorKey(apiClient.toUiMessageKey(loadError));
             setItems([]);
             setTotalCount(0);
         } finally {
@@ -239,7 +239,7 @@ export function IssuesPage() {
                 setIsLoading(false);
             }
         }
-    }, [canRead, listFilters, t]);
+    }, [canRead, listFilters]);
 
     useEffect(() => {
         fetchIssues();
@@ -261,8 +261,7 @@ export function IssuesPage() {
             });
             setIsExportDialogOpen(false);
         } catch (exportError) {
-            const message = exportError instanceof Error ? exportError.message : t('errors.export_failed', 'Export failed');
-            setError(message);
+            setErrorKey(apiClient.toUiMessageKey(exportError));
         } finally {
             setIsExporting(false);
         }
@@ -272,7 +271,7 @@ export function IssuesPage() {
         return [
             {
                 key: 'title',
-                label: t('columns.issue', 'Issue'),
+                label: t('columns.issue'),
                 sortable: true,
                 render: (issue) => (
                     <div className="space-y-1">
@@ -286,43 +285,43 @@ export function IssuesPage() {
             },
             {
                 key: 'department_name',
-                label: t('columns.department', 'Department'),
+                label: t('columns.department'),
                 sortable: true,
                 render: (issue) => (
                     <span className="text-sm text-slate-300">
-                        {issue.department_name || t('fallbacks.unknown_department', 'Unknown department')}
+                        {issue.department_name || t('fallbacks.unknown_department')}
                     </span>
                 ),
             },
             {
                 key: 'owner_user_name',
-                label: t('columns.owner', 'Owner'),
+                label: t('columns.owner'),
                 sortable: true,
                 render: (issue) => (
-                    <span className="text-sm text-slate-300">{issue.owner_user_name || t('fallbacks.unassigned', 'Unassigned')}</span>
+                    <span className="text-sm text-slate-300">{issue.owner_user_name || t('fallbacks.unassigned')}</span>
                 ),
             },
             {
                 key: 'source_type',
-                label: t('columns.source', 'Source'),
+                label: t('columns.source'),
                 sortable: true,
                 render: (issue) => <span className="text-sm text-slate-300">{sourceLabel(issue.source_type)}</span>,
             },
             {
                 key: 'due_at',
-                label: t('columns.due', 'Due'),
+                label: t('columns.due'),
                 sortable: true,
                 render: (issue) => (
                     <span className="text-sm text-slate-300">
-                        {formatDateTime(issue.due_at, i18n.language, t('fallbacks.not_set', 'Not set'))}
+                        {formatDateTime(issue.due_at, i18n.language, t('fallbacks.not_set'))}
                     </span>
                 ),
             },
             {
                 key: 'opened_at',
-                label: t('columns.opened', 'Opened'),
+                label: t('columns.opened'),
                 sortable: true,
-                render: (issue) => <span className="text-sm text-slate-300">{formatDateTime(issue.opened_at, i18n.language, t('fallbacks.not_set', 'Not set'))}</span>,
+                render: (issue) => <span className="text-sm text-slate-300">{formatDateTime(issue.opened_at, i18n.language, t('fallbacks.not_set'))}</span>,
             },
             {
                 key: 'actions',
@@ -342,7 +341,7 @@ export function IssuesPage() {
         return (
             <div className="glass-card p-8 flex items-center gap-3 text-amber-200">
                 <AlertTriangle className="h-5 w-5" />
-                <span>{t('permissions.view_denied', 'You do not have permission to view issues.')}</span>
+                <span>{t('permissions.view_denied')}</span>
             </div>
         );
     }
@@ -351,8 +350,8 @@ export function IssuesPage() {
         <div className="space-y-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-3xl font-black text-white mb-2">{t('title', 'Issues')}</h2>
-                    <p className="text-slate-500 font-medium tracking-tight">{t('page_subtitle', 'Track remediation, exceptions, and closure validation.')}</p>
+                    <h2 className="text-3xl font-black text-white mb-2">{t('title')}</h2>
+                    <p className="text-slate-500 font-medium tracking-tight">{t('page_subtitle')}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -363,7 +362,7 @@ export function IssuesPage() {
                         className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
                     >
                         <Download className="h-4 w-4" />
-                        {t('common:actions.export', 'Export')}
+                        {t('common:actions.export')}
                     </button>
                     {canWrite && (
                         <button
@@ -372,7 +371,7 @@ export function IssuesPage() {
                             className="btn-primary"
                         >
                             <Plus className="h-5 w-5" />
-                            {t('actions.new_issue', 'New Issue')}
+                            {t('actions.new_issue')}
                         </button>
                     )}
                 </div>
@@ -388,7 +387,7 @@ export function IssuesPage() {
                             setSearch(event.target.value);
                             setCurrentPage(1);
                         }}
-                        placeholder={t('filters.search_placeholder', 'Search by title or description')}
+                        placeholder={t('filters.search_placeholder')}
                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
                     />
                 </div>
@@ -406,8 +405,8 @@ export function IssuesPage() {
                         }}
                         options={statusOptions.map((option) => ({ value: option.value, label: option.label }))}
                         allowEmpty
-                        emptyLabel={t('filters.all_statuses', 'All statuses')}
-                        placeholder={t('filters.all_statuses', 'All statuses')}
+                        emptyLabel={t('filters.all_statuses')}
+                        placeholder={t('filters.all_statuses')}
                         className="w-[170px]"
                     />
                     <ThemedSelect
@@ -418,8 +417,8 @@ export function IssuesPage() {
                         }}
                         options={severityOptions.map((option) => ({ value: option.value, label: option.label }))}
                         allowEmpty
-                        emptyLabel={t('filters.all_severities', 'All severities')}
-                        placeholder={t('filters.all_severities', 'All severities')}
+                        emptyLabel={t('filters.all_severities')}
+                        placeholder={t('filters.all_severities')}
                         className="w-[170px]"
                     />
                     <label className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 flex items-center gap-2 text-sm text-slate-300 whitespace-nowrap">
@@ -432,7 +431,7 @@ export function IssuesPage() {
                             }}
                             className="accent-accent"
                         />
-                        {t('filters.overdue_only', 'Overdue only')}
+                        {t('filters.overdue_only')}
                     </label>
                     <label className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 flex items-center gap-2 text-sm text-slate-300 whitespace-nowrap">
                         <input
@@ -444,7 +443,7 @@ export function IssuesPage() {
                             }}
                             className="accent-accent"
                         />
-                        {t('filters.exclude_active_exceptions', 'Exclude active exceptions')}
+                        {t('filters.exclude_active_exceptions')}
                     </label>
                     <label className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 flex items-center gap-2 text-sm text-slate-300 whitespace-nowrap">
                         <input
@@ -459,28 +458,32 @@ export function IssuesPage() {
                             }}
                             className="accent-accent"
                         />
-                        {t('filters.include_closed', 'Include closed')}
+                        {t('filters.include_closed')}
                     </label>
                     <button
                         type="button"
                         onClick={fetchIssues}
                         className="h-10 w-10 flex items-center justify-center glass rounded-xl text-slate-400 hover:text-white transition-colors"
-                        title={t('actions.refresh', 'Refresh')}
+                        title={t('actions.refresh')}
                     >
                         <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
                     </button>
                 </div>
             </div>
 
-            {error ? (
+            {errorKey ? (
                 <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
                     <AlertCircle className="h-12 w-12 text-rose-500" />
                     <div>
-                        <p className="text-white font-bold text-xl">{t('errors.title', 'Error loading issues')}</p>
-                        <p className="text-slate-500 max-w-sm mx-auto">{error}</p>
+                        <p className="text-white font-bold text-xl">{t('errors.title')}</p>
+                        <p className="text-slate-500 max-w-sm mx-auto">
+                            {errorKey.startsWith('errorKeys.')
+                                ? t(errorKey.replace('errorKeys.', ''), { ns: 'errorKeys' })
+                                : t(errorKey)}
+                        </p>
                     </div>
                     <button onClick={fetchIssues} className="text-accent font-bold hover:underline">
-                        {t('actions.try_again', 'Try again')}
+                        {t('actions.try_again')}
                     </button>
                 </div>
             ) : !hasLoadedIssuesRef.current && isLoading ? (
@@ -517,7 +520,7 @@ export function IssuesPage() {
                         columns={columns}
                         keyExtractor={(issue) => issue.id}
                         onRowClick={(issue) => navigate(`/issues/${issue.id}`)}
-                        emptyMessage={t('list.empty', 'No issues found.')}
+                        emptyMessage={t('list.empty')}
                         sortKey={sortField}
                         sortDirection={sortDirection}
                         onSort={(key, direction) => {

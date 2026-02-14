@@ -73,7 +73,7 @@ export function DirectoryEmulatorPage() {
             <div className="glass-card p-8 text-center">
                 <AlertTriangle className="mx-auto h-10 w-10 text-rose-400" />
                 <h2 className="mt-4 text-xl font-bold text-white">{t('common:access.denied')}</h2>
-                <p className="mt-2 text-slate-400">{t('admin:access.directory_sync_denied', 'You do not have permission to manage directory sync.')}</p>
+                <p className="mt-2 text-slate-400">{t('admin:access.directory_sync_denied')}</p>
             </div>
         );
     }
@@ -84,10 +84,10 @@ export function DirectoryEmulatorPage() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
                         <Server className="h-8 w-8 text-accent" />
-                        {t('admin:directory.title', 'Directory Integration')}
+                        {t('admin:directory.title')}
                     </h1>
                     <p className="text-slate-400 mt-1">
-                        {t('admin:directory.subtitle', 'Sync users from the external AD Emulator into RiskHub.')}
+                        {t('admin:directory.subtitle')}
                     </p>
                 </div>
             </div>
@@ -99,7 +99,7 @@ export function DirectoryEmulatorPage() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Activity className="h-5 w-5 text-accent" />
-                                <h3 className="text-lg font-semibold text-white">{t('admin:directory.sync_operations', 'Sync Operations')}</h3>
+                                <h3 className="text-lg font-semibold text-white">{t('admin:directory.sync_operations')}</h3>
                             </div>
                             {isSyncing && <RefreshCw className="h-5 w-5 text-accent animate-spin" />}
                         </div>
@@ -111,7 +111,7 @@ export function DirectoryEmulatorPage() {
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all disabled:opacity-50 border border-white/10 font-medium"
                             >
                                 <Search className="h-4 w-4" />
-                                {t('admin:directory.preview_changes', 'Preview Changes')}
+                                {t('admin:directory.preview_changes')}
                             </button>
                             <button
                                 onClick={runApplySync}
@@ -119,7 +119,7 @@ export function DirectoryEmulatorPage() {
                                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-accent hover:bg-accent/80 text-white transition-all disabled:opacity-50 font-bold shadow-lg shadow-accent/20"
                             >
                                 <Play className="h-4 w-4" />
-                                {t('admin:directory.apply_sync', 'Apply Sync')}
+                                {t('admin:directory.apply_sync')}
                             </button>
                         </div>
 
@@ -133,18 +133,18 @@ export function DirectoryEmulatorPage() {
                         {syncPreview && (
                             <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
                                 <div className="p-4 bg-white/5 rounded-xl border border-white/10">
-                                    <h4 className="text-sm font-semibold text-slate-300 mb-3">{t('admin:directory.sync_preview_results', 'Sync Preview Results')}</h4>
+                                    <h4 className="text-sm font-semibold text-slate-300 mb-3">{t('admin:directory.sync_preview_results')}</h4>
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-4">
                                         <div className="bg-emerald-500/10 rounded-lg p-3 border border-emerald-500/20">
-                                            <p className="text-emerald-400 font-medium">{t('admin:directory.metrics.created', 'Created')}</p>
+                                            <p className="text-emerald-400 font-medium">{t('admin:directory.metrics.created')}</p>
                                             <p className="text-xl font-bold text-white mt-1">{syncPreview.created_count}</p>
                                         </div>
                                         <div className="bg-sky-500/10 rounded-lg p-3 border border-sky-500/20">
-                                            <p className="text-sky-400 font-medium">{t('admin:directory.metrics.updated', 'Updated')}</p>
+                                            <p className="text-sky-400 font-medium">{t('admin:directory.metrics.updated')}</p>
                                             <p className="text-xl font-bold text-white mt-1">{syncPreview.updated_count}</p>
                                         </div>
                                         <div className="bg-rose-500/10 rounded-lg p-3 border border-rose-500/20">
-                                            <p className="text-rose-400 font-medium">{t('admin:directory.metrics.deactivated', 'Deactivated')}</p>
+                                            <p className="text-rose-400 font-medium">{t('admin:directory.metrics.deactivated')}</p>
                                             <p className="text-xl font-bold text-white mt-1">{syncPreview.deactivated_count}</p>
                                         </div>
                                         <div className="bg-amber-500/10 rounded-lg p-3 border border-amber-500/20">
@@ -188,7 +188,7 @@ export function DirectoryEmulatorPage() {
                                             ))
                                         ) : (
                                             <div className="text-center py-4 text-slate-500 text-sm">
-                                                {t('admin:directory.no_changes', 'No changes detected. Sync is up to date.')}
+                                                {t('admin:directory.no_changes')}
                                             </div>
                                         )}
                                     </div>
@@ -203,7 +203,7 @@ export function DirectoryEmulatorPage() {
                     <div className="glass-card p-6 h-full">
                         <div className="flex items-center gap-2 mb-6">
                             <History className="h-5 w-5 text-accent" />
-                            <h3 className="text-lg font-semibold text-white">{t('admin:directory.sync_history', 'Sync History')}</h3>
+                            <h3 className="text-lg font-semibold text-white">{t('admin:directory.sync_history')}</h3>
                         </div>
                         <div className="space-y-3">
                             {syncHistory.length === 0 ? (
@@ -230,15 +230,15 @@ export function DirectoryEmulatorPage() {
                                         </div>
                                         <div className="grid grid-cols-4 gap-2 text-xs pt-2 border-t border-white/5">
                                             <div className="text-emerald-400 group-hover:text-emerald-300">
-                                                <span className="opacity-70 block text-[10px] uppercase">{t('admin:directory.metrics.created', 'Created')}</span>
+                                                <span className="opacity-70 block text-[10px] uppercase">{t('admin:directory.metrics.created')}</span>
                                                 <span className="font-bold">{log.created_count}</span>
                                             </div>
                                             <div className="text-sky-400 group-hover:text-sky-300">
-                                                <span className="opacity-70 block text-[10px] uppercase">{t('admin:directory.metrics.updated', 'Updated')}</span>
+                                                <span className="opacity-70 block text-[10px] uppercase">{t('admin:directory.metrics.updated')}</span>
                                                 <span className="font-bold">{log.updated_count}</span>
                                             </div>
                                             <div className="text-rose-400 group-hover:text-rose-300">
-                                                <span className="opacity-70 block text-[10px] uppercase">{t('admin:directory.metrics.disabled', 'Disabled')}</span>
+                                                <span className="opacity-70 block text-[10px] uppercase">{t('admin:directory.metrics.disabled')}</span>
                                                 <span className="font-bold">{log.deactivated_count}</span>
                                             </div>
                                             <div className="text-amber-400 group-hover:text-amber-300">
@@ -248,7 +248,7 @@ export function DirectoryEmulatorPage() {
                                         </div>
                                         {log.errors && log.errors.length > 0 && (
                                             <div className="mt-3 pt-2 border-t border-white/5 text-xs text-rose-300">
-                                                <p className="font-medium mb-1">{t('admin:directory.latest_error', 'Latest Error:')}</p>
+                                                <p className="font-medium mb-1">{t('admin:directory.latest_error')}</p>
                                                 <p className="bg-rose-500/10 p-2 rounded truncate">
                                                     {String(log.errors[0]?.error || t('common:labels.unknown'))}
                                                     {log.errors.length > 1 && t('admin:directory.more_errors', { defaultValue: ' (+{{count}} more)', count: log.errors.length - 1 })}

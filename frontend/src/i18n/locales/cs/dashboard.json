@@ -1,254 +1,271 @@
 {
-    "title": "Provozní přehled",
-    "page_subtitle": "Přehled rizikové pozice a výkonu kontrol v celé organizaci.",
-    "welcome": "Vítejte zpět, {{name}}",
-    "loading": "Synchronizace přehledu...",
-    "live_data": "Živá data",
-    "widgets": {
-        "risk_overview": "Přehled rizik",
-        "control_status": "Stav kontrol",
-        "kri_summary": "Souhrn KRI",
-        "pending_approvals": "Čekající schválení",
-        "recent_activity": "Nedávná aktivita",
-        "risk_heatmap": "Riziková heatmapa",
-        "risk_trend": "Trend rizik",
-        "department_summary": "Souhrn oddělení",
-        "breach_alerts": "Upozornění na překročení"
+  "title": "Provozní přehled",
+  "page_subtitle": "Přehled rizikové pozice a výkonu kontrol v celé organizaci.",
+  "welcome": "Vítejte zpět, {{name}}",
+  "loading": "Synchronizace přehledu...",
+  "live_data": "Živá data",
+  "widgets": {
+    "risk_overview": "Přehled rizik",
+    "control_status": "Stav kontrol",
+    "kri_summary": "Souhrn KRI",
+    "pending_approvals": "Čekající schválení",
+    "recent_activity": "Nedávná aktivita",
+    "risk_heatmap": "Riziková heatmapa",
+    "risk_trend": "Trend rizik",
+    "department_summary": "Souhrn oddělení",
+    "breach_alerts": "Upozornění na překročení"
+  },
+  "metrics": {
+    "total_risks": "Celkem rizik",
+    "high_priority": "Vysoká priorita",
+    "critical_risks": "Kritická rizika",
+    "pending_approval": "Čeká na schválení",
+    "active_controls": "Aktivní kontroly",
+    "control_coverage": "Pokrytí kontrolami",
+    "kri_breaches": "Překročení KRI",
+    "overdue_items": "Opožděné položky"
+  },
+  "stats": {
+    "total_controls": "Celkem kontrol",
+    "active_depts": "Aktivní oddělení",
+    "critical_risks": "Kritická rizika",
+    "avg_risk_score": "Průměrné skóre",
+    "vendors": "Dodavatelé",
+    "live": "Živo",
+    "stable": "Stabilní",
+    "urgent": "Nalnéhavové",
+    "calculated": "Vypočteno"
+  },
+  "actions": {
+    "export_summary_excel": "Exportovat souhrn do Excelu"
+  },
+  "risk_distribution_matrix": {
+    "axis": {
+      "probability": "Pravděpodobnost",
+      "impact": "Dopad"
     },
-    "metrics": {
-        "total_risks": "Celkem rizik",
-        "high_priority": "Vysoká priorita",
-        "critical_risks": "Kritická rizika",
-        "pending_approval": "Čeká na schválení",
-        "active_controls": "Aktivní kontroly",
-        "control_coverage": "Pokrytí kontrolami",
-        "kri_breaches": "Překročení KRI",
-        "overdue_items": "Opožděné položky"
+    "cell_aria": "Zobrazit {{count}} rizik při pravděpodobnosti {{probability}}, dopadu {{impact}}",
+    "cell_title": "P:{{probability}} × I:{{impact}} | {{count}} rizik",
+    "click_to_view": " - Klikněte pro zobrazení",
+    "risks": "Rizika"
+  },
+  "issues": {
+    "summary": {
+      "title": "Souhrn nálezů",
+      "open_issues": "Otevřené nálezy",
+      "open": "Otevřené",
+      "overdue": "Po termínu",
+      "high_critical_open": "Vysoké/Kritické otevřené",
+      "median_age_days": "Medián stáří (dny)",
+      "aggregate_metric_hint": "Souhrnná metrika (bez přímého filtru)",
+      "open_by_age": "Otevřené nálezy podle stáří",
+      "open_by_severity": "Otevřené nálezy podle závažnosti",
+      "open_counted": "Počet otevřených nálezů: {{count}}"
     },
-    "stats": {
-        "total_controls": "Celkem kontrol",
-        "active_depts": "Aktivní oddělení",
-        "critical_risks": "Kritická rizika",
-        "avg_risk_score": "Průměrné skóre",
-        "vendors": "Dodavatelé",
-        "live": "Živo",
-        "stable": "Stabilní",
-        "urgent": "Nalnéhavové",
-        "calculated": "Vypočteno"
-    },
-    "actions": {
-        "export_summary_excel": "Exportovat souhrn do Excelu"
-    },
-    "issues": {
-        "summary": {
-            "title": "Souhrn nálezů",
-            "open_issues": "Otevřené nálezy",
-            "open": "Otevřené",
-            "overdue": "Po termínu",
-            "high_critical_open": "Vysoké/Kritické otevřené",
-            "median_age_days": "Medián stáří (dny)",
-            "aggregate_metric_hint": "Souhrnná metrika (bez přímého filtru)",
-            "open_by_age": "Otevřené nálezy podle stáří",
-            "open_by_severity": "Otevřené nálezy podle závažnosti",
-            "open_counted": "Počet otevřených nálezů: {{count}}"
-        },
-        "severity": {
-            "low": "Nízká",
-            "medium": "Střední",
-            "high": "Vysoká",
-            "critical": "Kritická"
-        }
-    },
-    "views": {
-        "overview": "Přehled",
-        "risk_committee": "Výbor pro řízení rizik"
-    },
-    "sections": {
-        "quarterly_comparison": "Čtvrtletní srovnání",
-        "control_analytics": "Analytika kontrol",
-        "control_execution_trends": "Trendy exekuce kontrol",
-        "gross_risk_matrix": "Matice hrubého rizika",
-        "net_risk_matrix": "Matice čistého rizika",
-        "time_series_analysis": "Analýza časové řady",
-        "risk_creation_trends": "Trendy vytváření rizik",
-        "kri_breach_history": "Historie překročení KRI",
-        "departmental_visibility": "Viditelnost oddělení",
-        "no_execution_history": "Žádná historie exekuce",
-        "critical_risks": "Kritická rizika",
-        "risk_exposure_by_dept": "Riziková expozice dle oddělení",
-        "recent_activity": "Nedávná aktivita"
-    },
-    "quarterly": {
-        "new_risks": "Nová rizika",
-        "archived_risks": "Archivovaná rizika",
-        "active_risks": "Aktivní rizika",
-        "priority_risks": "Prioritní rizika",
-        "kri_breaches": "Překročení KRI",
-        "pending_approvals": "Čekající schválení",
-        "audit_activity": "Auditní aktivita",
-        "failed_audits": "Neúspěšné audity",
-        "control_coverage": "Pokrytí kontrolami %",
-        "unaudited_controls": "Neauditované kontroly",
-        "orphaned_items": "Osiřelé položky",
-        "kri_health": "Zdraví KRI %",
-        "overdue_kris": "Opožděné KRI",
-        "activity_volume": "Objem aktivity",
-        "risks_without_kri": "Rizika bez KRI",
-        "current_period": "Aktuální:",
-        "compare_period": "Porovnat:",
-        "active_vendors": "Aktivní dodavatelé",
-        "overdue_vendor_reassessments": "Opožděná přehodnocení dodavatelů",
-        "vendor_sla_breaches": "Porušení SLA dodavatelů",
-        "no_data_available": "Data nejsou k dispozici",
-        "vs": "vs",
-        "last_quarter": "minulé čtvrtletí",
-        "no_snapshot_banner": "Pro období {{period}} není historický snapshot. Snapshotové metriky zobrazují pouze aktuální hodnoty.",
-        "no_snapshot_hint": "Chybí historický snapshot - porovnání není dostupné",
-        "not_available": "N/A"
-    },
-    "kri": {
-        "all_current": "Všechna KRI aktuální",
-        "no_due_soon": "Žádná KRI nejsou brzy splatná ani opožděná.",
-        "no_overdue": "Žádná KRI nejsou opožděná.",
-        "active_breaches": "Aktivní překročení",
-        "view_risk_register": "Zobrazit registr rizik",
-        "appetite_maintained": "Rizikový apetit dodržen",
-        "no_breaches_org": "V organizaci aktuálně nejsou překročeny žádné KRI.",
-        "status_title": "Stav KRI",
-        "upcoming_count": "{{count}} nadcházejících",
-        "overdue_count": "{{count}} po termínu",
-        "upcoming": "Nadcházející",
-        "overdue": "Po termínu",
-        "no_due_next_7": "V příštích 7 dnech nejsou splatná žádná KRI.",
-        "no_overdue_short": "Žádná KRI po termínu",
-        "days_overdue": "{{count}} dní po termínu",
-        "days_until_due": "zbývá {{count}} dní",
-        "view_all": "Zobrazit všechna KRI",
-        "view_all_overdue": "Zobrazit vše po termínu"
-    },
-    "charts": {
-        "by_status": "Podle stavu",
-        "by_form": "Podle formy",
-        "by_frequency": "Podle frekvence",
-        "draft": "Návrh",
-        "active": "Aktivní",
-        "inactive": "Neaktivní",
-        "pending": "Čeká",
-        "deprecated": "Zastaralé",
-        "manual": "Manuální",
-        "automatic": "Automatická",
-        "preventive": "Preventivní",
-        "detective": "Detekční",
-        "corrective": "Nápravná",
-        "daily": "Denně",
-        "weekly": "Týdně",
-        "monthly": "Měsíčně",
-        "quarterly": "Čtvrtletně",
-        "semi-annually": "Pololetně",
-        "annually": "Ročně",
-        "ad_hoc": "Ad hoc",
-        "continuous": "Průběžně",
-        "uncategorised": "Nekategorizováno"
-    },
-    "errors": {
-        "connection_interrupted": "Připojení přerušeno",
-        "load_failed": "Nepodařilo se načíst data přehledu. Zkontrolujte připojení.",
-        "retry": "Zkusit znovu"
-    },
-    "filters": {
-        "department": "Oddělení",
-        "time_period": "Období",
-        "view_mode": "Režim zobrazení",
-        "title": "Filtry",
-        "clear_all": "Vymazat vše",
-        "risk_level": "Úroveň rizika",
-        "control_status": "Stav kontroly",
-        "control_form": "Forma kontroly"
-    },
-    "time_periods": {
-        "today": "Dnes",
-        "this_week": "Tento týden",
-        "this_month": "Tento měsíc",
-        "this_quarter": "Toto čtvrtletí",
-        "this_year": "Tento rok"
-    },
-    "empty_state": {
-        "no_risks": "Žádná rizika k zobrazení",
-        "no_pending_approvals": "Žádná čekající schválení",
-        "no_breaches": "Nebylo zjištěno překročení KRI"
-    },
-    "risk_committee": {
-        "title": "Výbor pro řízení rizik",
-        "meeting_mode": "Režim schůze",
-        "executive_summary": "Manažerský přehled",
-        "quarterly_metrics": "Čtvrtletní metriky",
-        "no_summary_data": "Souhrnná data nejsou k dispozici",
-        "critical_risks": "Kritická rizika",
-        "no_critical_risks": "Momentálně nejsou žádná kritická rizika",
-        "critical_vendors": "Kritičtí dodavatelé",
-        "no_vendors_in_scope": "Žádní dodavatelé v rozsahu",
-        "next_reassessment": "Další přehodnocení:",
-        "vendor_alerts": "Upozornění dodavatelů",
-        "overdue_reassessments": "Přehodnocení po termínu",
-        "sla_breaches": "Porušení SLA",
-        "major_incidents_30d": "Závažné incidenty (30d)",
-        "none": "Žádné",
-        "no_department_exposure_data": "Žádná data expozice oddělení",
-        "no_recent_significant_activity": "Žádná nedávná významná aktivita",
-        "today": "Dnes",
-        "yesterday": "Včera",
-        "days_ago": "před {{count}} dny",
-        "weeks_ago": "před {{count}} týdny",
-        "months_ago": "před {{count}} měsíci",
-        "actions": {
-            "create": "Vytvoření",
-            "delete": "Smazání",
-            "archive": "Archivace",
-            "approve": "Schválení",
-            "reject": "Zamítnutí"
-        }
-    },
-    "kri_breaches": "Porušení KRI",
-    "active_users": "Aktivní uživatelé",
-    "high_risk": "Vysoké riziko",
-    "department_exposure": {
-        "title": "Oddělení",
-        "subtitle": "Organizační jednotky a jejich rizikový/kontrolní profil.",
-        "empty": "Nebyla nalezena žádná oddělení. Vytvořte první oddělení.",
-        "people": "Lidé",
-        "risk_sum": "Riziko Σ"
-    },
-    "risk_levels": {
-        "critical": "Kritické"
-    },
-    "department_table": {
-        "columns": {
-            "department": "Oddělení",
-            "controls": "Kontroly",
-            "risks": "Rizika",
-            "audited": "Auditováno",
-            "kri_breaches": "Překročení KRI",
-            "quick_actions": "Rychlé akce"
-        },
-        "focused": "Zaměřeno",
-        "high": "Vysoké",
-        "audited": "Auditováno",
-        "breached": "Překročeno",
-        "actions": {
-            "view_controls": "Zobrazit kontroly",
-            "view_risks": "Zobrazit rizika",
-            "remove_focus": "Zrušit zaměření",
-            "set_focus": "Nastavit zaměření",
-            "go_to_department": "Přejít na oddělení"
-        },
-        "empty": "Žádná data oddělení nejsou k dispozici"
-    },
-    "risk_drilldown": {
-        "gross": "Hrubá",
-        "net": "Čistá",
-        "title": "{{riskType}} rizika na P{{probability}} × I{{impact}}",
-        "no_risks_at_position": "V této pozici nejsou žádná rizika",
-        "footer_prefix": "Klikněte na riziko pro detail • Stiskněte",
-        "footer_suffix": "pro zavření"
+    "severity": {
+      "low": "Nízká",
+      "medium": "Střední",
+      "high": "Vysoká",
+      "critical": "Kritická"
     }
+  },
+  "views": {
+    "overview": "Přehled",
+    "risk_committee": "Výbor pro řízení rizik"
+  },
+  "sections": {
+    "quarterly_comparison": "Čtvrtletní srovnání",
+    "control_analytics": "Analytika kontrol",
+    "control_execution_trends": "Trendy exekuce kontrol",
+    "gross_risk_matrix": "Matice hrubého rizika",
+    "net_risk_matrix": "Matice čistého rizika",
+    "time_series_analysis": "Analýza časové řady",
+    "risk_creation_trends": "Trendy vytváření rizik",
+    "kri_breach_history": "Historie překročení KRI",
+    "departmental_visibility": "Viditelnost oddělení",
+    "no_execution_history": "Žádná historie exekuce",
+    "critical_risks": "Kritická rizika",
+    "risk_exposure_by_dept": "Riziková expozice dle oddělení",
+    "recent_activity": "Nedávná aktivita"
+  },
+  "quarterly": {
+    "new_risks": "Nová rizika",
+    "archived_risks": "Archivovaná rizika",
+    "active_risks": "Aktivní rizika",
+    "priority_risks": "Prioritní rizika",
+    "kri_breaches": "Překročení KRI",
+    "pending_approvals": "Čekající schválení",
+    "audit_activity": "Auditní aktivita",
+    "failed_audits": "Neúspěšné audity",
+    "control_coverage": "Pokrytí kontrolami %",
+    "unaudited_controls": "Neauditované kontroly",
+    "orphaned_items": "Osiřelé položky",
+    "kri_health": "Zdraví KRI %",
+    "overdue_kris": "Opožděné KRI",
+    "activity_volume": "Objem aktivity",
+    "risks_without_kri": "Rizika bez KRI",
+    "current_period": "Aktuální:",
+    "compare_period": "Porovnat:",
+    "active_vendors": "Aktivní dodavatelé",
+    "overdue_vendor_reassessments": "Opožděná přehodnocení dodavatelů",
+    "vendor_sla_breaches": "Porušení SLA dodavatelů",
+    "no_data_available": "Data nejsou k dispozici",
+    "vs": "vs",
+    "last_quarter": "minulé čtvrtletí",
+    "no_snapshot_banner": "Pro období {{period}} není historický snapshot. Snapshotové metriky zobrazují pouze aktuální hodnoty.",
+    "no_snapshot_hint": "Chybí historický snapshot - porovnání není dostupné",
+    "not_available": "N/A"
+  },
+  "kri": {
+    "all_current": "Všechna KRI aktuální",
+    "no_due_soon": "Žádná KRI nejsou brzy splatná ani opožděná.",
+    "no_overdue": "Žádná KRI nejsou opožděná.",
+    "active_breaches": "Aktivní překročení",
+    "view_risk_register": "Zobrazit registr rizik",
+    "appetite_maintained": "Rizikový apetit dodržen",
+    "no_breaches_org": "V organizaci aktuálně nejsou překročeny žádné KRI.",
+    "status_title": "Stav KRI",
+    "upcoming_count": "{{count}} nadcházejících",
+    "overdue_count": "{{count}} po termínu",
+    "upcoming": "Nadcházející",
+    "overdue": "Po termínu",
+    "no_due_next_7": "V příštích 7 dnech nejsou splatná žádná KRI.",
+    "no_overdue_short": "Žádná KRI po termínu",
+    "days_overdue": "{{count}} dní po termínu",
+    "days_until_due": "zbývá {{count}} dní",
+    "view_all": "Zobrazit všechna KRI",
+    "view_all_overdue": "Zobrazit vše po termínu"
+  },
+  "charts": {
+    "by_status": "Podle stavu",
+    "by_form": "Podle formy",
+    "by_frequency": "Podle frekvence",
+    "draft": "Návrh",
+    "active": "Aktivní",
+    "inactive": "Neaktivní",
+    "pending": "Čeká",
+    "deprecated": "Zastaralé",
+    "manual": "Manuální",
+    "automatic": "Automatická",
+    "preventive": "Preventivní",
+    "detective": "Detekční",
+    "corrective": "Nápravná",
+    "daily": "Denně",
+    "weekly": "Týdně",
+    "monthly": "Měsíčně",
+    "quarterly": "Čtvrtletně",
+    "semi-annually": "Pololetně",
+    "annually": "Ročně",
+    "ad_hoc": "Ad hoc",
+    "continuous": "Průběžně",
+    "uncategorised": "Nekategorizováno",
+    "executions": "Exekuce",
+    "all_new": "Všechny nové",
+    "critical": "Kritické",
+    "total_samples": "Celkem vzorků",
+    "breaches": "Překročení",
+    "no_risk_trend_data": "Data trendu rizik nejsou k dispozici.",
+    "no_kri_breach_data": "Data o překročení KRI nejsou k dispozici."
+  },
+  "errors": {
+    "connection_interrupted": "Připojení přerušeno",
+    "load_failed": "Nepodařilo se načíst data přehledu. Zkontrolujte připojení.",
+    "retry": "Zkusit znovu"
+  },
+  "filters": {
+    "department": "Oddělení",
+    "time_period": "Období",
+    "view_mode": "Režim zobrazení",
+    "title": "Filtry",
+    "clear_all": "Vymazat vše",
+    "risk_level": "Úroveň rizika",
+    "control_status": "Stav kontroly",
+    "control_form": "Forma kontroly"
+  },
+  "time_periods": {
+    "today": "Dnes",
+    "this_week": "Tento týden",
+    "this_month": "Tento měsíc",
+    "this_quarter": "Toto čtvrtletí",
+    "this_year": "Tento rok"
+  },
+  "empty_state": {
+    "no_risks": "Žádná rizika k zobrazení",
+    "no_pending_approvals": "Žádná čekající schválení",
+    "no_breaches": "Nebylo zjištěno překročení KRI"
+  },
+  "risk_committee": {
+    "title": "Výbor pro řízení rizik",
+    "meeting_mode": "Režim schůze",
+    "executive_summary": "Manažerský přehled",
+    "quarterly_metrics": "Čtvrtletní metriky",
+    "no_summary_data": "Souhrnná data nejsou k dispozici",
+    "critical_risks": "Kritická rizika",
+    "no_critical_risks": "Momentálně nejsou žádná kritická rizika",
+    "critical_vendors": "Kritičtí dodavatelé",
+    "no_vendors_in_scope": "Žádní dodavatelé v rozsahu",
+    "next_reassessment": "Další přehodnocení:",
+    "vendor_alerts": "Upozornění dodavatelů",
+    "overdue_reassessments": "Přehodnocení po termínu",
+    "sla_breaches": "Porušení SLA",
+    "major_incidents_30d": "Závažné incidenty (30d)",
+    "none": "Žádné",
+    "no_department_exposure_data": "Žádná data expozice oddělení",
+    "no_recent_significant_activity": "Žádná nedávná významná aktivita",
+    "today": "Dnes",
+    "yesterday": "Včera",
+    "days_ago": "před {{count}} dny",
+    "weeks_ago": "před {{count}} týdny",
+    "months_ago": "před {{count}} měsíci",
+    "actions": {
+      "create": "Vytvoření",
+      "delete": "Smazání",
+      "archive": "Archivace",
+      "approve": "Schválení",
+      "reject": "Zamítnutí"
+    }
+  },
+  "kri_breaches": "Porušení KRI",
+  "active_users": "Aktivní uživatelé",
+  "high_risk": "Vysoké riziko",
+  "department_exposure": {
+    "title": "Oddělení",
+    "subtitle": "Organizační jednotky a jejich rizikový/kontrolní profil.",
+    "empty": "Nebyla nalezena žádná oddělení. Vytvořte první oddělení.",
+    "people": "Lidé",
+    "risk_sum": "Riziko Σ"
+  },
+  "risk_levels": {
+    "critical": "Kritické"
+  },
+  "department_table": {
+    "columns": {
+      "department": "Oddělení",
+      "controls": "Kontroly",
+      "risks": "Rizika",
+      "audited": "Auditováno",
+      "kri_breaches": "Překročení KRI",
+      "quick_actions": "Rychlé akce"
+    },
+    "focused": "Zaměřeno",
+    "high": "Vysoké",
+    "audited": "Auditováno",
+    "breached": "Překročeno",
+    "actions": {
+      "view_controls": "Zobrazit kontroly",
+      "view_risks": "Zobrazit rizika",
+      "remove_focus": "Zrušit zaměření",
+      "set_focus": "Nastavit zaměření",
+      "go_to_department": "Přejít na oddělení"
+    },
+    "empty": "Žádná data oddělení nejsou k dispozici"
+  },
+  "risk_drilldown": {
+    "gross": "Hrubá",
+    "net": "Čistá",
+    "title": "{{riskType}} rizika na P{{probability}} × I{{impact}}",
+    "no_risks_at_position": "V této pozici nejsou žádná rizika",
+    "footer_prefix": "Klikněte na riziko pro detail • Stiskněte",
+    "footer_suffix": "pro zavření"
+  }
 }

@@ -6,6 +6,10 @@ import { useTranslation } from '@/i18n/hooks';
 export function HeroPage() {
     const navigate = useNavigate();
     const { t } = useTranslation('common');
+    const brandName = t('brand.name');
+    const brandAccentSuffix = 'Hub';
+    const hasAccentSuffix = brandName.endsWith(brandAccentSuffix);
+    const brandPrefix = hasAccentSuffix ? brandName.slice(0, -brandAccentSuffix.length) : brandName;
 
     const handleLogin = () => {
         // Mock login as admin (ID 1 from seed)
@@ -32,7 +36,14 @@ export function HeroPage() {
                 </div>
 
                 <h1 className="text-6xl md:text-8xl font-extrabold tracking-tight text-white mb-6">
-                    Risk<span className="text-accent underline decoration-4 underline-offset-8">Hub</span>
+                    {hasAccentSuffix ? (
+                        <>
+                            {brandPrefix}
+                            <span className="text-accent underline decoration-4 underline-offset-8">{brandAccentSuffix}</span>
+                        </>
+                    ) : (
+                        brandName
+                    )}
                 </h1>
 
                 <p className="text-xl md:text-2xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">

@@ -401,7 +401,7 @@ export function RisksPage() {
                             data-testid={`risk-unarchive-${risk.id}`}
                             className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
                         >
-                            {t('actions.unarchive', 'Unarchive')}
+                            {t('actions.unarchive')}
                         </button>
                     )}
                     <ChevronRight className="h-4 w-4 text-slate-500" />
@@ -438,7 +438,7 @@ export function RisksPage() {
                         className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
                     >
                         <Download className="h-4 w-4" />
-                        {t('actions.export', 'Export')}
+                        {t('actions.export')}
                     </button>
                     <PermissionGate resource="risks" action="write">
                         <button

@@ -115,7 +115,8 @@
       "key_finding": "Klíčové zjištění",
       "action": "Akce"
     },
-    "no_records_help": "Pro vybrané filtry nebyly nalezeny žádné auditní záznamy."
+    "no_records_help": "Pro vybrané filtry nebyly nalezeny žádné auditní záznamy.",
+    "no_findings": "Žádná zjištění nebyla zaznamenána."
   },
   "form": {
     "steps": {

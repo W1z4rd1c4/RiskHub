@@ -118,17 +118,20 @@ export function UsersTable({
                                             ) : user.access_scope === 'global' ? (
                                                 <Crown className="h-3 w-3 mr-1" />
                                             ) : null}
-                                            {user.role.name === 'admin' ? 'Platform' : user.scope_label}
+                                            {user.role.name === 'admin'
+                                                ? t('access.scopes.platform')
+                                                : t(`access.scopes.${user.access_scope}`, user.scope_label)
+                                            }
                                         </span>
                                     </td>
                                     <td className="py-4 px-4">
                                         {user.role.name === 'admin' ? (
                                             /* Admin: Show platform capabilities */
                                             <div className="flex items-center gap-2">
-                                                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">users</span>
-                                                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">health</span>
-                                                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">logs</span>
-                                                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">sessions</span>
+                                                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">{t('access.capabilities.user_management')}</span>
+                                                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">{t('access.capabilities.system_health')}</span>
+                                                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">{t('access.capabilities.technical_logs')}</span>
+                                                <span className="px-2 py-0.5 bg-slate-500/20 text-slate-400 rounded text-xs border border-slate-500/30">{t('access.capabilities.session_management')}</span>
                                                 <button
                                                     onClick={() => onToggleExpand(user.id)}
                                                     className="p-1 text-slate-500 hover:text-white rounded transition-colors"
@@ -143,10 +146,10 @@ export function UsersTable({
                                         ) : user.role.name === 'cro' ? (
                                             /* CRO: Show Risk Hub capabilities */
                                             <div className="flex items-center gap-2">
-                                                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">risk-types</span>
-                                                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">config</span>
-                                                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">approvals</span>
-                                                <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded text-xs border border-purple-500/30">all-data</span>
+                                                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">{t('access.capabilities.risk_types')}</span>
+                                                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">{t('access.capabilities.global_config')}</span>
+                                                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-xs border border-amber-500/30">{t('access.capabilities.approval_rules')}</span>
+                                                <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded text-xs border border-purple-500/30">{t('access.capabilities.all_business_data')}</span>
                                                 <button
                                                     onClick={() => onToggleExpand(user.id)}
                                                     className="p-1 text-slate-500 hover:text-white rounded transition-colors"
