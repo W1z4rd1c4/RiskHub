@@ -12,6 +12,7 @@ from app.models import (
     ControlExecution,
     Department,
     Issue,
+    IssueException,
     IssueLink,
     IssueRemediationPlan,
     KeyRiskIndicator,
@@ -1085,3 +1086,130 @@ async def test_issue_link_exactly_one_target_includes_vendor_dimension(
         json={"risk_id": risk.id, "vendor_id": vendor.id},
     )
     assert invalid_resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_issue_list_supports_high_critical_severity_group_and_precedence(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department: Department,
+):
+    high_issue = Issue(
+        title="Severity group high",
+        description="Included by high_critical",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=test_department.id,
+        opened_at=datetime.now(UTC),
+    )
+    critical_issue = Issue(
+        title="Severity group critical",
+        description="Included by high_critical",
+        severity="critical",
+        status="open",
+        source_type="manual",
+        department_id=test_department.id,
+        opened_at=datetime.now(UTC),
+    )
+    medium_issue = Issue(
+        title="Severity group medium",
+        description="Excluded from high_critical",
+        severity="medium",
+        status="open",
+        source_type="manual",
+        department_id=test_department.id,
+        opened_at=datetime.now(UTC),
+    )
+    db_session.add_all([high_issue, critical_issue, medium_issue])
+    await db_session.commit()
+
+    grouped_resp = await auth_client.get(
+        "/api/v1/issues",
+        params={"severity_group": "high_critical", "include_closed": "false"},
+    )
+    assert grouped_resp.status_code == 200
+    grouped_ids = {item["id"] for item in grouped_resp.json()["items"]}
+    assert high_issue.id in grouped_ids
+    assert critical_issue.id in grouped_ids
+    assert medium_issue.id not in grouped_ids
+
+    precedence_resp = await auth_client.get(
+        "/api/v1/issues",
+        params={"severity": "low", "severity_group": "high_critical", "include_closed": "false"},
+    )
+    assert precedence_resp.status_code == 200
+    precedence_ids = {item["id"] for item in precedence_resp.json()["items"]}
+    assert high_issue.id in precedence_ids
+    assert critical_issue.id in precedence_ids
+    assert medium_issue.id not in precedence_ids
+
+
+@pytest.mark.asyncio
+async def test_issue_list_exclude_active_exceptions_matches_unsuppressed_logic(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_user: User,
+):
+    now = datetime.now(UTC).replace(microsecond=0)
+    visible_issue = Issue(
+        title="Visible high/critical issue",
+        description="Should remain visible when excluding active exceptions",
+        severity="critical",
+        status="open",
+        source_type="manual",
+        department_id=test_department.id,
+        owner_user_id=test_user.id,
+        created_by_id=test_user.id,
+        opened_at=now - timedelta(days=4),
+    )
+    suppressed_issue = Issue(
+        title="Suppressed high/critical issue",
+        description="Should be filtered when excluding active exceptions",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=test_department.id,
+        owner_user_id=test_user.id,
+        created_by_id=test_user.id,
+        opened_at=now - timedelta(days=5),
+    )
+    db_session.add_all([visible_issue, suppressed_issue])
+    await db_session.flush()
+
+    db_session.add(
+        IssueException(
+            issue_id=suppressed_issue.id,
+            status="approved",
+            reason="Approved temporary exception",
+            requested_by_id=test_user.id,
+            approved_by_id=test_user.id,
+            requested_at=now - timedelta(days=2),
+            approved_at=now - timedelta(days=1),
+            expires_at=now + timedelta(days=7),
+        )
+    )
+    await db_session.commit()
+
+    baseline_resp = await auth_client.get(
+        "/api/v1/issues",
+        params={"severity_group": "high_critical", "include_closed": "false"},
+    )
+    assert baseline_resp.status_code == 200
+    baseline_ids = {item["id"] for item in baseline_resp.json()["items"]}
+    assert visible_issue.id in baseline_ids
+    assert suppressed_issue.id in baseline_ids
+
+    filtered_resp = await auth_client.get(
+        "/api/v1/issues",
+        params={
+            "severity_group": "high_critical",
+            "exclude_active_exceptions": "true",
+            "include_closed": "false",
+        },
+    )
+    assert filtered_resp.status_code == 200
+    filtered_ids = {item["id"] for item in filtered_resp.json()["items"]}
+    assert visible_issue.id in filtered_ids
+    assert suppressed_issue.id not in filtered_ids

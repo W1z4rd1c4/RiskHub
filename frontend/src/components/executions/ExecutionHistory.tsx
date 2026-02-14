@@ -13,19 +13,21 @@ import {
 } from 'lucide-react';
 import { executionApi } from '@/services/executionApi';
 import type { ControlExecution } from '@/services/executionApi';
+import { useTranslation } from '@/i18n/hooks';
 
 interface ExecutionHistoryProps {
     controlId: number;
 }
 
 const RESULT_CONFIG = {
-    pass: { icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/20', label: 'Passed' },
-    fail: { icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-400/10', border: 'border-rose-400/20', label: 'Failed' },
-    issues_found: { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/20', label: 'Issues Found' },
-    not_applicable: { icon: MinusCircle, color: 'text-slate-400', bg: 'bg-slate-400/10', border: 'border-slate-400/20', label: 'N/A' },
+    pass: { icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/20', labelKey: 'controls:results.passed' },
+    fail: { icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-400/10', border: 'border-rose-400/20', labelKey: 'controls:results.failed' },
+    issues_found: { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/20', labelKey: 'executions.issues_found' },
+    not_applicable: { icon: MinusCircle, color: 'text-slate-400', bg: 'bg-slate-400/10', border: 'border-slate-400/20', labelKey: 'controls:results.not_applicable' },
 };
 
 export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
+    const { t, i18n } = useTranslation(['controls', 'common']);
     const [executions, setExecutions] = useState<ControlExecution[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [, setError] = useState<string | null>(null);
@@ -53,7 +55,7 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
         return (
             <div className="flex flex-col items-center justify-center p-12 text-slate-500 gap-3">
                 <History className="h-8 w-8 animate-pulse text-slate-600" />
-                <p className="text-sm font-medium">Loading history...</p>
+                <p className="text-sm font-medium">{t('loading.history', { ns: 'common' })}</p>
             </div>
         );
     }
@@ -62,8 +64,8 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
         return (
             <div className="flex flex-col items-center justify-center p-12 text-slate-600 border-2 border-dashed border-white/5 rounded-2xl gap-2">
                 <History className="h-8 w-8 opacity-20" />
-                <p className="text-sm font-medium">No execution history found</p>
-                <p className="text-xs">Log an execution to start tracking performance</p>
+                <p className="text-sm font-medium">{t('empty_state.no_executions', { ns: 'controls' })}</p>
+                <p className="text-xs">{t('executions.log_to_start')}</p>
             </div>
         );
     }
@@ -90,11 +92,11 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
                                 <div>
                                     <div className="flex items-center gap-2 mb-0.5">
                                         <span className={`text-xs font-black uppercase tracking-widest ${config.color}`}>
-                                            {config.label}
+                                            {t(config.labelKey)}
                                         </span>
                                         <span className="text-slate-600">•</span>
                                         <span className="text-xs font-bold text-white">
-                                            {new Date(exe.executed_at).toLocaleDateString('en-US', {
+                                            {new Date(exe.executed_at).toLocaleDateString(i18n.language, {
                                                 year: 'numeric',
                                                 month: 'short',
                                                 day: 'numeric',
@@ -106,14 +108,14 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
                                     <div className="flex items-center gap-3 text-[10px] text-slate-500 font-medium">
                                         <div className="flex items-center gap-1">
                                             <User className="h-3 w-3" />
-                                            {exe.executed_by?.name || 'Unknown'}
+                                            {exe.executed_by?.name || t('labels.unknown', { ns: 'common' })}
                                         </div>
                                         {exe.next_scheduled && (
                                             <>
                                                 <span className="text-slate-700">|</span>
                                                 <div className="flex items-center gap-1 text-accent">
                                                     <Calendar className="h-3 w-3" />
-                                                    Next: {new Date(exe.next_scheduled).toLocaleDateString()}
+                                                    {t('executions.next')}: {new Date(exe.next_scheduled).toLocaleDateString(i18n.language)}
                                                 </div>
                                             </>
                                         )}
@@ -137,7 +139,7 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
                                 <div className="grid md:grid-cols-2 gap-8 mt-2">
                                     {exe.findings && (
                                         <div className="space-y-2">
-                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Findings & Evidence</h4>
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('executions.findings_evidence')}</h4>
                                             <p className="text-sm text-slate-300 leading-relaxed font-medium">
                                                 {exe.findings}
                                             </p>
@@ -153,7 +155,7 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
                                     )}
                                     {exe.notes && (
                                         <div className="space-y-2">
-                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Additional Notes</h4>
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('executions.additional_notes')}</h4>
                                             <p className="text-sm text-slate-400 leading-relaxed italic">
                                                 {exe.notes}
                                             </p>

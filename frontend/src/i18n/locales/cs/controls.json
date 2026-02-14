@@ -1,167 +1,215 @@
 {
-    "title": "Katalog kontrol",
-    "page_subtitle": "Správa a audit organizačních rizikových kontrol podle 13bodového standardu.",
-    "new_control": "Nová kontrola",
-    "create_control": "Vytvořit kontrolu",
-    "edit_control": "Upravit kontrolu",
-    "view_control": "Zobrazit kontrolu",
-    "delete_control": "Smazat kontrolu",
-    "fields": {
-        "name": "Název kontroly",
-        "description": "Popis",
-        "control_objective": "Cíl kontroly",
-        "department": "Oddělení",
-        "owner": "Vlastník kontroly",
-        "status": "Stav",
-        "frequency": "Frekvence",
-        "type": "Typ kontroly",
-        "evidence": "Požadovaný důkaz",
-        "linked_risks": "Propojené rizika",
-        "last_executed": "Naposledy provedeno",
-        "next_due": "Příští termín"
-    },
-    "types": {
-        "preventive": "Preventivní",
-        "detective": "Detektivní",
-        "corrective": "Nápravná",
-        "compensating": "Kompenzační"
-    },
-    "frequencies": {
-        "daily": "Denně",
-        "weekly": "Týdně",
-        "monthly": "Měsíčně",
-        "quarterly": "Čtvrtletně",
-        "annually": "Ročně",
-        "ad_hoc": "Dle potřeby",
-        "continuous": "Průběžně"
-    },
-    "status": {
-        "active": "Aktivní",
-        "draft": "Návrh",
-        "inactive": "Neaktivní",
-        "archived": "Archivované",
-        "under_review": "V revizi",
-        "deprecated": "Zastaralé"
-    },
-    "tabs": {
-        "overview": "Přehled",
-        "execution": "Záznam exekuce",
-        "risks": "Propojené rizika",
-        "history": "Historie"
-    },
-    "execution": {
-        "title": "Exekuce kontrol",
-        "log_execution": "Zaznamenat exekuci",
-        "execution_date": "Datum exekuce",
-        "result": "Výsledek",
-        "notes": "Poznámky k exekuci",
-        "evidence": "Důkaz",
-        "executed_by": "Provedl"
-    },
-    "results": {
-        "passed": "Splněno",
-        "failed": "Nesplněno",
-        "not_tested": "Netestováno",
-        "not_applicable": "Nepoužitelné",
-        "warning": "Varování"
-    },
-    "filters": {
-        "all_types": "Všechny typy",
-        "all_frequencies": "Všechny frekvence",
-        "all_departments": "Všechna oddělení",
-        "all_owners": "Všichni vlastníci",
-        "all_statuses": "Všechny stavy",
-        "overdue_only": "Pouze opožděné",
-        "search_placeholder": "Hledat podle názvu, popisu, rizika nebo oddělení..."
-    },
-    "empty_state": {
-        "no_controls": "Nebyly nalezeny žádné kontroly odpovídající kritériím.",
-        "no_executions": "Žádná historie exekuce",
-        "no_linked_risks": "Žádné propojené rizika"
-    },
-    "errors": {
-        "load_failed": "Nepodařilo se načíst kontroly. Zkontrolujte prosím připojení.",
-        "title": "Chyba při načítání kontrol",
-        "try_again": "Zkusit znovu"
-    },
+  "title": "Katalog kontrol",
+  "page_subtitle": "Správa a audit organizačních rizikových kontrol podle 13bodového standardu.",
+  "new_control": "Nová kontrola",
+  "create_control": "Vytvořit kontrolu",
+  "edit_control": "Upravit kontrolu",
+  "view_control": "Zobrazit kontrolu",
+  "delete_control": "Smazat kontrolu",
+  "fields": {
+    "name": "Název kontroly",
+    "description": "Popis",
+    "control_objective": "Cíl kontroly",
+    "department": "Oddělení",
+    "owner": "Vlastník kontroly",
+    "status": "Stav",
+    "frequency": "Frekvence",
+    "type": "Typ kontroly",
+    "evidence": "Požadovaný důkaz",
+    "linked_risks": "Propojené rizika",
+    "last_executed": "Naposledy provedeno",
+    "next_due": "Příští termín"
+  },
+  "types": {
+    "preventive": "Preventivní",
+    "detective": "Detektivní",
+    "corrective": "Nápravná",
+    "compensating": "Kompenzační"
+  },
+  "frequencies": {
+    "daily": "Denně",
+    "weekly": "Týdně",
+    "monthly": "Měsíčně",
+    "quarterly": "Čtvrtletně",
+    "annually": "Ročně",
+    "ad_hoc": "Dle potřeby",
+    "continuous": "Průběžně"
+  },
+  "status": {
+    "active": "Aktivní",
+    "draft": "Návrh",
+    "inactive": "Neaktivní",
+    "archived": "Archivované",
+    "under_review": "V revizi",
+    "deprecated": "Zastaralé"
+  },
+  "tabs": {
+    "overview": "Přehled",
+    "execution": "Záznam exekuce",
+    "risks": "Propojené rizika",
+    "history": "Historie"
+  },
+  "execution": {
+    "title": "Exekuce kontrol",
+    "log_execution": "Zaznamenat exekuci",
+    "execution_date": "Datum exekuce",
+    "result": "Výsledek",
+    "notes": "Poznámky k exekuci",
+    "evidence": "Důkaz",
+    "executed_by": "Provedl"
+  },
+  "results": {
+    "passed": "Splněno",
+    "failed": "Nesplněno",
+    "not_tested": "Netestováno",
+    "not_applicable": "Nepoužitelné",
+    "warning": "Varování"
+  },
+  "filters": {
+    "all_types": "Všechny typy",
+    "all_frequencies": "Všechny frekvence",
+    "all_departments": "Všechna oddělení",
+    "all_owners": "Všichni vlastníci",
+    "all_statuses": "Všechny stavy",
+    "overdue_only": "Pouze opožděné",
+    "search_placeholder": "Hledat podle názvu, popisu, rizika nebo oddělení..."
+  },
+  "empty_state": {
+    "no_controls": "Nebyly nalezeny žádné kontroly odpovídající kritériím.",
+    "no_executions": "Žádná historie exekuce",
+    "no_linked_risks": "Žádné propojené rizika"
+  },
+  "errors": {
+    "load_failed": "Nepodařilo se načíst kontroly. Zkontrolujte prosím připojení.",
+    "title": "Chyba při načítání kontrol",
+    "try_again": "Zkusit znovu"
+  },
+  "columns": {
+    "name": "Název",
+    "department": "Oddělení",
+    "frequency": "Frekvence",
+    "risk_level": "Úroveň rizika",
+    "status": "Stav",
+    "pending": "Čeká",
+    "pending_changes_title": "Změny čekají na schválení"
+  },
+  "actions": {
+    "link_risk": "Propojit riziko",
+    "unlink": "Odpojit",
+    "unarchive": "Obnovit z archivu",
+    "export": "Export",
+    "export_excel": "Export Excel"
+  },
+  "audit_trail": {
+    "title": "Auditní stopa",
+    "subtitle": "Globální přehled všech exekucí kontrol a kontroly shody.",
+    "all_results": "Všechny výsledky",
+    "total_records": "{{count}} celkem záznamů",
     "columns": {
-        "name": "Název",
-        "department": "Oddělení",
-        "frequency": "Frekvence",
-        "risk_level": "Úroveň rizika",
-        "status": "Stav",
-        "pending": "Čeká"
+      "date_time": "Datum/Čas",
+      "control": "Kontrola",
+      "owner": "Vlastník",
+      "risk": "Riziko",
+      "executor": "Provedl",
+      "result": "Výsledek",
+      "key_finding": "Klíčové zjištění",
+      "action": "Akce"
     },
-    "actions": {
-        "link_risk": "Propojit riziko",
-        "unlink": "Odpojit",
-        "unarchive": "Obnovit z archivu",
-        "export": "Export",
-        "export_excel": "Export Excel"
+    "no_records_help": "Pro vybrané filtry nebyly nalezeny žádné auditní záznamy."
+  },
+  "form": {
+    "steps": {
+      "identity": "Identita",
+      "ownership": "Vlastnictví",
+      "execution": "Provádění",
+      "risk_status": "Riziko a stav",
+      "link_risk": "Propojit riziko"
     },
-    "audit_trail": {
-        "title": "Auditní stopa",
-        "subtitle": "Globální přehled všech exekucí kontrol a kontroly shody.",
-        "all_results": "Všechny výsledky",
-        "total_records": "{{count}} celkem záznamů",
-        "columns": {
-            "date_time": "Datum/Čas",
-            "control": "Kontrola",
-            "owner": "Vlastník",
-            "risk": "Riziko",
-            "executor": "Provedl",
-            "result": "Výsledek",
-            "key_finding": "Klíčové zjištění",
-            "action": "Akce"
-        }
+    "validation": {
+      "name_required": "Název kontroly je povinný.",
+      "description_required": "Popis je povinný.",
+      "owner_required": "Vlastník kontroly je povinný.",
+      "owner_position_required": "Pozice vlastníka je povinná.",
+      "department_required": "Oddělení je povinné.",
+      "data_source_required": "Zdroj dat je povinný.",
+      "methodology_reference_required": "Reference metodologie je povinná."
     },
-    "form": {
-        "steps": {
-            "identity": "Identita",
-            "ownership": "Vlastnictví",
-            "execution": "Provádění",
-            "risk_status": "Riziko a stav",
-            "link_risk": "Propojit riziko"
-        },
-        "validation": {
-            "name_required": "Název kontroly je povinný.",
-            "description_required": "Popis je povinný.",
-            "owner_required": "Vlastník kontroly je povinný.",
-            "owner_position_required": "Pozice vlastníka je povinná.",
-            "department_required": "Oddělení je povinné.",
-            "data_source_required": "Zdroj dat je povinný.",
-            "methodology_reference_required": "Reference metodologie je povinná."
-        },
-        "labels": {
-            "owner_position": "Pozice vlastníka",
-            "data_source_methodology": "Zdroj dat a metodologie",
-            "inherent_risk_level": "Inherentní úroveň rizika (1-5)",
-            "initial_status": "Výchozí stav",
-            "link_to_risk_optional": "Propojit s rizikem (volitelné)",
-            "uncategorized": "Bez kategorie",
-            "effectiveness": "Efektivita"
-        },
-        "effectiveness": {
-            "high": "Vysoká",
-            "medium": "Střední",
-            "low": "Nízká"
-        },
-        "placeholders": {
-            "name": "např. Denní odsouhlasení transakcí",
-            "description": "Popište účel a kroky této kontroly...",
-            "select_department": "-- Vyberte oddělení --",
-            "process_owner_position": "např. Hlavní účetní",
-            "search_owners": "Hledat vlastníky...",
-            "data_source": "Zdroj dat (např. Export SAP)",
-            "methodology_reference": "Reference metodologie (např. Standard OS 18)",
-            "link_rationale": "Důvod tohoto propojení...",
-            "all_departments": "Všechna oddělení",
-            "all_processes": "Všechny procesy",
-            "all_categories": "Všechny kategorie",
-            "search_risks": "Hledat podle ID rizika, názvu...",
-            "verification_notes": "Popište, co bylo ověřeno a jaké problémy byly nalezeny...",
-            "evidence_reference": "např. SharePoint URL, ID dokumentu...",
-            "additional_notes": "Jakékoli další relevantní podrobnosti pro auditní stopu..."
-        }
+    "labels": {
+      "owner_position": "Pozice vlastníka",
+      "data_source_methodology": "Zdroj dat a metodologie",
+      "inherent_risk_level": "Inherentní úroveň rizika (1-5)",
+      "initial_status": "Výchozí stav",
+      "link_to_risk_optional": "Propojit s rizikem (volitelné)",
+      "uncategorized": "Bez kategorie",
+      "effectiveness": "Efektivita"
+    },
+    "effectiveness": {
+      "high": "Vysoká",
+      "medium": "Střední",
+      "low": "Nízká"
+    },
+    "placeholders": {
+      "name": "např. Denní odsouhlasení transakcí",
+      "description": "Popište účel a kroky této kontroly...",
+      "select_department": "-- Vyberte oddělení --",
+      "process_owner_position": "např. Hlavní účetní",
+      "search_owners": "Hledat vlastníky...",
+      "data_source": "Zdroj dat (např. Export SAP)",
+      "methodology_reference": "Reference metodologie (např. Standard OS 18)",
+      "link_rationale": "Důvod tohoto propojení...",
+      "all_departments": "Všechna oddělení",
+      "all_processes": "Všechny procesy",
+      "all_categories": "Všechny kategorie",
+      "search_risks": "Hledat podle ID rizika, názvu...",
+      "verification_notes": "Popište, co bylo ověřeno a jaké problémy byly nalezeny...",
+      "evidence_reference": "např. SharePoint URL, ID dokumentu...",
+      "additional_notes": "Jakékoli další relevantní podrobnosti pro auditní stopu..."
     }
+  },
+  "detail": {
+    "archive_approval_submitted": "Požadavek na archivaci byl odeslán ke schválení (ID: {{approvalId}}). Kontrola zatím nebyla archivována.",
+    "control_restored": "Kontrola byla úspěšně obnovena.",
+    "linked_risks_load_failed": "Nepodařilo se načíst propojená rizika. K těmto datům nemusíte mít přístup.",
+    "view_pending_approvals": "Čekající schválení zobrazíte v",
+    "section_suffix": "sekci.",
+    "back_to_catalog": "Zpět do katalogu",
+    "edit_requires_approval": "Upravit jako vlastník kontroly (vyžaduje schválení)",
+    "execution_history": "Historie vykonání",
+    "standard_configuration": "Standardní konfigurace",
+    "control_form": "Forma kontroly",
+    "ownership_responsibility": "Vlastnictví a odpovědnost",
+    "unassigned": "Nepřiřazeno",
+    "department_position": "Oddělení / Pozice",
+    "no_department": "Bez oddělení",
+    "not_available": "N/A",
+    "methodology_source": "Metodika a zdroj",
+    "methodology_ref": "Odkaz metodiky",
+    "data_source": "Zdroj dat",
+    "not_specified": "Neuvedeno",
+    "mitigated_risks": "Zmírňovaná rizika",
+    "unnamed_risk": "Riziko bez názvu",
+    "archived_risks": "Archivovaná rizika ({{count}})",
+    "manage_risk_linkage": "Spravovat propojení rizik",
+    "execution_audit_trail": "Auditní stopa vykonání",
+    "fetching_risk_details": "Načítání detailu rizika",
+    "effectiveness_optimal": "Optimální",
+    "effectiveness_effective": "Efektivní",
+    "effectiveness_ineffective": "Neefektivní",
+    "control_badge": "Kontrola",
+    "level_min": "Min",
+    "level_max": "Max"
+  },
+  "executions": {
+    "log_to_start": "Začněte zaznamenáním provedení.",
+    "next": "Další",
+    "findings_evidence": "Zjištění a důkazy",
+    "additional_notes": "Doplňující poznámky",
+    "log_execution": "Zaznamenat provedení",
+    "recording_performance_for": "Záznam provedení pro",
+    "execution_result": "Výsledek provedení",
+    "findings_observations": "Zjištění a pozorování",
+    "evidence_reference": "Reference důkazu",
+    "next_scheduled_optional": "Další plánovaný termín (volitelné)",
+    "logging": "Ukládání..."
+  }
 }

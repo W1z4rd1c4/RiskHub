@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertCircle, AlertTriangle, ChevronRight, Download, Plus, RefreshCw, Search } from 'lucide-react';
 import { SortableTable, Pagination } from '@/components/tables';
 import type { Column, SortDirection } from '@/components/tables';
@@ -12,7 +12,59 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { usePermissions } from '@/hooks/usePermissions';
 import { issuesApi } from '@/services/issuesApi';
 import { reportApi } from '@/services/reportApi';
-import type { IssueListFilters, IssueSeverity, IssueStatus, IssueSummary } from '@/types/issue';
+import type { IssueListFilters, IssueSeverity, IssueSeverityFilter, IssueSeverityGroup, IssueStatus, IssueSummary } from '@/types/issue';
+
+const ISSUE_STATUSES: IssueStatus[] = ['open', 'triaged', 'in_progress', 'ready_for_validation', 'closed'];
+const ISSUE_SEVERITIES: IssueSeverity[] = ['low', 'medium', 'high', 'critical'];
+const ISSUE_SEVERITY_GROUPS: IssueSeverityGroup[] = ['high_critical'];
+const ISSUE_SORT_FIELDS: NonNullable<IssueListFilters['sort_by']>[] = ['title', 'severity', 'status', 'opened_at', 'due_at', 'updated_at', 'created_at'];
+
+function parseBooleanQueryParam(value: string | null): boolean | null {
+    if (value === 'true') {
+        return true;
+    }
+    if (value === 'false') {
+        return false;
+    }
+    return null;
+}
+
+function parseIssueStatus(value: string | null): IssueStatus | null {
+    if (!value) {
+        return null;
+    }
+    return ISSUE_STATUSES.includes(value as IssueStatus) ? (value as IssueStatus) : null;
+}
+
+function parseIssueSeverity(value: string | null): IssueSeverity | null {
+    if (!value) {
+        return null;
+    }
+    return ISSUE_SEVERITIES.includes(value as IssueSeverity) ? (value as IssueSeverity) : null;
+}
+
+function parseIssueSeverityGroup(value: string | null): IssueSeverityGroup | null {
+    if (!value) {
+        return null;
+    }
+    return ISSUE_SEVERITY_GROUPS.includes(value as IssueSeverityGroup) ? (value as IssueSeverityGroup) : null;
+}
+
+function parseIssueSortField(value: string | null): IssueListFilters['sort_by'] | null {
+    if (!value) {
+        return null;
+    }
+    return ISSUE_SORT_FIELDS.includes(value as NonNullable<IssueListFilters['sort_by']>)
+        ? (value as NonNullable<IssueListFilters['sort_by']>)
+        : null;
+}
+
+function parseIssueSortOrder(value: string | null): SortDirection {
+    if (value === 'asc' || value === 'desc') {
+        return value;
+    }
+    return null;
+}
 
 function formatDateTime(value: string | null, locale: string, notSetLabel: string): string {
     if (!value) {
@@ -33,21 +85,48 @@ function formatDateTime(value: string | null, locale: string, notSetLabel: strin
 
 export function IssuesPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { hasPermission } = usePermissions();
     const { t, i18n } = useTranslation('issues');
     const canRead = hasPermission('issues', 'read');
     const canWrite = hasPermission('issues', 'write');
 
+    const initialStatusFilter = useMemo<IssueStatus | ''>(() => parseIssueStatus(searchParams.get('status')) ?? '', [searchParams]);
+    const initialSeverityGroup = useMemo<IssueSeverityGroup | null>(() => parseIssueSeverityGroup(searchParams.get('severity_group')), [searchParams]);
+    const initialSeverityFilter = useMemo<IssueSeverityFilter | ''>(() => {
+        if (initialSeverityGroup) {
+            return initialSeverityGroup;
+        }
+        return parseIssueSeverity(searchParams.get('severity')) ?? '';
+    }, [initialSeverityGroup, searchParams]);
+    const initialOverdueOnly = useMemo<boolean>(() => parseBooleanQueryParam(searchParams.get('overdue')) ?? false, [searchParams]);
+    const initialExcludeActiveExceptions = useMemo<boolean>(
+        () => parseBooleanQueryParam(searchParams.get('exclude_active_exceptions')) ?? false,
+        [searchParams]
+    );
+    const initialIncludeClosed = useMemo<boolean>(() => {
+        const parsedIncludeClosed = parseBooleanQueryParam(searchParams.get('include_closed'));
+        return initialStatusFilter === 'closed' ? true : (parsedIncludeClosed ?? false);
+    }, [initialStatusFilter, searchParams]);
+    const initialSortField = useMemo<IssueListFilters['sort_by'] | null>(() => parseIssueSortField(searchParams.get('sort_by')), [searchParams]);
+    const initialSortDirection = useMemo<SortDirection>(() => {
+        if (!initialSortField) {
+            return null;
+        }
+        return parseIssueSortOrder(searchParams.get('sort_order'));
+    }, [initialSortField, searchParams]);
+
     const [items, setItems] = useState<IssueSummary[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<IssueStatus | ''>('');
-    const [severityFilter, setSeverityFilter] = useState<IssueSeverity | ''>('');
-    const [overdueOnly, setOverdueOnly] = useState(false);
-    const [includeClosed, setIncludeClosed] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<IssueStatus | ''>(initialStatusFilter);
+    const [severityFilter, setSeverityFilter] = useState<IssueSeverityFilter | ''>(initialSeverityFilter);
+    const [overdueOnly, setOverdueOnly] = useState(initialOverdueOnly);
+    const [excludeActiveExceptions, setExcludeActiveExceptions] = useState(initialExcludeActiveExceptions);
+    const [includeClosed, setIncludeClosed] = useState(initialIncludeClosed);
     const [currentPage, setCurrentPage] = useState(1);
-    const [sortField, setSortField] = useState<IssueListFilters['sort_by'] | null>(null);
-    const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+    const [sortField, setSortField] = useState<IssueListFilters['sort_by'] | null>(initialSortField);
+    const [sortDirection, setSortDirection] = useState<SortDirection>(initialSortDirection);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -70,12 +149,13 @@ export function IssuesPage() {
         [t]
     );
 
-    const severityOptions: Array<{ label: string; value: IssueSeverity }> = useMemo(
+    const severityOptions: Array<{ label: string; value: IssueSeverityFilter }> = useMemo(
         () => [
             { label: t('severity.low', 'Low'), value: 'low' },
             { label: t('severity.medium', 'Medium'), value: 'medium' },
             { label: t('severity.high', 'High'), value: 'high' },
             { label: t('severity.critical', 'Critical'), value: 'critical' },
+            { label: t('severity.high_critical', 'High + Critical'), value: 'high_critical' },
         ],
         [t]
     );
@@ -108,10 +188,17 @@ export function IssuesPage() {
             filters.status = statusFilter;
         }
         if (severityFilter) {
-            filters.severity = severityFilter;
+            if (severityFilter === 'high_critical') {
+                filters.severity_group = 'high_critical';
+            } else {
+                filters.severity = severityFilter;
+            }
         }
         if (overdueOnly) {
             filters.overdue = true;
+        }
+        if (excludeActiveExceptions) {
+            filters.exclude_active_exceptions = true;
         }
         if (debouncedSearch.trim()) {
             filters.search = debouncedSearch.trim();
@@ -121,7 +208,7 @@ export function IssuesPage() {
             filters.sort_order = sortDirection;
         }
         return filters;
-    }, [currentPage, debouncedSearch, includeClosed, limit, overdueOnly, severityFilter, sortDirection, sortField, statusFilter]);
+    }, [currentPage, debouncedSearch, excludeActiveExceptions, includeClosed, limit, overdueOnly, severityFilter, sortDirection, sortField, statusFilter]);
 
     const fetchIssues = useCallback(async () => {
         if (!canRead) {
@@ -166,8 +253,10 @@ export function IssuesPage() {
                 asOfDate,
                 filters: {
                     status: statusFilter || null,
-                    severity: severityFilter || null,
+                    severity: severityFilter && severityFilter !== 'high_critical' ? severityFilter : null,
+                    severityGroup: severityFilter === 'high_critical' ? 'high_critical' : null,
                     overdueOnly: overdueOnly || null,
+                    excludeActiveExceptions: excludeActiveExceptions || null,
                 },
             });
             setIsExportDialogOpen(false);
@@ -324,7 +413,7 @@ export function IssuesPage() {
                     <ThemedSelect
                         value={severityFilter}
                         onValueChange={(value) => {
-                            setSeverityFilter(value as IssueSeverity | '');
+                            setSeverityFilter(value as IssueSeverityFilter | '');
                             setCurrentPage(1);
                         }}
                         options={severityOptions.map((option) => ({ value: option.value, label: option.label }))}
@@ -344,6 +433,18 @@ export function IssuesPage() {
                             className="accent-accent"
                         />
                         {t('filters.overdue_only', 'Overdue only')}
+                    </label>
+                    <label className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 flex items-center gap-2 text-sm text-slate-300 whitespace-nowrap">
+                        <input
+                            type="checkbox"
+                            checked={excludeActiveExceptions}
+                            onChange={(event) => {
+                                setExcludeActiveExceptions(event.target.checked);
+                                setCurrentPage(1);
+                            }}
+                            className="accent-accent"
+                        />
+                        {t('filters.exclude_active_exceptions', 'Exclude active exceptions')}
                     </label>
                     <label className="h-10 rounded-xl border border-white/10 bg-white/5 px-3 flex items-center gap-2 text-sm text-slate-300 whitespace-nowrap">
                         <input

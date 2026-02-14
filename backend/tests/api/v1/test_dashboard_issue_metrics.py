@@ -192,6 +192,48 @@ async def test_issue_dashboard_metrics_employee_scope(
 
 
 @pytest.mark.asyncio
+async def test_issue_dashboard_drilldown_filters_match_summary_counts(
+    auth_client: AsyncClient,
+    issue_metrics_data,
+):
+    summary_resp = await auth_client.get("/api/v1/dashboard/issues-summary")
+    assert summary_resp.status_code == 200
+    summary = summary_resp.json()
+
+    open_resp = await auth_client.get(
+        "/api/v1/issues",
+        params={
+            "include_closed": "false",
+            "exclude_active_exceptions": "true",
+        },
+    )
+    assert open_resp.status_code == 200
+    assert open_resp.json()["total"] == summary["open_issues"]
+
+    overdue_resp = await auth_client.get(
+        "/api/v1/issues",
+        params={
+            "overdue": "true",
+            "include_closed": "false",
+            "exclude_active_exceptions": "true",
+        },
+    )
+    assert overdue_resp.status_code == 200
+    assert overdue_resp.json()["total"] == summary["overdue_issues"]
+
+    high_critical_resp = await auth_client.get(
+        "/api/v1/issues",
+        params={
+            "severity_group": "high_critical",
+            "include_closed": "false",
+            "exclude_active_exceptions": "true",
+        },
+    )
+    assert high_critical_resp.status_code == 200
+    assert high_critical_resp.json()["total"] == summary["high_severity_open"]
+
+
+@pytest.mark.asyncio
 async def test_issue_dashboard_metrics_require_issues_read(
     client_employee: AsyncClient,
 ):

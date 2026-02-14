@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, Info, Clock } from 'lucide-react';
 import type { KeyRiskIndicator } from '@/types/kri';
+import { useTranslation } from '@/i18n/hooks';
 
 interface KRIGaugeCardProps {
     kri: KeyRiskIndicator;
@@ -10,6 +11,7 @@ interface KRIGaugeCardProps {
 }
 
 export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeCardProps) {
+    const { t } = useTranslation(['kris', 'common']);
     const {
         metric_name,
         current_value,
@@ -88,17 +90,17 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
                         {metric_name}
                     </h4>
                     <span className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                        Metric Detail
+                        {t('overview.metric_detail', { ns: 'kris' })}
                     </span>
                 </div>
                 <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 border border-white/20 font-bold text-[10px] uppercase tracking-wide ${getStatusColor()}`}>
                     {getStatusIcon()}
-                    {breach_status === 'within' ? 'Optimal' : breach_status.toUpperCase()}
+                    {breach_status === 'within' ? t('overview.optimal', { ns: 'kris' }) : breach_status.toUpperCase()}
                 </div>
                 {isOverdue && (
                     <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-[10px] uppercase">
                         <Clock className="h-3 w-3" />
-                        {daysOverdue ? `${daysOverdue}d` : 'Overdue'}
+                        {daysOverdue ? `${daysOverdue}d` : t('status.overdue', { ns: 'kris' })}
                     </div>
                 )}
             </div>

@@ -13,21 +13,21 @@ interface VendorAssessmentsTabProps {
     canEdit: boolean; // owner or vendors:write
 }
 
-function statusPill(status: VendorAssessmentStatus) {
+function statusPill(status: VendorAssessmentStatus, t: (key: string, fallback?: string) => string) {
     const base = 'px-2 py-1 rounded-full text-[10px] font-black border';
     switch (status) {
         case 'draft':
-            return <span className={`${base} text-slate-300 bg-white/5 border-white/10`}>DRAFT</span>;
+            return <span className={`${base} text-slate-300 bg-white/5 border-white/10`}>{t('assessments.status.draft', 'DRAFT')}</span>;
         case 'submitted':
-            return <span className={`${base} text-blue-300 bg-blue-400/10 border-blue-400/20`}>SUBMITTED</span>;
+            return <span className={`${base} text-blue-300 bg-blue-400/10 border-blue-400/20`}>{t('assessments.status.submitted', 'SUBMITTED')}</span>;
         case 'in_review':
-            return <span className={`${base} text-amber-300 bg-amber-400/10 border-amber-400/20`}>IN REVIEW</span>;
+            return <span className={`${base} text-amber-300 bg-amber-400/10 border-amber-400/20`}>{t('assessments.status.in_review', 'IN REVIEW')}</span>;
         case 'committee_recommended':
-            return <span className={`${base} text-violet-300 bg-violet-400/10 border-violet-400/20`}>RECOMMENDED</span>;
+            return <span className={`${base} text-violet-300 bg-violet-400/10 border-violet-400/20`}>{t('assessments.status.committee_recommended', 'RECOMMENDED')}</span>;
         case 'approved':
-            return <span className={`${base} text-emerald-300 bg-emerald-400/10 border-emerald-400/20`}>APPROVED</span>;
+            return <span className={`${base} text-emerald-300 bg-emerald-400/10 border-emerald-400/20`}>{t('assessments.status.approved', 'APPROVED')}</span>;
         case 'rejected':
-            return <span className={`${base} text-rose-300 bg-rose-400/10 border-rose-400/20`}>REJECTED</span>;
+            return <span className={`${base} text-rose-300 bg-rose-400/10 border-rose-400/20`}>{t('assessments.status.rejected', 'REJECTED')}</span>;
         default:
             return <span className={`${base} text-slate-300 bg-white/5 border-white/10`}>{status}</span>;
     }
@@ -310,7 +310,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                             {a.scope === 'dora' ? t('assessments.scope.dora', 'DORA') : t('assessments.scope.standard', 'Standard')} · {new Date(a.created_at).toLocaleDateString()}
                                         </p>
                                     </div>
-                                    {statusPill(a.status)}
+                                    {statusPill(a.status, t)}
                                 </div>
                             </button>
                         ))}
@@ -322,7 +322,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                 <div className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-4">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
-                                            {statusPill(selected.status)}
+                                            {statusPill(selected.status, t)}
                                             <span className="text-xs text-slate-500 font-medium">
                                                 {selected.scope === 'dora' ? t('assessments.scope.dora_scope', 'DORA scope') : t('assessments.scope.standard_scope', 'Standard scope')}
                                             </span>

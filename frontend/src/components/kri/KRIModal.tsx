@@ -18,7 +18,7 @@ interface KRIModalProps {
 }
 
 export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KRIModalProps) {
-    const { t } = useTranslation('kris');
+    const { t } = useTranslation(['kris', 'common']);
     const isCreate = !kri;
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -131,8 +131,10 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                     {isCreate ? <Plus className="h-5 w-5 text-accent" /> : <Activity className="h-5 w-5 text-accent" />}
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black text-white">{isCreate ? 'Create New KRI' : 'Edit KRI'}</h3>
-                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Key Risk Indicator Framework</p>
+                                    <h3 className="text-xl font-black text-white">
+                                        {isCreate ? t('create_kri', { ns: 'kris' }) : t('edit_kri', { ns: 'kris' })}
+                                    </h3>
+                                    <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest">{t('modal.framework', { ns: 'kris' })}</p>
                                 </div>
                             </div>
                             <button onClick={onClose} className="p-2 text-slate-500 hover:text-white transition-colors">
@@ -142,7 +144,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
 
                         <div className="p-8 space-y-6">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Metric Name</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('modal.metric_name', { ns: 'kris' })}</label>
                                 <input
                                     type="text"
                                     placeholder={t('form.placeholders.metric_name')}
@@ -155,7 +157,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                        {isCreate ? 'Current Value' : 'Current Value (use Record Value)'}
+                                        {isCreate ? t('fields.current_value', { ns: 'kris' }) : t('modal.current_value_readonly', { ns: 'kris' })}
                                     </label>
                                     <input
                                         type="number"
@@ -166,7 +168,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Unit (%, EUR, etc.)</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('modal.unit_examples', { ns: 'kris' })}</label>
                                     <input
                                         type="text"
                                         value={formData.unit}
@@ -178,7 +180,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
 
                             <div className="grid grid-cols-2 gap-6 pt-6 border-t border-white/5">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">Lower Limit (Breach)</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">{t('modal.lower_limit_breach', { ns: 'kris' })}</label>
                                     <input
                                         type="number"
                                         value={formData.lower_limit}
@@ -187,7 +189,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">Upper Limit (Breach)</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">{t('modal.upper_limit_breach', { ns: 'kris' })}</label>
                                     <input
                                         type="number"
                                         value={formData.upper_limit}
@@ -202,7 +204,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1">
                                         <Calendar className="h-3 w-3" />
-                                        Reporting Frequency
+                                        {t('fields.frequency', { ns: 'kris' })}
                                     </label>
                                     <ThemedSelect
                                         value={formData.frequency || 'quarterly'}
@@ -213,18 +215,18 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                         }}
                                         className="w-full"
                                         options={[
-                                            { value: 'daily', label: 'Daily' },
-                                            { value: 'weekly', label: 'Weekly' },
-                                            { value: 'monthly', label: 'Monthly' },
-                                            { value: 'quarterly', label: 'Quarterly' },
-                                            { value: 'annually', label: 'Annually' },
+                                            { value: 'daily', label: t('frequencies.daily', { ns: 'kris' }) },
+                                            { value: 'weekly', label: t('frequencies.weekly', { ns: 'kris' }) },
+                                            { value: 'monthly', label: t('frequencies.monthly', { ns: 'kris' }) },
+                                            { value: 'quarterly', label: t('frequencies.quarterly', { ns: 'kris' }) },
+                                            { value: 'annually', label: t('frequencies.annually', { ns: 'kris' }) },
                                         ]}
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1">
                                         <User className="h-3 w-3" />
-                                        Reporting Owner
+                                        {t('fields.owner', { ns: 'kris' })}
                                     </label>
                                     <ThemedSelect
                                         value={formData.reporting_owner_id?.toString() ?? ''}
@@ -241,7 +243,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                             {!isCreate && kri && (
                                 <div className="flex items-center gap-2 px-4 py-3 bg-white/[0.02] border border-white/5 rounded-xl text-[10px] text-slate-500 font-bold">
                                     <Calendar className="h-3.5 w-3.5" />
-                                    LAST UPDATED: {new Date(kri.last_updated).toLocaleString()}
+                                    {t('modal.last_updated', { ns: 'kris' })}: {new Date(kri.last_updated).toLocaleString()}
                                 </div>
                             )}
                         </div>
@@ -254,7 +256,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                         onClick={() => setIsDeleteDialogOpen(true)}
                                         disabled={isDeleting}
                                         className="p-3 text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
-                                        title="Delete KRI"
+                                        title={t('delete_kri', { ns: 'kris' })}
                                     >
                                         <Trash2 className="h-5 w-5" />
                                     </button>
@@ -265,14 +267,14 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                     onClick={onClose}
                                     className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
                                 >
-                                    Cancel
+                                    {t('actions.cancel', { ns: 'common' })}
                                 </button>
                                 <button
                                     onClick={handleSave}
                                     disabled={isSaving || !formData.metric_name}
                                     className="px-8 py-2.5 bg-accent rounded-xl text-slate-950 text-xs font-black uppercase tracking-widest hover:shadow-[0_0_20px_rgba(30,132,255,0.4)] transition-all flex items-center gap-2 disabled:opacity-50"
                                 >
-                                    {isSaving ? 'Saving...' : <><Save className="h-4 w-4" /> {isCreate ? 'Create indicator' : 'Save Changes'}</>}
+                                    {isSaving ? t('loading.generic', { ns: 'common' }) : <><Save className="h-4 w-4" /> {isCreate ? t('modal.create_indicator', { ns: 'kris' }) : t('actions.save', { ns: 'common' })}</>}
                                 </button>
                             </div>
                         </div>
@@ -290,9 +292,9 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                 isOpen={isDeleteDialogOpen}
                 onClose={() => setIsDeleteDialogOpen(false)}
                 onConfirm={handleDelete}
-                title="Delete KRI"
-                message={`Are you sure you want to delete "${kri?.metric_name}"? This action cannot be undone.`}
-                confirmLabel="Delete"
+                title={t('delete_kri', { ns: 'kris' })}
+                message={t('modal.delete_confirm', { ns: 'kris', name: kri?.metric_name || '' })}
+                confirmLabel={t('actions.delete', { ns: 'common' })}
                 variant="danger"
                 isLoading={isDeleting}
             />

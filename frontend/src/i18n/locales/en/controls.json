@@ -1,167 +1,215 @@
 {
-    "title": "Control Catalog",
-    "page_subtitle": "Manage and audit organizational risk controls according to the 13-point standard.",
-    "new_control": "New Control",
-    "create_control": "Create Control",
-    "edit_control": "Edit Control",
-    "view_control": "View Control",
-    "delete_control": "Delete Control",
-    "fields": {
-        "name": "Control Name",
-        "description": "Description",
-        "control_objective": "Control Objective",
-        "department": "Department",
-        "owner": "Control Owner",
-        "status": "Status",
-        "frequency": "Frequency",
-        "type": "Control Type",
-        "evidence": "Evidence Required",
-        "linked_risks": "Linked Risks",
-        "last_executed": "Last Executed",
-        "next_due": "Next Due"
-    },
-    "types": {
-        "preventive": "Preventive",
-        "detective": "Detective",
-        "corrective": "Corrective",
-        "compensating": "Compensating"
-    },
-    "frequencies": {
-        "daily": "Daily",
-        "weekly": "Weekly",
-        "monthly": "Monthly",
-        "quarterly": "Quarterly",
-        "annually": "Annually",
-        "ad_hoc": "Ad Hoc",
-        "continuous": "Continuous"
-    },
-    "status": {
-        "active": "Active",
-        "draft": "Draft",
-        "inactive": "Inactive",
-        "archived": "Archived",
-        "under_review": "Under Review",
-        "deprecated": "Deprecated"
-    },
-    "tabs": {
-        "overview": "Overview",
-        "execution": "Execution Log",
-        "risks": "Linked Risks",
-        "history": "History"
-    },
-    "execution": {
-        "title": "Control Execution",
-        "log_execution": "Log Execution",
-        "execution_date": "Execution Date",
-        "result": "Result",
-        "notes": "Execution Notes",
-        "evidence": "Evidence",
-        "executed_by": "Executed By"
-    },
-    "results": {
-        "passed": "Passed",
-        "failed": "Failed",
-        "not_tested": "Not Tested",
-        "not_applicable": "Not Applicable",
-        "warning": "Warning"
-    },
-    "filters": {
-        "all_types": "All Types",
-        "all_frequencies": "All Frequencies",
-        "all_departments": "All Departments",
-        "all_owners": "All Owners",
-        "all_statuses": "All Statuses",
-        "overdue_only": "Overdue Only",
-        "search_placeholder": "Search by name, description, risk or department..."
-    },
-    "empty_state": {
-        "no_controls": "No controls found matching your criteria.",
-        "no_executions": "No execution history",
-        "no_linked_risks": "No linked risks"
-    },
-    "errors": {
-        "load_failed": "Failed to load controls. Please check your connection.",
-        "title": "Error Loading Controls",
-        "try_again": "Try Again"
-    },
+  "title": "Control Catalog",
+  "page_subtitle": "Manage and audit organizational risk controls according to the 13-point standard.",
+  "new_control": "New Control",
+  "create_control": "Create Control",
+  "edit_control": "Edit Control",
+  "view_control": "View Control",
+  "delete_control": "Delete Control",
+  "fields": {
+    "name": "Control Name",
+    "description": "Description",
+    "control_objective": "Control Objective",
+    "department": "Department",
+    "owner": "Control Owner",
+    "status": "Status",
+    "frequency": "Frequency",
+    "type": "Control Type",
+    "evidence": "Evidence Required",
+    "linked_risks": "Linked Risks",
+    "last_executed": "Last Executed",
+    "next_due": "Next Due"
+  },
+  "types": {
+    "preventive": "Preventive",
+    "detective": "Detective",
+    "corrective": "Corrective",
+    "compensating": "Compensating"
+  },
+  "frequencies": {
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "quarterly": "Quarterly",
+    "annually": "Annually",
+    "ad_hoc": "Ad Hoc",
+    "continuous": "Continuous"
+  },
+  "status": {
+    "active": "Active",
+    "draft": "Draft",
+    "inactive": "Inactive",
+    "archived": "Archived",
+    "under_review": "Under Review",
+    "deprecated": "Deprecated"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "execution": "Execution Log",
+    "risks": "Linked Risks",
+    "history": "History"
+  },
+  "execution": {
+    "title": "Control Execution",
+    "log_execution": "Log Execution",
+    "execution_date": "Execution Date",
+    "result": "Result",
+    "notes": "Execution Notes",
+    "evidence": "Evidence",
+    "executed_by": "Executed By"
+  },
+  "results": {
+    "passed": "Passed",
+    "failed": "Failed",
+    "not_tested": "Not Tested",
+    "not_applicable": "Not Applicable",
+    "warning": "Warning"
+  },
+  "filters": {
+    "all_types": "All Types",
+    "all_frequencies": "All Frequencies",
+    "all_departments": "All Departments",
+    "all_owners": "All Owners",
+    "all_statuses": "All Statuses",
+    "overdue_only": "Overdue Only",
+    "search_placeholder": "Search by name, description, risk or department..."
+  },
+  "empty_state": {
+    "no_controls": "No controls found matching your criteria.",
+    "no_executions": "No execution history",
+    "no_linked_risks": "No linked risks"
+  },
+  "errors": {
+    "load_failed": "Failed to load controls. Please check your connection.",
+    "title": "Error Loading Controls",
+    "try_again": "Try Again"
+  },
+  "columns": {
+    "name": "Name",
+    "department": "Department",
+    "frequency": "Frequency",
+    "risk_level": "Risk Level",
+    "status": "Status",
+    "pending": "Pending",
+    "pending_changes_title": "Changes Pending Approval"
+  },
+  "actions": {
+    "link_risk": "Link Risk",
+    "unlink": "Unlink",
+    "unarchive": "Unarchive",
+    "export": "Export",
+    "export_excel": "Export Excel"
+  },
+  "audit_trail": {
+    "title": "Audit Trail",
+    "subtitle": "Global log of all control executions and compliance checks.",
+    "all_results": "All Results",
+    "total_records": "{{count}} Total Records",
     "columns": {
-        "name": "Name",
-        "department": "Department",
-        "frequency": "Frequency",
-        "risk_level": "Risk Level",
-        "status": "Status",
-        "pending": "Pending"
+      "date_time": "Date/Time",
+      "control": "Control",
+      "owner": "Owner",
+      "risk": "Risk",
+      "executor": "Executor",
+      "result": "Result",
+      "key_finding": "Key Finding",
+      "action": "Action"
     },
-    "actions": {
-        "link_risk": "Link Risk",
-        "unlink": "Unlink",
-        "unarchive": "Unarchive",
-        "export": "Export",
-        "export_excel": "Export Excel"
+    "no_records_help": "No audit records found for the selected filters."
+  },
+  "form": {
+    "steps": {
+      "identity": "Identity",
+      "ownership": "Ownership",
+      "execution": "Execution",
+      "risk_status": "Risk & Status",
+      "link_risk": "Link Risk"
     },
-    "audit_trail": {
-        "title": "Audit Trail",
-        "subtitle": "Global log of all control executions and compliance checks.",
-        "all_results": "All Results",
-        "total_records": "{{count}} Total Records",
-        "columns": {
-            "date_time": "Date/Time",
-            "control": "Control",
-            "owner": "Owner",
-            "risk": "Risk",
-            "executor": "Executor",
-            "result": "Result",
-            "key_finding": "Key Finding",
-            "action": "Action"
-        }
+    "validation": {
+      "name_required": "Control Name is required.",
+      "description_required": "Description is required.",
+      "owner_required": "Control Owner is required.",
+      "owner_position_required": "Owner Position is required.",
+      "department_required": "Department is required.",
+      "data_source_required": "Data Source is required.",
+      "methodology_reference_required": "Methodology Reference is required."
     },
-    "form": {
-        "steps": {
-            "identity": "Identity",
-            "ownership": "Ownership",
-            "execution": "Execution",
-            "risk_status": "Risk & Status",
-            "link_risk": "Link Risk"
-        },
-        "validation": {
-            "name_required": "Control Name is required.",
-            "description_required": "Description is required.",
-            "owner_required": "Control Owner is required.",
-            "owner_position_required": "Owner Position is required.",
-            "department_required": "Department is required.",
-            "data_source_required": "Data Source is required.",
-            "methodology_reference_required": "Methodology Reference is required."
-        },
-        "labels": {
-            "owner_position": "Owner Position",
-            "data_source_methodology": "Data Source & Methodology",
-            "inherent_risk_level": "Inherent Risk Level (1-5)",
-            "initial_status": "Initial Status",
-            "link_to_risk_optional": "Link to Risk (Optional)",
-            "uncategorized": "Uncategorized",
-            "effectiveness": "Effectiveness"
-        },
-        "effectiveness": {
-            "high": "High",
-            "medium": "Medium",
-            "low": "Low"
-        },
-        "placeholders": {
-            "name": "e.g. Daily Transaction Reconciliation",
-            "description": "Describe the purpose and steps of this control...",
-            "select_department": "-- Select Department --",
-            "process_owner_position": "e.g. Chief Accountant",
-            "search_owners": "Search owners...",
-            "data_source": "Data Source (e.g. SAP Export)",
-            "methodology_reference": "Methodology Reference (e.g. Standard OS 18)",
-            "link_rationale": "Rationale for this link...",
-            "all_departments": "All Departments",
-            "all_processes": "All Processes",
-            "all_categories": "All Categories",
-            "search_risks": "Search by risk ID, name...",
-            "verification_notes": "Describe what was verified and any issues found...",
-            "evidence_reference": "e.g. SharePoint URL, Doc ID...",
-            "additional_notes": "Any other relevant details for the audit trail..."
-        }
+    "labels": {
+      "owner_position": "Owner Position",
+      "data_source_methodology": "Data Source & Methodology",
+      "inherent_risk_level": "Inherent Risk Level (1-5)",
+      "initial_status": "Initial Status",
+      "link_to_risk_optional": "Link to Risk (Optional)",
+      "uncategorized": "Uncategorized",
+      "effectiveness": "Effectiveness"
+    },
+    "effectiveness": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "placeholders": {
+      "name": "e.g. Daily Transaction Reconciliation",
+      "description": "Describe the purpose and steps of this control...",
+      "select_department": "-- Select Department --",
+      "process_owner_position": "e.g. Chief Accountant",
+      "search_owners": "Search owners...",
+      "data_source": "Data Source (e.g. SAP Export)",
+      "methodology_reference": "Methodology Reference (e.g. Standard OS 18)",
+      "link_rationale": "Rationale for this link...",
+      "all_departments": "All Departments",
+      "all_processes": "All Processes",
+      "all_categories": "All Categories",
+      "search_risks": "Search by risk ID, name...",
+      "verification_notes": "Describe what was verified and any issues found...",
+      "evidence_reference": "e.g. SharePoint URL, Doc ID...",
+      "additional_notes": "Any other relevant details for the audit trail..."
     }
+  },
+  "detail": {
+    "archive_approval_submitted": "Archive request submitted for approval (ID: {{approvalId}}). The control has not been archived yet.",
+    "control_restored": "Control restored successfully.",
+    "linked_risks_load_failed": "Unable to load linked risks. You may not have access to this data.",
+    "view_pending_approvals": "View pending approvals in the",
+    "section_suffix": "section.",
+    "back_to_catalog": "Back to Catalog",
+    "edit_requires_approval": "Edit as Control Owner (requires approval)",
+    "execution_history": "Execution History",
+    "standard_configuration": "Standard Configuration",
+    "control_form": "Control Form",
+    "ownership_responsibility": "Ownership & Responsibility",
+    "unassigned": "Unassigned",
+    "department_position": "Department / Position",
+    "no_department": "No Dept",
+    "not_available": "N/A",
+    "methodology_source": "Methodology & Source",
+    "methodology_ref": "Methodology Ref",
+    "data_source": "Data Source",
+    "not_specified": "Not specified",
+    "mitigated_risks": "Mitigated Risks",
+    "unnamed_risk": "Unnamed Risk",
+    "archived_risks": "Archived Risks ({{count}})",
+    "manage_risk_linkage": "Manage Risk Linkage",
+    "execution_audit_trail": "Execution Audit Trail",
+    "fetching_risk_details": "Fetching Risk Details",
+    "effectiveness_optimal": "Optimal",
+    "effectiveness_effective": "Effective",
+    "effectiveness_ineffective": "Ineffective",
+    "control_badge": "Control",
+    "level_min": "Min",
+    "level_max": "Max"
+  },
+  "executions": {
+    "log_to_start": "Log an execution to get started.",
+    "next": "Next",
+    "findings_evidence": "Findings & Evidence",
+    "additional_notes": "Additional Notes",
+    "log_execution": "Log Execution",
+    "recording_performance_for": "Recording performance for",
+    "execution_result": "Execution Result",
+    "findings_observations": "Findings & Observations",
+    "evidence_reference": "Evidence Reference",
+    "next_scheduled_optional": "Next Scheduled (Optional)",
+    "logging": "Logging..."
+  }
 }

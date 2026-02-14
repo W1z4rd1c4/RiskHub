@@ -224,3 +224,44 @@ async def test_export_issues_requires_issues_read(
     as_of = datetime.now(UTC).date().isoformat()
     response = await client_employee.get(f"/api/v1/reports/issues/export?format=csv&as_of_date={as_of}")
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_export_issues_supports_severity_group_and_active_exception_exclusion(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    issue_export_data,
+    test_user,
+):
+    now = datetime.now(UTC).replace(microsecond=0)
+    dept_high_issue = (
+        await db_session.execute(select(Issue).where(Issue.title == "Dept issue overdue"))
+    ).scalar_one()
+    db_session.add(
+        IssueException(
+            issue_id=dept_high_issue.id,
+            status="approved",
+            reason="Approved active exception",
+            requested_by_id=test_user.id,
+            approved_by_id=test_user.id,
+            requested_at=now - timedelta(days=2),
+            approved_at=now - timedelta(days=1),
+            expires_at=now + timedelta(days=3),
+        )
+    )
+    await db_session.commit()
+
+    as_of = datetime.now(UTC).date().isoformat()
+    grouped_response = await auth_client.get(
+        f"/api/v1/reports/issues/export?format=csv&as_of_date={as_of}&severity_group=high_critical"
+    )
+    assert grouped_response.status_code == 200
+    grouped_titles = {row["Title"] for row in _parse_csv(grouped_response.text)}
+    assert grouped_titles == {"Dept issue overdue", "Other dept overdue"}
+
+    excluded_response = await auth_client.get(
+        f"/api/v1/reports/issues/export?format=csv&as_of_date={as_of}&severity_group=high_critical&exclude_active_exceptions=true"
+    )
+    assert excluded_response.status_code == 200
+    excluded_titles = {row["Title"] for row in _parse_csv(excluded_response.text)}
+    assert excluded_titles == {"Other dept overdue"}

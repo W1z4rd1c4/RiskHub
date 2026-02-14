@@ -36,6 +36,7 @@
     "tabs": {
         "controls": "Katalog kontrol",
         "risk_appetite": "Rizikový apetit",
-        "risks": "Registr rizik"
+        "risks": "Registr rizik",
+        "approvals": "Schválení"
     }
 }

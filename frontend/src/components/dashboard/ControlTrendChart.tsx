@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import type { ControlTrend } from '../../types/dashboard';
 import { useChartTheme } from '@/hooks/useChartTheme';
+import { getChartTooltipProps } from './chartTooltip';
 
 interface ControlTrendChartProps {
     data: ControlTrend[];
@@ -21,6 +22,10 @@ interface ControlTrendChartProps {
 
 export function ControlTrendChart({ data }: ControlTrendChartProps) {
     const chartTheme = useChartTheme();
+    const tooltipProps = getChartTooltipProps(chartTheme, {
+        contentStyle: { padding: '12px' },
+        labelStyle: { fontWeight: 900, marginBottom: '4px' },
+    });
 
     return (
         <div className="w-full h-[300px]">
@@ -49,16 +54,8 @@ export function ControlTrendChart({ data }: ControlTrendChartProps) {
                         tick={{ fill: chartTheme.axisTickFill, fontSize: 10, fontWeight: 700 }}
                     />
                     <Tooltip
+                        {...tooltipProps}
                         cursor={{ fill: chartTheme.gridStroke }}
-                        contentStyle={{
-                            backgroundColor: chartTheme.tooltipBackground,
-                            border: `1px solid ${chartTheme.tooltipBorder}`,
-                            borderRadius: '8px',
-                            backdropFilter: 'blur(8px)',
-                            padding: '12px'
-                        }}
-                        itemStyle={{ color: chartTheme.tooltipTextPrimary }}
-                        labelStyle={{ color: chartTheme.tooltipTextSecondary, fontSize: '10px', fontWeight: 900, marginBottom: '4px', textTransform: 'uppercase' }}
                     />
                     <Bar
                         dataKey="execution_count"

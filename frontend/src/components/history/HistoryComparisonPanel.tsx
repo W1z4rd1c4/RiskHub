@@ -9,6 +9,7 @@ import { HistoryChangeCard } from './HistoryChangeCard';
 import type { KRIHistoryEntry } from '@/types/kri';
 import type { HistoryComparisonField, HistoryStatus } from '@/types/history';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from '@/i18n/hooks';
 
 interface HistoryComparisonPanelProps {
     entries: KRIHistoryEntry[];
@@ -23,6 +24,8 @@ export function HistoryComparisonPanel({
     formatValue = defaultFormat,
     className,
 }: HistoryComparisonPanelProps) {
+    const { t, i18n } = useTranslation(['kris', 'common']);
+
     // Sort by period_end descending (most recent first)
     const sortedEntries = useMemo(() => {
         return [...entries].sort((a, b) =>
@@ -61,7 +64,7 @@ export function HistoryComparisonPanel({
     const comparisonFields = useMemo<HistoryComparisonField[]>(() => {
         if (!leftEntry || !rightEntry || isSameSelection) return [];
 
-        const formatDate = (d: string) => new Date(d).toLocaleDateString('cs-CZ');
+        const formatDate = (d: string) => new Date(d).toLocaleDateString(i18n.language);
 
         // Determine tone based on breach status change
         const getBreachTone = (): HistoryStatus => {
@@ -88,7 +91,7 @@ export function HistoryComparisonPanel({
 
         return [
             {
-                label: 'Value',
+                label: t('common:labels.value'),
                 before: `${formatValue(leftEntry.value)} ${leftEntry.unit}`,
                 after: `${formatValue(rightEntry.value)} ${rightEntry.unit}`,
                 delta: `${valueDeltaStr} ${rightEntry.unit}`,
@@ -96,18 +99,18 @@ export function HistoryComparisonPanel({
                 tone: getValueTone(),
             },
             {
-                label: 'Breach Status',
+                label: t('comparison.breach_status', { ns: 'kris' }),
                 before: leftEntry.breach_status.toUpperCase(),
                 after: rightEntry.breach_status.toUpperCase(),
                 tone: getBreachTone(),
             },
             {
-                label: 'Period End',
+                label: t('comparison.period_end', { ns: 'kris' }),
                 before: formatDate(leftEntry.period_end),
                 after: formatDate(rightEntry.period_end),
             },
             {
-                label: 'Lower Limit',
+                label: t('comparison.lower_limit', { ns: 'kris' }),
                 before: `${formatValue(leftEntry.lower_limit)} ${leftEntry.unit}`,
                 after: `${formatValue(rightEntry.lower_limit)} ${rightEntry.unit}`,
                 delta: leftEntry.lower_limit !== rightEntry.lower_limit
@@ -116,7 +119,7 @@ export function HistoryComparisonPanel({
                 direction: rightEntry.lower_limit > leftEntry.lower_limit ? 'up' : rightEntry.lower_limit < leftEntry.lower_limit ? 'down' : 'flat',
             },
             {
-                label: 'Upper Limit',
+                label: t('comparison.upper_limit', { ns: 'kris' }),
                 before: `${formatValue(leftEntry.upper_limit)} ${leftEntry.unit}`,
                 after: `${formatValue(rightEntry.upper_limit)} ${rightEntry.unit}`,
                 delta: leftEntry.upper_limit !== rightEntry.upper_limit
@@ -125,23 +128,23 @@ export function HistoryComparisonPanel({
                 direction: rightEntry.upper_limit > leftEntry.upper_limit ? 'up' : rightEntry.upper_limit < leftEntry.upper_limit ? 'down' : 'flat',
             },
             {
-                label: 'Recorded By',
-                before: leftEntry.recorded_by_name || 'System',
-                after: rightEntry.recorded_by_name || 'System',
+                label: t('comparison.recorded_by', { ns: 'kris' }),
+                before: leftEntry.recorded_by_name || t('comparison.system', { ns: 'kris' }),
+                after: rightEntry.recorded_by_name || t('comparison.system', { ns: 'kris' }),
             },
         ];
-    }, [leftEntry, rightEntry, isSameSelection, formatValue]);
+    }, [leftEntry, rightEntry, isSameSelection, formatValue, t, i18n.language]);
 
     // Format option label
     const formatOptionLabel = (entry: KRIHistoryEntry) => {
-        const date = new Date(entry.period_end).toLocaleDateString('cs-CZ');
+        const date = new Date(entry.period_end).toLocaleDateString(i18n.language);
         return `${date} (${formatValue(entry.value)} ${entry.unit})`;
     };
 
     if (sortedEntries.length < 2) {
         return (
             <div className={cn('text-center py-8 text-slate-500 text-sm', className)}>
-                Need at least 2 history entries to compare.
+                {t('comparison.need_two_entries', { ns: 'kris' })}
             </div>
         );
     }
@@ -155,8 +158,8 @@ export function HistoryComparisonPanel({
                         <ArrowRight className="h-4 w-4 text-accent rotate-45" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-bold text-white uppercase tracking-wider">Compare Records</h4>
-                        <p className="text-[10px] text-slate-500 font-medium">Analyze changes between two reporting periods</p>
+                        <h4 className="text-sm font-bold text-white uppercase tracking-wider">{t('comparison.compare_records', { ns: 'kris' })}</h4>
+                        <p className="text-[10px] text-slate-500 font-medium">{t('comparison.analyze_changes', { ns: 'kris' })}</p>
                     </div>
                 </div>
 
@@ -185,7 +188,7 @@ export function HistoryComparisonPanel({
             {isSameSelection && (
                 <div className="flex items-center gap-3 px-4 py-3 bg-amber-500/[0.03] border border-amber-500/10 rounded-xl text-amber-500/80 text-xs font-medium backdrop-blur-sm animate-pulse">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
-                    <span>Difference calculation requires two distinct periods.</span>
+                    <span>{t('comparison.distinct_periods_required', { ns: 'kris' })}</span>
                 </div>
             )}
 
@@ -196,7 +199,7 @@ export function HistoryComparisonPanel({
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-px h-8 bg-gradient-to-b from-white/10 to-transparent pointer-events-none" />
 
                     <HistoryChangeCard
-                        title="Delta Analysis"
+                        title={t('comparison.delta_analysis', { ns: 'kris' })}
                         fields={comparisonFields}
                         className="shadow-2xl shadow-accent/5"
                     />

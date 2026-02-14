@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Loader2, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
+import { apiClient } from '@/services/apiClient';
 
 interface ArchiveConfirmDialogProps {
     isOpen: boolean;
@@ -40,8 +41,7 @@ export function ArchiveConfirmDialog({
             setReason('');
             onClose();
         } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : t('errors.generic');
-            setError(message);
+            setError(t(apiClient.toUiMessageKey(err), { ns: 'errorKeys' }));
         } finally {
             setIsSubmitting(false);
         }

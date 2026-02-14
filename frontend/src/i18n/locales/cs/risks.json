@@ -1,275 +1,321 @@
 {
-    "title": "Registr rizik",
-    "page_subtitle": "Sledování a řízení organizačních rizik s hrubým/čistým skórováním dle OS 18.",
-    "new_risk": "Nové riziko",
-    "create_risk": "Vytvořit riziko",
-    "edit_risk": "Upravit riziko",
-    "view_risk": "Zobrazit riziko",
-    "delete_risk": "Smazat riziko",
-    "fields": {
-        "name": "Název rizika",
-        "description": "Popis",
-        "category": "Kategorie",
-        "department": "Oddělení",
-        "owner": "Vlastník rizika",
-        "status": "Stav",
-        "process": "Proces",
-        "probability": "Pravděpodobnost",
-        "impact": "Dopad",
-        "gross_score": "Inherentní skóre",
-        "net_score": "Reziduální skóre",
-        "is_priority": "Prioritní riziko",
-        "linked_controls": "Propojené kontroly",
-        "linked_kris": "Propojené KRI",
-        "type": "Typ"
-    },
-    "probability_levels": {
-        "1": "Nepravděpodobná",
-        "2": "Nízká",
-        "3": "Střední",
-        "4": "Vysoká",
-        "5": "Extrémní"
-    },
-    "impact_levels": {
-        "1": "Žádný",
-        "2": "Nízký",
-        "3": "Střední",
-        "4": "Vysoký",
-        "5": "Extrémní"
-    },
-    "categories": {
-        "operational": "Operační",
-        "financial": "Finanční",
-        "strategic": "Strategické",
-        "compliance": "Compliance",
-        "reputational": "Reputační"
+  "title": "Registr rizik",
+  "page_subtitle": "Sledování a řízení organizačních rizik s hrubým/čistým skórováním dle OS 18.",
+  "new_risk": "Nové riziko",
+  "create_risk": "Vytvořit riziko",
+  "edit_risk": "Upravit riziko",
+  "view_risk": "Zobrazit riziko",
+  "delete_risk": "Smazat riziko",
+  "fields": {
+    "name": "Název rizika",
+    "description": "Popis",
+    "category": "Kategorie",
+    "department": "Oddělení",
+    "owner": "Vlastník rizika",
+    "status": "Stav",
+    "process": "Proces",
+    "probability": "Pravděpodobnost",
+    "impact": "Dopad",
+    "gross_score": "Inherentní skóre",
+    "net_score": "Reziduální skóre",
+    "is_priority": "Prioritní riziko",
+    "linked_controls": "Propojené kontroly",
+    "linked_kris": "Propojené KRI",
+    "type": "Typ"
+  },
+  "probability_levels": {
+    "1": "Nepravděpodobná",
+    "2": "Nízká",
+    "3": "Střední",
+    "4": "Vysoká",
+    "5": "Extrémní"
+  },
+  "impact_levels": {
+    "1": "Žádný",
+    "2": "Nízký",
+    "3": "Střední",
+    "4": "Vysoký",
+    "5": "Extrémní"
+  },
+  "categories": {
+    "operational": "Operační",
+    "financial": "Finanční",
+    "strategic": "Strategické",
+    "compliance": "Compliance",
+    "reputational": "Reputační"
+  },
+  "status": {
+    "active": "Aktivní",
+    "emerging": "Vznikající",
+    "archived": "Archivované"
+  },
+  "tabs": {
+    "overview": "Přehled",
+    "controls": "Kontroly",
+    "kris": "KRI",
+    "history": "Historie",
+    "assessment": "Hodnocení rizika"
+  },
+  "questionnaires": {
+    "title": "Hodnocení rizika",
+    "subtitle": "Historie dotazníků a aktuální stav pro toto riziko.",
+    "assessment_summary_title": "Souhrn hodnocení",
+    "assessment_summary_empty": "Zatím žádné odevzdané hodnocení.",
+    "assessment_summary_submitted_at": "Odevzdáno",
+    "assessment_summary_changed_count": "Změny oproti minulému cyklu",
+    "assessment_summary_likelihood": "Pravděpodobnost (12m)",
+    "assessment_summary_worst_case_impact": "Nejhorší dopad",
+    "send": "Odeslat dotazník",
+    "send_success": "Dotazník byl odeslán.",
+    "send_open_exists": "Otevřený dotazník již existuje. Otevírám ho.",
+    "send_requires_owner": "Pro odeslání dotazníku nastavte vlastníka rizika.",
+    "owner_required": "Vyžaduje vlastníka",
+    "open": "Otevřít",
+    "current_due": "Termín",
+    "empty": "Pro toto riziko zatím nebyl odeslán žádný dotazník.",
+    "columns": {
+      "sent_at": "Odesláno",
+      "due_at": "Termín",
+      "submitted_at": "Odevzdáno",
+      "sent_by": "Odeslal(a)",
+      "submitted_by": "Odevzdal(a)"
+    }
+  },
+  "questionnaire": {
+    "title": "Dotazník k hodnocení rizika",
+    "required": "Povinné",
+    "readonly_hint": "Pouze pro čtení: nemáte oprávnění tento dotazník odevzdat.",
+    "validation_missing": "Vyplňte prosím všechny povinné otázky.",
+    "compare_toggle": "Porovnat s minulým cyklem",
+    "no_previous_cycle": "Není k dispozici předchozí cyklus.",
+    "changed": "Změněno",
+    "previous": "Předtím",
+    "request_clarification": "Požádat o upřesnění",
+    "clarification": "Upřesnění",
+    "clarification_open": "Otevřené",
+    "clarification_request_label": "Žádost o upřesnění",
+    "clarification_request_placeholder": "Co je potřeba upřesnit?",
+    "clarification_optional_questions": "Volitelné: označte otázky",
+    "clarification_requested_by": "Požádal(a)",
+    "clarification_response": "Odpověď",
+    "clarification_response_placeholder": "Napište odpověď…",
+    "clarification_responded_by": "Odpověděl(a)",
+    "respond": "Odpovědět",
+    "meta": {
+      "sent": "Odesláno",
+      "due": "Termín",
+      "status": "Stav",
+      "assignee": "Řešitel",
+      "sender": "Odesílatel"
     },
     "status": {
-        "active": "Aktivní",
-        "emerging": "Vznikající",
-        "archived": "Archivované"
-    },
-    "tabs": {
-        "overview": "Přehled",
-        "controls": "Kontroly",
-        "kris": "KRI",
-        "history": "Historie",
-        "assessment": "Hodnocení rizika"
-    },
-    "questionnaires": {
-        "title": "Hodnocení rizika",
-        "subtitle": "Historie dotazníků a aktuální stav pro toto riziko.",
-        "assessment_summary_title": "Souhrn hodnocení",
-        "assessment_summary_empty": "Zatím žádné odevzdané hodnocení.",
-        "assessment_summary_submitted_at": "Odevzdáno",
-        "assessment_summary_changed_count": "Změny oproti minulému cyklu",
-        "assessment_summary_likelihood": "Pravděpodobnost (12m)",
-        "assessment_summary_worst_case_impact": "Nejhorší dopad",
-        "send": "Odeslat dotazník",
-        "send_success": "Dotazník byl odeslán.",
-        "send_open_exists": "Otevřený dotazník již existuje. Otevírám ho.",
-        "send_requires_owner": "Pro odeslání dotazníku nastavte vlastníka rizika.",
-        "owner_required": "Vyžaduje vlastníka",
-        "open": "Otevřít",
-        "current_due": "Termín",
-        "empty": "Pro toto riziko zatím nebyl odeslán žádný dotazník.",
-        "columns": {
-            "sent_at": "Odesláno",
-            "due_at": "Termín",
-            "submitted_at": "Odevzdáno",
-            "sent_by": "Odeslal(a)",
-            "submitted_by": "Odevzdal(a)"
-        }
-    },
-    "questionnaire": {
-        "title": "Dotazník k hodnocení rizika",
-        "required": "Povinné",
-        "readonly_hint": "Pouze pro čtení: nemáte oprávnění tento dotazník odevzdat.",
-        "validation_missing": "Vyplňte prosím všechny povinné otázky.",
-        "compare_toggle": "Porovnat s minulým cyklem",
-        "no_previous_cycle": "Není k dispozici předchozí cyklus.",
-        "changed": "Změněno",
-        "previous": "Předtím",
-        "request_clarification": "Požádat o upřesnění",
-        "clarification": "Upřesnění",
-        "clarification_open": "Otevřené",
-        "clarification_request_label": "Žádost o upřesnění",
-        "clarification_request_placeholder": "Co je potřeba upřesnit?",
-        "clarification_optional_questions": "Volitelné: označte otázky",
-        "clarification_requested_by": "Požádal(a)",
-        "clarification_response": "Odpověď",
-        "clarification_response_placeholder": "Napište odpověď…",
-        "clarification_responded_by": "Odpověděl(a)",
-        "respond": "Odpovědět",
-        "meta": {
-            "sent": "Odesláno",
-            "due": "Termín",
-            "status": "Stav",
-            "assignee": "Řešitel",
-            "sender": "Odesílatel"
-        },
-        "status": {
-            "sent": "Čeká",
-            "in_progress": "Rozpracováno",
-            "submitted": "Odevzdáno",
-            "overdue": "Po termínu"
-        },
-        "actions": {
-            "save": "Uložit průběžně"
-        },
-        "sections": {
-            "risk_changes": "Změny rizika",
-            "controls": "Kontroly",
-            "kris": "KRI",
-            "outlook": "Výhled"
-        },
-        "helpers": {
-            "risk_assessment": {
-                "q11_likelihood_12m": "1 (nepravděpodobné) až 5 (extrémní) — pravděpodobnost materializace rizika v příštích 12 měsících.",
-                "q12_worst_case_impact": "1 (žádný) až 5 (extrémní) — úroveň nejhoršího finančního dopadu."
-            }
-        },
-        "questions": {
-            "risk_assessment": {
-                "q1_description_changed": "Změnil se od poslední revize popis nebo rozsah rizika?",
-                "q2_new_triggers": "Jsou nějaké nové spouštěče, příčiny nebo faktory, které bychom měli zachytit?",
-                "q3_recent_incidents": "Došlo v poslední době k incidentům, near-miss nebo ztrátám souvisejícím s tímto rizikem?",
-                "q4_controls_effective": "Jsou stávající kontroly stále efektivní?",
-                "q5_control_gaps": "Existují mezery nebo selhání kontrol, případně plánované změny?",
-                "q6_kri_changes": "Jaká KRI by měla být přidána, odebrána nebo upravena?",
-                "q7_kri_breaches": "Došlo v poslední době k překročení limitů KRI nebo varovným signálům?",
-                "q8_outlook_trend": "Očekávaný trend v příštím čtvrtletí",
-                "q9_mitigation_actions": "Navrhovaná mitigace nebo další kroky",
-                "q10_support_needed": "Je potřeba podpora od Risk Managementu / CRO?",
-                "q11_likelihood_12m": "Pravděpodobnost (12 měsíců) — 1 až 5",
-                "q12_worst_case_impact": "Nejhorší finanční dopad — 1 až 5",
-                "options": {
-                    "trend": {
-                        "up": "Riziko roste",
-                        "stable": "Stabilní",
-                        "down": "Riziko klesá"
-                    }
-                }
-            }
-        }
-    },
-    "matrix": {
-        "title": "Riziková matice",
-        "probability_axis": "Pravděpodobnost",
-        "impact_axis": "Dopad"
-    },
-    "scoring": {
-        "inherent_risk": "Inherentní riziko",
-        "residual_risk": "Reziduální riziko",
-        "risk_score": "Rizikové skóre"
-    },
-    "filters": {
-        "all_categories": "Všechny kategorie",
-        "all_departments": "Všechna oddělení",
-        "all_owners": "Všichni vlastníci",
-        "all_statuses": "Všechny stavy",
-        "all_types": "Všechny typy",
-        "priority_only": "Prioritní rizika",
-        "search_placeholder": "Hledat podle názvu, procesu nebo kategorie..."
-    },
-    "empty_state": {
-        "no_risks": "Nebyla nalezena žádná rizika odpovídající kritériím.",
-        "no_linked_controls": "Žádné propojené kontroly",
-        "no_linked_kris": "Žádné propojené KRI"
-    },
-    "errors": {
-        "load_failed": "Nepodařilo se načíst rizika. Zkontrolujte prosím připojení.",
-        "title": "Chyba při načítání rizik",
-        "try_again": "Zkusit znovu"
-    },
-    "columns": {
-        "name": "Název",
-        "category": "Kategorie",
-        "description": "Popis",
-        "type": "Typ",
-        "gross": "Hrubé",
-        "net": "Čisté",
-        "controls": "Kontroly",
-        "kris": "KRI",
-        "pending": "Čeká"
+      "sent": "Čeká",
+      "in_progress": "Rozpracováno",
+      "submitted": "Odevzdáno",
+      "overdue": "Po termínu"
     },
     "actions": {
-        "link_control": "Propojit kontrolu",
-        "link_kri": "Propojit KRI",
-        "unlink": "Odpojit",
-        "unarchive": "Obnovit z archivu",
-        "export": "Export",
-        "export_excel": "Export Excel"
+      "save": "Uložit průběžně"
     },
-    "form": {
-        "steps": {
-            "identity": "Identita",
-            "ownership": "Detaily a vlastník",
-            "scoring": "Hodnocení rizika"
-        },
-        "financial": {
-            "loss": "Ztráta",
-            "no_loss": "Bez finanční ztráty"
-        },
-        "probability": {
-            "1": {
-                "label": "Nepravděpodobná",
-                "description": "Může nastat jednou za 100+ let"
-            },
-            "2": {
-                "label": "Nízká",
-                "description": "Může nastat jednou za 10+ let"
-            },
-            "3": {
-                "label": "Střední",
-                "description": "Může nastat jednou za 1+ rok"
-            },
-            "4": {
-                "label": "Vysoká",
-                "description": "Může nastat vícekrát ročně"
-            },
-            "5": {
-                "label": "Extrémní",
-                "description": "Může nastat vícekrát měsíčně"
-            }
-        },
-        "impact": {
-            "1": {
-                "label": "Žádný",
-                "description": "Bez dopadu na provoz"
-            },
-            "2": {
-                "label": "Nízký",
-                "description": "Menší dopad na provoz"
-            },
-            "3": {
-                "label": "Střední",
-                "description": "Může významně ovlivnit provoz"
-            },
-            "4": {
-                "label": "Vysoký",
-                "description": "Významně ovlivňuje cíle společnosti"
-            },
-            "5": {
-                "label": "Extrémní",
-                "description": "Ohrožuje existenci společnosti"
-            }
-        },
-        "labels": {
-            "risk_type": "Typ rizika",
-            "main_process": "Hlavní proces",
-            "subprocess_optional": "Podproces (volitelné)",
-            "risk_description": "Popis rizika",
-            "create_value": "Vytvořit \"{{value}}\""
-        },
-        "placeholders": {
-            "name": "Zadejte krátký, popisný název rizika...",
-            "type_or_select": "Zadejte nebo vyberte...",
-            "select_process_first": "Nejprve vyberte proces...",
-            "subprocess_of": "Podproces {{process}}...",
-            "description": "Popište riziko podrobně...",
-            "select_department": "Vyberte oddělení",
-            "search_by_name": "Hledat podle názvu..."
+    "sections": {
+      "risk_changes": "Změny rizika",
+      "controls": "Kontroly",
+      "kris": "KRI",
+      "outlook": "Výhled"
+    },
+    "helpers": {
+      "risk_assessment": {
+        "q11_likelihood_12m": "1 (nepravděpodobné) až 5 (extrémní) — pravděpodobnost materializace rizika v příštích 12 měsících.",
+        "q12_worst_case_impact": "1 (žádný) až 5 (extrémní) — úroveň nejhoršího finančního dopadu."
+      }
+    },
+    "questions": {
+      "risk_assessment": {
+        "q1_description_changed": "Změnil se od poslední revize popis nebo rozsah rizika?",
+        "q2_new_triggers": "Jsou nějaké nové spouštěče, příčiny nebo faktory, které bychom měli zachytit?",
+        "q3_recent_incidents": "Došlo v poslední době k incidentům, near-miss nebo ztrátám souvisejícím s tímto rizikem?",
+        "q4_controls_effective": "Jsou stávající kontroly stále efektivní?",
+        "q5_control_gaps": "Existují mezery nebo selhání kontrol, případně plánované změny?",
+        "q6_kri_changes": "Jaká KRI by měla být přidána, odebrána nebo upravena?",
+        "q7_kri_breaches": "Došlo v poslední době k překročení limitů KRI nebo varovným signálům?",
+        "q8_outlook_trend": "Očekávaný trend v příštím čtvrtletí",
+        "q9_mitigation_actions": "Navrhovaná mitigace nebo další kroky",
+        "q10_support_needed": "Je potřeba podpora od Risk Managementu / CRO?",
+        "q11_likelihood_12m": "Pravděpodobnost (12 měsíců) — 1 až 5",
+        "q12_worst_case_impact": "Nejhorší finanční dopad — 1 až 5",
+        "options": {
+          "trend": {
+            "up": "Riziko roste",
+            "stable": "Stabilní",
+            "down": "Riziko klesá"
+          }
         }
+      }
     }
+  },
+  "matrix": {
+    "title": "Riziková matice",
+    "probability_axis": "Pravděpodobnost",
+    "impact_axis": "Dopad"
+  },
+  "scoring": {
+    "inherent_risk": "Inherentní riziko",
+    "residual_risk": "Reziduální riziko",
+    "risk_score": "Rizikové skóre"
+  },
+  "filters": {
+    "all_categories": "Všechny kategorie",
+    "all_departments": "Všechna oddělení",
+    "all_owners": "Všichni vlastníci",
+    "all_statuses": "Všechny stavy",
+    "all_types": "Všechny typy",
+    "priority_only": "Prioritní rizika",
+    "search_placeholder": "Hledat podle názvu, procesu nebo kategorie...",
+    "critical_only_clear": "Pouze kritické (kliknutím zrušíte)",
+    "breached_only_clear": "Pouze překročené (kliknutím zrušíte)"
+  },
+  "empty_state": {
+    "no_risks": "Nebyla nalezena žádná rizika odpovídající kritériím.",
+    "no_linked_controls": "Žádné propojené kontroly",
+    "no_linked_kris": "Žádné propojené KRI"
+  },
+  "errors": {
+    "load_failed": "Nepodařilo se načíst rizika. Zkontrolujte prosím připojení.",
+    "title": "Chyba při načítání rizik",
+    "try_again": "Zkusit znovu"
+  },
+  "columns": {
+    "name": "Název",
+    "category": "Kategorie",
+    "description": "Popis",
+    "type": "Typ",
+    "gross": "Hrubé",
+    "net": "Čisté",
+    "controls": "Kontroly",
+    "kris": "KRI",
+    "pending": "Čeká",
+    "pending_tooltip": "Změny čekají na schválení"
+  },
+  "actions": {
+    "link_control": "Propojit kontrolu",
+    "link_kri": "Propojit KRI",
+    "unlink": "Odpojit",
+    "unarchive": "Obnovit z archivu",
+    "export": "Export",
+    "export_excel": "Export Excel",
+    "back_to_register": "Zpět do registru"
+  },
+  "form": {
+    "steps": {
+      "identity": "Identita",
+      "ownership": "Detaily a vlastník",
+      "scoring": "Hodnocení rizika"
+    },
+    "financial": {
+      "loss": "Ztráta",
+      "no_loss": "Bez finanční ztráty"
+    },
+    "probability": {
+      "1": {
+        "label": "Nepravděpodobná",
+        "description": "Může nastat jednou za 100+ let"
+      },
+      "2": {
+        "label": "Nízká",
+        "description": "Může nastat jednou za 10+ let"
+      },
+      "3": {
+        "label": "Střední",
+        "description": "Může nastat jednou za 1+ rok"
+      },
+      "4": {
+        "label": "Vysoká",
+        "description": "Může nastat vícekrát ročně"
+      },
+      "5": {
+        "label": "Extrémní",
+        "description": "Může nastat vícekrát měsíčně"
+      }
+    },
+    "impact": {
+      "1": {
+        "label": "Žádný",
+        "description": "Bez dopadu na provoz"
+      },
+      "2": {
+        "label": "Nízký",
+        "description": "Menší dopad na provoz"
+      },
+      "3": {
+        "label": "Střední",
+        "description": "Může významně ovlivnit provoz"
+      },
+      "4": {
+        "label": "Vysoký",
+        "description": "Významně ovlivňuje cíle společnosti"
+      },
+      "5": {
+        "label": "Extrémní",
+        "description": "Ohrožuje existenci společnosti"
+      }
+    },
+    "labels": {
+      "risk_type": "Typ rizika",
+      "main_process": "Hlavní proces",
+      "subprocess_optional": "Podproces (volitelné)",
+      "risk_description": "Popis rizika",
+      "create_value": "Vytvořit \"{{value}}\""
+    },
+    "placeholders": {
+      "name": "Zadejte krátký, popisný název rizika...",
+      "type_or_select": "Zadejte nebo vyberte...",
+      "select_process_first": "Nejprve vyberte proces...",
+      "subprocess_of": "Podproces {{process}}...",
+      "description": "Popište riziko podrobně...",
+      "select_department": "Vyberte oddělení",
+      "search_by_name": "Hledat podle názvu..."
+    }
+  },
+  "overview": {
+    "classification": "Klasifikace",
+    "subprocess": "Podproces",
+    "ownership": "Vlastnictví",
+    "unassigned": "Nepřiřazeno",
+    "no_department": "Bez oddělení",
+    "risk_appetite_indicators": "Indikátory rizikového apetitu",
+    "add_kri": "Přidat KRI",
+    "kris_help_text": "KRI pomáhají sledovat, zda riziko zůstává v rámci apetitu organizace.",
+    "mitigating_controls": "Zmírňující kontroly",
+    "link_existing": "Propojit existující",
+    "create_new_control": "Vytvořit novou kontrolu",
+    "no_controls_linked": "K tomuto riziku nejsou propojeny žádné kontroly.",
+    "draft_controls": "Koncepty kontrol ({{count}})",
+    "draft_controls_help": "Koncepty kontrol zatím nejsou aktivní a nebudou zahrnuty do metrik souladu.",
+    "archived_controls": "Archivované kontroly ({{count}})",
+    "manage_existing_links": "Spravovat existující propojení",
+    "linked_vendors": "Propojení dodavatelé",
+    "no_vendors_linked": "K tomuto riziku nejsou propojeni žádní dodavatelé."
+  },
+  "history": {
+    "recorded_by": "Zaznamenal",
+    "system": "Systém"
+  },
+  "tooltips": {
+    "unarchive_risk": "Obnovit archivované riziko"
+  },
+  "confirmation": {
+    "archive_title": "Archivovat riziko",
+    "archive_message": "\"{{riskName}}\"\n\nTímto přesunete riziko do archivovaného stavu."
+  },
+  "messages": {
+    "archive_submitted_for_approval": "Požadavek na archivaci byl odeslán ke schválení (ID: {{approvalId}}). Riziko zatím nebylo archivováno.",
+    "restore_success": "Riziko bylo úspěšně obnoveno.",
+    "view_pending_approvals_prefix": "Zobrazit čekající schválení v sekci",
+    "view_pending_approvals_suffix": "."
+  },
+  "history_tab": {
+    "aggregated_kri_history": "Agregovaná historie KRI",
+    "no_kri_values": "Zatím nejsou k dispozici žádné hodnoty KRI.",
+    "no_kris_configured": "Pro toto riziko nejsou nakonfigurované žádné KRI."
+  }
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Settings2, Save, Check, AlertCircle } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
+import { apiClient } from '@/services/apiClient';
 import type { GlobalConfig } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
@@ -31,20 +32,20 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
     const [value, setValue] = useState(config.value);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     const hasChanged = value !== config.value;
 
     const handleSave = async () => {
         if (!hasChanged) return;
-        setError(null);
+        setErrorKey(null);
         setSaving(true);
         try {
             await onSave(config.key, value);
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
         } catch (err) {
-            setError(err instanceof Error ? err.message : t('admin:system_settings.errors.save_failed'));
+            setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setSaving(false);
         }
@@ -148,9 +149,9 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
                     </span>
                 )}
 
-                {error && (
+                {errorKey && (
                     <span className="flex items-center gap-1 text-red-400 text-sm">
-                        <AlertCircle className="h-4 w-4" /> {error}
+                        <AlertCircle className="h-4 w-4" /> {t(errorKey, { ns: 'errorKeys' })}
                     </span>
                 )}
             </div>

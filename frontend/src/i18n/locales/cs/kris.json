@@ -1,143 +1,208 @@
 {
-    "title": "Rizikový apetit",
-    "page_subtitle": "Sledování klíčových indikátorů rizika a překročení apetitu.",
-    "new_kri": "Nový KRI",
-    "create_kri": "Vytvořit KRI",
-    "edit_kri": "Upravit KRI",
-    "view_kri": "Zobrazit KRI",
-    "delete_kri": "Smazat KRI",
-    "fields": {
-        "name": "Název KRI",
-        "description": "Popis",
-        "unit": "Jednotka měření",
-        "department": "Oddělení",
-        "owner": "Vlastník KRI",
-        "linked_risk": "Propojené riziko",
-        "frequency": "Frekvence hlášení",
-        "current_value": "Aktuální hodnota",
-        "target_value": "Cílová hodnota",
-        "lower_limit": "Dolní limit",
-        "upper_limit": "Horní limit",
-        "status": "Stav",
-        "last_reported": "Naposledy nahlášeno",
-        "next_due": "Příští termín"
+  "title": "Rizikový apetit",
+  "page_subtitle": "Sledování klíčových indikátorů rizika a překročení apetitu.",
+  "new_kri": "Nový KRI",
+  "create_kri": "Vytvořit KRI",
+  "edit_kri": "Upravit KRI",
+  "view_kri": "Zobrazit KRI",
+  "delete_kri": "Smazat KRI",
+  "fields": {
+    "name": "Název KRI",
+    "description": "Popis",
+    "unit": "Jednotka měření",
+    "department": "Oddělení",
+    "owner": "Vlastník KRI",
+    "linked_risk": "Propojené riziko",
+    "frequency": "Frekvence hlášení",
+    "current_value": "Aktuální hodnota",
+    "target_value": "Cílová hodnota",
+    "lower_limit": "Dolní limit",
+    "upper_limit": "Horní limit",
+    "status": "Stav",
+    "last_reported": "Naposledy nahlášeno",
+    "next_due": "Příští termín"
+  },
+  "frequencies": {
+    "daily": "Denně",
+    "weekly": "Týdně",
+    "monthly": "Měsíčně",
+    "quarterly": "Čtvrtletně",
+    "annually": "Ročně"
+  },
+  "status": {
+    "within_limits": "V limitech",
+    "warning": "Varování",
+    "breached": "Překročeno",
+    "not_reported": "Nenahlášeno",
+    "overdue": "Opožděno"
+  },
+  "tabs": {
+    "overview": "Přehled",
+    "values": "Historie hodnot",
+    "history": "Historie změn"
+  },
+  "values": {
+    "submit_value": "Odeslat hodnotu",
+    "correct_value": "Opravit hodnotu",
+    "value": "Hodnota",
+    "date": "Datum",
+    "submitted_by": "Odeslal",
+    "notes": "Poznámky",
+    "correction": "Oprava",
+    "original_value": "Původní hodnota"
+  },
+  "thresholds": {
+    "title": "Hranice",
+    "tolerance_limits": "Hranice tolerance",
+    "early_warning": "Systém včasného varování",
+    "breach_level": "Kritický limit"
+  },
+  "filters": {
+    "all_frequencies": "Všechny frekvence",
+    "all_departments": "Všechna oddělení",
+    "all_owners": "Všichni vlastníci",
+    "all": "Vše",
+    "within": "V limitu",
+    "breach": "Překročení",
+    "breached_only": "Pouze překročené",
+    "overdue": "Opožděné",
+    "archived": "Archivované",
+    "overdue_only": "Pouze opožděné",
+    "include_archived": "Zobrazit archivované",
+    "search_placeholder": "Hledat podle názvu metriky..."
+  },
+  "empty_state": {
+    "no_kris": "Nebyly nalezeny žádné KRI odpovídající kritériím.",
+    "no_values": "Žádná historie hodnot",
+    "no_linked_risk": "Žádné propojené riziko",
+    "no_group": "Žádné KRI v této skupině."
+  },
+  "columns": {
+    "metric": "Metrika",
+    "value": "Hodnota",
+    "limits": "Limity",
+    "status": "Stav",
+    "risk": "Riziko",
+    "description": "Popis",
+    "ok": "OK"
+  },
+  "actions": {
+    "link_risk": "Propojit riziko",
+    "unarchive": "Obnovit z archivu",
+    "export": "Export",
+    "export_excel": "Export Excel"
+  },
+  "alerts": {
+    "breach_alert": "Upozornění na překročení",
+    "value_breached": "Tento KRI překročil své limity",
+    "overdue_alert": "Odeslání hodnoty je opožděno"
+  },
+  "form": {
+    "validation": {
+      "risk_required": "Vyberte prosím riziko pro pokračování.",
+      "metric_name_required": "Zadejte prosím název KRI.",
+      "description_required": "Zadejte prosím popis."
     },
-    "frequencies": {
-        "daily": "Denně",
-        "weekly": "Týdně",
-        "monthly": "Měsíčně",
-        "quarterly": "Čtvrtletně",
-        "annually": "Ročně"
+    "units": {
+      "percentage": "% (Procenta)",
+      "count": "Počet",
+      "days": "Dny",
+      "hours": "Hodiny",
+      "ratio": "Poměr"
     },
-    "status": {
-        "within_limits": "V limitech",
-        "warning": "Varování",
-        "breached": "Překročeno",
-        "not_reported": "Nenahlášeno",
-        "overdue": "Opožděno"
-    },
-    "tabs": {
-        "overview": "Přehled",
-        "values": "Historie hodnot",
-        "history": "Historie změn"
-    },
-    "values": {
-        "submit_value": "Odeslat hodnotu",
-        "correct_value": "Opravit hodnotu",
-        "value": "Hodnota",
-        "date": "Datum",
-        "submitted_by": "Odeslal",
-        "notes": "Poznámky",
-        "correction": "Oprava",
-        "original_value": "Původní hodnota"
-    },
-    "thresholds": {
-        "title": "Hranice",
-        "tolerance_limits": "Hranice tolerance",
-        "early_warning": "Systém včasného varování",
-        "breach_level": "Kritický limit"
-    },
-    "filters": {
-        "all_frequencies": "Všechny frekvence",
-        "all_departments": "Všechna oddělení",
-        "all_owners": "Všichni vlastníci",
-        "all": "Vše",
-        "within": "V limitu",
-        "breach": "Překročení",
-        "breached_only": "Pouze překročené",
-        "overdue": "Opožděné",
-        "archived": "Archivované",
-        "overdue_only": "Pouze opožděné",
-        "include_archived": "Zobrazit archivované",
-        "search_placeholder": "Hledat podle názvu metriky..."
-    },
-    "empty_state": {
-        "no_kris": "Nebyly nalezeny žádné KRI odpovídající kritériím.",
-        "no_values": "Žádná historie hodnot",
-        "no_linked_risk": "Žádné propojené riziko",
-        "no_group": "Žádné KRI v této skupině."
-    },
-    "columns": {
-        "metric": "Metrika",
-        "value": "Hodnota",
-        "limits": "Limity",
-        "status": "Stav",
-        "risk": "Riziko",
-        "description": "Popis",
-        "ok": "OK"
-    },
-    "actions": {
-        "link_risk": "Propojit riziko",
-        "unarchive": "Obnovit z archivu",
-        "export": "Export",
-        "export_excel": "Export Excel"
-    },
-    "alerts": {
-        "breach_alert": "Upozornění na překročení",
-        "value_breached": "Tento KRI překročil své limity",
-        "overdue_alert": "Odeslání hodnoty je opožděno"
-    },
-    "form": {
-        "validation": {
-            "risk_required": "Vyberte prosím riziko pro pokračování.",
-            "metric_name_required": "Zadejte prosím název KRI.",
-            "description_required": "Zadejte prosím popis."
-        },
-        "units": {
-            "percentage": "% (Procenta)",
-            "count": "Počet",
-            "days": "Dny",
-            "hours": "Hodiny",
-            "ratio": "Poměr"
-        },
-        "reporting_owner_hint": "Nechte prázdné pro použití vlastníka rizika jako výchozího",
-        "placeholders": {
-            "metric_name": "např. Míra stížností zákazníků",
-            "description": "Popište, co tento KRI měří a proč je důležitý...",
-            "search_risks": "Hledat podle ID rizika, názvu...",
-            "all_departments": "Všechna oddělení",
-            "all_processes": "Všechny procesy",
-            "all_categories": "Všechny kategorie",
-            "reporting_owner_default": "Vlastník rizika (výchozí)",
-            "correction_reason": "Vysvětlete, proč je tato oprava potřebná..."
-        }
-    },
-    "correction": {
-        "title": "Opravit hodnotu KRI",
-        "current_value": "Aktuální hodnota",
-        "new_value": "Opravená hodnota",
-        "reason": "Důvod opravy",
-        "reason_placeholder": "Vysvětlete, proč je tato oprava potřebná...",
-        "warning": "Opravy hodnot vyžadují schválení CRO",
-        "submit": "Odeslat opravu",
-        "success": "Oprava odeslána ke schválení"
-    },
-    "overdue": {
-        "badge": "Opožděno",
-        "days_overdue": "{{days}} dní po termínu",
-        "last_submission": "Poslední odeslání: {{date}}"
-    },
-    "labels": {
-        "archived": "Archivováno"
+    "reporting_owner_hint": "Nechte prázdné pro použití vlastníka rizika jako výchozího",
+    "placeholders": {
+      "metric_name": "např. Míra stížností zákazníků",
+      "description": "Popište, co tento KRI měří a proč je důležitý...",
+      "search_risks": "Hledat podle ID rizika, názvu...",
+      "all_departments": "Všechna oddělení",
+      "all_processes": "Všechny procesy",
+      "all_categories": "Všechny kategorie",
+      "reporting_owner_default": "Vlastník rizika (výchozí)",
+      "correction_reason": "Vysvětlete, proč je tato oprava potřebná..."
     }
+  },
+  "correction": {
+    "title": "Opravit hodnotu KRI",
+    "current_value": "Aktuální hodnota",
+    "new_value": "Opravená hodnota",
+    "reason": "Důvod opravy",
+    "reason_placeholder": "Vysvětlete, proč je tato oprava potřebná...",
+    "warning": "Opravy hodnot vyžadují schválení CRO",
+    "submit": "Odeslat opravu",
+    "success": "Oprava odeslána ke schválení"
+  },
+  "overdue": {
+    "badge": "Opožděno",
+    "days_overdue": "{{days}} dní po termínu",
+    "last_submission": "Poslední odeslání: {{date}}"
+  },
+  "labels": {
+    "archived": "Archivováno"
+  },
+  "comparison": {
+    "breach_status": "Stav překročení",
+    "period_end": "Konec období",
+    "lower_limit": "Dolní limit",
+    "upper_limit": "Horní limit",
+    "recorded_by": "Zaznamenal",
+    "system": "Systém",
+    "need_two_entries": "Pro porovnání jsou potřeba alespoň 2 záznamy historie.",
+    "compare_records": "Porovnat záznamy",
+    "analyze_changes": "Analyzujte změny mezi dvěma reportovacími obdobími",
+    "distinct_periods_required": "Výpočet rozdílu vyžaduje dvě různá období.",
+    "delta_analysis": "Analýza rozdílu"
+  },
+  "modal": {
+    "framework": "Rámec klíčových indikátorů rizik",
+    "metric_name": "Název metriky",
+    "current_value_readonly": "Aktuální hodnota (pro změnu použijte Zaznamenat hodnotu)",
+    "unit_examples": "Jednotka (%, EUR apod.)",
+    "lower_limit_breach": "Dolní limit (překročení)",
+    "upper_limit_breach": "Horní limit (překročení)",
+    "last_updated": "Naposledy aktualizováno",
+    "create_indicator": "Vytvořit indikátor",
+    "delete_confirm": "Opravdu chcete smazat \"{{name}}\"? Tuto akci nelze vrátit zpět."
+  },
+  "value_modal": {
+    "title": "Zaznamenat hodnotu",
+    "success_recorded": "Hodnota byla úspěšně zaznamenána!",
+    "submitted_for_approval": "Odesláno ke schválení",
+    "submitted_for_approval_help": "Odeslaná hodnota byla předána ke kontrole Risk Managerovi nebo Adminovi. Po schválení budete informováni.",
+    "approval_notice": "Vaše odeslání bude před použitím vyžadovat schválení Risk Managerem nebo Adminem.",
+    "current_value": "Aktuální hodnota:",
+    "last_period_end": "Konec posledního období:",
+    "new_value_required": "Nová hodnota *",
+    "backdate_optional": "Zpětné datum konce období (volitelné)",
+    "backdate_hint": "Nechte prázdné pro záznam do aktuálního období"
+  },
+  "overview": {
+    "reporting": "Reportování",
+    "last_period_end": "Konec posledního období",
+    "due_date": "Termín",
+    "central_systems": "Centrální systémy",
+    "unassigned": "Nepřiřazeno",
+    "view_complete_risk_analysis": "Zobrazit kompletní analýzu rizika",
+    "metadata": "Metadata",
+    "kri_id": "ID KRI",
+    "last_updated": "Naposledy aktualizováno",
+    "breach": "PŘEKROČENO",
+    "metric_detail": "Detail metriky",
+    "optimal": "Optimální"
+  },
+  "history_edit": {
+    "request_correction": "Požádat o opravu",
+    "period": "Období",
+    "corrected_value_required": "Opravená hodnota je povinná.",
+    "reason_required": "Důvod je povinný.",
+    "submitting": "Odesílání..."
+  },
+  "history_tab": {
+    "value_trend": "Trend hodnoty",
+    "empty_message": "Nebyly nalezeny žádné historické záznamy.",
+    "record_timeline": "Časová osa záznamů",
+    "entries_count": "{{count}} záznamů",
+    "compare_periods": "Porovnat období",
+    "need_two_entries_compare": "Pro porovnání vyberte alespoň dva záznamy."
+  }
 }
