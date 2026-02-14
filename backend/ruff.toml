@@ -12,7 +12,7 @@ exclude = [
 
 [lint]
 select = ["E", "F", "W", "I"]
-ignore = ["E402", "E501", "E712", "W291", "W293"]
+ignore = ["E501"]
 
 [lint.per-file-ignores]
 "alembic/versions/*.py" = ["E", "F", "W", "I"]

@@ -16,7 +16,7 @@ class DepartmentRead(DepartmentBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -32,7 +32,7 @@ class DepartmentSummary(BaseModel):
     breaching_kri_count: int = 0
     kri_count: int = 0
     total_net_score: int = 0
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -61,7 +61,7 @@ class RecentExecution(BaseModel):
     result: str
     executed_at: datetime
     executed_by: str
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -70,21 +70,21 @@ class DepartmentDetail(DepartmentBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    
+
     # Counts
     user_count: int
     risk_count: int
     control_count: int
     kri_count: int = 0
-    
+
     # Risk metrics
     risk_distribution: RiskDistribution
     risk_by_status: dict[str, int]
-    
+
     # Control metrics
     control_stats: ControlStats
-    
+
     # Recent activity
     recent_executions: list[RecentExecution]
-    
+
     model_config = {"from_attributes": True}

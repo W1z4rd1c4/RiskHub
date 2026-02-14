@@ -14,14 +14,14 @@ class PreferencesUpdate(BaseModel):
     """Schema for updating user preferences."""
     theme: str | None = None
     language: str | None = None
-    
+
     @field_validator('theme')
     @classmethod
     def validate_theme(cls, v: str | None) -> str | None:
         if v is not None and v not in ('light', 'dark', 'riskhub'):
             raise ValueError('Invalid theme. Must be one of: light, dark, riskhub')
         return v
-    
+
     @field_validator('language')
     @classmethod
     def validate_language(cls, v: str | None) -> str | None:
@@ -58,10 +58,10 @@ async def update_preferences(
         current_user.preferred_theme = data.theme
     if data.language is not None:
         current_user.preferred_language = data.language
-    
+
     await db.commit()
     await db.refresh(current_user)
-    
+
     return PreferencesResponse(
         theme=current_user.preferred_theme,
         language=current_user.preferred_language,

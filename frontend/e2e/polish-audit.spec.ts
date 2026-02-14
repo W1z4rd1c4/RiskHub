@@ -14,6 +14,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { loginAsDemoUser, DEMO_ACCOUNTS } from './helpers/login';
 import { waitForDataLoad } from './helpers/wait';
+import { navigateSpa } from './helpers/spaNavigate';
 
 type AuditTheme = 'riskhub' | 'light';
 type AuditLanguage = 'en' | 'cs';
@@ -71,17 +72,79 @@ function safeFilename(input: string): string {
         .toLowerCase();
 }
 
-async function firstNumericIdFromLinks(page: Page, hrefPrefix: string): Promise<string | null> {
-    const hrefs = await page
-        .locator(`a[href^="${hrefPrefix}"]`)
-        .evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).getAttribute('href') || ''));
+function apiUrlForPage(page: Page, apiPath: string): string {
+    const fallbackOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const origin = (() => {
+        try {
+            return new URL(page.url()).origin;
+        } catch {
+            return fallbackOrigin;
+        }
+    })();
 
-    for (const href of hrefs) {
-        const remainder = href.slice(hrefPrefix.length);
-        const id = remainder.split('/')[0];
-        if (/^\\d+$/.test(id)) return id;
-    }
+    return new URL(apiPath, origin).toString();
+}
+
+function firstNumericIdFromItemsPayload(payload: unknown): string | null {
+    if (!payload || typeof payload !== 'object') return null;
+    const items = (payload as { items?: unknown }).items;
+    if (!Array.isArray(items) || items.length === 0) return null;
+    const first = items[0] as { id?: unknown };
+    const idValue = first?.id;
+    if (typeof idValue === 'number' && Number.isFinite(idValue)) return String(idValue);
+    if (typeof idValue === 'string' && /^\\d+$/.test(idValue)) return idValue;
     return null;
+}
+
+function firstNumericIdFromArrayPayload(payload: unknown): string | null {
+    if (!Array.isArray(payload) || payload.length === 0) return null;
+    const first = payload[0] as { id?: unknown };
+    const idValue = first?.id;
+    if (typeof idValue === 'number' && Number.isFinite(idValue)) return String(idValue);
+    if (typeof idValue === 'string' && /^\\d+$/.test(idValue)) return idValue;
+    return null;
+}
+
+async function firstIdFromApi(page: Page, authToken: string, routePath: string): Promise<string | null> {
+    const headers = { Authorization: `Bearer ${authToken}` };
+    const getJson = async (apiPath: string): Promise<unknown | null> => {
+        const resp = await page.request.get(apiUrlForPage(page, apiPath), { headers });
+        if (!resp.ok()) return null;
+        return await resp.json().catch(() => null);
+    };
+
+    switch (routePath) {
+        case '/controls': {
+            const data = await getJson('/api/v1/controls?skip=0&limit=1');
+            return firstNumericIdFromItemsPayload(data);
+        }
+        case '/risks': {
+            const data = await getJson('/api/v1/risks?skip=0&limit=1');
+            return firstNumericIdFromItemsPayload(data);
+        }
+        case '/issues': {
+            const data = await getJson('/api/v1/issues?skip=0&limit=1');
+            return firstNumericIdFromItemsPayload(data);
+        }
+        case '/kris': {
+            const data = await getJson('/api/v1/kris?page=1&size=1');
+            return firstNumericIdFromItemsPayload(data);
+        }
+        case '/departments': {
+            const data = await getJson('/api/v1/departments');
+            return firstNumericIdFromArrayPayload(data);
+        }
+        case '/vendors': {
+            const data = await getJson('/api/v1/vendors?skip=0&limit=1');
+            return firstNumericIdFromItemsPayload(data);
+        }
+        case '/users': {
+            const data = await getJson('/api/v1/users/lookup?skip=0&limit=1');
+            return firstNumericIdFromArrayPayload(data);
+        }
+        default:
+            return null;
+    }
 }
 
 async function seedLocalStorage(page: Page, theme: AuditTheme, language: AuditLanguage): Promise<void> {
@@ -183,7 +246,9 @@ test.describe('Polish Audit (page-by-page)', () => {
                         if (visited.has(routePath)) return;
                         visited.add(routePath);
 
+                        // Ensure previous route record is closed before starting a new one.
                         finalizeCurrent();
+                        current = null;
 
                         current = {
                             route: routePath,
@@ -198,8 +263,20 @@ test.describe('Polish Audit (page-by-page)', () => {
                         };
                         records.push(current);
 
-                        await page.goto(routePath);
-                        await waitForDataLoad(page, 45000);
+                        const timeoutMs = 45000;
+                        const isPublicRoute = routePath === '/landing' || routePath === '/login';
+
+                        if (isPublicRoute) {
+                            await page.goto(routePath);
+                            await waitForDataLoad(page, timeoutMs);
+                        } else {
+                            await navigateSpa(page, routePath, {
+                                timeout: timeoutMs,
+                                onFallbackGoto: (reason) => {
+                                    current?.notes.push(`navigation: fell back to hard page.goto (SPA nav failed): ${reason}`);
+                                },
+                            });
+                        }
 
                         current.finalUrl = page.url();
 
@@ -248,11 +325,16 @@ test.describe('Polish Audit (page-by-page)', () => {
                                 await page.waitForTimeout(250);
                                 await takeScreenshot('approval_resolution_dialog');
 
-                                const cancelBtn = page.locator('[data-testid="approval-resolution-cancel"]').first();
-                                if (await cancelBtn.isVisible().catch(() => false)) {
-                                    await cancelBtn.click();
+                                // Close the resolution dialog in a language-safe way.
+                                const dialogRoot = page.locator('div.fixed.inset-0.z-50').first();
+                                if (await dialogRoot.isVisible().catch(() => false)) {
+                                    await dialogRoot.locator('button').first().click().catch(() => { });
+                                    await dialogRoot.waitFor({ state: 'detached', timeout: 2000 }).catch(async () => {
+                                        // Fallback: click the backdrop
+                                        await page.mouse.click(5, 5);
+                                    });
                                 } else {
-                                    // Click the backdrop to close (reliable even when translated)
+                                    // Fallback: click the backdrop (should hit overlay)
                                     await page.mouse.click(5, 5);
                                 }
                             }
@@ -381,6 +463,9 @@ test.describe('Polish Audit (page-by-page)', () => {
                             current.notes.push(`numeric-id guardrail flagged ${numericIdFindings.length} element(s)`);
                         }
                         expect(numericIdFindings, 'No numeric DB IDs should be displayed as user-facing fallbacks').toEqual([]);
+
+                        finalizeCurrent();
+                        current = null;
                     };
 
                     // Pre-login public pages
@@ -389,6 +474,11 @@ test.describe('Polish Audit (page-by-page)', () => {
 
                     // Login (demo account picker)
                     await loginAsDemoUser(page, accountName);
+
+                    const authToken = await page.evaluate(() => localStorage.getItem('access_token'));
+                    if (!authToken) {
+                        throw new Error('polish-audit: missing access_token after login');
+                    }
 
                     // Post-login: core routes per role
                     const baseRoutes: string[] = role === 'ADMIN'
@@ -441,43 +531,43 @@ test.describe('Polish Audit (page-by-page)', () => {
 
                         // Expand dynamic routes from list pages (first discovered entity id).
                         if (routePath === '/controls') {
-                            const id = await firstNumericIdFromLinks(page, '/controls/');
+                            const id = await firstIdFromApi(page, authToken, routePath);
                             if (id) {
                                 toVisit.splice(i + 1, 0, `/controls/${id}`, `/controls/${id}/edit`);
                             }
                         }
                         if (routePath === '/risks') {
-                            const id = await firstNumericIdFromLinks(page, '/risks/');
+                            const id = await firstIdFromApi(page, authToken, routePath);
                             if (id) {
                                 toVisit.splice(i + 1, 0, `/risks/${id}`, `/risks/${id}/edit`);
                             }
                         }
                         if (routePath === '/issues') {
-                            const id = await firstNumericIdFromLinks(page, '/issues/');
+                            const id = await firstIdFromApi(page, authToken, routePath);
                             if (id) {
                                 toVisit.splice(i + 1, 0, `/issues/${id}`);
                             }
                         }
                         if (routePath === '/kris') {
-                            const id = await firstNumericIdFromLinks(page, '/kris/');
+                            const id = await firstIdFromApi(page, authToken, routePath);
                             if (id) {
                                 toVisit.splice(i + 1, 0, `/kris/${id}`);
                             }
                         }
                         if (routePath === '/departments') {
-                            const id = await firstNumericIdFromLinks(page, '/departments/');
+                            const id = await firstIdFromApi(page, authToken, routePath);
                             if (id) {
                                 toVisit.splice(i + 1, 0, `/departments/${id}`);
                             }
                         }
                         if (routePath === '/vendors') {
-                            const id = await firstNumericIdFromLinks(page, '/vendors/');
+                            const id = await firstIdFromApi(page, authToken, routePath);
                             if (id) {
                                 toVisit.splice(i + 1, 0, `/vendors/${id}`, `/vendors/${id}/edit`);
                             }
                         }
                         if (routePath === '/users') {
-                            const id = await firstNumericIdFromLinks(page, '/users/');
+                            const id = await firstIdFromApi(page, authToken, routePath);
                             if (id) {
                                 toVisit.splice(i + 1, 0, `/users/${id}`);
                             }

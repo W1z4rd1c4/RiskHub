@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authApi } from '@/services/authApi';
 import { syncPreferencesFromServer, clearLocalSettings } from '@/utils/userSettingsStorage';
 
@@ -19,6 +19,7 @@ interface User {
 interface AuthContextType {
     user: User | null;
     isLoading: boolean;
+    isPreferencesHydrated: boolean;
     hasPermission: (resource: string, action: string) => boolean;
     isAuthenticated: boolean;
     login: (email: string, password: string) => Promise<User>;
@@ -33,11 +34,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isPreferencesHydrated, setIsPreferencesHydrated] = useState(!token);
+
+    const updatePreferencesReadySignal = useCallback((ready: boolean) => {
+        if (typeof window !== 'undefined') {
+            window.__RISKHUB_PREFERENCES_READY__ = ready;
+        }
+        if (typeof document !== 'undefined') {
+            document.documentElement.dataset.preferencesHydrated = ready ? 'true' : 'false';
+        }
+    }, []);
 
     const setToken = (newToken: string) => {
         localStorage.setItem('access_token', newToken);
         setTokenState(newToken);
     };
+
+    const hydratePreferences = useCallback(async () => {
+        setIsPreferencesHydrated(false);
+        updatePreferencesReadySignal(false);
+
+        try {
+            await syncPreferencesFromServer();
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsPreferencesHydrated(true);
+            updatePreferencesReadySignal(true);
+        }
+    }, [updatePreferencesReadySignal]);
 
     const login = async (email: string, password: string): Promise<User> => {
         try {
@@ -45,8 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setToken(response.access_token);
             setUser(response.user);
 
-            // Sync preferences from server (async, don't block login)
-            syncPreferencesFromServer().catch(console.error);
+            // Keep settings hydration deterministic for theme/language persistence.
+            await hydratePreferences();
 
             return response.user;
         } catch (err) {
@@ -54,29 +79,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const logout = () => {
+    const logout = useCallback(() => {
         localStorage.removeItem('access_token');
         clearLocalSettings(); // Clear theme/language
         setTokenState(null);
         setUser(null);
-    };
+        setIsPreferencesHydrated(true);
+        updatePreferencesReadySignal(true);
+    }, [updatePreferencesReadySignal]);
 
     useEffect(() => {
         let isMounted = true;
 
         const fetchCurrentUser = async () => {
             if (!token) {
-                if (isMounted) setIsLoading(false);
+                if (isMounted) {
+                    setIsPreferencesHydrated(true);
+                    updatePreferencesReadySignal(true);
+                    setIsLoading(false);
+                }
                 return;
             }
 
             try {
+                if (isMounted) {
+                    setIsPreferencesHydrated(false);
+                    updatePreferencesReadySignal(false);
+                }
                 const userData = await authApi.getCurrentUser(token);
                 if (isMounted) {
                     setUser(userData);
-                    // Sync preferences on app load
-                    syncPreferencesFromServer().catch(console.error);
                 }
+                await hydratePreferences();
             } catch {
                 // Token invalid, clear it
                 if (isMounted) {
@@ -94,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => {
             isMounted = false;
         };
-    }, [token]);
+    }, [hydratePreferences, logout, token, updatePreferencesReadySignal]);
 
     const hasPermission = (resource: string, action: string): boolean => {
         // Use effective_permissions if available, fallback to permissions
@@ -111,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             value={{
                 user,
                 isLoading,
+                isPreferencesHydrated,
                 hasPermission,
                 isAuthenticated: !!token && !!user,
                 login,

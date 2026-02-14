@@ -51,15 +51,15 @@ class RiskBase(BaseModel):
     description: str = Field(..., description="Risk description")
     department_id: Optional[int] = Field(None, description="Owner department")
     owner_id: Optional[int] = Field(None, description="Risk owner")
-    
+
     # Gross risk (before controls)
     gross_probability: int = Field(3, ge=1, le=5, description="Probability 1-5")
     gross_impact: int = Field(3, ge=1, le=5, description="Impact 1-5")
-    
+
     # Net risk (after controls)
     net_probability: int = Field(2, ge=1, le=5, description="Net probability 1-5")
     net_impact: int = Field(2, ge=1, le=5, description="Net impact 1-5")
-    
+
     # Metadata
     status: RiskStatusEnum = Field(RiskStatusEnum.active)
     is_priority: bool = Field(False, description="In Risk Catalog (high priority)")
@@ -101,7 +101,7 @@ class UserBriefForRisk(BaseModel):
     id: int
     name: str
     email: str
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -110,7 +110,7 @@ class DepartmentBriefForRisk(BaseModel):
     id: int
     name: str
     code: str
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -124,7 +124,7 @@ class RiskRead(RiskBase):
     kris: list["KRIResponse"] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -148,7 +148,7 @@ class RiskSummary(BaseModel):
     kri_count: int = 0
     control_count: int = 0
     has_breach: bool = False
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -183,7 +183,7 @@ class ControlBriefForLink(BaseModel):
     frequency: str
     risk_level: int
     status: ControlStatusEnum
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -197,7 +197,7 @@ class RiskBriefForLink(BaseModel):
     gross_score: int
     net_score: int
     status: Optional[RiskStatusEnum] = None
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -211,5 +211,5 @@ class ControlRiskLinkRead(BaseModel):
     control: Optional[ControlBriefForLink] = None
     risk: Optional[RiskBriefForLink] = None
     created_at: datetime
-    
+
     model_config = {"from_attributes": True}

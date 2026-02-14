@@ -18,7 +18,7 @@ class OrphanedItemRead(BaseModel):
     resolved_by_id: Optional[int] = None
     new_owner_id: Optional[int] = None
     status: str  # "pending" | "resolved"
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -35,7 +35,7 @@ class OrphanedItemDetail(BaseModel):
     previous_owner_email: str
     orphaned_at: datetime
     status: str
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 

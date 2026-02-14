@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class NotificationService:
     """Service for creating and managing notifications."""
-    
+
     @staticmethod
     async def create_notification(
         db: AsyncSession,
@@ -32,7 +32,7 @@ class NotificationService:
     ) -> Notification | None:
         """
         Create a single notification for a user.
-        
+
         Args:
             db: Database session
             user_id: ID of the user to notify
@@ -42,7 +42,7 @@ class NotificationService:
             resource_type: Optional resource type (risk, control, kri, approval)
             resource_id: Optional resource ID for navigation
             skip_preference_check: If True, skip user preference check (for critical notifications)
-            
+
         Returns:
             Created Notification object, or None if user has disabled this type
         """
@@ -55,7 +55,7 @@ class NotificationService:
                 if not user.notification_preferences.get(type_key, True):
                     logger.debug(f"Skipping notification {notification_type.value} for user {user_id} - disabled")
                     return None
-        
+
         notification = Notification(
             user_id=user_id,
             type=notification_type,
@@ -107,7 +107,7 @@ class NotificationService:
             skip_preference_check=skip_preference_check,
             created_at=created_at,
         )
-    
+
     @staticmethod
     async def notify_approvers(
         db: AsyncSession,
@@ -115,11 +115,11 @@ class NotificationService:
     ) -> list[Notification]:
         """
         Notify all users who can approve requests about a new pending approval.
-        
+
         Args:
             db: Database session
             approval: The newly created approval request
-            
+
         Returns:
             List of created Notification objects
         """
@@ -130,7 +130,7 @@ class NotificationService:
             .join(RolePermission, RolePermission.role_id == Role.id)
             .join(Permission, RolePermission.permission_id == Permission.id)
             .where(
-                User.is_active == True,
+                User.is_active.is_(True),
                 User.access_scope == AccessScope.GLOBAL,  # only privileged approvers
                 or_(
                     (Permission.resource.in_(("approvals", "*")) & Permission.action.in_(("write", "*"))),
@@ -140,10 +140,10 @@ class NotificationService:
             .distinct()
         )
         candidates = (await db.execute(candidates_stmt)).scalars().all()
-        
+
         notifications = []
         action_label = "delete" if approval.action_type.value == "delete" else "edit"
-        
+
         for approver in candidates:
             # Don't notify the requester themselves if they're an approver
             if approver.id == approval.requested_by_id:
@@ -162,7 +162,7 @@ class NotificationService:
 
             if not visible:
                 continue
-                
+
             try:
                 notification = await NotificationService.create_notification(
                     db=db,
@@ -178,10 +178,10 @@ class NotificationService:
             except Exception as e:
                 logger.error(f"Failed to create notification for approver {approver.id}: {e}")
                 # Continue creating notifications for other approvers
-        
+
         logger.info(f"Created {len(notifications)} approval pending notifications for approval {approval.id}")
         return notifications
-    
+
     @staticmethod
     async def notify_requester_resolved(
         db: AsyncSession,
@@ -190,26 +190,26 @@ class NotificationService:
     ) -> Notification | None:
         """
         Notify the original requester that their approval was resolved.
-        
+
         Args:
             db: Database session
             approval: The resolved approval request
             approved: True if approved, False if rejected
-            
+
         Returns:
             Created Notification object, or None if creation failed
         """
         action_label = "delete" if approval.action_type.value == "delete" else "edit"
         status_label = "approved" if approved else "rejected"
-        
+
         try:
             title = f"Request {status_label}"
             message = f"Your {action_label} request for {approval.resource_type.value} '{approval.resource_name}' was {status_label}."
-            
+
             # Add resolution notes if present
             if approval.resolution_notes:
                 message += f" Note: {approval.resolution_notes}"
-            
+
             notification = await NotificationService.create_notification(
                 db=db,
                 user_id=approval.requested_by_id,
@@ -219,14 +219,14 @@ class NotificationService:
                 resource_type="approval",
                 resource_id=approval.id,
             )
-            
+
             logger.info(f"Created resolution notification for requester {approval.requested_by_id}")
             return notification
-            
+
         except Exception as e:
             logger.error(f"Failed to create resolution notification for requester {approval.requested_by_id}: {e}")
             return None
-    
+
     @staticmethod
     async def notify_approvers_cancelled(
         db: AsyncSession,
@@ -235,12 +235,12 @@ class NotificationService:
     ) -> list[Notification]:
         """
         Notify approvers that a pending approval request was cancelled by the requester.
-        
+
         Args:
             db: Database session
             approval: The cancelled approval request
             cancelled_by_user: The user who cancelled the request
-            
+
         Returns:
             List of created Notification objects
         """
@@ -251,7 +251,7 @@ class NotificationService:
             .join(RolePermission, RolePermission.role_id == Role.id)
             .join(Permission, RolePermission.permission_id == Permission.id)
             .where(
-                User.is_active == True,
+                User.is_active.is_(True),
                 User.access_scope == AccessScope.GLOBAL,  # only privileged approvers
                 or_(
                     (Permission.resource.in_(("approvals", "*")) & Permission.action.in_(("write", "*"))),
@@ -261,10 +261,10 @@ class NotificationService:
             .distinct()
         )
         candidates = (await db.execute(candidates_stmt)).scalars().all()
-        
+
         notifications = []
         action_label = "delete" if approval.action_type.value == "delete" else "edit"
-        
+
         for approver in candidates:
             # Don't notify the user who cancelled
             if approver.id == cancelled_by_user.id:
@@ -282,7 +282,7 @@ class NotificationService:
 
             if not visible:
                 continue
-                
+
             try:
                 notification = await NotificationService.create_notification(
                     db=db,
@@ -298,6 +298,6 @@ class NotificationService:
             except Exception as e:
                 logger.error(f"Failed to create cancellation notification for approver {approver.id}: {e}")
                 # Continue creating notifications for other approvers
-        
+
         logger.info(f"Created {len(notifications)} cancellation notifications for approval {approval.id}")
         return notifications

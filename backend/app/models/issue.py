@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
@@ -22,6 +23,15 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.control import Control
+    from app.models.control_execution import ControlExecution
+    from app.models.department import Department
+    from app.models.key_risk_indicator import KeyRiskIndicator
+    from app.models.risk import Risk
+    from app.models.user import User
+    from app.models.vendor import Vendor
 
 
 class IssueSeverity(str, PyEnum):
@@ -225,12 +235,3 @@ class IssueException(Base):
     issue: Mapped["Issue"] = relationship("Issue", back_populates="exceptions", lazy="selectin")
     requested_by: Mapped["User | None"] = relationship("User", foreign_keys=[requested_by_id], lazy="selectin")
     approved_by: Mapped["User | None"] = relationship("User", foreign_keys=[approved_by_id], lazy="selectin")
-
-
-from app.models.control import Control
-from app.models.control_execution import ControlExecution
-from app.models.department import Department
-from app.models.key_risk_indicator import KeyRiskIndicator
-from app.models.risk import Risk
-from app.models.user import User
-from app.models.vendor import Vendor

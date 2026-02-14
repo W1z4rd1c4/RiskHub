@@ -3,6 +3,7 @@
  * Provides reusable login utilities for the demo account picker
  */
 import { Page } from '@playwright/test';
+import { waitForPreferencesHydration } from './waitForPreferencesHydration';
 
 export interface LoginOptions {
     retries?: number;
@@ -39,6 +40,7 @@ export async function loginAsDemoUser(
 
             // Verify we're actually logged in by checking for nav element
             await page.waitForSelector('nav', { timeout: 10000 });
+            await waitForPreferencesHydration(page, timeout);
 
             return; // Success
         } catch (error) {

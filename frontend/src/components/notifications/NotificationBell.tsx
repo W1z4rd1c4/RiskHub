@@ -291,6 +291,7 @@ export function NotificationBell() {
                         )}
                         <button
                             onClick={handleViewAll}
+                            data-testid="notification-view-all-button"
                             className="text-xs text-slate-400 hover:text-white font-medium ml-auto"
                         >
                             {tCommon('actions.view_all')}

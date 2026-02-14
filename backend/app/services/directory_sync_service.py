@@ -77,7 +77,7 @@ def _build_department_code(name: str, existing_codes: set[str]) -> str:
 
 async def _resolve_default_role(db: AsyncSession) -> Role:
     """Resolve a safe default role for new directory users.
-    
+
     Only returns non-privileged roles (employee, control_owner, viewer).
     Raises ValueError if no suitable role exists - never falls back to privileged roles.
     """
@@ -236,7 +236,7 @@ class DirectorySyncService:
 
                 # Prioritize matching by external_id
                 user = user_by_external_id.get(external_id)
-                
+
                 normalized_email = _normalize_email(email)
                 normalized_upn = _normalize_email(upn)
                 target_email = normalized_email or normalized_upn
@@ -371,7 +371,7 @@ class DirectorySyncService:
 
                 user = user_by_id.get(user_id)
                 manager_user_id = planned_user_ids.get(manager_external_id)
-                
+
                 if not manager_user_id or user.manager_id == manager_user_id:
                     continue
 
@@ -400,7 +400,7 @@ class DirectorySyncService:
                 sync_log.status = DirectorySyncStatus.success
                 if error_count > 0:
                     sync_log.status = DirectorySyncStatus.partial if (created_count or updated_count or deactivated_count) else DirectorySyncStatus.failed
-                
+
                 sync_log.finished_at = datetime.now(UTC)
                 sync_log.created_count = created_count
                 sync_log.updated_count = updated_count
@@ -409,7 +409,7 @@ class DirectorySyncService:
                 sync_log.errors = errors or None
 
                 await db.commit()
-                
+
                 # 7. Post-sync Cleanup
                 try:
                     cleaned = await DirectorySyncService.cleanup_empty_departments(db)
@@ -440,24 +440,24 @@ class DirectorySyncService:
     async def detect_orphans(db: AsyncSession, user_id: int) -> dict:
         """
         Detect items that will become orphaned when a user is deactivated.
-        
+
         Returns dict with lists of affected item IDs.
         """
         from app.models.control import Control
         from app.models.risk import Risk
-        
+
         # Find risks owned by this user
         risks_result = await db.execute(
             select(Risk.id).where(Risk.owner_id == user_id)
         )
         risk_ids = [r[0] for r in risks_result.all()]
-        
+
         # Find controls owned by this user
         controls_result = await db.execute(
             select(Control.id).where(Control.control_owner_id == user_id)
         )
         control_ids = [c[0] for c in controls_result.all()]
-        
+
         return {
             "risks": risk_ids,
             "controls": control_ids,
@@ -472,25 +472,25 @@ class DirectorySyncService:
     ) -> dict:
         """
         Sync a single user based on webhook event.
-        
+
         Args:
             db: Database session
             user_data: User data from webhook payload
             event_type: One of "user.created", "user.updated", "user.deactivated", "user.activated"
-            
+
         Returns:
             Dict with action taken, user_id, and orphaned_items (for deactivation)
         """
         external_id = user_data.get("external_id")
         if not external_id:
             raise ValueError("Missing external_id in user data")
-        
+
         # Find existing user
         result = await db.execute(
             select(User).where(User.external_id == external_id)
         )
         user = result.scalar_one_or_none()
-        
+
         # Also try to find by email if not found by external_id
         if not user and user_data.get("email"):
             email = _normalize_email(user_data.get("email"))
@@ -499,9 +499,9 @@ class DirectorySyncService:
                     select(User).where(func.lower(User.email) == email)
                 )
                 user = result.scalar_one_or_none()
-        
+
         orphaned_items = {"risks": [], "controls": [], "total": 0}
-        
+
         if event_type == "user.deactivated":
             if not user:
                 logger.warning(f"Cannot deactivate unknown user: {external_id}")
@@ -510,11 +510,11 @@ class DirectorySyncService:
                     "user_id": None,
                     "orphaned_items": orphaned_items,
                 }
-            
+
             # Flag orphaned items before deactivating
             from app.services.orphaned_item_service import OrphanedItemService
             flagged_items = await OrphanedItemService.flag_orphaned_items(db, user.id)
-            
+
             # Detect orphans for the response
             orphaned_items = await DirectorySyncService.detect_orphans(db, user.id)
             if orphaned_items["total"] > 0:
@@ -523,17 +523,17 @@ class DirectorySyncService:
                     f"{len(orphaned_items['risks'])} risks and "
                     f"{len(orphaned_items['controls'])} controls as orphaned"
                 )
-            
+
             user.is_active = False
             await db.commit()
-            
+
             return {
                 "action": "deactivated",
                 "user_id": user.id,
                 "orphaned_items": orphaned_items,
                 "flagged_count": len(flagged_items),
             }
-        
+
         elif event_type == "user.activated":
             if not user:
                 logger.warning(f"Cannot activate unknown user: {external_id}")
@@ -542,32 +542,32 @@ class DirectorySyncService:
                     "user_id": None,
                     "orphaned_items": orphaned_items,
                 }
-            
+
             user.is_active = True
             await db.commit()
-            
+
             return {
                 "action": "activated",
                 "user_id": user.id,
                 "orphaned_items": orphaned_items,
             }
-        
+
         elif event_type in ("user.created", "user.updated"):
             # Load caches for department handling
             departments = (await db.execute(select(Department))).scalars().all()
             dept_cache = {d.name.lower(): d for d in departments}
             existing_codes = {d.code.upper() for d in departments if d.code}
-            
+
             target_email = _normalize_email(user_data.get("email"))
             target_name = _display_name(user_data, target_email)
             target_department = _normalize_text(user_data.get("department"))
             target_active = user_data.get("account_enabled", True)
             target_employee_type = user_data.get("employee_type", "employee")
-            
+
             if user:
                 # UPDATE existing user
                 dept = await _get_or_create_department(db, target_department, dept_cache, existing_codes)
-                
+
                 user.email = target_email or user.email
                 user.name = target_name
                 user.is_active = target_active
@@ -575,9 +575,9 @@ class DirectorySyncService:
                 user.employee_type = target_employee_type
                 if dept:
                     user.department_id = dept.id
-                
+
                 await db.commit()
-                
+
                 return {
                     "action": "updated",
                     "user_id": user.id,
@@ -587,7 +587,7 @@ class DirectorySyncService:
                 # CREATE new user
                 default_role = await _resolve_default_role(db)
                 dept = await _get_or_create_department(db, target_department, dept_cache, existing_codes)
-                
+
                 user = User(
                     email=target_email,
                     name=target_name,
@@ -602,19 +602,19 @@ class DirectorySyncService:
                 db.add(user)
                 await db.commit()
                 await db.refresh(user)
-                
+
                 # Cleanup (fire and forget check)
                 try:
                      await DirectorySyncService.cleanup_empty_departments(db)
                 except Exception as e:
                     logger.error(f"Failed to cleanup empty departments in single sync: {e}")
-                
+
                 return {
                     "action": "created",
                     "user_id": user.id,
                     "orphaned_items": orphaned_items,
                 }
-        
+
         else:
             raise ValueError(f"Unknown event type: {event_type}")
 
@@ -638,22 +638,22 @@ class DirectorySyncService:
         # Find empty non-system departments
         # Department is empty if it has NO users with is_active=True
         # We use a left join on users filtering for active ones
-        
+
         # Subquery for departments with ACTIVE users
         active_dept_ids = select(User.department_id).where(
-            and_(User.department_id.isnot(None), User.is_active == True)
+            and_(User.department_id.isnot(None), User.is_active.is_(True))
         ).distinct()
 
         # Select departments NOT in that list
         stmt = (
             select(Department)
-            .where(Department.is_system == False)
+            .where(Department.is_system.is_(False))
             .where(Department.id.not_in(active_dept_ids))
         )
-        
+
         result = await db.execute(stmt)
         empty_depts = result.scalars().all()
-        
+
         cleanup_count = 0
         for dept in empty_depts:
             # Move Risks
@@ -673,5 +673,5 @@ class DirectorySyncService:
 
         if cleanup_count > 0:
             await db.commit()
-            
+
         return cleanup_count

@@ -20,7 +20,7 @@ MESSAGES = {
         'request_timeout': 'Časový limit požadavku vypršel',
         'service_unavailable': 'Služba je dočasně nedostupná',
     },
-    
+
     # Validation messages
     'validation': {
         'required': 'Toto pole je povinné',
@@ -39,7 +39,7 @@ MESSAGES = {
         'future_date': 'Datum musí být v budoucnosti',
         'past_date': 'Datum musí být v minulosti',
     },
-    
+
     # Approval workflow messages
     'approvals': {
         'request_created': 'Žádost o schválení vytvořena',
@@ -53,7 +53,7 @@ MESSAGES = {
         'privileged_required': 'Vyžadováno privilegované schválení',
         'resolution_notes_required': 'Poznámky k rozhodnutí jsou povinné',
     },
-    
+
     # Notification messages
     'notifications': {
         'kri_value_due': 'KRI hodnota k odeslání',
@@ -97,7 +97,7 @@ MESSAGES = {
         'vendor_sla_breach_detected_title': 'SLA dodavatele překročilo limit',
         'vendor_sla_breach_detected_message': "SLA '{sla_name}' pro dodavatele '{vendor_name}' překročilo limit.",
     },
-    
+
     # Activity log action descriptions
     'activity': {
         # Risk actions
@@ -106,14 +106,14 @@ MESSAGES = {
         'risk_archived': 'Archivováno riziko',
         'risk_deleted': 'Smazáno riziko',
         'risk_restored': 'Obnoveno riziko',
-        
+
         # Control actions
         'control_created': 'Vytvořena kontrola',
         'control_updated': 'Aktualizována kontrola',
         'control_archived': 'Archivována kontrola',
         'control_deleted': 'Smazána kontrola',
         'control_executed': 'Provedena kontrola',
-        
+
         # KRI actions
         'kri_created': 'Vytvořen KRI',
         'kri_updated': 'Aktualizován KRI',
@@ -121,17 +121,17 @@ MESSAGES = {
         'kri_deleted': 'Smazán KRI',
         'kri_value_submitted': 'Odeslána hodnota KRI',
         'kri_value_corrected': 'Opravena hodnota KRI',
-        
+
         # Approval actions
         'approval_created': 'Vytvořena žádost o schválení',
         'approval_approved': 'Schválena žádost',
         'approval_rejected': 'Zamítnuta žádost',
         'approval_cancelled': 'Zrušena žádost',
-        
+
         # Link actions
         'link_created': 'Vytvořeno propojení mezi {source} a {target}',
         'link_removed': 'Odstraněno propojení mezi {source} a {target}',
-        
+
         # User actions
         'user_login': 'Uživatel přihlášen',
         'user_logout': 'Uživatel odhlášen',
@@ -139,7 +139,7 @@ MESSAGES = {
         'user_updated': 'Aktualizován uživatel',
         'user_deactivated': 'Deaktivován uživatel',
     },
-    
+
     # Entity type names
     'entities': {
         'risk': 'Riziko',
@@ -149,7 +149,7 @@ MESSAGES = {
         'department': 'Oddělení',
         'approval': 'Žádost o schválení',
     },
-    
+
     # Status labels
     'status': {
         'active': 'Aktivní',
@@ -162,7 +162,7 @@ MESSAGES = {
         'monitoring': 'Monitorováno',
         'closed': 'Uzavřeno',
     },
-    
+
     # Success messages
     'success': {
         'created': '{entity} úspěšně vytvořen/a',

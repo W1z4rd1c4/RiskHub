@@ -44,14 +44,14 @@ async def list_kris(
 ):
     """List all KRIs with optional filters."""
     from app.core.permissions import get_kri_ids_where_reporting_owner
-    
+
     # Apply department filtering via Risk join
     query = select(KeyRiskIndicator).join(Risk)
-    
+
     # Exclude archived KRIs by default
     if not include_archived:
-        query = query.where(KeyRiskIndicator.is_archived == False)
-    
+        query = query.where(KeyRiskIndicator.is_archived.is_(False))
+
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:
         # Include KRIs from user's departments OR where user is reporting owner
@@ -65,14 +65,14 @@ async def list_kris(
             )
         else:
             query = query.filter(Risk.department_id.in_(dept_ids))
-    
+
     if risk_id:
         query = query.where(KeyRiskIndicator.risk_id == risk_id)
 
     if search:
         search_term = f"%{search.strip().lower()}%"
         query = query.where(func.lower(KeyRiskIndicator.metric_name).like(search_term))
-    
+
     # Apply breach filter BEFORE count and pagination
     if breach_only:
         query = query.where(
@@ -81,12 +81,12 @@ async def list_kris(
                 KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit
             )
         )
-    
+
     # Count total after all filters are applied
     count_query = select(func.count()).select_from(query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Eagerly load risk, owner and department for grouping metadata
     query = query.options(
         selectinload(KeyRiskIndicator.risk).options(
@@ -94,12 +94,12 @@ async def list_kris(
             selectinload(Risk.department)
         )
     )
-    
+
     # Paginate
     query = query.offset((page - 1) * size).limit(size)
     result = await db.execute(query)
     kris = result.scalars().all()
-    
+
     # Map to response with metadata
     items = []
     for k in kris:
@@ -116,7 +116,7 @@ async def list_kris(
             if k.risk.department:
                 res.department_name = k.risk.department.name
         items.append(res)
-    
+
     return KRIListResponse(items=items, total=total, page=page, size=size)
 
 
@@ -129,21 +129,21 @@ async def list_breaches(
 ):
     """List only breached KRIs for dashboard widget. Excludes archived risks AND archived KRIs by default."""
     from app.models.risk import RiskStatus
-    
+
     # Apply department filtering via Risk join
     query = select(KeyRiskIndicator).join(Risk)
-    
+
     # Exclude archived risks AND archived KRIs by default
     if not include_archived:
         query = query.where(
             Risk.status != RiskStatus.archived.value,
-            KeyRiskIndicator.is_archived == False,
+            KeyRiskIndicator.is_archived.is_(False),
         )
-    
+
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:
         query = query.filter(Risk.department_id.in_(dept_ids))
-    
+
     # Apply explicit department filter if provided (and allowed)
     if department_id:
         if dept_ids is not None and department_id not in dept_ids:
@@ -151,14 +151,14 @@ async def list_breaches(
              # Just return empty, or could raise 403. Returning empty is safer for filters.
              return []
         query = query.filter(Risk.department_id == department_id)
-    
+
     result = await db.execute(query)
     kris = result.scalars().all()
-    
+
     # Filter to breached only
     items = [KRIResponse.model_validate(k) for k in kris]
     breaches = [i for i in items if i.breach_status != "within"]
-    
+
     return breaches
 
 
@@ -171,16 +171,16 @@ async def list_overdue_kris(
 ):
     """
     List all KRIs that are overdue for reporting.
-    
+
     Returns KRIs with due_date, days_overdue, and reporting_owner info.
     """
     from app.services.kri_history_service import KRIHistoryService
-    
+
     overdue = await KRIHistoryService.get_overdue_kris(db)
-    
+
     # Compute user's allowed departments FIRST (RBAC)
     dept_ids = get_user_department_ids(current_user)
-    
+
     # Validate department_id filter against user's access scope
     if department_id is not None:
         # Privileged users (dept_ids=None) can filter any department
@@ -193,12 +193,12 @@ async def list_overdue_kris(
             return []
         filtered = [item for item in overdue if item.get("department_id") == department_id]
         return filtered
-    
+
     # No explicit filter: apply department scoping
     if dept_ids is not None:
         filtered = [item for item in overdue if item.get("department_id") in dept_ids]
         return filtered
-    
+
     return overdue
 
 
@@ -210,17 +210,17 @@ async def list_due_soon_kris(
 ):
     """
     List all KRIs that are due soon (within 7 days before period end).
-    
+
     Returns KRIs with due_date, days_until_due, and reporting_owner info.
     Useful for CRO dashboard to see upcoming deadlines.
     """
     from app.services.kri_history_service import KRIHistoryService
-    
+
     due_soon = await KRIHistoryService.get_due_soon_kris(db)
-    
+
     # Compute user's allowed departments FIRST (RBAC)
     dept_ids = get_user_department_ids(current_user)
-    
+
     # Validate department_id filter against user's access scope
     if department_id is not None:
         # Privileged users (dept_ids=None) can filter any department
@@ -233,12 +233,12 @@ async def list_due_soon_kris(
             return []
         filtered = [item for item in due_soon if item.get("department_id") == department_id]
         return filtered
-    
+
     # No explicit filter: apply department scoping
     if dept_ids is not None:
         filtered = [item for item in due_soon if item.get("department_id") in dept_ids]
         return filtered
-    
+
     return due_soon
 
 
@@ -251,7 +251,7 @@ async def get_kri(
 ):
     """Get a single KRI by ID."""
     from app.core.permissions import is_kri_reporting_owner
-    
+
     result = await db.execute(
         select(KeyRiskIndicator)
         .join(Risk)
@@ -259,21 +259,21 @@ async def get_kri(
         .options(joinedload(KeyRiskIndicator.risk))
     )
     kri = result.scalar_one_or_none()
-    
+
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
-    
+
     # Archived KRIs are hidden unless explicitly requested
     if kri.is_archived and not include_archived:
         raise HTTPException(status_code=404, detail="KRI not found")
-    
+
     # Allow access if user is reporting owner (cross-department)
     if await is_kri_reporting_owner(db, current_user.id, kri_id):
         return KRIResponse.model_validate(kri)
-    
+
     # Otherwise verify department access
     check_department_access(kri.risk.department_id, current_user)
-    
+
     return KRIResponse.model_validate(kri)
 
 
@@ -291,21 +291,21 @@ async def create_kri(
     risk = risk_result.scalar_one_or_none()
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
-    
+
     # Verify department access
     check_department_access(risk.department_id, current_user)
-    
+
     # Validate limits
     if data.lower_limit >= data.upper_limit:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="lower_limit must be less than upper_limit"
         )
-    
+
     kri = KeyRiskIndicator(**data.model_dump())
     db.add(kri)
     await db.flush()
-    
+
     # Log activity within the same transaction
     await log_activity(
         db,
@@ -318,7 +318,7 @@ async def create_kri(
     )
     await db.commit()
     await db.refresh(kri)
-    
+
     return KRIResponse.model_validate(kri)
 
 
@@ -335,7 +335,7 @@ async def update_kri(
     """
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
-    
+
     result = await db.execute(
         select(KeyRiskIndicator)
         .join(Risk)
@@ -343,35 +343,35 @@ async def update_kri(
         .options(joinedload(KeyRiskIndicator.risk))
     )
     kri = result.scalar_one_or_none()
-    
+
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
-    
+
     # Verify department access
     check_department_access(kri.risk.department_id, current_user)
-    
+
     # Block updates on archived KRIs
     if kri.is_archived:
         raise HTTPException(status_code=409, detail="Cannot update archived KRI")
-    
+
     update_data = data.model_dump(exclude_unset=True)
-    
+
     # Reject current_value updates via PUT - must use POST /kris/{id}/values
     if "current_value" in update_data:
         raise HTTPException(
             status_code=400,
             detail="Cannot update current_value via PUT. Use POST /kris/{id}/values to record new values."
         )
-    
+
     # Validate limits if both provided
     new_lower = update_data.get("lower_limit", kri.lower_limit)
     new_upper = update_data.get("upper_limit", kri.upper_limit)
     if new_lower >= new_upper:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="lower_limit must be less than upper_limit"
         )
-    
+
     # Check for pending DELETE request (block any updates if delete is pending)
     existing_delete = await db.execute(
         select(ApprovalRequest).where(
@@ -383,7 +383,7 @@ async def update_kri(
     )
     if existing_delete.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Cannot update KRI while deletion is pending approval")
-    
+
     # ALL KRI edits by non-privileged users require approval
     if not can_resolve_approvals(current_user):
         # Check for existing pending edit request
@@ -397,10 +397,10 @@ async def update_kri(
         )
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
-        
+
         pending_changes = {k: {"old": getattr(kri, k, None), "new": v} for k, v in update_data.items()}
         name_snippet = kri.metric_name[:50] if kri.metric_name else f"KRI-{kri.id}"
-        
+
         approval = ApprovalRequest(
             resource_type=ApprovalResourceType.KRI,
             resource_id=kri.id,
@@ -418,7 +418,7 @@ async def update_kri(
             actor=current_user,
             department_id=kri.risk.department_id,
         )
-        
+
         from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=202,
@@ -431,16 +431,16 @@ async def update_kri(
             }
         )
 
-    
+
     value_update = update_data.pop("current_value", None)
     extra_changes = {}
     if value_update is not None:
         extra_changes["current_value"] = {"old": kri.current_value, "new": value_update}
     changes = build_change_set(kri, update_data, extra_changes=extra_changes)
-    
+
     for field, value in update_data.items():
         setattr(kri, field, value)
-    
+
     if value_update is not None:
         from app.services.kri_history_service import KRIHistoryService
         try:
@@ -453,7 +453,7 @@ async def update_kri(
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
-    
+
     # Log activity within the same transaction
     await log_activity(
         db,
@@ -467,7 +467,7 @@ async def update_kri(
     )
     await db.commit()
     await db.refresh(kri)
-    
+
     return KRIResponse.model_validate(kri)
 
 
@@ -487,7 +487,7 @@ async def delete_kri(
 
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
-    
+
     result = await db.execute(
         select(KeyRiskIndicator)
         .join(Risk)
@@ -495,13 +495,13 @@ async def delete_kri(
         .options(joinedload(KeyRiskIndicator.risk))
     )
     kri = result.scalar_one_or_none()
-    
+
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
-    
+
     # Verify department access via linked risk
     check_department_access(kri.risk.department_id, current_user)
-    
+
     # Privileged users can archive immediately (no approval needed)
     if can_resolve_approvals(current_user):
         # Archive instead of hard delete (preserves audit trail + history)
@@ -509,7 +509,7 @@ async def delete_kri(
         # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
         kri.archived_at = datetime.now(UTC).replace(tzinfo=None)
         kri.archived_by_id = current_user.id
-        
+
         # Log activity as ARCHIVE (not DELETE - record is preserved)
         await log_activity(
             db,
@@ -522,7 +522,7 @@ async def delete_kri(
         )
         await db.commit()
         return Response(status_code=204)
-    
+
     # Check for existing pending request
     existing = await db.execute(
         select(ApprovalRequest).where(
@@ -533,7 +533,7 @@ async def delete_kri(
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Deletion request already pending")
-    
+
     # Create approval request - ITEM STAYS VISIBLE
     name_snippet = kri.metric_name[:50] if kri.metric_name else f"KRI-{kri.id}"
     approval = ApprovalRequest(
@@ -552,7 +552,7 @@ async def delete_kri(
         department_id=kri.risk.department_id,
         on_duplicate_detail="Deletion request already pending",
     )
-    
+
     from fastapi.responses import JSONResponse
     return JSONResponse(
         status_code=202,
@@ -623,7 +623,7 @@ async def record_kri_value(
 ):
     """
     Record a new value for a KRI.
-    
+
     Access: Users with kri:submit permission, OR the KRI reporting owner.
     - Privileged users (CRO/Risk Manager): apply immediately.
     - Non-privileged users: creates tiered approval (Risk Owner → Privileged if priority).
@@ -634,7 +634,7 @@ async def record_kri_value(
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
     from app.services.kri_history_service import KRIHistoryService
     from app.services.notification_service import NotificationService
-    
+
     result = await db.execute(
         select(KeyRiskIndicator)
         .join(Risk)
@@ -642,27 +642,27 @@ async def record_kri_value(
         .options(joinedload(KeyRiskIndicator.risk))
     )
     kri = result.scalar_one_or_none()
-    
+
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
-    
+
     # Block submissions on archived KRIs
     if kri.is_archived:
         raise HTTPException(status_code=409, detail="Cannot submit values for archived KRI")
-    
+
     # Check if user is reporting owner (cross-department access)
     is_reporting_owner = await is_kri_reporting_owner(db, current_user.id, kri_id)
-    
+
     # Check permission: kri:submit OR is reporting owner
-    # NOTE: kri:submit is independent from risks:write - users with risks:write 
+    # NOTE: kri:submit is independent from risks:write - users with risks:write
     # cannot automatically submit KRI values
     if not (is_reporting_owner or has_permission(current_user, "kri", "submit")):
         raise HTTPException(status_code=403, detail="Permission denied: requires kri:submit permission or be reporting owner")
-    
+
     # Verify department access (skipped for reporting owners)
     if not is_reporting_owner:
         check_department_access(kri.risk.department_id, current_user)
-    
+
     # Privileged users can record directly
     if can_resolve_approvals(current_user):
         # Skip approval, apply immediately (handled below)
@@ -673,11 +673,11 @@ async def record_kri_value(
         # FIX: Use latest CLOSED period, not current (possibly future) period
         # This prevents approvals from advancing last_period_end beyond closed periods
         _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, kri.frequency)
-        
+
         # Non-privileged users cannot specify custom period_end
         if data.period_end and data.period_end != latest_closed_end:
             raise HTTPException(status_code=400, detail="Non-privileged users cannot specify custom period_end")
-        
+
         # Check for existing pending request for this KRI
         existing = await db.execute(
             select(ApprovalRequest).where(
@@ -689,20 +689,20 @@ async def record_kri_value(
         )
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="A value submission request is already pending for this KRI")
-        
+
         # Determine primary approver: Risk Owner (or fallback to department head logic)
         primary_approver_id = kri.risk.owner_id if kri.risk else None
-        
+
         # For priority risks, require privileged approval after Risk Owner approves
         requires_privileged = bool(kri.risk and kri.risk.is_priority)
-        
+
         recorded_at = datetime.now(UTC).isoformat()
         pending_changes = {
             "current_value": {"old": kri.current_value, "new": data.value},
             "period_end": latest_closed_end.isoformat(),
             "recorded_at": recorded_at,
         }
-        
+
         approval = ApprovalRequest(
             resource_type=ApprovalResourceType.KRI,
             resource_id=kri.id,
@@ -715,7 +715,7 @@ async def record_kri_value(
             primary_approver_id=primary_approver_id,
             requires_privileged_approval=requires_privileged,
         )
-        
+
         from app.core.approval_helpers import create_approval_request_with_audit
         await create_approval_request_with_audit(
             db,
@@ -724,7 +724,7 @@ async def record_kri_value(
             department_id=kri.risk.department_id,
             on_duplicate_detail="A value submission request is already pending for this KRI.",
         )
-        
+
         # Notify Risk Owner (primary approver)
         if primary_approver_id:
             try:
@@ -743,7 +743,7 @@ async def record_kri_value(
                 await db.rollback()
                 import logging
                 logging.getLogger(__name__).warning(f"Failed to notify Risk Owner for KRI value submission approval #{approval.id}: {e}")
-        
+
         from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=202,
@@ -756,7 +756,7 @@ async def record_kri_value(
                 "pending_changes": pending_changes,
             }
         )
-    
+
     # Privileged users can record directly
     try:
         await KRIHistoryService.record_value(
@@ -770,7 +770,7 @@ async def record_kri_value(
         )
         await db.commit()
         await db.refresh(kri)
-        
+
         # Breach Detection
         breach_detected = False
         breach_msg = ""
@@ -780,12 +780,12 @@ async def record_kri_value(
         elif data.value > kri.upper_limit:
             breach_detected = True
             breach_msg = f"Value {data.value} exceeds upper limit {kri.upper_limit}"
-            
+
         # Send Notifications (Breach)
         if breach_detected:
             from app.models.notification import NotificationType
             from app.services.notification_service import NotificationService
-            
+
             if kri.reporting_owner_id:
                 try:
                     await NotificationService.create_notification(
@@ -800,7 +800,7 @@ async def record_kri_value(
                 except Exception as e:
                     import logging
                     logging.getLogger(__name__).warning(f"Failed to notify KRI reporting owner about breach: {e}")
-            
+
             # Notify Risk Owner (if different)
             if kri.risk and kri.risk.owner_id and kri.risk.owner_id != kri.reporting_owner_id:
                 try:
@@ -816,12 +816,12 @@ async def record_kri_value(
                 except Exception as e:
                     import logging
                     logging.getLogger(__name__).warning(f"Failed to notify Risk owner about KRI breach: {e}")
-            
+
             await db.commit()
-        
+
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    
+
     return KRIResponse.model_validate(kri)
 
 
@@ -840,7 +840,7 @@ async def get_kri_history(
     from app.core.permissions import is_kri_reporting_owner
     from app.schemas.kri import KRIHistoryEntry
     from app.services.kri_history_service import KRIHistoryService
-    
+
     result = await db.execute(
         select(KeyRiskIndicator)
         .join(Risk)
@@ -848,14 +848,14 @@ async def get_kri_history(
         .options(joinedload(KeyRiskIndicator.risk))
     )
     kri = result.scalar_one_or_none()
-    
+
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
-    
+
     # Archived KRIs are hidden unless explicitly requested
     if kri.is_archived and not include_archived:
         raise HTTPException(status_code=404, detail="KRI not found")
-    
+
     # Allow access via ownership (cross-department) per BUSINESS_LOGIC.md §7.1
     has_access = False
     # 1. KRI reporting owner
@@ -871,10 +871,10 @@ async def get_kri_history(
             has_access = True
         except HTTPException:
             pass
-    
+
     if not has_access:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     entries, total = await KRIHistoryService.get_history(
         db=db,
         kri_id=kri_id,
@@ -883,7 +883,7 @@ async def get_kri_history(
         page=page,
         size=size,
     )
-    
+
     # Map to response with user names
     items = []
     for entry in entries:
@@ -891,7 +891,7 @@ async def get_kri_history(
         if entry.recorded_by:
             item.recorded_by_name = entry.recorded_by.name
         items.append(item)
-    
+
     return KRIHistoryListResponse(items=items, total=total, page=page, size=size)
 
 
@@ -905,7 +905,7 @@ async def correct_history_entry(
 ):
     """
     Correct a historical KRI value entry.
-    
+
     Non-privileged users submit an approval request.
     Privileged users apply the correction immediately.
     """
@@ -914,7 +914,7 @@ async def correct_history_entry(
     from app.models.kri_history import KRIValueHistory
     from app.schemas.kri import KRIHistoryEntry
     from app.services.kri_history_service import KRIHistoryService
-    
+
     # Verify KRI exists and access
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -923,22 +923,22 @@ async def correct_history_entry(
         .options(joinedload(KeyRiskIndicator.risk))
     )
     kri = result.scalar_one_or_none()
-    
+
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
-    
+
     check_department_access(kri.risk.department_id, current_user)
-    
+
     # Verify history entry exists and belongs to this KRI
     entry_result = await db.execute(
         select(KRIValueHistory)
         .where(KRIValueHistory.id == entry_id, KRIValueHistory.kri_id == kri_id)
     )
     entry = entry_result.scalar_one_or_none()
-    
+
     if not entry:
         raise HTTPException(status_code=404, detail="History entry not found")
-    
+
     if can_resolve_approvals(current_user):
         # Apply correction immediately
         try:
@@ -965,13 +965,13 @@ async def correct_history_entry(
         )
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
-        
+
         # Create approval request with history entry info
         # §5.3: KRI corrections ALWAYS require CRO approval (privileged)
         # Tier 1: Risk Owner approves first
         # Tier 2: CRO (privileged) approves second
         primary_approver_id = kri.risk.owner_id if kri.risk else None
-        
+
         pending_changes = {
             "history_entry_id": entry_id,
             "old_value": entry.value,
@@ -979,7 +979,7 @@ async def correct_history_entry(
             "reason": data.reason,
             "period_end": entry.period_end.isoformat(),
         }
-        
+
         approval = ApprovalRequest(
             resource_type=ApprovalResourceType.KRI,
             resource_id=kri.id,
@@ -992,7 +992,7 @@ async def correct_history_entry(
             primary_approver_id=primary_approver_id,
             requires_privileged_approval=True,  # §5.3: Corrections ALWAYS require CRO
         )
-        
+
         from app.core.approval_helpers import create_approval_request_with_audit
         await create_approval_request_with_audit(
             db,
@@ -1001,7 +1001,7 @@ async def correct_history_entry(
             department_id=kri.risk.department_id,
             on_duplicate_detail="A correction request is already pending for this KRI.",
         )
-        
+
         from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=202,

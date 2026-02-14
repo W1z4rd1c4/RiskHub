@@ -67,7 +67,7 @@ class VendorSLADeadlineService:
             select(User)
             .join(Role, User.role_id == Role.id)
             .options(permission_load)
-            .where(User.is_active == True)
+            .where(User.is_active.is_(True))
             .where(Role.name.in_(role_names))
         )
         result = await db.execute(stmt)
@@ -92,7 +92,7 @@ class VendorSLADeadlineService:
 
         stmt = (
             select(VendorSLA)
-            .where(VendorSLA.is_archived == False)
+            .where(VendorSLA.is_archived.is_(False))
             .options(selectinload(VendorSLA.vendor), selectinload(VendorSLA.reporting_owner))
         )
         slas = (await db.execute(stmt)).scalars().all()

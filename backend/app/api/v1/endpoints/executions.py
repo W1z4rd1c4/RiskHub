@@ -64,7 +64,7 @@ async def read_executions(
     """
     # Get user's department scope
     dept_ids = get_user_department_ids(current_user)
-    
+
     query = select(ControlExecutionModel).options(
         selectinload(ControlExecutionModel.executed_by),
         selectinload(ControlExecutionModel.control).options(
@@ -73,7 +73,7 @@ async def read_executions(
             selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk)
         )
     )
-    
+
     # Apply department scoping via join to Control, with control owner exception
     if dept_ids is not None:
         if not dept_ids:
@@ -95,7 +95,7 @@ async def read_executions(
                 )
             else:
                 query = query.join(ControlModel).where(ControlModel.department_id.in_(dept_ids))
-    
+
     if control_id:
         query = query.where(ControlExecutionModel.control_id == control_id)
     if result:
@@ -104,9 +104,9 @@ async def read_executions(
         query = query.where(ControlExecutionModel.executed_at >= from_date)
     if to_date:
         query = query.where(ControlExecutionModel.executed_at <= to_date)
-        
+
     query = query.order_by(desc(ControlExecutionModel.executed_at)).offset(skip).limit(limit)
-    
+
     result_set = await db.execute(query)
     executions = result_set.scalars().all()
 
@@ -167,12 +167,12 @@ async def create_execution(
     control = control_result.scalar_one_or_none()
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
-    
+
     # Check access: department OR control owner
     is_owner = await is_control_owner(db, current_user.id, control.id)
     if not is_owner:
         check_department_access(control.department_id, current_user)
-        
+
     db_obj = ControlExecutionModel(
         control_id=execution_in.control_id,
         executed_by_id=current_user.id,
@@ -182,11 +182,11 @@ async def create_execution(
         notes=execution_in.notes,
         next_scheduled=execution_in.next_scheduled
     )
-    
+
     db.add(db_obj)
     await db.commit()
     await db.refresh(db_obj)
-    
+
     # Reload with relations for the response
     query = select(ControlExecutionModel).options(
         selectinload(ControlExecutionModel.executed_by),
@@ -195,7 +195,7 @@ async def create_execution(
             selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk)
         )
     ).where(ControlExecutionModel.id == db_obj.id)
-    
+
     res = await db.execute(query)
     db_obj = res.scalar_one()
     executed_by_name = db_obj.executed_by.name if db_obj.executed_by else "Unknown"
@@ -236,18 +236,18 @@ async def read_execution(
             selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk)
         )
     ).where(ControlExecutionModel.id == id)
-    
+
     result = await db.execute(query)
     db_obj = result.scalar_one_or_none()
     if not db_obj:
         raise HTTPException(status_code=404, detail="Execution not found")
-    
+
     # Check access: department OR control owner
     if db_obj.control:
         is_owner = await is_control_owner(db, current_user.id, db_obj.control.id)
         if not is_owner:
             check_department_access(db_obj.control.department_id, current_user)
-        
+
     executed_by_name = db_obj.executed_by.name if db_obj.executed_by else "Unknown"
     control_name = db_obj.control.name if db_obj.control else "Unknown"
 

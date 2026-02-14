@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy import Enum as SAEnum
@@ -11,7 +12,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.user import User
+    from app.models.vendor import Vendor
 class VendorContractControlStatus(str, PyEnum):
     met = "met"
     partial = "partial"
@@ -58,7 +61,3 @@ class VendorContractControl(Base):
         UniqueConstraint("vendor_id", "control_key", name="uq_vendor_contract_controls_vendor_key"),
         Index("ix_vendor_contract_controls_vendor_key", "vendor_id", "control_key"),
     )
-
-
-from app.models.user import User
-from app.models.vendor import Vendor
