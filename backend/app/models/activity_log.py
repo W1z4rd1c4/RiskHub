@@ -1,7 +1,7 @@
 """Activity log model for tracking all system changes."""
 from datetime import UTC, datetime
 from enum import Enum as PyEnum
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text, event
 from sqlalchemy import Enum as SAEnum
@@ -9,7 +9,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.department import Department
+    from app.models.user import User
 class ActivityAction(str, PyEnum):
     """Type of action performed."""
     CREATE = "create"
@@ -54,14 +56,14 @@ class ActivityEntityType(str, PyEnum):
 class ActivityLog(Base):
     """
     Tracks all changes in the system for compliance and auditing.
-    
+
     Each entry represents a single action (create/update/delete) on an entity.
     Entries are immutable - once created, they cannot be modified.
     """
     __tablename__ = "activity_logs"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    
+
     # What entity was affected
     entity_type: Mapped[str] = mapped_column(
         SAEnum(ActivityEntityType, name="activity_entity_type", native_enum=False, validate_strings=True),
@@ -70,39 +72,39 @@ class ActivityLog(Base):
     )
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     entity_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Snapshot for display
-    
+
     # What action was performed
     action: Mapped[str] = mapped_column(
         SAEnum(ActivityAction, name="activity_action", native_enum=False, validate_strings=True),
         nullable=False,
         index=True,
     )
-    
+
     # Who performed the action
     actor_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     actor_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Snapshot
-    
+
     # Department scoping (for access control filtering)
     department_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("departments.id"), nullable=True, index=True)
-    
+
     # Change details (for updates: {field: {old: value, new: value}})
     changes: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    
+
     # Human-readable description
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    
+
     # Timestamp (immutable)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), 
-        default=lambda: datetime.now(UTC), 
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
         nullable=False,
         index=True
     )
-    
+
     # Relationships
     actor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[actor_id])
     department: Mapped["Department"] = relationship("Department", foreign_keys=[department_id])
-    
+
     # Composite indexes for common queries
     __table_args__ = (
         Index("ix_activity_entity", "entity_type", "entity_id"),
@@ -119,8 +121,3 @@ def _prevent_activity_log_update(mapper, connection, target) -> None:
 @event.listens_for(ActivityLog, "before_delete", propagate=True)
 def _prevent_activity_log_delete(mapper, connection, target) -> None:
     raise ValueError("ActivityLog is append-only")
-
-
-# Type hints
-from app.models.department import Department
-from app.models.user import User

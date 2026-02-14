@@ -36,7 +36,7 @@ class DirectorySyncLogRead(BaseModel):
     deactivated_count: int
     error_count: int
     errors: Optional[list[dict]] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -50,7 +50,7 @@ class WebhookUserData(BaseModel):
     job_title: Optional[str] = None
     manager_external_id: Optional[str] = None
     account_enabled: bool = True
-    
+
     model_config = ConfigDict(extra="ignore")
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Text, func
 from sqlalchemy import Enum as SAEnum
@@ -11,7 +12,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.user import User
+    from app.models.vendor import Vendor
+    from app.models.vendor_incident import VendorIncident
 class VendorRemediationStatus(str, PyEnum):
     open = "open"
     in_progress = "in_progress"
@@ -51,8 +55,3 @@ class VendorRemediationAction(Base):
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="remediation_actions", lazy="selectin")
     incident: Mapped["VendorIncident | None"] = relationship("VendorIncident", lazy="selectin")
     owner: Mapped["User | None"] = relationship("User", foreign_keys=[owner_user_id], lazy="selectin")
-
-
-from app.models.user import User
-from app.models.vendor import Vendor
-from app.models.vendor_incident import VendorIncident

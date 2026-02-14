@@ -73,7 +73,7 @@ def require_cro(current_user: User) -> User:
     """Check that user has CRO role. Raises 403 if not."""
     if current_user.role.name not in RoleType.cro_only_roles():
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="Risk Hub access requires CRO role"
         )
     return current_user
@@ -101,15 +101,15 @@ async def list_risk_types(
     List all risk types with dynamically computed risk counts.
     CRO only.
     """
-    
+
     query = select(RiskTypeConfig).order_by(RiskTypeConfig.sort_order, RiskTypeConfig.display_name)
-    
+
     if not include_inactive:
-        query = query.where(RiskTypeConfig.is_active == True)
-    
+        query = query.where(RiskTypeConfig.is_active.is_(True))
+
     result = await db.execute(query)
     types = result.scalars().all()
-    
+
     # Compute risk counts dynamically from the risks table
     count_result = await db.execute(
         select(Risk.risk_type, func.count(Risk.id))
@@ -117,7 +117,7 @@ async def list_risk_types(
         .group_by(Risk.risk_type)
     )
     risk_counts = {row[0]: row[1] for row in count_result.all()}
-    
+
     return [
         RiskTypeRead(
             id=t.id,
@@ -147,14 +147,14 @@ async def create_risk_type(
     Create a new risk type.
     CRO only.
     """
-    
+
     # Check for duplicate code
     existing = await db.execute(
         select(RiskTypeConfig).where(RiskTypeConfig.code == data.code)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail=f"Risk type code '{data.code}' already exists")
-    
+
     risk_type = RiskTypeConfig(
         code=data.code,
         display_name=data.display_name,
@@ -166,11 +166,11 @@ async def create_risk_type(
         is_system=False,
         risk_count=0
     )
-    
+
     db.add(risk_type)
     await db.commit()
     await db.refresh(risk_type)
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -181,7 +181,7 @@ async def create_risk_type(
         description=f"Created risk type: {risk_type.display_name}"
     )
     await db.commit()  # Persist activity log
-    
+
     return RiskTypeRead(
         id=risk_type.id,
         code=risk_type.code,
@@ -209,13 +209,13 @@ async def update_risk_type(
     Update a risk type.
     CRO only. Cannot change code of system types.
     """
-    
+
     result = await db.execute(select(RiskTypeConfig).where(RiskTypeConfig.id == id))
     risk_type = result.scalar_one_or_none()
-    
+
     if not risk_type:
         raise HTTPException(status_code=404, detail="Risk type not found")
-    
+
     # Apply updates
     if data.display_name is not None:
         risk_type.display_name = data.display_name
@@ -227,10 +227,10 @@ async def update_risk_type(
         risk_type.icon = data.icon
     if data.sort_order is not None:
         risk_type.sort_order = data.sort_order
-    
+
     await db.commit()
     await db.refresh(risk_type)
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -241,7 +241,7 @@ async def update_risk_type(
         description=f"Updated risk type: {risk_type.display_name}"
     )
     await db.commit()  # Persist activity log
-    
+
     return RiskTypeRead(
         id=risk_type.id,
         code=risk_type.code,
@@ -269,25 +269,25 @@ async def delete_risk_type(
     CRO only. Cannot delete system types.
     If risks use this type, they become orphaned.
     """
-    
+
     result = await db.execute(select(RiskTypeConfig).where(RiskTypeConfig.id == id))
     risk_type = result.scalar_one_or_none()
-    
+
     if not risk_type:
         raise HTTPException(status_code=404, detail="Risk type not found")
-    
+
     if risk_type.is_system:
         raise HTTPException(status_code=400, detail="Cannot delete system risk types")
-    
+
     if not risk_type.is_active:
         raise HTTPException(status_code=400, detail="Risk type is already deleted")
-    
+
     # TODO: Create orphaned items for risks using this type
     # This would be implemented in a future step when the Risk model has risk_type_id FK
-    
+
     risk_type.is_active = False
     await db.commit()
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -298,7 +298,7 @@ async def delete_risk_type(
         description=f"Deleted risk type: {risk_type.display_name} (affecting {risk_type.risk_count} risks)"
     )
     await db.commit()  # Persist activity log
-    
+
     return {"status": "deleted", "id": id, "affected_risks": risk_type.risk_count}
 
 
@@ -312,20 +312,20 @@ async def restore_risk_type(
     Restore a soft-deleted risk type.
     CRO only.
     """
-    
+
     result = await db.execute(select(RiskTypeConfig).where(RiskTypeConfig.id == id))
     risk_type = result.scalar_one_or_none()
-    
+
     if not risk_type:
         raise HTTPException(status_code=404, detail="Risk type not found")
-    
+
     if risk_type.is_active:
         raise HTTPException(status_code=400, detail="Risk type is not deleted")
-    
+
     risk_type.is_active = True
     await db.commit()
     await db.refresh(risk_type)
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -336,7 +336,7 @@ async def restore_risk_type(
         description=f"Restored risk type: {risk_type.display_name}"
     )
     await db.commit()  # Persist activity log
-    
+
     return RiskTypeRead(
         id=risk_type.id,
         code=risk_type.code,
@@ -370,14 +370,14 @@ async def list_all_configs(
     """
 
     await _ensure_total_assets_value_config(db)
-    
+
     result = await db.execute(
         select(GlobalConfig)
         .options(selectinload(GlobalConfig.updated_by))
         .order_by(GlobalConfig.category, GlobalConfig.display_name)
     )
     configs = result.scalars().all()
-    
+
     grouped: dict[str, list[GlobalConfigRead]] = {}
     for c in configs:
         config_read = GlobalConfigRead(
@@ -397,7 +397,7 @@ async def list_all_configs(
         if c.category not in grouped:
             grouped[c.category] = []
         grouped[c.category].append(config_read)
-    
+
     return grouped
 
 
@@ -414,7 +414,7 @@ async def list_config_category(
 
     if category == "risk_thresholds":
         await _ensure_total_assets_value_config(db)
-    
+
     result = await db.execute(
         select(GlobalConfig)
         .options(selectinload(GlobalConfig.updated_by))
@@ -422,7 +422,7 @@ async def list_config_category(
         .order_by(GlobalConfig.display_name)
     )
     configs = result.scalars().all()
-    
+
     return [
         GlobalConfigRead(
             id=c.id,
@@ -453,20 +453,20 @@ async def update_config(
     Update a config value.
     CRO only. Validates against min/max for int types.
     """
-    
+
     result = await db.execute(
         select(GlobalConfig)
         .options(selectinload(GlobalConfig.updated_by))
         .where(GlobalConfig.key == key)
     )
     config = result.scalar_one_or_none()
-    
+
     if not config:
         raise HTTPException(status_code=404, detail=f"Config key '{key}' not found")
-    
+
     if not config.is_editable:
         raise HTTPException(status_code=400, detail="This config value cannot be edited")
-    
+
     # Validate value based on type
     if config.value_type == "int":
         try:
@@ -480,14 +480,14 @@ async def update_config(
     elif config.value_type == "bool":
         if data.value.lower() not in ("true", "false", "1", "0"):
             raise HTTPException(status_code=400, detail="Value must be true or false")
-    
+
     old_value = config.value
     config.value = data.value
     config.updated_by_id = cro_user.id
-    
+
     await db.commit()
     await db.refresh(config)
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -497,7 +497,7 @@ async def update_config(
         entity_name=config.display_name,
         description=f"Config '{key}' changed from '{old_value}' to '{data.value}'"
     )
-    
+
     return GlobalConfigRead(
         id=config.id,
         key=config.key,
@@ -529,14 +529,14 @@ async def list_approval_scenarios(
     List all approval scenarios.
     CRO only.
     """
-    
+
     result = await db.execute(
         select(ApprovalScenario)
         .options(selectinload(ApprovalScenario.updated_by))
         .order_by(ApprovalScenario.display_name)
     )
     scenarios = result.scalars().all()
-    
+
     return [
         ApprovalScenarioRead(
             id=s.id,
@@ -563,34 +563,34 @@ async def update_approval_scenario(
     Update an approval scenario.
     CRO only. Cannot create new scenarios.
     """
-    
+
     result = await db.execute(
         select(ApprovalScenario)
         .options(selectinload(ApprovalScenario.updated_by))
         .where(ApprovalScenario.key == key)
     )
     scenario = result.scalar_one_or_none()
-    
+
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Approval scenario '{key}' not found")
-    
+
     changes = []
-    
+
     if data.requires_approval is not None:
         old_val = scenario.requires_approval
         scenario.requires_approval = data.requires_approval
         changes.append(f"requires_approval: {old_val} → {data.requires_approval}")
-    
+
     if data.approver_roles is not None:
         old_roles = scenario.get_approver_roles()
         scenario.set_approver_roles(data.approver_roles)
         changes.append(f"approver_roles: {old_roles} → {data.approver_roles}")
-    
+
     scenario.updated_by_id = cro_user.id
-    
+
     await db.commit()
     await db.refresh(scenario)
-    
+
     if changes:
         await log_activity(
             db=db,
@@ -601,7 +601,7 @@ async def update_approval_scenario(
             entity_name=scenario.display_name,
             description=f"Approval scenario '{key}' updated: {', '.join(changes)}"
         )
-    
+
     return ApprovalScenarioRead(
         id=scenario.id,
         key=scenario.key,
@@ -631,7 +631,7 @@ async def get_public_config(
     """
     # CRO can read any key; non-CRO limited to allowlist
     is_cro = bool(current_user.role and current_user.role.name == RoleType.CRO)
-    
+
     if not is_cro and key not in PUBLIC_CONFIG_ALLOWLIST:
         raise HTTPException(
             status_code=403,
@@ -640,15 +640,15 @@ async def get_public_config(
 
     if key == "total_assets_value":
         await _ensure_total_assets_value_config(db)
-    
+
     result = await db.execute(
         select(GlobalConfig).where(GlobalConfig.key == key)
     )
     config = result.scalar_one_or_none()
-    
+
     if not config:
         raise HTTPException(status_code=404, detail=f"Config key '{key}' not found")
-    
+
     return {
         "key": config.key,
         "value": config.get_typed_value(),
@@ -674,11 +674,11 @@ async def list_public_risk_types(
     """
     result = await db.execute(
         select(RiskTypeConfig)
-        .where(RiskTypeConfig.is_active == True)
+        .where(RiskTypeConfig.is_active.is_(True))
         .order_by(RiskTypeConfig.sort_order, RiskTypeConfig.display_name)
     )
     types = result.scalars().all()
-    
+
     return [
         PublicRiskTypeRead(
             code=t.code,
@@ -704,11 +704,11 @@ async def list_permissions(
 ) -> list[PermissionHubRead]:
     """List all available permissions for role assignment. CRO only."""
     from app.models.role import Permission
-    
-    
+
+
     result = await db.execute(select(Permission).order_by(Permission.resource, Permission.action))
     permissions = result.scalars().all()
-    
+
     return [
         PermissionHubRead(
             id=p.id,
@@ -728,18 +728,18 @@ async def list_roles(
 ) -> list[RoleHubRead]:
     """List all roles with permissions. CRO only."""
     from app.models.role import Role, RolePermission
-    
+
     query = select(Role).options(
         selectinload(Role.permissions).selectinload(RolePermission.permission),
         selectinload(Role.users)
     ).order_by(Role.display_name)
-    
+
     if not include_inactive:
-        query = query.where(Role.is_active == True)
-    
+        query = query.where(Role.is_active.is_(True))
+
     result = await db.execute(query)
     roles = result.scalars().unique().all()
-    
+
     return [
         RoleHubRead(
             id=r.id,
@@ -763,12 +763,12 @@ async def create_role(
 ) -> RoleHubRead:
     """Create a new role. CRO only."""
     from app.models.role import Permission, Role, RolePermission
-    
+
     # Check for duplicate name
     existing = await db.execute(select(Role).where(Role.name == data.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail=f"Role name '{data.name}' already exists")
-    
+
     role = Role(
         name=data.name,
         display_name=data.display_name,
@@ -778,7 +778,7 @@ async def create_role(
     )
     db.add(role)
     await db.flush()  # Get the role ID
-    
+
     # Add permissions (with validation)
     if data.permission_ids:
         perms_result = await db.execute(
@@ -795,9 +795,9 @@ async def create_role(
         for perm in permissions:
             role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
             db.add(role_perm)
-    
+
     await db.commit()
-    
+
     # Reload with relationships
     result = await db.execute(
         select(Role)
@@ -805,7 +805,7 @@ async def create_role(
         .where(Role.id == role.id)
     )
     role = result.scalar_one()
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -815,8 +815,8 @@ async def create_role(
         entity_name=role.display_name,
         description=f"Created role: {role.display_name}"
     )
-    
-    
+
+
     return RoleHubRead(
         id=role.id,
         name=role.name,
@@ -838,7 +838,7 @@ async def update_role(
 ) -> RoleHubRead:
     """Update a role. CRO only."""
     from app.models.role import Permission, Role, RolePermission
-    
+
     result = await db.execute(
         select(Role)
         .options(
@@ -848,30 +848,30 @@ async def update_role(
         .where(Role.id == id)
     )
     role = result.scalar_one_or_none()
-    
+
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
-    
+
     # Core system roles are immutable
     if role.name in {RoleType.CRO, RoleType.ADMIN, RoleType.VIEWER}:
         raise HTTPException(
             status_code=400,
             detail=f"The {role.display_name} role is a core system role and cannot be modified."
         )
-    
+
     # Update basic fields
     if data.display_name is not None:
         role.display_name = data.display_name
     if data.description is not None:
         role.description = data.description
-    
+
     # Update permissions if provided
     if data.permission_ids is not None:
         # Clear existing permissions
         await db.execute(
             RolePermission.__table__.delete().where(RolePermission.role_id == role.id)
         )
-        
+
         # Add new permissions (with validation)
         if data.permission_ids:
             perms_result = await db.execute(
@@ -888,9 +888,9 @@ async def update_role(
             for perm in permissions:
                 role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
                 db.add(role_perm)
-    
+
     await db.commit()
-    
+
     # Reload with relationships
     result = await db.execute(
         select(Role)
@@ -901,7 +901,7 @@ async def update_role(
         .where(Role.id == role.id)
     )
     role = result.scalar_one()
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -911,8 +911,8 @@ async def update_role(
         entity_name=role.display_name,
         description=f"Updated role: {role.display_name}"
     )
-    
-    
+
+
     return RoleHubRead(
         id=role.id,
         name=role.name,
@@ -933,35 +933,35 @@ async def delete_role(
 ) -> dict:
     """Soft-delete a role. CRO only. Cannot delete system roles or roles with users."""
     from app.models.role import Role
-    
+
     result = await db.execute(
         select(Role).options(selectinload(Role.users)).where(Role.id == id)
     )
     role = result.scalar_one_or_none()
-    
+
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
-    
+
     # Protected roles cannot be deleted
     if role.is_system or role.name in PROTECTED_SYSTEM_ROLES:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot delete protected system role: {role.display_name}"
         )
-    
+
     if not role.is_active:
         raise HTTPException(status_code=400, detail="Role is already deleted")
-    
+
     active_users = [u for u in role.users if u.is_active]
     if active_users:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot delete role with {len(active_users)} active users. Reassign users first."
         )
-    
+
     role.is_active = False
     await db.commit()
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -971,8 +971,8 @@ async def delete_role(
         entity_name=role.display_name,
         description=f"Deleted role: {role.display_name}"
     )
-    
-    
+
+
     return {"status": "deleted", "id": id}
 
 
@@ -984,24 +984,24 @@ async def restore_role(
 ) -> RoleHubRead:
     """Restore a soft-deleted role. CRO only."""
     from app.models.role import Role, RolePermission
-    
+
     result = await db.execute(
         select(Role)
         .options(selectinload(Role.permissions).selectinload(RolePermission.permission))
         .where(Role.id == id)
     )
     role = result.scalar_one_or_none()
-    
+
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
-    
+
     if role.is_active:
         raise HTTPException(status_code=400, detail="Role is not deleted")
-    
+
     role.is_active = True
     await db.commit()
     await db.refresh(role)
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -1011,8 +1011,8 @@ async def restore_role(
         entity_name=role.display_name,
         description=f"Restored role: {role.display_name}"
     )
-    
-    
+
+
     return RoleHubRead(
         id=role.id,
         name=role.name,
@@ -1040,15 +1040,15 @@ async def list_departments_hub(
     """List all departments with stats. CRO only."""
     from app.models import Control, Risk, User
     from app.models.department import Department
-    
+
     query = select(Department).options(selectinload(Department.manager)).order_by(Department.name)
-    
+
     if not include_inactive:
-        query = query.where(Department.is_active == True)
-    
+        query = query.where(Department.is_active.is_(True))
+
     result = await db.execute(query)
     departments = result.scalars().all()
-    
+
     dept_ids = [d.id for d in departments]
     if not dept_ids:
         return []
@@ -1075,7 +1075,7 @@ async def list_departments_hub(
             await db.execute(
                 select(User.department_id, func.count(User.id))
                 .where(User.department_id.in_(dept_ids))
-                .where(User.is_active == True)
+                .where(User.is_active.is_(True))
                 .group_by(User.department_id)
             )
         ).all()
@@ -1105,12 +1105,12 @@ async def create_department(
 ) -> DepartmentHubRead:
     """Create a new department. CRO only."""
     from app.models.department import Department
-    
+
     # Check for duplicate name
     existing = await db.execute(select(Department).where(Department.name == data.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail=f"Department name '{data.name}' already exists")
-    
+
     # Check for duplicate code
     effective_code = data.code if data.code else data.name.lower().replace(" ", "_")[:20]
     existing_code = await db.execute(
@@ -1121,7 +1121,7 @@ async def create_department(
             status_code=400,
             detail=f"Department code '{effective_code}' already exists"
         )
-    
+
     dept = Department(
         name=data.name,
         code=data.code if data.code else data.name.lower().replace(" ", "_")[:20],
@@ -1131,13 +1131,13 @@ async def create_department(
     db.add(dept)
     await db.commit()
     await db.refresh(dept)
-    
+
     # Reload with manager
     result = await db.execute(
         select(Department).options(selectinload(Department.manager)).where(Department.id == dept.id)
     )
     dept = result.scalar_one()
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -1147,8 +1147,8 @@ async def create_department(
         entity_name=dept.name,
         description=f"Created department: {dept.name}"
     )
-    
-    
+
+
     return DepartmentHubRead(
         id=dept.id,
         name=dept.name,
@@ -1172,17 +1172,17 @@ async def update_department(
     """Update a department. CRO only."""
     from app.models import Control, Risk
     from app.models.department import Department
-    
+
     result = await db.execute(
         select(Department)
         .options(selectinload(Department.manager), selectinload(Department.users))
         .where(Department.id == id)
     )
     dept = result.scalar_one_or_none()
-    
+
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
-    
+
     if data.name is not None:
         # Check for duplicate name (excluding current)
         existing = await db.execute(
@@ -1213,9 +1213,9 @@ async def update_department(
         dept.code = data.code
     if data.manager_id is not None:
         dept.manager_id = data.manager_id
-    
+
     await db.commit()
-    
+
     # Reload
     result = await db.execute(
         select(Department)
@@ -1223,18 +1223,18 @@ async def update_department(
         .where(Department.id == dept.id)
     )
     dept = result.scalar_one()
-    
+
     # Get counts
     risk_count_result = await db.execute(
         select(func.count(Risk.id)).where(Risk.department_id == dept.id)
     )
     risk_count = risk_count_result.scalar() or 0
-    
+
     control_count_result = await db.execute(
         select(func.count(Control.id)).where(Control.department_id == dept.id)
     )
     control_count = control_count_result.scalar() or 0
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -1244,8 +1244,8 @@ async def update_department(
         entity_name=dept.name,
         description=f"Updated department: {dept.name}"
     )
-    
-    
+
+
     return DepartmentHubRead(
         id=dept.id,
         name=dept.name,
@@ -1268,32 +1268,32 @@ async def delete_department(
     """Soft-delete a department. CRO only. Cannot delete departments with users/risks/controls."""
     from app.models import Control, Risk
     from app.models.department import Department
-    
+
     result = await db.execute(
         select(Department).options(selectinload(Department.users)).where(Department.id == id)
     )
     dept = result.scalar_one_or_none()
-    
+
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
-    
+
     # System departments cannot be deleted
     if hasattr(dept, 'is_system') and dept.is_system:
         raise HTTPException(
             status_code=400,
             detail="Cannot delete system departments"
         )
-    
+
     if not dept.is_active:
         raise HTTPException(status_code=400, detail="Department is already deleted")
-    
+
     active_users = [u for u in dept.users if u.is_active]
     if active_users:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot delete department with {len(active_users)} active users"
         )
-    
+
     # Check for risks
     risk_count_result = await db.execute(
         select(func.count(Risk.id)).where(Risk.department_id == dept.id)
@@ -1301,10 +1301,10 @@ async def delete_department(
     risk_count = risk_count_result.scalar() or 0
     if risk_count > 0:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot delete department with {risk_count} risks"
         )
-    
+
     # Check for controls
     control_count_result = await db.execute(
         select(func.count(Control.id)).where(Control.department_id == dept.id)
@@ -1312,13 +1312,13 @@ async def delete_department(
     control_count = control_count_result.scalar() or 0
     if control_count > 0:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot delete department with {control_count} controls"
         )
-    
+
     dept.is_active = False
     await db.commit()
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -1328,8 +1328,8 @@ async def delete_department(
         entity_name=dept.name,
         description=f"Deleted department: {dept.name}"
     )
-    
-    
+
+
     return {"status": "deleted", "id": id}
 
 
@@ -1341,22 +1341,22 @@ async def restore_department(
 ) -> DepartmentHubRead:
     """Restore a soft-deleted department. CRO only."""
     from app.models.department import Department
-    
+
     result = await db.execute(
         select(Department).options(selectinload(Department.manager)).where(Department.id == id)
     )
     dept = result.scalar_one_or_none()
-    
+
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
-    
+
     if dept.is_active:
         raise HTTPException(status_code=400, detail="Department is not deleted")
-    
+
     dept.is_active = True
     await db.commit()
     await db.refresh(dept)
-    
+
     await log_activity(
         db=db,
         actor=cro_user,
@@ -1366,8 +1366,8 @@ async def restore_department(
         entity_name=dept.name,
         description=f"Restored department: {dept.name}"
     )
-    
-    
+
+
     return DepartmentHubRead(
         id=dept.id,
         name=dept.name,

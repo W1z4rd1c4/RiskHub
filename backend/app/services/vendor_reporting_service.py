@@ -45,7 +45,7 @@ class VendorReportingService:
             incident_stmt = (
                 select(VendorIncident)
                 .where(VendorIncident.vendor_id.in_(vendor_ids))
-                .where(VendorIncident.is_major == True)
+                .where(VendorIncident.is_major.is_(True))
             )
             incidents = (await db.execute(incident_stmt)).scalars().all()
             for i in incidents:

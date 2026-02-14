@@ -81,7 +81,7 @@ class IssueDeadlineService:
             return {}
         permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
         result = await db.execute(
-            select(User).options(permission_load).where(User.id.in_(user_ids), User.is_active == True)
+            select(User).options(permission_load).where(User.id.in_(user_ids), User.is_active.is_(True))
         )
         return {user.id: user for user in result.scalars().all()}
 
@@ -94,7 +94,7 @@ class IssueDeadlineService:
             .join(Role, User.role_id == Role.id)
             .join(RolePermission, RolePermission.role_id == Role.id)
             .join(Permission, RolePermission.permission_id == Permission.id)
-            .where(User.is_active == True)
+            .where(User.is_active.is_(True))
             .where(Role.name.in_(role_names))
             .where(Permission.resource.in_(("issues", "*")))
             .where(Permission.action.in_(("read", "*")))

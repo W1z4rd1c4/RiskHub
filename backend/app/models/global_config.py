@@ -1,59 +1,66 @@
 """GlobalConfig model for system-wide configuration settings."""
+import time
 from datetime import datetime
+from typing import TYPE_CHECKING, Any, Dict, TypeVar
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    from app.models.user import User
+
 
 class GlobalConfig(Base):
     """
     System-wide configuration settings managed by platform and business admin surfaces.
-    
+
     Stores typed key-value pairs grouped by category.
     Replaces hardcoded values like HIGH_RISK_MIN_NET_SCORE.
     """
     __tablename__ = "global_config"
-    
+
     id: Mapped[int] = mapped_column(primary_key=True)
-    
+
     # Unique key identifier (e.g., "high_risk_min_net_score")
     key: Mapped[str] = mapped_column(String(100), unique=True, index=True)
-    
+
     # JSON-serialized value (parsed according to value_type)
     value: Mapped[str] = mapped_column(Text)
-    
+
     # Type hint for parsing: "int" | "bool" | "string" | "json"
     value_type: Mapped[str] = mapped_column(String(20), default="string")
-    
+
     # Category for grouping in UI: "risk_thresholds" | "approvals" | "notifications"
     category: Mapped[str] = mapped_column(String(50), index=True)
-    
+
     # Human-readable name for UI
     display_name: Mapped[str] = mapped_column(String(200))
-    
+
     # Optional description/help text
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    
+
     # Validation constraints for int types
     min_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_value: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    
+
     # Whether this value is editable in the owning admin surface
     is_editable: Mapped[bool] = mapped_column(Boolean, default=True)
-    
+
     # Audit fields
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     updated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    
+
     # Relationship to user who last updated
     updated_by: Mapped["User"] = relationship("User", foreign_keys=[updated_by_id])
-    
+
     def get_typed_value(self):
         """Return the value parsed according to value_type."""
         import json
-        
+
         if self.value_type == "int":
             return int(self.value)
         elif self.value_type == "bool":
@@ -62,11 +69,11 @@ class GlobalConfig(Base):
             return json.loads(self.value)
         else:
             return self.value
-    
+
     def set_typed_value(self, value):
         """Set the value, serializing according to value_type."""
         import json
-        
+
         if self.value_type == "int":
             self.value = str(int(value))
         elif self.value_type == "bool":
@@ -75,7 +82,7 @@ class GlobalConfig(Base):
             self.value = json.dumps(value)
         else:
             self.value = str(value)
-    
+
     def __repr__(self) -> str:
         return f"<GlobalConfig(key='{self.key}', value='{self.value}')>"
 
@@ -83,9 +90,6 @@ class GlobalConfig(Base):
 # ============================================================================
 # Config Lookup Helper with TTL Caching
 # ============================================================================
-
-import time
-from typing import Any, Dict, TypeVar
 
 T = TypeVar("T")
 
@@ -96,7 +100,7 @@ _CACHE_TTL_SECONDS = 60  # 1 minute cache
 
 class ConfigDefaults:
     """Default values for global configuration keys.
-    
+
     These values must match the seeded defaults in migration 74f4ad1b68cb_add_risk_hub_tables.py:
     - medium_risk_min_net_score = 5
     - high_risk_min_net_score = 10
@@ -107,7 +111,7 @@ class ConfigDefaults:
     HIGH_RISK_MIN_NET_SCORE = 10    # net_score >= 10 = high risk
     CRITICAL_RISK_MIN_NET_SCORE = 16  # net_score >= 16 = critical risk
     TOTAL_ASSETS_VALUE = 10_000_000_000  # 10B CZK - used for financial loss calculations
-    
+
     # Notification timing (days)
     ADVANCE_REMINDER_DAYS = 7  # Days before period end to send reminder
     REPORTING_GRACE_DAYS = 15  # Days after period end for reporting
@@ -117,7 +121,7 @@ class ConfigDefaults:
     # Questionnaire reminders (Phase 16)
     QUESTIONNAIRE_PRE_DUE_REMINDER_DAYS = 2  # due_at.date() == today + N
     QUESTIONNAIRE_OVERDUE_REMINDER_WEEKDAY = 0  # Monday=0 ... Sunday=6
-    
+
     # Breach thresholds
     NEAR_BREACH_THRESHOLD = 0.80  # 80% towards limit = near breach
 
@@ -125,7 +129,7 @@ class ConfigDefaults:
 async def get_risk_thresholds(db: "AsyncSession") -> tuple[int, int, int]:
     """
     Get risk classification thresholds from GlobalConfig.
-    
+
     Returns:
         Tuple of (medium, high, critical) threshold values.
         A risk is classified as:
@@ -143,12 +147,12 @@ async def get_risk_thresholds(db: "AsyncSession") -> tuple[int, int, int]:
 def build_risk_level_ranges(medium: int, high: int, critical: int) -> dict[str, tuple[int, int]]:
     """
     Build RISK_LEVEL_RANGES dict from thresholds.
-    
+
     Args:
         medium: Minimum net_score for medium classification
         high: Minimum net_score for high classification
         critical: Minimum net_score for critical classification
-        
+
     Returns:
         Dict mapping level name to (min_score, max_score) inclusive range.
     """
@@ -167,35 +171,35 @@ async def get_config_value(
 ) -> T:
     """
     Fetch a typed config value from the database with caching.
-    
+
     Args:
         db: Database session
         key: Config key to look up
         default: Default value if config not found
-        
+
     Returns:
         Typed value from config or default if not found
     """
     from sqlalchemy import select
-    
+
     # Check cache first
     now = time.time()
     if key in _config_cache:
         value, cached_at = _config_cache[key]
         if now - cached_at < _CACHE_TTL_SECONDS:
             return value
-    
+
     # Query database
     result = await db.execute(
         select(GlobalConfig).where(GlobalConfig.key == key)
     )
     config = result.scalar_one_or_none()
-    
+
     if config:
         typed_value = config.get_typed_value()
         _config_cache[key] = (typed_value, now)
         return typed_value
-    
+
     # Store default in cache to avoid repeated misses
     _config_cache[key] = (default, now)
     return default
@@ -230,7 +234,7 @@ async def get_config_float(
 def get_config_sync(key: str, default: T = None) -> T:
     """
     Get config value synchronously from cache only.
-    
+
     Returns cached value or default. Does not query DB.
     Use this in sync contexts after config has been loaded via get_config_value.
     """
@@ -245,13 +249,3 @@ def get_config_sync(key: str, default: T = None) -> T:
 def clear_config_cache() -> None:
     """Clear the config cache. Useful for testing."""
     _config_cache.clear()
-
-
-# Type hint imports
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-# Import for type hints
-from app.models.user import User

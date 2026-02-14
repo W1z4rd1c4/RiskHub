@@ -10,7 +10,7 @@ class ADEmulatorClient:
     """
     Client for interacting with the AD Emulator service.
     """
-    
+
     def __init__(self):
         self.settings = get_settings()
         self.base_url = self.settings.ad_emulator_url.rstrip("/")
@@ -18,10 +18,10 @@ class ADEmulatorClient:
     async def get_users(self) -> list[dict[str, Any]]:
         """
         Fetch all users from the AD Emulator directory.
-        
+
         Returns:
             list[dict]: List of user dictionaries from the emulator.
-            
+
         Raises:
             httpx.HTTPStatusError: If the request fails.
             httpx.RequestError: If connection fails.

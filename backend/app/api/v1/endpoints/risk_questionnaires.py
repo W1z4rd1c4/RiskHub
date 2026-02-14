@@ -390,7 +390,7 @@ async def submit_questionnaire(
         select(User)
         .join(Role, User.role_id == Role.id)
         .where(
-            User.is_active == True,
+            User.is_active.is_(True),
             User.id != current_user.id,
             Role.name.in_([RoleType.RISK_MANAGER, RoleType.CRO]),
         )

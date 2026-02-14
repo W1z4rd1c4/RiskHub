@@ -42,11 +42,11 @@ def get_password_hash(password: str) -> str:
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """
     Create a JWT access token.
-    
+
     Args:
         data: Dictionary of claims to encode in the token
         expires_delta: Optional expiration time delta
-        
+
     Returns:
         Encoded JWT token string
     """
@@ -59,13 +59,13 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 def decode_access_token(token: str) -> dict:
     """
     Decode and validate a JWT access token.
-    
+
     Args:
         token: JWT token string
-        
+
     Returns:
         Dictionary of decoded claims
-        
+
     Raises:
         JWTError: If token is invalid or expired
     """
@@ -78,12 +78,12 @@ async def get_current_user(
 ) -> User:
     """
     Get the current user - mocked for development only.
-    
+
     In development with MOCK_AUTH_ENABLED=true, uses X-Mock-User-Id header.
     In production, this endpoint is disabled - use deps.get_current_user with JWT.
     """
     mock_auth_enabled = os.getenv("MOCK_AUTH_ENABLED", "false").lower() == "true"
-    
+
     # CRITICAL: Force-disable mock auth in production
     if mock_auth_enabled and _is_production_environment():
         logger.critical(
@@ -91,12 +91,12 @@ async def get_current_user(
             "Forcing mock auth OFF. This is a configuration error."
         )
         mock_auth_enabled = False
-    
+
     # Only allow mock auth if explicitly enabled (and not production)
     if mock_auth_enabled and x_mock_user_id:
         # Eager load role -> permissions -> permission
         permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-        
+
         # Mock auth: get user by ID from header
         result = await db.execute(
             select(User)
@@ -106,7 +106,7 @@ async def get_current_user(
         user = result.scalar_one_or_none()
         if user:
             return user
-    
+
     # Production: Mock auth not allowed - this function should not be used
     # Use deps.get_current_user instead for JWT-based auth
     raise HTTPException(
@@ -150,12 +150,12 @@ def require_permission(resource: str, action: str):
     """FastAPI dependency factory for requiring specific permissions."""
     # Delayed import to avoid circular dependency
     from app.api import deps
-    
+
     async def permission_checker(
         current_user: User = Depends(deps.get_current_user),
     ) -> User:
         if not check_permission(current_user, resource, action):
             forbid(f"Permission denied: {resource}:{action}")
         return current_user
-    
+
     return permission_checker

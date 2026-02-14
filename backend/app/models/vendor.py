@@ -3,13 +3,27 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.department import Department
+    from app.models.user import User
+    from app.models.vendor_assessment import VendorAssessment
+    from app.models.vendor_contingency_plan import VendorContingencyPlan
+    from app.models.vendor_contract_control import VendorContractControl
+    from app.models.vendor_control_link import VendorControlLink
+    from app.models.vendor_exit_plan import VendorExitPlan
+    from app.models.vendor_incident import VendorIncident
+    from app.models.vendor_remediation import VendorRemediationAction
+    from app.models.vendor_risk_factor import VendorRiskFactor
+    from app.models.vendor_risk_link import VendorRiskLink
+    from app.models.vendor_service import VendorService
+    from app.models.vendor_sla import VendorSLA
 class VendorStatus(str, PyEnum):
     active = "active"
     inactive = "inactive"
@@ -147,18 +161,3 @@ class Vendor(Base):
         back_populates="vendor",
         cascade="all, delete-orphan",
     )
-
-
-from app.models.department import Department
-from app.models.user import User
-from app.models.vendor_assessment import VendorAssessment
-from app.models.vendor_contingency_plan import VendorContingencyPlan
-from app.models.vendor_contract_control import VendorContractControl
-from app.models.vendor_control_link import VendorControlLink
-from app.models.vendor_exit_plan import VendorExitPlan
-from app.models.vendor_incident import VendorIncident
-from app.models.vendor_remediation import VendorRemediationAction
-from app.models.vendor_risk_factor import VendorRiskFactor
-from app.models.vendor_risk_link import VendorRiskLink
-from app.models.vendor_service import VendorService
-from app.models.vendor_sla import VendorSLA

@@ -273,9 +273,9 @@ async def seed_database():
             if not result.scalars().first():
                 await seed_controls_and_risks(db)
             return
-        
+
         print("Seeding database...")
-        
+
         # Create permissions
         permissions = {}
         for perm_data in PERMISSIONS:
@@ -284,7 +284,7 @@ async def seed_database():
             permissions[f"{perm_data['resource']}:{perm_data['action']}"] = perm
         await db.flush()
         print(f"Created {len(PERMISSIONS)} permissions")
-        
+
         # Create roles
         roles = {}
         for role_data in ROLES:
@@ -293,7 +293,7 @@ async def seed_database():
             roles[role_data["name"]] = role
         await db.flush()
         print(f"Created {len(ROLES)} roles")
-        
+
         # Create role-permission mappings
         for role_name, perm_keys in ROLE_PERMISSIONS.items():
             role = roles[role_name]
@@ -310,7 +310,7 @@ async def seed_database():
                             db.add(rp)
         await db.flush()
         print("Created role-permission mappings")
-        
+
         # Create departments
         departments = {}
         for dept_data in DEPARTMENTS:
@@ -319,7 +319,7 @@ async def seed_database():
             departments[dept_data["code"]] = dept
         await db.flush()
         print(f"Created {len(DEPARTMENTS)} departments")
-        
+
         # Create test users
         users = {}
         for user_data in TEST_USERS:
@@ -337,12 +337,12 @@ async def seed_database():
             users[user_data["email"]] = user
         await db.flush()
         print(f"Created {len(TEST_USERS)} test users")
-        
+
         await db.commit()
-        
+
         # Seed controls and risks
         await seed_controls_and_risks(db)
-        
+
         print("Database seeding complete!")
 
 
@@ -351,11 +351,11 @@ async def seed_controls_and_risks(db: AsyncSession):
     # Get departments and users for FK references
     result = await db.execute(select(Department))
     departments = {d.code: d for d in result.scalars().all()}
-    
+
     result = await db.execute(select(User))
     users = list(result.scalars().all())
     admin_user = users[0] if users else None
-    
+
     # Create controls
     controls = []
     for ctrl_data in SAMPLE_CONTROLS:
@@ -371,7 +371,7 @@ async def seed_controls_and_risks(db: AsyncSession):
         controls.append(control)
     await db.flush()
     print(f"Created {len(SAMPLE_CONTROLS)} sample controls")
-    
+
     # Create sample executions for first 3 controls
     for i, control in enumerate(controls[:3]):
         for days_ago in [30, 15, 0]:
@@ -388,7 +388,7 @@ async def seed_controls_and_risks(db: AsyncSession):
             db.add(execution)
     await db.flush()
     print("Created sample control executions")
-    
+
     # Create risks
     risks = []
     for risk_data in SAMPLE_RISKS:
@@ -407,7 +407,7 @@ async def seed_controls_and_risks(db: AsyncSession):
         risks.append(risk)
     await db.flush()
     print(f"Created {len(SAMPLE_RISKS)} sample risks")
-    
+
     # Create control-risk links
     for ctrl_idx, risk_idx, effectiveness, notes in CONTROL_RISK_LINKS:
         link = ControlRiskLink(
@@ -419,7 +419,7 @@ async def seed_controls_and_risks(db: AsyncSession):
         db.add(link)
     await db.flush()
     print(f"Created {len(CONTROL_RISK_LINKS)} control-risk links")
-    
+
     await db.commit()
 
 

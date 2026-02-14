@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, UniqueConstraint, func
 from sqlalchemy import Enum as SAEnum
@@ -11,7 +12,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.vendor import Vendor
 class VendorRelationshipType(str, PyEnum):
     subcontractor = "subcontractor"
     reseller = "reseller"
@@ -45,7 +47,3 @@ class VendorRelationship(Base):
         UniqueConstraint("vendor_id", "related_vendor_id", name="uq_vendor_relationships_edge"),
         Index("ix_vendor_relationships_vendor_related", "vendor_id", "related_vendor_id"),
     )
-
-
-from app.models.vendor import Vendor
-

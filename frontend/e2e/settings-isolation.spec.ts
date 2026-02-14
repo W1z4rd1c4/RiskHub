@@ -3,22 +3,7 @@
  * Verifies that theme and language persist server-side per-user
  */
 import { test, expect } from '@playwright/test';
-
-// Helper function to login via demo account picker
-async function loginAsDemoUser(page: import('@playwright/test').Page, accountName: string) {
-    await page.goto('/login');
-    await page.waitForSelector(`button:has-text("${accountName}")`, { timeout: 10000 });
-    await page.click(`button:has-text("${accountName}")`);
-    // Wait for any protected route to load
-    await page.waitForURL(/^http:\/\/localhost:5173\/(?!login)/, { timeout: 20000 });
-    // Wait for sidebar to be visible (confirms app loaded)
-    await page.waitForSelector('aside', { timeout: 10000 });
-}
-
-async function logout(page: import('@playwright/test').Page) {
-    await page.click('[data-testid="logout-button"]');
-    await page.waitForURL(/.*login/, { timeout: 10000 });
-}
+import { loginAsDemoUser, logout } from './helpers/login';
 
 test.describe('User Settings Isolation', () => {
     test('theme should not persist across different users', async ({ page }) => {
@@ -52,8 +37,7 @@ test.describe('User Settings Isolation', () => {
         await logout(page);
     });
 
-    // FIXME: Theme persistence from server is flaky - may be timing issue with backend sync
-    test.skip('user settings should persist across sessions', async ({ page }) => {
+    test('user settings should persist across sessions', async ({ page }) => {
         // Login as User A, set dark theme
         await loginAsDemoUser(page, 'Anna Kowalski');
         await page.goto('/settings');
@@ -79,7 +63,7 @@ test.describe('User Settings Isolation', () => {
 
         // Cleanup: Reset to default
         await page.goto('/settings');
-        await page.click('button:has-text("Appearance")');
+        await page.click('[data-testid="settings-tab-appearance"]');
         await page.waitForSelector('[data-testid="theme-riskhub"]', { timeout: 5000 });
         await page.click('[data-testid="theme-riskhub"]');
         await logout(page);
@@ -111,7 +95,7 @@ test.describe('User Settings Isolation', () => {
         await page.goto('/settings');
 
         // Click Localization tab
-        await page.click('button:has-text("Localization")');
+        await page.click('[data-testid="settings-tab-localization"]');
         await page.waitForSelector('[data-testid="language-en"]', { timeout: 5000 });
 
         // Verify English is default (not Czech)

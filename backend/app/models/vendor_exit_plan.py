@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy import Enum as SAEnum
@@ -11,7 +12,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.vendor import Vendor
 class VendorPlanStatus(str, PyEnum):
     not_started = "not_started"
     in_progress = "in_progress"
@@ -52,7 +54,3 @@ class VendorExitPlan(Base):
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="exit_plan", lazy="selectin")
 
     __table_args__ = (UniqueConstraint("vendor_id", name="uq_vendor_exit_plans_vendor_id"),)
-
-
-from app.models.vendor import Vendor
-

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy import Enum as SAEnum
@@ -11,7 +12,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.user import User
+    from app.models.vendor import Vendor
 class VendorAssessmentStatus(str, PyEnum):
     draft = "draft"
     submitted = "submitted"
@@ -100,7 +103,3 @@ class VendorAssessment(Base):
     __table_args__ = (
         Index("ix_vendor_assessments_vendor_status", "vendor_id", "status"),
     )
-
-
-from app.models.user import User
-from app.models.vendor import Vendor

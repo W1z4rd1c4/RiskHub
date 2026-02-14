@@ -53,7 +53,7 @@ from app.models.vendor_sla_history import VendorSLAValueHistory
 
 __all__ = [
     "Role", "Permission", "RolePermission", "RoleType",
-    "User", 
+    "User",
     "Department",
     "Control", "ControlForm", "ControlFrequency", "ControlStatus",
     "ControlExecution", "ExecutionResult",

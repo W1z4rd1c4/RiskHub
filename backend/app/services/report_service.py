@@ -34,7 +34,7 @@ def generate_controls_excel(controls: list["Control"]) -> bytes:
     wb = Workbook()
     ws = wb.active
     ws.title = "Controls"
-    
+
     # Header styling
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid")
@@ -44,21 +44,21 @@ def generate_controls_excel(controls: list["Control"]) -> bytes:
         top=Side(style='thin'),
         bottom=Side(style='thin')
     )
-    
+
     # Headers
     headers = [
         "ID", "Name", "Description", "Department", "Status", "Form",
         "Frequency", "Risk Level", "Owner Position", "Executor Position",
         "Data Source", "Methodology Reference", "Created At"
     ]
-    
+
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.font = header_font
         cell.fill = header_fill
         cell.border = header_border
         cell.alignment = Alignment(horizontal='center')
-    
+
     # Data rows
     for row, control in enumerate(controls, 2):
         ws.cell(row=row, column=1, value=control.id)
@@ -74,7 +74,7 @@ def generate_controls_excel(controls: list["Control"]) -> bytes:
         ws.cell(row=row, column=11, value=control.data_source or "")
         ws.cell(row=row, column=12, value=control.methodology_reference or "")
         ws.cell(row=row, column=13, value=control.created_at.strftime('%Y-%m-%d') if control.created_at else "")
-    
+
     # Adjust column widths
     ws.column_dimensions['A'].width = 8
     ws.column_dimensions['B'].width = 30
@@ -89,7 +89,7 @@ def generate_controls_excel(controls: list["Control"]) -> bytes:
     ws.column_dimensions['K'].width = 25
     ws.column_dimensions['L'].width = 25
     ws.column_dimensions['M'].width = 15
-    
+
     buffer = BytesIO()
     wb.save(buffer)
     buffer.seek(0)
@@ -253,7 +253,7 @@ def generate_risks_excel(risks: list["Risk"]) -> bytes:
     wb = Workbook()
     ws = wb.active
     ws.title = "Risks"
-    
+
     # Header styling
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid")
@@ -263,7 +263,7 @@ def generate_risks_excel(risks: list["Risk"]) -> bytes:
         top=Side(style='thin'),
         bottom=Side(style='thin')
     )
-    
+
     # Headers
     headers = [
         "ID", "Risk ID Code", "Process", "Description", "Category", "Department", "Status",
@@ -271,14 +271,14 @@ def generate_risks_excel(risks: list["Risk"]) -> bytes:
         "Net Probability", "Net Impact", "Net Score",
         "Owner", "Treatment Strategy", "Created At"
     ]
-    
+
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.font = header_font
         cell.fill = header_fill
         cell.border = header_border
         cell.alignment = Alignment(horizontal='center')
-    
+
     # Data rows
     for row, risk in enumerate(risks, 2):
         ws.cell(row=row, column=1, value=risk.id)
@@ -297,7 +297,7 @@ def generate_risks_excel(risks: list["Risk"]) -> bytes:
         ws.cell(row=row, column=14, value=risk.owner.name if hasattr(risk, 'owner') and risk.owner else "")
         ws.cell(row=row, column=15, value="")  # Treatment strategy not in model
         ws.cell(row=row, column=16, value=risk.created_at.strftime('%Y-%m-%d') if risk.created_at else "")
-    
+
     # Adjust column widths
     ws.column_dimensions['A'].width = 8
     ws.column_dimensions['B'].width = 30
@@ -314,7 +314,7 @@ def generate_risks_excel(risks: list["Risk"]) -> bytes:
     ws.column_dimensions['M'].width = 20
     ws.column_dimensions['N'].width = 18
     ws.column_dimensions['O'].width = 15
-    
+
     buffer = BytesIO()
     wb.save(buffer)
     buffer.seek(0)
@@ -326,7 +326,7 @@ def generate_audit_trail_excel(executions: list) -> bytes:
     wb = Workbook()
     ws = wb.active
     ws.title = "Audit Trail"
-    
+
     # Header styling
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="1e293b", end_color="1e293b", fill_type="solid")
@@ -337,21 +337,21 @@ def generate_audit_trail_excel(executions: list) -> bytes:
         bottom=Side(style='thin')
     )
     wrap_alignment = Alignment(wrap_text=True, vertical='top')
-    
+
     # Headers
     headers = [
         "ID", "Executed At", "Control ID", "Control Name", "Department",
         "Executor", "Result", "Findings", "Evidence Reference", "Notes",
         "Next Scheduled", "Linked Risks"
     ]
-    
+
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col, value=header)
         cell.font = header_font
         cell.fill = header_fill
         cell.border = header_border
         cell.alignment = Alignment(horizontal='center')
-    
+
     # Data rows
     for row, exe in enumerate(executions, 2):
         ws.cell(row=row, column=1, value=exe.id)
@@ -361,21 +361,21 @@ def generate_audit_trail_excel(executions: list) -> bytes:
         ws.cell(row=row, column=5, value=exe.control.department.name if exe.control and exe.control.department else "")
         ws.cell(row=row, column=6, value=exe.executed_by.name if exe.executed_by else "")
         ws.cell(row=row, column=7, value=exe.result or "")
-        
+
         # Findings with wrap
         findings_cell = ws.cell(row=row, column=8, value=exe.findings or "")
         findings_cell.alignment = wrap_alignment
-        
+
         # Evidence with wrap
         evidence_cell = ws.cell(row=row, column=9, value=exe.evidence_reference or "")
         evidence_cell.alignment = wrap_alignment
-        
+
         # Notes with wrap
         notes_cell = ws.cell(row=row, column=10, value=exe.notes or "")
         notes_cell.alignment = wrap_alignment
-        
+
         ws.cell(row=row, column=11, value=exe.next_scheduled.strftime('%Y-%m-%d') if exe.next_scheduled else "")
-        
+
         # Linked risks (from control.risk_links -> risk)
         linked_risks = ""
         if exe.control and hasattr(exe.control, 'risk_links'):
@@ -389,7 +389,7 @@ def generate_audit_trail_excel(executions: list) -> bytes:
                         risk_names.append(f"R-{link.risk.id}")
             linked_risks = "; ".join(risk_names)
         ws.cell(row=row, column=12, value=linked_risks)
-    
+
     # Adjust column widths
     ws.column_dimensions['A'].width = 8
     ws.column_dimensions['B'].width = 18
@@ -403,7 +403,7 @@ def generate_audit_trail_excel(executions: list) -> bytes:
     ws.column_dimensions['J'].width = 30
     ws.column_dimensions['K'].width = 15
     ws.column_dimensions['L'].width = 40
-    
+
     buffer = BytesIO()
     wb.save(buffer)
     buffer.seek(0)

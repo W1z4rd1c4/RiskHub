@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
-
+if TYPE_CHECKING:
+    from app.models.vendor_sla import VendorSLA
 class VendorSLAValueHistory(Base):
     __tablename__ = "vendor_sla_value_history"
 
@@ -29,7 +31,3 @@ class VendorSLAValueHistory(Base):
     breach_status: Mapped[str] = mapped_column(String(20), nullable=False)
 
     sla: Mapped["VendorSLA"] = relationship("VendorSLA", back_populates="history_entries", lazy="selectin")
-
-
-from app.models.vendor_sla import VendorSLA
-
