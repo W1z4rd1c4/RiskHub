@@ -337,7 +337,7 @@ export function RiskDetailPage() {
                     <PermissionGate resource="risks" action="write">
                         <button
                             onClick={() => navigate(`/risks/${risk.id}/edit`)}
-                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-all hover:shadow-[0_0_20px_rgba(30,132,255,0.1)]"
+                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-all hover:shadow-lg hover:shadow-accent/20"
                         >
                             <Edit className="h-5 w-5" />
                         </button>

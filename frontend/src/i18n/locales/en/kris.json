@@ -188,7 +188,11 @@
     "last_updated": "Last Updated",
     "breach": "BREACH",
     "metric_detail": "Metric Detail",
-    "optimal": "Optimal"
+    "optimal": "Optimal",
+    "lower_limit": "Lower limit: {{value}}",
+    "upper_limit": "Upper limit: {{value}}",
+    "min_value": "{{value}} {{unit}} min",
+    "max_value": "{{value}} {{unit}} max"
   },
   "history_edit": {
     "request_correction": "Request Correction",
@@ -204,5 +208,12 @@
     "entries_count": "{{count}} entries",
     "compare_periods": "Compare Periods",
     "need_two_entries_compare": "Select at least two entries to compare."
+  },
+  "delete_dialog": {
+    "title": "Delete KRI",
+    "message": "Provide a reason for deleting this KRI. This action is audited.",
+    "reason_label": "Deletion reason",
+    "reason_placeholder": "Explain why this KRI should be deleted...",
+    "confirm": "Delete KRI"
   }
 }

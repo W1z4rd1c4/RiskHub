@@ -4,6 +4,7 @@ import { AlertOctagon, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { vendorIncidentApi } from '@/services/vendorIncidentApi';
 import type { VendorIncident, VendorIncidentSeverity, VendorIncidentType } from '@/types/vendorIncident';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface VendorIncidentsTabProps {
     vendorId: number;
@@ -26,6 +27,7 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
     const [isMajor, setIsMajor] = useState(false);
     const [summary, setSummary] = useState('');
     const [details, setDetails] = useState('');
+    const [deleteIncidentId, setDeleteIncidentId] = useState<number | null>(null);
 
     const refresh = useCallback(async () => {
         try {
@@ -85,6 +87,18 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
             console.error('Failed to create incident:', err);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleConfirmDelete = async () => {
+        if (deleteIncidentId === null) return;
+        try {
+            await vendorIncidentApi.deleteIncident(deleteIncidentId);
+            await refresh();
+        } catch (err) {
+            console.error('Failed to delete incident:', err);
+        } finally {
+            setDeleteIncidentId(null);
         }
     };
 
@@ -166,11 +180,7 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
                                     {badge(i.severity.toUpperCase(), 'text-slate-300 bg-white/5 border-white/10')}
                                     {canEdit && (
                                         <button
-                                            onClick={async () => {
-                                                if (!confirm(t('incidents.confirm_delete'))) return;
-                                                await vendorIncidentApi.deleteIncident(i.id);
-                                                await refresh();
-                                            }}
+                                            onClick={() => setDeleteIncidentId(i.id)}
                                             className="p-2 text-rose-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
                                         >
                                             <Trash2 className="h-4 w-4" />
@@ -186,6 +196,15 @@ export function VendorIncidentsTab({ vendorId, canEdit }: VendorIncidentsTabProp
                     ))}
                 </div>
             )}
+            <ConfirmDialog
+                isOpen={deleteIncidentId !== null}
+                onClose={() => setDeleteIncidentId(null)}
+                onConfirm={handleConfirmDelete}
+                title={t('common:actions.delete')}
+                message={t('incidents.confirm_delete')}
+                confirmLabel={t('common:actions.delete')}
+                variant="danger"
+            />
         </section>
     );
 }

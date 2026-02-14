@@ -21,6 +21,7 @@ import { LinkSearchPanel, type DepartmentLookup, type SearchResultItem } from '.
 import { ExistingLinksPanel, type ExistingLinkItem } from './linking/ExistingLinksPanel';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -67,6 +68,7 @@ export function LinkManagementDialog({
     const [selectedTargetId, setSelectedTargetId] = useState<number | null>(null);
     const [isLinking, setIsLinking] = useState(false);
     const [isUnlinking, setIsUnlinking] = useState<number | null>(null);
+    const [unlinkTargetId, setUnlinkTargetId] = useState<number | null>(null);
 
     // -----------------------------------------------------------------------
     // Filter state
@@ -183,15 +185,20 @@ export function LinkManagementDialog({
         }
     };
 
-    const handleUnlink = async (targetId: number) => {
-        if (!confirm(t('common:confirmation.remove_link'))) return;
+    const handleUnlink = (targetId: number) => {
+        setUnlinkTargetId(targetId);
+    };
+
+    const handleConfirmUnlink = async () => {
+        if (unlinkTargetId === null) return;
         try {
-            setIsUnlinking(targetId);
-            await onUnlink(targetId);
+            setIsUnlinking(unlinkTargetId);
+            await onUnlink(unlinkTargetId);
         } catch (err) {
             console.error('Unlinking failed:', err);
         } finally {
             setIsUnlinking(null);
+            setUnlinkTargetId(null);
         }
     };
 
@@ -214,7 +221,7 @@ export function LinkManagementDialog({
 
     if (typeof document === 'undefined') return null;
 
-    return createPortal(
+    const mainModal = createPortal(
         <AnimatePresence>
             {isOpen && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
@@ -311,5 +318,21 @@ export function LinkManagementDialog({
             )}
         </AnimatePresence>,
         document.body
+    );
+
+    return (
+        <>
+            {mainModal}
+            <ConfirmDialog
+                isOpen={unlinkTargetId !== null}
+                onClose={() => setUnlinkTargetId(null)}
+                onConfirm={handleConfirmUnlink}
+                title={t('common:confirmation.delete_title')}
+                message={t('common:confirmation.remove_link')}
+                confirmLabel={t('common:actions.delete')}
+                variant="danger"
+                isLoading={isUnlinking !== null}
+            />
+        </>
     );
 }

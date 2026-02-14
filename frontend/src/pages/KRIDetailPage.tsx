@@ -10,6 +10,7 @@ import { KRIModal } from '@/components/kri/KRIModal';
 import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import { KRIHistoryEditModal } from '@/components/kri/KRIHistoryEditModal';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
@@ -38,6 +39,7 @@ export function KRIDetailPage() {
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<KRIHistoryEntry | null>(null);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
     // Permissions
     const { canRecordKRI, user } = usePermissions();
@@ -82,13 +84,14 @@ export function KRIDetailPage() {
         if (id) fetchKRI(parseInt(id));
     }, [id, fetchKRI]);
 
-    const handleDelete = async () => {
+    const handleDelete = async (reason?: string) => {
         if (!kri) return;
-        const reason = prompt('Why is this KRI being deleted?');
-        if (!reason) return; // User cancelled or empty reason
+        const deleteReason = reason?.trim();
+        if (!deleteReason) return;
         setIsDeleting(true);
         try {
-            await kriApi.deleteKRI(kri.id, reason);
+            await kriApi.deleteKRI(kri.id, deleteReason);
+            setIsDeleteDialogOpen(false);
             navigate('/kris');
         } catch (err) {
             console.error('Failed to delete KRI:', err);
@@ -223,16 +226,16 @@ export function KRIDetailPage() {
                     )}
                     <PermissionGate resource="risks" action="write">
                         <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
-                            <Edit2 className="h-4 w-4 mr-1" /> Edit
+                            <Edit2 className="h-4 w-4 mr-1" /> {t('common:actions.edit')}
                         </Button>
                     </PermissionGate>
                     <PermissionGate resource="risks" action="delete">
                         {kri.is_archived ? (
                             <Button variant="outline" onClick={handleRestore}>
-                                <RotateCcw className="h-4 w-4 mr-1" /> Unarchive
+                                <RotateCcw className="h-4 w-4 mr-1" /> {t('common:actions.unarchive')}
                             </Button>
                         ) : (
-                            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isDeleting}>
                                 <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? t('common:actions.deleting') : t('common:actions.delete')}
                             </Button>
                         )}
@@ -327,14 +330,31 @@ export function KRIDetailPage() {
             }
 
             {kri && (
-                <IssueQuickCreateModal
-                    isOpen={isIssueModalOpen}
-                    onClose={() => setIsIssueModalOpen(false)}
-                    contextEntityType="kri"
-                    contextEntityId={kri.id}
-                    contextEntityLabel={kri.metric_name}
-                    onCreated={(issue) => navigate(`/issues/${issue.id}`)}
-                />
+                <>
+                    <IssueQuickCreateModal
+                        isOpen={isIssueModalOpen}
+                        onClose={() => setIsIssueModalOpen(false)}
+                        contextEntityType="kri"
+                        contextEntityId={kri.id}
+                        contextEntityLabel={kri.metric_name}
+                        onCreated={(issue) => navigate(`/issues/${issue.id}`)}
+                    />
+
+                    <ConfirmDialog
+                        isOpen={isDeleteDialogOpen}
+                        onClose={() => setIsDeleteDialogOpen(false)}
+                        onConfirm={(inputValue) => handleDelete(inputValue)}
+                        title={t('kris:delete_dialog.title')}
+                        message={t('kris:delete_dialog.message')}
+                        confirmLabel={t('kris:delete_dialog.confirm')}
+                        variant="danger"
+                        isLoading={isDeleting}
+                        showInput
+                        inputLabel={t('kris:delete_dialog.reason_label')}
+                        inputPlaceholder={t('kris:delete_dialog.reason_placeholder')}
+                        inputRequired
+                    />
+                </>
             )}
         </div >
     );

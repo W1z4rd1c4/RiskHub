@@ -350,7 +350,7 @@ export function DepartmentDetailPage() {
             <div className="glass-card border-rose-500/50 bg-rose-500/10">
                 <div className="flex items-center gap-3 text-rose-400">
                     <AlertCircle className="h-5 w-5" />
-                    <p className="font-medium">{error || t('not_found', { ns: 'errorKeys' })}</p>
+                    <p className="font-medium">{error ? t(error, { ns: 'common' }) : t('not_found', { ns: 'errorKeys' })}</p>
                 </div>
             </div>
         );

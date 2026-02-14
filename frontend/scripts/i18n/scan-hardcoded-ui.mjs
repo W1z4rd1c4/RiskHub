@@ -29,18 +29,27 @@ function toLineCol(content, index) {
   return { line: lines.length, col: lines[lines.length - 1].length + 1 };
 }
 
-function isNoiseText(value) {
+function isNoiseText(value, options = {}) {
+  const { allowShortWord = false } = options;
   const v = value.trim();
   if (!v) return true;
+  const actionableWords = new Set([
+    'retry', 'save', 'cancel', 'delete', 'edit', 'create', 'submit', 'close', 'open', 'restore',
+    'approve', 'reject', 'yes', 'no', 'next', 'back',
+    'zkusit', 'ulozit', 'ulo\u017eit', 'zrusit', 'zru\u0161it', 'smazat', 'upravit',
+    'vytvorit', 'vytvo\u0159it', 'odeslat', 'zavrit', 'zav\u0159it', 'obnovit',
+  ]);
+  if (actionableWords.has(v.toLowerCase())) return false;
   if (v.startsWith('{') || v.startsWith('/*') || v.startsWith('//') || v.startsWith('<')) return true;
   if (/^[\W\d_]+$/u.test(v)) return true;
   if (/^\w+\.\w+(\.\w+)*$/.test(v)) return true;
+  if (/^(?:[a-z]+:)?(?:text|bg|border|ring|shadow|font|tracking|leading|rounded|cursor|items|justify|content|self|place|overflow|object|min|max|w|h|p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|gap|space|opacity|z)-[a-z0-9[\]()./%_-]+$/i.test(v)) return true;
   if (/^\/[a-z0-9/_-]*$/i.test(v)) return true;
   if (/^(https?:\/\/|mailto:|tel:)/i.test(v)) return true;
   if (/^[A-Z0-9_:-]{2,}$/.test(v)) return true;
-  if (!/\s/.test(v) && v.length < 10) return true;
-  if (!/\s/.test(v) && /^[a-z0-9_\-[\]:]+$/i.test(v)) return true;
-  if (/^(create\s+"?|[(×•]+[a-z]*:?|[a-z]*:?|no|found)$/i.test(v)) return true;
+  if (!allowShortWord && !/\s/.test(v) && v.length < 10) return true;
+  if (!allowShortWord && !/\s/.test(v) && /^[a-z0-9_\-[\]:]+$/i.test(v)) return true;
+  if (/^(create\s+"?|[(×•]+[a-z]{0,3}:?|[a-z]{1,3}:?|no|found)$/i.test(v)) return true;
   if (/^\(id:\s*$/i.test(v)) return true;
   if (/^\(p:\s*$/i.test(v)) return true;
   if (/^×\s*i:\s*$/i.test(v)) return true;
@@ -119,6 +128,16 @@ function normalizeUiText(value) {
   return value.replace(/\s+/g, ' ').trim();
 }
 
+function getCallName(expr) {
+  if (ts.isIdentifier(expr)) return expr.text;
+  if (ts.isPropertyAccessExpression(expr) && ts.isIdentifier(expr.name)) return expr.name.text;
+  return null;
+}
+
+function isTranslationKey(value) {
+  return /^[a-z0-9_]+(?::[a-z0-9_]+)?(?:\.[a-z0-9_]+)+$/i.test(value);
+}
+
 async function walk(dir, acc = []) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const e of entries) {
@@ -187,6 +206,7 @@ async function main() {
   for (const file of files) {
     const srcPath = file.replace(/^frontend\//, '');
     if (matchesAnyPattern(srcPath, pathAllowlist)) continue;
+    const isProductionUiFile = srcPath.startsWith('src/pages/') || srcPath.startsWith('src/components/');
 
     const content = await fs.readFile(path.join(ROOT, srcPath), 'utf8');
     const sf = ts.createSourceFile(
@@ -210,7 +230,7 @@ async function main() {
         const name = getPropName(node.name);
         if (UI_ATTRS.has(name)) {
           const direct = normalizeUiText(getStringFromInitializer(node.initializer) || '');
-          if (direct && !isNoiseText(direct) && !matchesAnyPattern(direct, tokenAllowlist)) {
+          if (direct && !isNoiseText(direct, { allowShortWord: true }) && !matchesAnyPattern(direct, tokenAllowlist)) {
             const pos = toLineCol(content, node.getStart(sf));
             violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'prop', text: direct });
           }
@@ -219,7 +239,7 @@ async function main() {
             const literals = collectUiExpressionLiterals(node.initializer.expression);
             for (const literalNode of literals) {
               const raw = normalizeUiText(literalNode.text);
-              if (!raw || isNoiseText(raw) || matchesAnyPattern(raw, tokenAllowlist)) continue;
+              if (!raw || isNoiseText(raw, { allowShortWord: true }) || matchesAnyPattern(raw, tokenAllowlist)) continue;
               const pos = toLineCol(content, literalNode.getStart(sf));
               violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'prop-expr', text: raw });
             }
@@ -236,7 +256,7 @@ async function main() {
             : element.name.text;
           if (!UI_PARAM_DEFAULTS.has(propName)) continue;
           const raw = normalizeUiText(getTextFromLiteral(element.initializer) || '');
-          if (!raw || isNoiseText(raw) || matchesAnyPattern(raw, tokenAllowlist)) continue;
+          if (!raw || isNoiseText(raw, { allowShortWord: true }) || matchesAnyPattern(raw, tokenAllowlist)) continue;
           const pos = toLineCol(content, element.initializer.getStart(sf));
           violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'param-default', text: raw });
         }
@@ -250,7 +270,7 @@ async function main() {
             : null;
         if (key && UI_OBJECT_KEYS.has(key)) {
           const raw = normalizeUiText(getTextFromLiteral(node.initializer) || '');
-          if (raw && !isNoiseText(raw) && !matchesAnyPattern(raw, tokenAllowlist)) {
+          if (raw && !isNoiseText(raw, { allowShortWord: true }) && !matchesAnyPattern(raw, tokenAllowlist)) {
             const pos = toLineCol(content, node.getStart(sf));
             violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'object', text: raw });
           }
@@ -276,7 +296,7 @@ async function main() {
             const attrName = getPropName(container.name);
             if (UI_ATTRS.has(attrName)) {
               const raw = normalizeUiText(node.text);
-              if (raw && !isNoiseText(raw) && !matchesAnyPattern(raw, tokenAllowlist)) {
+              if (raw && !isNoiseText(raw, { allowShortWord: true }) && !matchesAnyPattern(raw, tokenAllowlist)) {
                 const pos = toLineCol(content, node.getStart(sf));
                 violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'prop-expr', text: raw });
               }
@@ -305,6 +325,33 @@ async function main() {
           if (raw && !isNoiseText(raw) && !matchesAnyPattern(raw, tokenAllowlist)) {
             const pos = toLineCol(content, node.getStart(sf));
             violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'jsx-conditional', text: raw });
+          }
+        }
+      }
+
+      if (ts.isCallExpression(node)) {
+        const callName = getCallName(node.expression);
+        const firstArg = node.arguments[0];
+        const literalArg = firstArg ? getTextFromLiteral(firstArg) : null;
+        const isNativeDialogCall = callName === 'prompt' || callName === 'confirm' || callName === 'alert';
+
+        if (isNativeDialogCall && isProductionUiFile) {
+          const pos = toLineCol(content, node.expression.getStart(sf));
+          const text = literalArg ? normalizeUiText(literalArg) : `${callName}()`;
+          violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'native-dialog', text });
+        }
+
+        if (callName && literalArg) {
+          const raw = normalizeUiText(literalArg);
+          if (raw && !isNoiseText(raw) && !matchesAnyPattern(raw, tokenAllowlist)) {
+            if (
+              /^set[A-Z]/.test(callName) &&
+              /(Error|Message|Alert|Toast|Notice|Warning)/.test(callName) &&
+              !isTranslationKey(raw)
+            ) {
+              const pos = toLineCol(content, firstArg.getStart(sf));
+              violations.push({ file: srcPath, line: pos.line, col: pos.col, kind: 'state-literal', text: raw });
+            }
           }
         }
       }

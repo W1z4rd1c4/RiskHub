@@ -468,7 +468,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                                     type="button"
                                                     onClick={() => setRoleFilter('')}
                                                     className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${!roleFilter
-                                                        ? 'bg-accent text-white shadow-[0_0_10px_rgba(30,132,255,0.3)]'
+                                                        ? 'bg-accent text-white shadow-lg shadow-accent/30'
                                                         : 'bg-white/5 text-slate-500 hover:bg-white/10'
                                                         }`}
                                                 >
@@ -492,7 +492,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                                             }
                                                         }}
                                                         className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${roleFilter === role
-                                                            ? 'bg-accent text-white shadow-[0_0_10px_rgba(30,132,255,0.3)]'
+                                                            ? 'bg-accent text-white shadow-lg shadow-accent/30'
                                                             : 'bg-white/5 text-slate-500 hover:bg-white/10'
                                                             }`}
                                                     >
@@ -621,7 +621,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                                         onChange={(e) => handleInputChange('risk_level', parseInt(e.target.value))}
                                         className="flex-1 accent-accent"
                                     />
-                                    <span className="w-12 h-12 rounded-xl bg-accent text-white flex items-center justify-center font-black text-xl shadow-[0_0_15px_rgba(30,132,255,0.2)]">
+                                    <span className="w-12 h-12 rounded-xl bg-accent text-white flex items-center justify-center font-black text-xl shadow-lg shadow-accent/25">
                                         {formData.risk_level}
                                     </span>
                                 </div>

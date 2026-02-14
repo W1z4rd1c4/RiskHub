@@ -4,6 +4,7 @@ import { CalendarClock, Loader2, Play, Zap } from 'lucide-react';
 import { vendorApi } from '@/services/vendorApi';
 import { vendorAssessmentApi } from '@/services/vendorAssessmentApi';
 import type { Vendor } from '@/types/vendor';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface VendorScheduleTabProps {
     vendorId: number;
@@ -25,6 +26,7 @@ export function VendorScheduleTab({ vendorId, canEdit }: VendorScheduleTabProps)
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isTriggerDialogOpen, setIsTriggerDialogOpen] = useState(false);
 
     const refresh = useCallback(async () => {
         try {
@@ -55,9 +57,9 @@ export function VendorScheduleTab({ vendorId, canEdit }: VendorScheduleTabProps)
         return 'ok';
     }, [vendor?.next_reassessment_due_at]);
 
-    const trigger = async () => {
+    const trigger = async (reasonInput?: string) => {
         if (!vendor) return;
-        const reason = prompt(t('schedule.trigger_reason_prompt'))?.trim();
+        const reason = reasonInput?.trim();
         if (!reason) return;
         try {
             setIsSaving(true);
@@ -67,6 +69,7 @@ export function VendorScheduleTab({ vendorId, canEdit }: VendorScheduleTabProps)
             console.error('Failed to trigger reassessment:', err);
         } finally {
             setIsSaving(false);
+            setIsTriggerDialogOpen(false);
         }
     };
 
@@ -107,7 +110,7 @@ export function VendorScheduleTab({ vendorId, canEdit }: VendorScheduleTabProps)
                             {t('schedule.actions.start_reassessment')}
                         </button>
                         <button
-                            onClick={trigger}
+                            onClick={() => setIsTriggerDialogOpen(true)}
                             disabled={isSaving}
                             className="px-4 py-2 bg-amber-500/20 border border-amber-500/30 text-amber-200 rounded-xl font-bold hover:bg-amber-500/30 transition-colors flex items-center gap-2 disabled:opacity-60"
                         >
@@ -126,7 +129,7 @@ export function VendorScheduleTab({ vendorId, canEdit }: VendorScheduleTabProps)
             ) : error ? (
                 <div className="text-rose-400 font-medium">{error}</div>
             ) : !vendor ? (
-                <div className="text-slate-500 font-medium">—</div>
+                <div className="text-slate-500 font-medium">{t('common:fallbacks.not_available')}</div>
             ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-2">
@@ -155,6 +158,20 @@ export function VendorScheduleTab({ vendorId, canEdit }: VendorScheduleTabProps)
                     </div>
                 </div>
             )}
+            <ConfirmDialog
+                isOpen={isTriggerDialogOpen}
+                onClose={() => setIsTriggerDialogOpen(false)}
+                onConfirm={trigger}
+                title={t('schedule.trigger_dialog.title')}
+                message={t('schedule.trigger_dialog.message')}
+                confirmLabel={t('schedule.actions.trigger')}
+                variant="warning"
+                isLoading={isSaving}
+                showInput
+                inputLabel={t('schedule.trigger_dialog.reason_label')}
+                inputPlaceholder={t('schedule.trigger_dialog.reason_placeholder')}
+                inputRequired
+            />
         </section>
     );
 }

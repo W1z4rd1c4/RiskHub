@@ -20,6 +20,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { cn } from '@/lib/utils';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export default function ApprovalsPage() {
     const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
@@ -37,6 +38,7 @@ export default function ApprovalsPage() {
     const [resolutionNotes, setResolutionNotes] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const [cancelApprovalId, setCancelApprovalId] = useState<number | null>(null);
 
     // Expanded rows state (for edits)
     const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
@@ -118,14 +120,20 @@ export default function ApprovalsPage() {
         }
     };
 
-    const handleCancel = async (id: number) => {
-        if (!confirm(t('dialogs.cancel_message'))) return;
+    const handleCancel = (id: number) => {
+        setCancelApprovalId(id);
+    };
+
+    const handleConfirmCancel = async () => {
+        if (cancelApprovalId === null) return;
         try {
-            await approvalsApi.cancel(id);
+            await approvalsApi.cancel(cancelApprovalId);
             fetchApprovals();
         } catch (error) {
             console.error('Failed to cancel request:', error);
             setErrorKey(apiClient.toUiMessageKey(error));
+        } finally {
+            setCancelApprovalId(null);
         }
     };
 
@@ -534,6 +542,16 @@ export default function ApprovalsPage() {
                     </div>
                 )}
             </AnimatePresence>
+
+            <ConfirmDialog
+                isOpen={cancelApprovalId !== null}
+                onClose={() => setCancelApprovalId(null)}
+                onConfirm={handleConfirmCancel}
+                title={t('dialogs.cancel_title')}
+                message={t('dialogs.cancel_message')}
+                confirmLabel={t('common:actions.confirm')}
+                variant="warning"
+            />
         </div>
     );
 }

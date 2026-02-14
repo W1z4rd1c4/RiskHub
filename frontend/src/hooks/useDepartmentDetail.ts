@@ -88,7 +88,7 @@ export function useDepartmentDetail({
         setError(null);
         departmentApi.getDepartment(departmentId)
             .then(setDepartment)
-            .catch(() => setError('Failed to load department details'))
+            .catch(() => setError('errors.load_department_detail_failed'))
             .finally(() => setIsLoading(false));
     }, [departmentId]);
 
@@ -156,7 +156,7 @@ export function useDepartmentDetail({
         setIsLoading(true);
         departmentApi.getDepartment(departmentId)
             .then(setDepartment)
-            .catch(() => setError('Failed to load department details'))
+            .catch(() => setError('errors.load_department_detail_failed'))
             .finally(() => setIsLoading(false));
     };
 

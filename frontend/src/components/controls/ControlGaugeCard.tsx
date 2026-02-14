@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Info, AlertTriangle, ShieldCheck } from 'lucide-react';
 import type { RiskControlLink } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
+import { useStatusTheme } from '@/hooks/useStatusTheme';
 
 interface ControlGaugeCardProps {
     link: RiskControlLink;
@@ -10,32 +11,33 @@ interface ControlGaugeCardProps {
 
 export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
     const { t } = useTranslation(['controls', 'common']);
+    const statusTheme = useStatusTheme();
     const {
         effectiveness,
         control,
         notes
     } = link;
 
-    const controlName = control?.name || 'Unknown Control';
+    const controlName = control?.name || t('common:fallbacks.unknown_control');
     const frequency = control?.frequency || '—';
     const riskLevel = control?.risk_level || 0;
     const maxRiskLevel = 5;
 
     const getStatusColor = () => {
         switch (effectiveness) {
-            case 'high': return 'text-emerald-400';
-            case 'medium': return 'text-amber-400';
-            case 'low': return 'text-rose-400';
-            default: return 'text-slate-400';
+            case 'high': return statusTheme.control.highText;
+            case 'medium': return statusTheme.control.mediumText;
+            case 'low': return statusTheme.control.lowText;
+            default: return statusTheme.control.neutralText;
         }
     };
 
     const getBarColor = () => {
         switch (effectiveness) {
-            case 'high': return 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]';
-            case 'medium': return 'bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)]';
-            case 'low': return 'bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.4)]';
-            default: return 'bg-slate-500 shadow-[0_0_15px_rgba(71,85,105,0.4)]';
+            case 'high': return statusTheme.control.highGauge;
+            case 'medium': return statusTheme.control.mediumGauge;
+            case 'low': return statusTheme.control.lowGauge;
+            default: return statusTheme.control.neutralGauge;
         }
     };
 

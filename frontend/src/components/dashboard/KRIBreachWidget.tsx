@@ -61,8 +61,7 @@ export function KRIBreachWidget() {
                 {breaches.map((kri) => (
                     <motion.div
                         key={kri.id}
-                        whileHover={{ backgroundColor: 'rgba(255,255,255,0.03)' }}
-                        className="p-4 cursor-pointer group flex items-center justify-between"
+                        className="p-4 cursor-pointer group flex items-center justify-between hover:bg-white/5 transition-colors"
                         onClick={() => navigate(`/risks/${kri.risk_id}`)}
                     >
                         <div className="flex-1 min-w-0 mr-4">

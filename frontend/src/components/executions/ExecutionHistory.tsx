@@ -30,7 +30,6 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
     const { t, i18n } = useTranslation(['controls', 'common']);
     const [executions, setExecutions] = useState<ControlExecution[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [, setError] = useState<string | null>(null);
     const [expandedId, setExpandedId] = useState<number | null>(null);
 
     const fetchExecutions = useCallback(async () => {
@@ -38,10 +37,8 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
             setIsLoading(true);
             const data = await executionApi.getExecutions({ control_id: controlId });
             setExecutions(data);
-            setError(null);
         } catch (err) {
             console.error('Error fetching execution history:', err);
-            setError('Failed to load history');
         } finally {
             setIsLoading(false);
         }

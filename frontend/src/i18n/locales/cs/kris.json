@@ -188,7 +188,11 @@
     "last_updated": "Naposledy aktualizováno",
     "breach": "PŘEKROČENO",
     "metric_detail": "Detail metriky",
-    "optimal": "Optimální"
+    "optimal": "Optimální",
+    "lower_limit": "Spodní limit: {{value}}",
+    "upper_limit": "Horní limit: {{value}}",
+    "min_value": "{{value}} {{unit}} min",
+    "max_value": "{{value}} {{unit}} max"
   },
   "history_edit": {
     "request_correction": "Požádat o opravu",
@@ -204,5 +208,12 @@
     "entries_count": "{{count}} záznamů",
     "compare_periods": "Porovnat období",
     "need_two_entries_compare": "Pro porovnání vyberte alespoň dva záznamy."
+  },
+  "delete_dialog": {
+    "title": "Smazat KRI",
+    "message": "Uveďte důvod smazání tohoto KRI. Tato akce je auditována.",
+    "reason_label": "Důvod smazání",
+    "reason_placeholder": "Vysvětlete, proč má být toto KRI smazáno...",
+    "confirm": "Smazat KRI"
   }
 }
