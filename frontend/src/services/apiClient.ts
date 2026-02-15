@@ -1,4 +1,5 @@
 import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
+import { silentReauthAndExchange } from '@/services/ssoSession';
 
 // Use relative URL for nginx proxy (enables LAN access)
 // In development, VITE_API_URL can override for direct backend connection
@@ -36,6 +37,13 @@ class ApiClient {
 
     constructor(baseUrl: string) {
         this.baseUrl = baseUrl;
+    }
+
+    private shouldAttemptSilentReauth(pathname: string, attempt: number): boolean {
+        if (attempt > 0) return false;
+        // Avoid infinite loops / recursion around auth endpoints.
+        if (pathname.startsWith('/api/v1/auth/')) return false;
+        return true;
     }
 
     private buildUrl(endpoint: string, params?: RequestOptions['params']): URL {
@@ -88,9 +96,10 @@ class ApiClient {
         });
     }
 
-    private async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+    private async request<T>(endpoint: string, options: RequestOptions = {}, attempt = 0): Promise<T> {
         const { params, ...init } = options;
         const url = this.buildUrl(endpoint, params);
+        const pathname = url.pathname;
 
         const headers = new Headers(init.headers);
         const token = localStorage.getItem('access_token');
@@ -106,6 +115,13 @@ class ApiClient {
             const response = await fetch(url.toString(), { ...init, headers });
 
             if (response.status === 401) {
+                if (this.shouldAttemptSilentReauth(pathname, attempt)) {
+                    const refreshedToken = await silentReauthAndExchange();
+                    if (refreshedToken) {
+                        return this.request<T>(endpoint, options, attempt + 1);
+                    }
+                }
+
                 localStorage.removeItem('access_token');
                 window.location.href = '/login';
                 throw new ApiClientError({
@@ -178,9 +194,10 @@ class ApiClient {
      * Download a binary blob from the API.
      * Uses the same base URL and auth logic as other requests.
      */
-    async getBlob(endpoint: string, options: RequestOptions = {}): Promise<{ blob: Blob; headers: Headers }> {
+    async getBlob(endpoint: string, options: RequestOptions = {}, attempt = 0): Promise<{ blob: Blob; headers: Headers }> {
         const { params, ...init } = options;
         const url = this.buildUrl(endpoint, params);
+        const pathname = url.pathname;
 
         const headers = new Headers(init.headers);
         const token = localStorage.getItem('access_token');
@@ -192,6 +209,13 @@ class ApiClient {
             const response = await fetch(url.toString(), { ...init, method: 'GET', headers });
 
             if (response.status === 401) {
+                if (this.shouldAttemptSilentReauth(pathname, attempt)) {
+                    const refreshedToken = await silentReauthAndExchange();
+                    if (refreshedToken) {
+                        return this.getBlob(endpoint, options, attempt + 1);
+                    }
+                }
+
                 localStorage.removeItem('access_token');
                 window.location.href = '/login';
                 throw new ApiClientError({

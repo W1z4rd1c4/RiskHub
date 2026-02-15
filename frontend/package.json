@@ -27,6 +27,7 @@
     "e2e:business-logic": "playwright test e2e/roles-access.spec.ts e2e/access-scope.spec.ts e2e/entity-ownership e2e/department-access.spec.ts e2e/permissions e2e/approval-workflows e2e/sensitive-fields e2e/cross-department e2e/activity-logging"
   },
   "dependencies": {
+    "@azure/msal-browser": "^5.2.0",
     "@playwright/test": "^1.57.0",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-select": "^2.2.6",

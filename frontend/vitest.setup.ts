@@ -36,10 +36,13 @@ const ensureLocalStorage = () => {
 };
 
 ensureLocalStorage();
-afterEach(() => {
+afterEach(async () => {
     if (typeof localStorage !== 'undefined') {
         localStorage.clear();
     }
+    // Clear auth config cache between tests to avoid cross-test leakage.
+    const mod = await import('./src/services/authConfig');
+    mod.clearAuthConfigCache();
 });
 
 let mswServer:

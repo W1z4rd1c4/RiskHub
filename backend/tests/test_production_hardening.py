@@ -7,6 +7,9 @@ from app.main import create_app
 
 PRODUCTION_SECRET = "test-secret-for-production-mode-123456"
 PRODUCTION_DATABASE_URL = "postgresql+asyncpg://riskhub:tests@prod-db:5432/riskhub"
+PRODUCTION_AUTH_MODE = "microsoft_sso"
+PRODUCTION_ENTRA_TENANT_ID = "00000000-0000-0000-0000-000000000000"
+PRODUCTION_ENTRA_CLIENT_ID = "11111111-1111-1111-1111-111111111111"
 
 
 @pytest.mark.asyncio
@@ -32,6 +35,9 @@ async def test_docs_disabled_in_production_mode():
             debug=False,
             secret_key=PRODUCTION_SECRET,
             mock_auth_enabled=False,
+            auth_mode=PRODUCTION_AUTH_MODE,
+            entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
+            entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
             cors_origins=["http://testserver"],
             database_url=PRODUCTION_DATABASE_URL,
             directory_webhook_enabled=False,
@@ -53,6 +59,9 @@ async def test_trusted_host_blocks_unexpected_host_in_production_mode():
             debug=False,
             secret_key=PRODUCTION_SECRET,
             mock_auth_enabled=False,
+            auth_mode=PRODUCTION_AUTH_MODE,
+            entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
+            entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
             cors_origins=["http://testserver"],
             database_url=PRODUCTION_DATABASE_URL,
             directory_webhook_enabled=False,
@@ -74,6 +83,9 @@ def test_cors_guard_rejects_wildcard_origins_in_production_mode():
                 debug=False,
                 secret_key=PRODUCTION_SECRET,
                 mock_auth_enabled=False,
+                auth_mode=PRODUCTION_AUTH_MODE,
+                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
+                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
                 cors_origins=["*"],
                 database_url=PRODUCTION_DATABASE_URL,
                 directory_webhook_enabled=False,
@@ -88,7 +100,44 @@ def test_cors_guard_requires_explicit_allowlist_in_production_mode():
                 debug=False,
                 secret_key=PRODUCTION_SECRET,
                 mock_auth_enabled=False,
+                auth_mode=PRODUCTION_AUTH_MODE,
+                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
+                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
                 cors_origins=[],
+                database_url=PRODUCTION_DATABASE_URL,
+                directory_webhook_enabled=False,
+            )
+        )
+
+
+def test_auth_mode_guard_requires_microsoft_sso_in_production():
+    with pytest.raises(RuntimeError, match="AUTH_MODE must be 'microsoft_sso'"):
+        create_app(
+            Settings(
+                debug=False,
+                secret_key=PRODUCTION_SECRET,
+                mock_auth_enabled=False,
+                auth_mode="password",
+                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
+                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
+                cors_origins=["http://testserver"],
+                database_url=PRODUCTION_DATABASE_URL,
+                directory_webhook_enabled=False,
+            )
+        )
+
+
+def test_auth_mode_guard_requires_entra_config_in_production():
+    with pytest.raises(RuntimeError, match="ENTRA_TENANT_ID and ENTRA_CLIENT_ID are required"):
+        create_app(
+            Settings(
+                debug=False,
+                secret_key=PRODUCTION_SECRET,
+                mock_auth_enabled=False,
+                auth_mode=PRODUCTION_AUTH_MODE,
+                entra_tenant_id=None,
+                entra_client_id=None,
+                cors_origins=["http://testserver"],
                 database_url=PRODUCTION_DATABASE_URL,
                 directory_webhook_enabled=False,
             )
