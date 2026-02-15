@@ -1,0 +1,112 @@
+from fastapi import Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.core.activity_logger import log_activity
+from app.core.permissions import check_department_access
+from app.core.security import require_permission
+from app.db.session import get_db
+from app.models import Risk, User
+from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.risk import RiskCreate, RiskRead
+
+from ..id_generation import generate_risk_id_code
+from ._shared import validate_risk_type
+from .list import router
+
+
+@router.post("", response_model=RiskRead, status_code=status.HTTP_201_CREATED)
+async def create_risk(
+    risk_data: RiskCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("risks", "write")),
+):
+    """Create a new risk. Requires risks:write permission."""
+    # Verify department access
+    check_department_access(risk_data.department_id, current_user)
+
+    # Validate risk type against dynamic configuration
+    await validate_risk_type(db, risk_data.risk_type)
+
+    # Prepare for atomic retry pattern
+    risk_id_code = risk_data.risk_id_code
+    auto_generated = not risk_id_code
+
+    MAX_RETRIES = 5
+    for attempt in range(MAX_RETRIES):
+        try:
+            if auto_generated:
+                risk_id_code = await generate_risk_id_code(db, risk_data.process)
+
+            # Calculate scores
+            gross_score = risk_data.gross_probability * risk_data.gross_impact
+            net_score = risk_data.net_probability * risk_data.net_impact
+
+            risk = Risk(
+                risk_id_code=risk_id_code,
+                name=risk_data.name,
+                process=risk_data.process,
+                subprocess=risk_data.subprocess,
+                risk_type=risk_data.risk_type,
+                category=risk_data.category,
+                description=risk_data.description,
+                department_id=risk_data.department_id,
+                owner_id=risk_data.owner_id,
+                gross_probability=risk_data.gross_probability,
+                gross_impact=risk_data.gross_impact,
+                gross_score=gross_score,
+                net_probability=risk_data.net_probability,
+                net_impact=risk_data.net_impact,
+                net_score=net_score,
+                status=risk_data.status.value,
+                is_priority=risk_data.is_priority,
+            )
+
+            db.add(risk)
+            await db.flush()
+
+            # Log activity within the same transaction
+            await log_activity(
+                db,
+                entity_type=ActivityEntityType.RISK,
+                entity_id=risk.id,
+                entity_name=f"{risk.risk_id_code}: {risk.description[:50] if risk.description else risk.name}",
+                action=ActivityAction.CREATE,
+                actor=current_user,
+                department_id=risk.department_id,
+            )
+            await db.commit()
+            await db.refresh(risk)
+
+            # Reload with relationships
+            result = await db.execute(
+                select(Risk)
+                .options(
+                    selectinload(Risk.department),
+                    selectinload(Risk.owner),
+                    selectinload(Risk.kris),
+                )
+                .where(Risk.id == risk.id)
+            )
+            return result.scalar_one()
+
+        except IntegrityError:
+            await db.rollback()
+
+            # Only retry for auto-generated IDs (user-provided ID collision should fail)
+            if not auto_generated:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT, detail=f"Risk ID '{risk_id_code}' already exists"
+                )
+
+            # Retry with fresh ID for auto-generated
+            if attempt < MAX_RETRIES - 1:
+                continue
+
+    # All retries exhausted
+    raise HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail="Could not generate unique Risk ID after retries. Please try again.",
+    )
