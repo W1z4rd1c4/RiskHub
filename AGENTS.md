@@ -67,6 +67,32 @@ After coding:
 
 For these areas, require stronger verification before closing.
 
+## Key Knowledge (Keep In Sync)
+
+### Timezone policy (UTC-aware)
+
+- Persist all “instant” timestamps as **timezone-aware UTC** (`datetime` with `tzinfo=UTC`) and Postgres **`timestamptz`**.
+- Use `backend/app/core/datetime_utils.py`:
+  - `utc_now()` for new timestamps.
+  - `coerce_utc()` when accepting values that might be naive (naive is treated as UTC).
+- Regression guard: `backend/tests/test_timezone_policy.py` fails if any `DateTime(timezone=False)` column exists.
+- Legacy conversion migration: `backend/alembic/versions/e9c3a1b7d2f4_convert_naive_timestamps_to_timestamptz.py` converts old `timestamp without time zone` columns using `AT TIME ZONE 'UTC'` (assumes existing values represent UTC instants).
+
+### Postgres test mode
+
+- Default tests run on in-memory SQLite; set `TEST_DATABASE_URL` to run the suite on Postgres.
+- `backend/tests/conftest.py` applies `alembic upgrade head` once per session and truncates all tables between tests when using Postgres.
+- Example: `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/riskhub_test pytest -v`
+
+### Endpoint package splits (maintainability)
+
+- These endpoints are **packages** (not single files): `controls/`, `risks/`, `kris/`, `dashboard/`, `issues/`, `reports/`, `riskhub/`.
+- Invariant: `app.api.v1.endpoints.<name>.router` must remain the exported router object (see `backend/app/api/v1/endpoints/<name>/__init__.py`).
+- FastAPI gotcha: if any subrouter defines routes at path `""` (e.g. `@router.get("")`), that router must be the exported base router (don’t include it under an extra wrapper `APIRouter()`).
+- Required re-exports (keep stable import paths):
+  - `app.api.v1.endpoints.risks.generate_risk_id_code` (tests depend on it)
+  - `app.api.v1.endpoints.riskhub.get_cro_user` (used by `backend/app/api/v1/endpoints/riskhub_questionnaires.py`)
+
 ## Testing Matrix
 
 Run based on change type:
