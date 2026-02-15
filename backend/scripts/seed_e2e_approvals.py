@@ -6,8 +6,10 @@ Creates 5 pre-populated approval requests for E2E testing.
 Do NOT approve/reject them during development!
 """
 import asyncio
-from datetime import datetime, UTC
+
 from sqlalchemy import select
+
+from app.core.datetime_utils import utc_now
 from app.db.session import async_session_maker
 from app.models import Risk, Control
 from app.models.approval_request import (
@@ -179,7 +181,7 @@ async def seed_approvals():
 
             # Set primary_approved_at only for pending privileged fixtures.
             if approval.status == ApprovalStatus.PENDING_PRIVILEGED:
-                approval.primary_approved_at = datetime.now(UTC).replace(tzinfo=None)
+                approval.primary_approved_at = utc_now()
             else:
                 approval.primary_approved_at = None
         

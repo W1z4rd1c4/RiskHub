@@ -142,7 +142,7 @@ class QuestionnaireDeadlineService:
         lookback_days: int,
         now: datetime,
     ) -> bool:
-        cutoff_date = (now - timedelta(days=lookback_days)).replace(tzinfo=None)
+        cutoff_date = now - timedelta(days=lookback_days)
         stmt = (
             select(Notification)
             .where(

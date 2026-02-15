@@ -5,13 +5,14 @@ Manages reporting windows, period calculations, and value recording
 with enforcement of the 15-day grace window for non-privileged users.
 """
 import logging
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional, Tuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
 
@@ -159,7 +160,7 @@ class KRIHistoryService:
         Raises:
             ValueError: If non-privileged user tries to record outside window
         """
-        now = datetime.now(UTC)
+        now = utc_now()
         today = date.today()
 
         # Determine period (default to latest closed period)
@@ -197,10 +198,7 @@ class KRIHistoryService:
         else:
             breach_status = "within"
 
-        # Convert to timezone-naive for database compatibility
-        history_recorded_at = recorded_at or now
-        if history_recorded_at.tzinfo:
-            history_recorded_at = history_recorded_at.replace(tzinfo=None)
+        history_recorded_at = coerce_utc(recorded_at) or now
 
         # Create history entry
         history_entry = KRIValueHistory(
@@ -222,9 +220,7 @@ class KRIHistoryService:
         if should_update_current:
             kri.current_value = value
             kri.last_period_end = period_end
-            # Convert to timezone-naive for database compatibility
-            reported_time = recorded_at or now
-            kri.last_reported_at = reported_time.replace(tzinfo=None) if reported_time.tzinfo else reported_time
+            kri.last_reported_at = history_recorded_at
 
         await db.flush()
         logger.info(f"Recorded KRI {kri.id} value {value} for period {period_start} to {period_end}")

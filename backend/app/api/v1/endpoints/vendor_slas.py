@@ -64,7 +64,7 @@ async def _check_duplicate_notification(
     now: datetime,
     lookback_days: int = 7,
 ) -> bool:
-    cutoff_date = (now - timedelta(days=lookback_days)).replace(tzinfo=None)
+    cutoff_date = now - timedelta(days=lookback_days)
     stmt = (
         select(Notification)
         .where(

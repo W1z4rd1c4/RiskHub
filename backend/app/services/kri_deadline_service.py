@@ -271,8 +271,7 @@ class KRIDeadlineService:
 
         Returns True if duplicate exists (should skip), False if OK to send.
         """
-        # Use naive datetime for SQLite compatibility (tests), PostgreSQL handles both
-        cutoff_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=lookback_days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=lookback_days)
 
         stmt = (
             select(Notification)

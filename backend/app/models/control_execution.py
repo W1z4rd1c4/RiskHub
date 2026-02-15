@@ -38,7 +38,7 @@ class ControlExecution(Base):
     executed_by: Mapped["User"] = relationship("User", back_populates="executed_controls")
 
     # When the control was executed (indexed for efficient range queries in committee metrics)
-    executed_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), index=True)
+    executed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Result of the execution
     result: Mapped[str] = mapped_column(String(20), default=ExecutionResult.passed.value)
@@ -53,7 +53,7 @@ class ControlExecution(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # When the next execution is scheduled
-    next_scheduled: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    next_scheduled: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamp
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -14,6 +14,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import utc_now
 from app.core.permissions import get_user_department_ids
 from app.core.snapshot_service import (
     capture_snapshot_metrics,
@@ -37,7 +38,7 @@ def parse_quarter(quarter_str: str) -> datetime:
         quarter_str: Quarter in 'YYYY-QN' format (e.g., '2026-Q1')
 
     Returns:
-        Naive datetime for the first day of the quarter
+        Timezone-aware UTC datetime for the first day of the quarter
 
     Raises:
         ValueError: If the quarter format is invalid
@@ -48,7 +49,7 @@ def parse_quarter(quarter_str: str) -> datetime:
     year = int(match.group(1))
     quarter = int(match.group(2))
     month = (quarter - 1) * 3 + 1
-    return datetime(year, month, 1)
+    return datetime(year, month, 1, tzinfo=timezone.utc)
 
 
 def calculate_quarter_boundaries(
@@ -63,7 +64,7 @@ def calculate_quarter_boundaries(
     For in-progress current quarter, end is 'now'.
 
     Args:
-        now: Current naive UTC datetime
+        now: Current UTC datetime (timezone-aware)
         current_quarter: Optional quarter string (e.g., '2026-Q1')
         compare_quarter: Optional comparison quarter string
 
@@ -75,11 +76,11 @@ def calculate_quarter_boundaries(
         current_quarter_start = parse_quarter(current_quarter)
         current_quarter_end = current_quarter_start + relativedelta(months=3)
         # If current quarter is the actual current quarter, use now as end
-        actual_current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
+        actual_current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1, tzinfo=timezone.utc)
         if current_quarter_start == actual_current_quarter_start:
             current_quarter_end = now  # Use current time for in-progress quarter
     else:
-        current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1)
+        current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1, tzinfo=timezone.utc)
         current_quarter_end = now  # Use current time for in-progress quarter
 
     if compare_quarter:
@@ -266,9 +267,7 @@ async def build_quarterly_comparison(
     Returns:
         Dict with this_quarter, last_quarter, changes, period, and snapshot_info
     """
-    # Use UTC time but store as naive datetime (PostgreSQL columns are TIMESTAMP WITHOUT TIME ZONE)
-    now_utc = datetime.now(timezone.utc)
-    now = now_utc.replace(tzinfo=None)  # Naive UTC for DB queries
+    now = utc_now()
 
     dept_ids = get_user_department_ids(current_user)
 

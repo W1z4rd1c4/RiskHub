@@ -105,8 +105,8 @@ class Control(Base):
     updated_by: Mapped["User"] = relationship("User", foreign_keys=[updated_by_id])
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     executions: Mapped[list["ControlExecution"]] = relationship("ControlExecution", back_populates="control")

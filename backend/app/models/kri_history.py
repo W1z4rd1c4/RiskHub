@@ -34,7 +34,7 @@ class KRIValueHistory(Base):
     period_end: Mapped[date] = mapped_column(Date)
 
     # When this value was recorded
-    recorded_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Who recorded this value (nullable for system-generated or backfilled entries)
     recorded_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)

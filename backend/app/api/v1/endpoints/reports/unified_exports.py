@@ -6,15 +6,15 @@ for risks/controls/kris/vendors with format + as_of_date support.
 """
 
 from datetime import UTC, date, datetime, time
-from io import BytesIO
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import Select, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.datetime_utils import coerce_utc
 from app.core.permissions import (
     get_control_ids_where_owner,
     get_issue_scope_clause,
@@ -28,7 +28,6 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import (
     Control,
-    ControlExecution,
     Department,
     Issue,
     IssueLink,
@@ -45,145 +44,19 @@ from app.models.kri_history import KRIValueHistory
 from app.models.risk import ControlRiskLink, RiskStatus
 from app.models.vendor import VendorStatus
 from app.services.export_snapshot_service import ExportSnapshotService
-from app.services.issue_visibility_service import (
-    coerce_utc,
-    issue_has_active_approved_exception,
-    unsuppressed_issue_clause,
-)
+from app.services.issue_visibility_service import issue_has_active_approved_exception, unsuppressed_issue_clause
 from app.services.report_service import (
-    generate_audit_trail_excel,
     generate_tabular_csv,
     generate_tabular_excel,
 )
 
-router = APIRouter()
+from ._scoping import _validate_department_access
+from ._streaming import _stream_binary
 
-_EXCEL_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-_CSV_MEDIA_TYPE = "text/csv; charset=utf-8"
+router = APIRouter()
 
 ExportFormat = Literal["xlsx", "csv"]
 KRIExportStatus = Literal["all", "within", "breach", "overdue", "archived"]
-
-
-# =============================================================================
-# Streaming helpers
-# =============================================================================
-
-def _get_filename(base: str, ext: str, as_of_date: date | None = None) -> str:
-    date_str = (as_of_date or datetime.now(UTC).date()).strftime("%Y-%m-%d")
-    return f"{base}-{date_str}.{ext}"
-
-
-def _stream_binary(
-    *,
-    filename_base: str,
-    export_format: ExportFormat,
-    content_bytes: bytes,
-    as_of_date: date | None = None,
-) -> StreamingResponse:
-    ext = "xlsx" if export_format == "xlsx" else "csv"
-    media_type = {
-        "xlsx": _EXCEL_MEDIA_TYPE,
-        "csv": _CSV_MEDIA_TYPE,
-    }[export_format]
-    return StreamingResponse(
-        BytesIO(content_bytes),
-        media_type=media_type,
-        headers={"Content-Disposition": f'attachment; filename="{_get_filename(filename_base, ext, as_of_date)}"'},
-    )
-
-
-# =============================================================================
-# Department scoping
-# =============================================================================
-
-def _validate_department_access(department_id: Optional[int], dept_ids: Optional[list[int]]) -> None:
-    if dept_ids is None:
-        return
-    if department_id and department_id not in dept_ids:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this department's reports",
-        )
-
-
-def _user_has_no_departments(dept_ids: Optional[list[int]]) -> bool:
-    return dept_ids is not None and len(dept_ids) == 0
-
-
-# =============================================================================
-# Legacy query builders (summary + audit trail remain unchanged)
-# =============================================================================
-
-def _controls_report_query(
-    dept_ids: Optional[list[int]],
-    department_id: Optional[int],
-    status_filter: Optional[str],
-) -> Select:
-    query = select(Control).options(selectinload(Control.department))
-
-    if dept_ids is not None:
-        query = query.where(Control.department_id.in_(dept_ids))
-
-    if department_id:
-        query = query.where(Control.department_id == department_id)
-    if status_filter:
-        query = query.where(Control.status == status_filter)
-
-    return query.order_by(Control.name)
-
-
-def _risks_report_query(
-    dept_ids: Optional[list[int]],
-    department_id: Optional[int],
-    status_filter: Optional[str],
-) -> Select:
-    query = select(Risk).options(selectinload(Risk.department))
-
-    if dept_ids is not None:
-        query = query.where(Risk.department_id.in_(dept_ids))
-
-    if department_id:
-        query = query.where(Risk.department_id == department_id)
-    if status_filter:
-        query = query.where(Risk.status == status_filter)
-
-    return query.order_by(Risk.process)
-
-
-def _audit_trail_query(
-    dept_ids: Optional[list[int]],
-    department_id: Optional[int],
-    result_filter: Optional[str],
-    control_id: Optional[int],
-    from_date: Optional[datetime],
-    to_date: Optional[datetime],
-) -> Select:
-    query = (
-        select(ControlExecution)
-        .join(Control, ControlExecution.control_id == Control.id)
-        .options(
-            selectinload(ControlExecution.control).selectinload(Control.department),
-            selectinload(ControlExecution.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
-            selectinload(ControlExecution.executed_by),
-        )
-    )
-
-    if dept_ids is not None:
-        query = query.where(Control.department_id.in_(dept_ids))
-
-    if department_id:
-        query = query.where(Control.department_id == department_id)
-    if result_filter:
-        query = query.where(ControlExecution.result == result_filter)
-    if control_id:
-        query = query.where(ControlExecution.control_id == control_id)
-    if from_date:
-        query = query.where(ControlExecution.executed_at >= from_date)
-    if to_date:
-        query = query.where(ControlExecution.executed_at <= to_date)
-
-    return query.order_by(ControlExecution.executed_at.desc())
 
 
 # =============================================================================
@@ -1215,57 +1088,9 @@ async def _export_vendors(
     )
 
 
-# =============================================================================
-# Legacy report endpoints (risk/control)
-# =============================================================================
-
-@router.get("/controls/excel")
-async def download_controls_excel(
-    department_id: Optional[int] = Query(None, description="Filter by department"),
-    status_filter: Optional[str] = Query(None, description="Filter by status", alias="status"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("reports", "read")),
-):
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-    as_of = datetime.now(UTC).date()
-    return await _export_controls(
-        db=db,
-        current_user=current_user,
-        export_format="xlsx",
-        as_of_date=as_of,
-        department_id=department_id,
-        status_filter=status_filter,
-        search=None,
-    )
-
-
-@router.get("/risks/excel")
-async def download_risks_excel(
-    department_id: Optional[int] = Query(None, description="Filter by department"),
-    status_filter: Optional[str] = Query(None, description="Filter by status", alias="status"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("reports", "read")),
-):
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-    as_of = datetime.now(UTC).date()
-    return await _export_risks(
-        db=db,
-        current_user=current_user,
-        export_format="xlsx",
-        as_of_date=as_of,
-        department_id=department_id,
-        status_filter=status_filter,
-        search=None,
-        risk_type=None,
-        is_priority=None,
-    )
-
-
-# =============================================================================
-# Unified export endpoints
-# =============================================================================
+ # =============================================================================
+ # Unified export endpoints
+ # =============================================================================
 
 @router.get("/risks/export")
 async def export_risks(
@@ -1402,121 +1227,4 @@ async def export_issues(
         owner_user_id=owner_user_id,
         overdue_only=overdue_only,
         exclude_active_exceptions=exclude_active_exceptions,
-    )
-
-
-# =============================================================================
-# Existing summary/audit endpoints
-# =============================================================================
-
-@router.get("/summary/excel")
-async def download_summary_excel(
-    department_id: Optional[int] = Query(None, description="Filter by department"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("reports", "read")),
-):
-    """Download dashboard summary as Excel. Scoped to user's accessible departments."""
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-
-    summary: dict[str, Any] = {
-        "total_controls": 0,
-        "total_risks": 0,
-        "critical_risks_count": 0,
-        "average_net_risk_score": 0,
-        "controls_by_status": {},
-    }
-
-    if not _user_has_no_departments(dept_ids):
-        controls_query = select(Control)
-        risks_query = select(Risk)
-
-        if dept_ids is not None:
-            controls_query = controls_query.where(Control.department_id.in_(dept_ids))
-            risks_query = risks_query.where(Risk.department_id.in_(dept_ids))
-
-        if department_id:
-            controls_query = controls_query.where(Control.department_id == department_id)
-            risks_query = risks_query.where(Risk.department_id == department_id)
-
-        controls_result = await db.execute(controls_query)
-        controls = controls_result.scalars().all()
-
-        risks_result = await db.execute(risks_query)
-        risks = risks_result.scalars().all()
-
-        from app.models.global_config import ConfigDefaults
-
-        total_controls = len(controls)
-        total_risks = len(risks)
-        critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
-        critical_risks = sum(1 for r in risks if r.net_probability * r.net_impact >= critical_threshold)
-        avg_net_score = sum(r.net_probability * r.net_impact for r in risks) / len(risks) if risks else 0
-
-        controls_by_status: dict[str, int] = {}
-        for control in controls:
-            ctrl_status = control.status or "unknown"
-            controls_by_status[ctrl_status] = controls_by_status.get(ctrl_status, 0) + 1
-
-        summary = {
-            "total_controls": total_controls,
-            "total_risks": total_risks,
-            "critical_risks_count": critical_risks,
-            "average_net_risk_score": avg_net_score,
-            "controls_by_status": controls_by_status,
-        }
-
-    headers = ["Metric", "Value"]
-    rows: list[list[Any]] = [
-        ["Total Controls", summary.get("total_controls", 0)],
-        ["Total Risks", summary.get("total_risks", 0)],
-        ["Critical Risks", summary.get("critical_risks_count", 0)],
-        ["Average Net Risk Score", f"{float(summary.get('average_net_risk_score', 0)):.1f}"],
-    ]
-
-    controls_by_status = summary.get("controls_by_status") or {}
-    if controls_by_status:
-        rows.append(["", ""])
-        rows.append(["Controls by Status", ""])
-        for ctrl_status, count in controls_by_status.items():
-            rows.append([str(ctrl_status).title(), count])
-
-    return _stream_binary(
-        filename_base="dashboard-summary",
-        export_format="xlsx",
-        content_bytes=generate_tabular_excel("Dashboard Summary", headers, rows),
-        as_of_date=datetime.now(UTC).date(),
-    )
-
-
-@router.get("/audit-trail/excel")
-async def download_audit_trail_excel(
-    department_id: Optional[int] = Query(None, description="Filter by department"),
-    result: Optional[str] = Query(None, description="Filter by result (passed/failed/warning)"),
-    control_id: Optional[int] = Query(None, description="Filter by control"),
-    from_date: Optional[datetime] = Query(None, description="Filter from date"),
-    to_date: Optional[datetime] = Query(None, description="Filter to date"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("reports", "read")),
-):
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-
-    if _user_has_no_departments(dept_ids):
-        return _stream_binary(
-            filename_base="audit-trail",
-            export_format="xlsx",
-            content_bytes=generate_audit_trail_excel([]),
-            as_of_date=datetime.now(UTC).date(),
-        )
-
-    query = _audit_trail_query(dept_ids, department_id, result, control_id, from_date, to_date)
-    result_set = await db.execute(query)
-    executions = result_set.scalars().all()
-
-    return _stream_binary(
-        filename_base="audit-trail",
-        export_format="xlsx",
-        content_bytes=generate_audit_trail_excel(list(executions)),
-        as_of_date=datetime.now(UTC).date(),
     )

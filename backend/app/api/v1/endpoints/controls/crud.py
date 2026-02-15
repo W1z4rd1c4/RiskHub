@@ -1,4 +1,3 @@
-from datetime import UTC, datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -8,17 +7,14 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.activity_logger import build_change_set, log_activity
-from app.core.permissions import check_department_access, get_user_department_ids
+from app.core.permissions import check_department_access
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import Control, ControlExecution, ControlRiskLink, Risk, User
+from app.models import Control, ControlRiskLink, Risk, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.control import (
     ControlCreate,
-    ControlExecutionCreate,
-    ControlExecutionRead,
     ControlFormEnum,
-    ControlFrequencyEnum,
     ControlListResponse,
     ControlRead,
     ControlStatusEnum,
@@ -26,92 +22,15 @@ from app.schemas.control import (
     ControlUpdate,
     normalize_control_frequency,
 )
-from app.schemas.risk import ControlRiskLinkCreate, ControlRiskLinkRead
+
+from ._helpers import (
+    _apply_department_scoping,
+    _apply_process_category_filters,
+    _build_pending_changes,
+    _first_high_risk_linked_risk,
+)
 
 router = APIRouter()
-
-
-# ============== Private Helpers ==============
-
-def _build_pending_changes(control: "Control", update_data: dict) -> dict:
-    """
-    Build pending_changes dict for approval requests.
-    Normalizes enum-like values to .value strings.
-    Returns: {field: {"old": old_value, "new": new_value}, ...}
-    """
-    return {
-        k: {
-            "old": getattr(control, k, None),
-            "new": v.value if hasattr(v, "value") else v,
-        }
-        for k, v in update_data.items()
-    }
-
-
-async def _first_high_risk_linked_risk(db: "AsyncSession", control_id: int) -> tuple[bool, "Risk | None"]:
-    """
-    Scan linked risks for the first one that qualifies as high-risk for approvals.
-
-    Returns:
-        (is_high_risk, risk): Tuple of whether a high-risk link exists and the first such risk (or None).
-    """
-    from app.core.permissions import is_high_risk_for_approval_async
-
-    result = await db.execute(
-        select(Risk).join(ControlRiskLink).where(ControlRiskLink.control_id == control_id)
-    )
-    for risk in result.scalars():
-        if await is_high_risk_for_approval_async(risk, db):
-            return True, risk
-    return False, None
-
-
-async def _apply_department_scoping(
-    db: "AsyncSession",
-    query,
-    current_user: "User",
-    department_id_filter: int | None,
-):
-    """
-    Apply department-based scoping to a Control query.
-
-    - Restricted users see only their departments + controls they own
-    - Privileged users can optionally filter by department_id
-    """
-    from app.core.permissions import get_control_ids_where_owner
-
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:  # User is restricted to specific departments
-        control_owner_ids = await get_control_ids_where_owner(db, current_user.id)
-        if control_owner_ids:
-            query = query.where(
-                or_(
-                    Control.department_id.in_(dept_ids),
-                    Control.id.in_(control_owner_ids)
-                )
-            )
-        else:
-            query = query.where(Control.department_id.in_(dept_ids))
-    elif department_id_filter:  # Privileged user can filter by specific department
-        query = query.where(Control.department_id == department_id_filter)
-
-    return query
-
-
-def _apply_process_category_filters(query, process: str | None, category: str | None):
-    """
-    Apply optional process/category filters via linked Risk.
-    Only applies if at least one filter is provided.
-    """
-    if not process and not category:
-        return query
-
-    query = query.join(Control.risk_links).join(ControlRiskLink.risk)
-    if process:
-        query = query.where(Risk.process == process)
-    if category:
-        query = query.where(Risk.category == category)
-    return query.distinct()
 
 
 # ============== CRUD Operations ==============
@@ -219,7 +138,9 @@ async def list_controls(
 
         risk_visible = False
         if first_risk and can_read_risks:
-            risk_visible = can_access_department_id(current_user, first_risk.department_id) or (first_risk.id in cross_dept_risk_ids)
+            risk_visible = can_access_department_id(current_user, first_risk.department_id) or (
+                first_risk.id in cross_dept_risk_ids
+            )
 
         items.append(ControlSummary(
             id=c.id,
@@ -492,7 +413,9 @@ async def update_control(
             except Exception as e:
                 await db.rollback()
                 import logging
-                logging.getLogger(__name__).warning(f"Failed to notify approvers for control edit approval #{approval.id}: {e}")
+                logging.getLogger(__name__).warning(
+                    f"Failed to notify approvers for control edit approval #{approval.id}: {e}"
+                )
 
             from fastapi.responses import JSONResponse
             return JSONResponse(
@@ -734,313 +657,3 @@ async def restore_control(
     )
     return result.scalar_one()
 
-
-# ============== Control Execution Endpoints ==============
-
-def calculate_next_scheduled(frequency: str, executed_at: datetime) -> datetime:
-    """Calculate next scheduled execution based on frequency."""
-    try:
-        normalized_frequency = normalize_control_frequency(frequency).value
-    except ValueError:
-        normalized_frequency = ControlFrequencyEnum.monthly.value
-
-    frequency_deltas = {
-        "daily": timedelta(days=1),
-        "weekly": timedelta(weeks=1),
-        "monthly": timedelta(days=30),
-        "quarterly": timedelta(days=90),
-        "semi-annually": timedelta(days=182),
-        "annually": timedelta(days=365),
-        "ad_hoc": timedelta(days=30),  # Default to monthly for ad-hoc
-    }
-    return executed_at + frequency_deltas.get(normalized_frequency, timedelta(days=30))
-
-
-@router.post("/{control_id}/executions", response_model=ControlExecutionRead, status_code=status.HTTP_201_CREATED)
-async def log_execution(
-    control_id: int,
-    execution_data: ControlExecutionCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("controls", "execute")),
-):
-    """Log a control execution. Requires controls:execute and (department access OR control ownership)."""
-    from app.core.permissions import is_control_owner
-
-    # Verify control exists
-    result = await db.execute(
-        select(Control).where(Control.id == control_id)
-    )
-    control = result.scalar_one_or_none()
-
-    if not control:
-        raise HTTPException(status_code=404, detail="Control not found")
-
-    # Verify access: department OR control owner
-    is_owner = await is_control_owner(db, current_user.id, control_id)
-    if not is_owner:
-        check_department_access(control.department_id, current_user)
-
-    executed_at = datetime.now(UTC).replace(tzinfo=None)
-    next_scheduled = calculate_next_scheduled(control.frequency, executed_at)
-
-    execution = ControlExecution(
-        control_id=control_id,
-        executed_by_id=current_user.id,
-        executed_at=executed_at,
-        result=execution_data.result.value,
-        findings=execution_data.findings,
-        evidence_reference=execution_data.evidence_reference,
-        notes=execution_data.notes,
-        next_scheduled=next_scheduled,
-    )
-
-    db.add(execution)
-    await db.commit()
-    await db.refresh(execution)
-
-    # Reload with relationships
-    result = await db.execute(
-        select(ControlExecution)
-        .options(selectinload(ControlExecution.executed_by))
-        .where(ControlExecution.id == execution.id)
-    )
-    return result.scalar_one()
-
-
-@router.get("/{control_id}/executions", response_model=list[ControlExecutionRead])
-async def list_executions(
-    control_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("controls", "read")),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-):
-    """List execution history for a control."""
-    from app.core.permissions import is_control_owner
-
-    # Verify control exists
-    result = await db.execute(
-        select(Control).where(Control.id == control_id)
-    )
-    control = result.scalar_one_or_none()
-    if not control:
-        raise HTTPException(status_code=404, detail="Control not found")
-
-    # Verify access: department OR control owner
-    is_owner = await is_control_owner(db, current_user.id, control_id)
-    if not is_owner:
-        try:
-            check_department_access(control.department_id, current_user)
-        except HTTPException:
-            raise HTTPException(status_code=404, detail="Control not found")
-
-    result = await db.execute(
-        select(ControlExecution)
-        .options(selectinload(ControlExecution.executed_by))
-        .where(ControlExecution.control_id == control_id)
-        .order_by(ControlExecution.executed_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-    return result.scalars().all()
-
-
-# ============== Control-Risk Linking Endpoints ==============
-
-@router.get("/{control_id}/risks", response_model=list[ControlRiskLinkRead])
-async def list_control_risks(
-    control_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("controls", "read")),
-):
-    """List risks that this control mitigates."""
-    from app.core.permissions import (
-        can_access_department_id,
-        get_risk_ids_where_control_owner,
-        get_risk_ids_where_kri_reporting_owner,
-        is_control_owner,
-    )
-
-    # Verify control exists
-    result = await db.execute(
-        select(Control).where(Control.id == control_id)
-    )
-    control = result.scalar_one_or_none()
-    if not control:
-        raise HTTPException(status_code=404, detail="Control not found")
-
-    # Allow access via control ownership (cross-department) per BUSINESS_LOGIC.md §7.1
-    is_owner = await is_control_owner(db, current_user.id, control_id)
-    if not is_owner:
-        # Fall back to department access check
-        try:
-            check_department_access(control.department_id, current_user)
-        except HTTPException:
-            raise HTTPException(status_code=404, detail="Control not found")
-
-    result = await db.execute(
-        select(ControlRiskLink)
-        .options(
-            selectinload(ControlRiskLink.risk),
-            selectinload(ControlRiskLink.control),
-        )
-        .where(ControlRiskLink.control_id == control_id)
-    )
-    links = result.scalars().all()
-
-    can_read_risks = check_permission(current_user, "risks", "read")
-    if not can_read_risks:
-        for link in links:
-            link.risk = None
-        return links
-
-    reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, current_user.id)
-    control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
-    cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
-
-    for link in links:
-        if not link.risk:
-            continue
-        if can_access_department_id(current_user, link.risk.department_id):
-            continue
-        if link.risk.id in cross_dept_risk_ids:
-            continue
-        link.risk = None
-
-    return links
-
-
-
-@router.post("/{control_id}/risks", response_model=ControlRiskLinkRead, status_code=status.HTTP_201_CREATED)
-async def link_control_to_risk(
-    control_id: int,
-    link_data: ControlRiskLinkCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("controls", "write")),
-):
-    """Link a control to a risk."""
-    from app.core.permissions import is_control_owner, is_risk_control_owner, is_risk_kri_reporting_owner
-    from app.models import Risk
-
-    # Verify control exists
-    result = await db.execute(
-        select(Control).where(Control.id == control_id)
-    )
-    control = result.scalar_one_or_none()
-    if not control:
-        raise HTTPException(status_code=404, detail="Control not found")
-
-    # Allow access via control ownership (cross-department) per BUSINESS_LOGIC.md §7.1
-    is_ctrl_owner = await is_control_owner(db, current_user.id, control_id)
-    if not is_ctrl_owner:
-        check_department_access(control.department_id, current_user)
-
-    # Verify risk exists
-    result = await db.execute(
-        select(Risk).where(Risk.id == link_data.risk_id)
-    )
-    risk = result.scalar_one_or_none()
-    if not risk:
-        raise HTTPException(status_code=404, detail="Risk not found")
-
-    # Verify access to risk (ownership OR department) - prevents linking to inaccessible risks
-    has_risk_access = False
-    if await is_risk_kri_reporting_owner(db, current_user.id, link_data.risk_id):
-        has_risk_access = True
-    elif await is_risk_control_owner(db, current_user.id, link_data.risk_id):
-        has_risk_access = True
-    elif risk.owner_id == current_user.id:
-        has_risk_access = True
-    else:
-        try:
-            check_department_access(risk.department_id, current_user)
-            has_risk_access = True
-        except HTTPException:
-            pass
-
-    if not has_risk_access:
-        raise HTTPException(status_code=403, detail="Access denied to risk")
-
-    # Check if link already exists
-    result = await db.execute(
-        select(ControlRiskLink)
-        .where(ControlRiskLink.control_id == control_id)
-        .where(ControlRiskLink.risk_id == link_data.risk_id)
-    )
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Link already exists")
-
-    link = ControlRiskLink(
-        control_id=control_id,
-        risk_id=link_data.risk_id,
-        effectiveness=link_data.effectiveness.value,
-        notes=link_data.notes,
-    )
-
-    db.add(link)
-    await db.commit()
-    await db.refresh(link)
-
-    # Reload with relationships
-    result = await db.execute(
-        select(ControlRiskLink)
-        .options(
-            selectinload(ControlRiskLink.risk),
-            selectinload(ControlRiskLink.control),
-        )
-        .where(ControlRiskLink.id == link.id)
-    )
-    return result.scalar_one()
-
-
-@router.delete("/{control_id}/risks/{risk_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def unlink_control_from_risk(
-    control_id: int,
-    risk_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("controls", "write")),
-):
-    """Remove link between control and risk."""
-    from app.core.permissions import is_control_owner, is_risk_control_owner, is_risk_kri_reporting_owner
-
-    result = await db.execute(
-        select(ControlRiskLink)
-        .where(ControlRiskLink.control_id == control_id)
-        .where(ControlRiskLink.risk_id == risk_id)
-    )
-    link = result.scalar_one_or_none()
-
-    if not link:
-        raise HTTPException(status_code=404, detail="Link not found")
-
-    # Verify access for control (ownership or department)
-    result = await db.execute(select(Control).where(Control.id == control_id))
-    control = result.scalar_one_or_none()
-    if control:
-        is_ctrl_owner = await is_control_owner(db, current_user.id, control_id)
-        if not is_ctrl_owner:
-            check_department_access(control.department_id, current_user)
-
-    # Verify access for risk (ownership or department)
-    result = await db.execute(select(Risk).where(Risk.id == risk_id))
-    risk = result.scalar_one_or_none()
-    if risk:
-        has_risk_access = False
-        if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
-            has_risk_access = True
-        elif await is_risk_control_owner(db, current_user.id, risk_id):
-            has_risk_access = True
-        elif risk.owner_id == current_user.id:
-            has_risk_access = True
-        else:
-            try:
-                check_department_access(risk.department_id, current_user)
-                has_risk_access = True
-            except HTTPException:
-                pass
-
-        if not has_risk_access:
-            raise HTTPException(status_code=403, detail="Access denied to risk")
-
-    await db.delete(link)
-    await db.commit()
