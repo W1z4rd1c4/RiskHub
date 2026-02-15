@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.permissions import get_user_department_ids
 from app.models import User, Vendor
 from app.models.vendor_contingency_plan import VendorContingencyPlan
@@ -22,7 +21,7 @@ from app.schemas.vendor_reports import (
 class VendorReportingService:
     @staticmethod
     async def build_annual_report(db: AsyncSession, *, year: int, current_user: User) -> VendorAnnualReportData:
-        now = datetime.now(UTC)
+        now = utc_now()
         dept_ids = get_user_department_ids(current_user)
 
         vendor_stmt = (
@@ -52,9 +51,10 @@ class VendorReportingService:
                 occurred = i.occurred_at or i.created_at
                 if not occurred:
                     continue
-                occurred_year = (
-                    occurred.replace(tzinfo=UTC) if occurred.tzinfo is None else occurred.astimezone(UTC)
-                ).year
+                occurred_utc = coerce_utc(occurred)
+                if not occurred_utc:
+                    continue
+                occurred_year = occurred_utc.year
                 if occurred_year != year:
                     continue
                 incidents_by_vendor.setdefault(i.vendor_id, []).append(i)
@@ -96,12 +96,7 @@ class VendorReportingService:
             1
             for v in vendors
             if v.next_reassessment_due_at
-            and (
-                v.next_reassessment_due_at.replace(tzinfo=UTC)
-                if v.next_reassessment_due_at.tzinfo is None
-                else v.next_reassessment_due_at.astimezone(UTC)
-            )
-            < now
+            and coerce_utc(v.next_reassessment_due_at) < now
         )
 
         missing_exit_plans_count = 0

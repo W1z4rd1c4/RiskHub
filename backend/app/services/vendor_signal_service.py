@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.integrations.vendor_signals.public_registry import PublicRegistryConnector
 from app.models.vendor import Vendor
 from app.models.vendor_external_signal import VendorExternalSignal, VendorExternalSignalStatus
@@ -43,7 +44,7 @@ class VendorSignalService:
         force: bool = False,
         fetched_at: datetime | None = None,
     ) -> list[VendorExternalSignal]:
-        fetched_at = fetched_at or datetime.now(UTC)
+        fetched_at = fetched_at or utc_now()
         results: list[VendorExternalSignal] = []
 
         for connector in VendorSignalService.connectors():
@@ -55,8 +56,9 @@ class VendorSignalService:
                     db, vendor_id=vendor.id, provider_key=connector.provider_key
                 )
                 if latest:
-                    latest_utc = latest.replace(tzinfo=UTC) if latest.tzinfo is None else latest.astimezone(UTC)
-                    if latest_utc >= (fetched_at - timedelta(hours=VendorSignalService.min_interval_hours())):
+                    latest_utc = coerce_utc(latest)
+                    min_interval = timedelta(hours=VendorSignalService.min_interval_hours())
+                    if latest_utc and latest_utc >= (fetched_at - min_interval):
                         continue
 
             try:

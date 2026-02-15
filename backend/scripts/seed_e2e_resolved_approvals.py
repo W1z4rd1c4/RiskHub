@@ -5,8 +5,11 @@ Seeds approval requests in terminal states (APPROVED, REJECTED, CANCELLED) for E
 Enables approval workflow tests that verify status transitions and history display.
 """
 import asyncio
-from datetime import datetime, timedelta, UTC
+from datetime import timedelta
+
 from sqlalchemy import select
+
+from app.core.datetime_utils import utc_now
 from app.db.session import async_session_maker
 from app.models import Risk, Control
 from app.models.approval_request import (
@@ -101,8 +104,7 @@ async def seed_resolved_approvals():
         privileged_approver_id = users.get("cro@riskhub.local")
         
         created = 0
-        # Use naive datetime for fields without timezone=True
-        base_time_naive = datetime.utcnow() - timedelta(days=7)
+        base_time = utc_now() - timedelta(days=7)
         risk_index = 0
         control_index = 0
         
@@ -136,7 +138,7 @@ async def seed_resolved_approvals():
                 reason=scenario["reason"],
                 pending_changes=scenario.get("pending_changes"),
                 resolved_by_id=resolver_id,
-                resolved_at=base_time_naive + timedelta(days=i, hours=2),
+                resolved_at=base_time + timedelta(days=i, hours=2),
                 resolution_notes=scenario.get("resolution_notes"),
                 primary_approver_id=primary_approver_id,
                 requires_privileged_approval=scenario.get("requires_privileged", False),
@@ -144,10 +146,10 @@ async def seed_resolved_approvals():
                 # Don't set created_at - let the model default handle it
             )
             
-            # Set primary_approved_at for tiered approvals (naive datetime)
+            # Set primary_approved_at for tiered approvals
             if scenario.get("requires_privileged"):
-                approval.primary_approved_at = base_time_naive + timedelta(days=i, hours=1)
-                approval.privileged_approved_at = base_time_naive + timedelta(days=i, hours=2)
+                approval.primary_approved_at = base_time + timedelta(days=i, hours=1)
+                approval.privileged_approved_at = base_time + timedelta(days=i, hours=2)
             
             db.add(approval)
             created += 1
@@ -159,4 +161,3 @@ async def seed_resolved_approvals():
 
 if __name__ == "__main__":
     asyncio.run(seed_resolved_approvals())
-

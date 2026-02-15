@@ -138,9 +138,9 @@ class NotificationService:
                 ),
             )
             .options(permission_load)
-            .distinct()
         )
-        candidates = (await db.execute(candidates_stmt)).scalars().all()
+        candidates_result = await db.execute(candidates_stmt)
+        candidates = candidates_result.unique().scalars().all()
 
         notifications = []
         action_label = "delete" if approval.action_type.value == "delete" else "edit"
@@ -265,9 +265,9 @@ class NotificationService:
                 ),
             )
             .options(permission_load)
-            .distinct()
         )
-        candidates = (await db.execute(candidates_stmt)).scalars().all()
+        candidates_result = await db.execute(candidates_stmt)
+        candidates = candidates_result.unique().scalars().all()
 
         notifications = []
         action_label = "delete" if approval.action_type.value == "delete" else "edit"
