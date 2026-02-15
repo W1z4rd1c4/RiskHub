@@ -55,22 +55,23 @@ _USING_POSTGRES = TEST_DATABASE_URL.startswith("postgresql")
 @pytest.fixture(scope="session")
 def event_loop() -> Generator:
     """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     yield loop
+    loop.run_until_complete(loop.shutdown_asyncgens())
     loop.run_until_complete(loop.shutdown_default_executor())
     loop.close()
+    asyncio.set_event_loop(None)
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     """
-    Ensure any leftover ThreadPoolExecutor workers are shut down.
+    Debug-only thread dump for diagnosing interpreter exit hangs.
 
-    Without this, the Python interpreter can hang on exit while waiting for non-daemon
-    worker threads blocked on `queue.SimpleQueue.get()`.
+    Enable by setting PYTEST_THREAD_DEBUG=1.
     """
-    import concurrent.futures.thread as futures_thread
-
-    futures_thread._python_exit()
+    if os.getenv("PYTEST_THREAD_DEBUG") != "1":
+        return
 
     import sys
     import threading
@@ -87,6 +88,22 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
             frame = frames.get(t.ident)
             if frame is not None:
                 traceback.print_stack(frame)
+
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def _dispose_app_engine_at_session_end(event_loop) -> AsyncGenerator[None, None]:
+    """
+    Ensure the app-global SQLAlchemy engine is disposed at end-of-session.
+
+    The app constructs a global AsyncEngine at import time. If any test path
+    causes it to open a SQLite+aiosqlite connection, the aiosqlite worker thread
+    can keep the interpreter alive unless the engine is disposed.
+    """
+    yield
+
+    from app.db import session as app_db_session
+
+    await app_db_session.engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function")

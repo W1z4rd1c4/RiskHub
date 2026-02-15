@@ -118,7 +118,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     """
 
     DEFAULT_LIMITS = {
+        "/api/v1/auth/config": (60, 60),       # 60 config reads per minute
         "/api/v1/auth/login": (5, 60),        # 5 attempts per minute
+        "/api/v1/auth/sso": (10, 60),         # 10 SSO exchanges per minute
         "/api/v1/auth/demo-login": (10, 60),  # 10 demo logins per minute
         "/api/v1/users": (100, 60),           # 100 requests per minute
         "default": (200, 60),                 # 200 requests per minute for other endpoints

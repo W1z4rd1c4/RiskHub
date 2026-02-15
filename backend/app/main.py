@@ -62,6 +62,14 @@ def _validate_production_settings(settings: Settings) -> None:
     if settings.directory_webhook_enabled and not settings.webhook_secret.strip():
         raise RuntimeError("FATAL: WEBHOOK_SECRET is required when DIRECTORY_WEBHOOK_ENABLED=true and DEBUG=false.")
 
+    # Auth mode guardrails (SSO-only in production)
+    if settings.auth_mode != "microsoft_sso":
+        raise RuntimeError("FATAL: AUTH_MODE must be 'microsoft_sso' when DEBUG=false.")
+    if not settings.entra_tenant_id or not settings.entra_client_id:
+        raise RuntimeError(
+            "FATAL: ENTRA_TENANT_ID and ENTRA_CLIENT_ID are required when AUTH_MODE=microsoft_sso and DEBUG=false."
+        )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

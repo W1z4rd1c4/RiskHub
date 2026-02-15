@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authApi } from '@/services/authApi';
+import { silentReauthAndExchange } from '@/services/ssoSession';
 import { syncPreferencesFromServer, clearLocalSettings } from '@/utils/userSettingsStorage';
 
 interface User {
@@ -112,7 +113,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
                 await hydratePreferences();
             } catch {
-                // Token invalid, clear it
+                const refreshedToken = await silentReauthAndExchange();
+                if (refreshedToken) {
+                    try {
+                        if (isMounted) {
+                            setToken(refreshedToken);
+                        }
+                        const userData = await authApi.getCurrentUser(refreshedToken);
+                        if (isMounted) {
+                            setUser(userData);
+                        }
+                        await hydratePreferences();
+                        return;
+                    } catch {
+                        // Fall through to logout.
+                    }
+                }
+
                 if (isMounted) {
                     logout();
                 }

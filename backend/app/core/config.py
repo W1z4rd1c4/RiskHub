@@ -1,6 +1,8 @@
 from functools import lru_cache
 
-from pydantic import Field
+from typing import Literal
+
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 
 
@@ -20,6 +22,25 @@ class Settings(BaseSettings):
     # SECURITY: Never enable in production - allows X-Mock-User-Id header bypass
     mock_auth_enabled: bool = False  # Set to True in .env for development/demo
     access_token_expire_minutes: int = 60
+
+    # Auth mode (password vs SSO)
+    # - password: internal username/password login
+    # - microsoft_sso: Entra ID SSO only (production default)
+    # - hybrid_dev: dev/demo mode (demo login + optional SSO)
+    auth_mode: Literal["password", "microsoft_sso", "hybrid_dev"] = "password"
+
+    # Microsoft Entra ID (SSO)
+    entra_tenant_id: str | None = None
+    entra_client_id: str | None = None
+    # SECURITY: JIT provisioning creates local users on first SSO login. Disable if you require
+    # pre-provisioning via admin or directory sync.
+    entra_jit_provisioning_enabled: bool = True
+    entra_allowed_email_domains: list[str] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices("ENTRA_ALLOWED_EMAIL_DOMAINS", "ENTRA_ALLOWED_DOMAINS"),
+    )
+    entra_clock_skew_seconds: int = 60
+    entra_oidc_discovery_url: str | None = None
 
     # CORS
     cors_origins: list[str] = Field(default_factory=list)
@@ -41,6 +62,7 @@ class Settings(BaseSettings):
 
     model_config = {
         "env_file": ".env",
+        "populate_by_name": True,
         "extra": "ignore"
     }
 

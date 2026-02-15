@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from '@/i18n/hooks';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
@@ -42,6 +42,7 @@ import {
 import { KRINewPage } from '@/pages/KRIForms';
 import { NotificationsPage } from '@/pages/NotificationsPage';
 import LoginPage from '@/pages/LoginPage';
+import SsoCallbackPage from '@/pages/SsoCallbackPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,12 +56,17 @@ const queryClient = new QueryClient({
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, isPreferencesHydrated } = useAuth();
   const { t } = useTranslation('common');
+  const location = useLocation();
   const preferencesReady = isPreferencesHydrated ?? true;
 
   if (isLoading || (isAuthenticated && !preferencesReady)) {
     return <div className="flex items-center justify-center min-h-screen">{t('loading.generic')}</div>;
   }
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    const returnTo = `${location.pathname}${location.search}${location.hash}`;
+    const qs = new URLSearchParams({ returnTo }).toString();
+    return <Navigate to={`/login?${qs}`} replace />;
+  }
 
   return <>{children}</>;
 }
@@ -97,6 +103,7 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/auth/sso/callback" element={<SsoCallbackPage />} />
               <Route path="/landing" element={<HeroPage />} />
 
               <Route path="/" element={
