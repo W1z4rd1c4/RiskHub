@@ -4,7 +4,6 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
 from sqlalchemy import asc, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.api import deps
 from app.api.mappers.vendor import vendor_list_response, vendor_to_read
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.datetime_utils import coerce_utc
 from app.core.permissions import can_read_vendor, check_department_access, get_user_department_ids, is_vendor_owner
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
@@ -27,16 +27,9 @@ from app.schemas.vendor import (
 )
 from app.services.vendor_reassessment_service import VendorReassessmentService
 
+from ._shared import _get_vendor_with_deps
+
 router = APIRouter()
-
-
-async def _get_vendor_with_deps(db: AsyncSession, vendor_id: int) -> Vendor | None:
-    result = await db.execute(
-        select(Vendor)
-        .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
-        .where(Vendor.id == vendor_id)
-    )
-    return result.scalar_one_or_none()
 
 
 @router.get("", response_model=VendorListResponse)
@@ -163,7 +156,8 @@ async def create_vendor(
     cadence = 12 if vendor.supports_important_core_insurance_function else 36
     vendor.reassessment_cadence_months = cadence
     vendor.next_reassessment_due_at = VendorReassessmentService.compute_next_due(
-        base=datetime.now(UTC), cadence_months=cadence
+        base=datetime.now(UTC),
+        cadence_months=cadence,
     )
     db.add(vendor)
     await db.commit()
@@ -258,8 +252,7 @@ async def update_vendor(
             vendor.reassessment_cadence_months = 12 if vendor.supports_important_core_insurance_function else 36
         if "next_reassessment_due_at" not in updates:
             base = vendor.last_decided_at or vendor.created_at or datetime.now(UTC)
-            if getattr(base, "tzinfo", None) is None:
-                base = base.replace(tzinfo=UTC)
+            base = coerce_utc(base) or base
             vendor.next_reassessment_due_at = VendorReassessmentService.compute_next_due(
                 base=base,
                 cadence_months=vendor.reassessment_cadence_months,
@@ -279,131 +272,6 @@ async def update_vendor(
         changes=changes,
     )
     await db.commit()
-
-    vendor = await _get_vendor_with_deps(db, vendor.id)
-    if not vendor:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-    return vendor_to_read(vendor)
-
-
-class VendorTriggerReassessmentPayload(BaseModel):
-    reason: str = Field(..., max_length=50)
-
-
-@router.post("/{vendor_id}/trigger-reassessment", response_model=VendorRead)
-async def trigger_vendor_reassessment(
-    vendor_id: int,
-    payload: VendorTriggerReassessmentPayload,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-
-    vendor = await _get_vendor_with_deps(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-
-    is_owner = is_vendor_owner(vendor, current_user)
-    can_write = check_permission(current_user, "vendors", "write")
-    if not can_write and not is_owner:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
-
-    now = datetime.now(UTC)
-    updates = {
-        "next_reassessment_due_at": now,
-        "reassessment_triggered_reason": payload.reason,
-        "reassessment_triggered_at": now,
-    }
-    changes = build_change_set(vendor, updates)
-    vendor.next_reassessment_due_at = now
-    vendor.reassessment_triggered_reason = payload.reason
-    vendor.reassessment_triggered_at = now
-
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.VENDOR,
-        entity_id=vendor.id,
-        entity_name=vendor.name,
-        action=ActivityAction.UPDATE,
-        actor=current_user,
-        department_id=vendor.department_id,
-        changes=changes,
-        description=f"Triggered vendor reassessment for {vendor.name}",
-    )
-    await db.commit()
-    await db.refresh(vendor)
-
-    vendor = await _get_vendor_with_deps(db, vendor.id)
-    if not vendor:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-    return vendor_to_read(vendor)
-
-
-@router.delete("/{vendor_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def archive_vendor(
-    vendor_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    if not check_permission(current_user, "vendors", "delete"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:delete")
-
-    vendor = await _get_vendor_with_deps(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-
-    changes = build_change_set(vendor, {"status": "inactive"})
-    vendor.status = "inactive"
-    await db.commit()
-    await db.refresh(vendor)
-
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.VENDOR,
-        entity_id=vendor.id,
-        entity_name=vendor.name,
-        action=ActivityAction.ARCHIVE,
-        actor=current_user,
-        department_id=vendor.department_id,
-        changes=changes,
-        description=f"Archived vendor {vendor.name}",
-    )
-    await db.commit()
-    return None
-
-
-@router.post("/{vendor_id}/restore", response_model=VendorRead)
-async def restore_vendor(
-    vendor_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    if not check_permission(current_user, "vendors", "delete"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:delete")
-
-    vendor = await _get_vendor_with_deps(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-
-    if vendor.status != VendorStatusEnum.inactive.value:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vendor is not archived")
-
-    changes = build_change_set(vendor, {"status": VendorStatusEnum.active.value})
-    vendor.status = VendorStatusEnum.active.value
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.VENDOR,
-        entity_id=vendor.id,
-        entity_name=vendor.name,
-        action=ActivityAction.UPDATE,
-        actor=current_user,
-        department_id=vendor.department_id,
-        changes=changes,
-        description=f"Restored vendor {vendor.name}",
-    )
-    await db.commit()
-    await db.refresh(vendor)
 
     vendor = await _get_vendor_with_deps(db, vendor.id)
     if not vendor:

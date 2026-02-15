@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 
+from app.core.datetime_utils import utc_now
 from app.db.session import async_session_maker
 from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk, Vendor, VendorSLA
 from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
@@ -221,7 +222,7 @@ async def _ensure_control_matrix(db, users, departments):
 async def _ensure_kri_matrix(db, users):
     created = 0
     updated = 0
-    now = datetime.utcnow()
+    now = utc_now()
     archive_actor_id = require_user_id(users, "risk.manager@riskhub.local")
 
     for entry in KRI_MATRIX:

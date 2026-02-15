@@ -75,6 +75,7 @@ For these areas, require stronger verification before closing.
 - Use `backend/app/core/datetime_utils.py`:
   - `utc_now()` for new timestamps.
   - `coerce_utc()` when accepting values that might be naive (naive is treated as UTC).
+- Regression guard: `backend/tests/test_no_datetime_utcnow.py` fails if `datetime.utcnow()` or `replace(tzinfo=None)` is reintroduced in `backend/app` or `backend/scripts`.
 - Regression guard: `backend/tests/test_timezone_policy.py` fails if any `DateTime(timezone=False)` column exists.
 - Legacy conversion migration: `backend/alembic/versions/e9c3a1b7d2f4_convert_naive_timestamps_to_timestamptz.py` converts old `timestamp without time zone` columns using `AT TIME ZONE 'UTC'` (assumes existing values represent UTC instants).
 
@@ -86,12 +87,17 @@ For these areas, require stronger verification before closing.
 
 ### Endpoint package splits (maintainability)
 
-- These endpoints are **packages** (not single files): `controls/`, `risks/`, `kris/`, `dashboard/`, `issues/`, `reports/`, `riskhub/`.
+- These endpoints are **packages** (not single files): `controls/`, `risks/`, `kris/`, `dashboard/`, `issues/`, `reports/`, `riskhub/`, `approvals/`, `departments/`, `users/`, `vendors/`, `vendor_incidents/`, `vendor_dependencies/`, `vendor_slas/`, `admin/`, `risk_questionnaires/`.
 - Invariant: `app.api.v1.endpoints.<name>.router` must remain the exported router object (see `backend/app/api/v1/endpoints/<name>/__init__.py`).
 - FastAPI gotcha: if any subrouter defines routes at path `""` (e.g. `@router.get("")`), that router must be the exported base router (don’t include it under an extra wrapper `APIRouter()`).
 - Required re-exports (keep stable import paths):
   - `app.api.v1.endpoints.risks.generate_risk_id_code` (tests depend on it)
   - `app.api.v1.endpoints.riskhub.get_cro_user` (used by `backend/app/api/v1/endpoints/riskhub_questionnaires.py`)
+  - `app.api.v1.endpoints.users.get_password_hash` (tests depend on it)
+
+### SQLAlchemy FK cycles (SQLite tests)
+
+- SQLite `Base.metadata.drop_all()` can warn if a FK cycle exists; `Department.manager_id -> users.id` is marked with `use_alter=True` to break the `departments`/`users` cycle.
 
 ## Testing Matrix
 

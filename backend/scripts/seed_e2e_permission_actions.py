@@ -5,9 +5,10 @@ Seeds delete approvals, control execution logs, and KRI value history.
 Enables permissions E2E tests that verify CRUD access rules.
 """
 import asyncio
-from datetime import datetime, timedelta, date
+from datetime import timedelta, date
 from sqlalchemy import select
 from app.db.session import async_session_maker
+from app.core.datetime_utils import utc_now
 from app.models import Risk, Control, KeyRiskIndicator, KRIValueHistory, ControlExecution
 from app.models.approval_request import (
     ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
@@ -82,17 +83,18 @@ async def seed_control_executions(db, users, controls):
     
     executor_id = users.get("ops.analyst@riskhub.local")
     created = 0
+    base_time = utc_now()
     
     for i, control in enumerate(controls[:3]):  # First 3 controls
         execution = ControlExecution(
             control_id=control.id,
             executed_by_id=executor_id,
-            executed_at=datetime.utcnow() - timedelta(days=i*7, hours=i*2),
+            executed_at=base_time - timedelta(days=i*7, hours=i*2),
             result="passed" if i % 2 == 0 else "warning",
             findings="No issues found" if i % 2 == 0 else "Minor deviations observed",
             evidence_reference=f"/evidence/placeholder-pdf-012.pdf",
             notes=f"E2E-EXECUTION: Quarterly control test #{i+1}",
-            next_scheduled=datetime.utcnow() + timedelta(days=30-i*7),
+            next_scheduled=base_time + timedelta(days=30-i*7),
         )
         db.add(execution)
         created += 1
@@ -116,6 +118,7 @@ async def seed_kri_value_history(db, users, kris):
     
     reporter_id = users.get("fin.analyst@riskhub.local")
     created = 0
+    base_time = utc_now()
     today = date.today()
     
     for i, kri in enumerate(kris[:3]):  # First 3 KRIs
@@ -136,7 +139,7 @@ async def seed_kri_value_history(db, users, kris):
                 kri_id=kri.id,
                 period_start=period_start,
                 period_end=period_end,
-                recorded_at=datetime.utcnow() - timedelta(days=period_offset * 30 - 2),
+                recorded_at=base_time - timedelta(days=period_offset * 30 - 2),
                 recorded_by_id=reporter_id,
                 value=value,
                 lower_limit=kri.lower_limit or 20,
