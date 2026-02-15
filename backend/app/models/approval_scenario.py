@@ -39,7 +39,7 @@ class ApprovalScenario(Base):
     approver_roles: Mapped[str] = mapped_column(Text, default='["risk_manager", "cro"]')
 
     # Audit fields
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     updated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
     # Relationship to user who last updated

@@ -33,10 +33,10 @@ class OrphanedItem(Base):
     )
 
     # When did it become orphaned
-    orphaned_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    orphaned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Resolution fields
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resolved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     resolved_by: Mapped["User"] = relationship(
         "User",

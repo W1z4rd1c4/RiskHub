@@ -1,6 +1,5 @@
 """Approval request endpoints for deletion and edit workflows."""
 import logging
-from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
@@ -11,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.activity_logger import log_activity
+from app.core.datetime_utils import utc_now
 from app.core.permissions import can_resolve_approvals, check_department_access
 from app.db.session import get_db
 from app.models import (
@@ -444,8 +444,7 @@ async def reject_request(
     # Update approval status
     approval.status = ApprovalStatus.REJECTED
     approval.resolved_by_id = current_user.id
-    # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
-    approval.resolved_at = datetime.now(UTC).replace(tzinfo=None)
+    approval.resolved_at = utc_now()
     approval.resolution_notes = resolve_data.resolution_notes
 
     department_id = await _get_approval_department_id(db, approval)
@@ -514,8 +513,7 @@ async def cancel_request(
     # Update status
     approval.status = ApprovalStatus.CANCELLED
     approval.resolved_by_id = current_user.id
-    # Store timezone-naive UTC for DB compatibility (TIMESTAMP WITHOUT TIME ZONE)
-    approval.resolved_at = datetime.now(UTC).replace(tzinfo=None)
+    approval.resolved_at = utc_now()
 
     # Log activity for cancellation - distinguish self vs privileged
     department_id = await _get_approval_department_id(db, approval)

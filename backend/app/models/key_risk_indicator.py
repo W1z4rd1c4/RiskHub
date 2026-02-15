@@ -58,15 +58,15 @@ class KeyRiskIndicator(Base):
 
     # Period tracking for historization
     last_period_end: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    last_reported_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    last_reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Timestamps
-    last_updated: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    last_updated: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Archive fields (soft-delete) - matches Risk/Control pattern
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", index=True)
-    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     archived_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
 
     # Relationships

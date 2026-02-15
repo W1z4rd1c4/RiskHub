@@ -19,7 +19,7 @@ class VendorRiskFactor(Base):
     category_key: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="risk_factors")

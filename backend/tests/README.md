@@ -2,11 +2,13 @@
 
 ## Test Database
 
-Tests run against **SQLite in-memory** for speed and isolation:
+Tests run against **SQLite in-memory** for speed and isolation by default:
 
 ```python
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"  # default
 ```
+
+You can override the test database by exporting `TEST_DATABASE_URL` before running pytest.
 
 ### Implications
 
@@ -49,7 +51,13 @@ async def test_pg_specific_feature(db_session):
     ...
 ```
 
-To run these tests, set up a PostgreSQL test database and update `TEST_DATABASE_URL`.
+To run these tests, set up a PostgreSQL test database and export `TEST_DATABASE_URL`:
+
+```bash
+cd backend
+export TEST_DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/riskhub_test"
+pytest -m postgres -v
+```
 
 ## Common Fixtures
 

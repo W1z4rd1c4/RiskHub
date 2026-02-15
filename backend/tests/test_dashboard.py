@@ -1,7 +1,7 @@
 """
 Tests for Dashboard API endpoints.
 """
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import pytest
 from httpx import AsyncClient
 from app.models import Role, Department, Permission, RolePermission
@@ -259,7 +259,7 @@ async def test_committee_summary_scoped_for_department_head(client: AsyncClient,
         net_probability=1,
         net_impact=1,
         status=RiskStatus.active.value,
-        created_at=datetime.now() - timedelta(days=1),
+        created_at=datetime.now(UTC) - timedelta(days=1),
     )
     risk_b = Risk(
         risk_id_code="B-001",
@@ -274,7 +274,7 @@ async def test_committee_summary_scoped_for_department_head(client: AsyncClient,
         net_probability=1,
         net_impact=1,
         status=RiskStatus.active.value,
-        created_at=datetime.now() - timedelta(days=1),
+        created_at=datetime.now(UTC) - timedelta(days=1),
     )
     db_session.add_all([risk_a, risk_b])
     await db_session.commit()
@@ -290,7 +290,7 @@ async def test_committee_summary_scoped_for_department_head(client: AsyncClient,
         department_id=dept_a.id,
         changes=None,
         description="Created risk A",
-        created_at=datetime.now() - timedelta(days=2),
+        created_at=datetime.now(UTC) - timedelta(days=2),
     )
     log_b = ActivityLog(
         entity_type="risk",
@@ -302,7 +302,7 @@ async def test_committee_summary_scoped_for_department_head(client: AsyncClient,
         department_id=dept_b.id,
         changes=None,
         description="Created risk B",
-        created_at=datetime.now() - timedelta(days=2),
+        created_at=datetime.now(UTC) - timedelta(days=2),
     )
     db_session.add_all([log_a, log_b])
     await db_session.commit()
@@ -375,7 +375,7 @@ async def test_quarterly_comparison_scoped_for_department_head(client: AsyncClie
         net_probability=1,
         net_impact=1,
         status=RiskStatus.active.value,
-        created_at=datetime.now() - timedelta(days=1),
+        created_at=datetime.now(UTC) - timedelta(days=1),
     )
     risk_b = Risk(
         risk_id_code="B2-001",
@@ -390,7 +390,7 @@ async def test_quarterly_comparison_scoped_for_department_head(client: AsyncClie
         net_probability=1,
         net_impact=1,
         status=RiskStatus.active.value,
-        created_at=datetime.now() - timedelta(days=1),
+        created_at=datetime.now(UTC) - timedelta(days=1),
     )
     db_session.add_all([risk_a, risk_b])
     await db_session.commit()

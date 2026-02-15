@@ -3,7 +3,7 @@ Tests for dashboard historical trend endpoints.
 """
 import pytest
 import pytest_asyncio
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,7 +17,7 @@ from app.models.kri_history import KRIValueHistory
 async def trend_test_data(db_session: AsyncSession, test_user: User, test_department: Department):
     """Create test data for trend endpoints."""
     # Create risks in different months
-    now = datetime.now()
+    now = datetime.now(UTC)
     last_month = now - timedelta(days=35)
     
     # Risk created this month (critical)

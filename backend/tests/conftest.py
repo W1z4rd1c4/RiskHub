@@ -8,12 +8,33 @@ import os
 os.environ.setdefault("DEBUG", "true")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
 
+def _normalize_async_database_url(url: str) -> str:
+    """Normalize a DB URL to an async SQLAlchemy URL suitable for create_async_engine()."""
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://") :]
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    if url.startswith("postgresql+psycopg2://"):
+        return url.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+    if url.startswith("sqlite://"):
+        return url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+    return url
+
+
+# Default is fast SQLite in-memory. Override by exporting TEST_DATABASE_URL.
+TEST_DATABASE_URL = _normalize_async_database_url(os.environ.get("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:"))
+os.environ["TEST_DATABASE_URL"] = TEST_DATABASE_URL
+# Ensure app settings and Alembic use the test database during test runs.
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+
 import asyncio
+from pathlib import Path
 from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -27,8 +48,8 @@ from app.models.risk import RiskStatus
 from app.core.security import get_current_user
 
 
-# Use SQLite for testing
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+_ALEMBIC_INI_PATH = Path(__file__).resolve().parents[1] / "alembic.ini"
+_USING_POSTGRES = TEST_DATABASE_URL.startswith("postgresql")
 
 
 @pytest.fixture(scope="session")
@@ -42,21 +63,40 @@ def event_loop() -> Generator:
 @pytest_asyncio.fixture(scope="function")
 async def async_engine():
     """Create async engine for each test."""
+    if _USING_POSTGRES:
+        engine = create_async_engine(TEST_DATABASE_URL)
+        yield engine
+        await engine.dispose()
+        return
+
     engine = create_async_engine(
         TEST_DATABASE_URL,
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield engine
-    
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    
+
     await engine.dispose()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def migrate_postgres_db() -> None:
+    """Apply Alembic migrations once per test session when using PostgreSQL."""
+    if not _USING_POSTGRES:
+        return
+
+    from alembic import command
+    from alembic.config import Config
+
+    alembic_cfg = Config(str(_ALEMBIC_INI_PATH))
+    command.upgrade(alembic_cfg, "head")
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -67,8 +107,14 @@ async def db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
         class_=AsyncSession,
         expire_on_commit=False,
     )
-    
+
     async with async_session_maker() as session:
+        if _USING_POSTGRES:
+            table_names = [table.name for table in Base.metadata.sorted_tables]
+            if table_names:
+                quoted_names = ", ".join(f'"{name}"' for name in table_names)
+                await session.execute(text(f"TRUNCATE TABLE {quoted_names} RESTART IDENTITY CASCADE"))
+                await session.commit()
         yield session
 
 
