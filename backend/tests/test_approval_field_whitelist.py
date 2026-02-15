@@ -98,7 +98,7 @@ class TestWhitelistEnforcement:
         mock_user.id = 1
         
         # Execute
-        with patch("app.services.approval_execution_service.log_activity"):
+        with patch("app.core.activity_logger.log_activity"):
             await _apply_edit_risk_control(mock_db, mock_approval, mock_user)
         
         # Verify id was NOT changed (injection blocked)
