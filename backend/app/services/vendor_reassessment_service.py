@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import calendar
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.permissions import can_read_vendor_id
 from app.i18n import t
 from app.models import User, Vendor
@@ -28,14 +29,8 @@ class VendorReassessmentService:
         return 12 if vendor.supports_important_core_insurance_function else 36
 
     @staticmethod
-    def _coerce_utc(dt: datetime) -> datetime:
-        if dt.tzinfo is None:
-            return dt.replace(tzinfo=UTC)
-        return dt.astimezone(UTC)
-
-    @staticmethod
     def add_months(dt: datetime, months: int) -> datetime:
-        dt = VendorReassessmentService._coerce_utc(dt)
+        dt = coerce_utc(dt) or dt
         year = dt.year
         month = dt.month + months
         year += (month - 1) // 12
@@ -57,7 +52,7 @@ class VendorReassessmentService:
         now: datetime,
         lookback_days: int,
     ) -> bool:
-        cutoff_date = (now - timedelta(days=lookback_days)).replace(tzinfo=None)
+        cutoff_date = now - timedelta(days=lookback_days)
         stmt = (
             select(Notification)
             .where(
@@ -96,7 +91,7 @@ class VendorReassessmentService:
         - Uses last_reassessment_reminded_at cooldown
         - Also checks Notification duplicates for vendor within lookback window
         """
-        now = now or datetime.now(UTC)
+        now = coerce_utc(now) or utc_now()
         today = now.date()
         due_soon_threshold = today + timedelta(days=VendorReassessmentService.DUE_SOON_DAYS)
         cooldown_cutoff = now - timedelta(days=VendorReassessmentService.REMINDER_COOLDOWN_DAYS)
@@ -120,15 +115,11 @@ class VendorReassessmentService:
                 if not vendor.next_reassessment_due_at:
                     continue
 
-                due_at = vendor.next_reassessment_due_at
-                if due_at.tzinfo is None:
-                    due_at = due_at.replace(tzinfo=UTC)
+                due_at = coerce_utc(vendor.next_reassessment_due_at) or vendor.next_reassessment_due_at
                 due_date = due_at.date()
 
                 if vendor.last_reassessment_reminded_at:
-                    last_reminded = vendor.last_reassessment_reminded_at
-                    if last_reminded.tzinfo is None:
-                        last_reminded = last_reminded.replace(tzinfo=UTC)
+                    last_reminded = coerce_utc(vendor.last_reassessment_reminded_at) or vendor.last_reassessment_reminded_at
                     if last_reminded >= cooldown_cutoff:
                         continue
 

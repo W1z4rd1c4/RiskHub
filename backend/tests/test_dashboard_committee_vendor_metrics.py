@@ -35,7 +35,7 @@ async def test_dashboard_summary_vendor_metrics_scoped_by_department(
     await db_session.commit()
     await db_session.refresh(dept2)
 
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
 
     vendor1 = Vendor(
         name="Vendor Dept 1",
@@ -158,7 +158,7 @@ async def test_dashboard_summary_hides_vendor_metrics_without_vendors_read(
     test_department: Department,
     test_user_department_head: User,
 ):
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
 
     vendor = Vendor(
         name="Vendor Dept 1",

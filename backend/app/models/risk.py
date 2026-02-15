@@ -101,8 +101,8 @@ class Risk(Base):
     kri_threshold_red: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Critical
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationships
     control_links: Mapped[list["ControlRiskLink"]] = relationship("ControlRiskLink", back_populates="risk")
@@ -131,7 +131,7 @@ class ControlRiskLink(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Timestamp
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     control: Mapped["Control"] = relationship("Control", back_populates="risk_links")

@@ -3,7 +3,7 @@ Tests for audit trail report endpoints.
 """
 from io import BytesIO
 import pytest
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from httpx import AsyncClient
 from openpyxl import load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,15 +59,15 @@ async def audit_trail_test_data(db_session: AsyncSession, test_user, test_depart
         result="passed",
         findings="All checks passed successfully",
         evidence_reference="/documents/evidence/passed_test.pdf",
-        executed_at=datetime.now(),
-        next_scheduled=datetime.now() + timedelta(days=30),
+        executed_at=datetime.now(UTC),
+        next_scheduled=datetime.now(UTC) + timedelta(days=30),
     )
     exe_failed = ControlExecution(
         control_id=control.id,
         executed_by_id=test_user.id,
         result="failed",
         findings="Critical issue found in the control",
-        executed_at=datetime.now() - timedelta(days=7),
+        executed_at=datetime.now(UTC) - timedelta(days=7),
     )
     
     db_session.add_all([exe_passed, exe_failed])

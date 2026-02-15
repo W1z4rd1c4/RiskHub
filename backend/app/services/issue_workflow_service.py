@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.datetime_utils import coerce_utc
 from app.models import Issue, IssueException, IssueRemediationPlan, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import (
@@ -13,14 +14,6 @@ from app.models.issue import (
     IssueRemediationStatus,
     IssueStatus,
 )
-
-
-def _coerce_utc(dt: datetime | None) -> datetime | None:
-    if dt is None:
-        return None
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
-    return dt.astimezone(UTC)
 
 
 def _conflict(detail: str) -> None:
@@ -80,8 +73,8 @@ class IssueWorkflowService:
         target_date: datetime | None,
         actor: User,
     ) -> Issue:
-        due_at = _coerce_utc(due_at)
-        target_date = _coerce_utc(target_date) or due_at
+        due_at = coerce_utc(due_at) or due_at
+        target_date = coerce_utc(target_date) or due_at
         remediation = IssueWorkflowService._get_or_init_remediation(issue)
 
         issue_updates: dict[str, object] = {
@@ -141,7 +134,7 @@ class IssueWorkflowService:
             _conflict(f"Issue must be open or triaged to start remediation (current={issue.status})")
 
         remediation = IssueWorkflowService._get_or_init_remediation(issue)
-        target_date = _coerce_utc(target_date) or remediation.target_date or issue.due_at
+        target_date = coerce_utc(target_date) or remediation.target_date or issue.due_at
 
         IssueWorkflowService._ensure_issue_transition(issue.status, IssueStatus.in_progress.value)
         issue_updates = {"status": IssueStatus.in_progress.value}
@@ -301,7 +294,7 @@ class IssueWorkflowService:
         if exception.status != IssueExceptionStatus.requested.value:
             _conflict(f"Only requested exceptions can be approved (current={exception.status})")
 
-        expires_at = _coerce_utc(expires_at)
+        expires_at = coerce_utc(expires_at)
         if expires_at is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="expires_at is required")
         now = datetime.now(UTC)
