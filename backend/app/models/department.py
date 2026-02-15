@@ -11,8 +11,11 @@ if TYPE_CHECKING:
     from app.models.risk import Risk
     from app.models.user import User
     from app.models.vendor import Vendor
+
+
 class Department(Base):
     """Department model for control catalog ownership."""
+
     __tablename__ = "departments"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -39,4 +42,6 @@ class Department(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

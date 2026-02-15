@@ -15,6 +15,8 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.vendor import Vendor
+
+
 class VendorContractControlStatus(str, PyEnum):
     met = "met"
     partial = "partial"
@@ -26,7 +28,9 @@ class VendorContractControl(Base):
     __tablename__ = "vendor_contract_controls"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     control_key: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     status: Mapped[VendorContractControlStatus] = mapped_column(

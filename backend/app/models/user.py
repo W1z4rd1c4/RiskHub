@@ -16,8 +16,11 @@ if TYPE_CHECKING:
     from app.models.risk import Risk
     from app.models.role import Role
     from app.models.vendor import Vendor
+
+
 class AccessScope(str, PyEnum):
     """Defines data access scope for a user."""
+
     GLOBAL = "global"
     DEPARTMENT = "department"
     MANAGER = "manager"
@@ -25,6 +28,7 @@ class AccessScope(str, PyEnum):
 
 class User(Base):
     """User model with role-based access control."""
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -59,17 +63,21 @@ class User(Base):
 
     # Manager-employee hierarchy
     manager_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    manager: Mapped["User | None"] = relationship("User", remote_side=[id], back_populates="subordinates", foreign_keys="User.manager_id")
+    manager: Mapped["User | None"] = relationship(
+        "User", remote_side=[id], back_populates="subordinates", foreign_keys="User.manager_id"
+    )
     subordinates: Mapped[list["User"]] = relationship("User", back_populates="manager", foreign_keys="User.manager_id")
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     # User preferences (synced across devices)
-    preferred_theme: Mapped[str] = mapped_column(String(20), default='riskhub', server_default='riskhub')
-    preferred_language: Mapped[str] = mapped_column(String(10), default='en', server_default='en')
+    preferred_theme: Mapped[str] = mapped_column(String(20), default="riskhub", server_default="riskhub")
+    preferred_language: Mapped[str] = mapped_column(String(10), default="en", server_default="en")
 
     # Notification preferences (JSON blob for flexibility)
     # Structure: {"approval_pending": true, "approval_resolved": true, "kri_due_soon": true, ...}
@@ -77,21 +85,12 @@ class User(Base):
 
     # Control relationships
     owned_controls: Mapped[list["Control"]] = relationship(
-        "Control",
-        foreign_keys="Control.control_owner_id",
-        back_populates="control_owner"
+        "Control", foreign_keys="Control.control_owner_id", back_populates="control_owner"
     )
-    executed_controls: Mapped[list["ControlExecution"]] = relationship(
-        "ControlExecution",
-        back_populates="executed_by"
-    )
+    executed_controls: Mapped[list["ControlExecution"]] = relationship("ControlExecution", back_populates="executed_by")
 
     # Risk relationships
-    owned_risks: Mapped[list["Risk"]] = relationship(
-        "Risk",
-        foreign_keys="Risk.owner_id",
-        back_populates="owner"
-    )
+    owned_risks: Mapped[list["Risk"]] = relationship("Risk", foreign_keys="Risk.owner_id", back_populates="owner")
 
     # Vendor relationships (Phase 18)
     owned_vendors: Mapped[list["Vendor"]] = relationship(
@@ -101,10 +100,7 @@ class User(Base):
     )
 
     # Notification relationship
-    notifications: Mapped[list["Notification"]] = relationship(
-        "Notification",
-        back_populates="user"
-    )
+    notifications: Mapped[list["Notification"]] = relationship("Notification", back_populates="user")
 
     @property
     def manager_name(self) -> str | None:

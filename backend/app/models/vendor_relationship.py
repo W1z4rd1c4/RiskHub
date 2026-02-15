@@ -14,6 +14,8 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.vendor import Vendor
+
+
 class VendorRelationshipType(str, PyEnum):
     subcontractor = "subcontractor"
     reseller = "reseller"
@@ -25,8 +27,12 @@ class VendorRelationship(Base):
     __tablename__ = "vendor_relationships"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
-    related_vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    related_vendor_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     relationship_type: Mapped[VendorRelationshipType] = mapped_column(
         SAEnum(
             VendorRelationshipType,

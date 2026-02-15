@@ -79,15 +79,18 @@ jobs:
           grep -q "^## Notes" docs/quality/lint-ratchet-status.md
           test -f docs/quality/baseline/e712-app.txt
           test -f docs/quality/baseline/e402-app.txt
+          test -f docs/quality/baseline/e501-app.txt
 
       - name: Compute Ruff ratchet class counts
         run: |
           set -euo pipefail
           E712_COUNT="$(ruff check app --select E712 --output-format json | python -c 'import json,sys; print(len(json.load(sys.stdin)))')"
           E402_COUNT="$(ruff check app --select E402 --output-format json | python -c 'import json,sys; print(len(json.load(sys.stdin)))')"
+          E501_COUNT="$(ruff check app --select E501 --output-format json | python -c 'import json,sys; print(len(json.load(sys.stdin)))')"
           echo "E712_COUNT=${E712_COUNT}" >> "$GITHUB_ENV"
           echo "E402_COUNT=${E402_COUNT}" >> "$GITHUB_ENV"
-          echo "Ruff ratchet counts: E712=${E712_COUNT}, E402=${E402_COUNT}"
+          echo "E501_COUNT=${E501_COUNT}" >> "$GITHUB_ENV"
+          echo "Ruff ratchet counts: E712=${E712_COUNT}, E402=${E402_COUNT}, E501=${E501_COUNT}"
         working-directory: backend
 
       - name: Write lint baseline summary
@@ -99,7 +102,7 @@ jobs:
             echo "- Frontend debt budget: PASS";
             echo "- Frontend cleanup audit contract: PASS";
             echo "- Backend Ruff hard gate (backend/app): PASS";
-            echo "- Ruff ratchet status: E712=${E712_COUNT}, E402=${E402_COUNT}";
+            echo "- Ruff ratchet status: E712=${E712_COUNT}, E402=${E402_COUNT}, E501=${E501_COUNT}";
           } > lint-summary.md
 
       - name: Upload lint evidence

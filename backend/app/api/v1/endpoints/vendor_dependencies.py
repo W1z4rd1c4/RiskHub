@@ -37,6 +37,7 @@ from app.services.vendor_concentration_service import VendorConcentrationService
 
 router = APIRouter()
 
+
 def _dependency_read(dep: VendorDependency, *, current_user: User) -> VendorDependencyRead:
     dept_name = None
     if dep.department:
@@ -154,12 +155,16 @@ async def get_vendor_dependencies(
     vendor = await _get_vendor_or_404(db, vendor_id, current_user)
 
     rels = (
-        await db.execute(
-            select(VendorRelationship)
-            .options(selectinload(VendorRelationship.related_vendor))
-            .where(VendorRelationship.vendor_id == vendor_id)
+        (
+            await db.execute(
+                select(VendorRelationship)
+                .options(selectinload(VendorRelationship.related_vendor))
+                .where(VendorRelationship.vendor_id == vendor_id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     rel_reads = [
         VendorRelationshipRead(
             id=r.id,
@@ -174,12 +179,19 @@ async def get_vendor_dependencies(
     ]
 
     services = (
-        await db.execute(
-            select(VendorService)
-            .options(selectinload(VendorService.dependencies).selectinload(VendorDependency.risk), selectinload(VendorService.dependencies).selectinload(VendorDependency.department))
-            .where(VendorService.vendor_id == vendor_id)
+        (
+            await db.execute(
+                select(VendorService)
+                .options(
+                    selectinload(VendorService.dependencies).selectinload(VendorDependency.risk),
+                    selectinload(VendorService.dependencies).selectinload(VendorDependency.department),
+                )
+                .where(VendorService.vendor_id == vendor_id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     service_reads: list[VendorServiceRead] = []
     for s in services:
@@ -213,7 +225,9 @@ async def get_vendor_dependencies(
     )
 
 
-@router.post("/vendors/{vendor_id}/relationships", response_model=VendorRelationshipRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/vendors/{vendor_id}/relationships", response_model=VendorRelationshipRead, status_code=status.HTTP_201_CREATED
+)
 async def create_vendor_relationship(
     vendor_id: int,
     payload: VendorRelationshipCreate,
@@ -256,7 +270,9 @@ async def delete_vendor_relationship(
     if not check_permission(current_user, "vendors", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
 
-    rel = (await db.execute(select(VendorRelationship).where(VendorRelationship.id == relationship_id))).scalar_one_or_none()
+    rel = (
+        await db.execute(select(VendorRelationship).where(VendorRelationship.id == relationship_id))
+    ).scalar_one_or_none()
     if not rel:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relationship not found")
 
@@ -321,7 +337,10 @@ async def update_vendor_service(
     service = (
         await db.execute(
             select(VendorService)
-            .options(selectinload(VendorService.dependencies).selectinload(VendorDependency.risk), selectinload(VendorService.dependencies).selectinload(VendorDependency.department))
+            .options(
+                selectinload(VendorService.dependencies).selectinload(VendorDependency.risk),
+                selectinload(VendorService.dependencies).selectinload(VendorDependency.department),
+            )
             .where(VendorService.id == service_id)
         )
     ).scalar_one()
@@ -357,7 +376,11 @@ async def delete_vendor_service(
     return None
 
 
-@router.post("/vendor-services/{service_id}/dependencies", response_model=VendorDependencyRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/vendor-services/{service_id}/dependencies",
+    response_model=VendorDependencyRead,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_vendor_dependency(
     service_id: int,
     payload: VendorDependencyCreate,
@@ -373,7 +396,9 @@ async def create_vendor_dependency(
     _require_vendor_write(vendor, current_user)
 
     if payload.department_id is not None:
-        exists = (await db.execute(select(Department).where(Department.id == payload.department_id))).scalar_one_or_none()
+        exists = (
+            await db.execute(select(Department).where(Department.id == payload.department_id))
+        ).scalar_one_or_none()
         if not exists:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
 
@@ -399,7 +424,11 @@ async def create_vendor_dependency(
     await db.refresh(dep)
 
     dep = (
-        await db.execute(select(VendorDependency).options(selectinload(VendorDependency.risk), selectinload(VendorDependency.department)).where(VendorDependency.id == dep.id))
+        await db.execute(
+            select(VendorDependency)
+            .options(selectinload(VendorDependency.risk), selectinload(VendorDependency.department))
+            .where(VendorDependency.id == dep.id)
+        )
     ).scalar_one()
 
     return _dependency_read(dep, current_user=current_user)

@@ -43,7 +43,12 @@ def _stream_excel(filename_base: str, content_bytes: bytes) -> StreamingResponse
 
 def _require_vendor_report_role(current_user: User) -> None:
     role_name = getattr(getattr(current_user, "role", None), "name", None)
-    allowed = {RoleType.RISK_MANAGER.value, RoleType.CRO.value, RoleType.COMPLIANCE.value, RoleType.INTERNAL_AUDIT.value}
+    allowed = {
+        RoleType.RISK_MANAGER.value,
+        RoleType.CRO.value,
+        RoleType.COMPLIANCE.value,
+        RoleType.INTERNAL_AUDIT.value,
+    }
     if role_name not in allowed:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to vendor reports")
 

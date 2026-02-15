@@ -1,4 +1,5 @@
 """Risk questionnaire API endpoints."""
+
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -424,7 +425,9 @@ async def submit_questionnaire(
         action=ActivityAction.STATUS_CHANGE,
         actor=current_user,
         department_id=questionnaire.risk.department_id if questionnaire.risk else None,
-        changes={"status": {"old": old_status.value if hasattr(old_status, "value") else old_status, "new": "submitted"}},
+        changes={
+            "status": {"old": old_status.value if hasattr(old_status, "value") else old_status, "new": "submitted"}
+        },
         description=f"Submitted questionnaire for risk '{questionnaire.risk.name if questionnaire.risk else 'Risk'}'",
     )
     await db.commit()

@@ -26,7 +26,9 @@ async def get_dashboard_summary(
     department_id: Optional[int] = Query(None, description="Filter by department"),
     control_status: Optional[str] = Query(None, description="Filter by control status"),
     control_form: Optional[str] = Query(None, description="Filter by control form"),
-    risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(None, description="Filter by risk level"),
+    risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(
+        None, description="Filter by risk level"
+    ),
     include_archived: bool = Query(False, description="Include archived items"),
 ):
     """Get overview statistics for executive dashboard with optional filters."""
@@ -77,9 +79,7 @@ async def get_dashboard_summary(
     controls_by_status = {}
     for control_status_enum in ControlStatus:
         conditions = [Control.status == control_status_enum.value] + control_conditions
-        result = await db.execute(
-            select(func.count(Control.id)).where(and_(*conditions))
-        )
+        result = await db.execute(select(func.count(Control.id)).where(and_(*conditions)))
         count = result.scalar() or 0
         if count > 0:
             controls_by_status[control_status_enum.value] = count
@@ -88,11 +88,11 @@ async def get_dashboard_summary(
     controls_by_form = {}
     for form in ControlForm:
         # Avoid including the form filter itself in the breakdown
-        other_control_conditions = [c for c in control_conditions if not (hasattr(c, 'right') and str(c.right) == control_form)]
+        other_control_conditions = [
+            c for c in control_conditions if not (hasattr(c, "right") and str(c.right) == control_form)
+        ]
         conditions = [Control.control_form == form.value] + other_control_conditions
-        result = await db.execute(
-            select(func.count(Control.id)).where(and_(*conditions))
-        )
+        result = await db.execute(select(func.count(Control.id)).where(and_(*conditions)))
         count = result.scalar() or 0
         if count > 0:
             controls_by_form[form.value] = count
@@ -101,9 +101,7 @@ async def get_dashboard_summary(
     controls_by_frequency = {}
     for freq in ControlFrequency:
         conditions = [Control.frequency == freq.value] + control_conditions
-        result = await db.execute(
-            select(func.count(Control.id)).where(and_(*conditions))
-        )
+        result = await db.execute(select(func.count(Control.id)).where(and_(*conditions)))
         count = result.scalar() or 0
         if count > 0:
             controls_by_frequency[freq.value] = count
@@ -119,9 +117,7 @@ async def get_dashboard_summary(
     risks_by_status = {}
     for risk_status_enum in RiskStatus:
         conditions = [Risk.status == risk_status_enum.value] + risk_conditions
-        result = await db.execute(
-            select(func.count(Risk.id)).where(and_(*conditions))
-        )
+        result = await db.execute(select(func.count(Risk.id)).where(and_(*conditions)))
         count = result.scalar() or 0
         if count > 0:
             risks_by_status[risk_status_enum.value] = count
@@ -129,9 +125,7 @@ async def get_dashboard_summary(
     # Critical risks (net_score >= critical threshold)
     critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
     critical_conditions = [Risk.net_score >= critical_threshold] + risk_conditions
-    critical_result = await db.execute(
-        select(func.count(Risk.id)).where(and_(*critical_conditions))
-    )
+    critical_result = await db.execute(select(func.count(Risk.id)).where(and_(*critical_conditions)))
     critical_risks_count = critical_result.scalar() or 0
 
     # Average net risk score
@@ -176,7 +170,10 @@ async def get_dashboard_summary(
             await db.execute(
                 select(func.count(Vendor.id)).where(
                     and_(
-                        *(vendor_conditions + [Vendor.next_reassessment_due_at.isnot(None), Vendor.next_reassessment_due_at < now])
+                        *(
+                            vendor_conditions
+                            + [Vendor.next_reassessment_due_at.isnot(None), Vendor.next_reassessment_due_at < now]
+                        )
                     )
                 )
             )
@@ -187,7 +184,9 @@ async def get_dashboard_summary(
             or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit),
             Vendor.status == "active",
         ]
-        sla_query = select(func.count(VendorSLA.id)).join(Vendor, VendorSLA.vendor_id == Vendor.id).where(and_(*sla_conditions))
+        sla_query = (
+            select(func.count(VendorSLA.id)).join(Vendor, VendorSLA.vendor_id == Vendor.id).where(and_(*sla_conditions))
+        )
         if vendor_scope_filter is not None:
             sla_query = sla_query.where(vendor_scope_filter)
         breached_vendor_slas_count = (await db.execute(sla_query)).scalar() or 0

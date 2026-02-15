@@ -1,4 +1,5 @@
 """RiskTypeConfig model for dynamic risk type management."""
+
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
@@ -14,6 +15,7 @@ class RiskTypeConfig(Base):
     Replaces the hardcoded RiskType enum with database-driven configuration.
     System types (strategic, operational) cannot be deleted.
     """
+
     __tablename__ = "risk_types"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -47,7 +49,9 @@ class RiskTypeConfig(Base):
 
     # Audit fields
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     # Relationship to risks (optional, for eager loading)
     # risks: Mapped[list["Risk"]] = relationship("Risk", back_populates="risk_type_config")

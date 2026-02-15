@@ -52,7 +52,9 @@ class VendorReportingService:
                 occurred = i.occurred_at or i.created_at
                 if not occurred:
                     continue
-                occurred_year = (occurred.replace(tzinfo=UTC) if occurred.tzinfo is None else occurred.astimezone(UTC)).year
+                occurred_year = (
+                    occurred.replace(tzinfo=UTC) if occurred.tzinfo is None else occurred.astimezone(UTC)
+                ).year
                 if occurred_year != year:
                     continue
                 incidents_by_vendor.setdefault(i.vendor_id, []).append(i)
@@ -94,14 +96,21 @@ class VendorReportingService:
             1
             for v in vendors
             if v.next_reassessment_due_at
-            and (v.next_reassessment_due_at.replace(tzinfo=UTC) if v.next_reassessment_due_at.tzinfo is None else v.next_reassessment_due_at.astimezone(UTC)) < now
+            and (
+                v.next_reassessment_due_at.replace(tzinfo=UTC)
+                if v.next_reassessment_due_at.tzinfo is None
+                else v.next_reassessment_due_at.astimezone(UTC)
+            )
+            < now
         )
 
         missing_exit_plans_count = 0
         missing_contingency_plans_count = 0
         if vendor_ids:
             exit_stmt = select(VendorExitPlan.vendor_id).where(VendorExitPlan.vendor_id.in_(vendor_ids))
-            contingency_stmt = select(VendorContingencyPlan.vendor_id).where(VendorContingencyPlan.vendor_id.in_(vendor_ids))
+            contingency_stmt = select(VendorContingencyPlan.vendor_id).where(
+                VendorContingencyPlan.vendor_id.in_(vendor_ids)
+            )
             exit_ids = set((await db.execute(exit_stmt)).scalars().all())
             contingency_ids = set((await db.execute(contingency_stmt)).scalars().all())
             missing_exit_plans_count = len([vid for vid in vendor_ids if vid not in exit_ids])
@@ -161,4 +170,3 @@ class VendorReportingService:
             )
             for v in vendors
         ]
-

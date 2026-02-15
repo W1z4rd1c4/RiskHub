@@ -1,4 +1,5 @@
 """Notification service for creating and managing in-app notifications."""
+
 import logging
 from datetime import UTC, datetime
 
@@ -169,7 +170,10 @@ class NotificationService:
                     user_id=approver.id,
                     notification_type=NotificationType.APPROVAL_PENDING,
                     title=f"New {action_label} request",
-                    message=f"New {action_label} request for {approval.resource_type.value} '{approval.resource_name}' requires your review.",
+                    message=(
+                        f"New {action_label} request for {approval.resource_type.value} "
+                        f"'{approval.resource_name}' requires your review."
+                    ),
                     resource_type="approval",
                     resource_id=approval.id,
                 )
@@ -204,7 +208,10 @@ class NotificationService:
 
         try:
             title = f"Request {status_label}"
-            message = f"Your {action_label} request for {approval.resource_type.value} '{approval.resource_name}' was {status_label}."
+            message = (
+                f"Your {action_label} request for {approval.resource_type.value} "
+                f"'{approval.resource_name}' was {status_label}."
+            )
 
             # Add resolution notes if present
             if approval.resolution_notes:
@@ -289,7 +296,10 @@ class NotificationService:
                     user_id=approver.id,
                     notification_type=NotificationType.APPROVAL_CANCELLED,
                     title="Request cancelled",
-                    message=f"{cancelled_by_user.name} cancelled their {action_label} request for {approval.resource_type.value} '{approval.resource_name}'.",
+                    message=(
+                        f"{cancelled_by_user.name} cancelled their {action_label} request for "
+                        f"{approval.resource_type.value} '{approval.resource_name}'."
+                    ),
                     resource_type="approval",
                     resource_id=approval.id,
                 )

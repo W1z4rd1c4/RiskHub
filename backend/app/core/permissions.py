@@ -7,6 +7,7 @@ This module provides:
 4. Sensitive field detection - identify changes requiring approval
 5. Cross-department ownership helpers - KRI reporting owners, control owners
 """
+
 from typing import Optional
 
 from fastapi import HTTPException, status
@@ -34,6 +35,7 @@ SENSITIVE_FIELDS: dict[str, set[str]] = {
 # ============================================================================
 # 1. Department Scoping Helpers
 # ============================================================================
+
 
 def is_privileged_user(user: User) -> bool:
     """Check if user has global access scope (full system access)."""
@@ -95,10 +97,7 @@ def check_department_access(
     if item_dept_id is None:
         # Null department = only privileged users can access unassigned items
         if not is_privileged_user(current_user):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to unassigned items"
-            )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to unassigned items")
         return  # Privileged user can access
 
     dept_ids = get_user_department_ids(current_user)
@@ -107,8 +106,7 @@ def check_department_access(
 
     if item_dept_id not in dept_ids:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this department's resources"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this department's resources"
         )
 
 
@@ -150,6 +148,7 @@ def is_vendor_owner(vendor, current_user: User) -> bool:
 # ============================================================================
 # 2. Permission Evaluation
 # ============================================================================
+
 
 def has_permission(user: User, resource: str, action: str) -> bool:
     """
@@ -290,7 +289,9 @@ async def can_read_kri_id(db, user: User, kri_id: int) -> bool:
 
     from app.models import KeyRiskIndicator
 
-    risk_id = (await db.execute(select(KeyRiskIndicator.risk_id).where(KeyRiskIndicator.id == kri_id))).scalar_one_or_none()
+    risk_id = (
+        await db.execute(select(KeyRiskIndicator.risk_id).where(KeyRiskIndicator.id == kri_id))
+    ).scalar_one_or_none()
     if risk_id is None:
         return False
     return await can_read_risk_id(db, user, risk_id)
@@ -321,9 +322,7 @@ async def get_issue_scope_clause(db, user: User):
     control_owner_ids = set(await get_control_ids_where_owner(db, user.id))
 
     if risk_owner_ids:
-        scope_conditions.append(
-            Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.risk_id.in_(risk_owner_ids)))
-        )
+        scope_conditions.append(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.risk_id.in_(risk_owner_ids))))
     if control_owner_ids:
         scope_conditions.append(
             Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.control_id.in_(control_owner_ids)))
@@ -434,6 +433,7 @@ def can_manage_users(user: User) -> bool:
     """Check if user can create/edit/delete users."""
     return is_privileged_user(user) and has_permission(user, "users", "write")
 
+
 def is_role(user: User, role: RoleType) -> bool:
     return bool(getattr(getattr(user, "role", None), "name", None) == role)
 
@@ -446,6 +446,7 @@ def has_any_role(user: User, roles: set[RoleType]) -> bool:
 # ============================================================================
 # 3. Approval and Committee Access Helpers
 # ============================================================================
+
 
 def can_resolve_approvals(user: User) -> bool:
     """
@@ -509,11 +510,7 @@ async def is_high_risk_for_approval_async(risk, db) -> bool:
     """
     if risk.is_priority:
         return True
-    threshold = await get_config_int(
-        db,
-        "high_risk_min_net_score",
-        ConfigDefaults.HIGH_RISK_MIN_NET_SCORE
-    )
+    threshold = await get_config_int(db, "high_risk_min_net_score", ConfigDefaults.HIGH_RISK_MIN_NET_SCORE)
     return risk.net_score >= threshold
 
 
@@ -528,9 +525,7 @@ def _is_priority_downgrade(old_val: object, new_val: object) -> bool:
 
 
 def has_sensitive_field_changes(
-    resource_type: str,
-    old_data: dict[str, object],
-    new_data: dict[str, object]
+    resource_type: str, old_data: dict[str, object], new_data: dict[str, object]
 ) -> tuple[bool, dict[str, dict[str, object]]]:
     """
     Check if any sensitive fields are being changed, including clearing to None.
@@ -581,6 +576,7 @@ def has_sensitive_field_changes(
 
 # ----------------- KRI Reporting Owner Access -----------------
 
+
 async def is_kri_reporting_owner(db, user_id: int, kri_id: int) -> bool:
     """
     Check if user is the reporting owner of a specific KRI.
@@ -591,10 +587,7 @@ async def is_kri_reporting_owner(db, user_id: int, kri_id: int) -> bool:
 
     from app.models import KeyRiskIndicator
 
-    result = await db.execute(
-        select(KeyRiskIndicator.reporting_owner_id)
-        .where(KeyRiskIndicator.id == kri_id)
-    )
+    result = await db.execute(select(KeyRiskIndicator.reporting_owner_id).where(KeyRiskIndicator.id == kri_id))
     reporting_owner_id = result.scalar_one_or_none()
     return reporting_owner_id == user_id
 
@@ -611,10 +604,7 @@ async def is_risk_kri_reporting_owner(db, user_id: int, risk_id: int) -> bool:
 
     result = await db.execute(
         select(KeyRiskIndicator.id)
-        .where(
-            KeyRiskIndicator.risk_id == risk_id,
-            KeyRiskIndicator.reporting_owner_id == user_id
-        )
+        .where(KeyRiskIndicator.risk_id == risk_id, KeyRiskIndicator.reporting_owner_id == user_id)
         .limit(1)
     )
     return result.scalar_one_or_none() is not None
@@ -630,10 +620,7 @@ async def get_kri_ids_where_reporting_owner(db, user_id: int) -> list[int]:
 
     from app.models import KeyRiskIndicator
 
-    result = await db.execute(
-        select(KeyRiskIndicator.id)
-        .where(KeyRiskIndicator.reporting_owner_id == user_id)
-    )
+    result = await db.execute(select(KeyRiskIndicator.id).where(KeyRiskIndicator.reporting_owner_id == user_id))
     return [row[0] for row in result.all()]
 
 
@@ -648,14 +635,13 @@ async def get_risk_ids_where_kri_reporting_owner(db, user_id: int) -> list[int]:
     from app.models import KeyRiskIndicator
 
     result = await db.execute(
-        select(KeyRiskIndicator.risk_id)
-        .where(KeyRiskIndicator.reporting_owner_id == user_id)
-        .distinct()
+        select(KeyRiskIndicator.risk_id).where(KeyRiskIndicator.reporting_owner_id == user_id).distinct()
     )
     return [row[0] for row in result.all()]
 
 
 # ----------------- Control Owner Access -----------------
+
 
 async def is_control_owner(db, user_id: int, control_id: int) -> bool:
     """
@@ -667,10 +653,7 @@ async def is_control_owner(db, user_id: int, control_id: int) -> bool:
 
     from app.models import Control
 
-    result = await db.execute(
-        select(Control.control_owner_id)
-        .where(Control.id == control_id)
-    )
+    result = await db.execute(select(Control.control_owner_id).where(Control.id == control_id))
     control_owner_id = result.scalar_one_or_none()
     return control_owner_id == user_id
 
@@ -688,10 +671,7 @@ async def is_risk_control_owner(db, user_id: int, risk_id: int) -> bool:
     result = await db.execute(
         select(Control.id)
         .join(ControlRiskLink, Control.id == ControlRiskLink.control_id)
-        .where(
-            ControlRiskLink.risk_id == risk_id,
-            Control.control_owner_id == user_id
-        )
+        .where(ControlRiskLink.risk_id == risk_id, Control.control_owner_id == user_id)
         .limit(1)
     )
     return result.scalar_one_or_none() is not None
@@ -707,10 +687,7 @@ async def get_control_ids_where_owner(db, user_id: int) -> list[int]:
 
     from app.models import Control
 
-    result = await db.execute(
-        select(Control.id)
-        .where(Control.control_owner_id == user_id)
-    )
+    result = await db.execute(select(Control.id).where(Control.control_owner_id == user_id))
     return [row[0] for row in result.all()]
 
 
