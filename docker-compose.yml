@@ -69,8 +69,16 @@ services:
       - DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@db:5432/riskhub
       - DEBUG=true
       - MOCK_AUTH_ENABLED=true
+      - AUTH_MODE=hybrid_dev
       - SECRET_KEY=dev-secret-key-not-for-production-use
       - REDIS_URL=redis://redis:6379/0
+      # Optional Entra ID SSO (for testing SSO in dev)
+      - ENTRA_TENANT_ID=${ENTRA_TENANT_ID:-}
+      - ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID:-}
+      - ENTRA_JIT_PROVISIONING_ENABLED=${ENTRA_JIT_PROVISIONING_ENABLED:-true}
+      - ENTRA_ALLOWED_EMAIL_DOMAINS=${ENTRA_ALLOWED_EMAIL_DOMAINS:-[]}
+      - ENTRA_CLOCK_SKEW_SECONDS=${ENTRA_CLOCK_SKEW_SECONDS:-60}
+      - ENTRA_OIDC_DISCOVERY_URL=${ENTRA_OIDC_DISCOVERY_URL:-}
       # LAN_HOST allows access from other devices. Set externally: LAN_HOST=192.168.x.x docker-compose up
       - CORS_ORIGINS=["http://localhost:80","http://localhost:5173","http://frontend:80","http://${LAN_HOST:-localhost}:80","http://${LAN_HOST:-localhost}:8000"]
       - AD_EMULATOR_URL=http://ad-emulator:8001/api/v1

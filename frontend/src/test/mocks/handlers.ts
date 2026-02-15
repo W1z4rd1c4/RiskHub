@@ -216,6 +216,31 @@ export const mockDirectorySyncHistory = [
 // API handlers
 export const handlers = [
     // Auth
+    http.get('*/api/v1/auth/config', () => {
+        return HttpResponse.json({
+            auth_mode: 'hybrid_dev',
+            demo_login_enabled: true,
+            password_login_enabled: true,
+            debug: true,
+            mock_auth_enabled: true,
+            sso: {
+                enabled: false,
+                provider: 'entra',
+                tenant_id: null,
+                client_id: null,
+                authority: null,
+                scopes: ['openid', 'profile', 'email'],
+            },
+            sso_error: null,
+        });
+    }),
+    http.post('*/api/v1/auth/sso/exchange', () => {
+        return HttpResponse.json({
+            access_token: 'test-sso-token',
+            token_type: 'bearer',
+            user: mockAuthUser,
+        });
+    }),
     http.get('*/api/v1/auth/me', () => {
         return HttpResponse.json(mockAuthUser);
     }),

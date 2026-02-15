@@ -17,6 +17,27 @@ export function getApiBaseUrl(): string {
 export async function getDemoToken(options: DemoTokenOptions): Promise<string> {
     const { email, fallbackUserIds = [] } = options;
     const apiBase = getApiBaseUrl();
+
+    // Preflight: demo login is only available in hybrid dev mode.
+    try {
+        const res = await fetch(`${apiBase}/api/v1/auth/config`);
+        if (res.ok) {
+            const body = await res.json() as { demo_login_enabled?: unknown; auth_mode?: unknown; debug?: unknown; mock_auth_enabled?: unknown };
+            if (body && typeof body === 'object' && body.demo_login_enabled === false) {
+                throw new Error(
+                    `Demo login is disabled (auth_mode=${String(body.auth_mode)} debug=${String(body.debug)} mock_auth_enabled=${String(body.mock_auth_enabled)}). ` +
+                    `Start backend with DEBUG=true, MOCK_AUTH_ENABLED=true, AUTH_MODE=hybrid_dev.`,
+                );
+            }
+        }
+    } catch (e) {
+        // If the config endpoint is unavailable or returns an unexpected response, fall back
+        // to probing the demo-login endpoints directly.
+        if (e instanceof Error && e.message.startsWith('Demo login is disabled')) {
+            throw e;
+        }
+    }
+
     const candidates: Array<{ url: string; body?: Record<string, string> }> = [
         { url: `${apiBase}/api/v1/auth/demo-login`, body: { email } },
         ...fallbackUserIds.map((id) => ({ url: `${apiBase}/api/v1/auth/demo-login/${id}` })),

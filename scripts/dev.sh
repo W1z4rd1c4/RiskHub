@@ -63,6 +63,11 @@ show_help() {
     echo "  ./scripts/dev.sh --daemon     # Detached local dev with PID files"
     echo "  ./scripts/dev.sh --docker     # All services in Docker"
     echo "  ./scripts/dev.sh --lan 192.168.1.100  # LAN accessible"
+    echo ""
+    echo "Demo/dev auth defaults:"
+    echo "  Local modes default to AUTH_MODE=hybrid_dev with MOCK_AUTH_ENABLED=true (demo login picker)."
+    echo "  Override example:"
+    echo "    AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh"
     exit 0
 }
 
@@ -137,6 +142,72 @@ cleanup_local_processes() {
     stop_screen_session "$FRONTEND_SCREEN_SESSION"
     cleanup_stale_pid "$BACKEND_PID_FILE"
     cleanup_stale_pid "$FRONTEND_PID_FILE"
+}
+
+stop_known_dev_listeners_on_port() {
+    local port="$1"
+    local name="$2"
+    local allowed_regex="$3"
+
+    local pids
+    pids="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)"
+    if [ -z "$pids" ]; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}${name} port ${port} is already in use; attempting to stop existing dev process...${NC}"
+    for pid in $pids; do
+        local cmd
+        cmd="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+        if echo "$cmd" | grep -Eq "$allowed_regex"; then
+            kill "$pid" >/dev/null 2>&1 || true
+        else
+            echo -e "${RED}Refusing to stop unexpected process on port ${port} (PID ${pid}).${NC}"
+            echo "Command: $cmd"
+            echo "Stop it manually and retry."
+            exit 1
+        fi
+    done
+
+    sleep 1
+    pids="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)"
+    if [ -n "$pids" ]; then
+        for pid in $pids; do
+            local cmd
+            cmd="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+            if echo "$cmd" | grep -Eq "$allowed_regex"; then
+                kill -9 "$pid" >/dev/null 2>&1 || true
+            else
+                echo -e "${RED}Port ${port} is still in use by an unexpected process (PID ${pid}).${NC}"
+                echo "Command: $cmd"
+                echo "Stop it manually and retry."
+                exit 1
+            fi
+        done
+    fi
+}
+
+export_local_dev_env_defaults() {
+    # Local dev should reliably start in demo/dev mode unless explicitly overridden.
+    # This preserves Playwright E2E stability (demo login) and avoids "Login not configured".
+    if [ -z "${DEBUG:-}" ]; then
+        export DEBUG=true
+    fi
+    if [ -z "${MOCK_AUTH_ENABLED:-}" ]; then
+        export MOCK_AUTH_ENABLED=true
+    fi
+    if [ -z "${AUTH_MODE:-}" ]; then
+        export AUTH_MODE=hybrid_dev
+    fi
+    if [ -z "${SECRET_KEY:-}" ]; then
+        export SECRET_KEY=dev-secret-key-not-for-production-use
+    fi
+    if [ -z "${DATABASE_URL:-}" ]; then
+        export DATABASE_URL="postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub"
+    fi
+    if [ -z "${CORS_ORIGINS:-}" ]; then
+        export CORS_ORIGINS='["http://localhost:5173","http://localhost:80","http://localhost:3000"]'
+    fi
 }
 
 start_backend_local() {
@@ -303,17 +374,20 @@ case $MODE in
         echo "  Database: localhost:5432"
         ;;
     
-    "full")
-        start_database
-        setup_backend_venv
-        run_migrations
+	    "full")
+	        export_local_dev_env_defaults
+	        start_database
+	        setup_backend_venv
+	        run_migrations
 
-        cleanup_local_processes
-        start_backend_local
-        start_frontend_local
+	        cleanup_local_processes
+	        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|RiskHub)"
+	        stop_known_dev_listeners_on_port 5173 "Frontend" "(vite|npm run dev|node .*vite)"
+	        start_backend_local
+	        start_frontend_local
 
-        if ! wait_for_port 8000 "Backend" 90; then
-            tail -n 100 "$BACKEND_LOG_FILE" 2>/dev/null || true
+	        if ! wait_for_port 8000 "Backend" 90; then
+	            tail -n 100 "$BACKEND_LOG_FILE" 2>/dev/null || true
             exit 1
         fi
         if ! wait_for_port 5173 "Frontend" 90; then
@@ -363,15 +437,18 @@ case $MODE in
         echo "  Database: $LAN_IP:5432"
         ;;
     
-    "backend")
-        # Backend only mode
-        start_database
-        setup_backend_venv
-        run_migrations
-        
-        echo ""
-        echo -e "${YELLOW}Starting backend locally...${NC}"
-        echo "  Database: postgresql://riskhub:riskhub_dev@localhost:5432/riskhub"
+	    "backend")
+	        # Backend only mode
+	        export_local_dev_env_defaults
+	        start_database
+	        setup_backend_venv
+	        run_migrations
+	        cleanup_local_processes
+	        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|RiskHub)"
+	        
+	        echo ""
+	        echo -e "${YELLOW}Starting backend locally...${NC}"
+	        echo "  Database: postgresql://riskhub:riskhub_dev@localhost:5432/riskhub"
         echo "  Backend:  http://localhost:8000"
         echo ""
         
