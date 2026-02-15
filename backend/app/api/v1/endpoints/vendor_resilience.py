@@ -27,7 +27,9 @@ def _contingency_required(plan: VendorContingencyPlan | None) -> bool:
         return False
     if (plan.max_tolerable_outage_hours or 0) > 24:
         return True
-    return bool(plan.impact_confidentiality or plan.impact_integrity or plan.impact_authenticity or plan.impact_availability)
+    return bool(
+        plan.impact_confidentiality or plan.impact_integrity or plan.impact_authenticity or plan.impact_availability
+    )
 
 
 def _missing_exit_plan(*, required: bool, plan: VendorExitPlan | None) -> bool:

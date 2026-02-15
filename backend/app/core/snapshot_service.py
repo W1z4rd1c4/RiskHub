@@ -4,6 +4,7 @@ Quarterly Metric Snapshot Service.
 Provides functions to capture and retrieve quarterly metric snapshots
 for truthful quarter-over-quarter comparisons.
 """
+
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -69,9 +70,7 @@ async def capture_snapshot_metrics(
     ]
     if department_ids is not None:
         priority_conditions.append(Risk.department_id.in_(department_ids))
-    priority_count = await db.scalar(
-        select(func.count(Risk.id)).where(*priority_conditions)
-    )
+    priority_count = await db.scalar(select(func.count(Risk.id)).where(*priority_conditions))
 
     # KRI breaches (current state)
     kri_breach_query = select(func.count(KeyRiskIndicator.id)).where(
@@ -81,35 +80,41 @@ async def capture_snapshot_metrics(
         )
     )
     if department_ids is not None:
-        kri_breach_query = (
-            kri_breach_query.join(Risk, KeyRiskIndicator.risk_id == Risk.id)
-            .where(Risk.department_id.in_(department_ids))
+        kri_breach_query = kri_breach_query.join(Risk, KeyRiskIndicator.risk_id == Risk.id).where(
+            Risk.department_id.in_(department_ids)
         )
     kri_breaches = await db.scalar(kri_breach_query)
 
     # Pending approvals (current state)
     pending_status_values = [ApprovalStatus.PENDING.value, ApprovalStatus.PENDING_PRIVILEGED.value]
-    pending_approval_conditions = [
-        cast(ApprovalRequest.status, String).in_(pending_status_values)
-    ]
+    pending_approval_conditions = [cast(ApprovalRequest.status, String).in_(pending_status_values)]
     if department_ids is None:
-        pending_approvals = await db.scalar(
-            select(func.count(ApprovalRequest.id)).where(*pending_approval_conditions)
-        )
+        pending_approvals = await db.scalar(select(func.count(ApprovalRequest.id)).where(*pending_approval_conditions))
     else:
         pending_risks = await db.scalar(
             select(func.count(ApprovalRequest.id))
-            .join(Risk, (ApprovalRequest.resource_type == ApprovalResourceType.RISK) & (ApprovalRequest.resource_id == Risk.id))
+            .join(
+                Risk,
+                (ApprovalRequest.resource_type == ApprovalResourceType.RISK) & (ApprovalRequest.resource_id == Risk.id),
+            )
             .where(*pending_approval_conditions, Risk.department_id.in_(department_ids))
         )
         pending_controls = await db.scalar(
             select(func.count(ApprovalRequest.id))
-            .join(Control, (ApprovalRequest.resource_type == ApprovalResourceType.CONTROL) & (ApprovalRequest.resource_id == Control.id))
+            .join(
+                Control,
+                (ApprovalRequest.resource_type == ApprovalResourceType.CONTROL)
+                & (ApprovalRequest.resource_id == Control.id),
+            )
             .where(*pending_approval_conditions, Control.department_id.in_(department_ids))
         )
         pending_kris = await db.scalar(
             select(func.count(ApprovalRequest.id))
-            .join(KeyRiskIndicator, (ApprovalRequest.resource_type == ApprovalResourceType.KRI) & (ApprovalRequest.resource_id == KeyRiskIndicator.id))
+            .join(
+                KeyRiskIndicator,
+                (ApprovalRequest.resource_type == ApprovalResourceType.KRI)
+                & (ApprovalRequest.resource_id == KeyRiskIndicator.id),
+            )
             .join(Risk, KeyRiskIndicator.risk_id == Risk.id)
             .where(*pending_approval_conditions, Risk.department_id.in_(department_ids))
         )
@@ -119,9 +124,7 @@ async def capture_snapshot_metrics(
     total_active_risk_conditions = [Risk.status == RiskStatus.active.value]
     if department_ids is not None:
         total_active_risk_conditions.append(Risk.department_id.in_(department_ids))
-    total_active_risks = await db.scalar(
-        select(func.count(Risk.id)).where(*total_active_risk_conditions)
-    ) or 1
+    total_active_risks = await db.scalar(select(func.count(Risk.id)).where(*total_active_risk_conditions)) or 1
 
     risks_with_controls_query = (
         select(func.count(Risk.id.distinct()))
@@ -136,9 +139,7 @@ async def capture_snapshot_metrics(
 
     # Orphaned items (current state)
     if department_ids is None:
-        orphaned_items = await db.scalar(
-            select(func.count(OrphanedItem.id)).where(OrphanedItem.resolved_at.is_(None))
-        )
+        orphaned_items = await db.scalar(select(func.count(OrphanedItem.id)).where(OrphanedItem.resolved_at.is_(None)))
     else:
         orphaned_risks = await db.scalar(
             select(func.count(OrphanedItem.id))
@@ -196,9 +197,7 @@ async def capture_snapshot_metrics(
     ]
     if department_ids is not None:
         active_conditions.append(Risk.department_id.in_(department_ids))
-    active_risks = await db.scalar(
-        select(func.count(Risk.id)).where(*active_conditions)
-    )
+    active_risks = await db.scalar(select(func.count(Risk.id)).where(*active_conditions))
 
     # Vendor snapshot metrics (Phase 18-11)
     vendor_conditions = [Vendor.status == "active"]
@@ -274,7 +273,8 @@ async def save_quarter_snapshot(
         select(QuarterlyMetricSnapshot).where(
             QuarterlyMetricSnapshot.quarter == quarter_label,
             QuarterlyMetricSnapshot.department_id == department_id
-            if department_id else QuarterlyMetricSnapshot.department_id.is_(None)
+            if department_id
+            else QuarterlyMetricSnapshot.department_id.is_(None),
         )
     )
     snapshot = existing.scalar_one_or_none()
@@ -326,7 +326,8 @@ async def get_quarter_snapshot(
         select(QuarterlyMetricSnapshot).where(
             QuarterlyMetricSnapshot.quarter == quarter_label,
             QuarterlyMetricSnapshot.department_id == department_id
-            if department_id else QuarterlyMetricSnapshot.department_id.is_(None)
+            if department_id
+            else QuarterlyMetricSnapshot.department_id.is_(None),
         )
     )
     return result.scalar_one_or_none()

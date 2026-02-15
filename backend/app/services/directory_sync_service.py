@@ -1,4 +1,5 @@
 """Directory emulator sync service."""
+
 from __future__ import annotations
 
 import hashlib
@@ -88,10 +89,7 @@ async def _resolve_default_role(db: AsyncSession) -> Role:
             return role
 
     candidates = ", ".join(str(name) for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES)
-    raise ValueError(
-        f"No safe default role found ({candidates}). "
-        "Seed roles before syncing directory users."
-    )
+    raise ValueError(f"No safe default role found ({candidates}). " "Seed roles before syncing directory users.")
 
 
 async def _get_or_create_department(
@@ -108,9 +106,7 @@ async def _get_or_create_department(
     if key in dept_cache:
         return dept_cache[key]
 
-    result = await db.execute(
-        select(Department).where(func.lower(Department.name) == key)
-    )
+    result = await db.execute(select(Department).where(func.lower(Department.name) == key))
     dept = result.scalar_one_or_none()
     if dept:
         dept_cache[key] = dept
@@ -210,26 +206,30 @@ class DirectorySyncService:
                 if not external_id:
                     error_count += 1
                     error = "Missing external_id in directory user"
-                    diffs.append(DirectoryUserDiff(
-                        external_id="unknown",
-                        email=email,
-                        user_principal_name=upn,
-                        action="error",
-                        error=error,
-                    ))
+                    diffs.append(
+                        DirectoryUserDiff(
+                            external_id="unknown",
+                            email=email,
+                            user_principal_name=upn,
+                            action="error",
+                            error=error,
+                        )
+                    )
                     errors.append({"error": error, "data": dir_user})
                     continue
 
                 if external_id in seen_external_ids:
                     error_count += 1
                     error = f"Duplicate external_id in directory set: {external_id}"
-                    diffs.append(DirectoryUserDiff(
-                        external_id=external_id,
-                        email=email,
-                        user_principal_name=upn,
-                        action="error",
-                        error=error,
-                    ))
+                    diffs.append(
+                        DirectoryUserDiff(
+                            external_id=external_id,
+                            email=email,
+                            user_principal_name=upn,
+                            action="error",
+                            error=error,
+                        )
+                    )
                     errors.append({"external_id": external_id, "error": error})
                     continue
                 seen_external_ids.add(external_id)
@@ -255,13 +255,15 @@ class DirectorySyncService:
                         # Email exists but is linked to another external_id!
                         error_count += 1
                         error = f"Email {target_email} already linked to another external_id: {user.external_id}"
-                        diffs.append(DirectoryUserDiff(
-                            external_id=external_id,
-                            email=target_email,
-                            user_principal_name=upn,
-                            action="error",
-                            error=error,
-                        ))
+                        diffs.append(
+                            DirectoryUserDiff(
+                                external_id=external_id,
+                                email=target_email,
+                                user_principal_name=upn,
+                                action="error",
+                                error=error,
+                            )
+                        )
                         errors.append({"external_id": external_id, "error": error})
                         continue
 
@@ -399,7 +401,11 @@ class DirectorySyncService:
             if apply_changes:
                 sync_log.status = DirectorySyncStatus.success
                 if error_count > 0:
-                    sync_log.status = DirectorySyncStatus.partial if (created_count or updated_count or deactivated_count) else DirectorySyncStatus.failed
+                    sync_log.status = (
+                        DirectorySyncStatus.partial
+                        if (created_count or updated_count or deactivated_count)
+                        else DirectorySyncStatus.failed
+                    )
 
                 sync_log.finished_at = datetime.now(UTC)
                 sync_log.created_count = created_count
@@ -447,15 +453,11 @@ class DirectorySyncService:
         from app.models.risk import Risk
 
         # Find risks owned by this user
-        risks_result = await db.execute(
-            select(Risk.id).where(Risk.owner_id == user_id)
-        )
+        risks_result = await db.execute(select(Risk.id).where(Risk.owner_id == user_id))
         risk_ids = [r[0] for r in risks_result.all()]
 
         # Find controls owned by this user
-        controls_result = await db.execute(
-            select(Control.id).where(Control.control_owner_id == user_id)
-        )
+        controls_result = await db.execute(select(Control.id).where(Control.control_owner_id == user_id))
         control_ids = [c[0] for c in controls_result.all()]
 
         return {
@@ -486,18 +488,14 @@ class DirectorySyncService:
             raise ValueError("Missing external_id in user data")
 
         # Find existing user
-        result = await db.execute(
-            select(User).where(User.external_id == external_id)
-        )
+        result = await db.execute(select(User).where(User.external_id == external_id))
         user = result.scalar_one_or_none()
 
         # Also try to find by email if not found by external_id
         if not user and user_data.get("email"):
             email = _normalize_email(user_data.get("email"))
             if email:
-                result = await db.execute(
-                    select(User).where(func.lower(User.email) == email)
-                )
+                result = await db.execute(select(User).where(func.lower(User.email) == email))
                 user = result.scalar_one_or_none()
 
         orphaned_items = {"risks": [], "controls": [], "total": 0}
@@ -513,6 +511,7 @@ class DirectorySyncService:
 
             # Flag orphaned items before deactivating
             from app.services.orphaned_item_service import OrphanedItemService
+
             flagged_items = await OrphanedItemService.flag_orphaned_items(db, user.id)
 
             # Detect orphans for the response
@@ -594,7 +593,6 @@ class DirectorySyncService:
                     is_active=target_active,
                     external_id=external_id,
                     role_id=default_role.id,
-
                     department_id=dept.id if dept else None,
                     employee_type=target_employee_type,
                     hashed_password=None,
@@ -605,7 +603,7 @@ class DirectorySyncService:
 
                 # Cleanup (fire and forget check)
                 try:
-                     await DirectorySyncService.cleanup_empty_departments(db)
+                    await DirectorySyncService.cleanup_empty_departments(db)
                 except Exception as e:
                     logger.error(f"Failed to cleanup empty departments in single sync: {e}")
 
@@ -640,16 +638,12 @@ class DirectorySyncService:
         # We use a left join on users filtering for active ones
 
         # Subquery for departments with ACTIVE users
-        active_dept_ids = select(User.department_id).where(
-            and_(User.department_id.isnot(None), User.is_active.is_(True))
-        ).distinct()
+        active_dept_ids = (
+            select(User.department_id).where(and_(User.department_id.isnot(None), User.is_active.is_(True))).distinct()
+        )
 
         # Select departments NOT in that list
-        stmt = (
-            select(Department)
-            .where(Department.is_system.is_(False))
-            .where(Department.id.not_in(active_dept_ids))
-        )
+        stmt = select(Department).where(Department.is_system.is_(False)).where(Department.id.not_in(active_dept_ids))
 
         result = await db.execute(stmt)
         empty_depts = result.scalars().all()
@@ -657,16 +651,10 @@ class DirectorySyncService:
         cleanup_count = 0
         for dept in empty_depts:
             # Move Risks
-            await db.execute(
-                update(Risk)
-                .where(Risk.department_id == dept.id)
-                .values(department_id=uncat_dept.id)
-            )
+            await db.execute(update(Risk).where(Risk.department_id == dept.id).values(department_id=uncat_dept.id))
             # Move Controls
             await db.execute(
-                update(Control)
-                .where(Control.department_id == dept.id)
-                .values(department_id=uncat_dept.id)
+                update(Control).where(Control.department_id == dept.id).values(department_id=uncat_dept.id)
             )
             cleanup_count += 1
             logger.info(f"Cleaned up empty department {dept.name} ({dept.code}) - items moved to Uncategorised")

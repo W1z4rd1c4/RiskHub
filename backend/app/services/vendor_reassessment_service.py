@@ -119,7 +119,9 @@ class VendorReassessmentService:
                 due_date = due_at.date()
 
                 if vendor.last_reassessment_reminded_at:
-                    last_reminded = coerce_utc(vendor.last_reassessment_reminded_at) or vendor.last_reassessment_reminded_at
+                    last_reminded = (
+                        coerce_utc(vendor.last_reassessment_reminded_at) or vendor.last_reassessment_reminded_at
+                    )
                     if last_reminded >= cooldown_cutoff:
                         continue
 
@@ -127,7 +129,9 @@ class VendorReassessmentService:
                 if not owner_id:
                     continue
 
-                permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+                permission_load = (
+                    selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+                )
                 owner_result = await db.execute(select(User).options(permission_load).where(User.id == owner_id))
                 owner = owner_result.scalar_one_or_none()
                 if not owner or not owner.is_active:

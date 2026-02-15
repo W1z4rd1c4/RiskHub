@@ -12,11 +12,15 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.vendor_sla import VendorSLA
+
+
 class VendorSLAValueHistory(Base):
     __tablename__ = "vendor_sla_value_history"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    sla_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendor_slas.id", ondelete="CASCADE"), nullable=False, index=True)
+    sla_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("vendor_slas.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     period_start: Mapped[date] = mapped_column(Date, nullable=False)
     period_end: Mapped[date] = mapped_column(Date, nullable=False)

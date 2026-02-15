@@ -12,14 +12,18 @@ if TYPE_CHECKING:
     from app.models.department import Department
     from app.models.risk import ControlRiskLink
     from app.models.user import User
+
+
 class ControlForm(str, PyEnum):
     """Form of control execution."""
+
     manual = "manual"
     automatic = "automatic"
 
 
 class ControlFrequency(str, PyEnum):
     """Frequency of control execution."""
+
     daily = "daily"
     weekly = "weekly"
     monthly = "monthly"
@@ -32,6 +36,7 @@ class ControlFrequency(str, PyEnum):
 
 class ControlStatus(str, PyEnum):
     """Status of the control."""
+
     draft = "draft"
     active = "active"
     inactive = "inactive"
@@ -45,6 +50,7 @@ class Control(Base):
     Represents a control in the risk management catalog with all required
     attributes for compliance and audit purposes.
     """
+
     __tablename__ = "controls"
 
     # Primary key
@@ -70,7 +76,9 @@ class Control(Base):
 
     # 7. Pozícia zodpovedná za danú kontrolu (Control owner - FK to users)
     control_owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
-    control_owner: Mapped["User"] = relationship("User", foreign_keys=[control_owner_id], back_populates="owned_controls")
+    control_owner: Mapped["User"] = relationship(
+        "User", foreign_keys=[control_owner_id], back_populates="owned_controls"
+    )
 
     # 8. Kto vykonáva kontrolu (Executor position)
     executor_position: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -106,7 +114,9 @@ class Control(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     # Relationships
     executions: Mapped[list["ControlExecution"]] = relationship("ControlExecution", back_populates="control")

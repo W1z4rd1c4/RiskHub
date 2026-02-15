@@ -1,4 +1,5 @@
 """Approval request endpoints for deletion and edit workflows."""
+
 import logging
 from typing import Optional
 
@@ -151,7 +152,7 @@ async def create_approval_request(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType(request_data.resource_type.value),
             ApprovalRequest.resource_id == request_data.resource_id,
-            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
         )
     )
     if existing.scalar_one_or_none():
@@ -174,8 +175,7 @@ async def create_approval_request(
         await db.rollback()
         if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="An approval request is already pending for this action."
+                status_code=status.HTTP_409_CONFLICT, detail="An approval request is already pending for this action."
             )
         raise
 
@@ -224,7 +224,12 @@ async def list_approval_requests(
     - Privileged users (Risk Manager, CRO, Admin): see all requests
     - Other users: see only their own requests
     """
-    logger.info(f"List approvals: user={current_user.id} can_resolve={can_resolve_approvals(current_user)} filter={status_filter} my={my_requests}")
+    logger.info(
+        (
+            f"List approvals: user={current_user.id} can_resolve={can_resolve_approvals(current_user)} "
+            f"filter={status_filter} my={my_requests}"
+        )
+    )
     base_query = select(ApprovalRequest)
 
     # Permission-based filtering
@@ -254,10 +259,12 @@ async def list_approval_requests(
     total = total_result.scalar() or 0
 
     # Fetch with pagination
-    query = base_query.options(
-        selectinload(ApprovalRequest.requested_by),
-        selectinload(ApprovalRequest.resolved_by)
-    ).offset(skip).limit(limit).order_by(ApprovalRequest.created_at.desc())
+    query = (
+        base_query.options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
+        .offset(skip)
+        .limit(limit)
+        .order_by(ApprovalRequest.created_at.desc())
+    )
 
     result = await db.execute(query)
     approvals = result.scalars().all()
@@ -270,12 +277,7 @@ async def list_approval_requests(
             logger.error(f"Skipping corrupted approval request {a.id}: {e}")
             continue
 
-    return ApprovalRequestListResponse(
-        items=valid_items,
-        total=total,
-        skip=skip,
-        limit=limit
-    )
+    return ApprovalRequestListResponse(items=valid_items, total=total, skip=skip, limit=limit)
 
 
 @router.get("/{approval_id}", response_model=ApprovalRequestRead)
@@ -361,6 +363,7 @@ async def approve_request(
             logger.info("Commit successful")
         except Exception as e:
             import traceback
+
             logger.error(f"Error applying approval {approval_id}: {str(e)}")
             logger.error(traceback.format_exc())
             await db.rollback()
@@ -566,21 +569,23 @@ async def get_pending_count(
     if can_resolve_approvals(current_user):
         # Count all pending/pending_privileged for approvers
         result = await db.execute(
-            select(func.count()).select_from(ApprovalRequest).where(
-                ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
-            )
+            select(func.count())
+            .select_from(ApprovalRequest)
+            .where(ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]))
         )
     else:
         # Count own pending + requests where user is primary approver
         result = await db.execute(
-            select(func.count()).select_from(ApprovalRequest).where(
+            select(func.count())
+            .select_from(ApprovalRequest)
+            .where(
                 or_(
                     # Own pending requests
-                    (ApprovalRequest.status == ApprovalStatus.PENDING) &
-                    (ApprovalRequest.requested_by_id == current_user.id),
+                    (ApprovalRequest.status == ApprovalStatus.PENDING)
+                    & (ApprovalRequest.requested_by_id == current_user.id),
                     # Requests where user is primary approver
-                    (ApprovalRequest.status == ApprovalStatus.PENDING) &
-                    (ApprovalRequest.primary_approver_id == current_user.id)
+                    (ApprovalRequest.status == ApprovalStatus.PENDING)
+                    & (ApprovalRequest.primary_approver_id == current_user.id),
                 )
             )
         )
@@ -601,8 +606,7 @@ async def list_my_approval_requests(
     Returns all PENDING requests that need this user's approval.
     """
     base_query = select(ApprovalRequest).where(
-        ApprovalRequest.primary_approver_id == current_user.id,
-        ApprovalRequest.status == ApprovalStatus.PENDING
+        ApprovalRequest.primary_approver_id == current_user.id, ApprovalRequest.status == ApprovalStatus.PENDING
     )
 
     # Count total
@@ -611,17 +615,16 @@ async def list_my_approval_requests(
     total = total_result.scalar() or 0
 
     # Fetch with pagination
-    query = base_query.options(
-        selectinload(ApprovalRequest.requested_by),
-        selectinload(ApprovalRequest.resolved_by)
-    ).offset(skip).limit(limit).order_by(ApprovalRequest.created_at.desc())
+    query = (
+        base_query.options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
+        .offset(skip)
+        .limit(limit)
+        .order_by(ApprovalRequest.created_at.desc())
+    )
 
     result = await db.execute(query)
     approvals = result.scalars().all()
 
     return ApprovalRequestListResponse(
-        items=[_build_approval_read(a) for a in approvals],
-        total=total,
-        skip=skip,
-        limit=limit
+        items=[_build_approval_read(a) for a in approvals], total=total, skip=skip, limit=limit
     )

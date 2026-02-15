@@ -28,7 +28,9 @@ from ._shared import (
 router = APIRouter()
 
 
-@router.post("/issues/{issue_id}/request-exception", response_model=IssueExceptionRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/issues/{issue_id}/request-exception", response_model=IssueExceptionRead, status_code=status.HTTP_201_CREATED
+)
 async def request_exception(
     issue_id: int,
     payload: IssueExceptionRequestCreate,
@@ -58,26 +60,34 @@ async def approve_exception(
     issue = await _get_readable_issue_or_404(db, issue_id, current_user)
     active = _active_exception(issue)
     if active is not None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Issue already has an active approved exception")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Issue already has an active approved exception"
+        )
 
     target_exception: IssueException | None = None
     if payload.exception_id is not None:
         target_exception = (
             await db.execute(
-                select(IssueException).where(IssueException.id == payload.exception_id, IssueException.issue_id == issue.id)
+                select(IssueException).where(
+                    IssueException.id == payload.exception_id, IssueException.issue_id == issue.id
+                )
             )
         ).scalar_one_or_none()
     else:
         target_exception = (
-            await db.execute(
-                select(IssueException)
-                .where(
-                    IssueException.issue_id == issue.id,
-                    IssueException.status == IssueExceptionStatus.requested.value,
+            (
+                await db.execute(
+                    select(IssueException)
+                    .where(
+                        IssueException.issue_id == issue.id,
+                        IssueException.status == IssueExceptionStatus.requested.value,
+                    )
+                    .order_by(IssueException.created_at.desc())
                 )
-                .order_by(IssueException.created_at.desc())
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
 
     if target_exception is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requested exception not found")
@@ -114,23 +124,29 @@ async def revoke_exception(
     if payload.exception_id is not None:
         target_exception = (
             await db.execute(
-                select(IssueException).where(IssueException.id == payload.exception_id, IssueException.issue_id == issue.id)
+                select(IssueException).where(
+                    IssueException.id == payload.exception_id, IssueException.issue_id == issue.id
+                )
             )
         ).scalar_one_or_none()
     else:
         now = datetime.now(UTC)
         target_exception = (
-            await db.execute(
-                select(IssueException)
-                .where(
-                    IssueException.issue_id == issue.id,
-                    IssueException.status == IssueExceptionStatus.approved.value,
-                    IssueException.expires_at.is_not(None),
-                    IssueException.expires_at > now,
+            (
+                await db.execute(
+                    select(IssueException)
+                    .where(
+                        IssueException.issue_id == issue.id,
+                        IssueException.status == IssueExceptionStatus.approved.value,
+                        IssueException.expires_at.is_not(None),
+                        IssueException.expires_at > now,
+                    )
+                    .order_by(IssueException.approved_at.desc(), IssueException.created_at.desc())
                 )
-                .order_by(IssueException.approved_at.desc(), IssueException.created_at.desc())
             )
-        ).scalars().first()
+            .scalars()
+            .first()
+        )
 
     if target_exception is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approved exception not found")

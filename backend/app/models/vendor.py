@@ -24,6 +24,8 @@ if TYPE_CHECKING:
     from app.models.vendor_risk_link import VendorRiskLink
     from app.models.vendor_service import VendorService
     from app.models.vendor_sla import VendorSLA
+
+
 class VendorStatus(str, PyEnum):
     active = "active"
     inactive = "inactive"
@@ -89,7 +91,9 @@ class Vendor(Base):
 
     # Reassessment scheduling (Phase 18-04)
     reassessment_cadence_months: Mapped[int] = mapped_column(Integer, default=36)
-    next_reassessment_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    next_reassessment_due_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
     last_assessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_reassessment_reminded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -97,7 +101,9 @@ class Vendor(Base):
     reassessment_triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     risk_factors: Mapped[list["VendorRiskFactor"]] = relationship(
         "VendorRiskFactor",

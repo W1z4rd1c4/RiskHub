@@ -105,14 +105,18 @@ async def list_controls(
     total = total_result.scalar() or 0
 
     # Apply pagination and ordering with eager loading
-    query = base_query.options(
-        selectinload(Control.department),
-        selectinload(Control.control_owner),
-        selectinload(Control.risk_links).selectinload(ControlRiskLink.risk).options(
-            selectinload(Risk.owner),
-            selectinload(Risk.department)
+    query = (
+        base_query.options(
+            selectinload(Control.department),
+            selectinload(Control.control_owner),
+            selectinload(Control.risk_links)
+            .selectinload(ControlRiskLink.risk)
+            .options(selectinload(Risk.owner), selectinload(Risk.department)),
         )
-    ).offset(skip).limit(limit).order_by(Control.name)
+        .offset(skip)
+        .limit(limit)
+        .order_by(Control.name)
+    )
 
     result = await db.execute(query)
     controls = result.scalars().all()
@@ -142,24 +146,28 @@ async def list_controls(
                 first_risk.id in cross_dept_risk_ids
             )
 
-        items.append(ControlSummary(
-            id=c.id,
-            name=c.name,
-            description=c.description,
-            department_id=c.department_id,
-            department_name=c.department.name if c.department else None,
-            frequency=normalize_control_frequency(c.frequency),
-            risk_level=c.risk_level,
-            status=ControlStatusEnum(c.status),
-            control_form=ControlFormEnum(c.control_form),
-            control_owner_name=c.control_owner.name if c.control_owner else None,
-            risk_type=first_risk.risk_type if (first_risk and risk_visible) else None,
-            risk_id_code=first_risk.risk_id_code if (first_risk and risk_visible) else None,
-            risk_description=first_risk.description if (first_risk and risk_visible) else None,
-            risk_name=first_risk.name if (first_risk and risk_visible) else None,
-            risk_owner_name=first_risk.owner.name if (first_risk and risk_visible and first_risk.owner) else None,
-            risk_department_name=first_risk.department.name if (first_risk and risk_visible and first_risk.department) else None,
-        ))
+        items.append(
+            ControlSummary(
+                id=c.id,
+                name=c.name,
+                description=c.description,
+                department_id=c.department_id,
+                department_name=c.department.name if c.department else None,
+                frequency=normalize_control_frequency(c.frequency),
+                risk_level=c.risk_level,
+                status=ControlStatusEnum(c.status),
+                control_form=ControlFormEnum(c.control_form),
+                control_owner_name=c.control_owner.name if c.control_owner else None,
+                risk_type=first_risk.risk_type if (first_risk and risk_visible) else None,
+                risk_id_code=first_risk.risk_id_code if (first_risk and risk_visible) else None,
+                risk_description=first_risk.description if (first_risk and risk_visible) else None,
+                risk_name=first_risk.name if (first_risk and risk_visible) else None,
+                risk_owner_name=first_risk.owner.name if (first_risk and risk_visible and first_risk.owner) else None,
+                risk_department_name=first_risk.department.name
+                if (first_risk and risk_visible and first_risk.department)
+                else None,
+            )
+        )
 
     return ControlListResponse(items=items, total=total, skip=skip, limit=limit)
 
@@ -277,9 +285,7 @@ async def update_control(
     )
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
-    result = await db.execute(
-        select(Control).where(Control.id == control_id)
-    )
+    result = await db.execute(select(Control).where(Control.id == control_id))
     control = result.scalar_one_or_none()
 
     if not control:
@@ -291,8 +297,7 @@ async def update_control(
 
     if not has_write and not is_owner:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Permission denied: controls:write or control owner required"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: controls:write or control owner required"
         )
 
     # Verify department access (skipped for control owners)
@@ -308,7 +313,7 @@ async def update_control(
             ApprovalRequest.resource_type == ApprovalResourceType.CONTROL,
             ApprovalRequest.resource_id == control.id,
             ApprovalRequest.action_type == ApprovalActionType.DELETE,
-            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
         )
     )
     if existing_delete.scalar_one_or_none():
@@ -351,7 +356,6 @@ async def update_control(
             # Check if any linked risk is priority
             is_priority_linked = await check_control_requires_privileged_approval(db, control.id)
 
-
         if requires_approval:
             # Check for existing pending edit request
             existing = await db.execute(
@@ -359,7 +363,7 @@ async def update_control(
                     ApprovalRequest.resource_type == ApprovalResourceType.CONTROL,
                     ApprovalRequest.resource_id == control.id,
                     ApprovalRequest.action_type == ApprovalActionType.EDIT,
-                    ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
+                    ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
                 )
             )
             if existing.scalar_one_or_none():
@@ -413,11 +417,13 @@ async def update_control(
             except Exception as e:
                 await db.rollback()
                 import logging
+
                 logging.getLogger(__name__).warning(
                     f"Failed to notify approvers for control edit approval #{approval.id}: {e}"
                 )
 
             from fastapi.responses import JSONResponse
+
             return JSONResponse(
                 status_code=status.HTTP_202_ACCEPTED,
                 content={
@@ -427,8 +433,8 @@ async def update_control(
                     "pending_fields": list(pending_changes.keys()),
                     "pending_changes": pending_changes,
                     "primary_approver_id": primary_approver_id,
-                    "requires_privileged_approval": is_priority_linked
-                }
+                    "requires_privileged_approval": is_priority_linked,
+                },
             )
 
     changes = build_change_set(control, update_data)
@@ -483,9 +489,7 @@ async def delete_control(
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
-    result = await db.execute(
-        select(Control).where(Control.id == control_id)
-    )
+    result = await db.execute(select(Control).where(Control.id == control_id))
     control = result.scalar_one_or_none()
 
     if not control:
@@ -518,7 +522,7 @@ async def delete_control(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType.CONTROL,
             ApprovalRequest.resource_id == control.id,
-            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
         )
     )
     if existing.scalar_one_or_none():
@@ -534,6 +538,7 @@ async def delete_control(
         get_primary_approver_for_control,
     )
     from app.models import ApprovalActionType
+
     primary_approver_id = await get_primary_approver_for_control(db, control.id)
     if primary_approver_id == current_user.id:
         primary_approver_id = None  # Prevent self-approval
@@ -561,6 +566,7 @@ async def delete_control(
 
     # Needs logic to find primary approver for delete requests as well
     from app.core.approval_helpers import get_primary_approver_for_control
+
     primary_approver_id = await get_primary_approver_for_control(db, control.id)
 
     try:
@@ -586,16 +592,20 @@ async def delete_control(
     except Exception as e:
         await db.rollback()
         import logging
-        logging.getLogger(__name__).warning(f"Failed to notify approvers for control delete approval #{approval.id}: {e}")
+
+        logging.getLogger(__name__).warning(
+            f"Failed to notify approvers for control delete approval #{approval.id}: {e}"
+        )
 
     from fastapi.responses import JSONResponse
+
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
         content={
             "message": "Deletion request submitted for approval",
             "approval_id": approval.id,
-            "action_type": "delete"
-        }
+            "action_type": "delete",
+        },
     )
 
 
@@ -656,4 +666,3 @@ async def restore_control(
         .where(Control.id == control.id)
     )
     return result.scalar_one()
-

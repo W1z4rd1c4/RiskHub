@@ -30,8 +30,14 @@ class IssueWorkflowService:
     }
     REMEDIATION_TRANSITIONS: dict[str, set[str]] = {
         IssueRemediationStatus.draft.value: {IssueRemediationStatus.active.value, IssueRemediationStatus.blocked.value},
-        IssueRemediationStatus.active.value: {IssueRemediationStatus.blocked.value, IssueRemediationStatus.completed.value},
-        IssueRemediationStatus.blocked.value: {IssueRemediationStatus.active.value, IssueRemediationStatus.completed.value},
+        IssueRemediationStatus.active.value: {
+            IssueRemediationStatus.blocked.value,
+            IssueRemediationStatus.completed.value,
+        },
+        IssueRemediationStatus.blocked.value: {
+            IssueRemediationStatus.active.value,
+            IssueRemediationStatus.completed.value,
+        },
         IssueRemediationStatus.completed.value: set(),
     }
 
@@ -193,7 +199,9 @@ class IssueWorkflowService:
         remediation_updates: dict[str, object] = {}
         if progress_percent is not None:
             if progress_percent < 0 or progress_percent > 100:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="progress_percent must be between 0 and 100")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="progress_percent must be between 0 and 100"
+                )
             remediation_updates["progress_percent"] = progress_percent
         if remediation_status is not None:
             IssueWorkflowService._ensure_remediation_transition(remediation.status, remediation_status)
@@ -212,10 +220,16 @@ class IssueWorkflowService:
             setattr(remediation, key, value)
 
         issue_updates: dict[str, object] = {}
-        if remediation.status == IssueRemediationStatus.completed.value and issue.status != IssueStatus.ready_for_validation.value:
+        if (
+            remediation.status == IssueRemediationStatus.completed.value
+            and issue.status != IssueStatus.ready_for_validation.value
+        ):
             IssueWorkflowService._ensure_issue_transition(issue.status, IssueStatus.ready_for_validation.value)
             issue_updates["status"] = IssueStatus.ready_for_validation.value
-        elif remediation.status == IssueRemediationStatus.active.value and issue.status == IssueStatus.ready_for_validation.value:
+        elif (
+            remediation.status == IssueRemediationStatus.active.value
+            and issue.status == IssueStatus.ready_for_validation.value
+        ):
             IssueWorkflowService._ensure_issue_transition(issue.status, IssueStatus.in_progress.value)
             issue_updates["status"] = IssueStatus.in_progress.value
 

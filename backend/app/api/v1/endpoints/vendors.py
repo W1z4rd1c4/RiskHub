@@ -29,6 +29,7 @@ from app.services.vendor_reassessment_service import VendorReassessmentService
 
 router = APIRouter()
 
+
 async def _get_vendor_with_deps(db: AsyncSession, vendor_id: int) -> Vendor | None:
     result = await db.execute(
         select(Vendor)
@@ -135,10 +136,14 @@ async def list_vendors(
     else:
         base_query = base_query.order_by(asc(order_column))
 
-    query = base_query.options(
-        selectinload(Vendor.department),
-        selectinload(Vendor.outsourcing_owner),
-    ).offset(skip).limit(limit)
+    query = (
+        base_query.options(
+            selectinload(Vendor.department),
+            selectinload(Vendor.outsourcing_owner),
+        )
+        .offset(skip)
+        .limit(limit)
+    )
 
     result = await db.execute(query)
     vendors = result.scalars().all()
@@ -157,7 +162,9 @@ async def create_vendor(
     vendor = Vendor(**payload.model_dump())
     cadence = 12 if vendor.supports_important_core_insurance_function else 36
     vendor.reassessment_cadence_months = cadence
-    vendor.next_reassessment_due_at = VendorReassessmentService.compute_next_due(base=datetime.now(UTC), cadence_months=cadence)
+    vendor.next_reassessment_due_at = VendorReassessmentService.compute_next_due(
+        base=datetime.now(UTC), cadence_months=cadence
+    )
     db.add(vendor)
     await db.commit()
     await db.refresh(vendor)
@@ -175,7 +182,9 @@ async def create_vendor(
     await db.commit()
 
     result = await db.execute(
-        select(Vendor).options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner)).where(Vendor.id == vendor.id)
+        select(Vendor)
+        .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
+        .where(Vendor.id == vendor.id)
     )
     vendor = result.scalar_one()
     return vendor_to_read(vendor)
@@ -231,7 +240,9 @@ async def update_vendor(
         "reassessment_triggered_at",
     }
     if not can_write and (restricted_fields & set(updates.keys())):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to change governance fields")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to change governance fields"
+        )
 
     if can_write and "department_id" in updates:
         check_department_access(updates["department_id"], current_user)

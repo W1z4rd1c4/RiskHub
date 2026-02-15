@@ -19,8 +19,12 @@ logger = logging.getLogger(__name__)
 async def get_quarterly_comparison(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_committee_user),
-    current_quarter: Optional[str] = Query(None, description="Current quarter in format 'YYYY-QN' (e.g., '2026-Q1'). Defaults to current quarter."),
-    compare_quarter: Optional[str] = Query(None, description="Comparison quarter in format 'YYYY-QN' (e.g., '2025-Q4'). Defaults to previous quarter."),
+    current_quarter: Optional[str] = Query(
+        None, description="Current quarter in format 'YYYY-QN' (e.g., '2026-Q1'). Defaults to current quarter."
+    ),
+    compare_quarter: Optional[str] = Query(
+        None, description="Comparison quarter in format 'YYYY-QN' (e.g., '2025-Q4'). Defaults to previous quarter."
+    ),
 ):
     """
     Get quarter-over-quarter comparison metrics for Risk Committee view.
@@ -78,15 +82,13 @@ async def get_available_periods(
 
     # Get distinct years from quarterly snapshots
     snapshot_years_result = await db.execute(
-        select(QuarterlyMetricSnapshot.year.distinct())
-        .order_by(QuarterlyMetricSnapshot.year)
+        select(QuarterlyMetricSnapshot.year.distinct()).order_by(QuarterlyMetricSnapshot.year)
     )
     snapshot_years = set(row[0] for row in snapshot_years_result.fetchall())
 
     # Get distinct years from risk creation dates
     risk_years_result = await db.execute(
-        select(func.extract('year', Risk.created_at).distinct())
-        .where(Risk.created_at.isnot(None))
+        select(func.extract("year", Risk.created_at).distinct()).where(Risk.created_at.isnot(None))
     )
     risk_years = set(int(row[0]) for row in risk_years_result.fetchall() if row[0])
 

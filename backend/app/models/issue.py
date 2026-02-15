@@ -97,12 +97,16 @@ class Issue(Base):
     owner_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
-    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    opened_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     validation_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # Deadline reminder dedupe fields used by scheduled notification jobs.
     last_due_soon_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -177,7 +181,9 @@ class IssueRemediationPlan(Base):
     __tablename__ = "issue_remediation_plans"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    issue_id: Mapped[int] = mapped_column(ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True, unique=True)
+    issue_id: Mapped[int] = mapped_column(
+        ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True, unique=True
+    )
     status: Mapped[IssueRemediationStatus] = mapped_column(
         SAEnum(
             IssueRemediationStatus,
@@ -195,13 +201,17 @@ class IssueRemediationPlan(Base):
     completion_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     issue: Mapped["Issue"] = relationship("Issue", back_populates="remediation_plan", lazy="selectin")
     owner: Mapped["User | None"] = relationship("User", foreign_keys=[owner_user_id], lazy="selectin")
 
     __table_args__ = (
-        CheckConstraint("progress_percent >= 0 AND progress_percent <= 100", name="ck_issue_remediation_progress_range"),
+        CheckConstraint(
+            "progress_percent >= 0 AND progress_percent <= 100", name="ck_issue_remediation_progress_range"
+        ),
         Index("ix_issue_remediation_status", "status"),
         Index("ix_issue_remediation_owner", "owner_user_id"),
         UniqueConstraint("issue_id", name="uq_issue_remediation_issue_id"),
@@ -230,7 +240,9 @@ class IssueException(Base):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     issue: Mapped["Issue"] = relationship("Issue", back_populates="exceptions", lazy="selectin")
     requested_by: Mapped["User | None"] = relationship("User", foreign_keys=[requested_by_id], lazy="selectin")

@@ -1,4 +1,5 @@
 """Approval request model for tracking deletion and edit approval workflows."""
+
 from datetime import UTC, datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
@@ -11,8 +12,11 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.user import User
+
+
 class ApprovalStatus(str, PyEnum):
     """Status of an approval request."""
+
     PENDING = "PENDING"
     PENDING_PRIVILEGED = "PENDING_PRIVILEGED"  # Primary approved, waiting for privileged
     APPROVED = "APPROVED"
@@ -22,6 +26,7 @@ class ApprovalStatus(str, PyEnum):
 
 class ApprovalResourceType(str, PyEnum):
     """Type of resource being requested for deletion/edit."""
+
     RISK = "risk"
     CONTROL = "control"
     KRI = "kri"
@@ -29,6 +34,7 @@ class ApprovalResourceType(str, PyEnum):
 
 class ApprovalActionType(str, PyEnum):
     """Type of action requiring approval."""
+
     DELETE = "delete"
     EDIT = "edit"
 
@@ -46,14 +52,14 @@ class ApprovalRequest(Base):
     (resource_type, resource_id, action_type). This is enforced at DB level.
     See migration: h2i3j4k5l6m7_add_partial_unique_index_approval_pending.py
     """
+
     __tablename__ = "approval_requests"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     # What resource is being modified
     resource_type: Mapped[ApprovalResourceType] = mapped_column(
-        SQLEnum(ApprovalResourceType, name="approval_resource_type", create_constraint=True),
-        nullable=False
+        SQLEnum(ApprovalResourceType, name="approval_resource_type", create_constraint=True), nullable=False
     )
     resource_id: Mapped[int] = mapped_column(Integer, nullable=False)
     resource_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Snapshot for display
@@ -62,7 +68,7 @@ class ApprovalRequest(Base):
     action_type: Mapped[ApprovalActionType] = mapped_column(
         SQLEnum(ApprovalActionType, name="approval_action_type", create_constraint=True),
         default=ApprovalActionType.DELETE,
-        nullable=False
+        nullable=False,
     )
 
     # For edits: JSON storing pending changes {"field": {"old": v1, "new": v2}}
@@ -76,7 +82,7 @@ class ApprovalRequest(Base):
     status: Mapped[ApprovalStatus] = mapped_column(
         SQLEnum(ApprovalStatus, name="approval_status", create_constraint=True),
         default=ApprovalStatus.PENDING,
-        nullable=False
+        nullable=False,
     )
 
     # Resolution details
@@ -92,7 +98,9 @@ class ApprovalRequest(Base):
     privileged_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
+    )
 
     # Relationships - use selectin loading for async compatibility
     requested_by: Mapped["User"] = relationship("User", foreign_keys=[requested_by_id], lazy="selectin")

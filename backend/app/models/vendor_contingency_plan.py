@@ -14,11 +14,15 @@ from app.models.vendor_exit_plan import VendorPlanStatus
 
 if TYPE_CHECKING:
     from app.models.vendor import Vendor
+
+
 class VendorContingencyPlan(Base):
     __tablename__ = "vendor_contingency_plans"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    vendor_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, unique=True, index=True
+    )
 
     max_tolerable_outage_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
 

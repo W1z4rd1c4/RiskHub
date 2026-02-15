@@ -50,7 +50,9 @@ class VendorSLA(Base):
     archived_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    last_updated: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="slas", lazy="selectin")
     reporting_owner: Mapped[Optional["User"]] = relationship("User", foreign_keys=[reporting_owner_id], lazy="selectin")

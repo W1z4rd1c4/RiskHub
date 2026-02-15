@@ -1,6 +1,7 @@
 """
 Control execution endpoints with RBAC and department scoping.
 """
+
 from datetime import datetime
 from typing import Any, List, Optional
 
@@ -28,6 +29,7 @@ from app.models.risk import ControlRiskLink
 from app.schemas import execution as schemas
 
 router = APIRouter()
+
 
 def _execution_to_schema(
     exe: ControlExecutionModel,
@@ -70,8 +72,8 @@ async def read_executions(
         selectinload(ControlExecutionModel.control).options(
             selectinload(ControlModel.control_owner),
             selectinload(ControlModel.department),
-            selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk)
-        )
+            selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk),
+        ),
     )
 
     # Apply department scoping via join to Control, with control owner exception
@@ -88,10 +90,7 @@ async def read_executions(
             owned_control_ids = await get_control_ids_where_owner(db, current_user.id)
             if owned_control_ids:
                 query = query.join(ControlModel).where(
-                    or_(
-                        ControlModel.department_id.in_(dept_ids),
-                        ControlModel.id.in_(owned_control_ids)
-                    )
+                    or_(ControlModel.department_id.in_(dept_ids), ControlModel.id.in_(owned_control_ids))
                 )
             else:
                 query = query.join(ControlModel).where(ControlModel.department_id.in_(dept_ids))
@@ -130,7 +129,9 @@ async def read_executions(
                 for link in exe.control.risk_links:
                     if not link.risk:
                         continue
-                    if can_access_department_id(current_user, link.risk.department_id) or (link.risk.id in cross_dept_risk_ids):
+                    if can_access_department_id(current_user, link.risk.department_id) or (
+                        link.risk.id in cross_dept_risk_ids
+                    ):
                         linked_risks.append(link.risk.process)
         else:
             control_owner_name = "Unknown"
@@ -180,7 +181,7 @@ async def create_execution(
         findings=execution_in.findings,
         evidence_reference=execution_in.evidence_reference,
         notes=execution_in.notes,
-        next_scheduled=execution_in.next_scheduled
+        next_scheduled=execution_in.next_scheduled,
     )
 
     db.add(db_obj)
@@ -188,13 +189,17 @@ async def create_execution(
     await db.refresh(db_obj)
 
     # Reload with relations for the response
-    query = select(ControlExecutionModel).options(
-        selectinload(ControlExecutionModel.executed_by),
-        selectinload(ControlExecutionModel.control).options(
-            selectinload(ControlModel.control_owner),
-            selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk)
+    query = (
+        select(ControlExecutionModel)
+        .options(
+            selectinload(ControlExecutionModel.executed_by),
+            selectinload(ControlExecutionModel.control).options(
+                selectinload(ControlModel.control_owner),
+                selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk),
+            ),
         )
-    ).where(ControlExecutionModel.id == db_obj.id)
+        .where(ControlExecutionModel.id == db_obj.id)
+    )
 
     res = await db.execute(query)
     db_obj = res.scalar_one()
@@ -228,14 +233,18 @@ async def read_execution(
     """
     Get control execution by ID. Validates department access.
     """
-    query = select(ControlExecutionModel).options(
-        selectinload(ControlExecutionModel.executed_by),
-        selectinload(ControlExecutionModel.control).options(
-            selectinload(ControlModel.control_owner),
-            selectinload(ControlModel.department),
-            selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk)
+    query = (
+        select(ControlExecutionModel)
+        .options(
+            selectinload(ControlExecutionModel.executed_by),
+            selectinload(ControlExecutionModel.control).options(
+                selectinload(ControlModel.control_owner),
+                selectinload(ControlModel.department),
+                selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk),
+            ),
         )
-    ).where(ControlExecutionModel.id == id)
+        .where(ControlExecutionModel.id == id)
+    )
 
     result = await db.execute(query)
     db_obj = result.scalar_one_or_none()

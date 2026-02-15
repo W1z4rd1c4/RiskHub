@@ -1,4 +1,5 @@
 """GlobalConfig model for system-wide configuration settings."""
+
 import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, TypeVar
@@ -21,6 +22,7 @@ class GlobalConfig(Base):
     Stores typed key-value pairs grouped by category.
     Replaces hardcoded values like HIGH_RISK_MIN_NET_SCORE.
     """
+
     __tablename__ = "global_config"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -51,7 +53,9 @@ class GlobalConfig(Base):
     is_editable: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Audit fields
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
     updated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
     # Relationship to user who last updated
@@ -106,9 +110,10 @@ class ConfigDefaults:
     - high_risk_min_net_score = 10
     - critical_risk_min_net_score = 16
     """
+
     # Risk thresholds (must match seeded values)
-    MEDIUM_RISK_MIN_NET_SCORE = 5   # net_score >= 5 = medium risk
-    HIGH_RISK_MIN_NET_SCORE = 10    # net_score >= 10 = high risk
+    MEDIUM_RISK_MIN_NET_SCORE = 5  # net_score >= 5 = medium risk
+    HIGH_RISK_MIN_NET_SCORE = 10  # net_score >= 10 = high risk
     CRITICAL_RISK_MIN_NET_SCORE = 16  # net_score >= 16 = critical risk
     TOTAL_ASSETS_VALUE = 10_000_000_000  # 10B CZK - used for financial loss calculations
 
@@ -190,9 +195,7 @@ async def get_config_value(
             return value
 
     # Query database
-    result = await db.execute(
-        select(GlobalConfig).where(GlobalConfig.key == key)
-    )
+    result = await db.execute(select(GlobalConfig).where(GlobalConfig.key == key))
     config = result.scalar_one_or_none()
 
     if config:

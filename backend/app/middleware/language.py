@@ -33,13 +33,10 @@ class LanguageMiddleware(BaseHTTPMiddleware):
         # Detect locale from header
         locale = get_locale_from_header(accept_language)
 
-        # TODO: Check user preference if authenticated
-        # This would require access to the current user, which may not be
-        # available at middleware level. Could be implemented as:
-        #   if hasattr(request.state, 'user') and request.state.user:
-        #       user_locale = request.state.user.preferred_language
-        #       if user_locale:
-        #           locale = user_locale
+        # Keep middleware locale detection header-based only.
+        # User-level language preference is applied in authenticated flows where
+        # user context is guaranteed, while middleware must also handle
+        # unauthenticated requests safely.
 
         # Store locale in request state for endpoint access
         request.state.locale = locale
