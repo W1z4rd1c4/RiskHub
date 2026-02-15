@@ -18,7 +18,7 @@ class VendorControlLink(Base):
     vendor_id: Mapped[int] = mapped_column(ForeignKey("vendors.id"), index=True, nullable=False)
     control_id: Mapped[int] = mapped_column(ForeignKey("controls.id"), index=True, nullable=False)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="control_links")
     control: Mapped["Control"] = relationship("Control")

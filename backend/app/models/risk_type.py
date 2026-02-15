@@ -46,8 +46,8 @@ class RiskTypeConfig(Base):
     risk_count: Mapped[int] = mapped_column(Integer, default=0)
 
     # Audit fields
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     # Relationship to risks (optional, for eager loading)
     # risks: Mapped[list["Risk"]] = relationship("Risk", back_populates="risk_type_config")

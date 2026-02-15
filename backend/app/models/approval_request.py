@@ -81,15 +81,15 @@ class ApprovalRequest(Base):
 
     # Resolution details
     resolved_by_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resolution_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Tiered approval fields (for owner-based approval workflow)
     primary_approver_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    primary_approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    primary_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     requires_privileged_approval: Mapped[bool] = mapped_column(default=False, nullable=False)
     privileged_approver_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    privileged_approved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    privileged_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
