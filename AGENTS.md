@@ -85,6 +85,12 @@ For these areas, require stronger verification before closing.
 - `backend/tests/conftest.py` applies `alembic upgrade head` once per session and truncates all tables between tests when using Postgres.
 - Example: `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/riskhub_test pytest -v`
 
+### Pytest exit hang (SQLite / aiosqlite)
+
+- Symptom: `pytest` completes but does not exit; a non-daemon `aiosqlite` `_connection_worker_thread` remains alive.
+- Canonical fix: in `backend/tests/conftest.py`, ensure the session `event_loop` is the current loop and dispose the app-global `app.db.session.engine` at session end via an autouse fixture.
+- Debugging: set `PYTEST_THREAD_DEBUG=1` to dump remaining non-daemon threads at `pytest_sessionfinish`.
+
 ### Endpoint package splits (maintainability)
 
 - These endpoints are **packages** (not single files): `controls/`, `risks/`, `kris/`, `dashboard/`, `issues/`, `reports/`, `riskhub/`, `approvals/`, `departments/`, `users/`, `vendors/`, `vendor_incidents/`, `vendor_dependencies/`, `vendor_slas/`, `admin/`, `risk_questionnaires/`.
@@ -153,6 +159,17 @@ Testing expectations:
 - E2E tests: `make test-e2e`
 
 For launch/runbook behavior, treat `scripts/dev.sh` as source of truth.
+
+## Demo/Dev Auth (local)
+
+Local dev is expected to run in **demo-friendly auth mode** (keeps Playwright E2E stable).
+
+- `./scripts/dev.sh` (local backend) defaults to:
+  - `AUTH_MODE=hybrid_dev`
+  - `DEBUG=true`
+  - `MOCK_AUTH_ENABLED=true`
+- This enables the demo login picker at `http://localhost:5173/login` via `POST /api/v1/auth/demo-login/{user_id}`.
+- Override example (no demo auth): `AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh`
 
 ## Repo Hygiene
 
