@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings, get_settings
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.permissions import can_view_risk_committee
 from app.core.security import decode_access_token
 from app.db.session import get_db
@@ -61,12 +62,10 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     # Update last_active_at (debounced 1 min to reduce DB writes)
-    from datetime import UTC, datetime, timedelta
-    now = datetime.now(UTC)
-    # Handle naive datetime from database (SQLite test) by treating as UTC
-    last_active = user.last_active_at
-    if last_active and last_active.tzinfo is None:
-        last_active = last_active.replace(tzinfo=UTC)
+    from datetime import timedelta
+
+    now = utc_now()
+    last_active = coerce_utc(user.last_active_at)
     should_update = not last_active or (now - last_active) > timedelta(minutes=1)
 
     if should_update:

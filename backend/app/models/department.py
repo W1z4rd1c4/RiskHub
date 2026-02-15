@@ -31,7 +31,7 @@ class Department(Base):
     # Let's use is_active = True by default.
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    manager_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    manager_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", use_alter=True), nullable=True)
 
     # Relationships
     manager: Mapped["User"] = relationship("User", foreign_keys=[manager_id])

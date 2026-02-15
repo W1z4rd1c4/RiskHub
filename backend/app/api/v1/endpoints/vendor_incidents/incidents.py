@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import desc, select
@@ -9,57 +9,21 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.activity_logger import build_change_set, log_activity
-from app.core.permissions import can_read_vendor, is_vendor_owner
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.i18n import t
-from app.models import User, Vendor
+from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.notification import NotificationType
 from app.models.role import Role, RolePermission, RoleType
 from app.models.vendor_incident import VendorIncident, VendorIncidentSeverity, VendorIncidentType
-from app.models.vendor_remediation import VendorRemediationAction, VendorRemediationStatus
-from app.schemas.vendor_incident import (
-    VendorIncidentCreate,
-    VendorIncidentRead,
-    VendorIncidentUpdate,
-    VendorRemediationCreate,
-    VendorRemediationRead,
-    VendorRemediationUpdate,
-)
+from app.schemas.vendor_incident import VendorIncidentCreate, VendorIncidentRead, VendorIncidentUpdate
 from app.services.notification_service import NotificationService
 
+from ._shared import _get_vendor_or_404, _require_vendor_write, _users_by_roles
+
 router = APIRouter()
-
-
-async def _get_vendor_or_404(db: AsyncSession, vendor_id: int, current_user: User) -> Vendor:
-    vendor = (await db.execute(select(Vendor).where(Vendor.id == vendor_id))).scalar_one_or_none()
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-    return vendor
-
-
-def _require_vendor_write(vendor: Vendor, current_user: User) -> None:
-    can_write = check_permission(current_user, "vendors", "write")
-    if can_write:
-        return
-    if is_vendor_owner(vendor, current_user):
-        return
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
-
-
-async def _users_by_roles(db: AsyncSession, roles: set[RoleType]) -> list[User]:
-    role_names = [r.value for r in roles]
-    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-    stmt = (
-        select(User)
-        .join(Role, User.role_id == Role.id)
-        .options(permission_load)
-        .where(User.is_active.is_(True))
-        .where(Role.name.in_(role_names))
-    )
-    result = await db.execute(stmt)
-    return result.scalars().all()
 
 
 @router.get("/vendors/{vendor_id}/incidents", response_model=list[VendorIncidentRead])
@@ -116,11 +80,12 @@ async def create_vendor_incident(
 
     # Automatic escalation: trigger reassessment on major incident
     if incident.is_major:
-        now = datetime.now(UTC)
+        now = utc_now()
+        triggered_at = coerce_utc(vendor.reassessment_triggered_at)
         recently_triggered = (
             vendor.reassessment_triggered_reason == "major_incident"
-            and vendor.reassessment_triggered_at
-            and (vendor.reassessment_triggered_at.replace(tzinfo=UTC) >= (now - timedelta(hours=6)))
+            and triggered_at
+            and triggered_at >= (now - timedelta(hours=6))
         )
         if not recently_triggered:
             vendor.next_reassessment_due_at = now
@@ -133,9 +98,8 @@ async def create_vendor_incident(
                 permission_load = (
                     selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
                 )
-                owner = (
-                    await db.execute(select(User).options(permission_load).where(User.id == owner_id))
-                ).scalar_one_or_none()
+                owner_stmt = select(User).options(permission_load).where(User.id == owner_id)
+                owner = (await db.execute(owner_stmt)).scalar_one_or_none()
                 if owner:
                     owner_locale = getattr(owner, "preferred_language", None) or "en"
                     await NotificationService.create_vendor_notification_if_visible(
@@ -237,128 +201,5 @@ async def delete_vendor_incident(
     vendor = await _get_vendor_or_404(db, incident.vendor_id, current_user)
     _require_vendor_write(vendor, current_user)
     await db.delete(incident)
-    await db.commit()
-    return None
-
-
-@router.get("/vendors/{vendor_id}/remediation", response_model=list[VendorRemediationRead])
-async def list_vendor_remediation(
-    vendor_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("vendors", "read")),
-):
-    await _get_vendor_or_404(db, vendor_id, current_user)
-    result = await db.execute(
-        select(VendorRemediationAction)
-        .where(VendorRemediationAction.vendor_id == vendor_id)
-        .order_by(desc(VendorRemediationAction.due_at), desc(VendorRemediationAction.created_at))
-    )
-    return result.scalars().all()
-
-
-@router.post(
-    "/vendors/{vendor_id}/remediation", response_model=VendorRemediationRead, status_code=status.HTTP_201_CREATED
-)
-async def create_vendor_remediation(
-    vendor_id: int,
-    payload: VendorRemediationCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    vendor = await _get_vendor_or_404(db, vendor_id, current_user)
-    _require_vendor_write(vendor, current_user)
-
-    remediation = VendorRemediationAction(
-        vendor_id=vendor_id,
-        incident_id=payload.incident_id,
-        owner_user_id=payload.owner_user_id,
-        status=VendorRemediationStatus(payload.status.value),
-        due_at=payload.due_at,
-        description=payload.description,
-    )
-    db.add(remediation)
-    await db.flush()
-
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.VENDOR_REMEDIATION,
-        entity_id=remediation.id,
-        entity_name=f"{vendor.name} remediation",
-        action=ActivityAction.CREATE,
-        actor=current_user,
-        department_id=vendor.department_id,
-        description=f"Created vendor remediation action for {vendor.name}",
-    )
-
-    await db.commit()
-    await db.refresh(remediation)
-    return remediation
-
-
-@router.patch("/vendor-remediation/{remediation_id}", response_model=VendorRemediationRead)
-async def update_vendor_remediation(
-    remediation_id: int,
-    payload: VendorRemediationUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-
-    remediation = (
-        await db.execute(select(VendorRemediationAction).where(VendorRemediationAction.id == remediation_id))
-    ).scalar_one_or_none()
-    if not remediation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Remediation not found")
-
-    vendor = await _get_vendor_or_404(db, remediation.vendor_id, current_user)
-    can_write = check_permission(current_user, "vendors", "write")
-    if not can_write and remediation.owner_user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
-
-    updates = {field: getattr(payload, field) for field in payload.model_fields_set}
-    changes = build_change_set(remediation, updates)
-    for field, value in updates.items():
-        if field == "status" and value is not None:
-            remediation.status = VendorRemediationStatus(value.value)
-        else:
-            setattr(remediation, field, value)
-
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.VENDOR_REMEDIATION,
-        entity_id=remediation.id,
-        entity_name=f"{vendor.name} remediation",
-        action=ActivityAction.UPDATE,
-        actor=current_user,
-        department_id=vendor.department_id,
-        changes=changes,
-    )
-
-    await db.commit()
-    await db.refresh(remediation)
-    return remediation
-
-
-@router.delete("/vendor-remediation/{remediation_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_vendor_remediation(
-    remediation_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-
-    remediation = (
-        await db.execute(select(VendorRemediationAction).where(VendorRemediationAction.id == remediation_id))
-    ).scalar_one_or_none()
-    if not remediation:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Remediation not found")
-
-    vendor = await _get_vendor_or_404(db, remediation.vendor_id, current_user)
-    _require_vendor_write(vendor, current_user)
-    await db.delete(remediation)
     await db.commit()
     return None
