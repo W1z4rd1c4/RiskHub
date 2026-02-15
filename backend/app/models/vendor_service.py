@@ -14,11 +14,15 @@ if TYPE_CHECKING:
     from app.models.department import Department
     from app.models.risk import Risk
     from app.models.vendor import Vendor
+
+
 class VendorService(Base):
     __tablename__ = "vendor_services"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     service_name: Mapped[str] = mapped_column(String(255), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -56,6 +60,8 @@ class VendorDependency(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
-    vendor_service: Mapped["VendorService"] = relationship("VendorService", back_populates="dependencies", lazy="selectin")
+    vendor_service: Mapped["VendorService"] = relationship(
+        "VendorService", back_populates="dependencies", lazy="selectin"
+    )
     risk: Mapped["Risk | None"] = relationship("Risk", lazy="selectin")
     department: Mapped["Department | None"] = relationship("Department", lazy="selectin")

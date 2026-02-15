@@ -25,7 +25,9 @@ async def get_risk_distribution(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
-    risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(None, description="Filter by risk level"),
+    risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(
+        None, description="Filter by risk level"
+    ),
     risk_type: Literal["gross", "net"] = Query("net", description="Type of risk matrix: 'gross' or 'net'"),
     include_archived: bool = Query(False, description="Include archived risks"),
 ):
@@ -59,9 +61,7 @@ async def get_risk_distribution(
 
     # Group risks by selected probability and impact
     distribution_query = select(
-        prob_col.label('probability'),
-        impact_col.label('impact'),
-        func.count(Risk.id).label('count')
+        prob_col.label("probability"), impact_col.label("impact"), func.count(Risk.id).label("count")
     )
 
     if conditions:
@@ -73,11 +73,7 @@ async def get_risk_distribution(
     rows = result.all()
 
     distribution = [
-        RiskDistributionItem(
-            probability=row.probability,
-            impact=row.impact,
-            count=row.count
-        )
+        RiskDistributionItem(probability=row.probability, impact=row.impact, count=row.count)
         for row in rows
         if row.probability and row.impact
     ]
@@ -113,10 +109,7 @@ async def get_risks_by_cell(
         impact_col = Risk.net_impact
         score_col = Risk.net_score
 
-    conditions = [
-        prob_col == probability,
-        impact_col == impact
-    ]
+    conditions = [prob_col == probability, impact_col == impact]
 
     if not include_archived:
         conditions.append(Risk.status != RiskStatus.archived.value)
@@ -126,21 +119,21 @@ async def get_risks_by_cell(
     elif department_id:
         conditions.append(Risk.department_id == department_id)
 
-    query = select(
-        Risk.id,
-        Risk.risk_id_code,
-        Risk.name.label('risk_name'),
-        Risk.description,
-        score_col.label('score'),
-        Department.name.label('department_name'),
-        User.name.label('owner_name')
-    ).join(
-        Department, Risk.department_id == Department.id, isouter=True
-    ).join(
-        User, Risk.owner_id == User.id, isouter=True
-    ).where(
-        and_(*conditions)
-    ).order_by(score_col.desc())
+    query = (
+        select(
+            Risk.id,
+            Risk.risk_id_code,
+            Risk.name.label("risk_name"),
+            Risk.description,
+            score_col.label("score"),
+            Department.name.label("department_name"),
+            User.name.label("owner_name"),
+        )
+        .join(Department, Risk.department_id == Department.id, isouter=True)
+        .join(User, Risk.owner_id == User.id, isouter=True)
+        .where(and_(*conditions))
+        .order_by(score_col.desc())
+    )
 
     result = await db.execute(query)
     rows = result.all()
@@ -150,10 +143,12 @@ async def get_risks_by_cell(
             "id": row.id,
             "risk_id_code": row.risk_id_code,
             "name": row.risk_name or row.risk_id_code,  # Risk name, fallback to code
-            "description": row.description[:150] + "..." if row.description and len(row.description) > 150 else (row.description or ""),
+            "description": row.description[:150] + "..."
+            if row.description and len(row.description) > 150
+            else (row.description or ""),
             "net_score": row.score,  # Keep key as net_score for backwards compatibility
             "department_name": row.department_name or "Unassigned",
-            "owner_name": row.owner_name or "Unassigned"
+            "owner_name": row.owner_name or "Unassigned",
         }
         for row in rows
     ]
@@ -184,14 +179,12 @@ async def get_risk_trends(
             conditions.append(Risk.department_id == department_id)
 
         # Query risk counts grouped by month
-        period_expr = func.to_char(Risk.created_at, 'YYYY-MM')
+        period_expr = func.to_char(Risk.created_at, "YYYY-MM")
         critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
         query = select(
-            period_expr.label('period'),
-            func.count(Risk.id).label('total_new'),
-            func.sum(
-                case((Risk.net_score >= critical_threshold, 1), else_=0)
-            ).label('critical_new')
+            period_expr.label("period"),
+            func.count(Risk.id).label("total_new"),
+            func.sum(case((Risk.net_score >= critical_threshold, 1), else_=0)).label("critical_new"),
         )
 
         if conditions:
@@ -204,11 +197,7 @@ async def get_risk_trends(
 
         # Reverse to show oldest first
         trends = [
-            RiskTrendPoint(
-                period=row.period,
-                total_new=row.total_new or 0,
-                critical_new=int(row.critical_new or 0)
-            )
+            RiskTrendPoint(period=row.period, total_new=row.total_new or 0, critical_new=int(row.critical_new or 0))
             for row in rows
             if row.period
         ]

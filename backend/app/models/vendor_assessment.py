@@ -15,6 +15,8 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.vendor import Vendor
+
+
 class VendorAssessmentStatus(str, PyEnum):
     draft = "draft"
     submitted = "submitted"
@@ -39,7 +41,9 @@ class VendorAssessment(Base):
     __tablename__ = "vendor_assessments"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     status: Mapped[VendorAssessmentStatus] = mapped_column(
         SAEnum(
@@ -96,10 +100,10 @@ class VendorAssessment(Base):
     )
 
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="assessments", lazy="selectin")
-    submitted_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[submitted_by_user_id], lazy="selectin")
+    submitted_by_user: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[submitted_by_user_id], lazy="selectin"
+    )
     reviewed_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[reviewed_by_user_id], lazy="selectin")
     decided_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[decided_by_user_id], lazy="selectin")
 
-    __table_args__ = (
-        Index("ix_vendor_assessments_vendor_status", "vendor_id", "status"),
-    )
+    __table_args__ = (Index("ix_vendor_assessments_vendor_status", "vendor_id", "status"),)

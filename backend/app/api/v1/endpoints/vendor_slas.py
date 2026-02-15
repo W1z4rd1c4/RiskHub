@@ -148,7 +148,9 @@ async def create_vendor_sla(
 
     can_vendor_write = check_permission(current_user, "vendors", "write")
     is_vendor_owner = vendor.outsourcing_owner_user_id == current_user.id
-    is_reporting_owner = payload.reporting_owner_id == current_user.id if payload.reporting_owner_id is not None else False
+    is_reporting_owner = (
+        payload.reporting_owner_id == current_user.id if payload.reporting_owner_id is not None else False
+    )
     if not (can_vendor_write or is_vendor_owner or is_reporting_owner):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 
@@ -344,9 +346,13 @@ async def record_vendor_sla_value(
                     ).scalar_one_or_none()
                     if owner:
                         recipients.append(owner)
-                if vendor.outsourcing_owner_user_id and vendor.outsourcing_owner_user_id not in {u.id for u in recipients}:
+                if vendor.outsourcing_owner_user_id and vendor.outsourcing_owner_user_id not in {
+                    u.id for u in recipients
+                }:
                     v_owner = (
-                        await db.execute(select(User).options(permission_load).where(User.id == vendor.outsourcing_owner_user_id))
+                        await db.execute(
+                            select(User).options(permission_load).where(User.id == vendor.outsourcing_owner_user_id)
+                        )
                     ).scalar_one_or_none()
                     if v_owner:
                         recipients.append(v_owner)
@@ -453,7 +459,11 @@ async def vendor_slas_due_soon(
             continue
         _, current_period_end = KRIHistoryService.period_bounds_for_date(today, sla.frequency)
         _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, sla.frequency)
-        period_end = current_period_end if (sla.last_period_end and sla.last_period_end >= latest_closed_end) else latest_closed_end
+        period_end = (
+            current_period_end
+            if (sla.last_period_end and sla.last_period_end >= latest_closed_end)
+            else latest_closed_end
+        )
         due = VendorSLAHistoryService.due_date(period_end)
         if _is_due_soon(due=due, today=today):
             due_soon.append(sla_to_read(sla))
@@ -477,7 +487,11 @@ async def vendor_slas_overdue(
             continue
         _, current_period_end = KRIHistoryService.period_bounds_for_date(today, sla.frequency)
         _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, sla.frequency)
-        period_end = current_period_end if (sla.last_period_end and sla.last_period_end >= latest_closed_end) else latest_closed_end
+        period_end = (
+            current_period_end
+            if (sla.last_period_end and sla.last_period_end >= latest_closed_end)
+            else latest_closed_end
+        )
         due = VendorSLAHistoryService.due_date(period_end)
         if due < today:
             overdue.append(sla_to_read(sla))

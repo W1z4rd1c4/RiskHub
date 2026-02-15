@@ -112,10 +112,12 @@ class VendorSLADeadlineService:
 
         owners_by_id: dict[int, User] = {}
         if owner_ids:
-            permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+            permission_load = (
+                selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+            )
             owners = (
-                await db.execute(select(User).options(permission_load).where(User.id.in_(owner_ids)))
-            ).scalars().all()
+                (await db.execute(select(User).options(permission_load).where(User.id.in_(owner_ids)))).scalars().all()
+            )
             owners_by_id = {owner.id: owner for owner in owners}
 
         for sla in slas:

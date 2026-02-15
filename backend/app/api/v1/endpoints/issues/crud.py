@@ -100,7 +100,9 @@ async def list_issues(
         query = query.where(or_(Issue.title.ilike(pattern), Issue.description.ilike(pattern)))
 
     if overdue is True:
-        query = query.where(and_(Issue.due_at.is_not(None), Issue.due_at < now, Issue.status != IssueStatus.closed.value))
+        query = query.where(
+            and_(Issue.due_at.is_not(None), Issue.due_at < now, Issue.status != IssueStatus.closed.value)
+        )
     if overdue is False:
         query = query.where(or_(Issue.due_at.is_(None), Issue.due_at >= now, Issue.status == IssueStatus.closed.value))
     if linked_risk_id is not None:
@@ -387,7 +389,10 @@ async def update_issue(
             if any(link_department_id != new_dept_id for link_department_id in link_department_ids):
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Cannot change department while links point to entities in another department; relink/unlink first",
+                    detail=(
+                        "Cannot change department while links point to entities in another department; "
+                        "relink/unlink first"
+                    ),
                 )
 
     if "owner_user_id" in updates:

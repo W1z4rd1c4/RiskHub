@@ -10,6 +10,8 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.vendor import Vendor
+
+
 class VendorRiskFactor(Base):
     __tablename__ = "vendor_risk_factors"
 
@@ -20,6 +22,8 @@ class VendorRiskFactor(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="risk_factors")

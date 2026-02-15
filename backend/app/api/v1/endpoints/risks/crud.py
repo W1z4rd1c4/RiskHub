@@ -33,19 +33,17 @@ router = APIRouter()
 async def validate_risk_type(db: AsyncSession, risk_type_code: str) -> None:
     """Validate that the risk_type code exists in the active risk_types config."""
     result = await db.execute(
-        select(RiskTypeConfig).where(
-            RiskTypeConfig.code == risk_type_code,
-            RiskTypeConfig.is_active.is_(True)
-        )
+        select(RiskTypeConfig).where(RiskTypeConfig.code == risk_type_code, RiskTypeConfig.is_active.is_(True))
     )
     if not result.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unknown risk type '{risk_type_code}'. Available types can be viewed in Risk Hub configuration."
+            detail=f"Unknown risk type '{risk_type_code}'. Available types can be viewed in Risk Hub configuration.",
         )
 
 
 # ============== CRUD Operations ==============
+
 
 @router.get("", response_model=RiskListResponse)
 async def list_risks(
@@ -60,7 +58,9 @@ async def list_risks(
     search: Optional[str] = None,
     include_archived: bool = Query(False, description="Include archived risks in results"),
     has_breach: Optional[bool] = None,
-    min_net_score: Optional[int] = Query(None, ge=0, le=25, description="Filter risks with net_score >= this value (e.g., 15 for critical)"),
+    min_net_score: Optional[int] = Query(
+        None, ge=0, le=25, description="Filter risks with net_score >= this value (e.g., 15 for critical)"
+    ),
     sort_by: Optional[str] = Query(None, description="Field to sort by"),
     sort_order: Optional[str] = Query("asc", description="Sort order (asc or desc)"),
     process: Optional[str] = Query(None, description="Filter by process name"),
@@ -88,9 +88,7 @@ async def list_risks(
         if cross_dept_risk_ids:
             base_query = base_query.where(
                 or_(
-                    Risk.department_id.in_(dept_ids),
-                    Risk.owner_id == current_user.id,
-                    Risk.id.in_(cross_dept_risk_ids)
+                    Risk.department_id.in_(dept_ids), Risk.owner_id == current_user.id, Risk.id.in_(cross_dept_risk_ids)
                 )
             )
         else:
@@ -131,12 +129,16 @@ async def list_risks(
         )
     # Breach filter
     if has_breach is not None:
-        breaching_subq = select(KeyRiskIndicator.risk_id).where(
-            or_(
-                KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
-                KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit
+        breaching_subq = (
+            select(KeyRiskIndicator.risk_id)
+            .where(
+                or_(
+                    KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
+                    KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
+                )
             )
-        ).scalar_subquery()
+            .scalar_subquery()
+        )
 
         if has_breach:
             base_query = base_query.where(Risk.id.in_(breaching_subq))
@@ -161,44 +163,48 @@ async def list_risks(
     total = total_result.scalar() or 0
 
     # Determine sort column
-    order_column = Risk.risk_id_code # Default sort
+    order_column = Risk.risk_id_code  # Default sort
 
     if sort_by:
-        if sort_by == 'name':
+        if sort_by == "name":
             order_column = Risk.name
-        elif sort_by == 'description':
+        elif sort_by == "description":
             order_column = Risk.description
-        elif sort_by == 'status':
+        elif sort_by == "status":
             order_column = Risk.status
-        elif sort_by == 'risk_id_code':
+        elif sort_by == "risk_id_code":
             order_column = Risk.risk_id_code
-        elif sort_by == 'category':
+        elif sort_by == "category":
             order_column = Risk.category
-        elif sort_by == 'type': # Frontend sends 'type' for risk type
+        elif sort_by == "type":  # Frontend sends 'type' for risk type
             order_column = Risk.risk_type
-        elif sort_by == 'risk_type':
+        elif sort_by == "risk_type":
             order_column = Risk.risk_type
-        elif sort_by == 'gross_score':
+        elif sort_by == "gross_score":
             order_column = Risk.gross_score
-        elif sort_by == 'net_score':
+        elif sort_by == "net_score":
             order_column = Risk.net_score
-        elif sort_by == 'kri_count':
-            order_column = select(func.count(KeyRiskIndicator.id)).where(KeyRiskIndicator.risk_id == Risk.id).scalar_subquery()
-        elif sort_by == 'control_count':
-            order_column = select(func.count(ControlRiskLink.id)).where(ControlRiskLink.risk_id == Risk.id).scalar_subquery()
+        elif sort_by == "kri_count":
+            order_column = (
+                select(func.count(KeyRiskIndicator.id)).where(KeyRiskIndicator.risk_id == Risk.id).scalar_subquery()
+            )
+        elif sort_by == "control_count":
+            order_column = (
+                select(func.count(ControlRiskLink.id)).where(ControlRiskLink.risk_id == Risk.id).scalar_subquery()
+            )
 
     # Apply sort order
-    if sort_order == 'desc':
+    if sort_order == "desc":
         base_query = base_query.order_by(desc(order_column))
     else:
         base_query = base_query.order_by(asc(order_column))
 
     # Apply pagination
-    query = base_query.options(
-        selectinload(Risk.department),
-        selectinload(Risk.kris),
-        selectinload(Risk.control_links)
-    ).offset(skip).limit(limit)
+    query = (
+        base_query.options(selectinload(Risk.department), selectinload(Risk.kris), selectinload(Risk.control_links))
+        .offset(skip)
+        .limit(limit)
+    )
 
     result = await db.execute(query)
     risks = result.scalars().all()
@@ -331,8 +337,7 @@ async def create_risk(
             # Only retry for auto-generated IDs (user-provided ID collision should fail)
             if not auto_generated:
                 raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Risk ID '{risk_id_code}' already exists"
+                    status_code=status.HTTP_409_CONFLICT, detail=f"Risk ID '{risk_id_code}' already exists"
                 )
 
             # Retry with fresh ID for auto-generated
@@ -342,7 +347,7 @@ async def create_risk(
     # All retries exhausted
     raise HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail="Could not generate unique Risk ID after retries. Please try again."
+        detail="Could not generate unique Risk ID after retries. Please try again.",
     )
 
 
@@ -362,9 +367,7 @@ async def update_risk(
     from app.core.permissions import can_resolve_approvals, has_sensitive_field_changes
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
-    result = await db.execute(
-        select(Risk).where(Risk.id == risk_id)
-    )
+    result = await db.execute(select(Risk).where(Risk.id == risk_id))
     risk = result.scalar_one_or_none()
 
     if not risk:
@@ -382,8 +385,7 @@ async def update_risk(
 
     if not has_write and not is_owner:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Permission denied: risks:write or risk owner required"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:write or risk owner required"
         )
 
     # Update fields
@@ -396,10 +398,10 @@ async def update_risk(
     # Prevent un-archiving via update
     if risk.status == RiskStatusEnum.archived.value:
         if "status" in update_data and update_data["status"] != RiskStatusEnum.archived.value:
-             raise HTTPException(
-                 status_code=status.HTTP_400_BAD_REQUEST,
-                 detail="Cannot reactivate archived risk. Please create a new risk or contact administrator."
-             )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot reactivate archived risk. Please create a new risk or contact administrator.",
+            )
 
     # Check for pending DELETE request (block any updates if delete is pending)
     existing_delete = await db.execute(
@@ -407,7 +409,7 @@ async def update_risk(
             ApprovalRequest.resource_type == ApprovalResourceType.RISK,
             ApprovalRequest.resource_id == risk.id,
             ApprovalRequest.action_type == ApprovalActionType.DELETE,
-            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
         )
     )
     if existing_delete.scalar_one_or_none():
@@ -419,7 +421,7 @@ async def update_risk(
             "owner_id": risk.owner_id,
             "department_id": risk.department_id,
             "category": risk.category,
-            "is_priority": risk.is_priority
+            "is_priority": risk.is_priority,
         }
         has_sensitive, changed = has_sensitive_field_changes("risk", old_data, update_data)
 
@@ -433,7 +435,7 @@ async def update_risk(
                     ApprovalRequest.resource_type == ApprovalResourceType.RISK,
                     ApprovalRequest.resource_id == risk.id,
                     ApprovalRequest.action_type == ApprovalActionType.EDIT,
-                    ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
+                    ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
                 )
             )
             if existing.scalar_one_or_none():
@@ -469,6 +471,7 @@ async def update_risk(
             )
 
             from app.core.approval_helpers import create_approval_request_with_audit
+
             await create_approval_request_with_audit(
                 db,
                 approval=approval,
@@ -478,6 +481,7 @@ async def update_risk(
 
             # Return 202 with approval info
             from fastapi.responses import JSONResponse
+
             return JSONResponse(
                 status_code=status.HTTP_202_ACCEPTED,
                 content={
@@ -485,8 +489,8 @@ async def update_risk(
                     "approval_id": approval.id,
                     "action_type": "edit",
                     "pending_fields": list(changed.keys()),
-                    "pending_changes": changed
-                }
+                    "pending_changes": changed,
+                },
             )
 
     new_gross_probability = update_data.get("gross_probability", risk.gross_probability)
@@ -560,9 +564,7 @@ async def delete_risk(
     from app.core.permissions import can_resolve_approvals, check_department_access
     from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
-    result = await db.execute(
-        select(Risk).where(Risk.id == risk_id)
-    )
+    result = await db.execute(select(Risk).where(Risk.id == risk_id))
     risk = result.scalar_one_or_none()
 
     if not risk:
@@ -598,7 +600,7 @@ async def delete_risk(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType.RISK,
             ApprovalRequest.resource_id == risk.id,
-            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
         )
     )
     if existing.scalar_one_or_none():
@@ -606,7 +608,11 @@ async def delete_risk(
 
     # Create approval request - ITEM STAYS VISIBLE
     # Store risk name and description for better workflow display
-    desc_snippet = (risk.description[:100] + "...") if risk.description and len(risk.description) > 100 else (risk.description or "")
+    desc_snippet = (
+        (risk.description[:100] + "...")
+        if risk.description and len(risk.description) > 100
+        else (risk.description or "")
+    )
 
     # Determine primary approver: Risk Owner (if not self)
     primary_approver_id = risk.owner_id if risk.owner_id != current_user.id else None
@@ -614,6 +620,7 @@ async def delete_risk(
     # Fallback to department head if no owner or self-approval
     if not primary_approver_id and risk.department_id:
         from app.models import Department
+
         dept_result = await db.execute(select(Department).where(Department.id == risk.department_id))
         dept = dept_result.scalar_one_or_none()
         if dept and dept.manager_id and dept.manager_id != current_user.id:
@@ -623,6 +630,7 @@ async def delete_risk(
     requires_privileged = bool(risk.is_priority)
 
     from app.models import ApprovalActionType
+
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
         resource_id=risk.id,
@@ -636,6 +644,7 @@ async def delete_risk(
     )
 
     from app.core.approval_helpers import create_approval_request_with_audit
+
     await create_approval_request_with_audit(
         db,
         approval=approval,
@@ -644,13 +653,14 @@ async def delete_risk(
     )
 
     from fastapi.responses import JSONResponse
+
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
         content={
             "message": "Deletion request submitted for approval",
             "approval_id": approval.id,
-            "action_type": "delete"
-        }
+            "action_type": "delete",
+        },
     )
 
 

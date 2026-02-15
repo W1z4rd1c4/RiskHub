@@ -2,6 +2,7 @@
 Key Risk Indicator (KRI) model for risk appetite monitoring.
 Each KRI must be linked to a Risk.
 """
+
 from datetime import date, datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING, Optional
@@ -19,6 +20,7 @@ if TYPE_CHECKING:
 
 class KRIFrequency(str, PyEnum):
     """Frequency of KRI value reporting."""
+
     daily = "daily"
     weekly = "weekly"
     monthly = "monthly"
@@ -34,6 +36,7 @@ class KeyRiskIndicator(Base):
     Breach status is computed based on current_value vs limits.
     Supports historization with reporting frequency and ownership.
     """
+
     __tablename__ = "key_risk_indicators"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -61,7 +64,9 @@ class KeyRiskIndicator(Base):
     last_reported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Timestamps
-    last_updated: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Archive fields (soft-delete) - matches Risk/Control pattern
@@ -83,7 +88,7 @@ class KeyRiskIndicator(Base):
         "KRIValueHistory",
         back_populates="kri",
         cascade="all, delete-orphan",
-        order_by="desc(KRIValueHistory.recorded_at)"
+        order_by="desc(KRIValueHistory.recorded_at)",
     )
 
     @property

@@ -1,4 +1,5 @@
 """Authentication endpoints for login, logout, and current user."""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,17 +38,18 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
     if is_locked:
         raise HTTPException(
             status_code=429,
-            detail=f"Account temporarily locked due to too many failed attempts. Try again in {lockout_remaining} seconds.",
-            headers={"Retry-After": str(lockout_remaining)}
+            detail=(
+                "Account temporarily locked due to too many failed attempts. "
+                f"Try again in {lockout_remaining} seconds."
+            ),
+            headers={"Retry-After": str(lockout_remaining)},
         )
 
     # Eager load role and permissions
     permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
 
     result = await db.execute(
-        select(User)
-        .options(permission_load, selectinload(User.department))
-        .where(User.email == credentials.email)
+        select(User).options(permission_load, selectinload(User.department)).where(User.email == credentials.email)
     )
     user = result.scalar_one_or_none()
 
@@ -57,6 +59,7 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
 
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType
+
         await log_activity(
             db=db,
             actor=None,
@@ -64,7 +67,7 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
             entity_type=ActivityEntityType.USER,
             entity_id=0,
             entity_name=credentials.email,
-            description=f"Failed login attempt: invalid credentials{' (account now locked)' if is_now_locked else ''}"
+            description=f"Failed login attempt: invalid credentials{' (account now locked)' if is_now_locked else ''}",
         )
         await db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -75,6 +78,7 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
 
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType
+
         await log_activity(
             db=db,
             actor=None,  # Don't attribute to user to avoid confirming existence
@@ -82,7 +86,7 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
             entity_type=ActivityEntityType.USER,
             entity_id=0,  # Don't expose real user ID
             entity_name=credentials.email,
-            description=f"Failed login attempt: invalid credentials{' (account now locked)' if is_now_locked else ''}"
+            description=f"Failed login attempt: invalid credentials{' (account now locked)' if is_now_locked else ''}",
         )
         await db.commit()
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -124,7 +128,7 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
         entity_type=ActivityEntityType.USER,
         entity_id=user.id,
         entity_name=user.name,
-        description=f"User logged in: {user.email}"
+        description=f"User logged in: {user.email}",
     )
 
     await db.commit()
@@ -158,7 +162,7 @@ async def get_current_user_info(current_user: User = Depends(deps.get_current_us
         access_scope=current_user.access_scope,
         scope_label=get_scope_label(current_user),
         department_id=current_user.department_id,
-        department_name=current_user.department.name if current_user.department else None
+        department_name=current_user.department.name if current_user.department else None,
     )
 
 
@@ -192,18 +196,13 @@ async def demo_login(user_id: int, db: AsyncSession = Depends(get_db)):
 
     # Security check - only allow in demo/debug mode
     if not settings.debug or not settings.mock_auth_enabled:
-        raise HTTPException(
-            status_code=403,
-            detail="Demo login is only available in development mode"
-        )
+        raise HTTPException(status_code=403, detail="Demo login is only available in development mode")
 
     # Eager load role and permissions
     permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
 
     result = await db.execute(
-        select(User)
-        .options(permission_load, selectinload(User.department))
-        .where(User.id == user_id)
+        select(User).options(permission_load, selectinload(User.department)).where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
 
@@ -244,7 +243,7 @@ async def demo_login(user_id: int, db: AsyncSession = Depends(get_db)):
         entity_type=ActivityEntityType.USER,
         entity_id=user.id,
         entity_name=user.name,
-        description=f"User logged in (demo): {user.email}"
+        description=f"User logged in (demo): {user.email}",
     )
 
     await db.commit()

@@ -2,20 +2,8 @@
  * Authentication E2E Tests
  * RiskHub uses demo account picker (not traditional login form)
  */
-import { test, expect, Page } from '@playwright/test';
-
-// Helper function to login via demo account picker
-async function loginAsDemoUser(page: Page, accountName: string) {
-    await page.goto('/login');
-    // Wait for the demo account buttons to load
-    await page.waitForSelector(`button:has-text("${accountName}")`, { timeout: 10000 });
-    // Click the demo account button containing the name
-    await page.click(`button:has-text("${accountName}")`);
-    // Wait for any protected route (not login)
-    await page.waitForURL(/^http:\/\/localhost:5173\/(?!login)/, { timeout: 20000 });
-    // Wait for sidebar to confirm app loaded
-    await page.waitForSelector('aside', { timeout: 10000 });
-}
+import { test, expect } from '@playwright/test';
+import { loginAsDemoUser } from './helpers/login';
 
 test.describe('Authentication', () => {
     test.describe('Demo Login', () => {

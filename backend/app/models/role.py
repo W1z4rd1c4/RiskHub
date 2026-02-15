@@ -18,6 +18,7 @@ class RoleType(StrEnum):
     Using StrEnum for type safety - values work directly in string comparisons
     without needing .value (e.g., user.role.name == RoleType.CRO works)
     """
+
     # C-Suite
     CEO = "ceo"
     CFO = "cfo"
@@ -47,8 +48,16 @@ class RoleType(StrEnum):
         Note: ADMIN is intentionally excluded - they have platform access only.
         Use system_admin_roles() for IT/platform administration checks.
         """
-        return {cls.CEO, cls.CFO, cls.CRO, cls.RISK_MANAGER,
-                cls.COMPLIANCE, cls.LEGAL, cls.INTERNAL_AUDIT, cls.ACTUARIAL}
+        return {
+            cls.CEO,
+            cls.CFO,
+            cls.CRO,
+            cls.RISK_MANAGER,
+            cls.COMPLIANCE,
+            cls.LEGAL,
+            cls.INTERNAL_AUDIT,
+            cls.ACTUARIAL,
+        }
 
     @classmethod
     def system_admin_roles(cls) -> set["RoleType"]:
@@ -69,6 +78,7 @@ class RoleType(StrEnum):
 
 class Role(Base):
     """Role model for SII-compliant access control."""
+
     __tablename__ = "roles"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -82,11 +92,14 @@ class Role(Base):
 
     # Relationships
     users: Mapped[list[User]] = relationship("User", back_populates="role")
-    permissions: Mapped[list["RolePermission"]] = relationship("RolePermission", back_populates="role", cascade="all, delete-orphan")
+    permissions: Mapped[list["RolePermission"]] = relationship(
+        "RolePermission", back_populates="role", cascade="all, delete-orphan"
+    )
 
 
 class Permission(Base):
     """Permission model for resource-action based access control."""
+
     __tablename__ = "permissions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -100,6 +113,7 @@ class Permission(Base):
 
 class RolePermission(Base):
     """Many-to-many relationship between roles and permissions."""
+
     __tablename__ = "role_permissions"
 
     id: Mapped[int] = mapped_column(primary_key=True)

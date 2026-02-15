@@ -63,6 +63,7 @@ KRIExportStatus = Literal["all", "within", "breach", "overdue", "archived"]
 # Unified export internals
 # =============================================================================
 
+
 def _contains(haystack: Any, needle: str) -> bool:
     if haystack is None:
         return False
@@ -499,7 +500,9 @@ def _filter_rows_by_kri_criteria(
         filtered = [
             r
             for r in filtered
-            if r.get("last_period_end") is not None and isinstance(r.get("last_period_end"), date) and r["last_period_end"] < as_of_date
+            if r.get("last_period_end") is not None
+            and isinstance(r.get("last_period_end"), date)
+            and r["last_period_end"] < as_of_date
         ]
 
     if search:
@@ -529,9 +532,7 @@ def _filter_rows_by_vendor_criteria(
     if search:
         needle = search.strip().lower()
         filtered = [
-            r
-            for r in filtered
-            if any(_contains(r.get(field), needle) for field in ("name", "legal_name", "process"))
+            r for r in filtered if any(_contains(r.get(field), needle) for field in ("name", "legal_name", "process"))
         ]
 
     return sorted(filtered, key=lambda x: str(x.get("name") or ""))
@@ -580,10 +581,7 @@ def _issue_to_row(issue: Issue, *, as_of_dt: datetime) -> dict[str, Any]:
     age_days = (as_of_dt - opened_at).days if opened_at is not None else 0
     age_days = max(age_days, 0)
     is_overdue = (
-        issue.status != IssueStatus.closed.value
-        and not active_exception
-        and due_at is not None
-        and due_at < as_of_dt
+        issue.status != IssueStatus.closed.value and not active_exception and due_at is not None and due_at < as_of_dt
     )
 
     return {
@@ -628,18 +626,15 @@ async def _fetch_issues_for_export(
     owner_user_id: int | None,
     exclude_active_exceptions: bool,
 ) -> list[Issue]:
-    query = (
-        select(Issue)
-        .options(
-            selectinload(Issue.department),
-            selectinload(Issue.owner),
-            selectinload(Issue.links).selectinload(IssueLink.risk),
-            selectinload(Issue.links).selectinload(IssueLink.control),
-            selectinload(Issue.links).selectinload(IssueLink.execution),
-            selectinload(Issue.links).selectinload(IssueLink.kri),
-            selectinload(Issue.remediation_plan).selectinload(IssueRemediationPlan.owner),
-            selectinload(Issue.exceptions),
-        )
+    query = select(Issue).options(
+        selectinload(Issue.department),
+        selectinload(Issue.owner),
+        selectinload(Issue.links).selectinload(IssueLink.risk),
+        selectinload(Issue.links).selectinload(IssueLink.control),
+        selectinload(Issue.links).selectinload(IssueLink.execution),
+        selectinload(Issue.links).selectinload(IssueLink.kri),
+        selectinload(Issue.remediation_plan).selectinload(IssueRemediationPlan.owner),
+        selectinload(Issue.exceptions),
     )
 
     scope_clause = await get_issue_scope_clause(db, current_user)
@@ -1088,9 +1083,10 @@ async def _export_vendors(
     )
 
 
- # =============================================================================
- # Unified export endpoints
- # =============================================================================
+# =============================================================================
+# Unified export endpoints
+# =============================================================================
+
 
 @router.get("/risks/export")
 async def export_risks(

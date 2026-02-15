@@ -51,7 +51,9 @@ class VendorSignalService:
                 continue
 
             if not force:
-                latest = await VendorSignalService._latest_fetched_at(db, vendor_id=vendor.id, provider_key=connector.provider_key)
+                latest = await VendorSignalService._latest_fetched_at(
+                    db, vendor_id=vendor.id, provider_key=connector.provider_key
+                )
                 if latest:
                     latest_utc = latest.replace(tzinfo=UTC) if latest.tzinfo is None else latest.astimezone(UTC)
                     if latest_utc >= (fetched_at - timedelta(hours=VendorSignalService.min_interval_hours())):
@@ -72,7 +74,9 @@ class VendorSignalService:
                     db.add(entry)
                     results.append(entry)
             except Exception as e:
-                logger.warning(f"Vendor signal fetch failed (vendor_id={vendor.id}, provider={connector.provider_key}): {e}")
+                logger.warning(
+                    f"Vendor signal fetch failed (vendor_id={vendor.id}, provider={connector.provider_key}): {e}"
+                )
                 entry = VendorExternalSignal(
                     vendor_id=vendor.id,
                     provider_key=connector.provider_key,

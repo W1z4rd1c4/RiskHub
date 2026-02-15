@@ -27,7 +27,10 @@ async def list_issue_departments(
         query = query.where(Department.id.in_(allowed_department_ids))
 
     departments = (await db.execute(query.order_by(Department.name.asc()))).scalars().all()
-    return [IssueDepartmentLookup.model_validate({"id": dept.id, "name": dept.name, "code": dept.code}) for dept in departments]
+    return [
+        IssueDepartmentLookup.model_validate({"id": dept.id, "name": dept.name, "code": dept.code})
+        for dept in departments
+    ]
 
 
 @router.get("/issues/lookups/owners", response_model=list[IssueOwnerLookup])
@@ -40,24 +43,28 @@ async def list_issue_assignable_owners(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this department")
 
     owners = (
-        await db.execute(
-            select(User)
-            .join(Role, User.role_id == Role.id)
-            .options(
-                selectinload(User.role),
-                selectinload(User.department),
+        (
+            await db.execute(
+                select(User)
+                .join(Role, User.role_id == Role.id)
+                .options(
+                    selectinload(User.role),
+                    selectinload(User.department),
+                )
+                .where(
+                    User.is_active.is_(True),
+                    Role.name != RoleType.ADMIN,
+                    or_(
+                        User.access_scope == AccessScope.GLOBAL,
+                        User.department_id == department_id,
+                    ),
+                )
+                .order_by(User.name.asc(), User.id.asc())
             )
-            .where(
-                User.is_active.is_(True),
-                Role.name != RoleType.ADMIN,
-                or_(
-                    User.access_scope == AccessScope.GLOBAL,
-                    User.department_id == department_id,
-                ),
-            )
-            .order_by(User.name.asc(), User.id.asc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [
         IssueOwnerLookup.model_validate(
             {

@@ -1,4 +1,5 @@
 """Risk questionnaire model for per-risk assessment questionnaires."""
+
 from datetime import datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
@@ -78,7 +79,9 @@ class RiskQuestionnaire(Base):
     risk: Mapped["Risk"] = relationship("Risk", lazy="selectin")
     assigned_to_user: Mapped["User"] = relationship("User", foreign_keys=[assigned_to_user_id], lazy="selectin")
     sent_by_user: Mapped["User"] = relationship("User", foreign_keys=[sent_by_user_id], lazy="selectin")
-    submitted_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[submitted_by_user_id], lazy="selectin")
+    submitted_by_user: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[submitted_by_user_id], lazy="selectin"
+    )
 
     __table_args__ = (
         Index("ix_risk_questionnaires_risk_status", "risk_id", "status"),
@@ -113,7 +116,9 @@ class RiskQuestionnaireClarification(Base):
 
     questionnaire: Mapped["RiskQuestionnaire"] = relationship("RiskQuestionnaire", lazy="selectin")
     requested_by_user: Mapped["User"] = relationship("User", foreign_keys=[requested_by_user_id], lazy="selectin")
-    responded_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[responded_by_user_id], lazy="selectin")
+    responded_by_user: Mapped["User | None"] = relationship(
+        "User", foreign_keys=[responded_by_user_id], lazy="selectin"
+    )
 
     __table_args__ = (
         Index("ix_risk_questionnaire_clarifications_questionnaire_section", "questionnaire_id", "section_key"),

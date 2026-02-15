@@ -56,9 +56,7 @@ def _get_scoped_department_ids(current_user: User) -> Optional[list[int]]:
     return get_user_department_ids(current_user)
 
 
-async def _assert_department_in_scope(
-    department_id: int, db: AsyncSession, current_user: User
-) -> Department:
+async def _assert_department_in_scope(department_id: int, db: AsyncSession, current_user: User) -> Department:
     """
     Load department by id and verify user access.
 
@@ -89,9 +87,7 @@ def _clamp_pagination(skip: int, limit: int) -> tuple[int, int]:
 async def _count_active_users_by_dept(db: AsyncSession) -> dict[int, int]:
     """Active user count per department."""
     result = await db.execute(
-        select(User.department_id, func.count(User.id))
-        .where(User.is_active.is_(True))
-        .group_by(User.department_id)
+        select(User.department_id, func.count(User.id)).where(User.is_active.is_(True)).group_by(User.department_id)
     )
     return dict(result.all())
 
@@ -181,9 +177,9 @@ async def list_departments(
     Excludes: Inactive departments; archived entities in counts.
     """
     # 1. Load visible departments
-    active_dept_ids = select(User.department_id).where(
-        and_(User.department_id.isnot(None), User.is_active.is_(True))
-    ).distinct()
+    active_dept_ids = (
+        select(User.department_id).where(and_(User.department_id.isnot(None), User.is_active.is_(True))).distinct()
+    )
 
     query = (
         select(Department)
@@ -242,19 +238,14 @@ async def get_department(
 
     # Count active users only (consistent with list_departments)
     user_count_result = await db.execute(
-        select(func.count(User.id)).where(
-            and_(User.department_id == department_id, User.is_active.is_(True))
-        )
+        select(func.count(User.id)).where(and_(User.department_id == department_id, User.is_active.is_(True)))
     )
     user_count = user_count_result.scalar() or 0
 
     # Count risks
     risk_count_result = await db.execute(
         select(func.count(Risk.id)).where(
-            and_(
-                Risk.department_id == department_id,
-                Risk.status != RiskStatus.archived.value
-            )
+            and_(Risk.department_id == department_id, Risk.status != RiskStatus.archived.value)
         )
     )
     risk_count = risk_count_result.scalar() or 0
@@ -262,10 +253,7 @@ async def get_department(
     # Count controls (non-archived)
     control_count_result = await db.execute(
         select(func.count(Control.id)).where(
-            and_(
-                Control.department_id == department_id,
-                Control.status != ControlStatus.archived.value
-            )
+            and_(Control.department_id == department_id, Control.status != ControlStatus.archived.value)
         )
     )
     control_count = control_count_result.scalar() or 0
@@ -274,12 +262,7 @@ async def get_department(
     kri_count_result = await db.execute(
         select(func.count(KeyRiskIndicator.id))
         .join(Risk)
-        .where(
-            and_(
-                Risk.department_id == department_id,
-                Risk.status != RiskStatus.archived.value
-            )
-        )
+        .where(and_(Risk.department_id == department_id, Risk.status != RiskStatus.archived.value))
     )
     kri_count = kri_count_result.scalar() or 0
 
@@ -301,13 +284,10 @@ async def get_department(
             ).label(level)
         )
 
-    risk_distribution_stmt = (
-        select(*risk_distribution_columns)
-        .where(
-            and_(
-                Risk.department_id == department_id,
-                Risk.status != RiskStatus.archived.value,
-            )
+    risk_distribution_stmt = select(*risk_distribution_columns).where(
+        and_(
+            Risk.department_id == department_id,
+            Risk.status != RiskStatus.archived.value,
         )
     )
     risk_distribution_row = (await db.execute(risk_distribution_stmt)).one()
@@ -332,13 +312,7 @@ async def get_department(
     risk_by_status = {row[0]: row[1] for row in (await db.execute(risk_by_status_stmt)).all() if row[1] > 0}
 
     # Control stats
-    control_stats = ControlStats(
-        total=control_count,
-        active=0,
-        inactive=0,
-        by_form={},
-        by_frequency={}
-    )
+    control_stats = ControlStats(total=control_count, active=0, inactive=0, by_form={}, by_frequency={})
 
     # Controls by status (single grouped query for the two statuses we expose)
     control_status_stmt = (
@@ -361,7 +335,9 @@ async def get_department(
         .where(Control.department_id == department_id)
         .group_by(Control.control_form)
     )
-    control_stats.by_form = {row[0]: row[1] for row in (await db.execute(control_form_stmt)).all() if row[0] and row[1] > 0}
+    control_stats.by_form = {
+        row[0]: row[1] for row in (await db.execute(control_form_stmt)).all() if row[0] and row[1] > 0
+    }
 
     # Controls by frequency (single grouped query; preserves prior behavior including archived controls)
     control_frequency_stmt = (
@@ -377,10 +353,7 @@ async def get_department(
     exec_result = await db.execute(
         select(ControlExecution)
         .join(Control)
-        .options(
-            selectinload(ControlExecution.control),
-            selectinload(ControlExecution.executed_by)
-        )
+        .options(selectinload(ControlExecution.control), selectinload(ControlExecution.executed_by))
         .where(Control.department_id == department_id)
         .order_by(ControlExecution.executed_at.desc())
         .limit(DEPARTMENT_RECENT_EXECUTIONS_LIMIT)
@@ -394,7 +367,7 @@ async def get_department(
             control_name=ex.control.name if ex.control else "Unknown",
             result=ex.result,
             executed_at=ex.executed_at,
-            executed_by=ex.executed_by.name if ex.executed_by else "Unknown"
+            executed_by=ex.executed_by.name if ex.executed_by else "Unknown",
         )
         for ex in executions
     ]
@@ -497,10 +470,12 @@ async def list_department_controls(
         query = query.where(Control.status != ControlStatus.archived.value)
 
     # Eager load relationships for ControlSummary fields
-    query = query.options(
-        selectinload(Control.department),
-        selectinload(Control.control_owner)
-    ).offset(skip).limit(limit).order_by(Control.name)
+    query = (
+        query.options(selectinload(Control.department), selectinload(Control.control_owner))
+        .offset(skip)
+        .limit(limit)
+        .order_by(Control.name)
+    )
 
     result = await db.execute(query)
     controls = result.scalars().all()
@@ -547,12 +522,7 @@ async def list_department_kris(
     query = (
         select(KeyRiskIndicator)
         .join(Risk)
-        .where(
-            and_(
-                Risk.department_id == department_id,
-                Risk.status != RiskStatus.archived.value
-            )
-        )
+        .where(and_(Risk.department_id == department_id, Risk.status != RiskStatus.archived.value))
         .options(
             joinedload(KeyRiskIndicator.risk).joinedload(Risk.department),
             joinedload(KeyRiskIndicator.risk).joinedload(Risk.owner),

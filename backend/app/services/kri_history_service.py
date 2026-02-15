@@ -4,6 +4,7 @@ KRI History Service for recording KRI values with period boundaries.
 Manages reporting windows, period calculations, and value recording
 with enforcement of the 15-day grace window for non-privileged users.
 """
+
 import logging
 from datetime import date, datetime, timedelta
 from typing import Optional, Tuple
@@ -313,21 +314,28 @@ class KRIHistoryService:
                 days_overdue = (today - due).days
                 reporting_owner = KRIHistoryService.reporting_owner_id(kri)
 
-                overdue.append({
-                    "kri_id": kri.id,
-                    "metric_name": kri.metric_name,
-                    "frequency": kri.frequency,
-                    "period_end": period_end.isoformat(),
-                    "due_date": due.isoformat(),
-                    "days_overdue": days_overdue,
-                    "reporting_owner_id": reporting_owner,
-                    "reporting_owner_name": (
-                        kri.reporting_owner.name if kri.reporting_owner
-                        else (kri.risk.owner.name if kri.risk and hasattr(kri.risk, 'owner') and kri.risk.owner else None)
-                    ),
-                    "risk_id": kri.risk_id,
-                    "department_id": kri.risk.department_id if kri.risk else None,
-                })
+                overdue.append(
+                    {
+                        "kri_id": kri.id,
+                        "metric_name": kri.metric_name,
+                        "frequency": kri.frequency,
+                        "period_end": period_end.isoformat(),
+                        "due_date": due.isoformat(),
+                        "days_overdue": days_overdue,
+                        "reporting_owner_id": reporting_owner,
+                        "reporting_owner_name": (
+                            kri.reporting_owner.name
+                            if kri.reporting_owner
+                            else (
+                                kri.risk.owner.name
+                                if kri.risk and hasattr(kri.risk, "owner") and kri.risk.owner
+                                else None
+                            )
+                        ),
+                        "risk_id": kri.risk_id,
+                        "department_id": kri.risk.department_id if kri.risk else None,
+                    }
+                )
 
         # Sort by days overdue descending
         overdue.sort(key=lambda x: x["days_overdue"], reverse=True)
@@ -373,26 +381,32 @@ class KRIHistoryService:
                 due = KRIHistoryService.due_date(period_end)
                 reporting_owner = KRIHistoryService.reporting_owner_id(kri)
 
-                due_soon.append({
-                    "kri_id": kri.id,
-                    "metric_name": kri.metric_name,
-                    "frequency": kri.frequency,
-                    "period_end": period_end.isoformat(),
-                    "due_date": due.isoformat(),
-                    "days_until_due": days_until_due,
-                    "reporting_owner_id": reporting_owner,
-                    "reporting_owner_name": (
-                        kri.reporting_owner.name if kri.reporting_owner
-                        else (kri.risk.owner.name if kri.risk and hasattr(kri.risk, 'owner') and kri.risk.owner else None)
-                    ),
-                    "risk_id": kri.risk_id,
-                    "department_id": kri.risk.department_id if kri.risk else None,
-                })
+                due_soon.append(
+                    {
+                        "kri_id": kri.id,
+                        "metric_name": kri.metric_name,
+                        "frequency": kri.frequency,
+                        "period_end": period_end.isoformat(),
+                        "due_date": due.isoformat(),
+                        "days_until_due": days_until_due,
+                        "reporting_owner_id": reporting_owner,
+                        "reporting_owner_name": (
+                            kri.reporting_owner.name
+                            if kri.reporting_owner
+                            else (
+                                kri.risk.owner.name
+                                if kri.risk and hasattr(kri.risk, "owner") and kri.risk.owner
+                                else None
+                            )
+                        ),
+                        "risk_id": kri.risk_id,
+                        "department_id": kri.risk.department_id if kri.risk else None,
+                    }
+                )
 
         # Sort by days until due ascending (most urgent first)
         due_soon.sort(key=lambda x: x["days_until_due"])
         return due_soon
-
 
     @staticmethod
     async def apply_history_correction(
@@ -417,9 +431,7 @@ class KRIHistoryService:
         """
         # Get the entry
         result = await db.execute(
-            select(KRIValueHistory)
-            .where(KRIValueHistory.id == entry_id)
-            .options(selectinload(KRIValueHistory.kri))
+            select(KRIValueHistory).where(KRIValueHistory.id == entry_id).options(selectinload(KRIValueHistory.kri))
         )
         entry = result.scalar_one_or_none()
 

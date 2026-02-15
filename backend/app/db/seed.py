@@ -1,4 +1,5 @@
 """Seed script to populate database with initial data."""
+
 import asyncio
 from datetime import UTC, datetime, timedelta
 
@@ -43,17 +44,71 @@ DEPARTMENTS = [
 # ID 7-9: Employees (limited access under department heads)
 TEST_USERS = [
     # Privileged accounts
-    {"email": "admin@riskhub.local", "name": "System Admin", "role": "admin", "department": None, "access_scope": "global"},
-    {"email": "cro@riskhub.local", "name": "Anna Kowalski", "role": "cro", "department": "RISK", "access_scope": "global"},
-    {"email": "risk.manager@riskhub.local", "name": "Petra Svobodová", "role": "risk_manager", "department": "RISK", "access_scope": "global"},
+    {
+        "email": "admin@riskhub.local",
+        "name": "System Admin",
+        "role": "admin",
+        "department": None,
+        "access_scope": "global",
+    },
+    {
+        "email": "cro@riskhub.local",
+        "name": "Anna Kowalski",
+        "role": "cro",
+        "department": "RISK",
+        "access_scope": "global",
+    },
+    {
+        "email": "risk.manager@riskhub.local",
+        "name": "Petra Svobodová",
+        "role": "risk_manager",
+        "department": "RISK",
+        "access_scope": "global",
+    },
     # Department heads
-    {"email": "ops.head@riskhub.local", "name": "Eva Králová", "role": "department_head", "department": "OPS", "access_scope": "department"},
-    {"email": "fin.head@riskhub.local", "name": "Martin Procházka", "role": "department_head", "department": "FIN", "access_scope": "department"},
-    {"email": "it.head@riskhub.local", "name": "Tomáš Novotný", "role": "department_head", "department": "IT", "access_scope": "department"},
+    {
+        "email": "ops.head@riskhub.local",
+        "name": "Eva Králová",
+        "role": "department_head",
+        "department": "OPS",
+        "access_scope": "department",
+    },
+    {
+        "email": "fin.head@riskhub.local",
+        "name": "Martin Procházka",
+        "role": "department_head",
+        "department": "FIN",
+        "access_scope": "department",
+    },
+    {
+        "email": "it.head@riskhub.local",
+        "name": "Tomáš Novotný",
+        "role": "department_head",
+        "department": "IT",
+        "access_scope": "department",
+    },
     # Employees (control owners under department heads)
-    {"email": "ops.analyst@riskhub.local", "name": "Jana Horáková", "role": "employee", "department": "OPS", "access_scope": "department"},
-    {"email": "fin.analyst@riskhub.local", "name": "Lukáš Dvořák", "role": "employee", "department": "FIN", "access_scope": "department"},
-    {"email": "it.analyst@riskhub.local", "name": "Barbora Němcová", "role": "employee", "department": "IT", "access_scope": "department"},
+    {
+        "email": "ops.analyst@riskhub.local",
+        "name": "Jana Horáková",
+        "role": "employee",
+        "department": "OPS",
+        "access_scope": "department",
+    },
+    {
+        "email": "fin.analyst@riskhub.local",
+        "name": "Lukáš Dvořák",
+        "role": "employee",
+        "department": "FIN",
+        "access_scope": "department",
+    },
+    {
+        "email": "it.analyst@riskhub.local",
+        "name": "Barbora Němcová",
+        "role": "employee",
+        "department": "IT",
+        "access_scope": "department",
+    },
 ]
 
 # Sample controls based on DEFINICIA KONTROL

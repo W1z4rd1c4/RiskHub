@@ -35,7 +35,10 @@ def _validate_production_settings(settings: Settings) -> None:
     if settings.mock_auth_enabled and not settings.debug:
         logger.critical(
             "mock_auth_production_error",
-            message="FATAL: MOCK_AUTH_ENABLED=true with DEBUG=false is forbidden. Disable mock auth for production deployment.",
+            message=(
+                "FATAL: MOCK_AUTH_ENABLED=true with DEBUG=false is forbidden. "
+                "Disable mock auth for production deployment."
+            ),
         )
         raise RuntimeError("MOCK_AUTH_ENABLED cannot be true in non-debug mode")
     if settings.mock_auth_enabled and settings.debug:
@@ -46,13 +49,9 @@ def _validate_production_settings(settings: Settings) -> None:
 
     # Production hardening guardrails
     if len(settings.secret_key.strip()) < 32:
-        raise RuntimeError(
-            "FATAL: SECRET_KEY must be at least 32 characters when DEBUG=false."
-        )
+        raise RuntimeError("FATAL: SECRET_KEY must be at least 32 characters when DEBUG=false.")
     if settings.database_url == DEFAULT_DATABASE_URL:
-        raise RuntimeError(
-            "FATAL: DATABASE_URL must be explicitly configured for production deployment."
-        )
+        raise RuntimeError("FATAL: DATABASE_URL must be explicitly configured for production deployment.")
     if not settings.cors_origins:
         raise RuntimeError("FATAL: CORS_ORIGINS must be set to an explicit allowlist in production.")
     if "*" in settings.cors_origins:
@@ -61,9 +60,7 @@ def _validate_production_settings(settings: Settings) -> None:
             "Set an explicit allowlist of origins."
         )
     if settings.directory_webhook_enabled and not settings.webhook_secret.strip():
-        raise RuntimeError(
-            "FATAL: WEBHOOK_SECRET is required when DIRECTORY_WEBHOOK_ENABLED=true and DEBUG=false."
-        )
+        raise RuntimeError("FATAL: WEBHOOK_SECRET is required when DIRECTORY_WEBHOOK_ENABLED=true and DEBUG=false.")
 
 
 @asynccontextmanager
@@ -98,6 +95,7 @@ async def lifespan(app: FastAPI):
         InMemoryAccountLockoutBackend,
         RedisAccountLockoutBackend,
     )
+
     if app.state.redis is not None:
         app.state.account_lockout = AccountLockoutService(RedisAccountLockoutBackend(app.state.redis))
     else:
@@ -158,17 +156,19 @@ async def _apply_log_rotation_config():
                     app_rotation_size_mb=app_rotation_size,
                     app_retention_count=app_retention,
                     audit_rotation_size_mb=audit_rotation_size,
-                    audit_retention_count=audit_retention
+                    audit_retention_count=audit_retention,
                 )
                 logger.info(
                     "log_config_applied",
-                    message=f"Log rotation config applied: App={app_rotation_size}MB x {app_retention}, Audit={audit_rotation_size}MB x {audit_retention}"
+                    message=(
+                        "Log rotation config applied: "
+                        f"App={app_rotation_size}MB x {app_retention}, "
+                        f"Audit={audit_rotation_size}MB x {audit_retention}"
+                    ),
                 )
     except Exception as e:
-        logger.warning(
-            "log_config_error",
-            message=f"Could not apply log rotation config from database: {e}"
-        )
+        logger.warning("log_config_error", message=f"Could not apply log rotation config from database: {e}")
+
 
 def create_app(settings: Settings) -> FastAPI:
     _validate_production_settings(settings)
@@ -186,6 +186,7 @@ def create_app(settings: Settings) -> FastAPI:
     # Defaults for transports/tests that don't run lifespan.
     app.state.redis = None
     from app.services.account_lockout_service import AccountLockoutService, InMemoryAccountLockoutBackend
+
     app.state.account_lockout = AccountLockoutService(InMemoryAccountLockoutBackend())
 
     # CORS middleware
@@ -204,10 +205,12 @@ def create_app(settings: Settings) -> FastAPI:
 
     # Logging context middleware (adds request_id, user_id, client_ip to logs)
     from app.middleware.logging_context import LoggingContextMiddleware
+
     app.add_middleware(LoggingContextMiddleware)
 
     # Security headers middleware (CSP, HSTS, X-Frame-Options, etc.)
     from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware
+
     app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
 
     # Rate limiting middleware (disabled in debug mode)
@@ -215,6 +218,7 @@ def create_app(settings: Settings) -> FastAPI:
 
     # Language detection middleware (Accept-Language header support)
     from app.middleware.language import LanguageMiddleware
+
     app.add_middleware(LanguageMiddleware)
 
     # Include API routes

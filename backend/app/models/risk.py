@@ -12,8 +12,11 @@ if TYPE_CHECKING:
     from app.models.department import Department
     from app.models.key_risk_indicator import KeyRiskIndicator
     from app.models.user import User
+
+
 class RiskType(str, PyEnum):
     """Type of risk from OS 18."""
+
     strategic = "strategic"  # S
     operational = "operational"  # O
 
@@ -25,6 +28,7 @@ class RiskStatus(str, PyEnum):
     - emerging: Market/country risks being monitored (excluded from dashboards)
     - archived: Soft-deleted risks (approved deletion)
     """
+
     active = "active"
     emerging = "emerging"
     archived = "archived"
@@ -32,6 +36,7 @@ class RiskStatus(str, PyEnum):
 
 class ControlEffectiveness(str, PyEnum):
     """How effectively a control mitigates a risk."""
+
     high = "high"
     medium = "medium"
     low = "low"
@@ -44,6 +49,7 @@ class Risk(Base):
     Represents a risk in the risk register with gross/net scoring,
     KRI indicators, and linkage to controls that mitigate it.
     """
+
     __tablename__ = "risks"
 
     # Primary key
@@ -102,7 +108,9 @@ class Risk(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     # Relationships
     control_links: Mapped[list["ControlRiskLink"]] = relationship("ControlRiskLink", back_populates="risk")
@@ -115,6 +123,7 @@ class ControlRiskLink(Base):
 
     Tracks which controls mitigate which risks and how effectively.
     """
+
     __tablename__ = "control_risk_links"
 
     # Primary key

@@ -1,4 +1,5 @@
 """Service for managing orphaned items (risks/controls without owners)."""
+
 import logging
 from datetime import UTC, datetime
 from typing import Optional
@@ -72,9 +73,7 @@ async def _get_item_details(
     department_name = None
 
     if item_type == "risk":
-        result = await db.execute(
-            select(Risk).options(selectinload(Risk.department)).where(Risk.id == item_id)
-        )
+        result = await db.execute(select(Risk).options(selectinload(Risk.department)).where(Risk.id == item_id))
         risk = result.scalar_one_or_none()
         if risk:
             item_name = risk.name or f"Risk #{risk.id}"
@@ -97,9 +96,8 @@ async def _get_item_details(
 
     elif item_type == "kri":
         from app.models.key_risk_indicator import KeyRiskIndicator
-        result = await db.execute(
-            select(KeyRiskIndicator).where(KeyRiskIndicator.id == item_id)
-        )
+
+        result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == item_id))
         kri = result.scalar_one_or_none()
         if kri:
             item_name = kri.metric_name or f"KRI #{kri.id}"
@@ -113,6 +111,7 @@ async def _get_item_details(
                 department_name = risk.department.name
 
     return item_name, item_description, item_identifier, department_name
+
 
 class OrphanedItemService:
     """Service for flagging, querying, and resolving orphaned items."""
@@ -134,9 +133,7 @@ class OrphanedItemService:
         created_records = []
 
         # Find risks owned by this user
-        risks_result = await db.execute(
-            select(Risk).where(Risk.owner_id == user_id)
-        )
+        risks_result = await db.execute(select(Risk).where(Risk.owner_id == user_id))
         risks = risks_result.scalars().all()
 
         for risk in risks:
@@ -146,9 +143,7 @@ class OrphanedItemService:
             created_records.append(orphan)
 
         # Find controls owned by this user
-        controls_result = await db.execute(
-            select(Control).where(Control.control_owner_id == user_id)
-        )
+        controls_result = await db.execute(select(Control).where(Control.control_owner_id == user_id))
         controls = controls_result.scalars().all()
 
         for control in controls:
@@ -166,17 +161,12 @@ class OrphanedItemService:
 
         return created_records
 
-
     @staticmethod
     async def _get_fallback_owner_id(db: AsyncSession) -> int | None:
         """Find a fallback owner (first admin) for headless items."""
         from app.models.role import Role, RoleType
-        result = await db.execute(
-            select(User.id)
-            .join(Role)
-            .where(Role.name == RoleType.ADMIN)
-            .limit(1)
-        )
+
+        result = await db.execute(select(User.id).join(Role).where(Role.name == RoleType.ADMIN).limit(1))
         return result.scalar_one_or_none()
 
     @staticmethod
@@ -203,15 +193,10 @@ class OrphanedItemService:
         # Find risks in UNCAT that are NOT in orphaned_items (pending)
 
         pending_risk_ids_stmt = select(OrphanedItem.item_id).where(
-            OrphanedItem.item_type == "risk",
-            OrphanedItem.status == "pending"
+            OrphanedItem.item_type == "risk", OrphanedItem.status == "pending"
         )
 
-        stmt = (
-            select(Risk)
-            .where(Risk.department_id == uncat_dept.id)
-            .where(Risk.id.not_in(pending_risk_ids_stmt))
-        )
+        stmt = select(Risk).where(Risk.department_id == uncat_dept.id).where(Risk.id.not_in(pending_risk_ids_stmt))
 
         result = await db.execute(stmt)
         uncat_risks = result.scalars().all()
@@ -230,7 +215,7 @@ class OrphanedItemService:
                 item_id=risk.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.now(UTC)
+                orphaned_at=datetime.now(UTC),
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -238,8 +223,7 @@ class OrphanedItemService:
 
         # 2. Scan Controls
         pending_control_ids_stmt = select(OrphanedItem.item_id).where(
-            OrphanedItem.item_type == "control",
-            OrphanedItem.status == "pending"
+            OrphanedItem.item_type == "control", OrphanedItem.status == "pending"
         )
 
         stmt = (
@@ -254,10 +238,7 @@ class OrphanedItemService:
         for control in uncat_controls:
             # Controls have more fallback options
             prev_owner_id = (
-                control.control_owner_id or
-                control.created_by_id or
-                control.updated_by_id or
-                fallback_owner_id
+                control.control_owner_id or control.created_by_id or control.updated_by_id or fallback_owner_id
             )
 
             if not prev_owner_id:
@@ -269,7 +250,7 @@ class OrphanedItemService:
                 item_id=control.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.now(UTC)
+                orphaned_at=datetime.now(UTC),
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -284,8 +265,7 @@ class OrphanedItemService:
 
         # For now, let's scan for KRIs whose parent RISK is in UNCAT dept
         pending_kri_ids_stmt = select(OrphanedItem.item_id).where(
-            OrphanedItem.item_type == "kri",
-            OrphanedItem.status == "pending"
+            OrphanedItem.item_type == "kri", OrphanedItem.status == "pending"
         )
 
         from sqlalchemy.orm import selectinload
@@ -316,7 +296,7 @@ class OrphanedItemService:
                 item_id=kri.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.now(UTC)
+                orphaned_at=datetime.now(UTC),
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -342,11 +322,7 @@ class OrphanedItemService:
             if control.id in processed_control_ids:
                 continue
 
-            prev_owner_id = (
-                control.control_owner_id or
-                control.created_by_id or
-                fallback_owner_id
-            )
+            prev_owner_id = control.control_owner_id or control.created_by_id or fallback_owner_id
             if not prev_owner_id:
                 continue
 
@@ -355,7 +331,7 @@ class OrphanedItemService:
                 item_id=control.id,
                 previous_owner_id=prev_owner_id,
                 status="pending",
-                orphaned_at=datetime.now(UTC)
+                orphaned_at=datetime.now(UTC),
             )
             db.add(orphan)
             new_orphans_count += 1
@@ -433,7 +409,9 @@ class OrphanedItemService:
                 .select_from(OrphanedItem)
                 .join(KeyRiskIndicator, KeyRiskIndicator.id == OrphanedItem.item_id)
                 .join(Risk, Risk.id == KeyRiskIndicator.risk_id)
-                .where(OrphanedItem.status == "pending", OrphanedItem.item_type == "kri", Risk.department_id.in_(dept_ids))
+                .where(
+                    OrphanedItem.status == "pending", OrphanedItem.item_type == "kri", Risk.department_id.in_(dept_ids)
+                )
             )
 
         risk_count = (await db.execute(risk_stmt)).scalar() or 0
@@ -441,7 +419,12 @@ class OrphanedItemService:
         kri_count = (await db.execute(kri_stmt)).scalar() or 0
         total = int(risk_count) + int(control_count) + int(kri_count)
 
-        return {"risk_count": int(risk_count), "control_count": int(control_count), "kri_count": int(kri_count), "total_count": total}
+        return {
+            "risk_count": int(risk_count),
+            "control_count": int(control_count),
+            "kri_count": int(kri_count),
+            "total_count": total,
+        }
 
     @staticmethod
     async def resolve_orphan(
@@ -470,9 +453,7 @@ class OrphanedItemService:
             ValueError: If orphan not found or already resolved
         """
         # Get the orphan record
-        result = await db.execute(
-            select(OrphanedItem).where(OrphanedItem.id == orphan_id)
-        )
+        result = await db.execute(select(OrphanedItem).where(OrphanedItem.id == orphan_id))
         orphan = result.scalar_one_or_none()
 
         if not orphan:
@@ -484,9 +465,7 @@ class OrphanedItemService:
         new_owner = None
         if new_owner_id:
             # Verify new owner exists and is active
-            owner_result = await db.execute(
-                select(User).where(User.id == new_owner_id)
-            )
+            owner_result = await db.execute(select(User).where(User.id == new_owner_id))
             new_owner = owner_result.scalar_one_or_none()
 
             if not new_owner:
@@ -502,9 +481,7 @@ class OrphanedItemService:
 
         if target_dept_id is None and (new_owner or orphan.item_type != "kri"):
             # Fall back to Uncategorised department
-            uncat_result = await db.execute(
-                select(Department).where(Department.code == "UNCAT")
-            )
+            uncat_result = await db.execute(select(Department).where(Department.code == "UNCAT"))
             uncat_dept = uncat_result.scalar_one_or_none()
             if uncat_dept:
                 target_dept_id = uncat_dept.id
@@ -512,9 +489,7 @@ class OrphanedItemService:
 
         # Update the actual item's owner and department
         if orphan.item_type == "risk":
-            risk_result = await db.execute(
-                select(Risk).where(Risk.id == orphan.item_id)
-            )
+            risk_result = await db.execute(select(Risk).where(Risk.id == orphan.item_id))
             risk = risk_result.scalar_one_or_none()
             if risk:
                 risk.owner_id = new_owner_id
@@ -523,9 +498,7 @@ class OrphanedItemService:
                 logger.info(f"Reassigned risk {risk.id} to user {new_owner_id}, dept {target_dept_id}")
 
         elif orphan.item_type == "control":
-            control_result = await db.execute(
-                select(Control).where(Control.id == orphan.item_id)
-            )
+            control_result = await db.execute(select(Control).where(Control.id == orphan.item_id))
             control = control_result.scalar_one_or_none()
             if control:
                 control.control_owner_id = new_owner_id
@@ -535,18 +508,18 @@ class OrphanedItemService:
                 # Link to risk if target_risk_id provided
                 if target_risk_id:
                     from app.models.risk import ControlRiskLink
+
                     # Check existing link
                     link_res = await db.execute(
                         select(ControlRiskLink).where(
-                            ControlRiskLink.control_id == control.id,
-                            ControlRiskLink.risk_id == target_risk_id
+                            ControlRiskLink.control_id == control.id, ControlRiskLink.risk_id == target_risk_id
                         )
                     )
                     if not link_res.scalar_one_or_none():
                         link = ControlRiskLink(
                             control_id=control.id,
                             risk_id=target_risk_id,
-                            effectiveness="partially_effective" # Default
+                            effectiveness="partially_effective",  # Default
                         )
                         db.add(link)
 
@@ -554,9 +527,8 @@ class OrphanedItemService:
 
         elif orphan.item_type == "kri":
             from app.models.key_risk_indicator import KeyRiskIndicator
-            kri_result = await db.execute(
-                select(KeyRiskIndicator).where(KeyRiskIndicator.id == orphan.item_id)
-            )
+
+            kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == orphan.item_id))
             kri = kri_result.scalar_one_or_none()
             if kri:
                 # KRIs follow Risk owner, but we can update the Risk link
@@ -589,9 +561,7 @@ class OrphanedItemService:
         """
         from sqlalchemy.orm import selectinload
 
-        query = select(OrphanedItem).options(
-            selectinload(OrphanedItem.previous_owner)
-        )
+        query = select(OrphanedItem).options(selectinload(OrphanedItem.previous_owner))
 
         if status:
             query = query.where(OrphanedItem.status == status)
@@ -609,19 +579,23 @@ class OrphanedItemService:
                 db, orphan.item_type, orphan.item_id
             )
 
-            details.append({
-                "id": orphan.id,
-                "item_type": orphan.item_type,
-                "item_id": orphan.item_id,
-                "item_name": item_name,
-                "item_description": item_description,
-                "item_identifier": item_identifier,
-                "department_name": department_name,
-                "previous_owner_name": orphan.previous_owner.name if orphan.previous_owner else "Unknown",
-                "previous_owner_email": orphan.previous_owner.email if orphan.previous_owner else "unknown@example.com",
-                "orphaned_at": orphan.orphaned_at,
-                "status": orphan.status,
-            })
+            details.append(
+                {
+                    "id": orphan.id,
+                    "item_type": orphan.item_type,
+                    "item_id": orphan.item_id,
+                    "item_name": item_name,
+                    "item_description": item_description,
+                    "item_identifier": item_identifier,
+                    "department_name": department_name,
+                    "previous_owner_name": orphan.previous_owner.name if orphan.previous_owner else "Unknown",
+                    "previous_owner_email": orphan.previous_owner.email
+                    if orphan.previous_owner
+                    else "unknown@example.com",
+                    "orphaned_at": orphan.orphaned_at,
+                    "status": orphan.status,
+                }
+            )
 
         return details
 
@@ -633,9 +607,7 @@ class OrphanedItemService:
         from sqlalchemy.orm import selectinload
 
         result = await db.execute(
-            select(OrphanedItem)
-            .options(selectinload(OrphanedItem.previous_owner))
-            .where(OrphanedItem.id == orphan_id)
+            select(OrphanedItem).options(selectinload(OrphanedItem.previous_owner)).where(OrphanedItem.id == orphan_id)
         )
         orphan = result.scalar_one_or_none()
 

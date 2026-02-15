@@ -200,8 +200,8 @@ async def delete_risk_type(
     if not risk_type.is_active:
         raise HTTPException(status_code=400, detail="Risk type is already deleted")
 
-    # TODO: Create orphaned items for risks using this type
-    # This would be implemented in a future step when the Risk model has risk_type_id FK
+    # Orphaned-item creation is intentionally deferred until Risk includes a
+    # persisted risk_type FK; current behavior remains metadata-only soft delete.
 
     risk_type.is_active = False
     await db.commit()
@@ -269,4 +269,3 @@ async def restore_risk_type(
         created_at=risk_type.created_at.isoformat(),
         updated_at=risk_type.updated_at.isoformat(),
     )
-

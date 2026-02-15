@@ -130,8 +130,12 @@ async def create_vendor_incident(
             # Notify outsourcing owner + Risk Manager/Compliance (re-use reassessment notification type)
             owner_id = vendor.outsourcing_owner_user_id
             if owner_id:
-                permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-                owner = (await db.execute(select(User).options(permission_load).where(User.id == owner_id))).scalar_one_or_none()
+                permission_load = (
+                    selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+                )
+                owner = (
+                    await db.execute(select(User).options(permission_load).where(User.id == owner_id))
+                ).scalar_one_or_none()
                 if owner:
                     owner_locale = getattr(owner, "preferred_language", None) or "en"
                     await NotificationService.create_vendor_notification_if_visible(
@@ -252,7 +256,9 @@ async def list_vendor_remediation(
     return result.scalars().all()
 
 
-@router.post("/vendors/{vendor_id}/remediation", response_model=VendorRemediationRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/vendors/{vendor_id}/remediation", response_model=VendorRemediationRead, status_code=status.HTTP_201_CREATED
+)
 async def create_vendor_remediation(
     vendor_id: int,
     payload: VendorRemediationCreate,

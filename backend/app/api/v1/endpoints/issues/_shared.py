@@ -400,10 +400,14 @@ async def _resolve_user_name(db: AsyncSession, user_id: int | None) -> str | Non
 async def _serialize_exception_with_user_names(db: AsyncSession, exception: IssueException) -> IssueExceptionRead:
     requested_by_name: str | None = None
     if exception.requested_by_id is not None:
-        requested_by_name = _label_or_fallback(await _resolve_user_name(db, exception.requested_by_id), UNKNOWN_USER_LABEL)
+        requested_by_name = _label_or_fallback(
+            await _resolve_user_name(db, exception.requested_by_id), UNKNOWN_USER_LABEL
+        )
     approved_by_name: str | None = None
     if exception.approved_by_id is not None:
-        approved_by_name = _label_or_fallback(await _resolve_user_name(db, exception.approved_by_id), UNKNOWN_USER_LABEL)
+        approved_by_name = _label_or_fallback(
+            await _resolve_user_name(db, exception.approved_by_id), UNKNOWN_USER_LABEL
+        )
     return IssueExceptionRead.model_validate(
         {
             "id": exception.id,
@@ -462,7 +466,9 @@ def _serialize_issue_read(issue: Issue) -> IssueRead:
             "validation_note": issue.validation_note,
             "links": [_serialize_issue_link(link).model_dump() for link in issue.links],
             "remediation_plan": (
-                _serialize_remediation(issue.remediation_plan).model_dump() if issue.remediation_plan is not None else None
+                _serialize_remediation(issue.remediation_plan).model_dump()
+                if issue.remediation_plan is not None
+                else None
             ),
             "exceptions": [_serialize_exception(exception).model_dump() for exception in issue.exceptions],
         }

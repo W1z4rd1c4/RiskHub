@@ -25,6 +25,14 @@ Blocked by `npm run quality:debt`:
 
 Blocked by CI Ruff hard gate (`ruff check app`) and ratcheted over time by reducing ignores/excludes.
 
+Production backend comment debt policy (`backend/app/**`):
+
+1. Do not introduce `TODO`, `FIXME`, `HACK`, or `XXX` markers.
+2. If deferred behavior must be documented, use an explicit explanatory comment
+   that states current constraints and intended behavior without debt markers.
+3. Link deferred work through tracked planning/docs artifacts instead of inline
+   debt markers.
+
 ## Exception Lifecycle
 
 Exceptions are defined in:
