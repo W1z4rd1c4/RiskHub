@@ -1,4 +1,5 @@
 """ApprovalScenario model for configurable approval workflow rules."""
+
 import json
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -10,6 +11,8 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.user import User
+
+
 class ApprovalScenario(Base):
     """
     Configurable approval scenarios managed by CRO via Risk Hub.
@@ -19,6 +22,7 @@ class ApprovalScenario(Base):
 
     Note: Scenarios are fixed (seeded) - CRO cannot create new ones.
     """
+
     __tablename__ = "approval_scenarios"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -39,7 +43,9 @@ class ApprovalScenario(Base):
     approver_roles: Mapped[str] = mapped_column(Text, default='["risk_manager", "cro"]')
 
     # Audit fields
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
     updated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
     # Relationship to user who last updated

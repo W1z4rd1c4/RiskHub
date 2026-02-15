@@ -34,14 +34,14 @@ async def list_vendor_risk_factors(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
     result = await db.execute(
-        select(VendorRiskFactor)
-        .where(VendorRiskFactor.vendor_id == vendor_id)
-        .order_by(VendorRiskFactor.id.asc())
+        select(VendorRiskFactor).where(VendorRiskFactor.vendor_id == vendor_id).order_by(VendorRiskFactor.id.asc())
     )
     return result.scalars().all()
 
 
-@router.post("/vendors/{vendor_id}/risk-factors", response_model=VendorRiskFactorRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/vendors/{vendor_id}/risk-factors", response_model=VendorRiskFactorRead, status_code=status.HTTP_201_CREATED
+)
 async def create_vendor_risk_factor(
     vendor_id: int,
     payload: VendorRiskFactorCreate,
@@ -81,9 +81,7 @@ async def update_vendor_risk_factor(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
 
     result = await db.execute(
-        select(VendorRiskFactor)
-        .options(selectinload(VendorRiskFactor.vendor))
-        .where(VendorRiskFactor.id == factor_id)
+        select(VendorRiskFactor).options(selectinload(VendorRiskFactor.vendor)).where(VendorRiskFactor.id == factor_id)
     )
     factor = result.scalar_one_or_none()
     if not factor or not factor.vendor or not can_read_vendor(factor.vendor, current_user):
@@ -114,9 +112,7 @@ async def delete_vendor_risk_factor(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
 
     result = await db.execute(
-        select(VendorRiskFactor)
-        .options(selectinload(VendorRiskFactor.vendor))
-        .where(VendorRiskFactor.id == factor_id)
+        select(VendorRiskFactor).options(selectinload(VendorRiskFactor.vendor)).where(VendorRiskFactor.id == factor_id)
     )
     factor = result.scalar_one_or_none()
     if not factor or not factor.vendor or not can_read_vendor(factor.vendor, current_user):
@@ -129,4 +125,3 @@ async def delete_vendor_risk_factor(
     await db.delete(factor)
     await db.commit()
     return None
-

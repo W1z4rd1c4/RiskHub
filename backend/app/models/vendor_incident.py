@@ -14,6 +14,8 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.vendor import Vendor
+
+
 class VendorIncidentType(str, PyEnum):
     security = "security"
     operational = "operational"
@@ -33,7 +35,9 @@ class VendorIncident(Base):
     __tablename__ = "vendor_incidents"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+    vendor_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True
+    )
 
     incident_type: Mapped[VendorIncidentType] = mapped_column(
         SAEnum(
@@ -73,6 +77,4 @@ class VendorIncident(Base):
 
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="incidents", lazy="selectin")
 
-    __table_args__ = (
-        Index("ix_vendor_incidents_vendor_major", "vendor_id", "is_major"),
-    )
+    __table_args__ = (Index("ix_vendor_incidents_vendor_major", "vendor_id", "is_major"),)

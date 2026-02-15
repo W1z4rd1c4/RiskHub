@@ -36,7 +36,11 @@ class VendorAssessmentService:
 
     @staticmethod
     def template_key_for_scope(scope: VendorAssessmentScope) -> str:
-        return VendorAssessmentService.TEMPLATE_KEY_DORA if scope == VendorAssessmentScope.dora else VendorAssessmentService.TEMPLATE_KEY_STANDARD
+        return (
+            VendorAssessmentService.TEMPLATE_KEY_DORA
+            if scope == VendorAssessmentScope.dora
+            else VendorAssessmentService.TEMPLATE_KEY_STANDARD
+        )
 
     @staticmethod
     async def _load_vendor(db: AsyncSession, vendor_id: int) -> Vendor:
@@ -124,7 +128,9 @@ class VendorAssessmentService:
     async def submit(db: AsyncSession, *, assessment_id: int, actor: User) -> VendorAssessment:
         assessment = await VendorAssessmentService._load_assessment(db, assessment_id)
         if assessment.status != VendorAssessmentStatus.draft:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only draft assessments can be submitted")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Only draft assessments can be submitted"
+            )
 
         old_status = assessment.status
         assessment.status = VendorAssessmentStatus.submitted
@@ -207,7 +213,9 @@ class VendorAssessmentService:
         return assessment
 
     @staticmethod
-    async def decide(db: AsyncSession, *, assessment_id: int, decision: VendorAssessmentStatus, actor: User) -> VendorAssessment:
+    async def decide(
+        db: AsyncSession, *, assessment_id: int, decision: VendorAssessmentStatus, actor: User
+    ) -> VendorAssessment:
         assessment = await VendorAssessmentService._load_assessment(db, assessment_id)
         if assessment.status != VendorAssessmentStatus.committee_recommended:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Assessment is not ready for decision")

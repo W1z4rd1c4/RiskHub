@@ -61,7 +61,9 @@ async def list_vendor_assessments(
     return result.scalars().all()
 
 
-@router.post("/vendors/{vendor_id}/assessments", response_model=VendorAssessmentRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/vendors/{vendor_id}/assessments", response_model=VendorAssessmentRead, status_code=status.HTTP_201_CREATED
+)
 async def create_vendor_assessment(
     vendor_id: int,
     payload: VendorAssessmentCreate,
@@ -74,7 +76,9 @@ async def create_vendor_assessment(
     vendor = await _get_vendor_or_404(db, vendor_id, current_user)
     can_write = check_permission(current_user, "vendors", "write")
     if not can_write and not is_vendor_owner(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only outsourcing owner can start assessments")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only outsourcing owner can start assessments"
+        )
 
     assessment = await VendorAssessmentService.create_draft(db, vendor_id=vendor_id, actor=current_user)
     await db.commit()
@@ -133,7 +137,9 @@ async def submit_vendor_assessment(
 
     can_write = check_permission(current_user, "vendors", "write")
     if not can_write and not is_vendor_owner(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only outsourcing owner can submit assessments")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only outsourcing owner can submit assessments"
+        )
 
     assessment = await VendorAssessmentService.submit(db, assessment_id=assessment.id, actor=current_user)
     await db.commit()
@@ -212,4 +218,3 @@ async def decide_vendor_assessment(
     await db.commit()
     await db.refresh(assessment)
     return assessment
-

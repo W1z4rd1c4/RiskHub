@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     from app.models.user import User
     from app.models.vendor import Vendor
     from app.models.vendor_incident import VendorIncident
+
+
 class VendorRemediationStatus(str, PyEnum):
     open = "open"
     in_progress = "in_progress"
@@ -26,8 +28,12 @@ class VendorRemediationAction(Base):
     __tablename__ = "vendor_remediation_actions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
-    incident_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("vendor_incidents.id", ondelete="SET NULL"), nullable=True, index=True)
+    vendor_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    incident_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("vendor_incidents.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     owner_user_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     status: Mapped[VendorRemediationStatus] = mapped_column(

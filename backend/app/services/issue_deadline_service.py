@@ -41,9 +41,7 @@ class IssueDeadlineService:
         if not approved:
             return None
         approved.sort(
-            key=lambda ex: coerce_utc(ex.approved_at)
-            or coerce_utc(ex.created_at)
-            or datetime.min.replace(tzinfo=UTC),
+            key=lambda ex: coerce_utc(ex.approved_at) or coerce_utc(ex.created_at) or datetime.min.replace(tzinfo=UTC),
             reverse=True,
         )
         return approved[0]
@@ -240,7 +238,10 @@ class IssueDeadlineService:
                 recipients = [users_by_id[uid] for uid in owner_ids if uid in users_by_id]
 
                 if now <= due_at <= due_soon_cutoff:
-                    if issue.last_due_soon_notified_at is None or coerce_utc(issue.last_due_soon_notified_at) < due_soon_backoff:
+                    if (
+                        issue.last_due_soon_notified_at is None
+                        or coerce_utc(issue.last_due_soon_notified_at) < due_soon_backoff
+                    ):
                         created_for_issue = 0
                         for user in recipients:
                             created = await IssueDeadlineService._create_issue_notification(
@@ -261,7 +262,10 @@ class IssueDeadlineService:
                             results["notifications_created"] += created_for_issue
 
                 if due_at < now:
-                    if issue.last_overdue_notified_at is None or coerce_utc(issue.last_overdue_notified_at) < overdue_cutoff:
+                    if (
+                        issue.last_overdue_notified_at is None
+                        or coerce_utc(issue.last_overdue_notified_at) < overdue_cutoff
+                    ):
                         created_for_issue = 0
                         for user in recipients:
                             created = await IssueDeadlineService._create_issue_notification(
@@ -294,7 +298,10 @@ class IssueDeadlineService:
                                     issue=issue,
                                     notification_type=NotificationType.ISSUE_OVERDUE,
                                     title=f"Escalated overdue issue: {issue.title}",
-                                    message=f"High-severity issue '{issue.title}' remains overdue since {due_at.date().isoformat()}.",
+                                    message=(
+                                        f"High-severity issue '{issue.title}' remains overdue since "
+                                        f"{due_at.date().isoformat()}."
+                                    ),
                                     now=now,
                                 )
                                 if created:
