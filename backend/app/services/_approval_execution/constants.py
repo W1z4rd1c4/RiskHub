@@ -1,0 +1,45 @@
+# Security: Only these fields can be modified via approval pending_changes.
+# Prevents injection of id, created_at, created_by_id, etc.
+EDITABLE_FIELDS = {
+    "risk": {
+        "name",
+        "description",
+        "process",
+        "category",
+        "risk_type",
+        "gross_probability",
+        "gross_impact",
+        "net_probability",
+        "net_impact",
+        "owner_id",
+        "department_id",
+        "status",
+        "mitigations",
+    },
+    "control": {
+        "name",
+        "description",
+        "frequency",
+        "control_type",
+        "effectiveness",
+        "control_form",
+        "risk_level",
+        "owner_id",
+        "department_id",
+        "is_active",
+        "status",
+        "control_owner_id",
+    },
+    "kri": {
+        "metric_name",
+        "description",
+        "upper_limit",
+        "lower_limit",
+        "current_value",
+        "target_value",
+        "reporting_owner_id",
+        "measurement_unit",
+        "reporting_frequency",
+    },
+}
+

@@ -57,7 +57,36 @@ def event_loop() -> Generator:
     """Create an instance of the default event loop for the test session."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
+    loop.run_until_complete(loop.shutdown_default_executor())
     loop.close()
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """
+    Ensure any leftover ThreadPoolExecutor workers are shut down.
+
+    Without this, the Python interpreter can hang on exit while waiting for non-daemon
+    worker threads blocked on `queue.SimpleQueue.get()`.
+    """
+    import concurrent.futures.thread as futures_thread
+
+    futures_thread._python_exit()
+
+    import sys
+    import threading
+    import traceback
+
+    non_daemon_threads = [
+        t for t in threading.enumerate() if t is not threading.main_thread() and t.is_alive() and not t.daemon
+    ]
+    if non_daemon_threads:
+        print("\nNon-daemon threads still alive at pytest_sessionfinish (will hang interpreter exit):")
+        frames = sys._current_frames()
+        for t in non_daemon_threads:
+            print(f"- {t.name} ident={t.ident}")
+            frame = frames.get(t.ident)
+            if frame is not None:
+                traceback.print_stack(frame)
 
 
 @pytest_asyncio.fixture(scope="function")
