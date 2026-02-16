@@ -23,7 +23,7 @@ export function DocumentationPage() {
         queryFn: () => adminApi.getDocs(i18n.language),
     });
 
-    const docs = docsData?.documents || [];
+    const docs = useMemo(() => docsData?.documents ?? [], [docsData?.documents]);
     const audience = docs[0]?.audience || 'user';
     const audienceLabel = audience === 'admin'
         ? t('documentation.audience_admin')
