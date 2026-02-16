@@ -39,7 +39,7 @@ export default function LoginPage() {
         return sanitizeReturnTo(params.get('returnTo'));
     }, [location.search]);
 
-    const [isLoading, setIsLoading] = useState<number | null>(null);
+    const [isLoading, setIsLoading] = useState<string | null>(null);
     const [errorKey, setErrorKey] = useState<string>('');
     const [isSsoLoading, setIsSsoLoading] = useState(false);
     const [authConfig, setAuthConfig] = useState<AuthConfigResponse | null>(null);
@@ -70,14 +70,17 @@ export default function LoginPage() {
         };
     }, []);
 
-    const handleDemoLogin = async (userId: number) => {
+    const handleDemoLogin = async (email: string) => {
         setErrorKey('');
-        setIsLoading(userId);
+        setIsLoading(email);
 
         try {
-            // Use mock auth via special demo login
-            const response = await fetch(`/api/v1/auth/demo-login/${userId}`, {
+            const response = await fetch('/api/v1/auth/demo-login', {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email }),
             });
 
             if (!response.ok) {
@@ -142,7 +145,7 @@ export default function LoginPage() {
 
         return (
             <button
-                onClick={() => handleDemoLogin(account.id)}
+                onClick={() => handleDemoLogin(account.email)}
                 disabled={isLoading !== null}
                 className={`w-full p-3 flex items-center justify-between bg-white/[0.03] border border-white/10 rounded-xl transition-all group disabled:opacity-50 ${colorClasses[account.color as keyof typeof colorClasses]}`}
             >
@@ -155,7 +158,7 @@ export default function LoginPage() {
                         <p className="text-[10px] text-slate-500 font-medium">{t(account.roleKey)}</p>
                     </div>
                 </div>
-                {isLoading === account.id ? (
+                {isLoading === account.email ? (
                     <Loader2 className="h-4 w-4 text-slate-400 animate-spin" />
                 ) : (
                     <ChevronRight className="h-4 w-4 text-slate-600 group-hover:text-white transition-colors" />

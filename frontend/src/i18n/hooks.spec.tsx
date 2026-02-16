@@ -71,4 +71,21 @@ describe('useTranslation()', () => {
         const spans = screen.getAllByText(/fallback/);
         expect(spans.map((s) => s.textContent)).toEqual(['fallback', 'fallback2']);
     });
+
+    it('normalizes errorKeys-prefixed keys to the errorKeys namespace', () => {
+        rawT.mockClear();
+
+        function Test() {
+            const { t } = useTranslation('auth');
+            return <span>{t('errorKeys.demo_login_failed', { ns: 'errorKeys' })}</span>;
+        }
+
+        render(<Test />);
+
+        expect(rawT).toHaveBeenCalledWith(
+            'demo_login_failed',
+            expect.objectContaining({ ns: 'errorKeys' }),
+        );
+        expect(screen.getByText('demo_login_failed')).toBeInTheDocument();
+    });
 });

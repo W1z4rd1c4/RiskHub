@@ -171,6 +171,20 @@ export const handlers = [
             user: mockAuthUser,
         });
     }),
+    http.post('*/api/v1/auth/demo-login', () => {
+        return HttpResponse.json({
+            access_token: 'test-demo-token',
+            token_type: 'bearer',
+            user: mockAuthUser,
+        });
+    }),
+    http.post('*/api/v1/auth/demo-login/:userId', () => {
+        return HttpResponse.json({
+            access_token: 'test-demo-token',
+            token_type: 'bearer',
+            user: mockAuthUser,
+        });
+    }),
     http.get('*/api/v1/auth/me', () => {
         return HttpResponse.json(mockAuthUser);
     }),

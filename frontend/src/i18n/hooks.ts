@@ -55,10 +55,21 @@ export function useTranslation<NS extends Namespace = 'common'>(
     // can cause effect loops and repeated refetching.
     const t = useCallback(
         (key: string, arg2?: string | TranslationOptions, arg3?: TranslationOptions) => {
+            const useErrorNamespace = key.startsWith('errorKeys.');
+            const normalizedKey = useErrorNamespace
+                ? key.slice('errorKeys.'.length)
+                : key;
+            const normalizeOptions = (
+                value?: TranslationOptions,
+            ): TranslationOptions | undefined => {
+                if (!useErrorNamespace) return value;
+                return { ...(value ?? {}), ns: 'errorKeys' };
+            };
+
             if (typeof arg2 === 'string') {
-                return rawT(key, { defaultValue: arg2, ...(arg3 ?? {}) });
+                return rawT(normalizedKey, normalizeOptions({ defaultValue: arg2, ...(arg3 ?? {}) }));
             }
-            return rawT(key, arg2);
+            return rawT(normalizedKey, normalizeOptions(arg2));
         },
         [rawT]
     ) as SafeTFunction;

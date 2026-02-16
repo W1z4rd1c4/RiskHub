@@ -38,20 +38,20 @@ help:
 # =============================================================================
 
 # Start DB + run backend locally (best for development)
-dev: db
+dev: db migrate
 	@echo "Starting backend locally..."
 	@echo "Database: postgresql://riskhub:riskhub_dev@localhost:5432/riskhub"
 	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Start DB + backend + frontend all locally
-dev-full: db
+dev-full: db migrate
 	@echo "Starting backend in background..."
 	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
 	@echo "Starting frontend..."
 	cd frontend && npm run dev
 
 # Start DB + backend + frontend for LAN access (frontend binds 0.0.0.0)
-dev-full-lan: db
+dev-full-lan: db migrate
 	@echo "Starting backend in background..."
 	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
 	@echo "Starting frontend (LAN)..."
@@ -82,7 +82,7 @@ db:
 
 # Run migrations
 migrate:
-	cd backend && alembic upgrade head
+	cd backend && ./venv/bin/alembic upgrade head
 
 # Open database shell
 db-shell:
