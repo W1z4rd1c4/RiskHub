@@ -11,6 +11,7 @@ from app.core.config import Settings, get_settings
 # Initialize structured logging BEFORE app creation
 from app.core.logging import configure_logging, get_logger
 from app.core.scheduler import configure_scheduler, start_scheduler, stop_scheduler
+from app.core.schema_guard import enforce_schema_head
 
 configure_logging()
 logger = get_logger("main")
@@ -71,11 +72,15 @@ async def lifespan(app: FastAPI):
     """Application lifecycle management."""
     # Startup
     logger.info("startup", message="RiskHub application starting")
+    settings: Settings = app.state.settings
+
+    db_engine = getattr(app.state, "db_engine", None)
+    if db_engine is None:
+        raise RuntimeError("Database not initialized; call init_app_db() during app creation.")
+    await enforce_schema_head(engine=db_engine, database_url=settings.database_url)
 
     # Apply log rotation settings from global configuration
     await _apply_log_rotation_config(app)
-
-    settings: Settings = app.state.settings
 
     # Redis is required in production for multi-worker rate limiting & lockout.
     if not settings.debug:
