@@ -1,210 +1,78 @@
-# Dashboard & Reports
-
-> **Who uses this**: All users with dashboard access
-
+---
+title: Dashboard and Reports
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "reporting endpoints and dashboard services"
+summary: "Guide for interpreting dashboard metrics, applying filters responsibly, and generating scoped exports for leadership and audit use."
+tags:
+  - dashboard
+  - reports
+  - exports
 ---
 
-## Table of Contents
+# Dashboard and Reports
 
-1. [Executive Dashboard](#executive-dashboard)
-2. [Department View](#department-view)
-3. [Risk Matrix Navigation](#risk-matrix-navigation)
-4. [Quarterly Comparison](#quarterly-comparison)
-5. [Exporting Reports](#exporting-reports)
+## Overview
 
----
+The dashboard is your operating cockpit for monitoring posture, trend direction, and immediate action signals.
 
-## Executive Dashboard
+Primary routes:
 
-The Dashboard is your home screen, providing organization-wide visibility into risk status.
+- dashboard: `/`
+- entity exports: available from list pages (`/risks`, `/controls`, `/kris`, `/vendors`)
 
-### Accessing the Dashboard
+## What to Monitor First
 
-Click **Dashboard** in the sidebar—it's the first item and your default landing page.
+At session start, prioritize:
 
-### Dashboard Sections
+- trend shifts in high-priority risk areas
+- overdue control/KRI operational signals
+- open workflow pressure
+- cross-functional concentration indicators (where applicable)
 
-| Section | What It Shows |
-|---------|---------------|
-| **Risk Summary** | Total active risks, by category and severity |
-| **Risk Heatmap** | Visual 5×5 matrix of risk distribution |
-| **Top Risks** | Highest net score risks requiring attention |
-| **KRI Status** | Key indicators with breach alerts |
-| **Control Status** | Control execution summary |
-| **Pending Actions** | Your workflow items |
+## Filter Discipline
 
-### Understanding Widgets
+Before sharing a metric snapshot:
 
-Each widget is interactive:
-- **Click** on numbers to see the underlying list
-- **Hover** over chart elements for details
-- **Click through** heatmap cells to filter risks
+1. Validate active filters.
+2. Validate date/time context.
+3. Validate audience relevance.
 
----
+Most dashboard misunderstanding comes from stale or hidden filters.
 
-## Department View
+## Export Best Practices
 
-Department Heads and Employees see a department-focused dashboard.
+- export only what is needed for decision context
+- include date range and scope note in handoff message
+- preserve original export files for traceability
+- avoid spreadsheet edits that remove audit context
 
-### Department Filter
+## Interpreting Trend Changes
 
-If you have department-scoped access:
-1. Your dashboard automatically shows your department's data
-2. Use the department dropdown to see other departments (if privileged)
+When metrics shift suddenly:
 
-### Department Metrics
+- check if underlying ownership or department assignment changed
+- confirm data completeness for the period
+- verify whether archived/restored entities affected totals
 
-| Metric | Description |
-|--------|-------------|
-| **Department Risks** | Count of risks owned by department |
-| **Open Issues** | Risks requiring action |
-| **KRI Status** | Department KRIs and breaches |
-| **Pending Approvals** | Items awaiting department head approval |
+## Troubleshooting
 
-### Department Cards
+### Numbers do not match expected reality
 
-Click a department card to:
-- View department detail page
-- See all risks/controls/KRIs for that department
-- View department head and team
+Re-check filters, as-of date, and hidden archived toggles where relevant.
 
----
+### Export button present but file appears incomplete
 
-## Risk Matrix Navigation
+Confirm your visibility scope; exports are authorization-filtered by design.
 
-The risk heatmap is a powerful navigation tool.
+### Dashboard looks empty
 
-### Reading the Matrix
+Verify assigned scope and whether you are in the correct environment/account.
 
-```
-          IMPACT →
-    ┌─────────────────────────────────────┐
-  P │  5 │ 10 │ 15 │ 20 │ 25 │  Critical
-  R │  4 │  8 │ 12 │ 16 │ 20 │  High
-  O │  3 │  6 │  9 │ 12 │ 15 │  Medium
-  B │  2 │  4 │  6 │  8 │ 10 │  Low
-    │  1 │  2 │  3 │  4 │  5 │  Low
-    └─────────────────────────────────────┘
-        1    2    3    4    5
-```
+## Related Documentation
 
-Each cell shows:
-- **Number**: Count of risks in that score
-- **Color**: Severity (green → yellow → red)
-
-### Interacting with the Matrix
-
-1. **Click a cell** to see risks with that specific score
-2. **View filtered list** showing all risks in that cell
-3. **Click a risk** to open its detail page
-
-### Gross vs Net View
-
-Toggle between:
-- **Gross Risk**: Inherent risk before controls
-- **Net Risk**: Residual risk after controls
-
----
-
-## Quarterly Comparison
-
-Track how your risk profile changes over time.
-
-### Accessing Quarterly View
-
-1. From Dashboard, look for the **Quarterly Comparison** widget
-2. Or navigate to **Governance** for detailed historical analysis
-
-### What's Compared
-
-| Metric | Description |
-|--------|-------------|
-| **Total Risks** | Count this quarter vs. previous |
-| **High-Risk Count** | Number of high/critical risks |
-| **Mean Net Score** | Average risk severity |
-| **KRI Breaches** | Breach events per quarter |
-| **Mitigated Risks** | Risks successfully reduced |
-
-### Understanding Trends
-
-| Trend | Indicator | Meaning |
-|-------|-----------|---------|
-| 📈 Increasing | Red arrow up | More risks or higher scores |
-| 📉 Decreasing | Green arrow down | Fewer risks or lower scores |
-| ➡️ Stable | Gray | No significant change |
-
----
-
-## Exporting Reports
-
-Generate downloadable reports from your data.
-
-### Available Export Formats
-
-| Format | Use Case |
-|--------|----------|
-| **Excel** | Structured reporting and further processing |
-| **CSV** | Lightweight export for quick sharing/import |
-
-### Exporting from Dashboard
-
-1. Click the **Export** button (top right of dashboard)
-2. Dashboard summary downloads as **Excel**
-
-### Exporting from List Pages
-
-Each list page (Risks, Controls, KRIs) has export:
-
-1. Apply any filters you want
-2. Click **Export** button
-3. Choose **Excel** or **CSV**
-4. Filtered data is exported
-
-### What's Included in Exports
-
-**Excel Reports:**
-- Raw data with all columns
-- Summary sheet
-- Metadata (filters applied, date, user)
-
-### Export Tips
-
-1. **Filter first**: Export only what you need
-2. **Check access**: You can only export data you can see
-3. **Note date**: Reports are snapshots of current data
-4. **Mark confidential**: Risk data should be handled securely
-
----
-
-## Quick Reference
-
-### Dashboard Widgets at a Glance
-
-| Widget | Click Action |
-|--------|--------------|
-| Risk count | Opens risk list filtered by status |
-| Heatmap cell | Opens risks in that score range |
-| Top Risks list | Opens risk detail page |
-| KRI Status | Opens Risk Appetite page |
-| Pending Actions | Opens Workflow page |
-
-### Export Locations
-
-| Data | Where to Export |
-|------|-----------------|
-| Full dashboard | Dashboard → Export |
-| Risk register | Risks → Export |
-| Control inventory | Controls → Export |
-| KRI report | Risk Appetite → Export |
-| Activity log | Activity Log → Export |
-
----
-
-## Next Steps
-
-- [Notifications & Approvals](./notifications.md) - Handle pending actions
-- [FAQ](./faq.md) - Common questions answered
-
----
-
-*For executive risk committee reports, contact your CRO or Risk Manager.*
+- `./risks.md`
+- `./controls.md`
+- `./kris.md`
+- `./vendors.md`

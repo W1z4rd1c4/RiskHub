@@ -1,10 +1,19 @@
 # Docker Compose (Production)
 
-> **Last Updated**: 2026-02-15  
+> **Last Updated**: 2026-02-16  
 > **Audience**: IT / DevOps  
 > **Scope**: single-host, Docker-based on-prem deployment
 
 ---
+
+## Choose the Right Deployment Path
+
+This document describes the **Docker Compose** production setup that includes a dockerized PostgreSQL container (`db`) and Redis.
+
+If your PostgreSQL database is externally managed (no DB container), use the Phase 500 install scripts instead:
+
+- `docs/deployment/installation-manual.md` (recommended starting point)
+- `docs/deployment/external-postgres-install-scripts.md` (script-focused runbook)
 
 ## Files
 
@@ -82,4 +91,3 @@ Typical sequence:
 1. Pull/build new images.
 2. Run migrations (`alembic upgrade head`).
 3. Restart backend + frontend.
-

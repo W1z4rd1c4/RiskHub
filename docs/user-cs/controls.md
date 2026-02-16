@@ -1,97 +1,85 @@
-# Správa kontrol
-
-> **Cílová skupina**: Risk Manager, Department Head, Employee
-
 ---
+title: Správa kontrol
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "docs/BUSINESS_LOGIC.md §2.2, §4, §7"
+summary: "Kompletní příručka pro lifecycle kontrol, vazby na rizika a kvalitní logování exekucí."
+tags:
+  - controls
+  - execution
+  - governance
+---
+
+# Správa kontrol
 
 ## Přehled
 
-Sekce Kontroly umožňuje spravovat katalog kontrol a logovat jejich provedení.
+Kontroly převádějí policy do opakovatelných operací. Tato příručka pokrývá založení kontroly, ownership, linkování a logování exekucí.
 
----
+Hlavní route: `/controls`
 
-## Zobrazení kontrol
+## Lifecycle kontroly
 
-### Seznam kontrol
+1. Definujte cíl kontroly a rozsah.
+2. Nastavte ownera a department kontext.
+3. Určete frekvenci a očekávaný výstup.
+4. Propojte kontrolu s relevantními riziky.
+5. Provozujte přes execution log.
+6. U citlivých změn počítejte se schvalováním.
 
-1. Přejděte do **Kontroly**
-2. Zobrazí se katalog všech kontrol
-3. Použijte filtry pro vyhledání
+## Jak zakládat kvalitní kontroly
 
-### Filtry
+Při založení kontroly:
 
-- **Oddělení** - Filtr podle oddělení
-- **Typ** - Preventivní, detektivní, korektivní
-- **Frekvence** - Denně, týdně, měsíčně, čtvrtletně, ročně
-- **Stav** - Aktivní, archivovaná
+- napište testovatelný cíl
+- nastavte realistickou frekvenci
+- přiřaďte ownera s potvrzenou odpovědností
+- propojte jen s reálně mitigovanými riziky
 
----
+Nekvalitní linkování zkresluje reporting.
 
-## Vytvoření kontroly
+## Standard logování exekucí
 
-1. Klikněte na **Nová kontrola**
-2. Vyplňte formulář:
+Každá exekuce by měla obsahovat:
 
-### Základní informace
-- **Název** (povinné)
-- **Popis** - Jak kontrola funguje
-- **Oddělení** - Přiřazené oddělení
+- datum/čas
+- výsledek
+- podpůrné důkazy (kde relevantní)
+- poznámku k výjimkám
 
-### Klasifikace
-- **Typ kontroly**:
-  - Preventivní - Předchází riziku
-  - Detektivní - Odhaluje riziko
-  - Korektivní - Napravuje následky
-- **Forma**:
-  - Manuální - Vykonávaná člověkem
-  - Automatická - Systémová
+Vyhněte se logům bez kontextu.
 
-### Exekuce
-- **Frekvence** - Jak často je kontrola prováděna
-- **Vlastník pozice** - Role odpovědná za kontrolu
-- **Exekutor pozice** - Role provádějící kontrolu
+## Owner pravidla a viditelnost
 
-3. Klikněte na **Uložit**
+Owner kontroly může být i v jiném oddělení, ale přístup je stále řízen backend pravidly oprávnění.
 
----
+## Citlivé změny
 
-## Logování exekuce kontroly
+Změny ownera nebo oddělení mohou spustit schvalování.
 
-1. V detailu kontroly klikněte na **Zalogovat provedení**
-2. Vyplňte:
-   - **Datum provedení**
-   - **Výsledek** (úspěšná, selhala, s výhradami)
-   - **Zjištění** - Co bylo nalezeno
-   - **Reference evidence** - Odkaz na důkazy
-3. Klikněte na **Odeslat**
+Před uložením citlivé změny:
 
----
+- přidejte business důvod
+- informujte dotčené strany
+- ověřte dopad na reporting
 
-## Historie exekucí
+## Troubleshooting
 
-1. V detailu kontroly klikněte na **Historie**
-2. Zobrazí se všechny předchozí exekuce
-3. Klikněte na záznam pro detaily
+### Nelze zalogovat exekuci
 
----
+Ověřte `controls:execute` permission a přiřazení.
 
-## Propojení s riziky
+### V detailu chybí navázané riziko
 
-1. V detailu kontroly klikněte na **Propojená rizika**
-2. Klikněte na **Přidat propojení**
-3. Vyberte riziko ze seznamu
-4. Potvrďte
+Ověřte scope + ownership inheritance + stav linku.
 
----
+### Editace vytvořila approval request
 
-## Typy kontrol
+Pravděpodobně citlivá změna nebo high-impact scénář.
 
-| Typ | Popis | Příklad |
-|-----|-------|---------|
-| Preventivní | Předchází riziku | Schvalovací procesy |
-| Detektivní | Odhaluje riziko | Monitoring, audity |
-| Korektivní | Napravuje následky | Incident management |
+## Related Documentation
 
----
-
-*Pro více informací viz Příručka administrátora.*
+- `./risks.md`
+- `./notifications.md`
+- `./dashboard.md`

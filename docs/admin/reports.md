@@ -1,85 +1,66 @@
-# Reports & Exports
+---
+title: Operational Reporting and Evidence Exports
+version: "2.0"
+last_updated: "2026-02-16"
+audience: admin
+source_of_truth: "reporting/export endpoints and audit logs"
+summary: "Runbook for generating traceable operational exports for incident response, support audits, and governance evidence."
+tags:
+  - reports
+  - exports
+  - audit
+---
 
-> **Audience**: CRO, Risk Manager, Compliance, Department Heads
+# Operational Reporting and Evidence Exports
 
 ## Overview
 
-RiskHub reporting exports are now standardized to **Excel** and **CSV** formats.
+This runbook describes how admins extract operational evidence without breaking audit traceability.
 
-Core rules:
-- Exports are scoped to the requesting user's permissions.
-- List exports (Risks, Controls, KRIs, Vendors) use the same export modal.
-- Dashboard summary and Audit Trail exports are Excel-only.
-- Vendor annual and DORA exports are Excel-only.
+## Export Use Cases
 
-## Export Surfaces
+- incident timeline reconstruction
+- access-change evidence for internal review
+- workflow anomaly investigations
+- operational health snapshots
 
-### List Pages (Risks, Controls, KRIs, Vendors)
+## Safe Export Workflow
 
-1. Open the list page.
-2. Apply filters (status, search, type, etc.).
-3. Click **Export**.
-4. Choose **Excel (.xlsx)** or **CSV (.csv)**.
-5. Choose **As of date**.
-6. Export downloads immediately.
+1. Define the exact question the export must answer.
+2. Select minimal dataset and timeframe.
+3. Generate export through supported endpoint/UI flow.
+4. Validate scope and completeness.
+5. Store/share in approved operational channel.
 
-These exports call unified endpoints:
-- `/api/v1/reports/risks/export`
-- `/api/v1/reports/controls/export`
-- `/api/v1/reports/kris/export`
-- `/api/v1/reports/vendors/export`
+## Data Integrity Rules
 
-Required query:
-- `format=xlsx|csv`
+- never edit source export before archiving original
+- preserve generated timestamp and filter context
+- attach explanatory note when sharing outside admin team
+- if multiple files are combined, add a manifest with generation timestamps and scope
 
-Optional query:
-- `as_of_date=YYYY-MM-DD`
-- page-specific filters (`status`, `search`, etc.)
+## Common Reporting Mistakes
 
-### Dashboard Summary
-
-- Endpoint: `/api/v1/reports/summary/excel`
-- Format: Excel only
-- Scope: same department/RBAC scope as dashboard data
-
-### Audit Trail
-
-- Endpoint: `/api/v1/reports/audit-trail/excel`
-- Format: Excel only
-- Scope: same department/RBAC scope as audit views
-
-### Vendor Reports
-
-- Annual report: `/api/v1/vendor-reports/annual?year=YYYY&format=xlsx`
-- DORA register: `/api/v1/vendor-reports/dora-register?format=xlsx`
-
-## Access Control
-
-Export authorization follows backend RBAC and scope rules:
-- Non-privileged users are restricted to in-scope departments/entities.
-- Privileged users can export across allowed global scopes.
-- Ownership/reporting-owner exceptions apply where implemented in list/detail access.
-
-## Operational Notes
-
-- Exports are point-in-time snapshots based on selected `as_of_date` (where supported).
-- Archived/inactive visibility follows status filters.
-- CSV should be used for lightweight integrations; Excel for operational analysis/review packs.
+- exporting too broad dataset “just in case”
+- losing filter context in handoff
+- mixing data from multiple runs without provenance labels
 
 ## Troubleshooting
 
-### Empty export
+### Export completed but misses expected records
 
-Check:
-1. Current filters are not over-restrictive.
-2. You have access to matching entities.
-3. `as_of_date` does not exclude target records.
+Check role scope and filters first; exports are authorization-filtered by design.
 
-### Export denied
+### Large export times out
 
-- Verify role permissions include `reports:read`.
-- Verify department scope/access for requested filters.
+Split request by date range or entity subset and rerun in smaller chunks.
 
-### Format rejected
+### Conflicting numbers across reports
 
-- Supported formats are only `xlsx` and `csv` for list exports.
+Confirm consistent as-of period and archived-state handling across queries.
+
+## Related Documentation
+
+- `./approvals.md`
+- `./departments.md`
+- `./user-management.md`

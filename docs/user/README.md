@@ -1,63 +1,76 @@
-# RiskHub User Guide
-
-> **Version**: 1.0  
-> **Last Updated**: 2026-01-11  
-> **Audience**: Risk Managers, Department Heads, Business Users
-
+---
+title: RiskHub User Documentation
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "docs/BUSINESS_LOGIC.md"
+summary: "Complete user guide for daily risk operations, workflow approvals, dashboards, vendor oversight, and in-app documentation navigation."
+tags:
+  - overview
+  - onboarding
+  - workflows
 ---
 
-## Welcome to RiskHub
+# RiskHub User Documentation
 
-RiskHub is your organization's enterprise risk management platform. This guide will help you navigate the system and perform your daily risk management tasks effectively.
+This documentation set is the production user manual for all non-admin roles. It is written for real day-to-day work in RiskHub, not as product marketing copy.
 
----
+## Who Should Use This Library
 
-## Quick Links
+Use this library if your role is one of the following:
 
-| Guide | What You'll Learn |
-|-------|-------------------|
-| [Getting Started](./getting-started.md) | Login, dashboard overview, and navigation |
-| [Managing Risks](./risks.md) | Create, edit, and score organizational risks |
-| [Managing Controls](./controls.md) | Create controls and log executions |
-| [Key Risk Indicators](./kris.md) | Submit KRI values and understand breaches |
-| [Managing Vendors](./vendors.md) | Manage vendor records, status, and exports |
-| [Dashboard & Reports](./dashboard.md) | Executive dashboards and exports |
-| [Notifications & Approvals](./notifications.md) | Handle approvals and stay informed |
-| [FAQ](./faq.md) | Common questions and troubleshooting |
+- CRO
+- Risk Manager
+- Department Head
+- Employee
+- Compliance, Legal, Internal Audit, Actuarial
+- Viewer (read-only usage)
 
----
+If your account is a platform administrator (`admin`), use the admin documentation set instead: `../admin/README.md`.
 
-## Your Role in RiskHub
+## How to Navigate Quickly
 
-### Risk Manager
-You have full access to create, edit, and manage risks, controls, and KRIs across the organization. You can also approve requests from other users.
+The in-app documentation reader supports direct navigation links between documents. For example:
 
-### Department Head
-You manage your department's risks and serve as the fallback approver for items in your department. You can view and edit department data.
+- onboarding flow: `./getting-started.md`
+- core risk operations: `./risks.md`
+- control lifecycle and execution logging: `./controls.md`
+- KRI and thresholds: `./kris.md`
+- workflow and notifications: `./notifications.md`
+- dashboard and exports: `./dashboard.md`
+- vendor governance: `./vendors.md`
+- quick support answers: `./faq.md`
 
-### Employee
-You can view your department's risks and controls, submit KRI values assigned to you, and log control executions.
+You can also jump to app pages from docs when links use app routes:
 
----
+- risk register: `/risks`
+- controls catalog: `/controls`
+- KRI list: `/kris`
+- dashboard: `/`
+- settings: `/settings`
 
-## Quick Start Checklist
+## How the Content Is Structured
 
-New to RiskHub? Complete these steps to get started:
+Each user manual follows the same production format:
 
-- [ ] Log in and explore the Dashboard
-- [ ] Review your Workflow for pending tasks
-- [ ] Check your assigned KRIs in Risk Appetite
-- [ ] Update your personal Settings
-- [ ] Enable notifications for important updates
+1. **Overview**: what the feature is for and where it lives in the app.
+2. **Role and permission context**: who can read/write/approve.
+3. **Core workflows**: step-by-step operational flow.
+4. **Decision rules**: policy constraints, approval triggers, and scope boundaries.
+5. **Troubleshooting**: what to check before escalating.
+6. **Related docs**: direct links to adjacent workflows.
 
----
+## What This Library Guarantees
 
-## Need Help?
+- Content aligns with backend authorization and workflow behavior.
+- Internal links are maintained and validated by docs contract checks.
+- Czech and English files stay in parity at filename and workflow level.
+- Metadata (`version`, `last_updated`, `source_of_truth`) is explicit per document.
 
-- **In-App Help**: Click the **?** icon in any page header for context-sensitive help
-- **Documentation**: Use the Help & Docs tab in Settings
-- **Support**: Contact your system administrator or risk management team
+## Recommended Reading Order
 
----
-
-*© 2026 RiskHub. All rights reserved.*
+- Start with `./getting-started.md`.
+- Continue with `./risks.md`, `./controls.md`, and `./kris.md`.
+- Then read `./notifications.md` and `./dashboard.md`.
+- If you manage third-party exposure, include `./vendors.md`.
+- Keep `./faq.md` open as your operational quick-reference.

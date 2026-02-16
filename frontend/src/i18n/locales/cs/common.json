@@ -286,8 +286,13 @@
     "no_manuals_seeded": "Zatím nejsou připravené žádné manuály.",
     "back_to_library": "Zpět do knihovny",
     "platform_manual": "Manuál platformy",
+    "audience_admin": "Administrátorská dokumentace",
+    "audience_user": "Uživatelská dokumentace",
     "library_title": "Knihovna dokumentace",
     "library_subtitle": "Procházejte návody platformy a referenční manuály.",
+    "filter_all": "Vše",
+    "no_matches_title": "Žádné odpovídající dokumenty",
+    "no_matches_subtitle": "Zkuste jiný tag filtr.",
     "view_manual": "Zobrazit manuál"
   },
   "tables": {

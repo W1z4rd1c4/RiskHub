@@ -37,7 +37,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 12.1: Compliance Governance Review** — Phase 12 audit (10/10)
 - [x] **Phase 13: Issue & Remediation Management** — Findings and Action Plans (8/8)
 - [x] **Phase 14: Risk Assessments** — Campaigns and questionnaires (7/7)
-- [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (5/5)
+- [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (6/6)
 - [x] **Phase 16: Risk Assessment Polish** — Review, reminders, reporting (3/3)
 - [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing (9/15)
 - [x] **Phase 18: Vendor Risk Management** — Third-party risk assessments (12/12)
@@ -71,6 +71,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 201: Archived Visibility + Restore** — Archive toggle parity and unarchive flows (5/5)
 - [x] **Phase 250: Spaghetti Simplification** — Code simplification (10/10)
 - [x] **Phase 251: Spaghetti Simplification 2** — More code cleanup (11/11)
+- [x] **Phase 500: Production Installation Scripts** — Split backend/frontend Docker deployment with external PostgreSQL (8/8)
 
 ## Phase Details
 
@@ -396,8 +397,8 @@ Plans:
 
 **Goal**: Transform the static Settings page into a functional user hub with read-only profile, appearance customization, localization, and role-based documentation.
 **Depends on**: Phase 7 (User Management)
-**Status**: Planned
-**Plans**: 5 plans
+**Status**: Complete
+**Plans**: 6 plans
 
 Plans:
 
@@ -406,6 +407,7 @@ Plans:
 - [x] 15-03: Appearance Tab (light/dark/system theme toggle with persistence)
 - [x] 15-04: Localization Tab (language selector placeholder for future i18n)
 - [x] 15-05: Documentation Tab (role-based help docs, placeholder content for Phase 17)
+- [x] 15-06: Documentation UX Simplification (tagged doc cards, quick filters, strict admin-vs-user doc split)
 
 **Deferred to future phase:**
 
@@ -825,7 +827,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 12. Compliance Governance | 7/7 | ✅ Complete | 2026-01-04 |
 | 12.1 Compliance Review | 10/10 | ✅ Complete | 2026-01-04 |
 | 13. Issue & Remediation Management | 8/8 | ✅ Complete | 2026-02-12 |
-| 15. Settings Page | 5/5 | ✅ Complete | 2026-01-07 |
+| 15. Settings Page | 6/6 | ✅ Complete | 2026-02-16 |
 | 17. Production Deploy | 8/15 | ⏳ In progress | - |
 | 18. Vendor Risk | 0/0 | ⏸️ Deferred | - |
 | 19. Polish & Deploy | 0/6 | ⏸️ Planned | - |
@@ -858,6 +860,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 201. Archived Visibility + Restore | 4/5 | ⏳ In progress | - |
 | 250. Spaghetti Simplification | 10/10 | ✅ Complete | 2026-01-10 |
 | 251. Spaghetti Simplification 2 | 11/11 | ✅ Complete | 2026-01-10 |
+| 500. Production Installation Scripts | 0/8 | ⏸️ Planned | - |
 
 ### Phase 179: E2E Test Data
 
@@ -955,3 +958,22 @@ Plans:
 - [x] 201-03: Frontend include archived toggles in list/search surfaces
 - [x] 201-04: Unarchive actions + archived linked-item grouping/muted styling
 - [x] 201-05: Tests, E2E verification, and documentation reconciliation
+
+### Phase 500: Production Installation Scripts
+
+**Goal**: Deliver production installation scripts where backend and frontend run as independent Docker containers and PostgreSQL is external (not containerized by RiskHub deployment scripts).
+**Depends on**: Phase 17 (Production Deployment baseline)
+**Research**: Completed (`.planning/phases/500-production-installation-scripts/500-RESEARCH.md`)
+**Status**: ✅ Complete (2026-02-16)
+**Plans**: 8 plans
+
+Plans:
+
+- [x] 500-01: Deployment contract + external-PostgreSQL environment templates
+- [x] 500-02: Backend container install script + external PostgreSQL migration runner
+- [x] 500-03: Frontend container install script + configurable backend upstream routing
+- [x] 500-04: Shared production script framework + host preflight validation
+- [x] 500-05: Lifecycle orchestration scripts (deploy, upgrade, rollback, status, logs)
+- [x] 500-06: Script-level security hardening + production guard enforcement
+- [x] 500-07: Smoke verification automation + regression coverage for install path
+- [x] 500-08: Deployment documentation and operations runbook reconciliation

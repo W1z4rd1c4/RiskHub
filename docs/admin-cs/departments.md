@@ -1,90 +1,71 @@
-# Správa oddělení
-
-> **Cílová skupina**: Administrátoři, CRO
-
 ---
+title: Správa lifecycle oddělení
+version: "2.0"
+last_updated: "2026-02-16"
+audience: admin
+source_of_truth: "docs/BUSINESS_LOGIC.md §2.4 a §3"
+summary: "Runbook pro zakládání, úpravy a deaktivaci oddělení se zachováním visibility integrity a continuity ownership."
+tags:
+  - departments
+  - structure
+  - governance
+---
+
+# Správa lifecycle oddělení
 
 ## Přehled
 
-Oddělení jsou základní organizační jednotkou v RiskHub. Každé riziko, kontrola a uživatel je přiřazen k oddělení.
+Oddělení jsou strukturální bezpečnostní hranice v RiskHub. Změny oddělení přímo ovlivňují viditelnost a fallback schvalování.
 
----
+## Standard zakládání a úprav
 
-## Vytvoření oddělení
+Každý záznam oddělení má mít:
 
-1. Přejděte do **Oddělení**
-2. Klikněte na **Nové oddělení**
-3. Vyplňte:
-   - **Název** (povinné)
-   - **Popis** (volitelné)
-   - **Vedoucí** (doporučeno)
-4. Klikněte na **Vytvořit**
+- konzistentní název
+- správnou manager vazbu
+- validní aktivní stav a hierarchii
 
----
+## Runbook deaktivace
 
-## Vedoucí oddělení
+1. Zmapujte dotčené uživatele a entity.
+2. Vyřešte ownership vazby.
+3. Ověřte, že aktivní workflow není navázané na staré mapování.
+4. Deaktivujte oddělení.
+5. Ověřte post-change visibility.
 
-### Přiřazení vedoucího
+## Kontinuita ownership
 
-Vedoucí oddělení (Department Head) má speciální oprávnění:
-- Vidí všechna data svého oddělení
-- Je primárním schvalovatelem pro žádosti oddělení
-- Může delegovat úkoly na zaměstnance
+Změny oddělení nesmí vytvořit skryté orphan stavy:
 
-### Změna vedoucího
+- owner rizik musí být resolvable
+- owner kontrol musí být akčně dostupný
+- KRI reporting odpovědnost musí zůstat přiřazená
 
-1. Přejděte do **Oddělení** → vyberte oddělení
-2. Klikněte na **Upravit**
-3. Vyberte nového vedoucího
-4. Klikněte na **Uložit**
+## Hierarchie a reporting dopady
 
----
+Při změně hierarchie ověřte:
 
-## Osiřelé položky
+- změnu agregací v dashboardu/reportech
+- dopad na manager-based visibility
+- potřebu poznámky pro historické srovnání
 
-### Co jsou osiřelé položky?
+Po změně uzavřete ticket až po potvrzení post-change stavu. Doporučené minimum je záznam data, rozsahu změny a očekávaného dopadu na metriky. Tento krok pomáhá odlišit legitimní strukturální změnu od skutečné produkční regrese.
 
-Když je oddělení deaktivováno nebo když jsou uživatelé odstraněni, mohou vzniknout osiřelé položky:
-- Rizika bez vlastníka
-- Kontroly bez vlastníka
-- KRI bez vlastníka
+## Troubleshooting
 
-### Zpracování osiřelých položek
+### Oddělení nelze bezpečně deaktivovat
 
-1. Přejděte do **Správa přístupu** → **Osiřelé položky**
-2. Zobrazí se seznam položek bez vlastníka
-3. Pro každou položku:
-   - Přiřaďte nového vlastníka, nebo
-   - Archivujte položku
+Nejčastěji nevyřešené ownership vazby nebo aktivní workflow závislosti.
 
-> [!WARNING]
-> Osiřelé položky mohou představovat governance riziko. Pravidelně kontrolujte a řešte.
+### Uživatelé po restrukturalizaci ztratili viditelnost
 
----
+Ověřte department assignment + scope + manager chain.
 
-## Deaktivace oddělení
+### Nečekaný cross-department access
 
-### Prerekvizity
+Prověřte ownership výjimky a inheritance mezi navázanými entitami.
 
-Před deaktivací oddělení:
-1. Přesuňte nebo archivujte všechna rizika
-2. Přesuňte nebo archivujte všechny kontroly
-3. Přeřaďte nebo deaktivujte všechny uživatele
+## Related Documentation
 
-### Proces
-
-1. Přejděte do **Oddělení** → vyberte oddělení
-2. Klikněte na **Deaktivovat**
-3. Potvrďte akci
-
----
-
-## Hierarchie oddělení
-
-RiskHub podporuje plochou strukturu oddělení. Pro organizační hierarchii použijte:
-- Pojmenování oddělení (např. "Finance - Účetnictví")
-- Múltiple Department Head role pro jednoho manažera
-
----
-
-*Pro technické detaily viz dokumentaci datového modelu.*
+- `./user-management.md`
+- `./reports.md`

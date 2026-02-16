@@ -38,7 +38,7 @@
 | 12.1 Compliance Review | ✅ Complete (10/10) | 2026-01-04 |
 | 13 Issue & Remediation Management | ✅ Complete (8/8) | 2026-02-12 |
 | 14 Risk Assessments | ✅ Complete (7/7) | 2026-01-24 |
-| 15 Settings Page | ✅ Complete (5/5) | 2026-01-07 |
+| 15 Settings Page | ✅ Complete (6/6) | 2026-02-16 |
 | 16 Risk Assessment Polish | ✅ Complete (3/3) | 2026-01-24 |
 | 17 Production Deploy | ⏳ In progress (9/15) | - |
 | 18 Vendor Risk Management | ✅ Complete (12/12) | 2026-01-26 |
@@ -68,8 +68,67 @@
 | 201 Archived Visibility + Restore | ✅ Complete (5/5) | 2026-02-15 |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
+| 500 Production Installation Scripts | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Phase 500 Planning (2026-02-16)
+
+- Added new planning phase for production installation scripts with explicit external PostgreSQL requirement (no DB container in RiskHub deploy scripts).
+- Created planning artifacts:
+  - `.planning/phases/500-production-installation-scripts/500-CONTEXT.md`
+  - `.planning/phases/500-production-installation-scripts/500-RESEARCH.md`
+  - `.planning/phases/500-production-installation-scripts/500-01-PLAN.md` through `500-08-PLAN.md`
+- Locked interpretation for execution: backend container + frontend container are independently installed/operated; PostgreSQL is externally managed and only referenced through `DATABASE_URL`.
+
+### Phase 500 Execution (2026-02-16)
+
+- ✅ Implemented Phase 500 production install scripts under `scripts/prod/`:
+  - external PostgreSQL only (no DB container), Redis installed as `riskhub-redis`,
+  - backend API container (`riskhub-backend`) + isolated scheduler container (`riskhub-backend-scheduler`, forced `--workers 1`),
+  - frontend nginx container (`riskhub-frontend`) proxying `/api/*` to docker alias `backend`,
+  - deploy/upgrade/rollback/status/logs/stop operational entrypoints.
+- ✅ Added DB bootstrap automation:
+  - RBAC + departments seeding in ephemeral backend containers,
+  - idempotent SSO user bootstrap by email (`backend/scripts/bootstrap_sso_user.py`) to prevent SSO admin lockout.
+- ✅ Published operator runbook and reconciled deployment/security docs for the external-PostgreSQL install path.
+- Verification:
+  - `make verify-prod-install-scripts` → passed (bash syntax, dockerized shellcheck, `tests/test_production_hardening.py`)
+  - `scripts/prod/preflight.sh --backend-env scripts/prod/config/backend.env.example --frontend-env scripts/prod/config/frontend.env.example --dry-run` → `Preflight: OK`
+  - `cd backend && ./venv/bin/python -m compileall scripts/bootstrap_sso_user.py` → passed
+
+### Phase 15 Reopen Planning (2026-02-16)
+
+- Reopened Phase 15 to address Settings documentation quality and navigation feedback.
+- Added planning artifacts:
+  - `.planning/phases/15-settings-page/15-RESEARCH.md`
+  - `.planning/phases/15-settings-page/15-06-PLAN.md`
+- Locked follow-up scope:
+  - simplify Settings documentation library UX,
+  - add tags on documentation bubbles/cards with quick tag filters,
+  - enforce strict split: platform admin users see only admin docs, non-admin users see only user docs.
+- Planning metadata reconciled to in-progress (`5/6`) pending execution of `15-06`.
+
+### Phase 15 Reopen Execution (2026-02-16)
+
+- ✅ Executed `15-06` to complete settings documentation remediation scope.
+- Backend delivery:
+  - Enforced strict docs audience split in `GET /api/v1/admin/docs`:
+    - `admin` receives only admin docs
+    - all non-admin roles (including CRO) receive only user docs
+  - Added docs metadata contract fields: `audience`, `tags`.
+  - Implemented per-file locale fallback to English when localized files are missing.
+- Frontend delivery:
+  - Added audience label, tag chips, and quick tag filtering on Settings Documentation tab.
+  - Mirrored audience label + tag filtering behavior on `/admin/docs`.
+  - Updated docs API types for new metadata fields.
+- Added verification artifacts:
+  - `.planning/phases/15-settings-page/15-06-SUMMARY.md`
+- Verification:
+  - `cd backend && venv/bin/pytest tests/test_admin_docs.py -q` → `4 passed`
+  - `cd frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx` → `3 passed`
+  - `cd frontend && npx tsc --noEmit` → passed
+- Reconciled planning metadata to complete (`6/6`).
 
 ### Phase 13 Execution (2026-02-11)
 
@@ -423,6 +482,8 @@
 - Closed Phase `11` plan `11-04` by reconciliation as already-implemented dashboard trend widgets and marked Phase `11` complete (`5/5`) (2026-02-11).
 - Closed Phase `179` plan `179-00` by reconciliation; refreshed overview metadata and marked Phase `179` complete (`17/17`) without new seed implementation changes. Summary: `.planning/phases/179-e2e-test-data/179-00-SUMMARY.md` (2026-02-11).
 - Executed Phase `200` plan `200-08` export/reporting closeout with minimal backend naming fix (audit linked-risk labels now prefer `risk.name`), targeted backend/frontend verification only (`20 + 3 + 5 backend tests`, `10 + 9 Playwright tests`, all green), and created summary evidence at `.planning/phases/200-naming-enforcement/200-08-SUMMARY.md` (2026-02-11).
+- Reopened Phase `15` for settings documentation remediation, added research + execution plan `15-06` for UX simplification, tags, and strict audience separation (2026-02-16).
+- Executed Phase `15` plan `15-06` end-to-end with strict admin/user docs segmentation, tag-based navigation UX, and passing targeted backend/frontend verification; Phase `15` now complete (`6/6`) (2026-02-16).
 
 ### Next Step
 
@@ -430,4 +491,4 @@
 
 ---
 
-*Updated: 2026-02-15*
+*Updated: 2026-02-16*

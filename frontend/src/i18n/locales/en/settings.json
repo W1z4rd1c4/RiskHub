@@ -158,9 +158,14 @@
     "subtitle": "Access guides and documentation tailored to your role ({{role}}).",
     "loading": "Loading documentation...",
     "back": "Back to Documentation",
+    "audience_admin": "Admin documentation",
+    "audience_user": "User documentation",
+    "filter_all": "All",
     "view_manual": "View Manual",
     "empty_title": "No Documentation Available",
     "empty_subtitle": "Documentation will be available in future updates.",
+    "no_matches_title": "No Matching Documents",
+    "no_matches_subtitle": "Try another tag filter to find the right guide.",
     "version_info": "RiskHub v1.0 • Documentation will be expanded in future updates",
     "user_guide": "User guide"
   }

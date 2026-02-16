@@ -1,31 +1,51 @@
-# Authorization List/Lookup Policy (Anti‑Enumeration)
+# Authorization List/Lookup Policy (Anti-Enumeration)
 
-RiskHub uses different response behaviors for **lists/lookups** vs **single-object detail** endpoints to reduce
-information leakage (anti‑enumeration) while keeping the UI predictable.
+> **Version**: 1.1
+> **Last Updated**: 2026-02-16
+> **Audience**: Backend Engineering, Security Reviewers
+> **Source of Truth**: `app/core/permissions.py`, endpoint-level RBAC guards
 
-## 1) List / lookup endpoints
+RiskHub uses different responses for list/lookup endpoints versus detail endpoints to reduce data leakage and probing risk.
 
-When a request includes a filter that is **out of the caller’s scope** (for example, a department-scoped user
-passing `department_id=<other department>`), the endpoint should return:
+## 1) List and Lookup Endpoints
 
-- **HTTP 200**
-- An **empty list** (`[]`)
+When a caller applies a filter outside their visible scope (for example, requesting another department), endpoints should return:
+
+- `HTTP 200`
+- Empty result set (`[]`)
 
 Rationale:
-- Returning a 403/404 for list filters can reveal scope boundaries or object existence.
-- Returning `[]` keeps pagination/UI logic simple and avoids “did it exist?” side-channels.
+
+- Avoids leaking existence of data through authorization errors.
+- Keeps client list behavior predictable.
 
 Example:
-- `GET /api/v1/users/lookup?department_id=123` (dept-scoped caller not in dept 123) → `200 []`
 
-## 2) Detail endpoints (single resource by ID)
+- `GET /api/v1/users/lookup?department_id=<outside_scope>` -> `200 []`
 
-For detail endpoints where the caller requests a specific object by ID, the service should prefer:
+## 2) Detail Endpoints
 
-- **404** if the object is not found **or not visible** (anti‑enumeration)
-- **403** only when the caller lacks the **endpoint-level permission** entirely
+For single-resource detail reads (`/resource/{id}`):
+
+- Return `404` when resource is missing **or not visible** to the caller.
+- Return `403` only when caller lacks endpoint-level permission entirely.
 
 Rationale:
-- For details, returning 404 for “not visible” prevents probing for existence across departments.
-- Permission failures should remain explicit when the endpoint itself is not allowed.
 
+- `404` for out-of-scope detail reads prevents enumeration attacks.
+- Explicit `403` remains useful for capability-level denial.
+
+## 3) Documentation Endpoint Alignment
+
+Documentation audience behavior follows strict role split:
+
+- `admin` role receives admin audience docs only.
+- Non-admin roles receive user audience docs only.
+
+This is an access-policy contract, not a UI-only behavior.
+
+## 4) Verification Expectations
+
+- Add API tests for both allowed and denied scope paths.
+- Assert list endpoints do not leak hidden objects.
+- Assert detail endpoints preserve anti-enumeration semantics.

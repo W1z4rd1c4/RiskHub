@@ -1,127 +1,81 @@
-# Často kladené dotazy (FAQ)
-
+---
+title: FAQ a provozní podpora pro uživatele
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "docs/BUSINESS_LOGIC.md a uživatelské manuály"
+summary: "Rychlé odpovědi na nejčastější problémy se scope, schvalováním, notifikacemi a navigací dokumentace."
+tags:
+  - faq
+  - support
+  - troubleshooting
 ---
 
-## Obecné
+# FAQ a provozní podpora pro uživatele
 
-### Co je RiskHub?
+## Proč nevidím stejné záznamy jako kolega?
 
-RiskHub je platforma pro řízení podnikových rizik (ERM) určená pro pojišťovny. Umožňuje spravovat rizika, kontroly a klíčové indikátory rizik.
+Viditelnost je řízená rolí a scope. Dva uživatelé v různých odděleních nebo ownership řetězcích mohou záměrně vidět odlišná data.
 
-### Jak se přihlásím?
+Ověřte:
 
-Přejděte na URL vašeho RiskHub a použijte své přihlašovací údaje nebo Active Directory účet.
+- roli
+- department scope
+- ownership přiřazení entity
 
-### Proč nevidím některá data?
+## Proč editace vytvořila žádost o schválení?
 
-Viditelnost dat závisí na vaší roli a přiřazeném oddělení. Pokud potřebujete přístup k dalším datům, kontaktujte administrátora.
+Pravděpodobně jste změnili citlivé pole nebo governance-řízenou hodnotu. Je to očekávané chování.
 
----
+Sledujte stav přes `/notifications` nebo `/approvals`.
 
-## Rizika
+## Proč dashboard dnes vypadá jinak než včera?
 
-### Jak vytvořím nové riziko?
+Nejčastější důvody:
 
-1. Přejděte do Rizika
-2. Klikněte na "Nové riziko"
-3. Vyplňte formulář
-4. Klikněte na Uložit
+- jiné filtry
+- změny scope/role
+- archivace/obnova entit
+- nové vazby mezi kontrolami a riziky
 
-### Co znamená hrubé vs. čisté skóre?
+Nejprve vždy zkontrolujte filtry.
 
-- **Hrubé skóre** = Inherentní riziko před aplikací kontrol
-- **Čisté skóre** = Reziduální riziko po aplikaci kontrol
+## Klikl jsem na odkaz v dokumentaci a otevřelo se něco jiného
 
-### Proč nemůžu smazat riziko?
+Odkazy v dokumentaci mají 3 režimy:
 
-Neprivilegovaní uživatelé potřebují schválení pro mazání. Vaše žádost o smazání bude odeslána ke schválení.
+- `./file.md`: otevře jiný dokument ve čtečce
+- `/path`: přejde na route v aplikaci
+- `https://...`: otevře externí zdroj v nové záložce
 
----
+## Zadání KRI proběhlo, ale stále vidím overdue upozornění
 
-## Kontroly
+Ověřte:
 
-### Jak zaloguji provedení kontroly?
+- správnou periodu
+- správné limity a jednotky
+- zda fronta notifikací není zastaralá
 
-1. V detailu kontroly klikněte na "Zalogovat provedení"
-2. Vyplňte datum, výsledek a zjištění
-3. Klikněte na Odeslat
+## Nelze logovat kontrolu
 
-### Co když je kontrola opožděná?
+Zkontrolujte permission pro execution a ownership/assignment kontext.
 
-Budete upozorněni notifikací. Proveďte kontrolu co nejdříve a zalogujte ji.
+## Co poslat do urgentní eskalace?
 
----
+Pošlete:
 
-## KRI
+- entity ID nebo request ID
+- roli a department kontext
+- přesný čas
+- přesnou akci
+- error message/screenshot
 
-### Jak odesílám hodnoty KRI?
+Tím výrazně zrychlíte triage.
 
-1. V detailu KRI klikněte na "Odeslat hodnotu"
-2. Zadejte hodnotu a období
-3. Klikněte na Odeslat
+## Related Documentation
 
-### Jak opravím chybnou hodnotu?
-
-1. V historii KRI najděte hodnotu
-2. Klikněte na "Opravit"
-3. Zadejte správnou hodnotu a důvod
-
-### Co se stane při překročení limitu?
-
-- KRI bude označen jako "Překročeno"
-- Budou odeslány notifikace
-- Propojené riziko může být eskalováno
-
----
-
-## Schvalování
-
-### Proč musím čekat na schválení?
-
-RiskHub implementuje princip čtyř očí pro citlivé operace. Tím se zajišťuje kontrola a auditovatelnost.
-
-### Kdo schvaluje moje žádosti?
-
-- Vlastník rizika/kontroly
-- Vedoucí oddělení
-- Pro citlivé operace: CRO nebo Risk Manager
-
-### Můžu zrušit odeslanou žádost?
-
-Ano, pokud je ve stavu "čekající". V sekci "Moje žádosti" klikněte na "Zrušit".
-
----
-
-## Technické problémy
-
-### Aplikace se nenačítá
-
-1. Zkontrolujte internetové připojení
-2. Vyčistěte cache prohlížeče
-3. Zkuste jiný prohlížeč
-4. Kontaktujte administrátora
-
-### Nemohu se přihlásit
-
-1. Zkontrolujte přihlašovací údaje
-2. Zkontrolujte, zda není váš účet deaktivován
-3. Kontaktujte administrátora
-
-### Data se nezobrazují správně
-
-1. Obnovte stránku (F5)
-2. Odhlaste se a přihlaste znovu
-3. Kontaktujte administrátora
-
----
-
-## Kontakt
-
-Pro další pomoc kontaktujte:
-- **Technické problémy**: Váš IT helpdesk
-- **Business otázky**: Váš Risk Manager
-- **Přístupová oprávnění**: Administrátor
-
----
-
-*Tato FAQ je pravidelně aktualizována.*
+- `./getting-started.md`
+- `./risks.md`
+- `./controls.md`
+- `./kris.md`
+- `./notifications.md`
