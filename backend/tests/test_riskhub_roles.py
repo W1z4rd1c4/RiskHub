@@ -2,8 +2,9 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.role import Role, RoleType
-from app.models.user import User
+
 
 @pytest.mark.asyncio
 async def test_list_roles_cro_only(
@@ -14,10 +15,11 @@ async def test_list_roles_cro_only(
     # Authenticate as CRO
     response = await client_cro.get("/api/v1/riskhub/roles")
     assert response.status_code == 200
-    
+
     # Authenticate as Employee (should fail)
     response = await client_employee.get("/api/v1/riskhub/roles")
     assert response.status_code == 403
+
 
 @pytest.mark.asyncio
 async def test_create_role(
@@ -25,22 +27,15 @@ async def test_create_role(
     db_session: AsyncSession,
 ):
     """Test creating a new role with permissions."""
-    data = {
-        "name": "new_role",
-        "display_name": "New Role",
-        "description": "Test role",
-        "permission_ids": []
-    }
-    
-    response = await client_cro.post(
-        "/api/v1/riskhub/roles", 
-        json=data
-    )
+    data = {"name": "new_role", "display_name": "New Role", "description": "Test role", "permission_ids": []}
+
+    response = await client_cro.post("/api/v1/riskhub/roles", json=data)
     assert response.status_code == 201
     result = response.json()
     assert result["name"] == "new_role"
     assert result["is_system"] is False
     assert result["is_active"] is True
+
 
 @pytest.mark.asyncio
 async def test_delete_role_soft(
@@ -53,10 +48,10 @@ async def test_delete_role_soft(
     db_session.add(role)
     await db_session.commit()
     await db_session.refresh(role)
-    
+
     response = await client_cro.delete(f"/api/v1/riskhub/roles/{role.id}")
     assert response.status_code == 200
-    
+
     # Verify it's soft deleted
     result = await db_session.execute(select(Role).where(Role.id == role.id))
     updated_role = result.scalar_one()
@@ -78,6 +73,7 @@ async def test_delete_protected_role_is_blocked(
     assert response.status_code == 400
     assert "Cannot delete protected system role" in response.json()["detail"]
 
+
 @pytest.mark.asyncio
 async def test_create_role_invalid_permission_ids(
     client_cro: AsyncClient,
@@ -88,15 +84,13 @@ async def test_create_role_invalid_permission_ids(
         "name": "invalid_perms",
         "display_name": "Invalid Perms Role",
         "description": "Test role with bad permissions",
-        "permission_ids": [99999, 99998]  # Non-existent IDs
+        "permission_ids": [99999, 99998],  # Non-existent IDs
     }
-    
-    response = await client_cro.post(
-        "/api/v1/riskhub/roles", 
-        json=data
-    )
+
+    response = await client_cro.post("/api/v1/riskhub/roles", json=data)
     assert response.status_code == 400
     assert "Unknown permission IDs" in response.json()["detail"]
+
 
 @pytest.mark.asyncio
 async def test_update_role_invalid_permission_ids(
@@ -109,17 +103,15 @@ async def test_update_role_invalid_permission_ids(
     db_session.add(role)
     await db_session.commit()
     await db_session.refresh(role)
-    
+
     data = {
         "permission_ids": [99999, 99998]  # Non-existent IDs
     }
-    
-    response = await client_cro.patch(
-        f"/api/v1/riskhub/roles/{role.id}", 
-        json=data
-    )
+
+    response = await client_cro.patch(f"/api/v1/riskhub/roles/{role.id}", json=data)
     assert response.status_code == 400
     assert "Unknown permission IDs" in response.json()["detail"]
+
 
 @pytest.mark.asyncio
 async def test_create_role_with_valid_permissions(
@@ -128,22 +120,15 @@ async def test_create_role_with_valid_permissions(
 ):
     """Test that creating a role with valid permission IDs succeeds."""
     from app.models.role import Permission
-    
+
     # Get actual permission IDs
     result = await db_session.execute(select(Permission).limit(2))
     permissions = result.scalars().all()
-    
+
     if permissions:  # Only test if permissions exist
         perm_ids = [p.id for p in permissions]
-        data = {
-            "name": "valid_perms",
-            "display_name": "Valid Perms Role",
-            "permission_ids": perm_ids
-        }
-        
-        response = await client_cro.post(
-            "/api/v1/riskhub/roles", 
-            json=data
-        )
+        data = {"name": "valid_perms", "display_name": "Valid Perms Role", "permission_ids": perm_ids}
+
+        response = await client_cro.post("/api/v1/riskhub/roles", json=data)
         assert response.status_code == 201
         assert len(response.json()["permissions"]) == len(perm_ids)

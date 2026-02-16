@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.permissions import can_read_kri_id, can_read_vendor_id
-from app.models import Department, KeyRiskIndicator, Permission, Role, RolePermission, Risk, User, Vendor
-from app.models.user import AccessScope
+from app.models import Department, KeyRiskIndicator, Permission, Risk, Role, RolePermission, User, Vendor
 from app.models.risk import RiskStatus
+from app.models.user import AccessScope
 
 
 @pytest_asyncio.fixture
@@ -24,7 +24,9 @@ async def dept_scoped_user_with_vendor_risk_read(
     db_session: AsyncSession,
     test_department: Department,
 ) -> User:
-    role = Role(name="visibility_tester", display_name="Visibility Tester", description="Role for visibility helper tests")
+    role = Role(
+        name="visibility_tester", display_name="Visibility Tester", description="Role for visibility helper tests"
+    )
     db_session.add(role)
     await db_session.commit()
 

@@ -3,9 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.approval_helpers import check_control_requires_privileged_approval
 from app.core.permissions import is_high_risk_for_approval_async
-from app.services.report_service import count_high_risks
 from app.models import Control, ControlRiskLink, Risk
 from app.models.global_config import GlobalConfig, clear_config_cache
+from app.services.report_service import count_high_risks
 
 
 @pytest.fixture(autouse=True)

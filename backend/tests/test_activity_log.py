@@ -1,31 +1,32 @@
 """
 Activity Log regression tests.
 """
-from datetime import datetime, UTC, timedelta
+
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import StatementError
+from sqlalchemy.orm import selectinload
 
-from app.main import app
 from app.api import deps
 from app.core import security
-from app.db.session import get_db
 from app.core.activity_logger import (
-    log_activity,
-    MAX_DESCRIPTION_LENGTH,
     MAX_CHANGE_KEYS,
     MAX_CHANGE_VALUE_LENGTH,
+    MAX_DESCRIPTION_LENGTH,
+    log_activity,
 )
+from app.db.session import get_db
+from app.main import app
 from app.models import (
     ActivityLog,
+    Department,
     Permission,
     Role,
     RolePermission,
     User,
-    Department,
 )
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.user import AccessScope
@@ -603,9 +604,7 @@ async def test_activity_log_is_append_only(db_session):
     )
     await db_session.commit()
 
-    result = await db_session.execute(
-        select(ActivityLog).where(ActivityLog.entity_id == 30)
-    )
+    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 30))
     entry = result.scalars().first()
     assert entry is not None
 

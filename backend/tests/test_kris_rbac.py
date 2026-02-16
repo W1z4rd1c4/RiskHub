@@ -2,10 +2,11 @@
 RBAC tests for KRI endpoints.
 Validates that KRI mutations require risks:* permissions.
 """
+
 import pytest
 from httpx import AsyncClient
 
-from app.models import Risk, KeyRiskIndicator, Department
+from app.models import Department, KeyRiskIndicator, Risk
 from app.models.risk import RiskStatus
 
 
@@ -92,7 +93,7 @@ async def test_admin_can_delete_kri(auth_client: AsyncClient, test_kri: KeyRiskI
 async def test_kri_delete_archives_not_hard_deletes(auth_client: AsyncClient, db_session, test_risk_for_kri):
     """Verify deletion archives KRI (is_archived=True) instead of hard delete."""
     from sqlalchemy import select
-    
+
     # Create own KRI to avoid interference from other tests
     kri = KeyRiskIndicator(
         risk_id=test_risk_for_kri.id,
@@ -107,16 +108,14 @@ async def test_kri_delete_archives_not_hard_deletes(auth_client: AsyncClient, db
     await db_session.commit()
     await db_session.refresh(kri)
     kri_id = kri.id
-    
+
     # Delete the KRI
     response = await auth_client.delete(f"/api/v1/kris/{kri_id}?reason=Test%20archive")
     assert response.status_code == 204
-    
+
     # Verify row still exists with is_archived=True
     db_session.expire_all()
-    result = await db_session.execute(
-        select(KeyRiskIndicator).where(KeyRiskIndicator.id == kri_id)
-    )
+    result = await db_session.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == kri_id))
     kri = result.scalar_one_or_none()
     assert kri is not None, "KRI should still exist after delete (soft-delete)"
     assert kri.is_archived is True
@@ -127,10 +126,12 @@ async def test_kri_delete_archives_not_hard_deletes(auth_client: AsyncClient, db
 @pytest.mark.asyncio
 async def test_kri_history_preserved_after_archive(auth_client: AsyncClient, db_session, test_risk_for_kri):
     """Verify KRIValueHistory entries preserved after KRI archival."""
-    from sqlalchemy import select
-    from app.models.kri_history import KRIValueHistory
     from datetime import date
-    
+
+    from sqlalchemy import select
+
+    from app.models.kri_history import KRIValueHistory
+
     # Create KRI with a history entry
     kri = KeyRiskIndicator(
         risk_id=test_risk_for_kri.id,
@@ -145,7 +146,7 @@ async def test_kri_history_preserved_after_archive(auth_client: AsyncClient, db_
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     # Add history entry (must include lower_limit/upper_limit/unit per model)
     history = KRIValueHistory(
         kri_id=kri.id,
@@ -160,18 +161,16 @@ async def test_kri_history_preserved_after_archive(auth_client: AsyncClient, db_
     )
     db_session.add(history)
     await db_session.commit()
-    
+
     kri_id = kri.id
-    
+
     # Archive (delete) the KRI
     response = await auth_client.delete(f"/api/v1/kris/{kri_id}?reason=Archive+test")
     assert response.status_code == 204
-    
+
     # Verify history still exists
     db_session.expire_all()
-    result = await db_session.execute(
-        select(KRIValueHistory).where(KRIValueHistory.kri_id == kri_id)
-    )
+    result = await db_session.execute(select(KRIValueHistory).where(KRIValueHistory.kri_id == kri_id))
     entries = result.scalars().all()
     assert len(entries) == 1, "History entries should be preserved after archive"
     assert entries[0].value == 50.0
@@ -180,8 +179,7 @@ async def test_kri_history_preserved_after_archive(auth_client: AsyncClient, db_
 @pytest.mark.asyncio
 async def test_archived_kri_excluded_from_list(auth_client: AsyncClient, db_session, test_risk_for_kri):
     """Verify archived KRI not returned in default list."""
-    from sqlalchemy import select
-    
+
     # Create KRI
     kri = KeyRiskIndicator(
         risk_id=test_risk_for_kri.id,
@@ -195,20 +193,20 @@ async def test_archived_kri_excluded_from_list(auth_client: AsyncClient, db_sess
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     kri_id = kri.id
-    
+
     # Verify it appears in list initially
     response = await auth_client.get("/api/v1/kris")
     assert response.status_code == 200
     items = response.json()["items"]
     kri_ids = [item["id"] for item in items]
     assert kri_id in kri_ids, "KRI should appear in list before archiving"
-    
+
     # Archive the KRI
     response = await auth_client.delete(f"/api/v1/kris/{kri_id}?reason=Archive+test")
     assert response.status_code == 204
-    
+
     # Verify it's excluded from list
     response = await auth_client.get("/api/v1/kris")
     assert response.status_code == 200
@@ -302,22 +300,24 @@ async def test_kri_restore_rejects_not_archived(auth_client: AsyncClient, test_k
 # These tests use a client without risks:write/delete permissions
 # The client_employee fixture has risks:read but we need to check write/delete denial
 
+
 @pytest.fixture
 async def test_role_no_write(db_session):
     """Create a role with only risks:read (no write/delete)."""
-    from app.models import Permission, RolePermission, Role as RoleModel
-    
+    from app.models import Permission, RolePermission
+    from app.models import Role as RoleModel
+
     role = RoleModel(name="readonly", display_name="Read Only", description="Read only role")
     db_session.add(role)
     await db_session.commit()
-    
+
     perm = Permission(resource="risks", action="read", description="Read risks only")
     db_session.add(perm)
     await db_session.commit()
-    
+
     db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
     await db_session.commit()
-    
+
     return role
 
 
@@ -325,7 +325,7 @@ async def test_role_no_write(db_session):
 async def test_user_readonly(db_session, test_department, test_role_no_write):
     """Create a user with read-only permissions."""
     from app.models import User as UserModel
-    
+
     user = UserModel(
         name="Read Only User",
         email="readonly@test.com",
@@ -335,15 +335,17 @@ async def test_user_readonly(db_session, test_department, test_role_no_write):
     )
     db_session.add(user)
     await db_session.commit()
-    
-    from sqlalchemy.orm import selectinload
+
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
     from app.models import Role, RolePermission
+
     result = await db_session.execute(
         select(UserModel)
         .options(
             selectinload(UserModel.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
-            selectinload(UserModel.department)
+            selectinload(UserModel.department),
         )
         .where(UserModel.id == user.id)
     )
@@ -354,24 +356,25 @@ async def test_user_readonly(db_session, test_department, test_role_no_write):
 async def client_readonly(db_session, test_user_readonly):
     """Client for read-only user."""
     from httpx import ASGITransport, AsyncClient
-    from app.main import app
+
+    from app.core.config import Settings, get_settings
     from app.db.session import get_db
-    from app.core.config import get_settings, Settings
-    
+    from app.main import app
+
     def override_settings():
         return Settings(mock_auth_enabled=True, debug=True)
-        
+
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_settings] = override_settings
-    
+
     transport = ASGITransport(app=app)
     headers = {"X-Mock-User-Id": str(test_user_readonly.id)}
     async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
@@ -414,16 +417,19 @@ async def test_readonly_cannot_delete_kri(client_readonly: AsyncClient, test_kri
 
 # Tests for all-edit approval workflow
 
+
 @pytest.fixture
 async def test_role_with_write(db_session):
     """Create a role with risks:write but NOT a privileged role (not CRO/Risk Manager/Admin)."""
-    from app.models import Permission, RolePermission, Role as RoleModel
     from sqlalchemy import select
-    
+
+    from app.models import Permission, RolePermission
+    from app.models import Role as RoleModel
+
     role = RoleModel(name="dept_head", display_name="Department Head", description="Non-privileged with write")
     db_session.add(role)
     await db_session.commit()
-    
+
     # Add risks:read and risks:write permissions
     for action in ["read", "write"]:
         perm_result = await db_session.execute(
@@ -434,9 +440,9 @@ async def test_role_with_write(db_session):
             perm = Permission(resource="risks", action=action, description=f"Risks {action}")
             db_session.add(perm)
             await db_session.commit()
-        
+
         db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
-    
+
     await db_session.commit()
     return role
 
@@ -444,11 +450,12 @@ async def test_role_with_write(db_session):
 @pytest.fixture
 async def test_user_dept_head(db_session, test_department, test_role_with_write):
     """Create a department head user (has risks:write but not privileged)."""
-    from app.models import User as UserModel
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
     from app.models import Role, RolePermission
-    
+    from app.models import User as UserModel
+
     user = UserModel(
         name="Department Head",
         email="depthead@test.com",
@@ -458,12 +465,12 @@ async def test_user_dept_head(db_session, test_department, test_role_with_write)
     )
     db_session.add(user)
     await db_session.commit()
-    
+
     result = await db_session.execute(
         select(UserModel)
         .options(
             selectinload(UserModel.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
-            selectinload(UserModel.department)
+            selectinload(UserModel.department),
         )
         .where(UserModel.id == user.id)
     )
@@ -474,24 +481,25 @@ async def test_user_dept_head(db_session, test_department, test_role_with_write)
 async def client_dept_head(db_session, test_user_dept_head):
     """Client for department head user (has write but not privileged)."""
     from httpx import ASGITransport, AsyncClient
-    from app.main import app
+
+    from app.core.config import Settings, get_settings
     from app.db.session import get_db
-    from app.core.config import get_settings, Settings
-    
+    from app.main import app
+
     def override_settings():
         return Settings(mock_auth_enabled=True, debug=True)
-        
+
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_settings] = override_settings
-    
+
     transport = ASGITransport(app=app)
     headers = {"X-Mock-User-Id": str(test_user_dept_head.id)}
     async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
@@ -502,7 +510,7 @@ async def test_non_privileged_edit_requires_approval(client_dept_head: AsyncClie
         f"/api/v1/kris/{test_kri.id}",
         json={"metric_name": "Updated by Dept Head"},
     )
-    
+
     # Should receive 202 Accepted (approval required)
     assert response.status_code == 202
     data = response.json()
@@ -518,7 +526,7 @@ async def test_privileged_user_can_edit_directly(auth_client: AsyncClient, test_
         f"/api/v1/kris/{test_kri.id}",
         json={"metric_name": "Updated by Admin"},
     )
-    
+
     # Admin should get immediate update (200)
     assert response.status_code == 200
     data = response.json()
@@ -529,6 +537,7 @@ async def test_privileged_user_can_edit_directly(auth_client: AsyncClient, test_
 # Cross-Department KRI History Access (Phase 154-02)
 # Validates reporting owner and risk owner can access KRI history cross-department
 # =============================================================================
+
 
 @pytest.fixture
 async def cross_dept_for_kri(db_session):
@@ -597,11 +606,12 @@ async def test_reporting_owner_can_view_kri_history_cross_department(
     KRI reporting owner can view history for their KRI even in different department.
     Per BUSINESS_LOGIC.md §7.1 and Phase 154-02 fix.
     """
-    from app.models.kri_history import KRIValueHistory
     from datetime import date
-    
+
+    from app.models.kri_history import KRIValueHistory
+
     kri = cross_dept_kri_with_reporting_owner
-    
+
     # Add a history entry
     history = KRIValueHistory(
         kri_id=kri.id,
@@ -615,10 +625,10 @@ async def test_reporting_owner_can_view_kri_history_cross_department(
     )
     db_session.add(history)
     await db_session.commit()
-    
+
     # Reporting owner (test_user via auth_client) can view history cross-department
     response = await auth_client.get(f"/api/v1/kris/{kri.id}/history")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["total"] >= 1
@@ -635,9 +645,10 @@ async def test_risk_owner_can_view_kri_history_cross_department(
     Risk owner can view history for KRIs linked to their risk even in different department.
     Per BUSINESS_LOGIC.md §7.1 and Phase 154-02 fix.
     """
-    from app.models.kri_history import KRIValueHistory
     from datetime import date
-    
+
+    from app.models.kri_history import KRIValueHistory
+
     # Create KRI without explicit reporting owner (falls back to risk owner)
     kri = KeyRiskIndicator(
         risk_id=cross_dept_risk_for_kri.id,
@@ -652,7 +663,7 @@ async def test_risk_owner_can_view_kri_history_cross_department(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     # Add a history entry
     history = KRIValueHistory(
         kri_id=kri.id,
@@ -666,10 +677,10 @@ async def test_risk_owner_can_view_kri_history_cross_department(
     )
     db_session.add(history)
     await db_session.commit()
-    
+
     # Risk owner (test_user via auth_client) can view history cross-department
     response = await auth_client.get(f"/api/v1/kris/{kri.id}/history")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["total"] >= 1
@@ -682,7 +693,7 @@ async def test_read_scoped_user_can_list_archived_kri_with_include_archived(
     test_risk_for_kri: Risk,
 ):
     """Read-scoped users can include archived KRIs without privileged role checks."""
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
 
     archived_kri = KeyRiskIndicator(
         risk_id=test_risk_for_kri.id,
@@ -717,7 +728,7 @@ async def test_read_scoped_user_can_get_archived_kri_detail_with_include_archive
     test_risk_for_kri: Risk,
 ):
     """Archived KRI detail is hidden by default and available when include_archived=true."""
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
 
     archived_kri = KeyRiskIndicator(
         risk_id=test_risk_for_kri.id,

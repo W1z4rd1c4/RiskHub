@@ -44,7 +44,6 @@ async function getMsalApp(): Promise<{ app: PublicClientApplication; scopes: str
                 authority: config.sso.authority,
                 clientId: config.sso.client_id,
                 redirectUri,
-                navigateToLoginRequestUrl: false,
             },
             cache: {
                 cacheLocation: 'localStorage',

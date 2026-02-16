@@ -4,17 +4,16 @@ Seeds pending approvals for sensitive field changes (owner_id, department_id, ca
 
 Enables sensitive-fields E2E tests per BUSINESS_LOGIC.md §6.
 """
+
 import asyncio
-from datetime import datetime, timedelta
+
 from sqlalchemy import select
+
 from app.core.config import get_settings
 from app.db.session import session_context
-from app.models import Risk, Control
-from app.models.approval_request import (
-    ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
-)
+from app.models import Control, Risk
+from app.models.approval_request import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 from scripts.e2e_mappings import load_mappings
-
 
 # Sensitive field change scenarios per BUSINESS_LOGIC.md §6
 SENSITIVE_FIELD_SCENARIOS = [
@@ -72,42 +71,38 @@ SENSITIVE_FIELD_SCENARIOS = [
 
 async def seed_sensitive_approvals():
     """Seed pending approvals for sensitive field changes."""
-    print("="*60)
+    print("=" * 60)
     print("🔍 PHASE 179-09: Sensitive Field Approval Data Seeding")
-    print("="*60)
-    
+    print("=" * 60)
+
     async with session_context(get_settings()) as db:
         users, depts = await load_mappings(db)
-        
+
         # Check for existing sensitive field approvals
-        result = await db.execute(
-            select(ApprovalRequest).where(
-                ApprovalRequest.reason.contains("E2E-SENSITIVE")
-            )
-        )
+        result = await db.execute(select(ApprovalRequest).where(ApprovalRequest.reason.contains("E2E-SENSITIVE")))
         existing = result.scalars().all()
         if existing:
             print(f"   ⏭️  Sensitive field approvals already seeded ({len(existing)} entries)")
             return
-        
+
         # Get sample entities
         risk_result = await db.execute(select(Risk).limit(7))
         risks = risk_result.scalars().all()
-        
+
         control_result = await db.execute(select(Control).limit(3))
         controls = control_result.scalars().all()
-        
+
         # User mappings
         requester_id = users.get("ops.head@riskhub.local")
         approver_id = users.get("risk.manager@riskhub.local")
-        
+
         created = 0
         risk_index = 0
         control_index = 0
-        
+
         for scenario in SENSITIVE_FIELD_SCENARIOS:
             resource_type = scenario["resource_type"]
-            
+
             # Get entity reference
             if resource_type == ApprovalResourceType.RISK and risks:
                 entity = risks[risk_index % len(risks)]
@@ -118,7 +113,7 @@ async def seed_sensitive_approvals():
             else:
                 print(f"   ⚠️ Skipping {scenario['field']}: no entities available")
                 continue
-            
+
             approval = ApprovalRequest(
                 resource_type=resource_type,
                 resource_id=entity.id,
@@ -133,7 +128,7 @@ async def seed_sensitive_approvals():
             db.add(approval)
             created += 1
             print(f"   ✓ {resource_type.value}/{scenario['field']}: {scenario['description']}")
-        
+
         await db.commit()
         print(f"\n✅ Created {created} sensitive field approval requests")
 

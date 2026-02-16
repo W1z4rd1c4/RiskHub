@@ -2,6 +2,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.global_config import GlobalConfig
 
 
@@ -13,11 +14,9 @@ async def test_public_config_allowlisted_key(
 ):
     """Test that allowlisted keys are accessible to any authenticated user."""
     # First, ensure the config exists (create if not)
-    existing = await db_session.execute(
-        select(GlobalConfig).where(GlobalConfig.key == "kri_reminder_days_before")
-    )
+    existing = await db_session.execute(select(GlobalConfig).where(GlobalConfig.key == "kri_reminder_days_before"))
     config = existing.scalar_one_or_none()
-    
+
     if not config:
         config = GlobalConfig(
             key="kri_reminder_days_before",
@@ -25,11 +24,11 @@ async def test_public_config_allowlisted_key(
             value_type="int",
             category="kri",
             display_name="KRI Reminder Days Before",
-            is_editable=True
+            is_editable=True,
         )
         db_session.add(config)
         await db_session.commit()
-    
+
     # Employee should be able to read allowlisted key
     response = await client_employee.get("/api/v1/riskhub/public-config/kri_reminder_days_before")
     assert response.status_code == 200
@@ -43,11 +42,9 @@ async def test_public_config_non_allowlisted_key_blocked(
 ):
     """Test that non-allowlisted keys are blocked for non-CRO users."""
     # Create a non-allowlisted config key
-    existing = await db_session.execute(
-        select(GlobalConfig).where(GlobalConfig.key == "internal_secret_key")
-    )
+    existing = await db_session.execute(select(GlobalConfig).where(GlobalConfig.key == "internal_secret_key"))
     config = existing.scalar_one_or_none()
-    
+
     if not config:
         config = GlobalConfig(
             key="internal_secret_key",
@@ -55,11 +52,11 @@ async def test_public_config_non_allowlisted_key_blocked(
             value_type="string",
             category="system",
             display_name="Internal Secret",
-            is_editable=False
+            is_editable=False,
         )
         db_session.add(config)
         await db_session.commit()
-    
+
     # Employee should NOT be able to read non-allowlisted key
     response = await client_employee.get("/api/v1/riskhub/public-config/internal_secret_key")
     assert response.status_code == 403
@@ -73,11 +70,9 @@ async def test_public_config_cro_can_access_any_key(
 ):
     """Test that CRO users can access any config key."""
     # Create a non-allowlisted config key
-    existing = await db_session.execute(
-        select(GlobalConfig).where(GlobalConfig.key == "cro_secret_key")
-    )
+    existing = await db_session.execute(select(GlobalConfig).where(GlobalConfig.key == "cro_secret_key"))
     config = existing.scalar_one_or_none()
-    
+
     if not config:
         config = GlobalConfig(
             key="cro_secret_key",
@@ -85,11 +80,11 @@ async def test_public_config_cro_can_access_any_key(
             value_type="string",
             category="system",
             display_name="CRO Secret",
-            is_editable=False
+            is_editable=False,
         )
         db_session.add(config)
         await db_session.commit()
-    
+
     # CRO should be able to read any key
     response = await client_cro.get("/api/v1/riskhub/public-config/cro_secret_key")
     assert response.status_code == 200
@@ -117,12 +112,10 @@ async def test_public_config_threshold_keys_accessible(
         ("high_risk_min_net_score", "10"),
         ("critical_risk_min_net_score", "16"),
     ]
-    
+
     # Create threshold configs if they don't exist
     for key, value in threshold_keys:
-        existing = await db_session.execute(
-            select(GlobalConfig).where(GlobalConfig.key == key)
-        )
+        existing = await db_session.execute(select(GlobalConfig).where(GlobalConfig.key == key))
         if not existing.scalar_one_or_none():
             config = GlobalConfig(
                 key=key,
@@ -130,11 +123,11 @@ async def test_public_config_threshold_keys_accessible(
                 value_type="int",
                 category="risk_thresholds",
                 display_name=key.replace("_", " ").title(),
-                is_editable=True
+                is_editable=True,
             )
             db_session.add(config)
     await db_session.commit()
-    
+
     # Verify employee can read all threshold keys
     for key, expected_value in threshold_keys:
         response = await client_employee.get(f"/api/v1/riskhub/public-config/{key}")
@@ -142,4 +135,3 @@ async def test_public_config_threshold_keys_accessible(
         data = response.json()
         assert data["key"] == key
         assert data["value"] == int(expected_value)  # Typed value conversion
-

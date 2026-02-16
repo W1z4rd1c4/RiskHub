@@ -1,15 +1,14 @@
+from datetime import UTC, datetime
+
 import pytest
-
-from datetime import datetime, UTC
-
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department, Permission, Role, RolePermission, User, Vendor
 from app.models.notification import Notification, NotificationType
-from app.models.vendor_sla import VendorSLA
 from app.models.user import AccessScope
+from app.models.vendor_sla import VendorSLA
 from app.services.vendor_sla_deadline_service import VendorSLADeadlineService
 
 
@@ -199,8 +198,7 @@ async def test_vendor_sla_deadline_service_filters_cross_scope_recipients(
         for n in notifications
     )
     assert not any(
-        n.type == NotificationType.VENDOR_SLA_BREACH_DETECTED and n.user_id == rm_other_dept.id
-        for n in notifications
+        n.type == NotificationType.VENDOR_SLA_BREACH_DETECTED and n.user_id == rm_other_dept.id for n in notifications
     )
 
 
@@ -363,9 +361,7 @@ async def test_vendor_sla_archive_restore_and_list_include_archived(
     default_ids = {item["id"] for item in default_list.json()}
     assert sla_id not in default_ids
 
-    include_list = await client_employee.get(
-        f"/api/v1/vendor-slas?vendor_id={vendor.id}&include_archived=true"
-    )
+    include_list = await client_employee.get(f"/api/v1/vendor-slas?vendor_id={vendor.id}&include_archived=true")
     assert include_list.status_code == 200
     include_items = include_list.json()
     include_ids = {item["id"] for item in include_items}

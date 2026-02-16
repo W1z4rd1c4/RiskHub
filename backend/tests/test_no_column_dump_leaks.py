@@ -1,11 +1,10 @@
 import pytest
-
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department, Permission, Role, RolePermission, User, Vendor
-from app.schemas.vendor import VendorRead
 from app.schemas.risk import RiskSummary
+from app.schemas.vendor import VendorRead
 
 
 async def _grant(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:
@@ -67,4 +66,3 @@ async def test_risks_list_has_exact_risksummary_keys(
 
     expected_keys = set(RiskSummary.model_fields.keys())
     assert set(data["items"][0].keys()) == expected_keys
-

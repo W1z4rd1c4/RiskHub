@@ -1,8 +1,9 @@
 """
 Tests for Health API endpoint.
 """
+
 import pytest
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 from app.db.session import get_db
 from app.main import app
@@ -11,6 +12,7 @@ from app.main import app
 @pytest.mark.asyncio
 async def test_health_check(db_session):
     """Test the health check endpoint."""
+
     async def override_get_db():
         yield db_session
 

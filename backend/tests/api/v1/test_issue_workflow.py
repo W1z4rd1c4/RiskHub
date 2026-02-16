@@ -263,10 +263,14 @@ async def test_issue_workflow_notifications(
     )
 
     notifications = (
-        await db_session.execute(
-            select(Notification).where(Notification.resource_type == "issue", Notification.resource_id == issue_id)
+        (
+            await db_session.execute(
+                select(Notification).where(Notification.resource_type == "issue", Notification.resource_id == issue_id)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     types = {n.type for n in notifications}
     assert NotificationType.ISSUE_ASSIGNED in types
