@@ -24,7 +24,7 @@ Use `docs/agent/README.md` as the agent-doc index and `docs/agent/AGENTS_DOC_COV
 | Key Knowledge > SQLAlchemy FK cycles (SQLite tests) | `docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Testing Matrix | `.planning/codebase/TESTING.md`<br>`docs/TESTING.md` | full | RiskHub Maintainer | 2026-02-16 |
 | RBAC and Business Logic Guardrails | `docs/BUSINESS_LOGIC.md`<br>`.planning/codebase/CONCERNS.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Frontend Display Guardrails | `docs/BUSINESS_LOGIC.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Frontend Display Guardrails | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Security and Production Guardrails | `docs/deployment/security-checklist.md`<br>`docs/deployment/README.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Quick Commands | `scripts/dev.sh`<br>`Makefile` | full | RiskHub Maintainer | 2026-02-16 |
 | Demo/Dev Auth (local) | `scripts/dev.sh`<br>`.planning/codebase/INTEGRATIONS.md` | full | RiskHub Maintainer | 2026-02-16 |
@@ -191,7 +191,7 @@ Canonical Source: `docs/BUSINESS_LOGIC.md`, `.planning/codebase/CONCERNS.md`
 
 ## Frontend Display Guardrails
 
-Canonical Source: `docs/BUSINESS_LOGIC.md`
+Canonical Source: `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md`
 
 - Do not render raw database numeric IDs in user-facing UI surfaces.
 - Prefer business identifiers: names, titles, codes, or human-readable labels.
