@@ -22,7 +22,8 @@ entra_tenant_id=""
 entra_client_id=""
 
 bootstrap_admin_email=""
-bootstrap_admin_role="admin" # admin|cro
+bootstrap_admin_role="admin" # fixed to admin in this wizard (CRO has its own bootstrap email)
+bootstrap_cro_email=""
 
 entra_jit="" # true|false
 entra_allowed_domains="" # comma-separated domains (optional)
@@ -56,7 +57,8 @@ Non-interactive inputs (optional in interactive mode):
   --entra-tenant-id GUID
   --entra-client-id GUID
   --bootstrap-admin-email EMAIL
-  --bootstrap-admin-role admin|cro
+  --bootstrap-admin-role admin      Fixed to admin in this wizard (CRO uses --bootstrap-cro-email)
+  --bootstrap-cro-email EMAIL
   --entra-jit true|false
   --entra-allowed-domains "a.com,b.com"
   --action auto|deploy|upgrade|exit
@@ -210,7 +212,7 @@ validate_email_or_die() {
   local email="$1"
   email="$(printf '%s' "$email" | xargs)"
   if [[ -z "$email" || "$email" != *"@"* ]]; then
-    die "Invalid bootstrap admin email"
+    die "Invalid bootstrap email"
   fi
 }
 
@@ -410,6 +412,10 @@ while [[ $# -gt 0 ]]; do
       bootstrap_admin_role="${2:-}"
       shift 2
       ;;
+    --bootstrap-cro-email)
+      bootstrap_cro_email="${2:-}"
+      shift 2
+      ;;
     --entra-jit)
       entra_jit="${2:-}"
       shift 2
@@ -462,6 +468,7 @@ if [[ "$YES" == "true" ]]; then
   if [[ -z "$entra_tenant_id" ]]; then missing_required+=(--entra-tenant-id); fi
   if [[ -z "$entra_client_id" ]]; then missing_required+=(--entra-client-id); fi
   if [[ -z "$bootstrap_admin_email" ]]; then missing_required+=(--bootstrap-admin-email); fi
+  if [[ -z "$bootstrap_cro_email" ]]; then missing_required+=(--bootstrap-cro-email); fi
 
   if [[ ${#missing_required[@]} -gt 0 ]]; then
     die "Missing required flags in --yes mode: ${missing_required[*]}"
@@ -524,6 +531,20 @@ if [[ -z "$bootstrap_admin_role" ]]; then
 fi
 bootstrap_admin_role="$(printf '%s' "$bootstrap_admin_role" | tr '[:upper:]' '[:lower:]' | xargs)"
 validate_role_or_die "$bootstrap_admin_role"
+if [[ "$bootstrap_admin_role" != "admin" ]]; then
+  die "BOOTSTRAP_ADMIN_ROLE must be 'admin' for scripts/prod/setup.sh. Provide a separate --bootstrap-cro-email for CRO bootstrap."
+fi
+
+if [[ -z "$bootstrap_cro_email" ]]; then
+  bootstrap_cro_email="$(prompt_value "Bootstrap CRO email (SSO safety; must match Entra email)" "")"
+fi
+validate_email_or_die "$bootstrap_cro_email"
+
+admin_email_lc="$(printf '%s' "$bootstrap_admin_email" | tr '[:upper:]' '[:lower:]' | xargs)"
+cro_email_lc="$(printf '%s' "$bootstrap_cro_email" | tr '[:upper:]' '[:lower:]' | xargs)"
+if [[ -n "$admin_email_lc" && "$admin_email_lc" == "$cro_email_lc" ]]; then
+  die "Bootstrap admin and CRO emails must be different (got the same email for both)."
+fi
 
 normalized_entra_jit="$(normalize_bool "$entra_jit" 2>/dev/null || true)"
 if [[ -n "$entra_jit" && -z "$normalized_entra_jit" ]]; then
@@ -606,8 +627,11 @@ ENTRA_JIT_PROVISIONING_ENABLED=${entra_jit}
 ENTRA_ALLOWED_EMAIL_DOMAINS=${allowed_domains_json}
 
 BOOTSTRAP_ADMIN_EMAIL=${bootstrap_admin_email}
-BOOTSTRAP_ADMIN_ROLE=${bootstrap_admin_role}
+BOOTSTRAP_ADMIN_ROLE=admin
 BOOTSTRAP_ADMIN_ACCESS_SCOPE=global
+
+BOOTSTRAP_CRO_EMAIL=${bootstrap_cro_email}
+BOOTSTRAP_CRO_ACCESS_SCOPE=global
 EOF
 
 cat >"$frontend_env_local" <<EOF
@@ -627,6 +651,8 @@ log "  FRONTEND_HOST_PORT=${frontend_host_port}"
 log "  ENTRA_TENANT_ID=${entra_tenant_id}"
 log "  ENTRA_CLIENT_ID=${entra_client_id}"
 log "  ENTRA_REDIRECT_URI=${redirect_uri}"
+log "  BOOTSTRAP_ADMIN_EMAIL=${bootstrap_admin_email}"
+log "  BOOTSTRAP_CRO_EMAIL=${bootstrap_cro_email}"
 log_kv_redacted "REDIS_PASSWORD" "$redis_password"
 
 log "Running preflight checks"

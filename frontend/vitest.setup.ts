@@ -41,22 +41,18 @@ ensureLocalStorage();
 // implemented in JSDOM. Provide minimal no-op polyfills for test environment.
 if (typeof HTMLElement !== 'undefined') {
     if (typeof HTMLElement.prototype.hasPointerCapture !== 'function') {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
         HTMLElement.prototype.hasPointerCapture = () => false;
     }
     if (typeof HTMLElement.prototype.setPointerCapture !== 'function') {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
         HTMLElement.prototype.setPointerCapture = () => {};
     }
     if (typeof HTMLElement.prototype.releasePointerCapture !== 'function') {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
         HTMLElement.prototype.releasePointerCapture = () => {};
     }
 }
 
 // JSDOM doesn't implement scrollIntoView; Radix Select calls it when opening.
 if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !== 'function') {
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
     Element.prototype.scrollIntoView = () => {};
 }
 
