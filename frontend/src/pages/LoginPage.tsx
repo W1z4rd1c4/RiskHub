@@ -57,8 +57,9 @@ export default function LoginPage() {
                 if (cancelled) return;
                 setAuthConfigError(e instanceof Error ? e.message : String(e));
             } finally {
-                if (cancelled) return;
-                setIsAuthConfigLoading(false);
+                if (!cancelled) {
+                    setIsAuthConfigLoading(false);
+                }
             }
         };
 

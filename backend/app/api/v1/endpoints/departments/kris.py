@@ -47,6 +47,7 @@ async def list_department_kris(
             joinedload(KeyRiskIndicator.risk).joinedload(Risk.owner),
             joinedload(KeyRiskIndicator.reporting_owner),
         )
+        .order_by(KeyRiskIndicator.id)
         .offset(skip)
         .limit(limit)
     )
@@ -71,4 +72,3 @@ async def list_department_kris(
         items.append(res)
 
     return items
-
