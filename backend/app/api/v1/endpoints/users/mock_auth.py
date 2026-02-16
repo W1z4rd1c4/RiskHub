@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.models import User
 
@@ -21,9 +22,8 @@ async def mock_login(
     Mock login endpoint for development.
     Returns user info that can be used with X-Mock-User-Id header.
     """
-    import os
-
-    if os.getenv("MOCK_AUTH_ENABLED", "false").lower() != "true":
+    settings = get_settings()
+    if not (settings.debug and settings.mock_auth_enabled):
         raise HTTPException(status_code=404, detail="Mock auth not enabled")
 
     result = await db.execute(select(User).options(selectinload(User.role)).where(User.id == user_id))
@@ -41,4 +41,3 @@ async def mock_login(
             "role": user.role.name if user.role else None,
         },
     }
-
