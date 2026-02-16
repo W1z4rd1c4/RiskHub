@@ -229,5 +229,41 @@ async def test_password_login_disabled_in_microsoft_sso_mode(sso_client: AsyncCl
 
 @pytest.mark.asyncio
 async def test_demo_login_requires_hybrid_dev_mode(sso_client: AsyncClient, test_user: User):
-    res = await sso_client.post(f"/api/v1/auth/demo-login/{test_user.id}")
-    assert res.status_code == 403
+    by_id = await sso_client.post(f"/api/v1/auth/demo-login/{test_user.id}")
+    assert by_id.status_code == 403
+
+    by_email = await sso_client.post("/api/v1/auth/demo-login", json={"email": test_user.email})
+    assert by_email.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_demo_login_by_email_succeeds_in_hybrid_dev_mode(sso_client: AsyncClient, test_user: User):
+    def override_settings_hybrid_mode():
+        return Settings(
+            debug=True,
+            secret_key="test-secret-key",
+            mock_auth_enabled=True,
+            auth_mode="hybrid_dev",
+        )
+
+    app.dependency_overrides[get_settings] = override_settings_hybrid_mode
+
+    res = await sso_client.post("/api/v1/auth/demo-login", json={"email": test_user.email})
+    assert res.status_code == 200, res.text
+    assert res.json()["user"]["email"] == test_user.email
+
+
+@pytest.mark.asyncio
+async def test_demo_login_by_email_returns_404_for_unknown_user(sso_client: AsyncClient):
+    def override_settings_hybrid_mode():
+        return Settings(
+            debug=True,
+            secret_key="test-secret-key",
+            mock_auth_enabled=True,
+            auth_mode="hybrid_dev",
+        )
+
+    app.dependency_overrides[get_settings] = override_settings_hybrid_mode
+
+    res = await sso_client.post("/api/v1/auth/demo-login", json={"email": "missing@test.com"})
+    assert res.status_code == 404

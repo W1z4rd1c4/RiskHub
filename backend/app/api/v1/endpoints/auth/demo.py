@@ -1,16 +1,80 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings, get_settings
 from app.db.session import get_db
 from app.models import RolePermission, User
-from app.schemas.auth import TokenResponse
+from app.schemas.auth import DemoLoginRequest, TokenResponse
 
 from ._shared import _build_token_response
 
 router = APIRouter()
+
+
+def _assert_demo_login_enabled(settings: Settings) -> None:
+    if not settings.debug or not settings.mock_auth_enabled or settings.auth_mode != "hybrid_dev":
+        raise HTTPException(status_code=403, detail="Demo login is only available in development mode")
+
+
+def _user_with_demo_load():
+    return (
+        selectinload(User.role)
+        .selectinload(User.role.property.mapper.class_.permissions)
+        .selectinload(RolePermission.permission),
+        selectinload(User.department),
+    )
+
+
+async def _resolve_demo_user_by_id(*, db: AsyncSession, user_id: int) -> User | None:
+    result = await db.execute(select(User).options(*_user_with_demo_load()).where(User.id == user_id))
+    return result.scalar_one_or_none()
+
+
+async def _resolve_demo_user_by_email(*, db: AsyncSession, email: str) -> User | None:
+    normalized_email = email.strip().lower()
+    result = await db.execute(
+        select(User).options(*_user_with_demo_load()).where(func.lower(User.email) == normalized_email)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _build_demo_response(*, db: AsyncSession, user: User, login_detail: str) -> TokenResponse:
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="User account is inactive")
+
+    token_response = _build_token_response(user)
+
+    from app.core.activity_logger import log_activity
+    from app.models.activity_log import ActivityAction, ActivityEntityType
+
+    await log_activity(
+        db=db,
+        actor=user,
+        action=ActivityAction.LOGIN,
+        entity_type=ActivityEntityType.USER,
+        entity_id=user.id,
+        entity_name=user.name,
+        description=login_detail,
+    )
+    await db.commit()
+    return token_response
+
+
+@router.post("/demo-login", response_model=TokenResponse)
+async def demo_login_by_email(
+    payload: DemoLoginRequest,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    _assert_demo_login_enabled(settings)
+
+    user = await _resolve_demo_user_by_email(db=db, email=payload.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="Demo user not found")
+
+    return await _build_demo_response(db=db, user=user, login_detail=f"User logged in (demo): {user.email}")
 
 
 @router.post("/demo-login/{user_id}", response_model=TokenResponse)
@@ -30,43 +94,11 @@ async def demo_login(
     Returns:
         JWT access token and user information
     """
-    # Security check - only allow in demo/debug mode
-    if not settings.debug or not settings.mock_auth_enabled or settings.auth_mode != "hybrid_dev":
-        raise HTTPException(status_code=403, detail="Demo login is only available in development mode")
+    _assert_demo_login_enabled(settings)
 
-    # Eager load role and permissions
-    permission_load = selectinload(User.role).selectinload(User.role.property.mapper.class_.permissions).selectinload(
-        RolePermission.permission
-    )
-
-    result = await db.execute(
-        select(User).options(permission_load, selectinload(User.department)).where(User.id == user_id)
-    )
-    user = result.scalar_one_or_none()
+    user = await _resolve_demo_user_by_id(db=db, user_id=user_id)
 
     if not user:
         raise HTTPException(status_code=404, detail="Demo user not found")
 
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="User account is inactive")
-
-    token_response = _build_token_response(user)
-
-    from app.core.activity_logger import log_activity
-    from app.models.activity_log import ActivityAction, ActivityEntityType
-
-    # Log successful demo login
-    await log_activity(
-        db=db,
-        actor=user,
-        action=ActivityAction.LOGIN,
-        entity_type=ActivityEntityType.USER,
-        entity_id=user.id,
-        entity_name=user.name,
-        description=f"User logged in (demo): {user.email}",
-    )
-
-    await db.commit()
-
-    return token_response
-
+    return await _build_demo_response(db=db, user=user, login_detail=f"User logged in (demo): {user.email}")
