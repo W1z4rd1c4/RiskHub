@@ -125,7 +125,8 @@ export function IssueDetailPage() {
 
     useEffect(() => {
         if (activeTab !== 'history' || !issue || !canViewActivityLog) {
-            setHistoryItems([]);
+            setHistoryItems((prev) => (prev.length === 0 ? prev : []));
+            setIsHistoryLoading(false);
             return;
         }
 
@@ -144,7 +145,7 @@ export function IssueDetailPage() {
             })
             .catch(() => {
                 if (!cancelled) {
-                    setHistoryItems([]);
+                    setHistoryItems((prev) => (prev.length === 0 ? prev : []));
                 }
             })
             .finally(() => {
