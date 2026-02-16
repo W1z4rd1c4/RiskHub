@@ -26,6 +26,8 @@ const makeDoc = (overrides: Partial<Record<string, unknown>> = {}) => ({
 
 const originalScrollIntoView = Element.prototype.scrollIntoView;
 let scrollIntoViewMock = vi.fn();
+const originalScrollTo = HTMLElement.prototype.scrollTo;
+let scrollToMock = vi.fn();
 
 const docsPayload = {
     documents: [
@@ -37,6 +39,37 @@ const docsPayload = {
             summary: 'User governance guide.',
             content: '# User Management\nUse this guide for access governance.',
             tags: ['users'],
+        }),
+    ],
+};
+
+const linkedDocsPayload = {
+    documents: [
+        makeDoc({
+            id: 'admin_getting-started',
+            slug: 'getting-started',
+            title: 'Getting Started with RiskHub',
+            content: '# Getting Started with RiskHub\nSee [User Management](./user-management.md).',
+            tags: ['onboarding'],
+        }),
+        makeDoc({
+            id: 'admin_user-management',
+            slug: 'user-management',
+            title: 'User Management',
+            content: '# User Management\nDetails.',
+            tags: ['users'],
+        }),
+    ],
+};
+
+const tocDocsPayload = {
+    documents: [
+        makeDoc({
+            id: 'admin_getting-started',
+            slug: 'getting-started',
+            title: 'Getting Started with RiskHub',
+            content: '**On this page**\n- [Where To Find It](#where-to-find-it)\n\n## Where To Find It\nSection.',
+            tags: ['onboarding'],
         }),
     ],
 };
@@ -66,9 +99,14 @@ describe('DocumentationPage', () => {
     beforeEach(() => {
         localStorage.clear();
         scrollIntoViewMock = vi.fn();
+        scrollToMock = vi.fn();
         Object.defineProperty(Element.prototype, 'scrollIntoView', {
             configurable: true,
             value: scrollIntoViewMock,
+        });
+        Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+            configurable: true,
+            value: scrollToMock,
         });
     });
 
@@ -77,6 +115,10 @@ describe('DocumentationPage', () => {
         Object.defineProperty(Element.prototype, 'scrollIntoView', {
             configurable: true,
             value: originalScrollIntoView,
+        });
+        Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+            configurable: true,
+            value: originalScrollTo,
         });
     });
 
@@ -122,5 +164,42 @@ describe('DocumentationPage', () => {
         await uiUser.click(await screen.findByRole('link', { name: 'Jump to details' }));
 
         expect(scrollIntoViewMock).toHaveBeenCalled();
+    });
+
+    it('resets reader scroll to top when opening linked markdown documents', async () => {
+        server.use(
+            http.get('*/api/v1/admin/docs', () => HttpResponse.json(linkedDocsPayload)),
+        );
+
+        renderDocumentationPage();
+
+        const uiUser = userEvent.setup();
+        await uiUser.click(await screen.findByRole('button', { name: /Getting Started with RiskHub/i }));
+        await screen.findByTestId('admin-doc-content-scroll');
+        scrollToMock.mockClear();
+
+        await uiUser.click(await screen.findByRole('link', { name: 'User Management' }));
+
+        expect(await screen.findByRole('heading', { level: 2, name: 'User Management' })).toBeInTheDocument();
+        expect(scrollToMock).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'auto' });
+        expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'auto', block: 'start' });
+    });
+
+    it('scrolls to toc target when clicking in-document toc link', async () => {
+        server.use(
+            http.get('*/api/v1/admin/docs', () => HttpResponse.json(tocDocsPayload)),
+        );
+
+        renderDocumentationPage();
+
+        const uiUser = userEvent.setup();
+        await uiUser.click(await screen.findByRole('button', { name: /Getting Started with RiskHub/i }));
+        scrollToMock.mockClear();
+        scrollIntoViewMock.mockClear();
+
+        await uiUser.click(await screen.findByRole('link', { name: 'Where To Find It' }));
+
+        expect(scrollToMock).toHaveBeenCalledWith({ top: expect.any(Number), left: 0, behavior: 'smooth' });
+        expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
     });
 });
