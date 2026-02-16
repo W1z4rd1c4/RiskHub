@@ -96,7 +96,8 @@ export function RiskDetailPage() {
 
         const fetchKriHistory = async () => {
             if (activeTab !== 'history' || !risk?.kris || risk.kris.length === 0) {
-                setKriHistoryItems([]);
+                setKriHistoryItems((prev) => (prev.length === 0 ? prev : []));
+                setIsHistoryLoading(false);
                 return;
             }
 
