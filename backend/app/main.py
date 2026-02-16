@@ -224,7 +224,7 @@ def create_app(settings: Settings) -> FastAPI:
     # Logging context middleware (adds request_id, user_id, client_ip to logs)
     from app.middleware.logging_context import LoggingContextMiddleware
 
-    app.add_middleware(LoggingContextMiddleware)
+    app.add_middleware(LoggingContextMiddleware, trusted_proxies=settings.trusted_proxies)
 
     # Security headers middleware (CSP, HSTS, X-Frame-Options, etc.)
     from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware
@@ -232,7 +232,11 @@ def create_app(settings: Settings) -> FastAPI:
     app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
 
     # Rate limiting middleware (disabled in debug mode)
-    app.add_middleware(RateLimitMiddleware, enabled=not settings.debug)
+    app.add_middleware(
+        RateLimitMiddleware,
+        enabled=not settings.debug,
+        trusted_proxies=settings.trusted_proxies,
+    )
 
     # Language detection middleware (Accept-Language header support)
     from app.middleware.language import LanguageMiddleware

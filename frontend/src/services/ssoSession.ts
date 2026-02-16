@@ -7,6 +7,12 @@ let refreshInFlight: Promise<string | null> | null = null;
 export async function silentReauthAndExchange(): Promise<string | null> {
     if (!refreshInFlight) {
         refreshInFlight = (async () => {
+            const refreshResponse = await authApi.refresh().catch(() => null);
+            if (refreshResponse?.access_token) {
+                localStorage.setItem('access_token', refreshResponse.access_token);
+                return refreshResponse.access_token;
+            }
+
             const config = await getAuthConfig().catch(() => null);
             if (!config?.sso.enabled) {
                 return null;
@@ -31,4 +37,3 @@ export async function silentReauthAndExchange(): Promise<string | null> {
 export function __resetSsoSessionForTests(): void {
     refreshInFlight = null;
 }
-

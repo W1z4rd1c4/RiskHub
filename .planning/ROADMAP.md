@@ -39,13 +39,13 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 14: Risk Assessments** — Campaigns and questionnaires (7/7)
 - [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (6/6)
 - [x] **Phase 16: Risk Assessment Polish** — Review, reminders, reporting (3/3)
-- [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing (11/15)
+- [x] **Phase 17: Production Deployment** — Docker, production infra, AD SSO, testing (14/14)
 - [x] **Phase 18: Vendor Risk Management** — Third-party risk assessments (12/12)
-- [ ] **Phase 19: Advanced Audit Workflows** — Advanced audit workflows (0/2)
+- [ ] **Phase 19 (Deferred): Advanced Audit Workflows** — Advanced audit workflows (0/2)
 - [x] **Phase 20: Czech Localization** — Full i18n infrastructure (16/12 — overdelivered)
 - [x] **Phase 25: User-Specific Settings** — Theme/language persistence (5/5)
 - [ ] **Phase 26: Dark Mode Polish** — Dark mode refinements (0/1)
-- [ ] **Phase 70: Risk Hub** — Admin Console for system configuration (8/12)
+- [ ] **Phase 70 (Deferred): Risk Hub** — Admin Console for system configuration (8/12)
 - [x] **Phase 71: Risk Hub Review** — Audit Risk Hub implementation (3/3)
 - [x] **Phase 72: Risk Hub Resolution** — Fix Phase 71 findings (12/12)
 - [ ] **Phase 73: Approval Permission Fix** — Approval permissions (0/6)
@@ -465,10 +465,11 @@ Plans:
 
 ### Phase 17: Production Deployment & Enterprise Integration
 
-**Goal**: Production-ready deployment, Azure AD/Entra SSO, comprehensive documentation, and enterprise testing
+**Goal**: Production-ready deployment, Entra SSO, comprehensive documentation, and enterprise testing
 **Depends on**: Can run independently
-**Status**: In Progress
-**Plans**: 15 plans
+**Status**: Complete
+**Completed**: 2026-02-16
+**Plans**: 14 plans
 
 **Security Concerns (Penetration Test - 2026-01-08):**
 > [!WARNING]
@@ -517,14 +518,20 @@ Plans:
 - [x] 17-04: End-to-End Regression Suite (Playwright full coverage)
 - [x] 17-05: Performance & Load Testing (Locust, benchmarks)
 - [x] 17-06: VM Deployment Scripts (systemd, nginx, install scripts)
-- [ ] 17-07: Azure Deployment (Bicep templates, App Service, CI/CD)
 - [x] 17-08: Technical Deployment Documentation (IT/DevOps guides)
 - [x] 17-09: Administrator Guide (CRO/Admin configuration)
 - [x] 17-10: End-User Guide (Risk manager documentation)
 - [x] 17-11: Azure AD/Entra SSO (MSAL integration, token validation)
-- [ ] 17-12: AD User Directory Lookup (Graph API, user import)
-- [ ] 17-13: Session Management (refresh tokens, sliding sessions, force logout)
-- [ ] 17-14: AD Deprovisioning Check (deleted user detection, auto-deactivate)
+- [x] 17-12: AD User Directory Lookup (Graph API, user import)
+- [x] 17-13: Session Management (refresh tokens, sliding sessions, force logout)
+- [x] 17-14: AD Deprovisioning Check (deleted user detection, auto-deactivate)
+
+Note:
+- `17-07` (Azure Deployment) was removed from active scope on 2026-02-16 after deployment target changed away from Azure.
+- Closeout evidence for remaining production identity/session scope:
+  - `.planning/phases/17-production-deploy/17-12-SUMMARY.md`
+  - `.planning/phases/17-production-deploy/17-13-SUMMARY.md`
+  - `.planning/phases/17-production-deploy/17-14-SUMMARY.md`
 
 ### Phase 18: Vendor Risk Management
 
@@ -567,12 +574,12 @@ Plans:
 - [ ] 19-01: Audit planning wizard and automated sampling engine
 - [ ] 19-02: Evidence collection pipeline and exception triage
 
-### Phase 70: Risk Hub & Platform Administration
+### Phase 70: Risk Hub & Platform Administration (DEFERRED)
 
 **Goal**: Deliver Risk Hub and platform administration capabilities with strict separation between CRO business configuration and IT admin operations.
 **Depends on**: Phase 7 (User Management & RBAC)
 **Research**: None
-**Status**: ⏳ In progress
+**Status**: Deferred for future release
 **Plans**: 12 plans
 **Evidence hint**: 8 summaries present for 01-07; no summary for 08-12.
 
@@ -881,13 +888,13 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 12.1 Compliance Review | 10/10 | ✅ Complete | 2026-01-04 |
 | 13. Issue & Remediation Management | 8/8 | ✅ Complete | 2026-02-12 |
 | 15. Settings Page | 6/6 | ✅ Complete | 2026-02-16 |
-| 17. Production Deploy | 11/15 | ⏳ In progress | - |
+| 17. Production Deploy | 14/14 | ✅ Complete | 2026-02-16 |
 | 18. Vendor Risk | 12/12 | ✅ Complete | 2026-01-26 |
 | 19. Advanced Audit Workflows | 0/2 | ⏸️ Deferred | - |
 | 20. Czech Localization | 16/12 | ✅ Complete | - |
 | 25. User Settings | 5/5 | ✅ Complete | 2026-01-11 |
 | 26. Dark Mode Polish | 0/1 | ⏸️ Open | - |
-| 70. Risk Hub | 8/12 | ⏳ In progress | - |
+| 70. Risk Hub | 8/12 | ⏸️ Deferred | - |
 | 71. Risk Hub Review | 3/3 | ✅ Complete | 2026-01-03 |
 | 72. Risk Hub Resolution | 12/12 | ✅ Complete | 2026-01-05 |
 | 73. Approval Permission Fix | 0/6 | ⏸️ Planned | - |

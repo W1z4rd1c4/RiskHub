@@ -21,6 +21,7 @@ from app.models.kri_history import KRIValueHistory
 from app.models.notification import Notification, NotificationType
 from app.models.orphaned_item import OrphanedItem
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
+from app.models.refresh_token import RefreshToken
 from app.models.risk import ControlEffectiveness, ControlRiskLink, Risk, RiskStatus, RiskType
 from app.models.risk_questionnaire import RiskQuestionnaire, RiskQuestionnaireClarification, RiskQuestionnaireStatus
 
@@ -92,4 +93,5 @@ __all__ = [
     "GlobalConfig",
     "ApprovalScenario",
     "QuarterlyMetricSnapshot", "SnapshotType",
+    "RefreshToken",
 ]

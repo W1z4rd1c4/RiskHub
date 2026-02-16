@@ -14,6 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.core.client_ip import DEFAULT_TRUSTED_PROXIES, ClientIPResolver
 from app.core.logging import client_ip_ctx, get_logger, request_id_ctx, user_id_ctx
 
 logger = get_logger("middleware.logging")
@@ -22,16 +23,22 @@ logger = get_logger("middleware.logging")
 class LoggingContextMiddleware(BaseHTTPMiddleware):
     """Middleware to inject request context into structlog."""
 
-    # Simple trusted proxy check for logging (rate limiting uses full CIDR in security.py)
-    # These are private networks where XFF can be trusted
-    TRUSTED_PREFIXES = ("127.", "10.", "172.16.", "172.17.", "172.18.", "172.19.",
-                        "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
-                        "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
-                        "172.30.", "172.31.", "192.168.", "::1")
+    TRUSTED_PROXIES = set(DEFAULT_TRUSTED_PROXIES)
 
-    def _is_trusted_proxy(self, ip: str) -> bool:
-        """Quick check if IP is from a trusted internal network."""
-        return ip.startswith(self.TRUSTED_PREFIXES)
+    def __init__(
+        self,
+        app,
+        trusted_proxies: list[str] | set[str] | tuple[str, ...] | None = None,
+    ):
+        super().__init__(app)
+        proxy_entries = list(trusted_proxies) if trusted_proxies is not None else list(self.TRUSTED_PROXIES)
+        self._client_ip_resolver = ClientIPResolver(proxy_entries)
+
+    def _get_client_ip(self, request: Request) -> str:
+        """Resolve effective client IP using trusted-proxy chain semantics."""
+        peer_ip = request.client.host if request.client else "unknown"
+        forwarded = request.headers.get("X-Forwarded-For")
+        return self._client_ip_resolver.resolve(peer_ip=peer_ip, forwarded_for=forwarded)
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
@@ -39,15 +46,8 @@ class LoggingContextMiddleware(BaseHTTPMiddleware):
         # Generate or extract request ID
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
 
-        # Extract client IP - only trust XFF from internal/trusted proxies
-        peer_ip = request.client.host if request.client else "unknown"
-        if self._is_trusted_proxy(peer_ip):
-            # Trusted proxy - use XFF if present
-            xff = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-            client_ip = xff if xff else peer_ip
-        else:
-            # Untrusted source - don't trust XFF (prevents spoofing)
-            client_ip = peer_ip
+        # Extract client IP using the same trusted proxy logic as rate limiting.
+        client_ip = self._get_client_ip(request)
 
         # Set context variables for the duration of this request
         request_id_token = request_id_ctx.set(request_id)

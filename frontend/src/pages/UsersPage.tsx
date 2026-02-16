@@ -5,11 +5,15 @@ import {
     UserPlus,
     UserCheck,
     Crown,
-    Server
+    Server,
+    RefreshCw,
+    Building2,
 } from 'lucide-react';
 import { accessApi } from '@/services/accessApi';
+import { adminApi } from '@/services/adminApi';
 import { userApi } from '@/services/userApi';
 import type { AccessUserRead } from '@/types/access';
+import type { DirectoryImportResponse } from '@/types/directory';
 import type { UserLookup } from '@/types/user';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuthz } from '@/authz/useAuthz';
@@ -19,6 +23,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useUsersPageFilters } from '@/hooks/useUsersPageFilters';
 import { UsersFilterBar } from '@/components/access/UsersFilterBar';
 import { UsersTable } from '@/components/access/UsersTable';
+import { ADUserPicker } from '@/components/users/ADUserPicker';
 
 export function UsersPage() {
     const { t } = useTranslation('admin');
@@ -29,6 +34,10 @@ export function UsersPage() {
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<AccessUserRead | null>(null);
     const [isAccessMode, setIsAccessMode] = useState(false);
+    const [isADPickerOpen, setIsADPickerOpen] = useState(false);
+    const [directoryMessage, setDirectoryMessage] = useState<string | null>(null);
+    const [isCheckingAllDirectory, setIsCheckingAllDirectory] = useState(false);
+    const [checkingDirectoryUserId, setCheckingDirectoryUserId] = useState<number | null>(null);
 
     // Confirm dialog state for user status toggle (only used in access mode)
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -110,6 +119,57 @@ export function UsersPage() {
         fetchUsers();
     };
 
+    const handleDirectoryImported = async (result: DirectoryImportResponse) => {
+        setDirectoryMessage(
+            t('users.directory_import_success', {
+                defaultValue: `${result.name} imported from directory`,
+                name: result.name,
+            }),
+        );
+        setIsADPickerOpen(false);
+        await fetchUsers();
+    };
+
+    const handleCheckAllDirectory = async () => {
+        try {
+            setIsCheckingAllDirectory(true);
+            const response = await adminApi.checkAllDirectoryUsers();
+            setDirectoryMessage(
+                t('users.directory_check_all_success', {
+                    defaultValue: `Checked ${response.checked} users (${response.deprovisioned} deprovisioned).`,
+                    checked: response.checked,
+                    deprovisioned: response.deprovisioned,
+                }),
+            );
+            await fetchUsers();
+        } catch (error) {
+            console.error('Directory check-all failed', error);
+            setDirectoryMessage(t('users.directory_check_failed', { defaultValue: 'Directory check failed.' }));
+        } finally {
+            setIsCheckingAllDirectory(false);
+        }
+    };
+
+    const handleCheckSingleDirectory = async (user: AccessUserRead) => {
+        try {
+            setCheckingDirectoryUserId(user.id);
+            const response = await adminApi.checkDirectoryUser(user.id);
+            setDirectoryMessage(
+                t('users.directory_check_single_success', {
+                    defaultValue: `${user.name}: ${response.status}`,
+                    name: user.name,
+                    status: response.status,
+                }),
+            );
+            await fetchUsers();
+        } catch (error) {
+            console.error('Directory single-user check failed', error);
+            setDirectoryMessage(t('users.directory_check_failed', { defaultValue: 'Directory check failed.' }));
+        } finally {
+            setCheckingDirectoryUserId(null);
+        }
+    };
+
     // Compute display values
     const displayUsers = isAccessMode ? filters.filteredAccessUsers : [];
     const displayDirectoryUsers = !isAccessMode ? filters.filteredDirectoryUsers : [];
@@ -136,15 +196,46 @@ export function UsersPage() {
                     </p>
                 </div>
                 {canManageUsers && (
-                    <button
-                        onClick={() => navigate('/users/new')}
-                        className="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
-                    >
-                        <UserPlus className="h-5 w-5" />
-                        {t('access.add_user')}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button
+                            onClick={() => setIsADPickerOpen(true)}
+                            className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-white transition hover:bg-white/10"
+                        >
+                            <span className="inline-flex items-center gap-2">
+                                <Building2 className="h-4 w-4" />
+                                {t('users.add_from_ad', { defaultValue: 'Add from AD' })}
+                            </span>
+                        </button>
+                        {authz.isPlatformAdmin && (
+                            <button
+                                onClick={handleCheckAllDirectory}
+                                disabled={isCheckingAllDirectory}
+                                className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sky-200 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                <span className="inline-flex items-center gap-2">
+                                    <RefreshCw className={`h-4 w-4 ${isCheckingAllDirectory ? 'animate-spin' : ''}`} />
+                                    {isCheckingAllDirectory
+                                        ? t('users.checking_directory', { defaultValue: 'Checking...' })
+                                        : t('users.check_directory', { defaultValue: 'Check AD' })}
+                                </span>
+                            </button>
+                        )}
+                        <button
+                            onClick={() => navigate('/users/new')}
+                            className="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
+                        >
+                            <UserPlus className="h-5 w-5" />
+                            {t('access.add_user')}
+                        </button>
+                    </div>
                 )}
             </div>
+
+            {directoryMessage && (
+                <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
+                    {directoryMessage}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="glass-card p-4 flex items-center gap-4">
@@ -215,6 +306,9 @@ export function UsersPage() {
                     canManageUsers={canManageUsers}
                     onEditAccess={handleEditAccess}
                     onToggleStatus={handleToggleClick}
+                    canRunDirectoryChecks={authz.isPlatformAdmin}
+                    checkingDirectoryUserId={checkingDirectoryUserId}
+                    onCheckDirectory={handleCheckSingleDirectory}
                 />
             </div>
 
@@ -239,6 +333,12 @@ export function UsersPage() {
                 confirmLabel={userToToggle?.is_active ? t('access.actions.deactivate') : t('access.actions.reactivate')}
                 variant={userToToggle?.is_active ? 'danger' : 'info'}
                 isLoading={isToggling}
+            />
+
+            <ADUserPicker
+                isOpen={isADPickerOpen}
+                onClose={() => setIsADPickerOpen(false)}
+                onImported={handleDirectoryImported}
             />
         </div>
     );

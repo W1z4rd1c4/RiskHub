@@ -17,12 +17,14 @@ Backend startup enforces these when `DEBUG=false`:
 - `CORS_ORIGINS` is an explicit allowlist (no `*`)
 - `REDIS_URL` is set and reachable
 - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` set
+- `TRUSTED_PROXIES` reviewed when deploying behind non-default proxy networks
 
 ## Network
 
 - Terminate TLS in front of the frontend (Ingress/Reverse Proxy).
 - Do not expose PostgreSQL/Redis to the public internet.
 - Restrict backend API exposure to internal traffic where possible (frontend reverse proxy is the intended entry point).
+- In Docker Compose flows, backend host publishing is loopback-bound by default (`127.0.0.1:8000:8000`).
 - Phase 500 scripts default to **not publishing** the backend container on the host. Use frontend `/api/*` proxy as the entry point.
 
 ## Authentication

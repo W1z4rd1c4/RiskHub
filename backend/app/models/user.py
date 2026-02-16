@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from app.models.control_execution import ControlExecution
     from app.models.department import Department
     from app.models.notification import Notification
+    from app.models.refresh_token import RefreshToken
     from app.models.risk import Risk
     from app.models.role import Role
     from app.models.vendor import Vendor
@@ -35,8 +36,10 @@ class User(Base):
     external_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     name: Mapped[str] = mapped_column(String(255))
+    job_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     employee_type: Mapped[str | None] = mapped_column(String(50), nullable=True, default="employee")
+    token_version: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
 
     # Access scope (data visibility)
     access_scope: Mapped[AccessScope] = mapped_column(
@@ -74,6 +77,11 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    directory_last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    directory_last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    directory_sync_status: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    deprovisioned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deprovision_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # User preferences (synced across devices)
     preferred_theme: Mapped[str] = mapped_column(String(20), default="riskhub", server_default="riskhub")
@@ -101,6 +109,7 @@ class User(Base):
 
     # Notification relationship
     notifications: Mapped[list["Notification"]] = relationship("Notification", back_populates="user")
+    refresh_tokens: Mapped[list["RefreshToken"]] = relationship("RefreshToken", back_populates="user")
 
     @property
     def manager_name(self) -> str | None:

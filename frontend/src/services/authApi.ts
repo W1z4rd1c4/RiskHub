@@ -51,6 +51,7 @@ export const authApi = {
         const response = await fetch(`${API_URL}/config`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
         });
 
         if (!response.ok) {
@@ -66,6 +67,7 @@ export const authApi = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(credentials),
+            credentials: 'include',
         });
 
         if (!response.ok) {
@@ -81,6 +83,7 @@ export const authApi = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id_token: idToken }),
+            credentials: 'include',
         });
 
         if (!response.ok) {
@@ -95,6 +98,7 @@ export const authApi = {
     async getCurrentUser(token: string): Promise<TokenResponse['user']> {
         const response = await fetch(`${API_URL}/me`, {
             headers: { 'Authorization': `Bearer ${token}` },
+            credentials: 'include',
         });
 
         if (!response.ok) {
@@ -104,8 +108,41 @@ export const authApi = {
         return response.json();
     },
 
+    async refresh(): Promise<TokenResponse> {
+        const response = await fetch(`${API_URL}/refresh`, {
+            method: 'POST',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error((error as { detail?: string }).detail || 'Refresh failed');
+        }
+
+        return response.json();
+    },
+
+    async logoutAll(): Promise<void> {
+        const accessToken = localStorage.getItem('access_token');
+        const response = await fetch(`${API_URL}/logout-all`, {
+            method: 'POST',
+            headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error((error as { detail?: string }).detail || 'Logout all failed');
+        }
+        localStorage.removeItem('access_token');
+    },
+
     async logout(): Promise<void> {
-        // Client-side logout (clear token)
+        await fetch(`${API_URL}/logout`, {
+            method: 'POST',
+            credentials: 'include',
+        }).catch(() => null);
+
         localStorage.removeItem('access_token');
     },
 };

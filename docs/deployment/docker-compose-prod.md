@@ -39,6 +39,7 @@ From repo root:
    - `REDIS_PASSWORD` and `REDIS_URL`
    - `AUTH_MODE=microsoft_sso`
    - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID`
+   - `TRUSTED_PROXIES` if your reverse proxy hops are outside the default private ranges
 
 ## 2) Start database + Redis first
 
@@ -61,7 +62,9 @@ Notes:
 ## 5) Verify
 
 - Frontend: `http://<host>/`
-- Backend health: `http://<host>/api/v1/health`
+- Backend health via frontend proxy: `http://<host>/api/v1/health`
+- Direct backend host publish is localhost-only by default: `http://127.0.0.1:8000/api/v1/health`
+  (change `backend.ports` intentionally if external direct API exposure is required).
 
 In production (`DEBUG=false`), `/docs` and `/openapi.json` are disabled by design.
 

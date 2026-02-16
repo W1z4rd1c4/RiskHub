@@ -83,6 +83,7 @@ class ActiveSessionResponse(BaseModel):
     department: str | None
     last_activity: str
     is_active: bool
+    active_sessions: int = 0
     last_login: str | None = None
 
 

@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     controls,
     dashboard,
     departments,
+    directory,
     executions,
     health,
     issues,
@@ -65,6 +66,7 @@ api_router.include_router(kris.router)
 api_router.include_router(approvals.router, prefix="/approvals", tags=["approvals"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(admin.router, prefix="/admin", tags=["admin"])
+api_router.include_router(directory.router, tags=["directory"])
 api_router.include_router(orphaned_items.router, prefix="/orphaned-items", tags=["governance"])
 api_router.include_router(lookups.router, prefix="/lookups", tags=["lookups"])
 api_router.include_router(activity_log.router, prefix="/activity-log", tags=["activity-log"])

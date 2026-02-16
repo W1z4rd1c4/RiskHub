@@ -69,6 +69,13 @@ def _build_access_user_read(user: User) -> AccessUserRead:
         access_scope=user.access_scope,
         scope_label=get_scope_label(user),
         effective_permissions=get_effective_permissions(user),
+        external_id=user.external_id,
+        job_title=user.job_title,
+        directory_last_checked_at=user.directory_last_checked_at,
+        directory_last_seen_at=user.directory_last_seen_at,
+        directory_sync_status=user.directory_sync_status,
+        deprovisioned_at=user.deprovisioned_at,
+        deprovision_reason=user.deprovision_reason,
     )
 
 
