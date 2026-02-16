@@ -9,6 +9,20 @@ These scripts implement a production install path where:
 
 Installation manual (recommended): `docs/deployment/installation-manual.md`
 
+## Guided Setup (recommended)
+
+If you want a single command that prompts for configuration, generates secrets, writes env files, runs preflight, and then deploys/updates:
+
+```bash
+scripts/prod/setup.sh
+```
+
+Dry-run (previews actions only):
+
+```bash
+scripts/prod/setup.sh --dry-run
+```
+
 ## Common Flags
 
 Most scripts support:

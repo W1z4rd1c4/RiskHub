@@ -17,7 +17,6 @@ Backend startup enforces these when `DEBUG=false`:
 - `CORS_ORIGINS` is an explicit allowlist (no `*`)
 - `REDIS_URL` is set and reachable
 - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` set
-- If `DIRECTORY_WEBHOOK_ENABLED=true`, `WEBHOOK_SECRET` is required
 
 ## Network
 
@@ -30,7 +29,6 @@ Backend startup enforces these when `DEBUG=false`:
 
 - Production runs SSO-only (`microsoft_sso`).
 - Confirm the Entra app is configured for your tenant and intended audience.
-- If you do not use directory webhooks, set `DIRECTORY_WEBHOOK_ENABLED=false`.
 
 ## Scheduler
 
@@ -39,10 +37,10 @@ Backend startup enforces these when `DEBUG=false`:
 
 ## Secrets handling
 
-- Store `SECRET_KEY`, DB passwords, Redis password, and `WEBHOOK_SECRET` in a secret manager or Kubernetes `Secret`.
+- Store `SECRET_KEY`, DB passwords, and Redis password in a secret manager or Kubernetes `Secret`.
 - Never commit real secrets into `.env` files.
 - When using Phase 500 scripts, keep `/etc/riskhub/backend.env` and `/etc/riskhub/frontend.env` readable only by root or a dedicated ops user.
-- Do not echo secrets into shell history or CI logs. The Phase 500 scripts avoid printing `DATABASE_URL`, `SECRET_KEY`, `REDIS_PASSWORD`, and `WEBHOOK_SECRET`.
+- Do not echo secrets into shell history or CI logs. The Phase 500 scripts avoid printing `DATABASE_URL`, `SECRET_KEY`, and `REDIS_PASSWORD`.
 
 ## Backups
 

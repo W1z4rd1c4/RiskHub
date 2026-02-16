@@ -47,7 +47,6 @@ Canonical Source: `.planning/codebase/STRUCTURE.md`, `.planning/codebase/ARCHITE
 - `frontend/`: React + TypeScript + Vite + Vitest + Playwright
 - `docs/`: business logic, testing, user/admin documentation
 - `.planning/`: roadmap, state, and phase plans/summaries
-- `AD Emulator/`: separate directory simulation app (out of scope unless requested)
 
 ## Source-of-Truth Order
 

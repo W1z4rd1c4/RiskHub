@@ -10,10 +10,7 @@
 # 2. Full stack (all services via Docker):
 #    docker-compose up -d
 #
-# 3. Full stack with AD emulator:
-#    docker-compose --profile with-ad up -d
-#
-# 4. LAN access (access from other devices):
+# 3. LAN access (access from other devices):
 #    LAN_HOST=192.168.x.x docker-compose up -d
 #
 # ==============================================================================
@@ -81,7 +78,6 @@ services:
       - ENTRA_OIDC_DISCOVERY_URL=${ENTRA_OIDC_DISCOVERY_URL:-}
       # LAN_HOST allows access from other devices. Set externally: LAN_HOST=192.168.x.x docker-compose up
       - CORS_ORIGINS=["http://localhost:80","http://localhost:5173","http://frontend:80","http://${LAN_HOST:-localhost}:80","http://${LAN_HOST:-localhost}:8000"]
-      - AD_EMULATOR_URL=http://ad-emulator:8001/api/v1
     ports:
       - "8000:8000"
     volumes:
@@ -119,27 +115,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - riskhub-network
-
-  # ==========================================================================
-  # AD Emulator (Optional - for development with AD simulation)
-  # ==========================================================================
-  ad-emulator:
-    build:
-      context: ./AD Emulator/backend
-      dockerfile: Dockerfile
-    container_name: riskhub-ad-emulator
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@db:5432/ad_emulator
-      - DEBUG=true
-    ports:
-      - "127.0.0.1:8001:8001"
-    depends_on:
-      db:
-        condition: service_healthy
-    profiles:
-      - with-ad # Only start with: docker-compose --profile with-ad up
     networks:
       - riskhub-network
 

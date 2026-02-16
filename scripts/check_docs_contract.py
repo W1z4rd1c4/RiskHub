@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""Validate documentation contract for in-app admin/user manuals."""
+"""
+Validate in-app documentation contract for RiskHub manuals.
+
+This checker enforces:
+- EN/CS filename parity for user/admin libraries
+- required frontmatter keys + tag taxonomy
+- minimum richness (word count + required H2 sections)
+- link contract:
+  - doc-to-doc links must be `./file.md` (same directory) and stay inside the reader
+  - app route links must be `/path`
+  - anchor links `#heading-id` are allowed
+  - external links `https://...` are allowed
+- admin docs must not contain direct instructions targeting non-admin roles
+"""
 
 from __future__ import annotations
 
@@ -15,7 +28,8 @@ ADMIN_CS_DIR = DOCS_ROOT / "admin-cs"
 USER_EN_DIR = DOCS_ROOT / "user"
 USER_CS_DIR = DOCS_ROOT / "user-cs"
 
-DOC_DIRS = [ADMIN_EN_DIR, ADMIN_CS_DIR, USER_EN_DIR, USER_CS_DIR]
+DOC_DIRS: list[Path] = [ADMIN_EN_DIR, ADMIN_CS_DIR, USER_EN_DIR, USER_CS_DIR]
+
 REQUIRED_FRONTMATTER_KEYS = {
     "title",
     "version",
@@ -26,31 +40,158 @@ REQUIRED_FRONTMATTER_KEYS = {
     "tags",
 }
 
-EN_ADMIN_LEAKAGE = [
-    r"\bCRO\b",
-    r"Risk Manager",
-    r"Department Head",
-    r"\bEmployee\b",
-    r"\bCompliance\b",
-    r"\bLegal\b",
-    r"Internal Audit",
-    r"\bActuarial\b",
-    r"\bCEO\b",
-    r"\bCFO\b",
-]
+ALLOWED_TAGS = {
+    # Global tags
+    "overview",
+    "onboarding",
+    "workflow",
+    "approvals",
+    "notifications",
+    "exports",
+    "audit",
+    "troubleshooting",
+    "settings",
+    # Module tags
+    "risks",
+    "controls",
+    "kri",
+    "issues",
+    "vendors",
+    "departments",
+    "governance",
+    "access",
+    "riskhub",
+    "activity-log",
+}
 
-CS_ADMIN_LEAKAGE = [
-    r"Risk manažer",
-    r"Vedoucí oddělení",
-    r"\bZaměstnanec\b",
-    r"Interní audit",
-    r"\bCEO\b",
-    r"\bCFO\b",
-]
+README_MIN_WORDS = 900
+PAGE_MIN_WORDS = 800
+README_MIN_H2 = 10
+PAGE_MIN_H2 = 8
 
+DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
-H2_PATTERN = re.compile(r"^##\s+", re.MULTILINE)
+H2_TITLE_PATTERN = re.compile(r"^##\s+(.+)$", re.MULTILINE)
 WORD_PATTERN = re.compile(r"\b[\w-]+\b")
+
+# Required section titles (H2) for module/runbook pages.
+USER_EN_REQUIRED_H2 = [
+    "Overview",
+    "Where To Find It",
+    "Roles, Scope, and Visibility",
+    "Data Model and Key Fields",
+    "Core Workflows",
+    "Approvals and Notifications Behavior",
+    "Filters, Views, and Exports",
+    "Common Mistakes",
+    "Troubleshooting",
+    "Related Documentation",
+]
+
+USER_CS_REQUIRED_H2 = [
+    "Přehled",
+    "Kde to najdete",
+    "Role, scope a viditelnost",
+    "Datový model a klíčová pole",
+    "Hlavní workflow",
+    "Schvalování a notifikace",
+    "Filtry, pohledy a exporty",
+    "Časté chyby",
+    "Troubleshooting",
+    "Související dokumentace",
+]
+
+ADMIN_EN_REQUIRED_H2 = [
+    "Overview",
+    "When To Use This",
+    "Preconditions and Safety",
+    "Step-by-Step Procedure",
+    "Verification Checklist",
+    "Rollback Strategy",
+    "Troubleshooting",
+    "Escalation and Handoff",
+    "Related Documentation",
+]
+
+ADMIN_CS_REQUIRED_H2 = [
+    "Přehled",
+    "Kdy to použít",
+    "Předpoklady a bezpečnost",
+    "Postup krok za krokem",
+    "Ověření po změně",
+    "Rollback",
+    "Troubleshooting",
+    "Eskalace a předání",
+    "Související dokumentace",
+]
+
+# Required section titles (H2) for README/index pages.
+USER_README_EN_REQUIRED_H2 = [
+    "Who Should Use This Library",
+    "What You Can Expect From These Manuals",
+    "Quick Start (30 Minutes)",
+    "Library Map (By Sidebar Module)",
+    "Library Map (By Common Workflows)",
+    "How Permissions and Scope Affect What You See",
+    "How To Use Links Inside Manuals",
+    "How To Use Tags and Filters In The Reader",
+    "How To Report Documentation Issues",
+    "Change Policy and Source of Truth",
+    "Related Documentation",
+]
+
+USER_README_CS_REQUIRED_H2 = [
+    "Kdo má tuto knihovnu používat",
+    "Co můžete od manuálů čekat",
+    "Rychlý start (30 minut)",
+    "Mapa dokumentace (podle modulu v menu)",
+    "Mapa dokumentace (podle workflow)",
+    "Jak fungují oprávnění a scope",
+    "Jak fungují odkazy v manuálech",
+    "Tagy a rychlé filtrování v knihovně",
+    "Jak hlásit problém v dokumentaci",
+    "Politika změn a zdroj pravdy",
+    "Související dokumentace",
+]
+
+ADMIN_README_EN_REQUIRED_H2 = [
+    "Overview",
+    "Audience and Boundary",
+    "Quick Start (First Hour)",
+    "Library Map (By Operator Task)",
+    "Access and Safety Principles",
+    "Operational Support Triage",
+    "Observability and Evidence",
+    "Change Management Expectations",
+    "Escalation and Handoff",
+    "Related Documentation",
+]
+
+ADMIN_README_CS_REQUIRED_H2 = [
+    "Přehled",
+    "Cílová skupina a hranice",
+    "Rychlý start (první hodina)",
+    "Mapa knihovny (podle úkolu operátora)",
+    "Principy přístupů a bezpečnosti",
+    "Triage provozní podpory",
+    "Observabilita a evidence",
+    "Očekávání pro change management",
+    "Eskalace a předání",
+    "Související dokumentace",
+]
+
+# Admin leakage: allow role mentions for handoff context, but forbid direct instructions aimed at non-admin roles.
+ADMIN_FORBIDDEN_INSTRUCTION_PATTERNS_EN = [
+    r"\bif you are (?:a|an)?\s*(?:cro|risk manager|department head|employee|viewer|compliance|legal|internal audit|actuarial)\b",
+    r"\bfor (?:cro|risk managers?|department heads?|employees?|viewers?|compliance|legal|internal audit|actuarial)\b",
+    r"\bas (?:a|an)?\s*(?:cro|risk manager|department head|employee|viewer|compliance|legal|internal audit|actuarial)\b",
+]
+
+ADMIN_FORBIDDEN_INSTRUCTION_PATTERNS_CS = [
+    r"\bpokud jste\s+(?:cro|zam[eě]stnanec|vedouc[ií] odd[eě]len[ií]|risk mana[žz]er|compliance|legal|intern[ií] audit|aktu[aá]r|viewer)\b",
+    r"\bpro\s+(?:cro|zam[eě]stnance|vedouc[ií] odd[eě]len[ií]|risk mana[žz]era|compliance|legal|intern[ií] audit|aktu[aá]ry|viewery?)\b",
+    r"\bjako\s+(?:cro|zam[eě]stnanec|vedouc[ií] odd[eě]len[ií]|risk mana[žz]er|compliance|legal|intern[ií] audit|aktu[aá]r|viewer)\b",
+]
 
 
 class FrontmatterParseError(Exception):
@@ -61,10 +202,17 @@ def list_markdown_files(directory: Path) -> list[Path]:
     return sorted(path for path in directory.glob("*.md") if path.is_file())
 
 
+def strip_quotes(value: str) -> str:
+    value = value.strip()
+    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+        return value[1:-1].strip()
+    return value
+
+
 def parse_frontmatter(path: Path) -> tuple[dict[str, str | list[str]], str]:
     text = path.read_text(encoding="utf-8")
     if not text.startswith("---\n"):
-        raise FrontmatterParseError("missing opening frontmatter delimiter")
+        raise FrontmatterParseError("missing opening frontmatter delimiter (`---`)")
 
     lines = text.splitlines()
     end_idx: int | None = None
@@ -74,7 +222,7 @@ def parse_frontmatter(path: Path) -> tuple[dict[str, str | list[str]], str]:
             break
 
     if end_idx is None:
-        raise FrontmatterParseError("missing closing frontmatter delimiter")
+        raise FrontmatterParseError("missing closing frontmatter delimiter (`---`)")
 
     metadata_lines = lines[1:end_idx]
     body = "\n".join(lines[end_idx + 1 :]).strip()
@@ -113,66 +261,173 @@ def parse_frontmatter(path: Path) -> tuple[dict[str, str | list[str]], str]:
     return metadata, body
 
 
-def strip_quotes(value: str) -> str:
-    value = value.strip()
-    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
-        return value[1:-1].strip()
-    return value
+def extract_h2_titles(body: str) -> list[str]:
+    return [match.group(1).strip() for match in H2_TITLE_PATTERN.finditer(body)]
 
 
-def check_frontmatter(path: Path, metadata: dict[str, str | list[str]], errors: list[str]) -> None:
+def contains_required_in_order(h2_titles: list[str], required: list[str]) -> bool:
+    pos = 0
+    for title in required:
+        try:
+            idx = h2_titles.index(title, pos)
+        except ValueError:
+            return False
+        pos = idx + 1
+    return True
+
+
+def detect_library(path: Path) -> tuple[str, str]:
+    """
+    Return (audience, language) based on directory:
+      - docs/user -> ("user", "en")
+      - docs/user-cs -> ("user", "cs")
+      - docs/admin -> ("admin", "en")
+      - docs/admin-cs -> ("admin", "cs")
+    """
+    parent = path.parent.name
+    if parent == "user":
+        return "user", "en"
+    if parent == "user-cs":
+        return "user", "cs"
+    if parent == "admin":
+        return "admin", "en"
+    if parent == "admin-cs":
+        return "admin", "cs"
+    return "unknown", "unknown"
+
+
+def expected_required_h2(path: Path, audience: str, language: str) -> list[str]:
+    is_readme = path.name.lower() == "readme.md"
+    if audience == "user" and language == "en":
+        return USER_README_EN_REQUIRED_H2 if is_readme else USER_EN_REQUIRED_H2
+    if audience == "user" and language == "cs":
+        return USER_README_CS_REQUIRED_H2 if is_readme else USER_CS_REQUIRED_H2
+    if audience == "admin" and language == "en":
+        return ADMIN_README_EN_REQUIRED_H2 if is_readme else ADMIN_EN_REQUIRED_H2
+    if audience == "admin" and language == "cs":
+        return ADMIN_README_CS_REQUIRED_H2 if is_readme else ADMIN_CS_REQUIRED_H2
+    return []
+
+
+def check_frontmatter(path: Path, audience: str, metadata: dict[str, str | list[str]], errors: list[str]) -> None:
     missing = sorted(REQUIRED_FRONTMATTER_KEYS - set(metadata.keys()))
     if missing:
         errors.append(f"{path}: missing frontmatter keys: {', '.join(missing)}")
 
-    audience = metadata.get("audience")
-    if not isinstance(audience, str) or audience not in {"admin", "user"}:
-        errors.append(f"{path}: audience must be `admin` or `user`")
+    # audience must match directory
+    raw_audience = metadata.get("audience")
+    if not isinstance(raw_audience, str) or raw_audience not in {"admin", "user"}:
+        errors.append(f"{path}: frontmatter `audience` must be `admin` or `user`")
+    elif raw_audience != audience:
+        errors.append(f"{path}: frontmatter `audience` is `{raw_audience}` but directory expects `{audience}`")
+
+    last_updated = metadata.get("last_updated")
+    if not isinstance(last_updated, str) or not DATE_PATTERN.match(last_updated.strip()):
+        errors.append(f"{path}: frontmatter `last_updated` must be YYYY-MM-DD")
+
+    # Require non-empty strings for these keys.
+    for key in ["title", "version", "source_of_truth", "summary"]:
+        value = metadata.get(key)
+        if not isinstance(value, str) or not value.strip():
+            errors.append(f"{path}: frontmatter `{key}` must be a non-empty string")
 
     tags = metadata.get("tags")
     if not isinstance(tags, list) or not tags:
-        errors.append(f"{path}: tags must be a non-empty list")
+        errors.append(f"{path}: frontmatter `tags` must be a non-empty list")
+        return
+
+    normalized: list[str] = []
+    for tag in tags:
+        if not isinstance(tag, str) or not tag.strip():
+            errors.append(f"{path}: tags must be non-empty strings")
+            continue
+        normalized.append(tag.strip())
+
+    if not (5 <= len(normalized) <= 10):
+        errors.append(f"{path}: tags must contain 5-10 items (found {len(normalized)})")
+
+    unknown_tags = sorted({tag for tag in normalized if tag not in ALLOWED_TAGS})
+    if unknown_tags:
+        errors.append(f"{path}: unknown tags: {', '.join(unknown_tags)}")
 
 
 def check_richness(path: Path, body: str, errors: list[str]) -> None:
     word_count = len(WORD_PATTERN.findall(body))
-    h2_count = len(H2_PATTERN.findall(body))
+    h2_count = len(extract_h2_titles(body))
 
-    minimum_words = 260 if path.name.lower() == "readme.md" else 180
-    if word_count < minimum_words:
-        errors.append(f"{path}: content too short ({word_count} words, expected >= {minimum_words})")
+    is_readme = path.name.lower() == "readme.md"
+    min_words = README_MIN_WORDS if is_readme else PAGE_MIN_WORDS
+    min_h2 = README_MIN_H2 if is_readme else PAGE_MIN_H2
 
-    if h2_count < 4:
-        errors.append(f"{path}: expected at least 4 second-level sections (`##` headings), found {h2_count}")
+    if word_count < min_words:
+        errors.append(f"{path}: content too short ({word_count} words, expected >= {min_words})")
+    if h2_count < min_h2:
+        errors.append(f"{path}: expected at least {min_h2} second-level sections (`##`), found {h2_count}")
 
 
 def is_external_link(target: str) -> bool:
-    return (
-        target.startswith("http://")
-        or target.startswith("https://")
-        or target.startswith("mailto:")
-        or target.startswith("#")
-    )
+    return target.startswith("http://") or target.startswith("https://") or target.startswith("mailto:")
 
 
 def check_links(path: Path, errors: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
     for raw_target in LINK_PATTERN.findall(text):
         target = raw_target.strip()
+
+        if not target:
+            continue
+
+        # Allowed: in-doc anchor
+        if target.startswith("#"):
+            continue
+
+        # Allowed: external
         if is_external_link(target):
             continue
 
+        # Allowed: app routes (e.g. /risks, /settings)
+        if target.startswith("/"):
+            if target.split("#", 1)[0].lower().endswith(".md"):
+                errors.append(f"{path}: app route link must not point to markdown file `{target}`")
+            continue
+
+        # Doc-to-doc links must stay inside the library: `./file.md`
         clean_target = target.split("#", 1)[0].strip()
         if not clean_target:
             continue
 
-        # App route links are expected (e.g., /risks, /settings)
-        if clean_target.startswith("/") and not clean_target.lower().endswith(".md"):
+        if not clean_target.startswith("./"):
+            errors.append(f"{path}: doc link must use `./file.md` format, got `{target}`")
             continue
 
-        target_path = (path.parent / clean_target).resolve()
+        # Disallow nested paths or parent traversal.
+        remainder = clean_target[2:]
+        if ".." in remainder or "/" in remainder or "\\" in remainder:
+            errors.append(f"{path}: doc link must stay in same directory, got `{target}`")
+            continue
+
+        if not remainder.lower().endswith(".md"):
+            errors.append(f"{path}: doc link must target a markdown file, got `{target}`")
+            continue
+
+        target_path = (path.parent / remainder).resolve()
         if not target_path.exists():
-            errors.append(f"{path}: broken relative link `{target}`")
+            errors.append(f"{path}: broken doc link `{target}` (missing {target_path})")
+
+
+def check_required_sections(path: Path, audience: str, language: str, body: str, errors: list[str]) -> None:
+    required = expected_required_h2(path, audience, language)
+    if not required:
+        return
+
+    h2_titles = extract_h2_titles(body)
+    missing = [title for title in required if title not in h2_titles]
+    if missing:
+        errors.append(f"{path}: missing required sections: {', '.join(missing)}")
+        return
+
+    if not contains_required_in_order(h2_titles, required):
+        errors.append(f"{path}: required sections must appear in the standard order")
 
 
 def check_parity(left_dir: Path, right_dir: Path, errors: list[str]) -> None:
@@ -188,51 +443,59 @@ def check_parity(left_dir: Path, right_dir: Path, errors: list[str]) -> None:
         errors.append(f"Parity mismatch {right_dir} -> missing in {left_dir}: {', '.join(only_right)}")
 
 
-def check_admin_leakage(directory: Path, patterns: list[str], errors: list[str]) -> None:
-    for path in list_markdown_files(directory):
-        text = path.read_text(encoding="utf-8")
-        for pattern in patterns:
-            if re.search(pattern, text, flags=re.IGNORECASE):
-                errors.append(f"{path}: admin audience leakage keyword detected (`{pattern}`)")
+def check_admin_instruction_leakage(path: Path, language: str, body: str, errors: list[str]) -> None:
+    patterns = (
+        ADMIN_FORBIDDEN_INSTRUCTION_PATTERNS_EN
+        if language == "en"
+        else ADMIN_FORBIDDEN_INSTRUCTION_PATTERNS_CS
+    )
+    for pattern in patterns:
+        if re.search(pattern, body, flags=re.IGNORECASE):
+            errors.append(f"{path}: admin doc contains non-admin-targeted instruction pattern (`{pattern}`)")
 
 
 def main() -> int:
     errors: list[str] = []
 
-    all_docs: list[Path] = []
     for doc_dir in DOC_DIRS:
         if not doc_dir.exists():
             errors.append(f"Missing documentation directory: {doc_dir}")
-            continue
-        all_docs.extend(list_markdown_files(doc_dir))
+
+    # Parity checks first (fast feedback).
+    if ADMIN_EN_DIR.exists() and ADMIN_CS_DIR.exists():
+        check_parity(ADMIN_EN_DIR, ADMIN_CS_DIR, errors)
+    if USER_EN_DIR.exists() and USER_CS_DIR.exists():
+        check_parity(USER_EN_DIR, USER_CS_DIR, errors)
+
+    all_docs: list[Path] = []
+    for doc_dir in DOC_DIRS:
+        if doc_dir.exists():
+            all_docs.extend(list_markdown_files(doc_dir))
 
     for path in all_docs:
+        audience, language = detect_library(path)
         try:
             metadata, body = parse_frontmatter(path)
         except FrontmatterParseError as exc:
             errors.append(f"{path}: {exc}")
             continue
 
-        check_frontmatter(path, metadata, errors)
+        check_frontmatter(path, audience, metadata, errors)
         check_richness(path, body, errors)
+        check_required_sections(path, audience, language, body, errors)
         check_links(path, errors)
 
-    check_parity(ADMIN_EN_DIR, ADMIN_CS_DIR, errors)
-    check_parity(USER_EN_DIR, USER_CS_DIR, errors)
-
-    check_admin_leakage(ADMIN_EN_DIR, EN_ADMIN_LEAKAGE, errors)
-    check_admin_leakage(ADMIN_CS_DIR, CS_ADMIN_LEAKAGE, errors)
+        if audience == "admin":
+            check_admin_instruction_leakage(path, language, body, errors)
 
     if errors:
-        print("Docs contract check failed:")
-        for idx, error in enumerate(errors, start=1):
-            print(f"{idx}. {error}")
+        print("\n".join(errors))
+        print(f"\nDocumentation contract FAILED ({len(errors)} errors)")
         return 1
 
-    print("Docs contract check passed.")
-    print(f"Validated {len(all_docs)} in-app documentation files.")
+    print("Documentation contract OK")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

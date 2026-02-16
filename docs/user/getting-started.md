@@ -3,90 +3,209 @@ title: Getting Started with RiskHub
 version: "2.0"
 last_updated: "2026-02-16"
 audience: user
-source_of_truth: "docs/BUSINESS_LOGIC.md §1-§4"
-summary: "First-day onboarding guide for non-admin users, including role scope validation, dashboard orientation, and workflow readiness checks."
+source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routes"
+summary: "First-day onboarding manual for non-admin users: scope validation, navigation, workflow readiness, and how to avoid the most common early mistakes."
 tags:
   - onboarding
-  - navigation
-  - settings
+  - overview
+  - workflow
+  - notifications
+  - troubleshooting
 ---
 
 # Getting Started with RiskHub
 
+**On this page**
+- [Overview](#overview)
+- [Where To Find It](#where-to-find-it)
+- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
+- [Data Model and Key Fields](#data-model-and-key-fields)
+- [Core Workflows](#core-workflows)
+- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
+- [Filters, Views, and Exports](#filters-views-and-exports)
+- [Common Mistakes](#common-mistakes)
+- [Troubleshooting](#troubleshooting)
+- [Related Documentation](#related-documentation)
+
 ## Overview
 
-This guide gets you from first login to productive daily use. It focuses on operational readiness: scope verification, queue awareness, and baseline navigation.
+This guide gets you from first login to productive daily use. It focuses on operational readiness:
 
-## Before You Start
+- confirming your access is correct
+- understanding how scope affects what you see
+- learning the “workflow mindset” (approvals and notifications)
+- building good habits for filters and exports
 
-Confirm these prerequisites with your team lead or system owner:
+The fastest way to get value from RiskHub is:
 
-- your role assignment is correct
-- your department assignment is correct (if applicable)
-- your account is active and you can sign in
-- your browser language preference is set as expected
+- use the dashboard to detect pressure
+- use the queues to manage workflow
+- keep risks and controls actionable (ownership + evidence)
 
-## First Login Checklist
+## Where To Find It
 
-1. Sign in and confirm your display name and role badge.
-2. Open `/settings` and set language/theme preferences.
-3. Open `/` (Dashboard) and verify visible data matches your role/scope.
-4. Open `/notifications` and check pending items.
-5. Open the docs tab in Settings and confirm user documentation is available.
+You will use these routes frequently:
 
-## Validate Access Scope Early
+- dashboard: `/`
+- approvals queue: `/approvals`
+- notifications: `/notifications`
+- risks: `/risks`
+- controls: `/controls`
+- KRIs: `/kris`
+- issues: `/issues` (if enabled)
+- vendors: `/vendors` (if enabled)
+- departments: `/departments`
+- settings (including docs): `/settings`
 
-Scope issues are easiest to fix on day one. Validate:
+If you can’t open a route you expect, treat it as an access/scope problem first, not a “bug”.
 
-- can you open entities your team expects you to manage?
-- are unrelated departments hidden (unless your role is global)?
-- do ownership exceptions behave correctly on assigned entities?
+## Roles, Scope, and Visibility
 
-If scope appears wrong, collect examples (entity ID + timestamp) and escalate.
+RiskHub behavior depends on:
 
-## Learn the Core Navigation Paths
+- role (what you are responsible for)
+- scope (global vs department vs manager)
+- permissions (resource + action)
 
-- Risk register: `/risks`
-- Controls catalog: `/controls`
-- KRI monitoring: `/kris`
-- Issues and remediation: `/issues`
-- Vendor management: `/vendors`
-- Workflow queue: `/approvals` and `/notifications`
+Practical examples:
 
-## Approval-Aware Editing Mindset
+- you might see `/vendors` only if you have `vendors:read`
+- you might see `/issues` only if you have `issues:read`
+- you might see `/activity-log` only if you have `activity_log:read` (and you are not a platform admin)
 
-RiskHub may convert certain edits into approval requests. This is expected behavior. Always:
+Your scope determines *how wide* your default visibility is. Ownership can create exceptions.
 
-- review whether your change touched sensitive fields
-- confirm request status after save
-- include clear business rationale in request notes
+If your first-day view looks wrong (missing your team’s risks, or showing unrelated departments), fix scope early. Scope bugs waste the most time.
 
-## Daily Operating Routine (Recommended)
+## Data Model and Key Fields
 
-1. Start on Dashboard.
-2. Review notifications and pending approvals.
-3. Process high-priority risks/controls/KRIs.
-4. Update tracked entities with complete notes.
-5. Export/share evidence only when needed.
+For day-one success, you don’t need every field. You need the “control points” that drive daily operations.
+
+| Concept | What to watch | Why it matters |
+|---|---|---|
+| Ownership | owner on risks/controls, reporting owner on KRIs | Ownership drives accountability and routing. |
+| Department | department on key entities | Department drives reporting and baseline scope. |
+| Status | active/emerging/archived, open/closed | Status influences visibility and priorities. |
+| Scoring | net vs gross risk scores | This is how you quantify posture and trend. |
+| Due/overdue | KRI due dates, issue due dates | Overdue is a governance signal. |
+| Workflow notes | approval reasons and resolution notes | Notes are part of audit trail. |
+
+## Core Workflows
+
+### 1) First login checklist (15 minutes)
+
+1. Sign in and confirm your display name and role label.
+2. Open `/settings`:
+   - set language preference
+   - confirm you can access the documentation library
+3. Open `/` and scan whether data looks plausible for your scope.
+4. Open `/notifications` and check unread items.
+5. Open `/approvals` and check whether you have pending requests.
+6. Open `/departments` and confirm your department context is present.
+
+### 2) Your daily operating routine
+
+A simple routine that scales:
+
+1. Dashboard: scan critical and breach signals.
+2. Workflow: clear approvals and notifications you own.
+3. Execute:
+   - update risks that are drifting
+   - log control executions
+   - record KRIs (or follow up with reporting owners)
+4. Document:
+   - keep change notes clear
+   - create Issues for remediation
+5. Export only when you need to share evidence.
+
+### 3) Your weekly hygiene routine
+
+1. Review overdue KRIs.
+2. Review open issues by severity.
+3. Review top net risks per department.
+4. Confirm controls with high risk level have recent executions.
+
+## Approvals and Notifications Behavior
+
+The single most important behavior to understand:
+
+- some edits are not applied immediately; they are queued for approval
+
+How it looks in practice:
+
+- you save and the UI says success
+- but the value stays unchanged
+- the item shows “pending changes”
+
+When you see this:
+
+1. Open `/approvals` and find the request.
+2. Track status.
+3. Watch `/notifications` for the outcome.
+
+Write good approval reasons. Bad reasons create rejection and rework.
+
+## Filters, Views, and Exports
+
+### Filters
+
+Most list pages support filters. Two rules prevent 80% of confusion:
+
+1. Always check filters before interpreting a number.
+2. Clear filters when switching between different tasks (especially before exporting).
+
+### Views
+
+Some pages support grouped views. Use them for review packs, not for quick day-to-day edits.
+
+### Exports
+
+Exports are evidence.
+
+Export discipline:
+
+- export with an explicit as-of date
+- keep the raw export unchanged
+- if you create a derived spreadsheet, keep the original export attached
+
+## Common Mistakes
+
+- Treating access problems as bugs without validating role/scope first.
+- Editing many governance-sensitive fields at once (creates approval noise).
+- Ignoring workflow queues until they become urgent.
+- Sharing exports without stating filters and as-of date.
 
 ## Troubleshooting
 
-### I cannot see expected records
+### I can’t see a module my colleague sees
 
-Check role, department scope, and ownership assignment first. If still incorrect, escalate with affected IDs.
+- Compare permissions (`resource:read`).
+- Compare scope (global vs department).
+- Check ownership assignments.
 
-### My edit did not apply immediately
+### My changes didn’t apply
 
-You likely triggered an approval workflow. Open notifications/workflow to check status.
+- Check `/approvals` for queued requests.
+- Check `/notifications` for outcomes.
 
-### I see the wrong documentation audience
+### The in-app documentation looks wrong
 
-User accounts should receive user docs. Report role mismatch if admin docs appear unexpectedly.
+- If you are non-admin, you should see user documentation.
+- If admin documentation appears, your role assignment may be incorrect.
+
+### Language looks inconsistent
+
+- Set your language in `/settings`.
+- Refresh and re-open docs.
 
 ## Related Documentation
 
+- `./README.md`
+- `./notifications.md`
 - `./risks.md`
 - `./controls.md`
 - `./kris.md`
-- `./notifications.md`
-- `./faq.md`
+- `./issues.md`
+- `./vendors.md`
+- `./departments.md`
+- `./access-management.md`
