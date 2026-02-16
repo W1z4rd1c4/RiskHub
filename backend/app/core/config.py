@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     entra_tenant_id: str | None = None
     entra_client_id: str | None = None
     # SECURITY: JIT provisioning creates local users on first SSO login. Disable if you require
-    # pre-provisioning via admin or directory sync.
+    # pre-provisioning via admin.
     entra_jit_provisioning_enabled: bool = True
     entra_allowed_email_domains: list[str] = Field(
         default_factory=list,
@@ -49,11 +49,6 @@ class Settings(BaseSettings):
 
     # Redis (required in production for multi-worker rate limiting and account lockout)
     redis_url: str | None = None
-
-    # AD Emulator Integration
-    ad_emulator_url: str = "http://ad-emulator:8001/api/v1"
-    directory_webhook_enabled: bool = True
-    webhook_secret: str = ""  # Required in production for webhook signature verification
 
     # Optional vendor external signals (Phase 18-10)
     vendor_signals_public_registry_base_url: str | None = None  # e.g., https://registry.example.com/api

@@ -94,6 +94,36 @@ Redirect URI required by the frontend (MSAL):
 
 ## Installation Steps (External PostgreSQL via Phase 500 Scripts)
 
+### Unified wizard (recommended)
+
+Run the unified admin setup wizard from the repo root:
+
+```bash
+./setup.sh --mode prod
+```
+
+This delegates to the Phase 500 production guided installer (`scripts/prod/setup.sh`) and will:
+
+- prompt for the required production values (public URL, external `DATABASE_URL`, Entra IDs, bootstrap admin email/role)
+- generate strong secrets automatically (never printed to the terminal)
+- write `/etc/riskhub/backend.env` and `/etc/riskhub/frontend.env` with `0600` permissions
+- run `scripts/prod/preflight.sh`
+- preview the deploy actions, then deploy after confirmation
+
+Dry-run (writes env files to temp paths and previews deploy/upgrade only):
+
+```bash
+./setup.sh --mode prod --dry-run
+```
+
+You can also run the production wizard directly:
+
+```bash
+scripts/prod/setup.sh
+```
+
+If you prefer the manual steps (editing env files yourself), follow the steps below.
+
 ### Step 1: Get the code onto the host
 
 On the Docker host, place a RiskHub source checkout (or release bundle) so Docker can build images locally:
@@ -311,4 +341,3 @@ docker network rm riskhub-network
 If you want PostgreSQL + Redis dockerized on the same host, use:
 
 - `docs/deployment/docker-compose-prod.md`
-

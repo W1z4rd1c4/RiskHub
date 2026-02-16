@@ -360,24 +360,6 @@
       "toggle_user_message": "Are you sure you want to {{action}} {{name}}?"
     }
   },
-  "directory": {
-    "title": "Directory Integration",
-    "subtitle": "Sync users from the external AD Emulator into RiskHub.",
-    "sync_operations": "Sync Operations",
-    "preview_changes": "Preview Changes",
-    "apply_sync": "Apply Sync",
-    "sync_preview_results": "Sync Preview Results",
-    "sync_history": "Sync History",
-    "latest_error": "Latest Error:",
-    "no_changes": "No changes detected. Sync is up to date.",
-    "more_errors": " (+{{count}} more)",
-    "metrics": {
-      "created": "Created",
-      "updated": "Updated",
-      "deactivated": "Deactivated",
-      "disabled": "Disabled"
-    }
-  },
   "governance": {
     "title": "Governance Oversight",
     "subtitle": "Manage orphaned risks, controls and KRIs that require administrative reassignment.",

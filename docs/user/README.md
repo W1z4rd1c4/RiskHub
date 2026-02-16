@@ -4,16 +4,33 @@ version: "2.0"
 last_updated: "2026-02-16"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md"
-summary: "Complete user guide for daily risk operations, workflow approvals, dashboards, vendor oversight, and in-app documentation navigation."
+summary: "Production-grade manuals for day-to-day RiskHub usage: navigation, permissions, risk/control/KRI workflows, approvals, exports, and troubleshooting."
 tags:
   - overview
   - onboarding
-  - workflows
+  - workflow
+  - approvals
+  - notifications
+  - troubleshooting
+  - settings
 ---
 
 # RiskHub User Documentation
 
-This documentation set is the production user manual for all non-admin roles. It is written for real day-to-day work in RiskHub, not as product marketing copy.
+This library is the production user manual for all non-admin roles. It is written for real day-to-day operations: what to do, where to do it, and how to diagnose problems when the app behaves differently than you expect.
+
+**On this page**
+- [Who Should Use This Library](#who-should-use-this-library)
+- [What You Can Expect From These Manuals](#what-you-can-expect-from-these-manuals)
+- [Quick Start (30 Minutes)](#quick-start-30-minutes)
+- [Library Map (By Sidebar Module)](#library-map-by-sidebar-module)
+- [Library Map (By Common Workflows)](#library-map-by-common-workflows)
+- [How Permissions and Scope Affect What You See](#how-permissions-and-scope-affect-what-you-see)
+- [How To Use Links Inside Manuals](#how-to-use-links-inside-manuals)
+- [How To Use Tags and Filters In The Reader](#how-to-use-tags-and-filters-in-the-reader)
+- [How To Report Documentation Issues](#how-to-report-documentation-issues)
+- [Change Policy and Source of Truth](#change-policy-and-source-of-truth)
+- [Related Documentation](#related-documentation)
 
 ## Who Should Use This Library
 
@@ -26,39 +43,164 @@ Use this library if your role is one of the following:
 - Compliance, Legal, Internal Audit, Actuarial
 - Viewer (read-only usage)
 
-If your account is a platform administrator (`admin`), use the admin documentation set instead: `../admin/README.md`.
+If your account is a platform administrator (role `admin`), you will see a different documentation set in the in-app reader. This library remains focused on business operations, not platform administration.
 
-## How to Navigate Quickly
+## What You Can Expect From These Manuals
 
-The in-app documentation reader supports direct navigation links between documents. For example:
+Every module manual in `docs/user/*.md` is designed to answer the same operational questions:
 
-- onboarding flow: `./getting-started.md`
-- core risk operations: `./risks.md`
-- control lifecycle and execution logging: `./controls.md`
-- KRI and thresholds: `./kris.md`
-- workflow and notifications: `./notifications.md`
-- dashboard and exports: `./dashboard.md`
-- vendor governance: `./vendors.md`
-- quick support answers: `./faq.md`
+- **What is this module for?** (the business intent)
+- **Where do I find it?** (routes and navigation)
+- **Why can’t I see it?** (permissions and scope)
+- **What are the key fields?** (what matters in practice)
+- **How do I do the common tasks end-to-end?** (step-by-step workflows)
+- **What happens when approvals are required?** (and where to track them)
+- **How do I export evidence safely?**
+- **What are the most common mistakes and their fixes?**
 
-You can also jump to app pages from docs when links use app routes:
+These manuals are intentionally **text-first** (no screenshots) so they stay maintainable and can be kept accurate across languages.
 
-- risk register: `/risks`
-- controls catalog: `/controls`
-- KRI list: `/kris`
-- dashboard: `/`
-- settings: `/settings`
+## Quick Start (30 Minutes)
 
-## How the Content Is Structured
+If you are new to RiskHub, this path gets you productive quickly:
 
-Each user manual follows the same production format:
+1. Start with [Getting Started](./getting-started.md) and complete the “first login checklist”.
+2. Open the three core operating modules:
+   - [Dashboard](./dashboard.md) (signals and summary)
+   - [Risks](./risks.md) (the register)
+   - [Controls](./controls.md) (mitigation and execution evidence)
+3. Learn workflow behavior next:
+   - [Workflow, Approvals, Notifications](./notifications.md)
+4. If your role includes monitoring and reporting:
+   - [KRIs](./kris.md)
+5. If your org tracks remediation work:
+   - [Issues / Findings](./issues.md)
+6. If you manage third parties:
+   - [Vendors](./vendors.md)
 
-1. **Overview**: what the feature is for and where it lives in the app.
-2. **Role and permission context**: who can read/write/approve.
-3. **Core workflows**: step-by-step operational flow.
-4. **Decision rules**: policy constraints, approval triggers, and scope boundaries.
-5. **Troubleshooting**: what to check before escalating.
-6. **Related docs**: direct links to adjacent workflows.
+Keep [FAQ](./faq.md) open while learning. It is the quickest route to “why can’t I see X?” and “why didn’t my change apply?” answers.
+
+## Library Map (By Sidebar Module)
+
+This table maps what you see in the sidebar to the canonical manual page.
+
+| Sidebar / area | Primary route | Canonical manual | What you will learn | Tags |
+|---|---:|---|---|---|
+| Dashboard | `/` | [Dashboard](./dashboard.md) | Trends, pressure signals, and export-friendly views | `overview`, `exports`, `audit` |
+| Approvals + Notifications | `/approvals`, `/notifications` | [Workflow, Approvals, Notifications](./notifications.md) | Approval lifecycle, “pending change” behavior, and how to stay unblocked | `workflow`, `approvals`, `notifications` |
+| Controls | `/controls` | [Managing Controls](./controls.md) | Control design, ownership, execution logging, and evidence | `controls`, `workflow`, `exports` |
+| Risks | `/risks` | [Managing Risks](./risks.md) | Risk register hygiene, scoring, ownership, and linkage | `risks`, `workflow`, `approvals` |
+| Issues / Findings (if enabled) | `/issues` | [Managing Issues](./issues.md) | Remediation tracking, linking to risks/controls, and closure discipline | `issues`, `workflow`, `exports` |
+| KRIs | `/kris` | [Managing KRIs](./kris.md) | Thresholds, value recording rules, breach signals | `kri`, `notifications`, `exports` |
+| Vendors (if enabled) | `/vendors` | [Managing Vendors](./vendors.md) | Third-party governance, assessments, incidents, exports | `vendors`, `approvals`, `exports` |
+| Departments | `/departments` | [Departments](./departments.md) | Exposure by org unit, drill-down, and responsibility patterns | `departments`, `workflow`, `exports` |
+| Governance (role-gated) | `/governance` | [Governance](./governance.md) | Orphans, ownership gaps, and governance resolution patterns | `governance`, `audit`, `troubleshooting` |
+| Activity Log (permission-gated) | `/activity-log` | [Activity Log](./activity-log.md) | “Who changed what”, timeline reconstruction, and audit evidence | `activity-log`, `audit`, `exports` |
+| Users / Access Management (role-gated) | `/users` | [Access Management](./access-management.md) | Visibility rules, role/scope interpretation, and access checks | `access`, `audit`, `settings` |
+| Risk Hub (CRO only) | `/risk-hub` | [Risk Hub](./risk-hub.md) | Governance configuration concepts and safe operating patterns | `riskhub`, `settings`, `approvals` |
+| Settings | `/settings` | [Getting Started](./getting-started.md) | Preferences (language/theme) and documentation navigation | `settings`, `onboarding`, `workflow` |
+
+## Library Map (By Common Workflows)
+
+If you prefer to learn by task, use this index.
+
+- “I can’t see a module / route I should have”:
+  - start with [Getting Started](./getting-started.md#roles-scope-and-visibility)
+  - then use [Access Management](./access-management.md#troubleshooting)
+- “My change didn’t apply / it looks stuck”:
+  - [Workflow, Approvals, Notifications](./notifications.md#approvals-and-notifications-behavior)
+- “Create a high-quality risk record, fast”:
+  - [Managing Risks](./risks.md#core-workflows)
+- “Record control execution evidence”:
+  - [Managing Controls](./controls.md#core-workflows)
+- “Record a KRI value and understand approval gating”:
+  - [Managing KRIs](./kris.md#core-workflows)
+- “Create a remediation item linked to a risk/control”:
+  - [Managing Issues](./issues.md#core-workflows)
+- “Export an audit-ready pack”:
+  - [Dashboard](./dashboard.md#filters-views-and-exports)
+  - [Managing Vendors](./vendors.md#filters-views-and-exports)
+  - [Activity Log](./activity-log.md#filters-views-and-exports)
+- “Figure out who changed something, and when”:
+  - [Activity Log](./activity-log.md)
+
+## How Permissions and Scope Affect What You See
+
+Most “missing feature” problems are caused by one of these three factors:
+
+1. **Permission**: your account lacks `resource:action` access (for example `vendors:read`).
+2. **Scope**: your access scope limits default visibility (`global`, `department`, or `manager`).
+3. **Ownership exception**: ownership can expand visibility beyond your department scope for specific records.
+
+Practical rules:
+
+- If a sidebar item is missing (for example Issues), check permissions first.
+- If the sidebar item exists but lists look empty, check scope and filters.
+- If you can open a detail page from a link but can’t find it via lists, it is often a scope boundary plus an ownership exception.
+
+When in doubt, reproduce with:
+
+- “All” filters cleared
+- a known record ID or name
+- and a second user account with broader scope (if available)
+
+## How To Use Links Inside Manuals
+
+RiskHub manuals use deterministic link conventions so navigation is predictable:
+
+- [Getting Started](./getting-started.md) opens another manual inside the reader.
+- `[/route](/path)` navigates to an app page.
+- `[#anchor](#heading-id)` scrolls within the current manual.
+- External links use `https://...` and open in a new tab.
+
+If a link takes you to an unexpected place, treat it as a documentation bug and report it (see below).
+
+## How To Use Tags and Filters In The Reader
+
+The documentation library supports fast browsing by tags.
+
+Recommended usage:
+
+1. Start with `All` to learn what exists.
+2. Filter by a module tag (for example `risks`, `controls`, `vendors`).
+3. Add a workflow tag (for example `approvals`, `exports`) to narrow to a “task slice”.
+
+If you are responsible for audits, the fastest path is usually:
+
+- filter by `audit`
+- then add `exports` or a module tag, depending on what evidence you need
+
+## How To Report Documentation Issues
+
+When reporting a docs issue, include enough context to reproduce it:
+
+- manual name + section heading (or the URL hash if present)
+- the link target you clicked
+- your role and scope (global/department/manager)
+- whether you used English or Czech locale
+
+If the issue is “this behavior is wrong”, include:
+
+- expected behavior (in one sentence)
+- observed behavior
+- any error message text
+
+## Change Policy and Source of Truth
+
+Documentation is treated as a product surface:
+
+- Manuals are versioned and time-stamped (`version`, `last_updated`).
+- The `source_of_truth` field points to the canonical code or business-logic section.
+- English and Czech manuals are kept in filename parity and functional parity.
+
+If you see a mismatch between a manual and actual behavior, assume the app is correct and the manual is stale, then report the issue with reproduction steps.
+
+## Related Documentation
+
+- First login and safe habits: [Getting Started](./getting-started.md)
+- Core operational modules: [Risks](./risks.md), [Controls](./controls.md), [KRIs](./kris.md)
+- Workflow behavior: [Workflow, Approvals, Notifications](./notifications.md)
+- Admin-only documentation is intentionally not linked here (different audience library).
 
 ## What This Library Guarantees
 

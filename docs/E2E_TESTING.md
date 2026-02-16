@@ -45,6 +45,17 @@ Primary suite groups in `frontend/e2e/`:
 
 ## Deterministic Seed Workflow
 
+One-command deterministic reset + full seed (recommended):
+
+```bash
+./setup.sh --mode test
+```
+
+This uses `docker-compose.yml`, wipes the compose DB volume, runs migrations, then seeds:
+
+- `python -m app.db.seed` (base demo data)
+- `python -m scripts.seed_e2e_all` (deterministic E2E fixtures)
+
 For a fresh database, seed baseline + E2E entities:
 
 ```bash

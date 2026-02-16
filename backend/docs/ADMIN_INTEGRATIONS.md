@@ -2,11 +2,6 @@
 
 RiskHub does not live on an island. It is designed to be the central nervous system of your risk management ecosystem, and its ability to integrate is its greatest strength.
 
-## The Directory Mirror (AD Sync)
-The most critical integration is the **AD Sync**. We know that managing users in two places is a recipe for error. Our sync logic reaches out to your corporate directory and mirrors the truth. 
-- **The Connector**: We’ve built a dedicated `ADEmulatorClient` that speaks the language of corporate APIs.
-- **The Differential**: We don't just overwrite data; we perform a "Diff." We look for what has changed—a new department, a promoted manager, a departed employee—and apply only those changes.
-
 ## The Reporting Factory
 Administrators need to share insights with stakeholders. Our **Reporting Service** is the printing press of RiskHub. 
 - **PDF Generation**: We take the live state of your Risk Register and "draw" professional-grade PDF reports. It’s not just a print-screen; it’s a formatted document ready for a boardroom meeting.

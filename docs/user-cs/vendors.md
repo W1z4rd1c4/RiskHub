@@ -3,75 +3,273 @@ title: Správa dodavatelů
 version: "2.0"
 last_updated: "2026-02-16"
 audience: user
-source_of_truth: "vendor endpointy a issue/remediation workflow"
-summary: "Kompletní provozní příručka pro lifecycle dodavatelů, stavové změny a exporty pro governance reporting."
+source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + vendor assessment workflows"
+summary: "Kompletní manuál pro third‑party risk: onboarding dodavatelů, ownership, assessmenty, reassessmenty, incidenty, SLA, exporty a notifikace."
 tags:
   - vendors
-  - third-party
-  - governance
+  - workflow
+  - approvals
+  - notifications
+  - exports
+  - troubleshooting
 ---
 
 # Správa dodavatelů
 
+**Na této stránce**
+- [Přehled](#prehled)
+- [Kde to najdete](#kde-to-najdete)
+- [Role, scope a viditelnost](#role-scope-a-viditelnost)
+- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
+- [Hlavní workflow](#hlavni-workflow)
+- [Schvalování a notifikace](#schvalovani-a-notifikace)
+- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
+- [Časté chyby](#caste-chyby)
+- [Troubleshooting](#troubleshooting)
+- [Související dokumentace](#souvisejici-dokumentace)
+
 ## Přehled
 
-Správa dodavatelů podporuje dohled nad third-party rizikem, lifecycle evidenci a reportovací připravenost.
+Správa dodavatelů v RiskHubu je navržená pro third‑party risk governance. Cíl je mít jasno:
+
+- Kteří dodavatelé jsou důležití a proč?
+- Kdo vlastní vztah i riziko (outsourcing owner)?
+- Jaká je aktuální risk posture?
+- Kdy je další reassessment?
+- Jaké incidenty, závislosti a SLA mohou posture změnit?
 
 Hlavní route: `/vendors`
 
+Dodavatel je hub, který propojuje:
+
+- business kontext (process/subprocess, oddělení)
+- ownership vztahu
+- risk scoring a materialitu
+- assessmenty a rozhodnutí
+- průběžný monitoring (signály, SLA, incidenty)
+
+## Kde to najdete
+
+- seznam dodavatelů: `/vendors` (vyžaduje `vendors:read`)
+- detail: klik na dodavatele
+- založení: `/vendors/new` (vyžaduje `vendors:write`)
+
+Pokud **Dodavatele** nevidíte:
+
+- pravděpodobně nemáte `vendors:read`
+
+## Role, scope a viditelnost
+
+Vendor data bývá citlivější než rizika/kontroly (komerční informace, due diligence).
+
+Přístup řídí:
+
+- permissions (`vendors:read`, `vendors:write`, `vendors:delete`)
+- scope a oddělení
+- ownership: outsourcing owner často může editovat i bez širokého write
+
+Praktické pravidlo:
+
+- Pokud jste outsourcing owner, budete typicky udržovat záznam.
+- Pokud nejste, berte dodavatele jako governance objekt a vyhněte se „drive‑by editům“.
+
+## Datový model a klíčová pole
+
+Záznam dodavatele obsahuje identitu i governance metadata.
+
+| Pole | Význam | Poznámky |
+|---|---|---|
+| Name / legal name | Identita dodavatele | Legal name pro smlouvy, name pro provoz. |
+| Registration / country / website | Základní due diligence | Chybějící základy jsou audit pain. |
+| Process / subprocess | Business kontext | Konzistence pomáhá reportingu. |
+| Department | Routing/reporting kontext | Alignujte s místem, kde se vztah řídí. |
+| Outsourcing owner | Odpovědný owner vztahu | Nejklíčovější routing pole. |
+| Vendor type | ICT / outsourcing / partner / other | Typ ovlivňuje očekávané assessmenty. |
+| Risk score (1–5) | Rychlý posture signál | Skóre musí být vysvětlitelné, ne „pocit“. |
+| Important function | Governance klasifikace | Neměňte lehce; řídí review očekávání. |
+| DORA relevant | Regul. relevance | Pokud používáte DORA workflow, držte přesné. |
+| Significant vendor | Materialita | Řídí cadence a governance. |
+| Replaceability / alternatives | Resilience signál | Buďte upřímní; „easy“ když není je riziko. |
+| Reassessment cadence / next due | Scheduling | Spouští remindery a overdue tlak. |
+| Status | `active` / `inactive` | Inactive funguje jako archiv; restore je permission-gated. |
+
+Taby na detailu (high-level):
+
+- Risk factors: drivery skóre
+- Linked risks / controls: napojení na enterprise posture
+- Assessments: strukturovaný workflow (draft → submitted → review → decision)
+- Schedule: cadence a due dates
+- Contract controls / resilience / dependencies: governance hloubka
+- Incidents / remediation / SLA / signals: monitoring a reakce
+
 ## Hlavní workflow
 
-1. Založte nebo otevřete vendor profil.
-2. Ověřte ownership a department kontext.
-3. Aktualizujte klíčová pole (status, služby, risk factors).
-4. Propojte navazující issue/remediation položky.
-5. Exportujte scope-filtered pohledy pro governance review.
+### 1) Onboarding dodavatele (čistý baseline)
 
-## Požadavky na kvalitu dat
+1. Založte dodavatele (nebo otevřete existujícího).
+2. Doplňte identitu (name, legal info, website).
+3. Nastavte business kontext:
+   - process/subprocess
+   - oddělení
+4. Nastavte outsourcing ownera.
+5. Nastavte governance flagy:
+   - vendor type
+   - significant / important function / DORA relevance
+6. Nastavte počáteční risk score + odůvodnění (v poznámkách/assessmentu).
+7. Uložte.
 
-Každý aktivní vendor záznam má mít:
+Dodavatel bez outsourcing ownera je orphan, který se časem rozpadne.
 
-- jasný popis služby/procesu
-- přiřazeného ownera
-- aktuální provozní status
-- navázaný risk/remediation kontext
+### 2) Assessment (decision‑ready posture)
 
-Vyhněte se placeholder záznamům bez provozní hodnoty.
+Assessmenty jsou strukturované, aby bylo rozhodnutí auditovatelné.
 
-## Lifecycle operace
+Typický postup:
 
-Běžné scénáře:
+1. Detail dodavatele → **Assessments**.
+2. Start nový assessment.
+3. Vyplňte sekce s evidencí.
+4. Ukládejte jako draft, dokud sbíráte vstupy.
+5. Submit, až je to kompletní.
+6. Review + decision dle vašeho governance modelu.
 
-- onboarding nového dodavatele
-- změna statusu (active/inactive)
-- archive/restore
-- periodická review aktualizace
+Status berte vážně:
 
-Každá lifecycle změna má mít jasné poznámky a časový záznam.
+- draft: nekompletní
+- submitted: připravené na review
+- in review / committee recommended: pod governance review
+- approved/rejected: rozhodnutí zapsané
 
-## Governance doporučení
+### 3) Linkování na rizika a kontroly
 
-- držte vendor data v souladu s issue/remediation stavem
-- ověřujte department fallback, pokud vendor department chybí
-- pro review meeting používejte exporty, ne screenshoty
-- u klíčových dodavatelů držte pravidelnou periodu revize a zaznamenávejte rozhodnutí
+Linkování propojuje third‑party posture s enterprise posture.
+
+Použijte, když:
+
+- dodavatel je dependency pro kritický proces
+- incident dodavatele může změnit net scoring rizika
+- existuje kontrola cíleně na vendor risk
+
+Linkujte smysluplně: „všechno na všechno“ zabije signal.
+
+### 4) Schedule a reassessment disciplína
+
+Dodavatelé mají reassessment cadence. Berte to jako kontrolu:
+
+- cadence podle significance a risk score
+- sledujte next due
+- reagujte na remindery včas
+
+Pokud je vše permanentně overdue, governance je podkapacitovaná (řešte kapacitu, ne remindery).
+
+### 5) Incidenty, SLA a signály
+
+Monitoring povrchy existují proto, abyste reagovali dřív, než posture spadne.
+
+Pattern:
+
+- incidenty: zapište, posuďte dopad, začněte remediaci, napojte na Issues
+- SLA: breach berte jako posture změnu
+- signály: použijte jako early warning (ale validujte)
+
+Pokud je incident materiální:
+
+- založte Issue (`/issues`) a routujte nápravu
+- zvažte dopad na linknutá enterprise rizika
+
+### 6) Archivace/obnovení
+
+Dodavatel může být označen jako inactive (archiv‑like).
+
+Archivujte, když:
+
+- vztah skončil
+- dodavatel už není používaný
+
+Obnovte, když:
+
+- vztah pokračuje
+- archivace byla omylem
+
+## Schvalování a notifikace
+
+Vendor práce generuje notifikace v několika kategoriích:
+
+- assessment submitted / committee recommended / decided
+- reassessment due soon / overdue
+- SLA due / overdue / breach detected
+
+Dle policy mohou být některé editace nebo rozhodnutí schvalované.
+
+Praktické kontroly:
+
+- pokud se akce neaplikuje, zkontrolujte `/approvals`
+- pokud jsou remindery divné, zkontrolujte cadence a due dates
+
+Queue disciplína je v `./notifications.md`.
+
+## Filtry, pohledy a exporty
+
+### Filtry
+
+Seznam dodavatelů podporuje:
+
+- status (active vs inactive)
+- vendor type
+- oddělení
+- search
+
+### Exporty
+
+Dodavatele exportujte pro:
+
+- periodické oversight packy
+- audit evidence
+
+Disciplína:
+
+- export s „as of“ datem
+- nejmenší nezbytný scope
+- raw export neměnit
+
+## Časté chyby
+
+- Chybí outsourcing owner.
+- Risk score bez odůvodnění a evidence.
+- Nekonzistentní používání „significant vendor“.
+- Reassessment je stále overdue.
+- Incidenty/SLA se nepromítají do enterprise risk posture.
 
 ## Troubleshooting
 
-### Nelze upravit dodavatele
+### Nevidím `/vendors`
 
-Ověřte write permission, scope a ownership omezení.
+- Ověřte `vendors:read`.
 
-### V exportu chybí část dat
+### Vidím dodavatele, ale nejdou editovat
 
-Export je autorizačně omezený. Ověřte filtry + role context.
+- Nemusíte mít `vendors:write` a nejste outsourcing owner.
 
-### Nevidím navázané issues
+### Assessmenty se neposouvají
 
-Zkontrolujte integrity linku a viditelnost issue podle role/scope.
+- Ověřte, že assessment je „submitted“ (drafty nespouští review).
+- Ověřte, že review owner ví o pending práci.
 
-## Related Documentation
+### Reassessment remindery nesedí
 
-- `./dashboard.md`
+- Zkontrolujte cadence a next due.
+- Ověřte, zda nebyl dodavatel nedávno assessed/decided.
+
+### Export selhal
+
+- Zkuste s menším počtem filtrů.
+- Pokud to trvá, uložte chybovou hlášku.
+
+## Související dokumentace
+
+- `./issues.md`
 - `./notifications.md`
-- `./faq.md`
+- `./risks.md`
+- `./controls.md`
+- `./departments.md`
+- `./activity-log.md`

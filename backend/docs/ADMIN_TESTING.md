@@ -14,7 +14,7 @@ On the UI side, we have two layers of protection:
 - **Playwright (E2E)**: This is our most powerful tool. It launches a real Chromium browser and performs "End-to-End" flows. It logs in as an admin, creates a risk, and verifies it appears on the dashboard—just like a real user would.
 
 ## The Mocking Strategy
-We don't want our tests to depend on external factors like a slow network or a real directory server. Instead, we use "Mocks." We create a "Fake" AD Emulator that responds instantly, allowing our test suite to run the entire project’s logic in under a minute.
+We don't want our tests to depend on external factors like a slow network or real third-party systems. Instead, we use "Mocks" to simulate external dependencies, keeping the suite fast, deterministic, and runnable on any developer machine.
 
 ## How to Verify Quality
 When you want to know if the system is healthy, you can run these commands:
