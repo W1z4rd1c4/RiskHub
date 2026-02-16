@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-02-11
+**Analysis Date:** 2026-02-16
 
 ## Core External Services
 
@@ -18,10 +18,17 @@
 ### AD Emulator (development/test integration)
 - Outbound client: `ADEmulatorClient` (`backend/app/integrations/ad_emulator_client.py`)
 - Inbound webhooks: `/api/v1/directory/webhook` (`backend/app/api/v1/endpoints/directory.py`)
-- Webhook signature verification via `WEBHOOK_SECRET` (required in production mode)
+- Webhook signature verification via `WEBHOOK_SECRET` (required in production mode) (`backend/app/core/config.py`, `docker-compose.prod.yml`)
+
+### Microsoft Entra ID (SSO)
+- Backend auth modes include Entra SSO-only production mode (`backend/app/core/config.py`, `backend/app/main.py`)
+- Token verification + OIDC discovery/JWKS refresh: `backend/app/services/sso_token_service.py`
+- Exchange endpoint: `POST /api/v1/auth/sso/exchange` (`backend/app/api/v1/endpoints/auth/sso.py`)
+- Frontend client flow via MSAL: `frontend/src/services/entraAuth.ts`
+- Frontend callback route: `/auth/sso/callback` (`frontend/src/pages/SsoCallbackPage.tsx`)
 
 ### JWT Authentication
-- Backend issues HS256 JWTs (`backend/app/core/security.py`, `backend/app/api/v1/endpoints/auth.py`)
+- Backend issues HS256 JWTs (`backend/app/core/security.py`, `backend/app/api/v1/endpoints/auth/password.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
 - Frontend stores token and attaches `Authorization: Bearer` (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/services/apiClient.ts`)
 
 ## Vendor Signal Integrations
@@ -46,7 +53,7 @@
 
 - Structured app and audit logs via custom logging setup (`backend/app/core/logging.py`)
 - Log files written under `backend/logs/`
-- Admin log/health endpoints exist under admin API (`backend/app/api/v1/endpoints/admin.py`)
+- Admin log/health endpoints exist under admin API (`backend/app/api/v1/endpoints/admin/`)
 
 ## Not Present in Repository
 
@@ -55,10 +62,10 @@
 
 ## Configuration-Sensitive Integrations
 
-- `MOCK_AUTH_ENABLED` + demo login only intended for debug/dev (`backend/app/main.py`, `backend/app/api/v1/endpoints/auth.py`)
+- `MOCK_AUTH_ENABLED` + demo login only intended for debug/dev (`backend/app/main.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
 - Webhook verification behavior varies by debug/production guardrails (`backend/app/api/v1/endpoints/directory.py`)
 - Scheduler execution controlled by `ENABLE_SCHEDULER=true` on exactly one process (`backend/app/core/scheduler.py`)
 
 ---
 
-*Integration audit refreshed on 2026-02-11*
+*Integration audit refreshed on 2026-02-16*
