@@ -12,6 +12,11 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class DemoLoginRequest(BaseModel):
+    """Schema for dev-only demo login request."""
+    email: str
+
+
 class TokenResponse(BaseModel):
     """Schema for JWT token response."""
     access_token: str

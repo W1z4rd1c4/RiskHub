@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 
 import { server } from '@/test/mocks/server';
 import LoginPage from '@/pages/LoginPage';
@@ -74,5 +75,43 @@ describe('LoginPage auth modes', () => {
         renderWithQuery(<LoginPage />);
 
         await screen.findByRole('button', { name: /system admin/i });
+    });
+
+    it('submits demo login using email payload', async () => {
+        let capturedBody: unknown = null;
+        server.use(
+            http.get('*/api/v1/auth/config', () => {
+                return HttpResponse.json({
+                    auth_mode: 'hybrid_dev',
+                    demo_login_enabled: true,
+                    password_login_enabled: true,
+                    debug: true,
+                    mock_auth_enabled: true,
+                    sso: {
+                        enabled: false,
+                        provider: 'entra',
+                        tenant_id: null,
+                        client_id: null,
+                        authority: null,
+                        scopes: ['openid', 'profile', 'email'],
+                    },
+                    sso_error: null,
+                });
+            }),
+            http.post('*/api/v1/auth/demo-login', async ({ request }) => {
+                capturedBody = await request.json();
+                return HttpResponse.json({ detail: 'forced test failure' }, { status: 400 });
+            }),
+        );
+
+        const user = userEvent.setup();
+        renderWithQuery(<LoginPage />);
+        const button = await screen.findByRole('button', { name: /system admin/i });
+
+        await user.click(button);
+
+        await waitFor(() => {
+            expect(capturedBody).toEqual({ email: 'admin@riskhub.local' });
+        });
     });
 });
