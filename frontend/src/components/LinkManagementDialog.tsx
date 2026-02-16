@@ -9,7 +9,7 @@
  * - ExistingLinksPanel: Display and unlink existing items
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Link as LinkIcon } from 'lucide-react';
@@ -90,9 +90,12 @@ export function LinkManagementDialog({
     // -----------------------------------------------------------------------
     // Derived values
     // -----------------------------------------------------------------------
-    const linkedTargetIds = existingLinks.map(link =>
-        mode === 'control-to-risk' ? link.risk_id : link.control_id
-    );
+    const linkedTargetIdSet = useMemo(() => {
+        const ids = existingLinks.map((link) =>
+            mode === 'control-to-risk' ? link.risk_id : link.control_id
+        );
+        return new Set(ids);
+    }, [existingLinks, mode]);
 
     // -----------------------------------------------------------------------
     // Effects
@@ -100,25 +103,35 @@ export function LinkManagementDialog({
 
     // Load lookups when dialog opens
     useEffect(() => {
-        if (isOpen && showSearch) {
-            const loadLookups = async () => {
-                try {
-                    setIsLoadingLookups(true);
-                    const [deptData, filterData] = await Promise.all([
-                        lookupApi.getDepartments(),
-                        lookupApi.getRiskFilters()
-                    ]);
-                    setDepartments(deptData);
-                    setProcesses(filterData.processes);
-                    setCategories(filterData.categories);
-                } catch (err) {
+        if (!isOpen || !showSearch) return;
+
+        let cancelled = false;
+        const loadLookups = async () => {
+            try {
+                setIsLoadingLookups(true);
+                const [deptData, filterData] = await Promise.all([
+                    lookupApi.getDepartments(),
+                    lookupApi.getRiskFilters()
+                ]);
+                if (cancelled) return;
+                setDepartments(deptData);
+                setProcesses(filterData.processes);
+                setCategories(filterData.categories);
+            } catch (err) {
+                if (!cancelled) {
                     console.error('Failed to load search lookups:', err);
-                } finally {
+                }
+            } finally {
+                if (!cancelled) {
                     setIsLoadingLookups(false);
                 }
-            };
-            loadLookups();
-        }
+            }
+        };
+
+        void loadLookups();
+        return () => {
+            cancelled = true;
+        };
     }, [isOpen, showSearch]);
 
     // -----------------------------------------------------------------------
@@ -126,6 +139,8 @@ export function LinkManagementDialog({
     // -----------------------------------------------------------------------
 
     const handleSearch = useCallback(async () => {
+        if (!isOpen || !showSearch) return;
+
         try {
             setIsSearching(true);
             const params: Record<string, string | number | boolean> = {
@@ -139,37 +154,49 @@ export function LinkManagementDialog({
 
             if (mode === 'control-to-risk') {
                 const results = await riskApi.getRisks(params);
-                setSearchResults(results.items.filter(r => !linkedTargetIds.includes(r.id)));
+                setSearchResults(results.items.filter(r => !linkedTargetIdSet.has(r.id)));
             } else {
                 const results = await controlApi.getControls(params);
-                setSearchResults(results.items.filter(c => !linkedTargetIds.includes(c.id)));
+                setSearchResults(results.items.filter(c => !linkedTargetIdSet.has(c.id)));
             }
         } catch (err) {
             console.error('Search failed:', err);
         } finally {
             setIsSearching(false);
         }
-    }, [includeArchived, linkedTargetIds, mode, searchQuery, selectedCategory, selectedDeptId, selectedProcess]);
+    }, [includeArchived, isOpen, linkedTargetIdSet, mode, searchQuery, selectedCategory, selectedDeptId, selectedProcess, showSearch]);
 
-    // Search with debounce
+    const wasOpenRef = useRef(false);
+
+    // Reset local dialog state only when transitioning from open to closed.
     useEffect(() => {
-        if (!isOpen) {
-            setSearchQuery('');
-            setSearchResults([]);
-            setSelectedTargetId(null);
-            setSelectedDeptId(null);
-            setSelectedProcess('');
-            setSelectedCategory('');
-            setIncludeArchived(false);
+        if (isOpen) {
+            wasOpenRef.current = true;
             return;
         }
+
+        if (!wasOpenRef.current) return;
+        wasOpenRef.current = false;
+
+        setSearchQuery((prev) => (prev === '' ? prev : ''));
+        setSearchResults((prev) => (prev.length === 0 ? prev : []));
+        setSelectedTargetId((prev) => (prev === null ? prev : null));
+        setSelectedDeptId((prev) => (prev === null ? prev : null));
+        setSelectedProcess((prev) => (prev === '' ? prev : ''));
+        setSelectedCategory((prev) => (prev === '' ? prev : ''));
+        setIncludeArchived((prev) => (prev ? false : prev));
+    }, [isOpen]);
+
+    // Search with debounce while open.
+    useEffect(() => {
+        if (!isOpen || !showSearch) return;
 
         const delayDebounceFn = setTimeout(() => {
             void handleSearch();
         }, 300);
 
         return () => clearTimeout(delayDebounceFn);
-    }, [handleSearch, isOpen]);
+    }, [handleSearch, isOpen, showSearch]);
 
     const handleLink = async () => {
         if (selectedTargetId === null) return;
