@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
-from app.models import Control, KeyRiskIndicator, Risk, User
+from app.models import Control, KeyRiskIndicator, RefreshToken, Risk, User
 from app.schemas.admin import ActiveSessionResponse, SystemHealthResponse, SystemStatsResponse, TechnicalLogEntry
 
 from ._deps import require_platform_admin
@@ -157,36 +160,35 @@ async def get_active_sessions(
     admin_user: User = Depends(require_platform_admin),
 ) -> list[ActiveSessionResponse]:
     """
-    Get list of users with recent activity (approximation of active sessions).
+    Get active refresh-token sessions (real server-side session view).
     Admin only.
     """
-    from datetime import UTC, datetime, timedelta
+    from app.core.datetime_utils import utc_now
 
-    from sqlalchemy.orm import selectinload
-
-    from app.models.activity_log import ActivityLog
-
-    # Get users with activity in last 24 hours
-    # Timezone-aware datetime works for both PostgreSQL and SQLite via SQLAlchemy
-    yesterday = datetime.now(UTC) - timedelta(hours=24)
-
-    # Subquery to get latest LOGIN per user
-    from app.models.activity_log import ActivityAction
-
-    login_subquery = (
-        select(ActivityLog.actor_id.label("user_id"), func.max(ActivityLog.created_at).label("last_login"))
-        .where(ActivityLog.action == ActivityAction.LOGIN)
-        .group_by(ActivityLog.actor_id)
+    now = utc_now()
+    session_subquery = (
+        select(
+            RefreshToken.user_id.label("user_id"),
+            func.count(RefreshToken.id).label("active_sessions"),
+            func.max(func.coalesce(RefreshToken.last_used_at, RefreshToken.issued_at)).label("last_activity"),
+            func.max(RefreshToken.issued_at).label("last_login"),
+        )
+        .where(RefreshToken.revoked_at.is_(None))
+        .where(RefreshToken.expires_at > now)
+        .group_by(RefreshToken.user_id)
         .subquery()
     )
 
-    # Query users directly
     query = (
-        select(User, login_subquery.c.last_login)
-        .outerjoin(login_subquery, User.id == login_subquery.c.user_id)
+        select(
+            User,
+            session_subquery.c.active_sessions,
+            session_subquery.c.last_activity,
+            session_subquery.c.last_login,
+        )
+        .join(session_subquery, User.id == session_subquery.c.user_id)
         .options(selectinload(User.role), selectinload(User.department))
-        .where(User.last_active_at >= yesterday)  # Only show users active in last 24h
-        .order_by(User.last_active_at.desc())
+        .order_by(session_subquery.c.last_activity.desc())
     )
 
     result = await db.execute(query)
@@ -199,11 +201,12 @@ async def get_active_sessions(
             user_email=user.email,
             role=user.role.display_name if user.role else "Unknown",
             department=user.department.name if user.department else None,
-            last_activity=user.last_active_at.isoformat() if user.last_active_at else "",
-            is_active=user.is_active,
+            last_activity=last_activity.isoformat() if last_activity else "",
+            is_active=bool(user.is_active and active_sessions),
             last_login=last_login.isoformat() if last_login else None,
+            active_sessions=int(active_sessions or 0),
         )
-        for user, last_login in rows
+        for user, active_sessions, last_activity, last_login in rows
     ]
 
 
@@ -214,7 +217,7 @@ async def revoke_user_session(
     admin_user: User = Depends(require_platform_admin),
 ) -> dict:
     """
-    Force logout a user by setting them inactive temporarily.
+    Force logout a user's active sessions.
     Admin only.
     """
     if user_id == admin_user.id:
@@ -227,10 +230,18 @@ async def revoke_user_session(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not user.is_active:
-        raise HTTPException(status_code=400, detail="User is already inactive")
+    # Revoke all active refresh sessions and bump token version for immediate JWT invalidation.
+    now = datetime.now(UTC)
+    revoked_rows = await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user_id)
+        .where(RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=now, revoked_reason=f"admin_revoke:{admin_user.id}")
+    )
+    revoked_count = int(revoked_rows.rowcount or 0)
+    user.token_version += 1
+    db.add(user)
 
-    # For now, we log this action. In a production system, we'd invalidate JWT tokens.
     from app.core.activity_logger import log_activity
     from app.models.activity_log import ActivityAction, ActivityEntityType
 
@@ -241,8 +252,8 @@ async def revoke_user_session(
         entity_type=ActivityEntityType.USER,
         entity_id=user_id,
         entity_name=user.name,
-        description=f"Session revoked for user {user.email} by admin",
+        description=f"Sessions revoked for user {user.email} by admin (count={revoked_count})",
     )
     await db.commit()
 
-    return {"status": "success", "message": f"Session revoked for {user.email}"}
+    return {"status": "success", "message": f"Revoked {revoked_count} active sessions for {user.email}"}

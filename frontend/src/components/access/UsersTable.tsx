@@ -36,6 +36,9 @@ interface UsersTableProps {
     canManageUsers: boolean;
     onEditAccess: (user: AccessUserRead) => void;
     onToggleStatus: (user: AccessUserRead) => void;
+    canRunDirectoryChecks?: boolean;
+    checkingDirectoryUserId?: number | null;
+    onCheckDirectory?: (user: AccessUserRead) => void;
 }
 
 export function UsersTable({
@@ -49,6 +52,9 @@ export function UsersTable({
     canManageUsers,
     onEditAccess,
     onToggleStatus,
+    canRunDirectoryChecks = false,
+    checkingDirectoryUserId = null,
+    onCheckDirectory,
 }: UsersTableProps) {
     const { t } = useTranslation('admin');
     return (
@@ -103,6 +109,20 @@ export function UsersTable({
                                                 <Building2 className="h-3.5 w-3.5 text-slate-500" />
                                                 {user.department_name || t('access.table.no_department')}
                                             </p>
+                                            {user.external_id && (
+                                                <p className="text-xs text-slate-500">
+                                                    {t('users.directory_status_label', { defaultValue: 'Directory status:' })}{' '}
+                                                    <span className="text-slate-300">
+                                                        {user.directory_sync_status || t('common:fallbacks.not_available')}
+                                                    </span>
+                                                    {user.directory_last_checked_at && (
+                                                        <>
+                                                            {' • '}
+                                                            {new Date(user.directory_last_checked_at).toLocaleString()}
+                                                        </>
+                                                    )}
+                                                </p>
+                                            )}
                                         </div>
                                     </td>
                                     <td className="py-4 px-4">
@@ -211,6 +231,18 @@ export function UsersTable({
                                                     title={user.is_active ? t('access.actions.deactivate') : t('access.actions.activate')}
                                                 >
                                                     {user.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                                                </button>
+                                            )}
+                                            {canRunDirectoryChecks && user.external_id && onCheckDirectory && (
+                                                <button
+                                                    onClick={() => onCheckDirectory(user)}
+                                                    disabled={checkingDirectoryUserId === user.id}
+                                                    className="rounded-lg border border-sky-500/30 px-2.5 py-1.5 text-xs text-sky-300 transition hover:bg-sky-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    title={t('users.check_directory_status', { defaultValue: 'Check directory status' })}
+                                                >
+                                                    {checkingDirectoryUserId === user.id
+                                                        ? t('users.checking_directory', { defaultValue: 'Checking...' })
+                                                        : t('users.check_directory', { defaultValue: 'Check AD' })}
                                                 </button>
                                             )}
                                         </div>

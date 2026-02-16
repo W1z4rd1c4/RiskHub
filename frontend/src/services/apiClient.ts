@@ -129,7 +129,7 @@ class ApiClient {
         }
 
         try {
-            const response = await fetch(url.toString(), { ...init, headers });
+            const response = await fetch(url.toString(), { ...init, headers, credentials: 'include' });
 
             if (response.status === 401) {
                 if (this.shouldAttemptSilentReauth(pathname, attempt)) {
@@ -223,7 +223,7 @@ class ApiClient {
         }
 
         try {
-            const response = await fetch(url.toString(), { ...init, method: 'GET', headers });
+            const response = await fetch(url.toString(), { ...init, method: 'GET', headers, credentials: 'include' });
 
             if (response.status === 401) {
                 if (this.shouldAttemptSilentReauth(pathname, attempt)) {

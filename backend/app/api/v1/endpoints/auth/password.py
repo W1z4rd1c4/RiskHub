@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.requests import Request
+from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
 from app.core.security import verify_password
@@ -10,7 +11,7 @@ from app.db.session import get_db
 from app.models import RolePermission, User
 from app.schemas.auth import LoginRequest, TokenResponse
 
-from ._shared import _build_token_response
+from ._shared import _build_token_response, _issue_refresh_session
 
 router = APIRouter()
 
@@ -19,6 +20,7 @@ router = APIRouter()
 async def login(
     credentials: LoginRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
@@ -103,6 +105,7 @@ async def login(
         raise HTTPException(status_code=403, detail="User account is inactive")
 
     token_response = _build_token_response(user)
+    await _issue_refresh_session(db=db, request=request, response=response, user=user, settings=settings)
 
     # Clear lockout tracking on successful login
     await account_lockout.record_successful_login(credentials.email)
@@ -124,4 +127,3 @@ async def login(
     await db.commit()
 
     return token_response
-

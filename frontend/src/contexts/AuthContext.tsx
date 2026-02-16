@@ -81,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const logout = useCallback(() => {
+        void authApi.logout();
         localStorage.removeItem('access_token');
         clearLocalSettings(); // Clear theme/language
         setTokenState(null);

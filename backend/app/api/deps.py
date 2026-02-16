@@ -28,6 +28,7 @@ async def get_current_user(
 
     logger = logging.getLogger(__name__)
     user_id = None
+    token_version_claim: int | None = None
 
     # 1. Check Mock Auth (Development/Testing only)
     # STRICT CHECK: Must be enabled in settings AND debug mode must be True
@@ -41,6 +42,11 @@ async def get_current_user(
             token = credentials.credentials
             payload = decode_access_token(token)
             user_id = payload.get("user_id")
+            claim = payload.get("token_version")
+            if isinstance(claim, int):
+                token_version_claim = claim
+            elif claim is not None:
+                raise HTTPException(status_code=401, detail="Invalid token")
         except TokenDecodeError:
             raise HTTPException(status_code=401, detail="Invalid token")
 
@@ -59,6 +65,9 @@ async def get_current_user(
 
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if token_version_claim is not None and token_version_claim != user.token_version:
+        raise HTTPException(status_code=401, detail="Session revoked")
 
     # Update last_active_at (debounced 1 min to reduce DB writes)
     from datetime import timedelta
