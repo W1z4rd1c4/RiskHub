@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from app.core.config import get_settings
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.endpoints.users import get_password_hash
 from app.core.security import verify_password
@@ -84,6 +85,44 @@ async def test_list_roles(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_mock_login_disabled_returns_404(
+    client: AsyncClient,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Mock login endpoint should be unavailable unless debug+mock auth are both enabled."""
+    monkeypatch.setenv("DEBUG", "true")
+    monkeypatch.setenv("MOCK_AUTH_ENABLED", "false")
+    get_settings.cache_clear()
+
+    response = await client.post(f"/api/v1/users/mock-login/{test_user.id}")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Mock auth not enabled"
+
+    get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_mock_login_enabled_in_debug_mode(
+    client: AsyncClient,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Mock login endpoint should work only when debug+mock auth are enabled."""
+    monkeypatch.setenv("DEBUG", "true")
+    monkeypatch.setenv("MOCK_AUTH_ENABLED", "true")
+    get_settings.cache_clear()
+
+    response = await client.post(f"/api/v1/users/mock-login/{test_user.id}")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["user"]["id"] == test_user.id
+    assert payload["user"]["email"] == test_user.email
+
+    get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
 async def test_lookup_paging_determinism(auth_client: AsyncClient, db_session: AsyncSession, test_role):
     """Test that user lookup paging is deterministic (no overlap between pages)."""
     from app.models import Department
@@ -158,6 +197,89 @@ async def test_lookup_department_scoping(
         f"/api/v1/users/lookup?department_id={dept_b.id}",
         headers={"X-Mock-User-Id": str(user_a.id)},
     )
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_lookup_manager_department_filter_narrows_to_own_department(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_role_employee,
+):
+    """Managers can optionally narrow lookup to their own department only."""
+    from app.models import Department
+    from app.models.user import AccessScope
+
+    dept_a = Department(name="Manager Scope Dept A", code="MGR-SCOPE-A")
+    dept_b = Department(name="Manager Scope Dept B", code="MGR-SCOPE-B")
+    db_session.add_all([dept_a, dept_b])
+    await db_session.commit()
+    await db_session.refresh(dept_a)
+    await db_session.refresh(dept_b)
+
+    manager = User(
+        name="Manager Scope User",
+        email="manager-scope@example.com",
+        role_id=test_role_employee.id,
+        department_id=dept_a.id,
+        access_scope=AccessScope.MANAGER,
+        is_active=True,
+    )
+    db_session.add(manager)
+    await db_session.commit()
+    await db_session.refresh(manager)
+
+    same_dept_report = User(
+        name="Manager Same Dept Report",
+        email="manager-scope-same-dept@example.com",
+        role_id=test_role_employee.id,
+        department_id=dept_a.id,
+        manager_id=manager.id,
+        is_active=True,
+    )
+    cross_dept_report = User(
+        name="Manager Cross Dept Report",
+        email="manager-scope-cross-dept@example.com",
+        role_id=test_role_employee.id,
+        department_id=dept_b.id,
+        manager_id=manager.id,
+        is_active=True,
+    )
+    unrelated_user = User(
+        name="Manager Unrelated User",
+        email="manager-scope-unrelated@example.com",
+        role_id=test_role_employee.id,
+        department_id=dept_a.id,
+        is_active=True,
+    )
+    db_session.add_all([same_dept_report, cross_dept_report, unrelated_user])
+    await db_session.commit()
+    await db_session.refresh(same_dept_report)
+    await db_session.refresh(cross_dept_report)
+    await db_session.refresh(unrelated_user)
+
+    headers = {"X-Mock-User-Id": str(manager.id)}
+
+    # No department filter: manager sees self + direct reports (cross-dept report included).
+    response = await client.get("/api/v1/users/lookup", headers=headers)
+    assert response.status_code == 200
+    visible_ids = {u["id"] for u in response.json()}
+    assert manager.id in visible_ids
+    assert same_dept_report.id in visible_ids
+    assert cross_dept_report.id in visible_ids
+    assert unrelated_user.id not in visible_ids
+
+    # Own-department filter narrows manager scope to own department only.
+    response = await client.get(f"/api/v1/users/lookup?department_id={dept_a.id}", headers=headers)
+    assert response.status_code == 200
+    own_dept_ids = {u["id"] for u in response.json()}
+    assert manager.id in own_dept_ids
+    assert same_dept_report.id in own_dept_ids
+    assert cross_dept_report.id not in own_dept_ids
+
+    # Other department filter remains fail-closed.
+    response = await client.get(f"/api/v1/users/lookup?department_id={dept_b.id}", headers=headers)
     assert response.status_code == 200
     assert response.json() == []
 

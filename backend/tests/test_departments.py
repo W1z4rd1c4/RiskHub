@@ -3,7 +3,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department, Risk, User, Role, Control
+from app.models import Department, Risk, User, Role, Control, KeyRiskIndicator
 from app.models.risk import RiskStatus as RiskStatusEnum
 from app.models.user import AccessScope
 
@@ -193,6 +193,76 @@ async def test_list_department_risks_pagination(
     ids1 = {r["id"] for r in page1}
     ids2 = {r["id"] for r in page2}
     assert ids1.isdisjoint(ids2)
+
+
+@pytest.mark.asyncio
+async def test_list_department_kris_pagination_deterministic_no_overlap(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """Department KRI pagination is deterministic and pages do not overlap."""
+    dept = Department(name="KRI Pagination Dept", code="KRI-PAGINATE")
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+
+    risks: list[Risk] = []
+    for i in range(4):
+        risk = Risk(
+            risk_id_code=f"KRI-PAGE-RISK-{i:02d}",
+            name=f"KRI Page Risk {i} Name",
+            process=f"KRI Page Risk {i}",
+            description=f"KRI pagination risk {i}",
+            category="Test",
+            department_id=dept.id,
+            owner_id=test_user.id,
+            risk_type="operational",
+            gross_probability=2,
+            gross_impact=2,
+            net_probability=2,
+            net_impact=2,
+            status=RiskStatusEnum.active.value,
+        )
+        db_session.add(risk)
+        risks.append(risk)
+    await db_session.commit()
+    for risk in risks:
+        await db_session.refresh(risk)
+
+    for i, risk in enumerate(risks):
+        db_session.add(
+            KeyRiskIndicator(
+                risk_id=risk.id,
+                metric_name=f"KRI Page Metric {i}",
+                description=f"KRI pagination metric {i}",
+                current_value=float(i + 10),
+                lower_limit=0.0,
+                upper_limit=100.0,
+                unit="%",
+                frequency="monthly",
+                reporting_owner_id=test_user.id,
+            )
+        )
+    await db_session.commit()
+
+    response = await auth_client.get(f"/api/v1/departments/{dept.id}/kris?skip=0&limit=2")
+    assert response.status_code == 200
+    page1 = response.json()
+    assert len(page1) == 2
+
+    response = await auth_client.get(f"/api/v1/departments/{dept.id}/kris?skip=2&limit=2")
+    assert response.status_code == 200
+    page2 = response.json()
+    assert len(page2) == 2
+
+    page1_ids = [item["id"] for item in page1]
+    page2_ids = [item["id"] for item in page2]
+
+    assert set(page1_ids).isdisjoint(set(page2_ids))
+    assert page1_ids == sorted(page1_ids)
+    assert page2_ids == sorted(page2_ids)
+    assert max(page1_ids) < min(page2_ids)
 
 
 @pytest.mark.asyncio

@@ -259,15 +259,23 @@ export function DepartmentDetailPage() {
     const [kriPage, setKriPage] = useState(1);
     const [userPage, setUserPage] = useState(1);
 
-    // Reset risk page when filter or department changes
+    // Reset all pagination when department changes.
     useEffect(() => {
         setRiskPage(1);
-    }, [riskFilter, id]);
+        setControlPage(1);
+        setKriPage(1);
+        setUserPage(1);
+    }, [id]);
 
-    // Reset KRI page when filter changes
+    // Reset risk page when risk filter changes.
+    useEffect(() => {
+        setRiskPage(1);
+    }, [riskFilter]);
+
+    // Reset KRI page when KRI filter changes.
     useEffect(() => {
         setKriPage(1);
-    }, [kriFilter, id]);
+    }, [kriFilter]);
 
     const departmentId = id ? Number(id) : undefined;
 

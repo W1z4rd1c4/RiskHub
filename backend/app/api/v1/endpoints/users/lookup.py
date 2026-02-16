@@ -82,10 +82,12 @@ async def lookup_users(
             query = query.where(User.id == current_user.id)
     else:
         # Manager scope: self + direct reports
-        # department_id filter not applicable for managers
-        if department_id is not None and department_id != current_user.department_id:
-            return []
         query = query.where(or_(User.id == current_user.id, User.manager_id == current_user.id))
+        if department_id is not None:
+            # Managers can only scope to their own department.
+            if department_id != current_user.department_id:
+                return []
+            query = query.where(User.department_id == department_id)
 
     # Apply active filter
     if not include_inactive:
