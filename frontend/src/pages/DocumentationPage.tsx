@@ -1,21 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BookOpen, FileText, ChevronLeft, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useTranslation } from '@/i18n/hooks';
 import { adminApi } from '@/services/adminApi';
-import { useTheme } from '@/contexts/ThemeContext';
 import { DocumentationMarkdown } from '@/components/documentation';
+import { stripDuplicateLeadingTitle } from '@/components/documentation/contentFormatting';
 
 export function DocumentationPage() {
     const { t, i18n } = useTranslation('common');
-    const { theme } = useTheme();
     const navigate = useNavigate();
 
     const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
     const [selectedTag, setSelectedTag] = useState<string>('all');
     const [pendingAnchor, setPendingAnchor] = useState<string | undefined>(undefined);
+    const docTopRef = useRef<HTMLDivElement | null>(null);
+    const docScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
     const { data: docsData, isLoading } = useQuery({
         queryKey: ['adminDocs', i18n.language],
@@ -42,6 +43,12 @@ export function DocumentationPage() {
         () => docs.find((doc) => doc.id === selectedDocId) ?? null,
         [docs, selectedDocId],
     );
+    const activeDocContent = useMemo(
+        () => (activeDoc
+            ? stripDuplicateLeadingTitle(activeDoc.content || '', activeDoc.title || '')
+            : ''),
+        [activeDoc],
+    );
 
     useEffect(() => {
         if (selectedTag !== 'all' && !availableTags.includes(selectedTag)) {
@@ -50,7 +57,14 @@ export function DocumentationPage() {
     }, [availableTags, selectedTag]);
 
     useEffect(() => {
-        if (!activeDoc || !pendingAnchor) {
+        if (!activeDoc) {
+            return;
+        }
+
+        docTopRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+        docScrollContainerRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+
+        if (!pendingAnchor) {
             return;
         }
 
@@ -89,7 +103,7 @@ export function DocumentationPage() {
 
     if (activeDoc) {
         return (
-            <div className="space-y-6">
+            <div ref={docTopRef} className="space-y-6">
                 <button
                     onClick={() => setSelectedDocId(null)}
                     className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-sm font-medium rounded-xl transition-all border border-white/10"
@@ -98,33 +112,33 @@ export function DocumentationPage() {
                     {t('documentation.back_to_library')}
                 </button>
 
-                <div className="glass-card min-h-[600px] flex flex-col overflow-hidden">
-                    <div className="px-8 py-6 border-b border-white/10 bg-white/[0.01] space-y-3">
+                <div className="docs-reader-surface min-h-[600px] flex flex-col overflow-hidden">
+                    <div className="px-8 py-6 border-b border-white/10 space-y-3">
                         <div>
                             <h2 className="text-2xl font-bold text-white">{activeDoc.title}</h2>
                             {activeDoc.summary && (
-                                <p className="text-slate-300 text-sm mt-2 max-w-4xl">{activeDoc.summary}</p>
+                                <p className="text-slate-200 text-base mt-2 max-w-4xl leading-relaxed">{activeDoc.summary}</p>
                             )}
                         </div>
 
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-wider rounded">
+                        <div className="docs-reader-meta mt-1">
+                            <span className="docs-reader-meta-chip bg-blue-500/20 text-blue-200 border border-blue-400/30">
                                 {audienceLabel}
                             </span>
                             {activeDoc.version && (
-                                <span className="px-2 py-0.5 bg-white/5 text-slate-300 text-[10px] font-semibold uppercase tracking-wider rounded">
+                                <span className="docs-reader-meta-chip">
                                     v{activeDoc.version}
                                 </span>
                             )}
                             {activeDoc.last_updated && (
-                                <span className="px-2 py-0.5 bg-white/5 text-slate-300 text-[10px] font-semibold uppercase tracking-wider rounded">
+                                <span className="docs-reader-meta-chip">
                                     {activeDoc.last_updated}
                                 </span>
                             )}
                             {activeDoc.tags.map((tag) => (
                                 <span
                                     key={tag}
-                                    className="px-2 py-0.5 bg-white/5 text-slate-300 text-[10px] font-bold uppercase tracking-wider rounded"
+                                    className="docs-reader-meta-chip"
                                 >
                                     {tag}
                                 </span>
@@ -132,45 +146,29 @@ export function DocumentationPage() {
                         </div>
 
                         {activeDoc.source_of_truth && (
-                            <p className="text-xs text-slate-500">
+                            <p className="docs-reader-meta-source">
                                 Source: {activeDoc.source_of_truth}
                             </p>
                         )}
                     </div>
 
-                    <div className="flex-1 p-10 overflow-auto">
-                        <article
-                            className={[
-                                'prose prose-slate prose-a:text-accent max-w-none',
-                                theme === 'light'
-                                    ? [
-                                        'prose-headings:text-slate-900',
-                                        'prose-pre:bg-slate-50',
-                                        'prose-pre:border-slate-200',
-                                        'prose-table:border-slate-200',
-                                        'prose-th:bg-slate-50',
-                                        'prose-td:border-slate-200',
-                                    ].join(' ')
-                                    : [
-                                        'prose-invert',
-                                        'prose-headings:text-white',
-                                        'prose-pre:bg-slate-900/50',
-                                        'prose-pre:border-white/10',
-                                        'prose-table:border-white/10',
-                                        'prose-th:bg-white/5',
-                                        'prose-td:border-white/10',
-                                    ].join(' '),
-                                'prose-pre:border prose-table:border prose-th:p-2 prose-td:p-2 prose-td:border-t',
-                            ].join(' ')}
-                        >
-                            <DocumentationMarkdown
-                                content={activeDoc.content || ''}
-                                currentDoc={activeDoc}
-                                docs={docs}
-                                onOpenDoc={openDoc}
-                                onNavigateApp={(path) => navigate(path)}
-                            />
-                        </article>
+                    <div
+                        ref={docScrollContainerRef}
+                        className="flex-1 px-5 py-6 overflow-auto md:px-8 md:py-8"
+                        data-testid="admin-doc-content-scroll"
+                        data-doc-scroll-container="true"
+                    >
+                        <div className="mx-auto w-full max-w-4xl">
+                            <article className="docs-reader-prose prose max-w-none prose-pre:border prose-table:border prose-th:p-2 prose-td:p-2 prose-td:border-t">
+                                <DocumentationMarkdown
+                                    content={activeDocContent}
+                                    currentDoc={activeDoc}
+                                    docs={docs}
+                                    onOpenDoc={openDoc}
+                                    onNavigateApp={(path) => navigate(path)}
+                                />
+                            </article>
+                        </div>
                     </div>
                 </div>
             </div>
