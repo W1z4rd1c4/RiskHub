@@ -40,7 +40,7 @@
 | 14 Risk Assessments | ✅ Complete (7/7) | 2026-01-24 |
 | 15 Settings Page | ✅ Complete (5/5) | 2026-01-07 |
 | 16 Risk Assessment Polish | ✅ Complete (3/3) | 2026-01-24 |
-| 17 Production Deploy | ⏳ In progress (8/15) | - |
+| 17 Production Deploy | ⏳ In progress (9/15) | - |
 | 18 Vendor Risk Management | ✅ Complete (12/12) | 2026-01-26 |
 | 20 Czech Localization | ✅ Complete (16/12) | - |
 | 25 User Settings | ✅ Complete (5/5) | 2026-01-11 |
@@ -65,7 +65,7 @@
 | 179 E2E Test Data | ✅ Complete (17/17) | 2026-02-11 |
 | 180 E2E Business Logic | ✅ Complete (15/15) | 2026-02-11 |
 | 200 Entity Naming | ✅ Complete (10/10) | 2026-02-11 |
-| 201 Archived Visibility + Restore | ⏳ In progress (4/5) | - |
+| 201 Archived Visibility + Restore | ✅ Complete (5/5) | 2026-02-15 |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
 
@@ -426,8 +426,8 @@
 
 ### Next Step
 
-- Resume next open roadmap item for Phase `201` (`201-05`: tests, E2E verification, and documentation reconciliation).
+- Resume next open roadmap item for Phase `17` (Production Deployment hardening + runbook verification).
 
 ---
 
-*Updated: 2026-02-11*
+*Updated: 2026-02-15*

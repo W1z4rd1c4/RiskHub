@@ -4,7 +4,8 @@ Creates 10 KRIs linked to E2E risks for testing.
 """
 import asyncio
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import KeyRiskIndicator, Risk
 from scripts.e2e_mappings import load_mappings, require_user_id
 
@@ -131,7 +132,7 @@ async def seed_kris():
     print("🔍 PHASE 179-04: KRI Data with Reporting Owners")
     print("="*60)
     
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         users, _ = await load_mappings(db)
         
         created = 0

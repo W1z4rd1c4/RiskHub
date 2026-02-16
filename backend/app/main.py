@@ -10,7 +10,7 @@ from app.core.config import Settings, get_settings
 
 # Initialize structured logging BEFORE app creation
 from app.core.logging import configure_logging, get_logger
-from app.core.scheduler import start_scheduler, stop_scheduler
+from app.core.scheduler import configure_scheduler, start_scheduler, stop_scheduler
 
 configure_logging()
 logger = get_logger("main")
@@ -78,7 +78,7 @@ async def lifespan(app: FastAPI):
     logger.info("startup", message="RiskHub application starting")
 
     # Apply log rotation settings from global configuration
-    await _apply_log_rotation_config()
+    await _apply_log_rotation_config(app)
 
     settings: Settings = app.state.settings
 
@@ -115,6 +115,13 @@ async def lifespan(app: FastAPI):
     logger.info("shutdown", message="RiskHub application shutting down")
     stop_scheduler()
 
+    db_engine = getattr(app.state, "db_engine", None)
+    if db_engine is not None:
+        try:
+            await db_engine.dispose()
+        except Exception:
+            pass
+
     redis = getattr(app.state, "redis", None)
     if redis is not None:
         try:
@@ -123,15 +130,18 @@ async def lifespan(app: FastAPI):
             pass
 
 
-async def _apply_log_rotation_config():
+async def _apply_log_rotation_config(app: FastAPI):
     """Apply log rotation settings from global configuration database."""
     try:
         from sqlalchemy import select
 
-        from app.db.session import async_session_maker
         from app.models.global_config import GlobalConfig
 
-        async with async_session_maker() as db:
+        sessionmaker = getattr(app.state, "db_sessionmaker", None)
+        if sessionmaker is None:
+            return
+
+        async with sessionmaker() as db:
             # Fetch app log settings
             app_size_result = await db.execute(
                 select(GlobalConfig).where(GlobalConfig.key == "app_log_rotation_size_mb")
@@ -196,6 +206,11 @@ def create_app(settings: Settings) -> FastAPI:
     from app.services.account_lockout_service import AccountLockoutService, InMemoryAccountLockoutBackend
 
     app.state.account_lockout = AccountLockoutService(InMemoryAccountLockoutBackend())
+
+    from app.db.session import init_app_db
+
+    init_app_db(app, settings)
+    configure_scheduler(app.state.db_sessionmaker)
 
     # CORS middleware
     app.add_middleware(

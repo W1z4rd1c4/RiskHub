@@ -93,7 +93,8 @@ async def seed_kris(force: bool = False, report_file: str | None = None, excel_p
     # Deferred imports so --help works without app modules
     import openpyxl
     from sqlalchemy import select, delete
-    from app.db.session import async_session_maker
+    from app.core.config import get_settings
+    from app.db.session import session_context
     from app.models import KeyRiskIndicator, Risk
     
     if excel_path:
@@ -111,7 +112,7 @@ async def seed_kris(force: bool = False, report_file: str | None = None, excel_p
     wb = openpyxl.load_workbook(excel, data_only=True)
     unmatched_kris = []  # Track KRIs that couldn't be matched
     
-    async with async_session_maker() as session:
+    async with session_context(get_settings()) as session:
         # First, verify risks exist
         result = await session.execute(select(Risk))
         risks = list(result.scalars().all())

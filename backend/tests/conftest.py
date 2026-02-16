@@ -95,15 +95,15 @@ async def _dispose_app_engine_at_session_end(event_loop) -> AsyncGenerator[None,
     """
     Ensure the app-global SQLAlchemy engine is disposed at end-of-session.
 
-    The app constructs a global AsyncEngine at import time. If any test path
-    causes it to open a SQLite+aiosqlite connection, the aiosqlite worker thread
-    can keep the interpreter alive unless the engine is disposed.
+    The app constructs an AsyncEngine during app creation and stores it on
+    app.state. If any test path causes it to open a SQLite+aiosqlite connection,
+    the aiosqlite worker thread can keep the interpreter alive unless the engine
+    is disposed.
     """
     yield
-
-    from app.db import session as app_db_session
-
-    await app_db_session.engine.dispose()
+    db_engine = getattr(app.state, "db_engine", None)
+    if db_engine is not None:
+        await db_engine.dispose()
 
 
 @pytest_asyncio.fixture(scope="function")

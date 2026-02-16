@@ -7,7 +7,8 @@ Enables sensitive-fields E2E tests per BUSINESS_LOGIC.md §6.
 import asyncio
 from datetime import datetime, timedelta
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Risk, Control
 from app.models.approval_request import (
     ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
@@ -75,7 +76,7 @@ async def seed_sensitive_approvals():
     print("🔍 PHASE 179-09: Sensitive Field Approval Data Seeding")
     print("="*60)
     
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         users, depts = await load_mappings(db)
         
         # Check for existing sensitive field approvals

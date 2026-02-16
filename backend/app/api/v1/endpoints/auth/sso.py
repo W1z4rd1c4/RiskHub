@@ -1,0 +1,189 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from app.core.config import Settings, get_settings
+from app.db.session import get_db
+from app.models import Role, RolePermission, User
+from app.schemas.auth import SsoExchangeRequest, TokenResponse
+from app.services.sso_token_service import SsoProviderUnavailableError, SsoTokenVerificationError
+
+from ._shared import _build_token_response, _resolve_safe_default_role, _sha256_trunc
+
+router = APIRouter()
+
+
+@router.post("/sso/exchange", response_model=TokenResponse)
+async def sso_exchange(
+    payload: SsoExchangeRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+):
+    if settings.auth_mode not in ("microsoft_sso", "hybrid_dev"):
+        return JSONResponse(status_code=403, content={"detail": "SSO is not enabled.", "code": "SSO_DISABLED"})
+
+    from app.core.activity_logger import log_activity
+    from app.models.activity_log import ActivityAction, ActivityEntityType
+
+    try:
+        import app.api.v1.endpoints.auth as auth_pkg
+
+        identity = await auth_pkg.verify_entra_id_token(id_token=payload.id_token, settings=settings)
+    except SsoProviderUnavailableError:
+        await log_activity(
+            db=db,
+            actor=None,
+            action=ActivityAction.FAILED_LOGIN,
+            entity_type=ActivityEntityType.USER,
+            entity_id=0,
+            entity_name="sso",
+            description="Failed SSO login: verification unavailable",
+        )
+        await db.commit()
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "SSO verification unavailable. Please try again later.",
+                "code": "SSO_DISCOVERY_FAILED",
+            },
+        )
+    except SsoTokenVerificationError as e:
+        await log_activity(
+            db=db,
+            actor=None,
+            action=ActivityAction.FAILED_LOGIN,
+            entity_type=ActivityEntityType.USER,
+            entity_id=0,
+            entity_name="sso",
+            description=f"Failed SSO login: {e.code}",
+        )
+        await db.commit()
+        # Stable error codes for frontend mapping (avoid leaking low-level token details).
+        status_code = 401
+        code = "SSO_TOKEN_INVALID"
+        if e.code == "tenant_mismatch":
+            code = "SSO_TENANT_MISMATCH"
+        elif e.code == "email_domain_not_allowed":
+            status_code = 403
+            code = "SSO_EMAIL_DOMAIN_FORBIDDEN"
+        elif e.code == "email_required":
+            status_code = 400
+            code = "SSO_EMAIL_MISSING"
+        elif e.code == "missing_token":
+            status_code = 400
+            code = "SSO_TOKEN_INVALID"
+        return JSONResponse(status_code=status_code, content={"detail": "Invalid SSO token", "code": code})
+
+    # Eager load role and permissions
+    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+
+    result = await db.execute(
+        select(User)
+        .options(permission_load, selectinload(User.department))
+        .where(User.external_id == identity.external_id)
+    )
+    user = result.scalar_one_or_none()
+
+    if user is None and identity.email:
+        result = await db.execute(
+            select(User)
+            .options(permission_load, selectinload(User.department))
+            .where(func.lower(User.email) == identity.email.lower())
+        )
+        user = result.scalar_one_or_none()
+        if user is not None:
+            if user.external_id is None:
+                user.external_id = identity.external_id
+                if identity.name and user.name != identity.name:
+                    user.name = identity.name
+                db.add(user)
+                await db.flush()
+            elif user.external_id != identity.external_id:
+                await log_activity(
+                    db=db,
+                    actor=None,
+                    action=ActivityAction.FAILED_LOGIN,
+                    entity_type=ActivityEntityType.USER,
+                    entity_id=0,
+                    entity_name=identity.email,
+                    description="Failed SSO login: identity conflict",
+                )
+                await db.commit()
+                return JSONResponse(
+                    status_code=409,
+                    content={"detail": "SSO identity conflict", "code": "SSO_IDENTITY_COLLISION"},
+                )
+
+    if user is None:
+        if not settings.entra_jit_provisioning_enabled:
+            await log_activity(
+                db=db,
+                actor=None,
+                action=ActivityAction.FAILED_LOGIN,
+                entity_type=ActivityEntityType.USER,
+                entity_id=0,
+                entity_name=identity.email or "unknown",
+                description="Failed SSO login: user not provisioned",
+            )
+            await db.commit()
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "User not provisioned", "code": "SSO_USER_NOT_PROVISIONED"},
+            )
+
+        if not identity.email or "@" not in identity.email:
+            await log_activity(
+                db=db,
+                actor=None,
+                action=ActivityAction.FAILED_LOGIN,
+                entity_type=ActivityEntityType.USER,
+                entity_id=0,
+                entity_name="unknown",
+                description="Failed SSO login: missing email claim",
+            )
+            await db.commit()
+            return JSONResponse(status_code=400, content={"detail": "Email claim missing", "code": "SSO_EMAIL_MISSING"})
+
+        default_role = await _resolve_safe_default_role(db)
+        new_user = User(
+            email=identity.email.lower(),
+            name=identity.name or identity.email.lower(),
+            external_id=identity.external_id,
+            hashed_password=None,
+            role_id=default_role.id,
+            is_active=True,
+        )
+        db.add(new_user)
+        await db.flush()
+
+        result = await db.execute(
+            select(User)
+            .options(permission_load, selectinload(User.department))
+            .where(User.id == new_user.id)
+        )
+        user = result.scalar_one()
+
+    if not user.is_active:
+        return JSONResponse(status_code=403, content={"detail": "User account is inactive", "code": "USER_INACTIVE"})
+
+    token_response = _build_token_response(user)
+
+    await log_activity(
+        db=db,
+        actor=user,
+        action=ActivityAction.LOGIN,
+        entity_type=ActivityEntityType.USER,
+        entity_id=user.id,
+        entity_name=user.name,
+        description=(
+            f"User logged in (sso): {user.email} "
+            f"tenant_sha256={_sha256_trunc(identity.tenant_id)} oid_sha256={_sha256_trunc(identity.external_id)}"
+        ),
+    )
+    await db.commit()
+    return token_response
+

@@ -4,7 +4,8 @@ Validates prerequisites for E2E test data seeding.
 """
 import asyncio
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import GlobalConfig
 from scripts.e2e_mappings import (
     REQUIRED_USER_EMAILS,
@@ -18,7 +19,7 @@ E2E_DATA_VERSION = "179-16"
 
 async def verify_prerequisites():
     """Verify all required users and departments exist."""
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         user_map, dept_map = await load_mappings(db)
         missing_users, missing_depts = get_missing_required_keys(user_map, dept_map)
 
@@ -37,7 +38,7 @@ async def verify_prerequisites():
 
 async def set_version_marker():
     """Create idempotency marker in global_config."""
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         result = await db.execute(
             select(GlobalConfig).where(GlobalConfig.key == "e2e_data_version")
         )

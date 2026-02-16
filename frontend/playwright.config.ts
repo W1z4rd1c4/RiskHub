@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const ciChromiumChannel = process.platform === 'darwin' ? 'chrome' : undefined;
+const ciChromiumChannel = process.env.CI && process.platform === 'darwin' ? 'chrome' : undefined;
 const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 export default defineConfig({

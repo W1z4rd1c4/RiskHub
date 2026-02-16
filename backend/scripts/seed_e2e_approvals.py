@@ -10,7 +10,8 @@ import asyncio
 from sqlalchemy import select
 
 from app.core.datetime_utils import utc_now
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Risk, Control
 from app.models.approval_request import (
     ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
@@ -85,7 +86,7 @@ async def seed_approvals():
     print("🔍 PHASE 179-05: Approval Request Seeding")
     print("="*60)
     
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         users, _ = await load_mappings_strict(db, context="seed_e2e_approvals")
         
         created = 0
