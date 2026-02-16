@@ -39,7 +39,6 @@ From repo root:
    - `REDIS_PASSWORD` and `REDIS_URL`
    - `AUTH_MODE=microsoft_sso`
    - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID`
-   - `WEBHOOK_SECRET` (required when `DIRECTORY_WEBHOOK_ENABLED=true`)
 
 ## 2) Start database + Redis first
 

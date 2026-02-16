@@ -132,3 +132,6 @@ backend/logs/
 REPO.TXT
 repo_export/
 
+# Generated presentation artifacts (do not commit)
+presentation.html
+presentation.pdf

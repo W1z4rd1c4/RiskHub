@@ -27,16 +27,6 @@ from app.schemas.control import (
     ControlUpdate,
     ExecutionResultEnum,
 )
-from app.schemas.directory_sync import (
-    DirectorySyncLogRead,
-    DirectorySyncPreview,
-    DirectoryUserDiff,
-)
-from app.schemas.directory_user import (
-    DirectoryUserCreate,
-    DirectoryUserRead,
-    DirectoryUserUpdate,
-)
 from app.schemas.issue import (
     IssueAssignRequest,
     IssueCloseRequest,
@@ -181,7 +171,4 @@ __all__ = [
     "RiskQuestionnaireRead",
     "RiskQuestionnaireDraftUpdate",
     "RiskQuestionnaireSubmit",
-    # Directory emulator schemas
-    "DirectoryUserCreate", "DirectoryUserUpdate", "DirectoryUserRead",
-    "DirectorySyncPreview", "DirectorySyncLogRead", "DirectoryUserDiff",
 ]

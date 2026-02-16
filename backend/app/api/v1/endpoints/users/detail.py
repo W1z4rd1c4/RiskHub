@@ -13,6 +13,7 @@ from app.db.session import get_db
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas import UserRead, UserUpdate
+from app.services.orphaned_item_service import OrphanedItemService
 
 router = APIRouter()
 
@@ -95,6 +96,15 @@ async def update_user(
         user.hashed_password = get_password_hash(password)
         extra_changes["password_changed"] = {"old": None, "new": True}
 
+    is_deactivating = user.is_active is True and update_data.get("is_active") is False
+    if is_deactivating:
+        try:
+            created_orphans = await OrphanedItemService.flag_orphaned_items(db, user.id)
+        except Exception:
+            await db.rollback()
+            raise HTTPException(status_code=500, detail="Failed to flag orphaned items")
+        extra_changes["orphaned_items_flagged"] = {"old": None, "new": len(created_orphans)}
+
     changes = build_change_set(user, update_data, extra_changes=extra_changes)
 
     for field, value in update_data.items():
@@ -118,4 +128,3 @@ async def update_user(
     # Reload with all relationships
     result = await db.execute(select(User).options(*user_selectinload_options()).where(User.id == user.id))
     return result.scalar_one()
-

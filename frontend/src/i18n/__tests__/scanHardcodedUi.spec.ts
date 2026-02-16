@@ -18,7 +18,6 @@ const allowlist = {
   ],
   tokenPatterns: [
     '^RiskHub$',
-    '^AD Emulator$',
     '^CZK$',
     '^EUR$',
     '^DORA$',

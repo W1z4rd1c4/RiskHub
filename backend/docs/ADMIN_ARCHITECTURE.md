@@ -24,8 +24,5 @@ When you record a new risk value, a journey begins:
 4. **The Permanence**: Once validated, the story of that risk entry is written into the database ledger, forever auditable.
 5. **The Feedback**: Finally, a success message flies back to your screen, and the UI updates to show your new entry.
 
-## The AD Emulator: Our Mirror Universe
-To ensure we can sync with large corporate directories without breaking anything, we've created a "Mirror Universe" called the **AD Emulator**. It simulates a massive company directory, allowing us to test our "Sync" logic in a safe, isolated environment. It’s our training ground for ensuring that when a real employee joins or leaves, RiskHub knows about it instantly.
-
 ---
 *This architecture is designed for scale, safety, and speed—ensuring RiskHub remains "The Single Source of Truth" for your organization.*

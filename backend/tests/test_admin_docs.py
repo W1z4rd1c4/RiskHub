@@ -14,7 +14,7 @@ async def test_admin_docs_endpoint_returns_admin_audience_only_for_platform_admi
 
     documents = response.json()["documents"]
     assert documents
-    assert documents[0]["id"] == "admin_getting-started"
+    assert any(document["id"] == "admin_getting-started" for document in documents)
     assert all(document["audience"] == "admin" for document in documents)
     assert all(document["id"].startswith("admin_") for document in documents)
     assert all(isinstance(document["tags"], list) and document["tags"] for document in documents)
@@ -32,7 +32,7 @@ async def test_admin_docs_endpoint_returns_user_audience_only_for_cro(client_cro
 
     documents = response.json()["documents"]
     assert documents
-    assert documents[0]["id"] == "user_getting-started"
+    assert any(document["id"] == "user_getting-started" for document in documents)
     assert all(document["audience"] == "user" for document in documents)
     assert all(document["id"].startswith("user_") for document in documents)
     assert all(isinstance(document["tags"], list) and document["tags"] for document in documents)

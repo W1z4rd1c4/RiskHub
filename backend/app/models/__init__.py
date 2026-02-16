@@ -4,8 +4,6 @@ from app.models.approval_scenario import ApprovalScenario
 from app.models.control import Control, ControlForm, ControlFrequency, ControlStatus
 from app.models.control_execution import ControlExecution, ExecutionResult
 from app.models.department import Department
-from app.models.directory_sync_log import DirectorySyncLog, DirectorySyncStatus
-from app.models.directory_user import DirectoryUser
 from app.models.global_config import GlobalConfig
 from app.models.issue import (
     Issue,
@@ -87,8 +85,6 @@ __all__ = [
     "VendorSLA", "VendorSLAFrequency",
     "VendorSLAValueHistory",
     "VendorExternalSignal", "VendorExternalSignalStatus",
-    "DirectoryUser",
-    "DirectorySyncLog", "DirectorySyncStatus",
     "OrphanedItem",
     "ActivityLog", "ActivityAction", "ActivityEntityType",
     # Risk Hub models

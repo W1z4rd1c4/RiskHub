@@ -59,8 +59,6 @@ def _validate_production_settings(settings: Settings) -> None:
             "FATAL: CORS_ORIGINS cannot include '*' when allow_credentials=true. "
             "Set an explicit allowlist of origins."
         )
-    if settings.directory_webhook_enabled and not settings.webhook_secret.strip():
-        raise RuntimeError("FATAL: WEBHOOK_SECRET is required when DIRECTORY_WEBHOOK_ENABLED=true and DEBUG=false.")
 
     # Auth mode guardrails (SSO-only in production)
     if settings.auth_mode != "microsoft_sso":

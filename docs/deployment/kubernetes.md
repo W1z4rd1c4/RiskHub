@@ -27,7 +27,6 @@ Use `.env.example` as the full template. In production (`DEBUG=false`) these are
 - `CORS_ORIGINS` (explicit allowlist; no `*`)
 - `REDIS_URL` (must be reachable)
 - `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`
-- `DIRECTORY_WEBHOOK_ENABLED` + `WEBHOOK_SECRET` (secret required when enabled)
 
 Recommended: store secrets in a Kubernetes `Secret` and non-sensitive values in a `ConfigMap`.
 
@@ -83,4 +82,3 @@ Set:
 Backend logs are written to `/app/logs`. In Kubernetes, prefer:
 - stdout/stderr collection via your cluster logging pipeline, or
 - a persistent volume if you require file-based retention.
-

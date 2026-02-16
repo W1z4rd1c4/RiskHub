@@ -57,7 +57,7 @@
 | 152 Audit Resolution 2 | ✅ Complete (8/8) | 2026-01-10 |
 | 153 Audit Resolution 3 | ✅ Complete (12/12) | 2026-01-10 |
 | 154 Workflow Bug Sweep | ✅ Complete (5/5) | 2026-01-14 |
-| 156 Audit | ⏳ In progress (1/8) | - |
+| 156 Audit | ⏳ In progress (7/8) | - |
 | 156.1 Admin Role & RBAC Hardening | ✅ Complete (5/5) | 2026-02-11 |
 | 157 Business Logic Compliance | ✅ Complete (6/6) | 2026-01-22 |
 | 158 Audit | ✅ Complete (10/10) | 2026-01-19 |
@@ -71,6 +71,17 @@
 | 500 Production Installation Scripts | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Phase 70/156 Metadata Reconciliation (2026-02-16)
+
+- Reconciled planning drift for Phase 70 and Phase 156 in roadmap/state metadata.
+- Corrected Phase 156 progress from `1/8` to `7/8` based on phase plan+summary evidence.
+- Kept `156-08` open and explicitly deferred (intentional, not implemented).
+- Kept Phase 70 at `8/12`; `70-08..70-12` remain open due missing implementation evidence and missing summary artifacts.
+- Re-verified no code-level implementation matches for open Phase 70 items:
+  - `kri_strict_period_submission`
+  - `control_execution_logging`
+  - `departments:read_all`
 
 ### Phase 150 Open Items Completion (2026-02-16)
 
