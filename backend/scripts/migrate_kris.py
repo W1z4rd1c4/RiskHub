@@ -11,7 +11,8 @@ import openpyxl
 from pathlib import Path
 from difflib import SequenceMatcher
 from sqlalchemy import select, delete
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Risk, KeyRiskIndicator
 
 
@@ -57,7 +58,7 @@ async def migrate_kris():
         'Riziko selhání protistrany',
     ]
     
-    async with async_session_maker() as session:
+    async with session_context(get_settings()) as session:
         # Step 1: Load all risks for matching
         print("\n🔍 Loading risks for matching...")
         risks_result = await session.execute(select(Risk))

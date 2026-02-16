@@ -39,7 +39,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 14: Risk Assessments** — Campaigns and questionnaires (7/7)
 - [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (5/5)
 - [x] **Phase 16: Risk Assessment Polish** — Review, reminders, reporting (3/3)
-- [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing (8/15)
+- [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing (9/15)
 - [x] **Phase 18: Vendor Risk Management** — Third-party risk assessments (12/12)
 - [ ] **Phase 19: Polish & Deploy** — Advanced audit workflows (0/6)
 - [x] **Phase 20: Czech Localization** — Full i18n infrastructure (16/12 — overdelivered)
@@ -68,7 +68,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 179: E2E Test Data** — E2E test data seeding (17/17)
 - [x] **Phase 180: E2E Business Logic** — E2E business logic tests (15/15)
 - [x] **Phase 200: Entity Naming Enforcement** — Mandatory naming (10/10)
-- [ ] **Phase 201: Archived Visibility + Restore** — Archive toggle parity and unarchive flows (4/5)
+- [x] **Phase 201: Archived Visibility + Restore** — Archive toggle parity and unarchive flows (5/5)
 - [x] **Phase 250: Spaghetti Simplification** — Code simplification (10/10)
 - [x] **Phase 251: Spaghetti Simplification 2** — More code cleanup (11/11)
 
@@ -466,7 +466,7 @@ Plans:
 **Goal**: Production-ready deployment, Azure AD/Entra SSO, comprehensive documentation, and enterprise testing
 **Depends on**: Can run independently
 **Status**: Planned
-**Plans**: 14 plans
+**Plans**: 15 plans
 
 **Security Concerns (Penetration Test - 2026-01-08):**
 > [!WARNING]
@@ -476,7 +476,7 @@ Plans:
 |---------|----------|-------------|
 | **Webhook allows user injection** | Critical | Set `WEBHOOK_SECRET` to a strong random value - endpoint accepts ANY signature when empty |
 | **OpenAPI/Swagger publicly exposed** | Medium | Disable `/docs` and `/openapi.json` in production or require authentication |
-| **Database port 5432 exposed to host** | Medium | Remove `ports: - "5432:5432"` from docker-compose; bind DB to internal Docker network only |
+| **Database port 5432 exposed to host** | Medium | Mitigated: bind DB to `127.0.0.1` in `docker-compose.yml`. For production, prefer no host publishing (internal Docker network only). |
 | **Rate limiting disabled in DEBUG mode** | Medium | Ensure `DEBUG=false` in production to enable brute-force protection |
 | **Mock Auth enabled in docker-compose.yml** | Critical | Set `MOCK_AUTH_ENABLED=false` and `DEBUG=false` for any non-development deployment |
 | **Demo login endpoint** | Medium | Disable `/auth/demo-login/{id}` in production (only works when DEBUG=true) |
@@ -519,7 +519,7 @@ Plans:
 - [ ] 17-08: Technical Deployment Documentation (IT/DevOps guides)
 - [x] 17-09: Administrator Guide (CRO/Admin configuration)
 - [x] 17-10: End-User Guide (Risk manager documentation)
-- [ ] 17-11: Azure AD/Entra SSO (MSAL integration, token validation)
+- [x] 17-11: Azure AD/Entra SSO (MSAL integration, token validation)
 - [ ] 17-12: AD User Directory Lookup (Graph API, user import)
 - [ ] 17-13: Session Management (refresh tokens, sliding sessions, force logout)
 - [ ] 17-14: AD Deprovisioning Check (deleted user detection, auto-deactivate)
@@ -954,4 +954,4 @@ Plans:
 - [x] 201-02: Restore endpoints + delete-permission enforcement + activity logs
 - [x] 201-03: Frontend include archived toggles in list/search surfaces
 - [x] 201-04: Unarchive actions + archived linked-item grouping/muted styling
-- [ ] 201-05: Tests, E2E verification, and documentation reconciliation
+- [x] 201-05: Tests, E2E verification, and documentation reconciliation

@@ -1,9 +1,16 @@
 import { test, expect } from '../fixtures/auth.fixture';
 import { E2E_CONTROLS } from '../fixtures/e2e-data';
 import { ControlsPage } from '../pages/ControlsPage';
+import { ensureControlStatus, getControlByName } from '../helpers/api-auth';
 import { waitForTableRowByText } from '../helpers/wait';
 
 test.describe('Control CRUD Permissions (Deterministic)', () => {
+    test.describe.configure({ mode: 'serial' });
+
+    test.beforeEach(async () => {
+        await ensureControlStatus(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name, 'archived');
+    });
+
     test('Risk Manager can see deterministic control row', async ({ riskManagerPage }) => {
         const controlsPage = new ControlsPage(riskManagerPage);
         await controlsPage.navigate();
@@ -64,5 +71,28 @@ test.describe('Control CRUD Permissions (Deterministic)', () => {
         const row = controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
         await expect(row).toBeVisible();
         await expect(row.locator('[data-testid^="control-unarchive-"]').first()).toBeVisible();
+    });
+
+    test('Risk Manager can restore archived control and list/detail reflect active state', async ({ riskManagerPage }) => {
+        const controlsPage = new ControlsPage(riskManagerPage);
+        await controlsPage.navigate();
+        await controlsPage.setStatusFilterArchived();
+        await controlsPage.search(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
+
+        await expect(controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name)).toBeVisible();
+        await controlsPage.clickUnarchiveForRow(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
+        await expect(controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name)).not.toBeVisible();
+
+        const apiState = await getControlByName(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
+        expect(apiState?.status).toBe('active');
+
+        await controlsPage.navigate();
+        await controlsPage.search(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
+        await expect(controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name)).toBeVisible();
+
+        await controlsPage.openRowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
+        await expect(riskManagerPage.locator('span').filter({ hasText: /^active$/i }).first()).toBeVisible();
+
+        await ensureControlStatus(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name, 'archived');
     });
 });

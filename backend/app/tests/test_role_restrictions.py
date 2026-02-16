@@ -4,17 +4,16 @@ from httpx import AsyncClient, ASGITransport
 from app.main import app
 from app.core.security import create_access_token
 from app.api import deps
-from app.db.session import async_session_maker
 from app.models import User, Role
 from sqlalchemy import select
 
 @pytest.mark.asyncio
 async def test_all_role_restrictions():
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
         # --- TEST 1: CRO PROTECTIONS ---
         # 1. Get CRO user and generate token directly
-        async with async_session_maker() as db:
+        async with app.state.db_sessionmaker() as db:
             result = await db.execute(
                 select(User).join(Role).where(Role.name == "cro").limit(1)
             )
@@ -23,7 +22,7 @@ async def test_all_role_restrictions():
             headers = {"Authorization": f"Bearer {token}"}
 
         # 2. Try to update CRO, Admin, or Viewer role (Should fail)
-        async with async_session_maker() as db:
+        async with app.state.db_sessionmaker() as db:
             for role_name in ["cro", "admin", "viewer"]:
                 role_result = await db.execute(select(Role).where(Role.name == role_name))
                 role_obj = role_result.scalar_one()
@@ -37,7 +36,7 @@ async def test_all_role_restrictions():
                 assert "cannot be modified" in update_resp.json()["detail"]
 
         # 3. Try to delete Admin role (Should fail)
-        async with async_session_maker() as db:
+        async with app.state.db_sessionmaker() as db:
             role_result = await db.execute(select(Role).where(Role.name == "admin"))
             admin_role = role_result.scalar_one()
             
@@ -50,7 +49,7 @@ async def test_all_role_restrictions():
 
         # --- TEST 2: ADMIN RESTRICTIONS ---
         # 4. Get Admin user and generate token directly
-        async with async_session_maker() as db:
+        async with app.state.db_sessionmaker() as db:
             result = await db.execute(
                 select(User).join(Role).where(Role.name == "admin").limit(1)
             )

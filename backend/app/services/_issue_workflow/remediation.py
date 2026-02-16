@@ -1,0 +1,156 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+
+from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.activity_logger import build_change_set, log_activity
+from app.core.datetime_utils import coerce_utc
+from app.models import Issue, User
+from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.models.issue import IssueRemediationStatus, IssueStatus
+
+from .transitions import (
+    _conflict,
+    _ensure_issue_transition,
+    _ensure_remediation_transition,
+    _get_or_init_remediation,
+)
+
+
+async def start_remediation(
+    db: AsyncSession,
+    *,
+    issue: Issue,
+    actor: User,
+    target_date: datetime | None = None,
+) -> Issue:
+    if issue.status not in {IssueStatus.open.value, IssueStatus.triaged.value}:
+        _conflict(f"Issue must be open or triaged to start remediation (current={issue.status})")
+
+    remediation = _get_or_init_remediation(issue)
+    target_date = coerce_utc(target_date) or remediation.target_date or issue.due_at
+
+    _ensure_issue_transition(issue.status, IssueStatus.in_progress.value)
+    issue_updates = {"status": IssueStatus.in_progress.value}
+    issue_changes = build_change_set(issue, issue_updates)
+    issue.status = IssueStatus.in_progress.value
+
+    remediation_updates = {
+        "status": IssueRemediationStatus.active.value,
+        "target_date": target_date,
+    }
+    remediation_changes = build_change_set(remediation, remediation_updates)
+    remediation.status = IssueRemediationStatus.active.value
+    remediation.target_date = target_date
+
+    db.add(issue)
+    db.add(remediation)
+
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.ISSUE,
+        entity_id=issue.id,
+        entity_name=issue.title,
+        action=ActivityAction.STATUS_CHANGE,
+        actor=actor,
+        department_id=issue.department_id,
+        changes=issue_changes,
+        description=f"Started remediation for issue {issue.title}",
+    )
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.ISSUE_REMEDIATION,
+        entity_id=remediation.id or issue.id,
+        entity_name=f"Remediation for {issue.title}",
+        action=ActivityAction.STATUS_CHANGE,
+        actor=actor,
+        department_id=issue.department_id,
+        changes=remediation_changes,
+    )
+    return issue
+
+
+async def update_progress(
+    db: AsyncSession,
+    *,
+    issue: Issue,
+    actor: User,
+    progress_percent: int | None = None,
+    remediation_status: str | None = None,
+    blocker_reason: str | None = None,
+    completion_notes: str | None = None,
+) -> Issue:
+    remediation = _get_or_init_remediation(issue)
+    if issue.status not in {IssueStatus.in_progress.value, IssueStatus.ready_for_validation.value}:
+        _conflict(f"Issue must be in progress to update remediation (current={issue.status})")
+
+    remediation_updates: dict[str, object] = {}
+    if progress_percent is not None:
+        if progress_percent < 0 or progress_percent > 100:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="progress_percent must be between 0 and 100",
+            )
+        remediation_updates["progress_percent"] = progress_percent
+    if remediation_status is not None:
+        _ensure_remediation_transition(remediation.status, remediation_status)
+        remediation_updates["status"] = remediation_status
+    if blocker_reason is not None:
+        remediation_updates["blocker_reason"] = blocker_reason
+    if completion_notes is not None:
+        remediation_updates["completion_notes"] = completion_notes
+
+    if progress_percent == 100 and remediation.status != IssueRemediationStatus.completed.value:
+        remediation_updates["status"] = IssueRemediationStatus.completed.value
+        remediation_updates["completed_at"] = datetime.now(UTC)
+
+    remediation_changes = build_change_set(remediation, remediation_updates)
+    for key, value in remediation_updates.items():
+        setattr(remediation, key, value)
+
+    issue_updates: dict[str, object] = {}
+    if (
+        remediation.status == IssueRemediationStatus.completed.value
+        and issue.status != IssueStatus.ready_for_validation.value
+    ):
+        _ensure_issue_transition(issue.status, IssueStatus.ready_for_validation.value)
+        issue_updates["status"] = IssueStatus.ready_for_validation.value
+    elif (
+        remediation.status == IssueRemediationStatus.active.value
+        and issue.status == IssueStatus.ready_for_validation.value
+    ):
+        _ensure_issue_transition(issue.status, IssueStatus.in_progress.value)
+        issue_updates["status"] = IssueStatus.in_progress.value
+
+    issue_changes = build_change_set(issue, issue_updates)
+    for key, value in issue_updates.items():
+        setattr(issue, key, value)
+
+    db.add(issue)
+    db.add(remediation)
+
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.ISSUE_REMEDIATION,
+        entity_id=remediation.id or issue.id,
+        entity_name=f"Remediation for {issue.title}",
+        action=ActivityAction.UPDATE,
+        actor=actor,
+        department_id=issue.department_id,
+        changes=remediation_changes,
+        description=f"Updated remediation progress for issue {issue.title}",
+    )
+    if issue_changes:
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.ISSUE,
+            entity_id=issue.id,
+            entity_name=issue.title,
+            action=ActivityAction.STATUS_CHANGE,
+            actor=actor,
+            department_id=issue.department_id,
+            changes=issue_changes,
+        )
+    return issue

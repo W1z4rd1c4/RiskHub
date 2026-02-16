@@ -5,14 +5,15 @@ Run this after seeding roles, permissions, and departments.
 """
 import asyncio
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import User, Role, Department
 from app.core.security import get_password_hash
 import random
 
 
 async def seed_users():
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         try:
             # Get roles
             result = await db.execute(select(Role))

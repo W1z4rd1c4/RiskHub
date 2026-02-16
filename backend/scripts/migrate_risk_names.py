@@ -3,7 +3,8 @@ import asyncio
 import openpyxl
 from pathlib import Path
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Risk
 
 async def migrate_risk_names_from_excel():
@@ -52,7 +53,7 @@ async def migrate_risk_names_from_excel():
         excel_data[risk_id_code] = (name, description)
 
     print(f"🚀 Updating Risks in Database...")
-    async with async_session_maker() as session:
+    async with session_context(get_settings()) as session:
         result = await session.execute(select(Risk))
         risks = result.scalars().all()
         

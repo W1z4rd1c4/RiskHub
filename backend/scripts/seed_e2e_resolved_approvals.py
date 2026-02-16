@@ -10,7 +10,8 @@ from datetime import timedelta
 from sqlalchemy import select
 
 from app.core.datetime_utils import utc_now
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Risk, Control
 from app.models.approval_request import (
     ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
@@ -67,7 +68,7 @@ async def seed_resolved_approvals():
     print("🔍 PHASE 179-08: Resolved Approval Data Seeding")
     print("="*60)
     
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         users, depts = await load_mappings(db)
         
         # Check for existing resolved E2E approvals

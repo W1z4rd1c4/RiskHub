@@ -217,6 +217,88 @@ async def test_archived_kri_excluded_from_list(auth_client: AsyncClient, db_sess
     assert kri_id not in kri_ids, "Archived KRI should be excluded from default list"
 
 
+@pytest.mark.asyncio
+async def test_kri_restore_clears_archive_metadata_and_allows_list_after_restore(
+    auth_client: AsyncClient,
+    db_session,
+    test_risk_for_kri: Risk,
+):
+    """Restoring an archived KRI clears metadata and makes it visible in default list."""
+    # Create a KRI and archive it via the API (sets archived_at/by_id)
+    kri = KeyRiskIndicator(
+        risk_id=test_risk_for_kri.id,
+        metric_name="Restore Test KRI",
+        description="KRI for restore verification",
+        unit="%",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+    kri_id = kri.id
+
+    response = await auth_client.delete(f"/api/v1/kris/{kri_id}?reason=Test%20archive%20for%20restore")
+    assert response.status_code == 204
+
+    # NOTE: avoid db_session.expire_all() here because auth_client overrides deps.get_current_user
+    # with a concrete ORM instance; expiring the session would cause relationship lazy-loads during
+    # permission checks, which is incompatible with SQLAlchemy async (MissingGreenlet).
+    assert kri.is_archived is True
+    assert kri.archived_at is not None
+    assert kri.archived_by_id is not None
+
+    # Restore
+    response = await auth_client.post(f"/api/v1/kris/{kri_id}/restore")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_archived"] is False
+    assert data["archived_at"] is None
+    assert data["archived_by_id"] is None
+
+    # Verify default list includes it again
+    response = await auth_client.get("/api/v1/kris")
+    assert response.status_code == 200
+    items = response.json()["items"]
+    kri_ids = [item["id"] for item in items]
+    assert kri_id in kri_ids
+
+
+@pytest.mark.asyncio
+async def test_kri_restore_requires_risks_delete(
+    client_readonly: AsyncClient,
+    db_session,
+    test_risk_for_kri: Risk,
+):
+    """User without risks:delete cannot restore an archived KRI."""
+    # Create archived KRI directly (permission check should block before handler runs)
+    kri = KeyRiskIndicator(
+        risk_id=test_risk_for_kri.id,
+        metric_name="RBAC Restore KRI",
+        description="KRI for restore RBAC test",
+        unit="%",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        is_archived=True,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+    kri_id = kri.id
+
+    response = await client_readonly.post(f"/api/v1/kris/{kri_id}/restore")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_kri_restore_rejects_not_archived(auth_client: AsyncClient, test_kri: KeyRiskIndicator):
+    """Restore endpoint should reject KRIs that are not archived."""
+    response = await auth_client.post(f"/api/v1/kris/{test_kri.id}/restore")
+    assert response.status_code == 400
+
+
 # These tests use a client without risks:write/delete permissions
 # The client_employee fixture has risks:read but we need to check write/delete denial
 

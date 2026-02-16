@@ -15,13 +15,14 @@ from app.db.rbac_seed_contract import (
     RBAC_ROLE_PERMISSIONS,
     expand_permission_keys,
 )
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Permission, Role, RolePermission
 
 
 async def seed_roles_permissions() -> None:
     """Seed roles and permissions using the canonical RBAC contract."""
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         try:
             print("⚠️  legacy script invoked: applying canonical RBAC contract")
 

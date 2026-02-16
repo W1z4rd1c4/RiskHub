@@ -34,18 +34,35 @@ test.describe('Risk-Control Linking Access (Deterministic)', () => {
         await expect(dialog).toBeVisible();
 
         const searchInput = dialog.locator('input[placeholder*="Search"], input[type="text"]').first();
+        const initialSearchResponse = riskManagerPage.waitForResponse((response) => {
+            const url = response.url();
+            return url.includes('/api/v1/controls')
+                && url.includes('search=')
+                && url.includes('E2E-ARCH-CTRL')
+                && !url.includes('include_archived=true');
+        });
         await searchInput.fill(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
+        await initialSearchResponse;
         await waitForDataLoad(riskManagerPage);
 
         const archivedCandidate = dialog.locator('button').filter({ hasText: E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name }).first();
         await expect(archivedCandidate).toHaveCount(0);
 
         const includeArchivedCheckbox = dialog.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
+        const includeArchivedSearchResponse = riskManagerPage.waitForResponse((response) => {
+            const url = response.url();
+            return url.includes('/api/v1/controls')
+                && url.includes('search=')
+                && url.includes('E2E-ARCH-CTRL')
+                && url.includes('include_archived=true');
+        });
         await includeArchivedCheckbox.click();
+        await expect(includeArchivedCheckbox).toBeChecked();
+        await includeArchivedSearchResponse;
         await waitForDataLoad(riskManagerPage);
 
         const archivedResult = dialog.locator('button').filter({ hasText: E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name }).first();
-        await expect(archivedResult).toBeVisible();
+        await expect(archivedResult).toBeVisible({ timeout: 15000 });
         await expect(archivedResult).toContainText(/Archived/i);
     });
 

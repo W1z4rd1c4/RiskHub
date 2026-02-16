@@ -5,8 +5,8 @@ from contextlib import asynccontextmanager
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.db.session import async_session_maker
 from app.models.vendor import Vendor
 from app.services.issue_deadline_service import IssueDeadlineService
 from app.services.kri_deadline_service import KRIDeadlineService
@@ -19,12 +19,20 @@ logger = logging.getLogger(__name__)
 
 # Global scheduler instance
 scheduler = AsyncIOScheduler()
+_db_sessionmaker: async_sessionmaker[AsyncSession] | None = None
+
+
+def configure_scheduler(sessionmaker: async_sessionmaker[AsyncSession]) -> None:
+    global _db_sessionmaker
+    _db_sessionmaker = sessionmaker
 
 
 @asynccontextmanager
 async def get_db_context():
     """Context manager for database session in scheduler jobs."""
-    async with async_session_maker() as session:
+    if _db_sessionmaker is None:
+        raise RuntimeError("Scheduler DB sessionmaker not configured")
+    async with _db_sessionmaker() as session:
         try:
             yield session
         finally:
@@ -181,6 +189,9 @@ def start_scheduler():
     enable = os.getenv("ENABLE_SCHEDULER", "false").lower()
     if enable != "true":
         logger.info("Scheduler disabled (ENABLE_SCHEDULER != 'true')")
+        return
+    if _db_sessionmaker is None:
+        logger.warning("Scheduler not started (DB sessionmaker not configured)")
         return
 
     if not scheduler.running:

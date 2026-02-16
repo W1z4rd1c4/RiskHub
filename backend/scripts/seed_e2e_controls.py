@@ -4,7 +4,8 @@ Creates 12 controls with risk linkages for E2E testing.
 """
 import asyncio
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Control, Risk, ControlRiskLink, ControlStatus
 from scripts.e2e_mappings import load_mappings, require_user_id, require_department_id
 
@@ -133,7 +134,7 @@ async def seed_controls():
     print("🔍 PHASE 179-03: Cross-Department Control Data")
     print("="*60)
     
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         users, depts = await load_mappings(db)
         
         created_controls = 0

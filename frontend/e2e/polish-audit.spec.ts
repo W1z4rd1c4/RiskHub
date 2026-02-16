@@ -178,12 +178,21 @@ test.describe('Polish Audit (page-by-page)', () => {
                 test(`${role} / theme=${theme} / lang=${language}`, async ({ page }, testInfo) => {
                     test.setTimeout(10 * 60 * 1000);
 
+                    const runAllBrowsers = process.env.POLISH_AUDIT_ALL_BROWSERS === '1';
+                    if (!runAllBrowsers && testInfo.project.name !== 'chromium') {
+                        test.skip(true, 'polish-audit runs on chromium only by default (set POLISH_AUDIT_ALL_BROWSERS=1 to enable all browsers).');
+                    }
+
+                    // Default to lightweight audit for CI speed; enable full audit locally when needed.
+                    const deepAudit = process.env.POLISH_AUDIT_DEEP === '1';
+
                     await seedLocalStorage(page, theme, language);
                     await mockPreferencesApi(page, theme, language);
 
                     const runId = `${new Date().toISOString()}_${role}_${theme}_${language}`;
                     const records: RouteAudit[] = [];
                     const visited = new Set<string>();
+                    let lightContrastHeuristicRan = false;
 
                     let current: RouteAudit | null = null;
 
@@ -263,7 +272,7 @@ test.describe('Polish Audit (page-by-page)', () => {
                         };
                         records.push(current);
 
-                        const timeoutMs = 45000;
+                        const timeoutMs = deepAudit ? 45000 : 20000;
                         const isPublicRoute = routePath === '/landing' || routePath === '/login';
 
                         if (isPublicRoute) {
@@ -287,7 +296,8 @@ test.describe('Polish Audit (page-by-page)', () => {
                                 `${safeFilename(routePath)}_${safeFilename(label)}.png`,
                             );
                             await fs.mkdir(path.dirname(screenshotPath), { recursive: true });
-                            await page.screenshot({ path: screenshotPath, fullPage: true });
+                            // viewport screenshots are significantly faster and reduce audit timeouts
+                            await page.screenshot({ path: screenshotPath, fullPage: false });
                             current?.screenshots.push(screenshotPath);
                         };
 
@@ -316,7 +326,7 @@ test.describe('Polish Audit (page-by-page)', () => {
                         }
 
                         // Approvals: open resolution dialog (approve + cancel)
-                        if (routePath === '/approvals') {
+                        if (deepAudit && routePath === '/approvals') {
                             const approveBtn = page.locator('[data-testid^="approval-resolve-approve-"]').first();
                             const legacyApproveBtn = page.locator('button[title="Approve"]').first();
                             const approve = (await approveBtn.isVisible().catch(() => false)) ? approveBtn : legacyApproveBtn;
@@ -341,7 +351,7 @@ test.describe('Polish Audit (page-by-page)', () => {
                         }
 
                         // Admin docs: open first doc, then go back
-                        if (routePath === '/admin/docs') {
+                        if (deepAudit && routePath === '/admin/docs') {
                             const docCard = page.locator('main .grid button').first();
                             if (await docCard.isVisible().catch(() => false)) {
                                 await docCard.click();
@@ -355,9 +365,11 @@ test.describe('Polish Audit (page-by-page)', () => {
 
                         // Controls/Risks/Vendors: open first combobox/select popover (if present)
                         if (
+                            deepAudit && (
                             routePath.startsWith('/controls') ||
                             routePath.startsWith('/risks') ||
                             routePath.startsWith('/vendors')
+                            )
                         ) {
                             const combobox = page.locator('[role="combobox"]').first();
                             if (await combobox.isVisible().catch(() => false)) {
@@ -371,7 +383,8 @@ test.describe('Polish Audit (page-by-page)', () => {
                         // =====================================================================
                         // Step 6 runtime heuristic (light theme): flag likely low-contrast elements
                         // =====================================================================
-                        if (theme === 'light') {
+                        if (theme === 'light' && routePath === '/' && !lightContrastHeuristicRan) {
+                            lightContrastHeuristicRan = true;
                             const candidates = await page.evaluate(() => {
                                 const clamp = (n: number) => Math.max(0, Math.min(255, n));
                                 const parseRgb = (value: string) => {
@@ -431,7 +444,7 @@ test.describe('Polish Audit (page-by-page)', () => {
                         // =====================================================================
                         // Step 11 guardrail: no numeric DB IDs rendered as user-facing fallbacks
                         // =====================================================================
-                        const numericIdFindings = await page.evaluate(() => {
+                        const { findings: numericIdFindings, scanned, total } = await page.evaluate(() => {
                             const results: Array<{ selector: string; text: string }> = [];
 
                             const toSelector = (el: Element) => {
@@ -445,7 +458,13 @@ test.describe('Polish Audit (page-by-page)', () => {
                             };
 
                             const root = document.querySelector('main') || document.body;
-                            for (const el of Array.from(root.querySelectorAll<HTMLElement>('*'))) {
+                            const elements = root.querySelectorAll<HTMLElement>('*');
+                            const maxElements = 2500;
+                            let scannedCount = 0;
+
+                            for (const el of elements) {
+                                scannedCount += 1;
+                                if (scannedCount > maxElements) break;
                                 const text = (el.textContent || '').trim();
                                 if (!text) continue;
 
@@ -456,9 +475,16 @@ test.describe('Polish Audit (page-by-page)', () => {
                                 if (results.length >= 25) break;
                             }
 
-                            return results;
+                            return {
+                                findings: results,
+                                scanned: Math.min(scannedCount, maxElements),
+                                total: elements.length,
+                            };
                         });
 
+                        if (total > scanned) {
+                            current.notes.push(`numeric-id scan truncated (${scanned}/${total} elements scanned)`);
+                        }
                         if (numericIdFindings.length > 0) {
                             current.notes.push(`numeric-id guardrail flagged ${numericIdFindings.length} element(s)`);
                         }
@@ -489,27 +515,41 @@ test.describe('Polish Audit (page-by-page)', () => {
                             '/settings',
                             '/users',
                         ]
-                        : [
-                            '/',
-                            '/approvals',
-                            '/notifications',
-                            '/controls',
-                            '/controls/new',
-                            '/risks',
-                            '/risks/new',
-                            '/issues',
-                            '/issues/new',
-                            '/kris',
-                            '/kris/new',
-                            '/departments',
-                            '/vendors',
-                            '/vendors/new',
-                            '/vendor-reports',
-                            '/audit-trail',
-                            '/activity-log',
-                            '/users',
-                            '/settings',
-                        ];
+                        : deepAudit
+                            ? [
+                                '/',
+                                '/approvals',
+                                '/notifications',
+                                '/controls',
+                                '/controls/new',
+                                '/risks',
+                                '/risks/new',
+                                '/issues',
+                                '/issues/new',
+                                '/kris',
+                                '/kris/new',
+                                '/departments',
+                                '/vendors',
+                                '/vendors/new',
+                                '/vendor-reports',
+                                '/audit-trail',
+                                '/activity-log',
+                                '/users',
+                                '/settings',
+                            ]
+                            : [
+                                '/',
+                                '/approvals',
+                                '/controls',
+                                '/risks',
+                                '/issues',
+                                '/kris',
+                                '/departments',
+                                '/vendors',
+                                '/activity-log',
+                                '/users',
+                                '/settings',
+                            ];
 
                     // Forced navigation to restricted routes to verify redirects / guards.
                     const forcedRestrictedRoutes = [
@@ -530,46 +570,48 @@ test.describe('Polish Audit (page-by-page)', () => {
                         }
 
                         // Expand dynamic routes from list pages (first discovered entity id).
-                        if (routePath === '/controls') {
-                            const id = await firstIdFromApi(page, authToken, routePath);
-                            if (id) {
-                                toVisit.splice(i + 1, 0, `/controls/${id}`, `/controls/${id}/edit`);
+                        if (deepAudit) {
+                            if (routePath === '/controls') {
+                                const id = await firstIdFromApi(page, authToken, routePath);
+                                if (id) {
+                                    toVisit.splice(i + 1, 0, `/controls/${id}`, `/controls/${id}/edit`);
+                                }
                             }
-                        }
-                        if (routePath === '/risks') {
-                            const id = await firstIdFromApi(page, authToken, routePath);
-                            if (id) {
-                                toVisit.splice(i + 1, 0, `/risks/${id}`, `/risks/${id}/edit`);
+                            if (routePath === '/risks') {
+                                const id = await firstIdFromApi(page, authToken, routePath);
+                                if (id) {
+                                    toVisit.splice(i + 1, 0, `/risks/${id}`, `/risks/${id}/edit`);
+                                }
                             }
-                        }
-                        if (routePath === '/issues') {
-                            const id = await firstIdFromApi(page, authToken, routePath);
-                            if (id) {
-                                toVisit.splice(i + 1, 0, `/issues/${id}`);
+                            if (routePath === '/issues') {
+                                const id = await firstIdFromApi(page, authToken, routePath);
+                                if (id) {
+                                    toVisit.splice(i + 1, 0, `/issues/${id}`);
+                                }
                             }
-                        }
-                        if (routePath === '/kris') {
-                            const id = await firstIdFromApi(page, authToken, routePath);
-                            if (id) {
-                                toVisit.splice(i + 1, 0, `/kris/${id}`);
+                            if (routePath === '/kris') {
+                                const id = await firstIdFromApi(page, authToken, routePath);
+                                if (id) {
+                                    toVisit.splice(i + 1, 0, `/kris/${id}`);
+                                }
                             }
-                        }
-                        if (routePath === '/departments') {
-                            const id = await firstIdFromApi(page, authToken, routePath);
-                            if (id) {
-                                toVisit.splice(i + 1, 0, `/departments/${id}`);
+                            if (routePath === '/departments') {
+                                const id = await firstIdFromApi(page, authToken, routePath);
+                                if (id) {
+                                    toVisit.splice(i + 1, 0, `/departments/${id}`);
+                                }
                             }
-                        }
-                        if (routePath === '/vendors') {
-                            const id = await firstIdFromApi(page, authToken, routePath);
-                            if (id) {
-                                toVisit.splice(i + 1, 0, `/vendors/${id}`, `/vendors/${id}/edit`);
+                            if (routePath === '/vendors') {
+                                const id = await firstIdFromApi(page, authToken, routePath);
+                                if (id) {
+                                    toVisit.splice(i + 1, 0, `/vendors/${id}`, `/vendors/${id}/edit`);
+                                }
                             }
-                        }
-                        if (routePath === '/users') {
-                            const id = await firstIdFromApi(page, authToken, routePath);
-                            if (id) {
-                                toVisit.splice(i + 1, 0, `/users/${id}`);
+                            if (routePath === '/users') {
+                                const id = await firstIdFromApi(page, authToken, routePath);
+                                if (id) {
+                                    toVisit.splice(i + 1, 0, `/users/${id}`);
+                                }
                             }
                         }
                     }

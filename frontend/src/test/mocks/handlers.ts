@@ -244,6 +244,22 @@ export const handlers = [
     http.get('*/api/v1/auth/me', () => {
         return HttpResponse.json(mockAuthUser);
     }),
+
+    // Approvals (used by pending-approvals hooks; keep tests offline)
+    http.get('*/api/v1/approvals', ({ request }) => {
+        const url = new URL(request.url);
+        const skip = Number(url.searchParams.get('skip') ?? 0);
+        const limit = Number(url.searchParams.get('limit') ?? 100);
+        return HttpResponse.json({
+            items: [],
+            total: 0,
+            skip,
+            limit,
+        });
+    }),
+    http.get('*/api/v1/approvals/pending/count', () => {
+        return HttpResponse.json({ count: 0 });
+    }),
     // Preferences
     http.get('*/api/v1/preferences', () => {
         return HttpResponse.json(mockPreferences);
