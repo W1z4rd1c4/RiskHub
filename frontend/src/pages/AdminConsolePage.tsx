@@ -530,8 +530,8 @@ function LogsPanel() {
                                 </td>
                                 <td className="py-2 px-3 text-white">{log.event_type}</td>
                                 <td className="py-2 px-3 text-slate-400">{log.user_name || t('common:fallbacks.unknown_user')}</td>
-                                <td className="py-2 px-3 text-slate-500 max-w-xs truncate" title={log.details || ''}>
-                                    {log.details || t('common:fallbacks.not_available')}
+                                <td className="py-2 px-3 text-slate-500 max-w-xs truncate" title={log.description || ''}>
+                                    {log.description || t('common:fallbacks.not_available')}
                                 </td>
                             </tr>
                         ))}
@@ -546,6 +546,8 @@ function SessionsPanel() {
     const { t } = useTranslation('admin');
     const queryClient = useQueryClient();
     const [pendingRevokeSession, setPendingRevokeSession] = useState<ActiveSession | null>(null);
+    const [directorySummary, setDirectorySummary] = useState<string | null>(null);
+    const [directorySyncing, setDirectorySyncing] = useState(false);
 
     const { data: sessions, isLoading } = useQuery({
         queryKey: ['adminSessions'],
@@ -564,6 +566,26 @@ function SessionsPanel() {
         });
     };
 
+    const handleCheckAllDirectory = async () => {
+        try {
+            setDirectorySyncing(true);
+            const result = await adminApi.checkAllDirectoryUsers();
+            setDirectorySummary(
+                t('users.directory_check_all_success', {
+                    defaultValue: `Checked ${result.checked} users (${result.deprovisioned} deprovisioned).`,
+                    checked: result.checked,
+                    deprovisioned: result.deprovisioned,
+                }),
+            );
+            queryClient.invalidateQueries({ queryKey: ['adminSessions'] });
+        } catch (error) {
+            console.error('Directory check-all failed', error);
+            setDirectorySummary(t('users.directory_check_failed', { defaultValue: 'Directory check failed.' }));
+        } finally {
+            setDirectorySyncing(false);
+        }
+    };
+
     if (isLoading) {
         return <div className="text-slate-400 text-center py-8">{t('sessions.loading')}</div>;
     }
@@ -572,10 +594,28 @@ function SessionsPanel() {
         <div className="space-y-4">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">{t('sessions.title')}</h3>
-                <p className="text-sm text-slate-500">
-                    {t('sessions.description')}
-                </p>
+                <div className="flex items-center gap-3">
+                    <p className="text-sm text-slate-500">
+                        {t('sessions.description')}
+                    </p>
+                    <button
+                        onClick={handleCheckAllDirectory}
+                        disabled={directorySyncing}
+                        className="inline-flex items-center gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs text-sky-200 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                        <RefreshCw className={cn('h-3.5 w-3.5', directorySyncing && 'animate-spin')} />
+                        {directorySyncing
+                            ? t('users.checking_directory', { defaultValue: 'Checking...' })
+                            : t('users.check_directory', { defaultValue: 'Check AD' })}
+                    </button>
+                </div>
             </div>
+
+            {directorySummary && (
+                <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300">
+                    {directorySummary}
+                </div>
+            )}
 
             <div className="overflow-x-auto">
                 <table className="w-full">
@@ -646,6 +686,9 @@ function SessionsPanel() {
                                                 {durationText && (
                                                     <span className="text-xs text-slate-500">{durationText}</span>
                                                 )}
+                                                <span className="text-xs text-slate-500">
+                                                    {session.active_sessions} {t('sessions.devices', { defaultValue: 'devices' })}
+                                                </span>
                                             </div>
                                         </div>
                                     </td>

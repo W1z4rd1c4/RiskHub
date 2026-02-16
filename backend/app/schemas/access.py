@@ -1,4 +1,5 @@
 """Pydantic schemas for access management endpoints."""
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
@@ -41,6 +42,13 @@ class AccessUserRead(BaseModel):
     access_scope: AccessScopeEnum
     scope_label: str
     effective_permissions: list[str]
+    external_id: Optional[str] = None
+    job_title: Optional[str] = None
+    directory_last_checked_at: datetime | None = None
+    directory_last_seen_at: datetime | None = None
+    directory_sync_status: Optional[str] = None
+    deprovisioned_at: datetime | None = None
+    deprovision_reason: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
