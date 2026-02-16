@@ -54,3 +54,4 @@ docker run --rm -v "$PWD":/work -w /work koalaman/shellcheck:stable \
 
 - Rollbacks do not downgrade the database. Use forward-fix migrations + backups/PITR.
 - Scheduler is deployed as a dedicated backend container with `ENABLE_SCHEDULER=true` and `--workers 1`.
+- For SSO safety, production deploy bootstraps privileged users by email. Configure `BOOTSTRAP_ADMIN_*` and `BOOTSTRAP_CRO_*` in your `backend.env`.

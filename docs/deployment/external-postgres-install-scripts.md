@@ -80,15 +80,19 @@ For this reason, the Phase 500 scripts compute and inject `REDIS_URL` for backen
 
 Keep the `REDIS_URL` key present in `backend.env` (it may be empty).
 
-## 2) Bootstrap admin (required for SSO safety)
+## 2) Bootstrap admin + CRO (required for SSO safety)
 
 In production SSO mode (`AUTH_MODE=microsoft_sso` with `DEBUG=false`), just-in-time provisioning assigns a safe default role.
 
-To avoid admin/CRO lockout, set these in `/etc/riskhub/backend.env`:
+To avoid admin/CRO lockout and ensure CRO-only config endpoints are reachable, set these in `/etc/riskhub/backend.env`:
 
 - `BOOTSTRAP_ADMIN_EMAIL` (must match the Entra user email)
-- `BOOTSTRAP_ADMIN_ROLE` (`admin` or `cro`)
+- `BOOTSTRAP_ADMIN_ROLE` (`admin` recommended)
 - `BOOTSTRAP_ADMIN_ACCESS_SCOPE` (`global`, `department`, or `manager`)
+- `BOOTSTRAP_CRO_EMAIL` (must match the Entra user email)
+- `BOOTSTRAP_CRO_ACCESS_SCOPE` (`global`, `department`, or `manager`)
+
+Note: the CRO bootstrap role is fixed to `cro` (no `BOOTSTRAP_CRO_ROLE` key).
 
 On first successful SSO login, RiskHub binds the Entra `external_id` (OID) to the existing user row by email.
 
@@ -182,7 +186,7 @@ For database rollback posture and best practices, see `docs/deployment/migration
   - validate network reachability from the Docker host to PostgreSQL
   - confirm PostgreSQL allows connections from this host (firewall / security groups / pg_hba.conf)
 - If users can SSO login but lack admin rights:
-  - confirm `BOOTSTRAP_ADMIN_*` values
+  - confirm `BOOTSTRAP_ADMIN_*` and `BOOTSTRAP_CRO_*` values
   - re-run `scripts/prod/bootstrap_db.sh` (it is idempotent)
 - If scheduled jobs run twice:
   - ensure only `riskhub-backend-scheduler` runs with `ENABLE_SCHEDULER=true` and `--workers 1` (scripts enforce this)

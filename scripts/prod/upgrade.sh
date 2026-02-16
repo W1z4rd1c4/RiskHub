@@ -126,7 +126,7 @@ run "${SCRIPT_DIR}/install_redis.sh" --backend-env "$BACKEND_ENV" "${child_flags
 log "Running migrations"
 run "${SCRIPT_DIR}/run_migrations.sh" --backend-env "$BACKEND_ENV" --backend-image "$backend_image" "${child_flags[@]}"
 
-log "Bootstrapping DB (RBAC + departments + initial admin)"
+log "Bootstrapping DB (RBAC + departments + initial privileged users (admin + CRO))"
 run "${SCRIPT_DIR}/bootstrap_db.sh" --backend-env "$BACKEND_ENV" --backend-image "$backend_image" "${child_flags[@]}"
 
 backend_args=(--backend-env "$BACKEND_ENV" --backend-image "$backend_image" --instance api --previous-image "$prev_backend_image")
