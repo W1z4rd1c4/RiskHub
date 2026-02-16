@@ -40,7 +40,7 @@
 | 14 Risk Assessments | ✅ Complete (7/7) | 2026-01-24 |
 | 15 Settings Page | ✅ Complete (6/6) | 2026-02-16 |
 | 16 Risk Assessment Polish | ✅ Complete (3/3) | 2026-01-24 |
-| 17 Production Deploy | ⏳ In progress (9/15) | - |
+| 17 Production Deploy | ⏳ In progress (11/15) | - |
 | 18 Vendor Risk Management | ✅ Complete (12/12) | 2026-01-26 |
 | 20 Czech Localization | ✅ Complete (16/12) | - |
 | 25 User Settings | ✅ Complete (5/5) | 2026-01-11 |
@@ -49,7 +49,7 @@
 | 72 Risk Hub Resolution | ✅ Complete (12/12) | 2026-01-05 |
 | 85 Workflow & Users | ✅ Complete (6/6) | 2026-01-01 |
 | 90 AD Emulator | ⏳ In progress (2/3) | - |
-| 90 AD Integration | ⏳ In progress (11/12) | - |
+| 90 AD Integration | ✅ Complete (12/12) | 2026-02-16 |
 | 99 Data Migration | ✅ Complete (8/8) | 2026-01-04 |
 | 100 Marketing | ✅ Complete (3/3) | 2025-12-29 |
 | 150 Audit | ⏳ In progress (8/11) | - |
@@ -71,6 +71,24 @@
 | 500 Production Installation Scripts | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Unfinished-Plan Reconciliation (2026-02-16)
+
+- Reconciled unfinished-plan closeout scope across Phases 17, 19, 90, and 150.
+- Closed as superseded:
+  - `17-06` via Phase 500 production scripts/docs (`scripts/prod/*`, `docs/deployment/*`)
+  - `17-08` via Phase 500 deployment documentation/runbook consolidation
+- Closed as implemented:
+  - `90-15` (Governance UI redesign + KRI orphan handling already present in backend/frontend)
+- Skipped unchanged (not implemented or partial-only):
+  - `17-07`, `17-12`, `17-13`, `17-14`
+  - `19-01`, `19-02` (phase remains deferred)
+  - `150-04`, `150-10`, `150-11`
+- Added ex-post summaries:
+  - `.planning/phases/17-production-deploy/17-06-SUMMARY.md`
+  - `.planning/phases/17-production-deploy/17-08-SUMMARY.md`
+  - `.planning/phases/90-ad-integration/90-15-SUMMARY.md`
+- Reconciled roadmap/state metadata drift for phases 17, 18, 19, 90 AD Integration, 150, 201, and 500.
 
 ### Phase 500 Planning (2026-02-16)
 
