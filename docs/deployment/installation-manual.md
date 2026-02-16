@@ -104,7 +104,7 @@ Run the unified admin setup wizard from the repo root:
 
 This delegates to the Phase 500 production guided installer (`scripts/prod/setup.sh`) and will:
 
-- prompt for the required production values (public URL, external `DATABASE_URL`, Entra IDs, bootstrap admin email/role)
+- prompt for the required production values (public URL, external `DATABASE_URL`, Entra IDs, bootstrap admin + CRO emails)
 - generate strong secrets automatically (never printed to the terminal)
 - write `/etc/riskhub/backend.env` and `/etc/riskhub/frontend.env` with `0600` permissions
 - run `scripts/prod/preflight.sh`
@@ -162,6 +162,7 @@ At minimum, set real values for:
 - `REDIS_PASSWORD`
 - `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`
 - `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_ROLE`, `BOOTSTRAP_ADMIN_ACCESS_SCOPE`
+- `BOOTSTRAP_CRO_EMAIL`, `BOOTSTRAP_CRO_ACCESS_SCOPE`
 
 #### Redis URL note (important)
 
@@ -221,14 +222,14 @@ Deploy order is enforced:
 2. install/ensure Redis container
 3. build backend image
 4. run migrations (`alembic upgrade head`)
-5. seed RBAC + departments and bootstrap the initial admin/CRO by email
+5. seed RBAC + departments and bootstrap the initial admin + CRO users by email
 6. install backend API container
 7. install backend scheduler container (`--workers 1`)
 8. build frontend image
 9. install frontend container
 10. smoke test
 
-## First Login and Admin Bootstrap (SSO Safety)
+## First Login and Bootstrap Users (SSO Safety)
 
 In production SSO mode, just-in-time provisioning assigns a safe default role.
 
@@ -236,7 +237,8 @@ To avoid admin/CRO lockout, Phase 500 deploy runs a bootstrap step that:
 
 - seeds RBAC roles/permissions
 - seeds departments
-- pre-creates (or updates) the initial admin/CRO user by email
+- pre-creates (or updates) the initial admin user by email
+- optionally pre-creates (or updates) the initial CRO user by email
 
 On the first successful Entra login, RiskHub binds the Entra OID (`external_id`) to the pre-provisioned user row by email.
 
@@ -328,6 +330,7 @@ docker network rm riskhub-network
 
 - Confirm bootstrap keys:
   - `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_ROLE`, `BOOTSTRAP_ADMIN_ACCESS_SCOPE`
+  - `BOOTSTRAP_CRO_EMAIL`, `BOOTSTRAP_CRO_ACCESS_SCOPE` (recommended so CRO-only config endpoints are reachable)
 - Re-run DB bootstrap (idempotent):
   - `scripts/prod/bootstrap_db.sh --backend-env /etc/riskhub/backend.env --backend-image riskhub-backend:<TAG> --yes`
 
