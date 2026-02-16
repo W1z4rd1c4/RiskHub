@@ -220,7 +220,10 @@ export function NotificationBell() {
 
             {/* Dropdown Panel */}
             {isOpen && (
-                <div className="absolute left-0 mt-2 w-80 rounded-xl overflow-hidden shadow-2xl z-50 glass">
+                <div
+                    className="absolute left-0 mt-2 w-80 rounded-xl overflow-hidden shadow-2xl z-50 bg-popover text-popover-foreground border border-border"
+                    data-testid="notification-dropdown-panel"
+                >
                     {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
                         <h3 className="text-sm font-semibold text-white">{t('title')}</h3>

@@ -13,6 +13,8 @@ interface DocumentationMarkdownProps {
 }
 
 const EXTERNAL_PREFIXES = ['http://', 'https://', 'mailto:'];
+const MARKDOWN_HEADING_PATTERN = /^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/;
+const MARKDOWN_FENCE_PATTERN = /^\s{0,3}(```+|~~~+)/;
 
 function textFromChildren(children: ReactNode): string {
     if (typeof children === 'string') return children;
@@ -38,10 +40,77 @@ function slugifyHeading(input: string): string {
         .replace(/-+/g, '-');
 }
 
+function buildHeadingIdMap(content: string): Map<number, string> {
+    const lines = content.split(/\r?\n/);
+    const headingIdByLine = new Map<number, string>();
+    const slugCounts = new Map<string, number>();
+
+    let inFrontmatter = false;
+    let frontmatterHandled = false;
+    let inFence = false;
+    let fenceMarker = '';
+
+    for (let index = 0; index < lines.length; index += 1) {
+        const line = lines[index];
+        const lineNumber = index + 1;
+        const trimmed = line.trim();
+
+        if (!frontmatterHandled && index === 0 && trimmed === '---') {
+            inFrontmatter = true;
+            continue;
+        }
+        if (inFrontmatter) {
+            if (trimmed === '---') {
+                inFrontmatter = false;
+                frontmatterHandled = true;
+            }
+            continue;
+        }
+        frontmatterHandled = true;
+
+        const fenceMatch = trimmed.match(MARKDOWN_FENCE_PATTERN);
+        if (fenceMatch) {
+            const marker = fenceMatch[1][0];
+            if (!inFence) {
+                inFence = true;
+                fenceMarker = marker;
+            } else if (marker === fenceMarker) {
+                inFence = false;
+                fenceMarker = '';
+            }
+            continue;
+        }
+        if (inFence) {
+            continue;
+        }
+
+        const headingMatch = line.match(MARKDOWN_HEADING_PATTERN);
+        if (!headingMatch) {
+            continue;
+        }
+
+        const headingText = headingMatch[2].trim();
+        const baseSlug = slugifyHeading(headingText) || 'section';
+        const nextCount = (slugCounts.get(baseSlug) ?? 0) + 1;
+        slugCounts.set(baseSlug, nextCount);
+
+        const id = nextCount === 1 ? baseSlug : `${baseSlug}-${nextCount}`;
+        headingIdByLine.set(lineNumber, id);
+    }
+
+    return headingIdByLine;
+}
+
 function normalizeAnchor(raw: string | undefined): string | undefined {
     if (!raw) return undefined;
     const normalized = raw.replace(/^#/, '').trim();
-    return normalized || undefined;
+    if (!normalized) return undefined;
+    try {
+        const decoded = decodeURIComponent(normalized);
+        return slugifyHeading(decoded) || slugifyHeading(normalized) || decoded || normalized;
+    } catch {
+        return slugifyHeading(normalized) || normalized;
+    }
 }
 
 function isExternalHref(href: string): boolean {
@@ -63,9 +132,62 @@ function resolveDocTarget(href: string, docsBySlug: Map<string, DocumentationEnt
     return docsBySlug.get(slug) ?? null;
 }
 
+function resolveSameDocumentAnchor(href: string): string | undefined {
+    if (!href) return undefined;
+    if (href.startsWith('#')) {
+        return normalizeAnchor(href);
+    }
+
+    try {
+        const parsed = new URL(href, window.location.href);
+        const current = new URL(window.location.href);
+        if (parsed.origin === current.origin && parsed.pathname === current.pathname && parsed.hash) {
+            return normalizeAnchor(parsed.hash);
+        }
+    } catch {
+        // Ignore malformed URL-like values and let other handlers process them.
+    }
+
+    return undefined;
+}
+
+function resolveAnchorCandidates(anchor: string): string[] {
+    const candidates = new Set<string>();
+    const trimmed = anchor.trim();
+    if (!trimmed) return [];
+
+    candidates.add(trimmed);
+    try {
+        const decoded = decodeURIComponent(trimmed);
+        if (decoded) {
+            candidates.add(decoded);
+            const sluggedDecoded = slugifyHeading(decoded);
+            if (sluggedDecoded) candidates.add(sluggedDecoded);
+        }
+    } catch {
+        // Keep best-effort behavior for partially encoded anchors.
+    }
+
+    const slugged = slugifyHeading(trimmed);
+    if (slugged) candidates.add(slugged);
+    return Array.from(candidates);
+}
+
 function scrollToAnchor(anchor: string): void {
-    const target = document.getElementById(anchor);
+    const target = resolveAnchorCandidates(anchor)
+        .map((candidate) => document.getElementById(candidate))
+        .find((element): element is HTMLElement => Boolean(element));
+
     if (target) {
+        const scrollContainer = target.closest<HTMLElement>('[data-doc-scroll-container="true"]');
+        if (scrollContainer) {
+            const targetTop = target.offsetTop - scrollContainer.offsetTop - 12;
+            scrollContainer.scrollTo({
+                top: Math.max(0, targetTop),
+                left: 0,
+                behavior: 'smooth',
+            });
+        }
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
@@ -77,6 +199,8 @@ export function DocumentationMarkdown({
     onOpenDoc,
     onNavigateApp,
 }: DocumentationMarkdownProps) {
+    const headingIdByLine = useMemo(() => buildHeadingIdMap(content), [content]);
+
     const docsBySlug = useMemo(() => {
         const map = new Map<string, DocumentationEntry>();
         for (const doc of docs) {
@@ -85,25 +209,33 @@ export function DocumentationMarkdown({
         return map;
     }, [docs]);
 
-    const headingCounts = new Map<string, number>();
-    const nextHeadingId = (text: string) => {
-        const base = slugifyHeading(text) || 'section';
-        const count = headingCounts.get(base) ?? 0;
-        headingCounts.set(base, count + 1);
-        return count === 0 ? base : `${base}-${count + 1}`;
-    };
+    type HeadingComponentProps = Parameters<NonNullable<Components['h1']>>[0];
 
     const makeHeading =
         (tag: keyof Pick<JSX.IntrinsicElements, 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'>) =>
-        ({ children }: { children?: ReactNode }) => {
+        ({ children, node }: HeadingComponentProps) => {
             const headingText = textFromChildren(children).trim();
-            const id = nextHeadingId(headingText);
+            const sourceLine = node?.position?.start?.line;
+            const id = (typeof sourceLine === 'number' ? headingIdByLine.get(sourceLine) : undefined)
+                ?? (slugifyHeading(headingText) || 'section');
             const Tag = tag;
+            const anchorLabel = headingText
+                ? `Anchor link for ${headingText}`
+                : 'Anchor link for section';
 
             return (
-                <Tag id={id}>
-                    <a href={`#${id}`} className="no-underline" aria-label={`Anchor link for ${headingText}`}>
-                        {children}
+                <Tag id={id} className="group scroll-mt-24">
+                    <span>{children}</span>
+                    <a
+                        href={`#${id}`}
+                        className="docs-heading-anchor"
+                        aria-label={anchorLabel}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            scrollToAnchor(id);
+                        }}
+                    >
+                        <span aria-hidden="true">#</span>
                     </a>
                 </Tag>
             );
@@ -121,6 +253,22 @@ export function DocumentationMarkdown({
                 return <span>{children}</span>;
             }
 
+            const sameDocumentAnchor = resolveSameDocumentAnchor(href);
+            if (sameDocumentAnchor) {
+                return (
+                    <a
+                        {...props}
+                        href={href}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            scrollToAnchor(sameDocumentAnchor);
+                        }}
+                    >
+                        {children}
+                    </a>
+                );
+            }
+
             const anchor = normalizeAnchor(href.includes('#') ? href.split('#')[1] : undefined);
             const docTarget = resolveDocTarget(href, docsBySlug);
 
@@ -136,24 +284,6 @@ export function DocumentationMarkdown({
                                 return;
                             }
                             onOpenDoc(docTarget.id, anchor);
-                        }}
-                    >
-                        {children}
-                    </a>
-                );
-            }
-
-            if (href.startsWith('#')) {
-                return (
-                    <a
-                        {...props}
-                        href={href}
-                        onClick={(event) => {
-                            event.preventDefault();
-                            const targetAnchor = normalizeAnchor(href);
-                            if (targetAnchor) {
-                                scrollToAnchor(targetAnchor);
-                            }
                         }}
                     >
                         {children}
