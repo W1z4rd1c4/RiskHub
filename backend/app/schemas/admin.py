@@ -9,6 +9,8 @@ Pydantic models for admin console endpoints including:
 - Quarterly metric snapshots
 - Documentation access
 """
+from typing import Literal
+
 from pydantic import BaseModel, Field, model_validator
 
 # ============================================================================
@@ -192,8 +194,15 @@ class LogConfigUpdate(BaseModel):
 class DocumentationEntry(BaseModel):
     """Platform documentation entry."""
     id: str
+    slug: str
     title: str
+    summary: str | None = None
+    version: str | None = None
+    last_updated: str | None = None
+    source_of_truth: str | None = None
     content: str
+    audience: Literal["admin", "user"]
+    tags: list[str] = Field(default_factory=list)
 
 
 class DocumentationResponse(BaseModel):

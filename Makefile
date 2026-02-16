@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make <target>
 
-.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend
+.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend verify-prod-install-scripts
 
 # Default target
 help:
@@ -31,6 +31,7 @@ help:
 	@echo "  make logs         - Tail all Docker logs"
 	@echo "  make shell        - Open shell in backend container"
 	@echo "  make clean        - Remove containers, volumes, and caches"
+	@echo "  make verify-prod-install-scripts - Validate Phase 500 prod scripts"
 
 # =============================================================================
 # Development
@@ -137,3 +138,12 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
 	rm -rf frontend/dist backend/.coverage coverage_html
+
+# =============================================================================
+# Phase 500 (Production Install Scripts)
+# =============================================================================
+
+verify-prod-install-scripts:
+	bash -n scripts/prod/*.sh scripts/prod/lib/*.sh
+	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/prod/*.sh
+	cd backend && venv/bin/pytest tests/test_production_hardening.py -q

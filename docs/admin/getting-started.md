@@ -1,196 +1,68 @@
-# Getting Started with RiskHub
-
-> **Audience**: First-time administrators and CRO  
-> **Time to Complete**: 15-20 minutes
-
+---
+title: Admin Onboarding and First-Day Runbook
+version: "2.0"
+last_updated: "2026-02-16"
+audience: admin
+source_of_truth: "admin console and access APIs"
+summary: "First-day checklist for platform administrators to validate access, docs audience boundaries, observability, and support readiness."
+tags:
+  - onboarding
+  - admin
+  - operations
 ---
 
-## Table of Contents
+# Admin Onboarding and First-Day Runbook
 
-1. [First Login](#1-first-login)
-2. [Navigation Overview](#2-navigation-overview)
-3. [Understanding Your Role](#3-understanding-your-role)
-4. [Initial Configuration Checklist](#4-initial-configuration-checklist)
-5. [Key Concepts](#5-key-concepts)
+## Overview
 
----
+This guide establishes a safe baseline for platform administration before you execute production changes.
 
-## 1. First Login
+## Day-One Validation Checklist
 
-### Accessing RiskHub
+1. Confirm your account role is `admin`.
+2. Open `/admin` and verify admin console access.
+3. Open `/admin/docs` and verify admin documentation audience label.
+4. Confirm non-admin docs are not returned in your library.
+5. Validate logs, health, and active session views.
 
-1. Navigate to your RiskHub URL (e.g., `https://riskhub.yourcompany.com`)
-2. You will see the login screen with available demo accounts or AD integration
-3. Select your user account or enter credentials
+## Environment Confidence Checks
 
-### First-Time Setup for CRO
+Before changing production data:
 
-If you are the CRO (Chief Risk Officer), you have exclusive access to configure Risk Hub settings:
+- verify backend health is stable
+- verify authentication mode and session behavior
+- verify audit logging is active
+- verify user/dept reads are returning expected scope
 
-1. **Navigate to Risk Hub** in the sidebar (only visible to CRO)
-2. **Configure thresholds** for risk scoring:
-   - High Risk Minimum Net Score (default: 10)
-   - Medium Risk Minimum Net Score (default: 5)
-   - Critical Risk Minimum Net Score (default: 20)
-3. **Set up risk types** and categories
-4. **Configure notification settings**
+## Minimal Safe Change Protocol
 
-> [!IMPORTANT]
-> Only the CRO role can access and modify Risk Hub configuration. This ensures governance control over risk thresholds and business rules.
+For each admin action:
 
----
+1. define intended outcome
+2. identify blast radius
+3. execute smallest possible change
+4. verify post-change state
+5. record action context for traceability
 
-## 2. Navigation Overview
+## Documentation and Support Readiness
 
-### Main Navigation (Sidebar)
+Ensure these are available before operational handover:
 
-| Menu Item | Description | Access |
-|-----------|-------------|--------|
-| **Dashboard** | Executive overview with charts and metrics | All users |
-| **Workflow** | Pending tasks and approvals | All users |
-| **Controls** | Control catalog management | Based on permissions |
-| **Risks** | Risk register | Based on permissions |
-| **Risk Appetite** | KRI management and value submission | Based on permissions |
-| **Departments** | Department structure | All users (read) |
-| **Governance** | Risk Committee dashboard | Privileged users |
-| **Audit Trail** | System audit logs | Admin only |
-| **Activity Log** | Business activity history | Risk Manager, Compliance, Audit |
-| **Settings** | User preferences | All users |
-| **Access Management** | User permissions | Admin, CRO |
-| **Risk Hub** | System configuration | CRO only |
+- access update runbook (`./user-management.md`)
+- structural changes runbook (`./departments.md`)
+- approval support triage (`./approvals.md`)
+- export evidence workflow (`./reports.md`)
 
-### User Menu (Bottom of Sidebar)
+## Troubleshooting
 
-- **Profile**: Shows current user name and role
-- **Sign Out**: Securely log out of the system
+### I can open admin console but docs look like user docs
 
----
+This indicates role mismatch or audience contract regression. Capture account details and escalate immediately.
 
-## 3. Understanding Your Role
+### Health looks normal but core pages fail
 
-### Role Categories
+Check auth/session context and API-level permission responses, then correlate with logs.
 
-RiskHub organizes users into three categories:
+### I cannot see expected admin controls
 
-#### Privileged Users (Global Access Scope)
-These users can see ALL data across the organization and can approve/reject requests:
-
-| Role | Special Capabilities |
-|------|---------------------|
-| CRO | Risk Hub configuration, full governance authority |
-| CEO, CFO | Executive oversight |
-| Risk Manager | Full risk/control/KRI management |
-| Compliance | Read access + approval authority |
-| Legal | Legal risk oversight |
-| Internal Audit | Audit access and review |
-| Actuarial | Quantitative risk analysis |
-
-#### Non-Privileged Users (Department Scope)
-These users see only their department's data and require approvals for certain actions:
-
-| Role | Permissions |
-|------|-------------|
-| Department Head | Manage department risks, primary approver for department |
-| Employee | Submit KRI values, log control executions, view department data |
-
-#### Administrator (Platform Scope)
-| Role | Permissions |
-|------|-------------|
-| Admin | User management, system health, logs — **no business data access** |
-
-> [!NOTE]
-> The Administrator role is deliberately separated from business data access to maintain separation of duties for compliance.
-
----
-
-## 4. Initial Configuration Checklist
-
-Complete these tasks in order when setting up RiskHub:
-
-### Phase 1: User Setup (Admin)
-- [ ] Create or sync users from Active Directory
-- [ ] Assign appropriate roles to each user
-- [ ] Assign users to departments
-- [ ] Configure access scopes (Global/Department/Manager)
-
-### Phase 2: Department Structure (Admin/CRO)
-- [ ] Create all organizational departments
-- [ ] Assign Department Heads (managers) to each department
-- [ ] Verify department hierarchy
-
-### Phase 3: Risk Hub Configuration (CRO Only)
-- [ ] Configure risk scoring thresholds
-- [ ] Set up risk types and categories
-- [ ] Configure approval rules
-- [ ] Set notification preferences
-- [ ] Configure log rotation settings
-
-### Phase 4: Data Entry (Risk Manager)
-- [ ] Create initial risk register
-- [ ] Create control catalog
-- [ ] Link controls to risks
-- [ ] Create KRIs linked to risks
-- [ ] Assign owners to all entities
-
-### Phase 5: Go-Live
-- [ ] Train all users on their role-specific workflows
-- [ ] Communicate KRI reporting schedules
-- [ ] Establish approval workflow expectations
-
----
-
-## 5. Key Concepts
-
-### Entities and Ownership
-
-RiskHub manages three main entity types:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      DEPARTMENT                             │
-│  manager_id → Department Head                               │
-└─────────────────────────────────────────────────────────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-    ┌─────────┐         ┌──────────┐         ┌─────────┐
-    │  USERS  │         │  RISKS   │         │ CONTROLS│
-    │ dept_id │         │ owner_id │         │ owner_id│
-    └─────────┘         │ dept_id  │         │ dept_id │
-                        └──────────┘         └─────────┘
-                              │
-                              ▼
-                        ┌─────────┐
-                        │  KRIs   │
-                        │ risk_id │ (inherits dept from Risk)
-                        └─────────┘
-```
-
-### Approval Workflows
-
-Non-privileged users require approval for:
-- **Deleting** risks, controls, or KRIs
-- **Editing sensitive fields** (owner, department, category, priority)
-- **Any edit** to priority risks
-
-Approvals follow a two-tier model:
-1. **Primary Approval**: Risk Owner or Department Head
-2. **Privileged Approval**: Required for high-risk/priority items (CRO or Risk Manager)
-
-### Soft Deletion (Archival)
-
-RiskHub uses soft deletion to preserve audit trails:
-- Deleted items are marked as "archived" rather than removed
-- Archived items are hidden from normal views but preserved for compliance
-- Audit logs maintain complete history
-
----
-
-## Next Steps
-
-- [Configure Risk Hub Settings](./riskhub-config.md)
-- [Set Up Users](./user-management.md)
-- [Create Departments](./departments.md)
-
----
-
-*For technical deployment, see the main documentation in `/docs`.*
+Validate effective role and re-authenticate to clear stale session state.

@@ -1,77 +1,92 @@
+---
+title: Začínáme s RiskHub
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "docs/BUSINESS_LOGIC.md §1-§4"
+summary: "Onboarding příručka pro ne-admin uživatele: ověření role/scope, orientace na dashboardu a připravenost workflow."
+tags:
+  - onboarding
+  - navigation
+  - settings
+---
+
 # Začínáme s RiskHub
 
-> **Čas na dokončení**: 5 minut
+## Přehled
 
----
+Tato příručka vás dovede od prvního přihlášení k efektivní denní práci. Zaměřuje se na provozní připravenost: ověření scope, frontu úkolů a základní orientaci.
 
-## Přihlášení
+## Než začnete
 
-1. Přejděte na URL vašeho RiskHub
-2. Vyberte svůj uživatelský účet nebo zadejte přihlašovací údaje
-3. Po přihlášení budete přesměrováni na Dashboard
+Potvrďte si s vlastníkem systému:
 
----
+- správné přiřazení role
+- správné přiřazení oddělení (pokud se používá)
+- aktivní účet a funkční přihlášení
+- jazykové preference pro UI
 
-## Navigace
+## Checklist prvního dne
 
-### Hlavní menu (postranní panel)
+1. Přihlaste se a ověřte jméno + roli.
+2. Otevřete `/settings` a nastavte jazyk/vzhled.
+3. Otevřete `/` (Dashboard) a ověřte viditelná data.
+4. Otevřete `/notifications` a zkontrolujte čekající položky.
+5. Otevřete dokumentaci v Settings a ověřte user-audience obsah.
 
-| Položka | Popis |
-|---------|-------|
-| **Dashboard** | Přehled všech metrik a grafů |
-| **Workflow** | Vaše úkoly a čekající schválení |
-| **Kontroly** | Katalog kontrol |
-| **Rizika** | Registr rizik |
-| **Rizikový apetit** | KRI a jejich hodnoty |
-| **Oddělení** | Struktura organizace |
-| **Nastavení** | Vaše osobní preference |
+## Ověřte scope co nejdříve
 
-### Spodní část menu
+Scope chyby řešte hned na začátku:
 
-- **Váš profil** - Jméno a role
-- **Odhlásit se** - Bezpečné odhlášení
+- vidíte entity, které máte spravovat?
+- jsou cizí oddělení skrytá (pokud nejste global role)?
+- fungují ownership výjimky na přiřazených entitách?
 
----
+Pokud je viditelnost chybná, připravte konkrétní příklady (ID entity + čas).
 
-## První kroky
+## Klíčové navigační cesty
 
-### 1. Prohlédněte si Dashboard
+- registr rizik: `/risks`
+- katalog kontrol: `/controls`
+- KRI přehled: `/kris`
+- issues/remediation: `/issues`
+- dodavatelé: `/vendors`
+- workflow fronta: `/approvals` a `/notifications`
 
-Dashboard poskytuje:
-- Klíčové metriky (počty rizik, kontrol)
-- Riziková matice
-- Stav kontrol
-- Trendy a grafy
+## Editace s vědomím schvalování
 
-### 2. Zkontrolujte Workflow
+Některé změny se ukládají jako žádost o schválení. Je to záměr.
 
-V sekci Workflow najdete:
-- **Čekající** - Úkoly čekající na vaši akci
-- **Moje žádosti** - Vaše odeslané žádosti
-- **Historie** - Archiv všech žádostí
+- ověřte, zda měníte citlivé pole
+- po uložení zkontrolujte stav žádosti
+- přidejte jasné business odůvodnění
 
-### 3. Nastavte si preference
+## Doporučená denní rutina
 
-V sekci Nastavení můžete:
-- Změnit jazyk aplikace
-- Upravit notifikace
+1. Začněte na Dashboardu.
+2. Projděte notifikace a pending approvals.
+3. Zpracujte priority v rizicích/kontrolách/KRI.
+4. Ukládejte změny s kvalitními poznámkami.
+5. Exportujte jen to, co je potřeba.
 
----
+## Troubleshooting
 
-## Tipy
+### Nevidím očekávané záznamy
 
-- Používejte **filtry** pro rychlé hledání
-- Klikněte na **název položky** pro zobrazení detailů
-- Použijte **Export** tlačítko pro stažení dat
+Nejprve zkontrolujte roli, scope a ownership.
 
----
+### Změna se neaplikovala okamžitě
 
-## Další kroky
+Pravděpodobně se vytvořila žádost o schválení.
 
-- [Správa rizik](./risks.md)
-- [Správa kontrol](./controls.md)
-- [Odesílání hodnot KRI](./kris.md)
+### V dokumentaci vidím špatnou cílovou skupinu
 
----
+U ne-admin účtu má být vždy user dokumentace. Nahlaste mismatch role.
 
-*Pro technickou pomoc kontaktujte svého administrátora.*
+## Related Documentation
+
+- `./risks.md`
+- `./controls.md`
+- `./kris.md`
+- `./notifications.md`
+- `./faq.md`

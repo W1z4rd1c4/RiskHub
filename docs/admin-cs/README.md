@@ -1,75 +1,65 @@
-# Příručka administrátora RiskHub
-
-> **Verze**: 1.0  
-> **Poslední aktualizace**: 2026-01-11  
-> **Cílová skupina**: CRO, Administrátoři, Risk manažeři
-
+---
+title: Dokumentace správy platformy RiskHub
+version: "2.0"
+last_updated: "2026-02-16"
+audience: admin
+source_of_truth: "docs/BUSINESS_LOGIC.md §1.5 a admin endpointy"
+summary: "Produkční runbook knihovna pro platformní administrátory: access governance, správa struktury, observabilita a provozní podpora."
+tags:
+  - overview
+  - administration
+  - runbook
 ---
 
-## Úvod
+# Dokumentace správy platformy RiskHub
 
-Vítejte v Příručce administrátora RiskHub. Tato dokumentace poskytuje kompletní návod pro konfiguraci, správu a údržbu vašeho nasazení RiskHub.
+Toto je kanonický admin manuál pro správce platformy. Není určen pro běžné business workflow.
 
-RiskHub je platforma pro řízení podnikových rizik navržená pro pojišťovny, která organizacím umožňuje:
-- Spravovat rizika, kontroly a klíčové indikátory rizik (KRI)
-- Vynucovat řízení přístupu na základě rolí a schvalovací workflow
-- Generovat reporty pro regulatorní požadavky
-- Udržovat kompletní auditní stopy pro všechny systémové aktivity
+## Cílová skupina a hranice
 
----
+Knihovna je určena roli `admin` pro správu integrity platformy, přístupů a provozní podpory.
 
-## Rychlé odkazy
+Neřeší business rozhodování nad obsahem rizik. Uživatelské workflow je v `../user-cs/README.md`.
 
-| Příručka | Popis |
-|----------|-------|
-| [Začínáme](./getting-started.md) | Prvotní nastavení, navigace a úvodní konfigurace |
-| [Konfigurace Risk Hubu](./riskhub-config.md) | Systémové prahy, typy rizik, schvalovací pravidla a notifikace |
-| [Správa uživatelů](./user-management.md) | Přidávání uživatelů, role, oddělení a rozsahy přístupu |
-| [Správa oddělení](./departments.md) | Vytváření oddělení, hierarchie a zpracování osiřelých položek |
-| [Schvalování a řízení](./approvals.md) | Pochopení a správa schvalovacích workflow |
-| [Zprávy a exporty](./reports.md) | Dostupné zprávy, PDF/Excel exporty a auditní stopy |
+## Co zde najdete
 
----
+- správu uživatelů, rolí a scope
+- lifecycle správu oddělení
+- observabilitu schvalovacích toků
+- provozní exporty a důkazní výstupy
+- hranice podpory konfigurace Risk Hub
 
-## Přehled řízení přístupu na základě rolí
+## Doporučené pořadí
 
-RiskHub implementuje sofistikovaný systém řízení přístupu na základě rolí (RBAC):
+1. `./getting-started.md`
+2. `./user-management.md`
+3. `./departments.md`
+4. `./approvals.md`
+5. `./reports.md`
+6. `./riskhub-config.md`
 
-### Privilegovaní uživatelé (globální přístup)
-Uživatelé s celoorganizační viditelností a oprávněním schvalovat:
-- **CRO** – Chief Risk Officer (jediná role, která může konfigurovat Risk Hub)
-- **CEO, CFO** – Vrcholový management
-- **Risk Manager** – Primární řízení rizik
-- **Compliance, Legal, Internal Audit, Actuarial** – Governance funkce
+## Provozní principy
 
-### Neprivilegovaní uživatelé (omezení na oddělení)
-Uživatelé s přístupem omezeným na přiřazené oddělení:
-- **Department Head** – Spravuje rizika oddělení a schválení
-- **Employee** – Zobrazení a odesílání dat za své oddělení
+- minimální nutná oprávnění
+- auditovatelnost každé admin akce
+- žádné skryté manuální override mimo policy
+- business rozhodnutí eskalovat vlastníkům domény
 
-### Speciální role
-- **Administrator** – Pouze správa platformy (uživatelé, logy, zdraví systému) – **bez přístupu k business datům**
-- **Viewer** – Přístup pouze pro čtení v povolených oblastech
+## Eskalace a handoff model
 
----
+Pokud incident překročí hranici platformní správy a vyžaduje business rozhodnutí, předání musí být strukturované. Připojte popis problému, ověřené technické kroky, seznam dotčených entit, časový kontext a konkrétní rozhodovací otázku. Tím se zabrání duplicitnímu šetření a administrátor zůstane v rámci své provozní odpovědnosti. Každý handoff by měl mít jasného vlastníka, termín a očekávaný výsledek.
 
-## Systémové požadavky
+## Očekávaná kvalita služby
 
-RiskHub je nasazen jako kontejnerizovaná aplikace:
+Admin provoz není jen o rychlosti zásahu. Důležitá je předvídatelnost, konzistence a možnost zpětně doložit proč a jak byla změna provedena. Každý zásah do přístupů, struktury oddělení nebo workflow má mít auditní stopu a krátké shrnutí dopadu. Pokud není jisté, že je změna bezpečná, použijte minimální variantu zásahu a nejdříve ověřte výsledek.
 
-| Komponenta | Požadavek |
-|------------|-----------|
-| **Docker** | Verze 20.10+ |
-| **PostgreSQL** | Verze 14+ |
-| **Prohlížeč** | Chrome, Firefox, Edge (nejnovější verze) |
-| **Síť** | HTTPS (TLS 1.2+) |
+## Navigace a odkazy
 
----
+- `./file.md`: otevře jiný admin dokument ve čtečce
+- `/path`: přechod na route v aplikaci
+- `https://...`: externí odkaz v nové záložce
 
-## Podpora
+## Související dokumentace
 
-Pro technickou pomoc kontaktujte svého systémového administrátora nebo nahlédněte do technické dokumentace v hlavním adresáři `/docs`.
-
----
-
-*© 2026 RiskHub. Všechna práva vyhrazena.*
+- uživatelská dokumentace: `../user-cs/README.md`
+- anglický admin set: `../admin/README.md`

@@ -1,97 +1,80 @@
-# Přehled a zprávy
-
-> **Cílová skupina**: Všichni uživatelé
-
+---
+title: Dashboard a reporty
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "dashboard/report endpointy"
+summary: "Příručka pro interpretaci dashboard metrik, správnou práci s filtry a bezpečné sdílení exportů."
+tags:
+  - dashboard
+  - reports
+  - exports
 ---
 
-## Dashboard
+# Dashboard a reporty
 
-Dashboard poskytuje okamžitý přehled o stavu řízení rizik ve vaší organizaci.
+## Přehled
 
----
+Dashboard je hlavní operační panel pro sledování trendů, priorit a okamžitých signálů.
 
-## Klíčové metriky
+Hlavní route:
 
-V horní části dashboardu najdete:
+- dashboard: `/`
+- exporty entit: na list page (`/risks`, `/controls`, `/kris`, `/vendors`)
 
-| Metrika | Popis |
-|---------|-------|
-| Celkem kontrol | Počet aktivních kontrol |
-| Aktivní oddělení | Počet oddělení s riziky/kontrolami |
-| Kritická rizika | Počet rizik s vysokým čistým skóre |
-| Průměrné skóre | Průměrné čisté skóre rizik |
+## Co sledovat jako první
 
----
+Při startu session prioritizujte:
 
-## Riziková matice
+- trend změn u prioritních rizik
+- overdue signály u kontrol/KRI
+- zatížení workflow fronty
+- koncentraci rizikových oblastí
 
-### Hrubá riziková matice
-Zobrazuje distribuci rizik podle inherentního skóre (před kontrolami).
+## Disciplína filtrů
 
-### Čistá riziková matice
-Zobrazuje distribuci rizik podle reziduálního skóre (po kontrolách).
+Před sdílením metrik:
 
-### Navigace
-Klikněte na buňku matice pro zobrazení seznamu rizik v dané kategorii.
+1. Ověřte aktivní filtry.
+2. Ověřte časový kontext.
+3. Ověřte cílovou skupinu reportu.
 
----
+Chybná interpretace metrik je často způsobená filtry.
 
-## Grafy a trendy
+## Best practices exportu
 
-### Stav kontrol
-Koláčový graf zobrazující kontroly podle stavu.
+- exportujte jen potřebná data
+- vždy připojte kontext filtru a období
+- archivujte originální export
+- neupravujte export způsobem, který ztrácí auditní stopu
 
-### Trendy rizik
-Liniový graf zobrazující vývoj rizik v čase.
+## Jak číst náhlé trend změny
 
-### Historie překročení KRI
-Graf zobrazující překročení limitů KRI v čase.
+Při náhlé změně:
 
----
+- ověřte změny ownership/department mapování
+- ověřte úplnost vstupních dat
+- ověřte vliv archivovaných/obnovených entit
 
-## Přehled oddělení
+Pokud trendová změna ovlivňuje rozhodnutí vedení, přiložte krátké vysvětlení: jaké filtry byly použity, jaké období je porovnáváno a zda došlo ke strukturálním změnám v datech. Bez tohoto kontextu může být závěr zavádějící.
 
-Tabulka zobrazující klíčové metriky pro každé oddělení:
-- Počet rizik
-- Počet kontrol
-- Kritická rizika
-- Překročené KRI
+## Troubleshooting
 
----
+### Čísla nesedí s očekáváním
 
-## Export dat
+Zkontrolujte filtry, as-of kontext a archived režim.
 
-### PDF Export
+### Export je nekompletní
 
-1. Klikněte na tlačítko **Export PDF**
-2. Soubor se automaticky stáhne
-3. Obsah: Aktuální stav dashboardu
+Exporty jsou scope-aware. Ověřte autorizaci a filtry.
 
-### Excel Export
+### Dashboard je prázdný
 
-1. Přejděte do sekce Rizika nebo Kontroly
-2. Klikněte na **Export Excel**
-3. Soubor bude obsahovat detailní data
+Ověřte správný účet/prostředí a přidělený scope.
 
----
+## Related Documentation
 
-## Filtrování
-
-### Filtr oddělení
-Zobrazí data pouze pro vybrané oddělení.
-
-### Filtr období
-Zobrazí data za vybrané časové období.
-
----
-
-## Výbor pro řízení rizik
-
-Záložka **Risk Committee** (dostupná pro privilegované uživatele) poskytuje:
-- Agregované metriky pro vedení
-- Trendy a srovnání
-- Klíčové události
-
----
-
-*Pro více informací viz Příručka administrátora.*
+- `./risks.md`
+- `./controls.md`
+- `./kris.md`
+- `./vendors.md`

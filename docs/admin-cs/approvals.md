@@ -1,117 +1,71 @@
-# Schvalování a řízení
-
-> **Cílová skupina**: Administrátoři, CRO, Risk Manager
-
 ---
+title: Observabilita schvalovacího workflow pro adminy
+version: "2.0"
+last_updated: "2026-02-16"
+audience: admin
+source_of_truth: "workflow status model a activity log"
+summary: "Provozní příručka pro diagnostiku problémů ve frontě schvalování, transition anomálií a eskalačních blokací."
+tags:
+  - approvals
+  - observability
+  - workflow
+---
+
+# Observabilita schvalovacího workflow pro adminy
 
 ## Přehled
 
-RiskHub implementuje princip čtyř očí (four-eyes principle) pro citlivé operace. Tato kapitola vysvětluje schvalovací workflow a pravidla.
+Admin role zajišťuje spolehlivost workflow a auditovatelnost. Neřeší business obsah rozhodnutí, pokud není explicitně delegováno.
 
----
+## Co monitorovat
 
-## Kdy je vyžadováno schválení
+- rostoucí pending queue bez trendu uzavírání
+- opakované chyby transition
+- anomálie self-approval eskalace
+- chybějící notifikační nebo auditní události
 
-### Pro neprivilegované uživatele
+## Triage postup
 
-| Akce | Vyžaduje schválení |
-|------|-------------------|
-| Smazání rizika/kontroly/KRI | Vždy |
-| Změna vlastníka | Vždy |
-| Změna oddělení | Vždy |
-| Změna kategorie rizika | Vždy |
-| Snížení priority rizika | Vždy |
-| Jakákoli úprava prioritního rizika | Vždy |
+1. Zachyťte request ID a aktuální stav.
+2. Načtěte transition historii.
+3. Ověřte stav identit žadatele/schvalovatele.
+4. Ověřte permission kontext akce.
+5. Určete, zda jde o technický, policy nebo data-quality problém.
 
-### Pro privilegované uživatele
+## Technický vs policy incident
 
-Privilegovaní uživatelé (CRO, Risk Manager) provádějí změny okamžitě bez schválení.
+- **Technický problém**: neplatný transition, chybějící log, mismatch API autorizace
+- **Policy problém**: neshoda schvalovatele, business konflikt
 
----
+Policy konflikty eskalujte business ownerovi.
 
-## Stavy žádostí
+## Evidence balíček pro eskalaci
 
-```
-PENDING ──────────> APPROVED
-    │                   
-    │──────────────> REJECTED
-    │
-    └──────────────> CANCELLED
-```
+- request ID
+- časová osa stavů
+- relevantní actor ID
+- endpoint akce
+- log výstupy s časem
 
-### Popis stavů
+## Preventivní provozní rutina
 
-| Stav | Popis |
-|------|-------|
-| PENDING | Čeká na schválení |
-| PENDING_PRIVILEGED | Vyžaduje privilegované schválení |
-| APPROVED | Schváleno a provedeno |
-| REJECTED | Zamítnuto, změny neprovedeny |
-| CANCELLED | Zrušeno žadatelem |
+Pro stabilní workflow kontrolujte frontu schvalování průběžně, ne až při incidentu. Sledujte zejména neobvyklé nárůsty pending požadavků, opakované zamítnuté přechody a změny v latenci rozhodování. Včasná detekce trendů výrazně snižuje počet kritických eskalací.
 
----
+## Troubleshooting
 
-## Dvouúrovňový model schvalování
+### Request je zamrzlý v pending
 
-### Primární schvalovatelé
+Ověřte dostupnost approvera, eskalační pravidla a failed transition pokusy.
 
-Pro běžné žádosti:
-- Vlastník rizika/kontroly
-- Vedoucí oddělení
+### Rozhodnutí vrací nečekané denial
 
-### Privilegovaní schvalovatelé
+Ověřte endpoint-level permission a visibility scope.
 
-Pro citlivé žádosti (vysoké skóre, prioritní rizika):
-- CRO
-- Risk Manager
+### Chybí log záznam přechodu
 
-### Kdy je vyžadováno privilegované schválení
+Prověřte stav logging pipeline a korelaci přes request ID.
 
-- Net score rizika ≥ práh (výchozí: 16)
-- Prioritní riziko
-- Kontrola propojená s vysokým rizikem
+## Related Documentation
 
----
-
-## Pravidla schvalování
-
-### Zákaz vlastního schválení
-
-Uživatel nemůže schválit vlastní žádost - to je základní princip čtyř očí.
-
-### Zrušení žádosti
-
-Pouze žadatel může zrušit svou čekající žádost.
-
----
-
-## Monitoring schválení
-
-### Přehled Workflow
-
-1. Přejděte do **Workflow**
-2. Zobrazí se tři záložky:
-   - **Fronta čekajících** - Žádosti k vašemu schválení
-   - **Moje žádosti** - Vaše odeslané žádosti
-   - **Historie** - Archiv všech žádostí
-
-### Schválení žádosti
-
-1. Klikněte na žádost
-2. Zkontrolujte navrhované změny
-3. Klikněte na **Schválit** nebo **Zamítnout**
-4. Zadejte poznámky k rozhodnutí (povinné)
-
----
-
-## Auditní stopa
-
-Všechny akce schvalování jsou zaznamenány v auditní stopě včetně:
-- Kdo podal žádost
-- Kdo schválil/zamítl
-- Kdy bylo rozhodnuto
-- Poznámky k rozhodnutí
-
----
-
-*Pro technické detaily viz `/docs/BUSINESS_LOGIC.md`.*
+- `./reports.md`
+- `./riskhub-config.md`

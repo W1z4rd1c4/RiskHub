@@ -59,8 +59,15 @@ export interface LogConfig {
 
 export interface DocumentationEntry {
     id: string;
+    slug: string;
     title: string;
+    summary: string | null;
+    version: string | null;
+    last_updated: string | null;
+    source_of_truth: string | null;
     content: string;
+    audience: 'admin' | 'user';
+    tags: string[];
 }
 
 export interface DocumentationResponse {
