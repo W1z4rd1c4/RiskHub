@@ -1,29 +1,26 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 
+import jwt
 import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from jose import jwk, jwt
-from jose.constants import Algorithms
+from jwt.algorithms import RSAAlgorithm
 
 from app.core.config import Settings
 from app.services.sso_token_service import EntraTokenVerifier, SsoTokenVerificationError
 
 
-def _make_rsa_keypair() -> tuple[bytes, bytes]:
+def _make_rsa_keypair() -> tuple[bytes, rsa.RSAPublicKey]:
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     priv_pem = key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption(),
     )
-    pub_pem = key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    )
-    return priv_pem, pub_pem
+    return priv_pem, key.public_key()
 
 
 @pytest.mark.asyncio
@@ -34,9 +31,9 @@ async def test_sso_token_service_validates_and_extracts_claims():
     jwks_url = "https://example.test/jwks"
     issuer = f"https://login.microsoftonline.com/{tenant_id}/v2.0"
 
-    priv_pem, pub_pem = _make_rsa_keypair()
+    priv_pem, public_key = _make_rsa_keypair()
     kid = "kid-1"
-    public_jwk = jwk.construct(pub_pem, algorithm=Algorithms.RS256).to_dict()
+    public_jwk = json.loads(RSAAlgorithm.to_jwk(public_key))
     public_jwk["kid"] = kid
     jwks = {"keys": [public_jwk]}
 
@@ -87,9 +84,9 @@ async def test_sso_token_service_refreshes_jwks_on_unknown_kid():
     jwks_url = "https://example.test/jwks"
     issuer = f"https://login.microsoftonline.com/{tenant_id}/v2.0"
 
-    priv_pem, pub_pem = _make_rsa_keypair()
+    priv_pem, public_key = _make_rsa_keypair()
     kid = "kid-rotate"
-    public_jwk = jwk.construct(pub_pem, algorithm=Algorithms.RS256).to_dict()
+    public_jwk = json.loads(RSAAlgorithm.to_jwk(public_key))
     public_jwk["kid"] = kid
 
     now = datetime.now(UTC)
@@ -139,9 +136,9 @@ async def test_sso_token_service_rejects_unapproved_email_domain():
     jwks_url = "https://example.test/jwks"
     issuer = f"https://login.microsoftonline.com/{tenant_id}/v2.0"
 
-    priv_pem, pub_pem = _make_rsa_keypair()
+    priv_pem, public_key = _make_rsa_keypair()
     kid = "kid-2"
-    public_jwk = jwk.construct(pub_pem, algorithm=Algorithms.RS256).to_dict()
+    public_jwk = json.loads(RSAAlgorithm.to_jwk(public_key))
     public_jwk["kid"] = kid
     jwks = {"keys": [public_jwk]}
 

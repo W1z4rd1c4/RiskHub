@@ -1,14 +1,13 @@
-import pytest
+from datetime import UTC, datetime, timedelta
 
-from datetime import datetime, timedelta, UTC
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department, User, Vendor
-from app.models import Permission, Role, RolePermission
+from app.models import Department, Permission, Role, RolePermission, User, Vendor
+from app.models.vendor_incident import VendorIncident, VendorIncidentSeverity, VendorIncidentType
 from app.models.vendor_sla import VendorSLA
-from app.models.vendor_incident import VendorIncident, VendorIncidentType, VendorIncidentSeverity
 
 
 @pytest.mark.asyncio

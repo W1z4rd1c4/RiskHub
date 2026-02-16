@@ -2,12 +2,12 @@
 Shared ID mappings for E2E seed scripts.
 Populated by load_mappings() function, used by other scripts.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping
 
 from sqlalchemy import select
-
 
 # User email -> ID mappings (populated at runtime)
 USERS = {
@@ -36,22 +36,22 @@ REQUIRED_DEPARTMENT_NAMES = tuple(DEPARTMENTS.keys())
 
 async def load_mappings(db):
     """Load actual IDs from database."""
-    from app.models import User, Department
-    
+    from app.models import Department, User
+
     users = {}
     for email in USERS:
         result = await db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
         if user:
             users[email] = user.id
-    
+
     departments = {}
     for name in DEPARTMENTS:
         result = await db.execute(select(Department).where(Department.name == name))
         dept = result.scalar_one_or_none()
         if dept:
             departments[name] = dept.id
-    
+
     return users, departments
 
 
@@ -98,8 +98,7 @@ def require_user_id(users: Mapping[str, int], email: str) -> int:
     user_id = users.get(email)
     if user_id is None:
         raise RuntimeError(
-            f"Required user mapping missing for '{email}'. "
-            "Run base seed first (python -m app.db.seed)."
+            f"Required user mapping missing for '{email}'. " "Run base seed first (python -m app.db.seed)."
         )
     return user_id
 
@@ -109,7 +108,6 @@ def require_department_id(departments: Mapping[str, int], name: str) -> int:
     department_id = departments.get(name)
     if department_id is None:
         raise RuntimeError(
-            f"Required department mapping missing for '{name}'. "
-            "Run base seed first (python -m app.db.seed)."
+            f"Required department mapping missing for '{name}'. " "Run base seed first (python -m app.db.seed)."
         )
     return department_id

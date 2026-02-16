@@ -8,26 +8,27 @@ Usage:
 Or via seed_all.py with environment variable:
     SEED_E2E_DATA=true python -m scripts.seed_all
 """
+
 import asyncio
+
 from sqlalchemy import func, select
 
 from app.core.config import get_settings
 from app.db.session import session_context
 from app.models import ApprovalRequest, Control, KeyRiskIndicator, Risk, Vendor, VendorSLA
-
-from scripts.seed_e2e_foundation import seed_foundation
-from scripts.seed_e2e_risks import seed_risks
-from scripts.seed_e2e_controls import seed_controls
-from scripts.seed_e2e_kris import seed_kris
-from scripts.seed_e2e_approvals import seed_approvals
 from scripts.seed_e2e_activity_logs import seed_activity_logs
-from scripts.seed_e2e_resolved_approvals import seed_resolved_approvals
-from scripts.seed_e2e_sensitive_approvals import seed_sensitive_approvals
-from scripts.seed_e2e_permission_actions import seed_permission_actions
-from scripts.seed_e2e_cross_dept import seed_cross_dept_scenarios
-from scripts.seed_e2e_vendors import seed_vendors
-from scripts.seed_e2e_vendor_slas import seed_vendor_slas
+from scripts.seed_e2e_approvals import seed_approvals
 from scripts.seed_e2e_archives import seed_archives
+from scripts.seed_e2e_controls import seed_controls
+from scripts.seed_e2e_cross_dept import seed_cross_dept_scenarios
+from scripts.seed_e2e_foundation import seed_foundation
+from scripts.seed_e2e_kris import seed_kris
+from scripts.seed_e2e_permission_actions import seed_permission_actions
+from scripts.seed_e2e_resolved_approvals import seed_resolved_approvals
+from scripts.seed_e2e_risks import seed_risks
+from scripts.seed_e2e_sensitive_approvals import seed_sensitive_approvals
+from scripts.seed_e2e_vendor_slas import seed_vendor_slas
+from scripts.seed_e2e_vendors import seed_vendors
 
 
 async def _run_step(step_number: int, label: str, coroutine):
@@ -124,11 +125,7 @@ async def _collect_summary_counts():
         ).scalar_one()
 
         approvals_total = (
-            await db.execute(
-                select(func.count(ApprovalRequest.id)).where(
-                    ApprovalRequest.reason.like("E2E-%")
-                )
-            )
+            await db.execute(select(func.count(ApprovalRequest.id)).where(ApprovalRequest.reason.like("E2E-%")))
         ).scalar_one()
 
         return {
@@ -148,9 +145,9 @@ async def _collect_summary_counts():
 
 async def seed_e2e_all():
     """Orchestrate all E2E test data seeding."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🌱 PHASE 179: E2E TEST DATA SEEDING")
-    print("="*60)
+    print("=" * 60)
     print("⚠️  E2E seeding contract: no user/department creation is allowed.")
     print("   If prerequisites are missing, run base seed first (python -m app.db.seed).")
 
@@ -178,9 +175,9 @@ async def seed_e2e_all():
 
     summary = await _collect_summary_counts()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("✅ E2E TEST DATA SEEDING COMPLETE")
-    print("="*60)
+    print("=" * 60)
     print("\n📊 Summary:")
     print(f"   • Risks active/archived: {summary['risks_active']}/{summary['risks_archived']}")
     print(f"   • Controls active/archived: {summary['controls_active']}/{summary['controls_archived']}")

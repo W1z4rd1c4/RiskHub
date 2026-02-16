@@ -5,8 +5,12 @@ import { silentReauthAndExchange } from '@/services/ssoSession';
 // In development, VITE_API_URL can override for direct backend connection
 const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
+type QueryScalar = string | number | boolean;
+type QueryValue = QueryScalar | QueryScalar[] | null | undefined;
+type QueryParams = URLSearchParams | object;
+
 interface RequestOptions extends RequestInit {
-    params?: Record<string, string | number | boolean | undefined | string[] | number[]>;
+    params?: QueryParams;
 }
 
 export interface ApiClientErrorPayload {
@@ -46,17 +50,30 @@ class ApiClient {
         return true;
     }
 
+    private appendQueryParam(url: URL, key: string, rawValue: QueryValue): void {
+        if (rawValue === undefined || rawValue === null) return;
+        if (Array.isArray(rawValue)) {
+            rawValue.forEach((value) => this.appendQueryParam(url, key, value));
+            return;
+        }
+        if (typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean') {
+            url.searchParams.append(key, String(rawValue));
+        }
+    }
+
     private buildUrl(endpoint: string, params?: RequestOptions['params']): URL {
         const baseOrigin = this.baseUrl.startsWith('/') ? window.location.origin : '';
         const url = new URL(`${baseOrigin}${this.baseUrl}${endpoint}`);
         if (params) {
-            Object.entries(params).forEach(([key, value]) => {
-                if (value === undefined) return;
-                if (Array.isArray(value)) {
-                    value.forEach((v) => url.searchParams.append(key, String(v)));
-                    return;
-                }
-                url.searchParams.append(key, String(value));
+            if (params instanceof URLSearchParams) {
+                params.forEach((value, key) => {
+                    url.searchParams.append(key, value);
+                });
+                return url;
+            }
+
+            Object.entries(params as Record<string, QueryValue>).forEach(([key, value]) => {
+                this.appendQueryParam(url, key, value);
             });
         }
         return url;

@@ -1,16 +1,18 @@
 """
 Tests for dashboard historical trend endpoints.
 """
+
+from datetime import UTC, datetime, timedelta
+
 import pytest
 import pytest_asyncio
-from datetime import UTC, datetime, timedelta
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Risk, User, Department
-from app.models.risk import RiskStatus
+from app.models import Department, Risk, User
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.kri_history import KRIValueHistory
+from app.models.risk import RiskStatus
 
 
 @pytest_asyncio.fixture
@@ -19,7 +21,7 @@ async def trend_test_data(db_session: AsyncSession, test_user: User, test_depart
     # Create risks in different months
     now = datetime.now(UTC)
     last_month = now - timedelta(days=35)
-    
+
     # Risk created this month (critical)
     risk1 = Risk(
         risk_id_code="R-001",
@@ -35,9 +37,9 @@ async def trend_test_data(db_session: AsyncSession, test_user: User, test_depart
         gross_impact=5,
         net_probability=5,
         net_impact=4,  # net_score = 20 (critical)
-        created_at=now
+        created_at=now,
     )
-    
+
     # Risk created last month (non-critical)
     risk2 = Risk(
         risk_id_code="R-002",
@@ -53,12 +55,12 @@ async def trend_test_data(db_session: AsyncSession, test_user: User, test_depart
         gross_impact=3,
         net_probability=2,
         net_impact=2,  # net_score = 4 (low)
-        created_at=last_month
+        created_at=last_month,
     )
-    
+
     db_session.add_all([risk1, risk2])
     await db_session.flush()
-    
+
     # Create KRI with history entries
     kri = KeyRiskIndicator(
         risk_id=risk1.id,
@@ -72,7 +74,7 @@ async def trend_test_data(db_session: AsyncSession, test_user: User, test_depart
     )
     db_session.add(kri)
     await db_session.flush()
-    
+
     # History entry this month (breach)
     history1 = KRIValueHistory(
         kri_id=kri.id,
@@ -85,7 +87,7 @@ async def trend_test_data(db_session: AsyncSession, test_user: User, test_depart
         period_end=now,
         recorded_at=now,
     )
-    
+
     # History entry last month (within)
     history2 = KRIValueHistory(
         kri_id=kri.id,
@@ -98,10 +100,10 @@ async def trend_test_data(db_session: AsyncSession, test_user: User, test_depart
         period_end=last_month,
         recorded_at=last_month,
     )
-    
+
     db_session.add_all([history1, history2])
     await db_session.commit()
-    
+
     return {"risk1": risk1, "risk2": risk2, "kri": kri}
 
 

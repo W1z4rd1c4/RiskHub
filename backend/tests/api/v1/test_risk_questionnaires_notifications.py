@@ -1,7 +1,8 @@
 """
 Tests for questionnaire notifications and reminder service.
 """
-from datetime import datetime, timedelta, UTC, time
+
+from datetime import UTC, datetime, time, timedelta
 
 import pytest
 import pytest_asyncio
@@ -10,12 +11,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Risk, User
-from app.models.risk import RiskStatus
-from app.models.notification import Notification, NotificationType
-from app.models.risk_questionnaire import RiskQuestionnaireStatus
-from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
 from app.models.global_config import clear_config_cache
+from app.models.notification import Notification, NotificationType
+from app.models.risk import RiskStatus
+from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.user import AccessScope
+from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
 
 
 @pytest.fixture(autouse=True)

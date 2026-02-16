@@ -23,8 +23,8 @@ help:
 	@echo "  make test         - Run backend tests"
 	@echo "  make test-e2e     - Run Playwright E2E tests"
 	@echo "  make lint         - Run frontend + backend lint"
-	@echo "  make lint-frontend - Run frontend ESLint + debt budget"
-	@echo "  make lint-backend - Run backend Ruff lint"
+	@echo "  make lint-frontend - Run frontend lint + typecheck + build + debt budget"
+	@echo "  make lint-backend - Run backend Ruff lint (app/tests/scripts)"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make logs         - Tail all Docker logs"
@@ -106,11 +106,11 @@ test-e2e:
 
 # Run frontend lint and debt budget
 lint-frontend:
-	cd frontend && npm run lint && npm run quality:debt
+	cd frontend && npm run lint && npx tsc --noEmit && npm run build && npm run quality:debt
 
 # Run backend lint
 lint-backend:
-	cd backend && ./venv/bin/python -m ruff check app
+	cd backend && ./venv/bin/python -m ruff check app tests scripts
 
 # Run full lint suite
 lint: lint-frontend lint-backend

@@ -5,19 +5,17 @@ Creates 5 pre-populated approval requests for E2E testing.
 ⚠️ WARNING: These approvals must remain in PENDING state for tests.
 Do NOT approve/reject them during development!
 """
+
 import asyncio
 
 from sqlalchemy import select
 
-from app.core.datetime_utils import utc_now
 from app.core.config import get_settings
+from app.core.datetime_utils import utc_now
 from app.db.session import session_context
-from app.models import Risk, Control
-from app.models.approval_request import (
-    ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
-)
+from app.models import Control, Risk
+from app.models.approval_request import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 from scripts.e2e_mappings import load_mappings_strict, require_user_id
-
 
 APPROVALS = [
     # E2E-APR-001: Standard risk deletion by non-privileged user
@@ -82,28 +80,26 @@ APPROVALS = [
 
 async def seed_approvals():
     """Create E2E test approval requests."""
-    print("="*60)
+    print("=" * 60)
     print("🔍 PHASE 179-05: Approval Request Seeding")
-    print("="*60)
-    
+    print("=" * 60)
+
     async with session_context(get_settings()) as db:
         users, _ = await load_mappings_strict(db, context="seed_e2e_approvals")
-        
+
         created = 0
         updated = 0
         deduped = 0
-        
+
         for approval_data in APPROVALS:
             data = approval_data.copy()
-            
+
             # Get resource ID and name
             resource_type = data.pop("resource_type")
-            
+
             if resource_type == ApprovalResourceType.RISK:
                 risk_code = data.pop("risk_code")
-                result = await db.execute(
-                    select(Risk).where(Risk.risk_id_code == risk_code)
-                )
+                result = await db.execute(select(Risk).where(Risk.risk_id_code == risk_code))
                 entity = result.scalar_one_or_none()
                 if not entity:
                     print(f"   ⚠️ Risk {risk_code} not found")
@@ -112,16 +108,14 @@ async def seed_approvals():
                 resource_name = entity.name
             else:
                 control_name = data.pop("control_name")
-                result = await db.execute(
-                    select(Control).where(Control.name == control_name)
-                )
+                result = await db.execute(select(Control).where(Control.name == control_name))
                 entity = result.scalar_one_or_none()
                 if not entity:
                     print(f"   ⚠️ Control {control_name} not found")
                     continue
                 resource_id = entity.id
                 resource_name = entity.name
-            
+
             # Resolve user IDs
             requester_id = require_user_id(users, data.pop("requester"))
             primary_approver_id = require_user_id(users, data.pop("primary_approver"))
@@ -133,12 +127,16 @@ async def seed_approvals():
             pending_changes = data.pop("pending_changes", None)
 
             existing_rows = (
-                await db.execute(
-                    select(ApprovalRequest)
-                    .where(ApprovalRequest.reason == reason)
-                    .order_by(ApprovalRequest.id.asc())
+                (
+                    await db.execute(
+                        select(ApprovalRequest)
+                        .where(ApprovalRequest.reason == reason)
+                        .order_by(ApprovalRequest.id.asc())
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             approval = existing_rows[0] if existing_rows else None
             if len(existing_rows) > 1:
@@ -185,9 +183,9 @@ async def seed_approvals():
                 approval.primary_approved_at = utc_now()
             else:
                 approval.primary_approved_at = None
-        
+
         await db.commit()
-        
+
         print(f"\n✅ Approval fixtures normalized: created={created}, updated={updated}, deduped={deduped}")
 
 

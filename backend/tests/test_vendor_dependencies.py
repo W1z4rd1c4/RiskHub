@@ -1,12 +1,11 @@
 import pytest
-
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department, Permission, Risk, Role, RolePermission, User, Vendor
-from app.models.vendor_service import VendorService, VendorDependency
-from app.models.user import AccessScope
 from app.models.risk import RiskStatus
+from app.models.user import AccessScope
+from app.models.vendor_service import VendorDependency, VendorService
 
 
 @pytest.mark.asyncio
@@ -148,7 +147,9 @@ async def test_vendor_concentration_flags_include_multi_department_dependency(
 
     db_session.add_all(
         [
-            VendorDependency(vendor_service_id=service.id, department_id=test_department.id, supported_function_name="Claims"),
+            VendorDependency(
+                vendor_service_id=service.id, department_id=test_department.id, supported_function_name="Claims"
+            ),
             VendorDependency(vendor_service_id=service.id, department_id=dept2.id, supported_function_name="Payments"),
         ]
     )

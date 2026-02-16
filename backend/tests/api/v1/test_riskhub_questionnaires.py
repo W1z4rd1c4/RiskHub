@@ -1,15 +1,15 @@
 """
 Tests for CRO Risk Hub questionnaire batch send endpoint.
 """
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Risk, User, Department
+from app.models import Department, Risk, RiskQuestionnaire, User
 from app.models.risk import RiskStatus
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
-from app.models import RiskQuestionnaire
 
 
 @pytest_asyncio.fixture
@@ -84,7 +84,8 @@ async def test_batch_send_select_all_false_uses_ids_and_skips(
     risk_owned_by_employee: Risk,
 ):
     # Pre-create an open questionnaire for risk_owned_by_employee to force open skip
-    from datetime import datetime, UTC
+    from datetime import UTC, datetime
+
     now = datetime.now(UTC)
     existing = RiskQuestionnaire(
         risk_id=risk_owned_by_employee.id,

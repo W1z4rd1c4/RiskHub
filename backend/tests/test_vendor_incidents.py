@@ -1,7 +1,6 @@
+from datetime import UTC, datetime
+
 import pytest
-
-from datetime import datetime, UTC
-
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -108,7 +107,10 @@ async def test_major_vendor_incident_triggers_reassessment_and_notification(
     assert v.next_reassessment_due_at is not None
 
     notifications = (await db_session.execute(select(Notification))).scalars().all()
-    assert any(n.type == NotificationType.VENDOR_REASSESSMENT_DUE_SOON and n.user_id == test_user_employee.id for n in notifications)
+    assert any(
+        n.type == NotificationType.VENDOR_REASSESSMENT_DUE_SOON and n.user_id == test_user_employee.id
+        for n in notifications
+    )
     assert not any(
         n.type == NotificationType.VENDOR_REASSESSMENT_DUE_SOON and n.user_id == rm_other_dept.id for n in notifications
     )

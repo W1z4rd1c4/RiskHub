@@ -299,7 +299,6 @@ export function KRIDetailPage() {
                         isOpen={isEditModalOpen}
                         onClose={() => setIsEditModalOpen(false)}
                         onSave={handleSave}
-                        onDelete={handleDelete}
                     />
                 )
             }

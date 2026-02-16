@@ -2,6 +2,7 @@
 Phase 179-13: Deterministic Vendor Seed Matrix
 Seeds deterministic E2E vendors with active/inactive states.
 """
+
 import asyncio
 from datetime import UTC, datetime, timedelta
 
@@ -11,7 +12,6 @@ from app.core.config import get_settings
 from app.db.session import session_context
 from app.models import Vendor, VendorStatus
 from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
-
 
 E2E_VENDORS = [
     {
@@ -183,9 +183,7 @@ async def seed_vendors():
                 "next_reassessment_due_at": now + timedelta(days=90),
             }
 
-            result = await db.execute(
-                select(Vendor).where(Vendor.registration_id == entry["registration_id"])
-            )
+            result = await db.execute(select(Vendor).where(Vendor.registration_id == entry["registration_id"]))
             vendor = result.scalar_one_or_none()
 
             if vendor is None:
@@ -200,11 +198,7 @@ async def seed_vendors():
 
         await db.commit()
 
-        total = (
-            await db.execute(
-                select(func.count(Vendor.id)).where(Vendor.name.like("E2E-VENDOR-%"))
-            )
-        ).scalar_one()
+        total = (await db.execute(select(func.count(Vendor.id)).where(Vendor.name.like("E2E-VENDOR-%")))).scalar_one()
         active = (
             await db.execute(
                 select(func.count(Vendor.id)).where(

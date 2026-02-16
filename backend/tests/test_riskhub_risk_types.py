@@ -2,12 +2,12 @@
 Tests for Risk Hub dynamic risk types functionality.
 Tests dynamic risk type validation and risk_count computation.
 """
+
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Risk, RiskTypeConfig, Department, User
+from app.models import Department, Risk, RiskTypeConfig, User
 
 
 @pytest.mark.asyncio
@@ -29,7 +29,7 @@ async def test_create_risk_with_valid_risk_type(
     )
     db_session.add(risk_type)
     await db_session.commit()
-    
+
     # Create a risk using this type
     response = await client_cro.post(
         "/api/v1/risks",
@@ -48,7 +48,7 @@ async def test_create_risk_with_valid_risk_type(
             "status": "active",
         },
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["risk_type"] == "compliance"
@@ -63,7 +63,7 @@ async def test_create_risk_with_unknown_risk_type_returns_400(
 ):
     """Test creating a risk with an unknown risk type returns 400 error."""
     # Don't create any risk type config - go straight to creating risk
-    
+
     response = await client_cro.post(
         "/api/v1/risks",
         json={
@@ -81,7 +81,7 @@ async def test_create_risk_with_unknown_risk_type_returns_400(
             "status": "active",
         },
     )
-    
+
     assert response.status_code == 400
     assert "Unknown risk type" in response.json()["detail"]
     assert "nonexistent_type" in response.json()["detail"]
@@ -106,7 +106,7 @@ async def test_create_risk_with_default_operational_type(
     )
     db_session.add(risk_type)
     await db_session.commit()
-    
+
     # Create a risk without specifying risk_type (should default to "operational")
     response = await client_cro.post(
         "/api/v1/risks",
@@ -125,7 +125,7 @@ async def test_create_risk_with_default_operational_type(
             "status": "active",
         },
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["risk_type"] == "operational"
@@ -148,7 +148,7 @@ async def test_update_risk_with_unknown_risk_type_returns_400(
     )
     db_session.add(risk_type)
     await db_session.commit()
-    
+
     # Create a risk with valid type
     create_response = await client_cro.post(
         "/api/v1/risks",
@@ -169,13 +169,13 @@ async def test_update_risk_with_unknown_risk_type_returns_400(
     )
     assert create_response.status_code == 201
     risk_id = create_response.json()["id"]
-    
+
     # Try to update to invalid risk type
     response = await client_cro.patch(
         f"/api/v1/risks/{risk_id}",
         json={"risk_type": "invalid_type"},
     )
-    
+
     assert response.status_code == 400
     assert "Unknown risk type" in response.json()["detail"]
 
@@ -203,7 +203,7 @@ async def test_update_risk_with_valid_risk_type_succeeds(
     )
     db_session.add_all([operational, strategic])
     await db_session.commit()
-    
+
     # Create a risk with operational type
     create_response = await client_cro.post(
         "/api/v1/risks",
@@ -224,13 +224,13 @@ async def test_update_risk_with_valid_risk_type_succeeds(
     )
     assert create_response.status_code == 201
     risk_id = create_response.json()["id"]
-    
+
     # Update to strategic type
     response = await client_cro.patch(
         f"/api/v1/risks/{risk_id}",
         json={"risk_type": "strategic"},
     )
-    
+
     assert response.status_code == 200
     assert response.json()["risk_type"] == "strategic"
 
@@ -252,7 +252,7 @@ async def test_inactive_risk_type_rejected(
     )
     db_session.add(risk_type)
     await db_session.commit()
-    
+
     # Try to create a risk with the inactive type
     response = await client_cro.post(
         "/api/v1/risks",
@@ -271,7 +271,7 @@ async def test_inactive_risk_type_rejected(
             "status": "active",
         },
     )
-    
+
     assert response.status_code == 400
     assert "Unknown risk type" in response.json()["detail"]
 
@@ -301,7 +301,7 @@ async def test_riskhub_risk_type_list_shows_accurate_counts(
     )
     db_session.add_all([operational, strategic])
     await db_session.commit()
-    
+
     # Create 3 operational risks
     for i in range(3):
         risk = Risk(
@@ -315,7 +315,7 @@ async def test_riskhub_risk_type_list_shows_accurate_counts(
             status="active",
         )
         db_session.add(risk)
-    
+
     # Create 2 strategic risks
     for i in range(2):
         risk = Risk(
@@ -329,18 +329,18 @@ async def test_riskhub_risk_type_list_shows_accurate_counts(
             status="active",
         )
         db_session.add(risk)
-    
+
     await db_session.commit()
-    
+
     # Get risk types from Risk Hub API
     response = await client_cro.get("/api/v1/riskhub/risk-types")
-    
+
     assert response.status_code == 200
     types_list = response.json()
-    
+
     # Find counts for each type
     counts = {t["code"]: t["risk_count"] for t in types_list}
-    
+
     assert counts["operational"] == 3
     assert counts["strategic"] == 2
 
@@ -362,7 +362,7 @@ async def test_riskhub_risk_count_excludes_archived_risks(
     )
     db_session.add(operational)
     await db_session.commit()
-    
+
     # Create 2 active risks
     for i in range(2):
         risk = Risk(
@@ -376,7 +376,7 @@ async def test_riskhub_risk_count_excludes_archived_risks(
             status="active",
         )
         db_session.add(risk)
-    
+
     # Create 1 archived risk (should not be counted)
     archived_risk = Risk(
         risk_id_code="ARCHIVED-01",
@@ -390,15 +390,15 @@ async def test_riskhub_risk_count_excludes_archived_risks(
     )
     db_session.add(archived_risk)
     await db_session.commit()
-    
+
     # Get risk types from Risk Hub API
     response = await client_cro.get("/api/v1/riskhub/risk-types")
-    
+
     assert response.status_code == 200
     types_list = response.json()
-    
+
     # Find operational type
     operational_type = next(t for t in types_list if t["code"] == "operational")
-    
+
     # Should only count 2 active risks, not the archived one
     assert operational_type["risk_count"] == 2

@@ -3,8 +3,8 @@
 from app.db import seed as app_seed
 from app.db.rbac_seed_contract import (
     RBAC_PERMISSIONS,
-    RBAC_ROLES,
     RBAC_ROLE_PERMISSIONS,
+    RBAC_ROLES,
     expand_permission_keys,
 )
 from scripts import seed_demo

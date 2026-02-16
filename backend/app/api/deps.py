@@ -1,7 +1,6 @@
 """Dependency injection utilities for FastAPI endpoints."""
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -9,7 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.permissions import can_view_risk_committee
-from app.core.security import decode_access_token
+from app.core.security import TokenDecodeError, decode_access_token
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
 
@@ -42,7 +41,7 @@ async def get_current_user(
             token = credentials.credentials
             payload = decode_access_token(token)
             user_id = payload.get("user_id")
-        except JWTError:
+        except TokenDecodeError:
             raise HTTPException(status_code=401, detail="Invalid token")
 
     if user_id is None:

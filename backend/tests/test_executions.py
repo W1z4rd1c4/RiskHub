@@ -1,6 +1,7 @@
 """
 Tests for Execution API endpoints.
 """
+
 import pytest
 from httpx import AsyncClient
 
@@ -25,7 +26,7 @@ async def test_create_execution(auth_client: AsyncClient, test_user: User, test_
         },
     )
     control_id = control_response.json()["id"]
-    
+
     # Log an execution
     response = await auth_client.post(
         "/api/v1/executions",
@@ -36,7 +37,7 @@ async def test_create_execution(auth_client: AsyncClient, test_user: User, test_
             "evidence_reference": "DOC-2025-001",
         },
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["control_id"] == control_id
@@ -62,7 +63,7 @@ async def test_list_executions(auth_client: AsyncClient, test_user: User, test_d
         },
     )
     control_id = control_response.json()["id"]
-    
+
     await auth_client.post(
         "/api/v1/executions",
         json={
@@ -71,9 +72,9 @@ async def test_list_executions(auth_client: AsyncClient, test_user: User, test_d
             "findings": "Issues found during execution",
         },
     )
-    
+
     response = await auth_client.get("/api/v1/executions")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -98,7 +99,7 @@ async def test_filter_executions_by_result(auth_client: AsyncClient, test_user: 
         },
     )
     control_id = control_response.json()["id"]
-    
+
     await auth_client.post(
         "/api/v1/executions",
         json={
@@ -107,9 +108,9 @@ async def test_filter_executions_by_result(auth_client: AsyncClient, test_user: 
             "findings": "Minor issues detected",
         },
     )
-    
+
     response = await auth_client.get("/api/v1/executions?result=issues_found")
-    
+
     assert response.status_code == 200
     data = response.json()
     for execution in data:
@@ -120,17 +121,18 @@ async def test_filter_executions_by_result(auth_client: AsyncClient, test_user: 
 # RBAC Tests for Department Scoping and Permission Enforcement
 # =============================================================================
 
+
 @pytest.fixture
 async def second_dept_control(db_session, test_user):
     """Create a control in a different department."""
-    from app.models import Department, Control
-    
+    from app.models import Department
+
     # Create second department
     dept = Department(name="Other Dept", code="OTHER", description="Other department")
     db_session.add(dept)
     await db_session.commit()
     await db_session.refresh(dept)
-    
+
     # Create control in that department
     control = Control(
         name="Other Dept Control",
@@ -162,7 +164,7 @@ async def test_employee_cannot_create_execution_for_other_dept(
             "findings": "Test execution",
         },
     )
-    
+
     assert response.status_code == 403
 
 
@@ -180,7 +182,7 @@ async def test_admin_can_create_execution_for_any_dept(
             "findings": "Admin test execution",
         },
     )
-    
+
     assert response.status_code == 201
 
 
@@ -192,8 +194,8 @@ async def test_employee_list_executions_scoped_to_department(
     test_user_employee: User,
 ):
     """Employee should only see executions from their department."""
-    from app.models import Control, ControlExecution
-    
+    from app.models import ControlExecution
+
     # Create control in employee's department
     control = Control(
         name="Employee Dept Control",
@@ -208,17 +210,14 @@ async def test_employee_list_executions_scoped_to_department(
     db_session.add(control)
     await db_session.commit()
     await db_session.refresh(control)
-    
+
     # Create execution
     execution = ControlExecution(
-        control_id=control.id,
-        executed_by_id=test_user_employee.id,
-        result="pass",
-        findings="Test"
+        control_id=control.id, executed_by_id=test_user_employee.id, result="pass", findings="Test"
     )
     db_session.add(execution)
     await db_session.commit()
-    
+
     # Employee should see this execution
     response = await client_employee.get("/api/v1/executions")
     assert response.status_code == 200
@@ -231,6 +230,7 @@ async def test_employee_list_executions_scoped_to_department(
 # FULL MODALITY RBAC TESTS: Control Execution Permission Independence
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_controls_write_without_controls_execute_is_denied(
     client: AsyncClient,
@@ -240,17 +240,20 @@ async def test_controls_write_without_controls_execute_is_denied(
     """
     FULL MODALITY TEST: User with controls:write but WITHOUT controls:execute
     cannot log control executions (403).
-    
+
     This proves controls:execute is independent from controls:write.
     """
-    from app.models import Role, Permission, RolePermission, User, Control
-    from app.core.config import get_settings, Settings
-    
+    from app.models import Permission, Role, RolePermission, User
+
     # Create a role with controls:write but NOT controls:execute
-    role = Role(name="control_editor_no_execute", display_name="Control Editor", description="Can edit controls but not log executions")
+    role = Role(
+        name="control_editor_no_execute",
+        display_name="Control Editor",
+        description="Can edit controls but not log executions",
+    )
     db_session.add(role)
     await db_session.commit()
-    
+
     # Grant controls:write, controls:read only (NOT controls:execute)
     perms = [
         Permission(resource="controls", action="read", description="Read controls"),
@@ -259,11 +262,11 @@ async def test_controls_write_without_controls_execute_is_denied(
     for p in perms:
         db_session.add(p)
     await db_session.commit()
-    
+
     for p in perms:
         db_session.add(RolePermission(role_id=role.id, permission_id=p.id))
     await db_session.commit()
-    
+
     # Create user with this role
     user = User(
         name="Control Editor No Execute",
@@ -275,7 +278,7 @@ async def test_controls_write_without_controls_execute_is_denied(
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
-    
+
     # Create a control in user's department
     control = Control(
         name="No Execute Test Control",
@@ -290,18 +293,14 @@ async def test_controls_write_without_controls_execute_is_denied(
     db_session.add(control)
     await db_session.commit()
     await db_session.refresh(control)
-    
+
     # Try to log execution - should be denied (403)
     response = await client.post(
         "/api/v1/executions",
         headers={"X-Mock-User-Id": str(user.id)},
-        json={
-            "control_id": control.id,
-            "result": "pass",
-            "findings": "Test execution attempt"
-        }
+        json={"control_id": control.id, "result": "pass", "findings": "Test execution attempt"},
     )
-    
+
     assert response.status_code == 403
 
 
@@ -315,21 +314,21 @@ async def test_controls_execute_can_log_within_department(
     FULL MODALITY TEST: User with controls:execute can log executions
     within their department (201).
     """
-    from app.models import Role, Permission, RolePermission, User, Control
-    
+    from app.models import Control, Permission, Role, RolePermission, User
+
     # Create a role with controls:execute
     role = Role(name="control_executor", display_name="Control Executor", description="Can log control executions")
     db_session.add(role)
     await db_session.commit()
-    
+
     # Grant controls:execute
     execute_perm = Permission(resource="controls", action="execute", description="Log control executions")
     db_session.add(execute_perm)
     await db_session.commit()
-    
+
     db_session.add(RolePermission(role_id=role.id, permission_id=execute_perm.id))
     await db_session.commit()
-    
+
     # Create user with this role
     user = User(
         name="Control Executor",
@@ -341,7 +340,7 @@ async def test_controls_execute_can_log_within_department(
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
-    
+
     # Create a control in user's department
     control = Control(
         name="Execute Test Control",
@@ -356,18 +355,14 @@ async def test_controls_execute_can_log_within_department(
     db_session.add(control)
     await db_session.commit()
     await db_session.refresh(control)
-    
+
     # Log execution - should succeed (201)
     response = await client.post(
         "/api/v1/executions",
         headers={"X-Mock-User-Id": str(user.id)},
-        json={
-            "control_id": control.id,
-            "result": "pass",
-            "findings": "Test execution logged successfully"
-        }
+        json={"control_id": control.id, "result": "pass", "findings": "Test execution logged successfully"},
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["control_id"] == control.id
@@ -383,31 +378,35 @@ async def test_controls_execute_cannot_log_across_departments(
     """
     FULL MODALITY TEST: User with controls:execute cannot log executions
     for controls in other departments (403).
-    
+
     Department scoping is maintained.
     """
-    from app.models import Role, Permission, RolePermission, User, Control, Department
+    from app.models import Department, Permission, Role, RolePermission, User
     from app.models.user import AccessScope
-    
+
     # Create a second department
     other_dept = Department(name="Other Exec Department", code="OTHER-EXEC")
     db_session.add(other_dept)
     await db_session.commit()
     await db_session.refresh(other_dept)
-    
+
     # Create a role with controls:execute but NOT global scope
-    role = Role(name="control_executor_dept", display_name="Control Executor Dept", description="Can log control executions in own dept")
+    role = Role(
+        name="control_executor_dept",
+        display_name="Control Executor Dept",
+        description="Can log control executions in own dept",
+    )
     db_session.add(role)
     await db_session.commit()
-    
+
     # Grant controls:execute
     execute_perm = Permission(resource="controls", action="execute", description="Log control executions")
     db_session.add(execute_perm)
     await db_session.commit()
-    
+
     db_session.add(RolePermission(role_id=role.id, permission_id=execute_perm.id))
     await db_session.commit()
-    
+
     # Create user in test_department with dept-scoped access
     user = User(
         name="Dept Scoped Executor",
@@ -420,7 +419,7 @@ async def test_controls_execute_cannot_log_across_departments(
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
-    
+
     # Create a control in OTHER department
     control = Control(
         name="Other Dept Control",
@@ -435,24 +434,21 @@ async def test_controls_execute_cannot_log_across_departments(
     db_session.add(control)
     await db_session.commit()
     await db_session.refresh(control)
-    
+
     # Try to log execution - should be denied (403) due to department mismatch
     response = await client.post(
         "/api/v1/executions",
         headers={"X-Mock-User-Id": str(user.id)},
-        json={
-            "control_id": control.id,
-            "result": "pass",
-            "findings": "Attempted cross-department execution"
-        }
+        json={"control_id": control.id, "result": "pass", "findings": "Attempted cross-department execution"},
     )
-    
+
     assert response.status_code == 403
 
 
 # =============================================================================
 # FULL MODALITY RBAC TESTS: /controls/{id}/executions endpoint enforcement
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_controls_write_without_controls_execute_is_denied_on_control_execution_endpoint(
@@ -464,10 +460,14 @@ async def test_controls_write_without_controls_execute_is_denied_on_control_exec
     User with controls:write but WITHOUT controls:execute cannot log executions
     via /controls/{id}/executions (403).
     """
-    from app.models import Role, Permission, RolePermission, User, Control
+    from app.models import Permission, Role, RolePermission, User
 
     # Create a role with controls:write but NOT controls:execute
-    role = Role(name="control_editor_no_execute_2", display_name="Control Editor", description="Can edit controls but not log executions")
+    role = Role(
+        name="control_editor_no_execute_2",
+        display_name="Control Editor",
+        description="Can edit controls but not log executions",
+    )
     db_session.add(role)
     await db_session.commit()
 
@@ -526,7 +526,7 @@ async def test_controls_execute_can_log_on_control_execution_endpoint_within_dep
     test_department: Department,
 ):
     """User with controls:execute can log executions via /controls/{id}/executions (201)."""
-    from app.models import Role, Permission, RolePermission, User, Control
+    from app.models import Permission, Role, RolePermission, User
 
     role = Role(name="control_executor_2", display_name="Control Executor", description="Can log control executions")
     db_session.add(role)
@@ -625,7 +625,7 @@ async def test_controls_execute_cannot_log_on_control_execution_endpoint_across_
     test_department: Department,
 ):
     """User with controls:execute cannot log executions for other departments via /controls/{id}/executions (403)."""
-    from app.models import Role, Permission, RolePermission, User, Control, Department
+    from app.models import Department, Permission, Role, RolePermission, User
     from app.models.user import AccessScope
 
     other_dept = Department(name="Other Exec Department 2", code="OTHER-EXEC-2")
@@ -633,7 +633,11 @@ async def test_controls_execute_cannot_log_on_control_execution_endpoint_across_
     await db_session.commit()
     await db_session.refresh(other_dept)
 
-    role = Role(name="control_executor_dept_2", display_name="Control Executor Dept", description="Can log control executions in own dept")
+    role = Role(
+        name="control_executor_dept_2",
+        display_name="Control Executor Dept",
+        description="Can log control executions in own dept",
+    )
     db_session.add(role)
     await db_session.commit()
 

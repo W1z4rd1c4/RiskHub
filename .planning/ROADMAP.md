@@ -1030,3 +1030,22 @@ Plans:
 - [x] 500-06: Script-level security hardening + production guard enforcement
 - [x] 500-07: Smoke verification automation + regression coverage for install path
 - [x] 500-08: Deployment documentation and operations runbook reconciliation
+
+### Phase 501: Production Readiness Hardening
+
+**Goal**: Remediate deep-scan production readiness issues across compile gates, vulnerability posture, stale code cleanup, JWT/auth internals, and CI enforcement.
+**Depends on**: Phase 500 (Production install baseline)
+**Research**: Completed (`.planning/phases/501-production-readiness-hardening/501-RESEARCH.md`)
+**Status**: ✅ Complete (2026-02-16)
+**Plans**: 8 plans
+
+Plans:
+
+- [x] 501-01: Register phase + baseline capture
+- [x] 501-02: Frontend compile/build restoration
+- [x] 501-03: Frontend vulnerability remediation
+- [x] 501-04: JWT/auth refactor to remove `ecdsa` chain
+- [x] 501-05: Dead/stale code removal
+- [x] 501-06: Tests/scripts quality debt cleanup
+- [x] 501-07: CI gate hardening
+- [x] 501-08: Full verification + closeout

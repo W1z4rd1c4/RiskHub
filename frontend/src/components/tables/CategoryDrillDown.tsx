@@ -34,7 +34,7 @@ interface GroupData<T> {
     stats: CategoryStats;
 }
 
-export function CategoryDrillDown<T extends Record<string, unknown>>({
+export function CategoryDrillDown<T extends object>({
     data,
     groupBy,
     groupLabel,

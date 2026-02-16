@@ -1,12 +1,15 @@
 """
 Pytest configuration and fixtures for backend tests.
 """
+# ruff: noqa: E402
+
 import os
 
 # Ensure app can import in test runs without requiring production secrets.
 # Must run before importing any app modules that call get_settings() at import time.
 os.environ.setdefault("DEBUG", "true")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
+
 
 def _normalize_async_database_url(url: str) -> str:
     """Normalize a DB URL to an async SQLAlchemy URL suitable for create_async_engine()."""
@@ -35,18 +38,15 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.db.base import Base
 from app.db.session import get_db
-
 from app.main import app
-from app.models import User, Department, Role, Risk
-from app.models.user import AccessScope
+from app.models import Department, Risk, Role, User
 from app.models.risk import RiskStatus
-from app.core.security import get_current_user
-
+from app.models.user import AccessScope
 
 _ALEMBIC_INI_PATH = Path(__file__).resolve().parents[1] / "alembic.ini"
 _USING_POSTGRES = TEST_DATABASE_URL.startswith("postgresql")
@@ -166,6 +166,7 @@ async def db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
 
 # Entity factories
 
+
 @pytest_asyncio.fixture
 async def test_department(db_session: AsyncSession) -> Department:
     """Create a test department."""
@@ -180,7 +181,7 @@ async def test_department(db_session: AsyncSession) -> Department:
 async def seed_risk_types(db_session: AsyncSession):
     """Seed default risk types for API validation."""
     from app.models.risk_type import RiskTypeConfig
-    
+
     risk_types = [
         RiskTypeConfig(
             code="operational",
@@ -209,21 +210,21 @@ async def seed_risk_types(db_session: AsyncSession):
 async def test_role(db_session: AsyncSession) -> Role:
     """Legacy wildcard superuser role fixture (backward-compatible)."""
     from app.models import Permission, RolePermission
-    
+
     role = Role(name="admin", display_name="Administrator", description="Admin role for testing")
     db_session.add(role)
-    await db_session.commit() # Commit to get ID
-    
+    await db_session.commit()  # Commit to get ID
+
     # Create wildcard permission
     perm = Permission(resource="*", action="*", description="Super admin access")
     db_session.add(perm)
     await db_session.commit()
-    
+
     # Link
     role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
     db_session.add(role_perm)
     await db_session.commit()
-    
+
     await db_session.refresh(role)
     return role
 
@@ -267,9 +268,9 @@ async def test_role_platform_admin(db_session: AsyncSession) -> Role:
 @pytest_asyncio.fixture
 async def test_user(db_session: AsyncSession, test_department: Department, test_role: Role) -> User:
     """Legacy wildcard superuser test user fixture (backward-compatible)."""
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
-    
+    from sqlalchemy.orm import selectinload
+
     user = User(
         name="Test Admin",
         email="admin@test.com",
@@ -280,15 +281,16 @@ async def test_user(db_session: AsyncSession, test_department: Department, test_
     )
     db_session.add(user)
     await db_session.commit()
-    
+
     # Reload with all relationships
     from app.models import Role, RolePermission
+
     result = await db_session.execute(
         select(User)
         .options(
             selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
             selectinload(User.department),
-            selectinload(User.manager)
+            selectinload(User.manager),
         )
         .where(User.id == user.id)
     )
@@ -308,9 +310,11 @@ async def test_user_platform_admin(
     test_role_platform_admin: Role,
 ) -> User:
     """Create a canonical platform-admin test user fixture."""
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
-    from app.models import Role as RoleModel, RolePermission
+    from sqlalchemy.orm import selectinload
+
+    from app.models import Role as RoleModel
+    from app.models import RolePermission
 
     user = User(
         name="Test Platform Admin",
@@ -339,10 +343,11 @@ async def test_user_platform_admin(
 async def test_role_employee(db_session: AsyncSession) -> Role:
     """Create an employee role with limited permissions."""
     from app.models import Permission, RolePermission
+
     role = Role(name="employee", display_name="Employee", description="Standard employee role")
     db_session.add(role)
     await db_session.commit()
-    
+
     # Permissions for basic list/read
     permissions = [
         Permission(resource="risks", action="read", description="Read risks"),
@@ -357,12 +362,13 @@ async def test_role_employee(db_session: AsyncSession) -> Role:
     for p in permissions:
         db_session.add(p)
     await db_session.commit()
-    
+
     for p in permissions:
         db_session.add(RolePermission(role_id=role.id, permission_id=p.id))
     await db_session.commit()
-    
+
     return role
+
 
 @pytest_asyncio.fixture
 async def test_user_employee(db_session: AsyncSession, test_department: Department, test_role_employee: Role) -> User:
@@ -377,15 +383,17 @@ async def test_user_employee(db_session: AsyncSession, test_department: Departme
     )
     db_session.add(user)
     await db_session.commit()
-    
-    from sqlalchemy.orm import selectinload
+
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
     from app.models import Role, RolePermission
+
     result = await db_session.execute(
         select(User)
         .options(
             selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
-            selectinload(User.department)
+            selectinload(User.department),
         )
         .where(User.id == user.id)
     )
@@ -396,10 +404,11 @@ async def test_user_employee(db_session: AsyncSession, test_department: Departme
 async def test_role_risk_manager(db_session: AsyncSession) -> Role:
     """Create a risk manager role."""
     from app.models import Permission, RolePermission
+
     role = Role(name="risk_manager", display_name="Risk Manager", description="Risk Manager role")
     db_session.add(role)
     await db_session.commit()
-    
+
     perms = [
         Permission(resource="approvals", action="*", description="Manage approvals"),
         Permission(resource="risks", action="read", description="Read risks"),
@@ -411,11 +420,14 @@ async def test_role_risk_manager(db_session: AsyncSession) -> Role:
 
     db_session.add_all([RolePermission(role_id=role.id, permission_id=p.id) for p in perms])
     await db_session.commit()
-    
+
     return role
 
+
 @pytest_asyncio.fixture
-async def test_user_risk_manager(db_session: AsyncSession, test_department: Department, test_role_risk_manager: Role) -> User:
+async def test_user_risk_manager(
+    db_session: AsyncSession, test_department: Department, test_role_risk_manager: Role
+) -> User:
     """Create a risk manager user."""
     user = User(
         name="Test Risk Manager",
@@ -427,15 +439,17 @@ async def test_user_risk_manager(db_session: AsyncSession, test_department: Depa
     )
     db_session.add(user)
     await db_session.commit()
-    
-    from sqlalchemy.orm import selectinload
+
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
     from app.models import Role, RolePermission
+
     result = await db_session.execute(
         select(User)
         .options(
             selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
-            selectinload(User.department)
+            selectinload(User.department),
         )
         .where(User.id == user.id)
     )
@@ -446,19 +460,21 @@ async def test_user_risk_manager(db_session: AsyncSession, test_department: Depa
 async def test_role_cro(db_session: AsyncSession) -> Role:
     """Create a CRO role."""
     from app.models import Permission, RolePermission
+
     role = Role(name="cro", display_name="CRO", description="CRO role")
     db_session.add(role)
     await db_session.commit()
-    
+
     # CRO has full wildcard access like admin
     perm = Permission(resource="*", action="*", description="Full access")
     db_session.add(perm)
     await db_session.commit()
-    
+
     db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
     await db_session.commit()
-    
+
     return role
+
 
 @pytest_asyncio.fixture
 async def test_user_cro(db_session: AsyncSession, test_department: Department, test_role_cro: Role) -> User:
@@ -473,15 +489,17 @@ async def test_user_cro(db_session: AsyncSession, test_department: Department, t
     )
     db_session.add(user)
     await db_session.commit()
-    
-    from sqlalchemy.orm import selectinload
+
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
     from app.models import Role, RolePermission
+
     result = await db_session.execute(
         select(User)
         .options(
             selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
-            selectinload(User.department)
+            selectinload(User.department),
         )
         .where(User.id == user.id)
     )
@@ -496,6 +514,7 @@ async def test_role_department_head(db_session: AsyncSession) -> Role:
     await db_session.commit()
     # Dashboard and committee endpoints require risks:read.
     from app.models import Permission, RolePermission
+
     perm = Permission(resource="risks", action="read", description="Read risks")
     db_session.add(perm)
     await db_session.commit()
@@ -523,9 +542,11 @@ async def test_user_department_head(
     db_session.add(user)
     await db_session.commit()
 
-    from sqlalchemy.orm import selectinload
     from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
     from app.models import Role, RolePermission
+
     result = await db_session.execute(
         select(User)
         .options(
@@ -564,21 +585,21 @@ async def test_risk(db_session: AsyncSession, test_department: Department, test_
 @pytest_asyncio.fixture(scope="function")
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create an unauthenticated async test client."""
-    from app.core.config import get_settings, Settings
-    
+    from app.core.config import Settings, get_settings
+
     def override_settings():
         return Settings(mock_auth_enabled=True, debug=True)
-    
+
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_settings] = override_settings
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
@@ -587,22 +608,22 @@ async def auth_client(db_session: AsyncSession, test_user: User) -> AsyncGenerat
     """Create authenticated client using legacy wildcard superuser fixture."""
     from app.api import deps
     from app.core import security
-    
+
     async def override_get_db():
         yield db_session
-    
+
     # IMPORTANT: Dependencies must be async if they perform DB operations or are used in async contexts
     async def override_get_current_user():
         return test_user
-    
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[deps.get_current_user] = override_get_current_user
     app.dependency_overrides[security.get_current_user] = override_get_current_user
-    
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
@@ -638,7 +659,7 @@ async def client_platform_admin(
     test_user_platform_admin: User,
 ) -> AsyncGenerator[AsyncClient, None]:
     """Client for canonical platform admin role using header-based mock auth."""
-    from app.core.config import get_settings, Settings
+    from app.core.config import Settings, get_settings
 
     def override_settings():
         return Settings(mock_auth_enabled=True, debug=True)
@@ -660,44 +681,46 @@ async def client_platform_admin(
 @pytest_asyncio.fixture(scope="function")
 async def client_employee(db_session: AsyncSession, test_user_employee: User) -> AsyncGenerator[AsyncClient, None]:
     """Client for employee user using header-based mock auth."""
-    from app.core.config import get_settings, Settings
-    
+    from app.core.config import Settings, get_settings
+
     def override_settings():
         return Settings(mock_auth_enabled=True, debug=True)
-        
+
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_settings] = override_settings
-    
+
     transport = ASGITransport(app=app)
     headers = {"X-Mock-User-Id": str(test_user_employee.id)}
     async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client_risk_manager(db_session: AsyncSession, test_user_risk_manager: User) -> AsyncGenerator[AsyncClient, None]:
+async def client_risk_manager(
+    db_session: AsyncSession, test_user_risk_manager: User
+) -> AsyncGenerator[AsyncClient, None]:
     """Client for risk manager user using header-based mock auth."""
-    from app.core.config import get_settings, Settings
-    
+    from app.core.config import Settings, get_settings
+
     def override_settings():
         return Settings(mock_auth_enabled=True, debug=True)
-        
+
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_settings] = override_settings
-    
+
     transport = ASGITransport(app=app)
     headers = {"X-Mock-User-Id": str(test_user_risk_manager.id)}
     async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
@@ -710,22 +733,22 @@ def auth_headers(test_user: User) -> dict:
 @pytest_asyncio.fixture(scope="function")
 async def client_cro(db_session: AsyncSession, test_user_cro: User) -> AsyncGenerator[AsyncClient, None]:
     """Client for CRO user using header-based mock auth."""
-    from app.core.config import get_settings, Settings
-    
+    from app.core.config import Settings, get_settings
+
     def override_settings():
         return Settings(mock_auth_enabled=True, debug=True)
-        
+
     async def override_get_db():
         yield db_session
-    
+
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_settings] = override_settings
-    
+
     transport = ASGITransport(app=app)
     headers = {"X-Mock-User-Id": str(test_user_cro.id)}
     async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
         yield ac
-    
+
     app.dependency_overrides.clear()
 
 
@@ -735,7 +758,7 @@ async def client_department_head(
     test_user_department_head: User,
 ) -> AsyncGenerator[AsyncClient, None]:
     """Client for department head user using header-based mock auth."""
-    from app.core.config import get_settings, Settings
+    from app.core.config import Settings, get_settings
 
     def override_settings():
         return Settings(mock_auth_enabled=True, debug=True)

@@ -19,6 +19,7 @@ type TranslationOptions = Record<string, unknown> & {
 };
 
 export type SafeTFunction = {
+    (key: string, options?: TranslationOptions): string;
     (key: string): string;
     (key: string, options: TranslationOptions): string;
     (key: string, defaultValue: string): string;
@@ -41,9 +42,11 @@ export function useTranslation<NS extends Namespace = 'common'>(
     ns?: NS | readonly NS[],
     options?: unknown,
 ) {
+    type I18nextNs = Parameters<typeof useI18nextTranslation>[0];
+    type I18nextOptions = Parameters<typeof useI18nextTranslation>[1];
     const result = useI18nextTranslation(
-        ns as unknown as string | readonly string[] | undefined,
-        options as Record<string, unknown> | undefined,
+        ns as unknown as I18nextNs,
+        options as I18nextOptions,
     );
     const rawT = result.t as unknown as (key: string, options?: TranslationOptions) => string;
 

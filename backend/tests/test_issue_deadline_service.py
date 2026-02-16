@@ -82,8 +82,12 @@ async def test_issue_deadline_service_due_soon_overdue_and_escalation(
 
     db_session.add_all(
         [
-            IssueRemediationPlan(issue_id=due_soon_issue.id, status="active", progress_percent=50, owner_user_id=user_id),
-            IssueRemediationPlan(issue_id=overdue_issue.id, status="active", progress_percent=40, owner_user_id=user_id),
+            IssueRemediationPlan(
+                issue_id=due_soon_issue.id, status="active", progress_percent=50, owner_user_id=user_id
+            ),
+            IssueRemediationPlan(
+                issue_id=overdue_issue.id, status="active", progress_percent=40, owner_user_id=user_id
+            ),
         ]
     )
     await db_session.commit()
@@ -95,10 +99,17 @@ async def test_issue_deadline_service_due_soon_overdue_and_escalation(
     assert result1["notifications_created"] >= 3
 
     notifications = (
-        await db_session.execute(
-            select(Notification).where(Notification.resource_type == "issue", Notification.resource_id.in_([due_soon_issue.id, overdue_issue.id]))
+        (
+            await db_session.execute(
+                select(Notification).where(
+                    Notification.resource_type == "issue",
+                    Notification.resource_id.in_([due_soon_issue.id, overdue_issue.id]),
+                )
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     notif_types = {n.type for n in notifications}
     assert NotificationType.ISSUE_DUE_SOON in notif_types
     assert NotificationType.ISSUE_OVERDUE in notif_types
@@ -159,7 +170,9 @@ async def test_issue_deadline_service_expires_exception_and_reopens_issue(
     assert result["reopened"] == 1
 
     refreshed_issue = (await db_session.execute(select(Issue).where(Issue.id == issue.id))).scalar_one()
-    refreshed_exception = (await db_session.execute(select(IssueException).where(IssueException.id == exception.id))).scalar_one()
+    refreshed_exception = (
+        await db_session.execute(select(IssueException).where(IssueException.id == exception.id))
+    ).scalar_one()
 
     assert refreshed_exception.status == "expired"
     assert refreshed_issue.status == "in_progress"
