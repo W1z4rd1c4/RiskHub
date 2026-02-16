@@ -40,7 +40,6 @@ async def test_docs_disabled_in_production_mode():
             entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
             cors_origins=["http://testserver"],
             database_url=PRODUCTION_DATABASE_URL,
-            directory_webhook_enabled=False,
         )
     )
     transport = ASGITransport(app=app)
@@ -64,7 +63,6 @@ async def test_trusted_host_blocks_unexpected_host_in_production_mode():
             entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
             cors_origins=["http://testserver"],
             database_url=PRODUCTION_DATABASE_URL,
-            directory_webhook_enabled=False,
         )
     )
     transport = ASGITransport(app=app)
@@ -88,7 +86,6 @@ def test_cors_guard_rejects_wildcard_origins_in_production_mode():
                 entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
                 cors_origins=["*"],
                 database_url=PRODUCTION_DATABASE_URL,
-                directory_webhook_enabled=False,
             )
         )
 
@@ -105,7 +102,6 @@ def test_cors_guard_requires_explicit_allowlist_in_production_mode():
                 entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
                 cors_origins=[],
                 database_url=PRODUCTION_DATABASE_URL,
-                directory_webhook_enabled=False,
             )
         )
 
@@ -122,7 +118,6 @@ def test_auth_mode_guard_requires_microsoft_sso_in_production():
                 entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
                 cors_origins=["http://testserver"],
                 database_url=PRODUCTION_DATABASE_URL,
-                directory_webhook_enabled=False,
             )
         )
 
@@ -139,25 +134,6 @@ def test_auth_mode_guard_requires_entra_config_in_production():
                 entra_client_id=None,
                 cors_origins=["http://testserver"],
                 database_url=PRODUCTION_DATABASE_URL,
-                directory_webhook_enabled=False,
-            )
-        )
-
-
-def test_webhook_secret_required_when_directory_webhook_enabled_in_production():
-    with pytest.raises(RuntimeError, match="WEBHOOK_SECRET is required"):
-        create_app(
-            Settings(
-                debug=False,
-                secret_key=PRODUCTION_SECRET,
-                mock_auth_enabled=False,
-                auth_mode=PRODUCTION_AUTH_MODE,
-                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
-                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
-                cors_origins=["http://testserver"],
-                database_url=PRODUCTION_DATABASE_URL,
-                directory_webhook_enabled=True,
-                webhook_secret="",
             )
         )
 
@@ -174,7 +150,6 @@ def test_secret_key_length_guard_triggers_in_production():
                 entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
                 cors_origins=["http://testserver"],
                 database_url=PRODUCTION_DATABASE_URL,
-                directory_webhook_enabled=False,
             )
         )
 
@@ -191,6 +166,5 @@ def test_database_url_default_guard_triggers_in_production():
                 entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
                 cors_origins=["http://testserver"],
                 database_url=DEFAULT_DATABASE_URL,
-                directory_webhook_enabled=False,
             )
         )

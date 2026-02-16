@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make <target>
 
-.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend verify-prod-install-scripts
+.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend verify-prod-install-scripts verify-setup-wizard
 
 # Default target
 help:
@@ -12,7 +12,6 @@ help:
 	@echo "  make dev          - Start DB container + local backend (recommended)"
 	@echo "  make dev-full     - Start DB + backend + frontend locally"
 	@echo "  make docker       - Start all services via Docker"
-	@echo "  make docker-ad    - Start all services + AD emulator"
 	@echo "  make stop         - Stop all Docker containers"
 	@echo ""
 	@echo "Database:"
@@ -32,6 +31,7 @@ help:
 	@echo "  make shell        - Open shell in backend container"
 	@echo "  make clean        - Remove containers, volumes, and caches"
 	@echo "  make verify-prod-install-scripts - Validate Phase 500 prod scripts"
+	@echo "  make verify-setup-wizard - Validate unified setup wizard scripts"
 
 # =============================================================================
 # Development
@@ -60,10 +60,6 @@ dev-full-lan: db
 # Start all services via Docker
 docker:
 	docker-compose up -d
-
-# Start with AD emulator
-docker-ad:
-	docker-compose --profile with-ad up -d
 
 # Start for LAN access (usage: make docker-lan IP=192.168.1.100)
 docker-lan:
@@ -147,3 +143,7 @@ verify-prod-install-scripts:
 	bash -n scripts/prod/*.sh scripts/prod/lib/*.sh
 	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/prod/*.sh
 	cd backend && venv/bin/pytest tests/test_production_hardening.py -q
+
+verify-setup-wizard:
+	bash -n setup.sh scripts/dev_test_setup.sh
+	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x setup.sh scripts/dev_test_setup.sh

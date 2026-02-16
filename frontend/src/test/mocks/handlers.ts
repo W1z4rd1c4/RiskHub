@@ -143,76 +143,6 @@ export const mockPublicRiskTypes = [
     },
 ];
 
-export const mockDirectoryUsers = [
-    {
-        id: 1,
-        external_id: 'dir-1001',
-        user_principal_name: 'ava@directory.local',
-        email: 'ava@directory.local',
-        display_name: 'Ava Novak',
-        department: 'IT',
-        manager_external_id: 'dir-2001',
-        account_enabled: true,
-        user_id: 10,
-        created_at: '2025-12-28T10:00:00Z',
-        updated_at: '2025-12-28T10:10:00Z',
-    },
-    {
-        id: 2,
-        external_id: 'dir-1002',
-        user_principal_name: 'luka@directory.local',
-        email: 'luka@directory.local',
-        display_name: 'Luka Dvorak',
-        department: 'Finance',
-        manager_external_id: null,
-        account_enabled: false,
-        user_id: null,
-        created_at: '2025-12-28T10:05:00Z',
-        updated_at: '2025-12-28T10:12:00Z',
-    },
-];
-
-export const mockDirectoryPreview = {
-    created_count: 1,
-    updated_count: 1,
-    deactivated_count: 0,
-    error_count: 0,
-    diffs: [
-        {
-            external_id: 'dir-1002',
-            email: 'luka@directory.local',
-            action: 'create',
-            changes: {
-                email: { old: null, new: 'luka@directory.local' },
-                name: { old: null, new: 'Luka Dvorak' },
-            },
-        },
-        {
-            external_id: 'dir-1001',
-            email: 'ava@directory.local',
-            action: 'update',
-            changes: {
-                department: { old: 'Risk', new: 'IT' },
-            },
-        },
-    ],
-};
-
-export const mockDirectorySyncHistory = [
-    {
-        id: 1,
-        started_at: '2025-12-28T09:00:00Z',
-        finished_at: '2025-12-28T09:00:10Z',
-        status: 'success',
-        created_count: 2,
-        updated_count: 1,
-        deactivated_count: 0,
-        error_count: 0,
-        errors: null,
-        created_at: '2025-12-28T09:00:10Z',
-    },
-];
-
 // API handlers
 export const handlers = [
     // Auth
@@ -330,22 +260,5 @@ export const handlers = [
             value: parseInt(config.value, 10),
             value_type: config.value_type,
         });
-    }),
-
-    // Directory emulator
-    http.get('*/api/v1/directory/users', () => {
-        return HttpResponse.json(mockDirectoryUsers);
-    }),
-
-    http.post('*/api/v1/directory/sync/preview', () => {
-        return HttpResponse.json(mockDirectoryPreview);
-    }),
-
-    http.post('*/api/v1/directory/sync/apply', () => {
-        return HttpResponse.json(mockDirectoryPreview);
-    }),
-
-    http.get('*/api/v1/directory/sync/history', () => {
-        return HttpResponse.json(mockDirectorySyncHistory);
     }),
 ];

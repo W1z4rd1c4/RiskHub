@@ -249,13 +249,6 @@ HTML_CONTENT = f"""<!DOCTYPE html>
                 </div>
             </div>
 
-            <div class="p-8 bg-white border border-slate-200 rounded-xl page-break-inside-avoid">
-                <h3 class="text-xl font-bold text-slavia-red mb-4">AD Emulator: Integrace bez závislostí</h3>
-                <p class="text-slate-600 leading-relaxed">
-                    Součástí dodávky je simulátor Active Directory prostředí. Tato komponenta umožnila plnou implementaci 
-                    a otestování uživatelské synchronizace a schvalovacích procesů nezávisle na firemní infrastruktuře.
-                </p>
-            </div>
         </div>
     </section>
 
@@ -284,7 +277,7 @@ HTML_CONTENT = f"""<!DOCTYPE html>
                     <div class="absolute -left-[9px] top-6 w-4 h-4 rounded-full bg-slavia-red"></div>
                     <div class="text-slate-400 font-mono text-xs">25. - 26. 12. 2025</div>
                     <h4 class="text-lg font-bold text-slate-900">Fáze 3: Integrace a Finální Polish</h4>
-                    <p class="text-slate-600 text-sm mt-1">Implementace AD Emulátoru, Governance modulu a příprava na produkční nasazení.</p>
+                    <p class="text-slate-600 text-sm mt-1">Implementace Governance modulu, integrace a příprava na produkční nasazení.</p>
                 </div>
             </div>
         </div>

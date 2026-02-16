@@ -1,71 +1,229 @@
 ---
-title: Provozní reporty a důkazní exporty
+title: Reporty a evidence exporty (admin runbook)
 version: "2.0"
 last_updated: "2026-02-16"
 audience: admin
-source_of_truth: "report/export endpointy a audit log"
-summary: "Runbook pro bezpečné generování provozních exportů pro incident response, kontrolní přezkum a governance evidence."
+source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + backend/app/api/v1/endpoints/admin/*"
+summary: "Admin runbook pro audit-ready exporty: co exportovat, jak správně omezit scope, jak zachovat provenance a jak bezpečně předat evidenci."
 tags:
-  - reports
   - exports
   - audit
+  - troubleshooting
+  - workflow
+  - settings
 ---
 
-# Provozní reporty a důkazní exporty
+# Reporty a evidence exporty (admin runbook)
 
 ## Přehled
 
-Tato příručka popisuje, jak získat provozní důkazy bez narušení auditní dohledatelnosti.
+“Reporting” pro platformního admina nejsou business dashboardy. Je to **produkce evidence**: vytváření dohledatelných exportů, které odpoví na konkrétní otázku při incidentu, auditu nebo podpůrné investigaci.
 
-## Použití exportů
+Admin evidence musí být:
 
-- rekonstrukce incident timeline
-- důkazní materiály ke změnám přístupů
-- analýza workflow anomálií
-- snapshoty provozního stavu systému
+- scoped (minimum potřebných dat)
+- reprodukovatelná (jasné filtry a časové okno)
+- auditovatelná (zachovaná provenance)
+- bezpečná (žádný zbytečný leak citlivých údajů)
 
-## Safe export workflow
+RiskHub poskytuje exportní plochy primárně přes Admin Console audit feed (CSV/JSON). Application logy jsou také užitečné, ale vyžadují opatrnost, aby nedošlo k úniku citlivých payloadů.
+
+## Kdy to použít
+
+Použijte tento runbook, když potřebujete:
+
+- rekonstruovat incident timeline (“co se stalo a kdy?”)
+- doložit změnu přístupu (“co se změnilo uživateli X?”)
+- podložit workflow/schvalovací anomálie (“žádost vznikla, ale nerozhodla se”)
+- předat reprodukovatelný defect report engineeringu
+- dodat audit artefakty se zachovanou provenance (exporty + cover note)
+
+Nepoužívejte to jako náhradu business exportů (rizika/kontroly/dodavatelé). Pokud business owner potřebuje business data, koordinujte to a využijte user exportní flow.
+
+## Předpoklady a bezpečnost
+
+Než exportujete:
 
 1. Definujte přesnou otázku, kterou má export zodpovědět.
-2. Zvolte minimální dataset a období.
-3. Vygenerujte export standardní cestou.
-4. Ověřte scope a úplnost.
-5. Uložte/sdílejte jen v schváleném kanálu.
+   - Dobře: “Ukaž všechny audit eventy pro user 123 mezi 10:00 a 11:00 UTC.”
+   - Špatně: “Vyexportuj všechno pro jistotu.”
+2. Určete minimální zdroj:
+   - audit logy pro “kdo změnil co”
+   - application logy pro “proč request selhal”
+   - sessions view pro “kdo je přihlášen / revoke akce”
+3. Zvolte minimální časové okno.
+4. Ověřte, kde smíte evidenci ukládat/sdílet (schválený kanál).
 
-## Pravidla integrity dat
+Bezpečnostní pravidla:
 
-- nikdy needitujte originál před archivací
-- zachovejte timestamp a filter kontext
-- při předání vždy připojte krátké vysvětlení
-- pokud kombinujete více exportů, přidejte manifest se scope a časy generování
+- Počítejte s tím, že export může obsahovat citlivé detaily. Neposílejte raw logy do neřízených kanálů.
+- Zachovejte originální export soubor. Pokud ho transformujete, držte raw export nezměněný a přidejte manifest.
+- Preferujte JSON, když potřebujete strukturované detaily; CSV pro rychlý review/spreadsheet práci.
 
-## Časté chyby
+## Postup krok za krokem
 
-- příliš široký export “pro jistotu”
-- ztráta filtračního kontextu při handoffu
-- míchání více exportů bez provenance označení
-- sdílení exportu bez vysvětlení účelu a rozhodovací otázky
+### 1) Vybrat typ evidence a časové okno
 
-## Předání exportu dalším týmům
+Začněte krátkou “evidence hlavičkou”, kterou přiložíte k ticketu:
 
-Při předání mimo admin provoz připojte krátké shrnutí: jaká otázka se řeší, jaký je časový rozsah dat, které filtry byly použity a jaké limity interpretace platí. Příjemce tak nebude dělat závěry mimo platný kontext exportu.
+- incident/ticket id
+- prostředí
+- otázka, kterou řešíte
+- časové okno (včetně timezone)
+- zdroj (`/admin` → Audit Logs, atd.)
+
+Pak zvolte:
+
+- **Audit logs** pro stopu akcí (kdo/co/kdy).
+- **Application logs** pro kontext selhání (error/validace/stack).
+- **Sessions** pro session stav a revoke.
+
+### 2) Export audit logů (CSV/JSON)
+
+1. Otevřete `/admin` → Audit Logs.
+2. Nastavte line limit (začněte malým: 50–200).
+3. Použijte event filtering (pokud je) pro zúžení datasetu.
+4. Exportujte:
+   - CSV pro rychlý přehled
+   - JSON pro strukturované šetření a handoff engineeringu
+
+Ihned po exportu:
+
+- ověřte, že timestamp v názvu souboru odpovídá času exportu
+- otevřete soubor a vzorkově zkontrolujte:
+  - timestampy
+  - event pole
+  - user_id (kde dává smysl)
+  - request_id (kritické pro korelaci)
+
+### 3) Získat application log evidence (opatrně)
+
+Application logy mohou obsahovat payload-like detaily.
+
+Doporučený postup:
+
+1. Zúžte časové okno na minimum okolo selhání.
+2. Zachyťte jen řádky, které ukazují:
+   - error class/message
+   - request id (pokud je)
+   - kontext endpointu/route
+3. Pokud musíte vložit snippet do ticketu:
+   - vložte jen relevantní řádky
+   - vyhněte se secretům a tokenům
+   - uveďte časové okno a použitý filtr
+
+### 4) Sestavit evidence balíček (provenance)
+
+Evidence balíček má obsahovat:
+
+- raw export soubor(y) (CSV/JSON)
+- krátký cover note (1 odstavec):
+  - “as of” timestamp
+  - použité filtry (event type, line count)
+  - co export dokazuje (1 věta)
+
+Pokud kombinujete více exportů:
+
+- přidejte manifest tabulku:
+  - filename
+  - generated_at
+  - source
+  - filter/time window
+
+To udrží evidenci použitelnou i po týdnech.
+
+### 5) Bezpečné předání
+
+Při předání engineeringu nebo business ownerovi:
+
+- nepřikládejte “všechno”
+- přiložte jen minimum, které dokazuje tvrzení
+- přidejte reproduction kroky, pokud jde o defect
+- přidejte request IDs pro korelaci v backend trasách
+
+## Ověření po změně
+
+Před uzavřením úkolu ověřte:
+
+- exporty existují a jdou otevřít
+- timestampy a filtry jsou zapsané (cover note/manifest)
+- request IDs (pokud relevantní) sedí na incident okno
+- export neobsahuje zbytečné citlivé informace
+- čtenář pochopí, co evidence dokazuje, bez follow-up dotazů
+
+## Rollback
+
+Export nejde “od-poslat”, rollback je o containmentu:
+
+- Pokud jste vyexportoval/a příliš široký dataset:
+  - okamžitě zastavte distribuci
+  - smažte soubor z míst, kde to policy dovoluje
+  - znovu exportujte s korektním scope a nahraďte v ticketu
+- Pokud jste během šetření změnil/a admin nastavení (např. log rotation):
+  - vraťte původní hodnoty
+  - zapište proč jste změnil/a a proč jste vrátil/a
+
+Pokud jde o potenciální data leak, eskalujte na security okamžitě.
 
 ## Troubleshooting
 
-### Export neobsahuje očekávané záznamy
+### Export je hotový, ale chybí očekávané záznamy
 
-Nejprve zkontrolujte autorizační scope a filtry.
+Checks:
 
-### Velký export timeoutuje
+- příliš úzké časové okno
+- špatný event filtr
+- akce se nikdy nestala (mismatch reportu)
 
-Rozdělte export podle období nebo subsetu entit.
+Akce:
 
-### Reporty mají konfliktní čísla
+- rozšiřte okno (např. ±10 minut)
+- zrušte filtry a exportujte malý vzorek
+- potvrďte přes application logy nebo další audit události
 
-Ověřte stejný as-of kontext a archived režim.
+### Export akce selhává nebo soubor stáhne prázdný
 
-## Related Documentation
+Checks:
 
-- `./approvals.md`
-- `./departments.md`
-- `./user-management.md`
+- restrikce browser downloadů
+- API fail v admin konzoli
+
+Akce:
+
+- zachyťte chybu a timestamp
+- zkuste menší line limit
+- pokud je to perzistentní, eskalujte jako observability outage (blokuje incident response)
+
+### Evidence obsahuje citlivé informace
+
+Akce:
+
+- okamžitě zastavte sdílení
+- přesuňte evidenci do schváleného secure kanálu
+- vygenerujte redacted/minimal export, pokud je potřeba
+- zdokumentujte co bylo exponované a komu (pro incident response)
+
+## Eskalace a předání
+
+Eskalujte engineeringu, když:
+
+- admin exporty selhávají (audit feed není dostupný)
+- request IDs nejdou korelovat kvůli chybějícímu kontextu
+
+Eskalujte security, když:
+
+- evidence obsahuje secrety/PII mimo povolený rozsah
+- exporty byly distribuované nesprávně
+
+Minimum pro předání:
+
+- co jste exportoval/a a proč (1 odstavec)
+- filenames + generated_at
+- filtry/časové okno
+- request IDs a klíčové eventy
+
+## Související dokumentace
+
+- Provoz Admin Console: [Admin Console](./console.md)
+- Schvalovací incidenty: [Podpora schvalování](./approvals.md)
+- Evidence pro access změny: [Správa uživatelů a přístupů](./user-management.md)

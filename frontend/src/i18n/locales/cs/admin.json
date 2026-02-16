@@ -360,24 +360,6 @@
       "toggle_user_message": "Opravdu chcete {{action}} uživatele {{name}}?"
     }
   },
-  "directory": {
-    "title": "Integrace adresáře",
-    "subtitle": "Synchronizujte uživatele z externího AD Emulatoru do RiskHub.",
-    "sync_operations": "Operace synchronizace",
-    "preview_changes": "Náhled změn",
-    "apply_sync": "Použít synchronizaci",
-    "sync_preview_results": "Výsledky náhledu synchronizace",
-    "sync_history": "Historie synchronizace",
-    "latest_error": "Poslední chyba:",
-    "no_changes": "Nebyly detekovány žádné změny. Synchronizace je aktuální.",
-    "more_errors": " (+{{count}} dalších)",
-    "metrics": {
-      "created": "Vytvořeno",
-      "updated": "Aktualizováno",
-      "deactivated": "Deaktivováno",
-      "disabled": "Vypnuto"
-    }
-  },
   "governance": {
     "title": "Dohled nad správou",
     "subtitle": "Správa osiřelých rizik, kontrol a KRI, které vyžadují administrativní přeřazení.",

@@ -23,7 +23,6 @@ export * from './ControlForms';
 export { UsersPage } from './UsersPage';
 export { UserNewPage } from './UserNewPage';
 export { UserDetailPage } from './UserDetailPage';
-export { DirectoryEmulatorPage } from './DirectoryEmulatorPage';
 export { default as GovernancePage } from './GovernancePage';
 export { ActivityLogPage } from './ActivityLogPage';
 // Risk Hub & Admin Console

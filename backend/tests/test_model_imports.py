@@ -32,8 +32,6 @@ def test_all_model_classes_accessible():
         KRIValueHistory,
         ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType,
         Notification, NotificationType,
-        DirectoryUser,
-        DirectorySyncLog, DirectorySyncStatus,
         OrphanedItem,
         ActivityLog, ActivityAction, ActivityEntityType,
         RiskTypeConfig,

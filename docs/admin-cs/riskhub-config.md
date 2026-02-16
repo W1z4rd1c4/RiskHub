@@ -1,71 +1,214 @@
 ---
-title: Hranice konfigurace Risk Hub a model podpory
+title: Podpora konfigurace Risk Hub a hranice odpovědnosti (admin runbook)
 version: "2.0"
 last_updated: "2026-02-16"
 audience: admin
-source_of_truth: "role model a kontrakty přístupu Risk Hub"
-summary: "Vymezení odpovědností platformního admina při podpoře konfigurace Risk Hub oproti business vlastníkům."
+source_of_truth: "frontend/src/pages/RiskHubPage.tsx + backend/app/api/v1/endpoints/riskhub/* + authz role model"
+summary: "Admin runbook vymezující technickou podporu konfigurace Risk Hub vs business rozhodnutí, včetně triage postupů a evidence balíčku."
 tags:
-  - configuration
-  - boundaries
-  - support
+  - riskhub
+  - settings
+  - audit
+  - troubleshooting
+  - workflow
 ---
 
-# Hranice konfigurace Risk Hub a model podpory
+# Podpora konfigurace Risk Hub a hranice odpovědnosti (admin runbook)
 
 ## Přehled
 
-Konfigurace Risk Hub je business-governance agenda. Platformní admin zajišťuje technickou dostupnost a provozní podporu, nikoliv obsahové rozhodnutí.
+Risk Hub je konfigurační plocha pro business governance. Typicky ji používá role CRO pro údržbu:
 
-## Co je ve scope admina
+- taxonomie typů rizik
+- systémových nastavení, která ovlivňují governance chování
+- schvalovacích scénářů/pravidel
+- modelu rolí a oprávnění (kde je to povolené)
+- konfigurace oddělení (business-owned)
+- konfigurace risk dotazníků
 
-Admin odpovídá za:
+Platformní admin podporuje **technickou dostupnost a integritu platformy**, ne business semantiku. Je to důležité, protože Risk Hub nastavení může měnit způsob, jak organizace operuje, a admin override vytváří auditní riziko.
 
-- funkčnost přístupových cest
-- dostupnost endpointů a auth integritu
-- auditovatelnost konfiguračních akcí
-- triage incidentů při selhání konfigurace
+Tento runbook vysvětluje:
 
-Admin neodpovídá za business hodnoty thresholdů nebo policy semantiku.
+- co má admin podporovat (technicky)
+- co nemá admin rozhodovat (policy)
+- jak triagovat incidenty, když konfigurace selže
+- jak sestavit evidence balíček pro předání
 
-## Support workflow pro incident konfigurace
+## Kdy to použít
 
-1. Ověřte roli a scope dotčeného účtu.
-2. Ověřte, zda denial není očekávaný podle kontraktu.
-3. Zkontrolujte API health/logy na technické chyby.
-4. Připravte evidence balíček.
-5. Pokud jde o policy problém, předejte business ownerovi.
+Použijte tento runbook, když:
 
-## Příklady hranic
+- CRO hlásí, že nejde otevřít `/risk-hub` (nečekaný redirect/denial)
+- taby Risk Hubu padají při loadu (risk types/settings/approvals/roles/departments/questionnaires)
+- uložení konfigurace selhává (validace, forbidden, server error)
+- změny se “neaplikují” nebo se chovají nekonzistentně
+- vznikne spor, jaká konfigurační hodnota má být (otázka hranic odpovědnosti)
 
-- "Konfigurační obrazovka nejde otevřít" -> technický support admina.
-- "Threshold má být 15 místo 20" -> business owner rozhodnutí.
-- "Uložení konfigurační změny padá" -> admin řeší auth/validaci/endpoint.
+## Předpoklady a bezpečnost
 
-## Evidence checklist
+Než něco uděláte:
 
-- identita účtu a role
-- request path a kategorie payloadu
-- timestamp + request ID
-- relevantní logy
-- očekávané vs skutečné chování
+1. Ověřte identitu reportera a efektivní roli.
+   - Risk Hub je CRO-only. Pokud reporter není CRO, denial může být správně.
+2. Zachyťte minimum faktů pro reprodukci:
+   - který tab selhal (risk types vs settings vs approvals vs roles vs departments vs questionnaires)
+   - jaká akce (load vs save)
+   - přibližný timestamp
+   - text UI chyby
+3. Rozhodněte, zda jde o technický, data-integrity nebo policy problém.
+
+Bezpečnostní pravidla:
+
+- Nevymýšlejte konfigurační hodnoty. Pokud je otázka “jaká má být?”, předejte business ownerovi.
+- Preferujte nejdřív read-only šetření (logs/audit).
+- Pokud musíte měnit přístup (např. roli CRO účtu), zapište before/after a mějte rollback připravený.
+
+## Postup krok za krokem
+
+### 1) Ověřit access kontrakt (role gating)
+
+Risk Hub route:
+
+- `/risk-hub` má být dostupný pouze roli CRO.
+
+Postup:
+
+1. Ověřte roli reportera v `/users`.
+2. Pokud reporter není CRO:
+   - nezkoušejte Risk Hub “otevřít násilím”
+   - vyjasněte access kontrakt s business ownerem
+   - pokud má být CRO, změňte roli přes podporovaný access workflow (viz user-management runbook)
+
+### 2) Pokud role sedí, ale stránka padá: sebrat technickou evidenci
+
+Použijte Admin Console (`/admin`) a zachyťte:
+
+- audit logy okolo timestampu (pokusy o config změny a denied requesty)
+- application logy okolo timestampu (error, validace, výjimky)
+
+Zachyťte request IDs, pokud jsou. Je to nejrychlejší most k engineering analýze.
+
+### 3) Klasifikovat selhání a zvolit minimální fix
+
+Časté failure modes:
+
+- **Forbidden / permission denied**:
+  - role mismatch, stale session nebo backend permission regres
+- **Validation error**:
+  - konfigurace input je odmítnutý (data-quality nebo rule mismatch)
+- **Server error (500)**:
+  - technická vada nebo integrační problém
+- **“Uloženo”, ale neaplikuje se**:
+  - změna je approval-gated, UI ukazuje cache, nebo save nikdy nedoběhl
+
+Minimální zásahy admina:
+
+- session refresh:
+  - po role změně požádejte CRO o re-login
+- access korekce:
+  - upravte roli/scope jen pokud je to autorizované a jasně požadované
+- evidence-driven eskalace:
+  - pokud jde o 500 nebo nekonzistentní enforcement, eskalujte engineeringu s request IDs
+
+### 4) Hranice: technické vs policy
+
+Použijte tuto hranici:
+
+- “Screen nejde načíst / save vrací 500” je technické (admin + engineering).
+- “Threshold má být 15 ne 20” je policy (business owner).
+- “Save je denied neočekávaně” je technické, dokud neprokážete opak (admin prověřuje auth path).
+
+Při policy předání:
+
+- přiložte evidenci, co systém aktuálně dělá
+- popište, co by se změnilo, když se policy rozhodnutí změní
+- neproponujte hodnoty, pokud si to business owner explicitně nevyžádá
+
+## Ověření po změně
+
+Po podpůrných akcích ověřte:
+
+- CRO umí načíst `/risk-hub` a problémový tab se načte
+- pokud šlo o save, save akce je úspěšná a změna je pozorovatelná
+- audit trail existuje pro všechny config změny, které proběhly
+- ticket obsahuje:
+  - co selhalo
+  - co jste ověřil/a
+  - co jste změnil/a (pokud něco)
+  - co zůstává business rozhodnutí (pokud relevantní)
+
+## Rollback
+
+Rollback záleží na tom, co se měnilo:
+
+- Pokud jste měnil/a **access** (role/scope/oddělení):
+  - vraťte původní hodnoty, pokud to způsobilo regresi
+  - revokujte sessions, pokud vznikla nechtěná expozice
+- Pokud CRO změnil **konfiguraci** a způsobilo to škodu:
+  - preferujte revert přes stejný Risk Hub mechanismus (business-owned)
+  - neprovádějte “tichý admin rollback” mimo governovanou plochu
+
+Pokud neumíte rollback bezpečně, eskalujte. Risk Hub konfigurace sahá do governance chování a vyžaduje explicitní ownership.
 
 ## Troubleshooting
 
-### Endpoint funguje jednomu účtu, jinému ne
+### CRO nejde otevřít `/risk-hub` a je redirect
 
-Nejprve ověřte role kontrakt; rozdíl může být záměrný.
+Checks:
 
-### Obrazovka se načte, ale uložení selže
+- role CRO v `/users`
+- refresh session po role změně
 
-Ověřte permission path, validitu payloadu a backend response.
+Akce:
 
-### Business owner požaduje admin override
+- pokud je role špatně, opravte (se souhlasem)
+- požádejte o re-login
+- pokud stále failuje, eskalujte jako auth regres
 
-Použijte schválenou governance cestu. Nerealizujte neřízené override mimo policy.
+### Risk Hub jde otevřít, ale jeden tab selhává
 
-## Related Documentation
+Checks:
 
-- `./user-management.md`
-- `./approvals.md`
-- `./reports.md`
+- zachyťte tab a akci
+- korelujte s logy/auditem v `/admin`
+
+Akce:
+
+- pokud 500: eskalujte engineeringu s request ID
+- pokud validace: zachyťte přesnou hlášku a předejte business ownerovi, pokud jde o policy input
+
+### Business owner chce “admin override”
+
+To je governance smell. Default reakce:
+
+- neoverrideujte bez explicitní policy
+- nabídněte podporovanou a auditovatelnou cestu (Risk Hub změna + schvalování, kde je)
+
+## Eskalace a předání
+
+Eskalujte engineeringu, když:
+
+- requesty padají na 500 nebo se chovají nekonzistentně napříč účty
+- audit trail chybí pro config změny
+- permission enforcement je protichůdný
+
+Eskalujte business ownerovi, když:
+
+- je spor o správné hodnoty/limity/taxonomii
+- jsou potřeba rozhodnutí o struktuře oddělení
+
+Balíček pro předání:
+
+- kdo to hlásil (role/scope)
+- který tab/akce selhala
+- timestamp okno
+- request IDs + log snippety
+- co jste ověřil/a a co jste změnil/a
+- jaké rozhodnutí je potřeba a kdo je owner
+
+## Související dokumentace
+
+- Opravy přístupů: [Správa uživatelů a přístupů](./user-management.md)
+- Evidence exporty: [Reporty a evidence exporty](./reports.md)
+- Schvalovací podpora: [Podpora schvalování](./approvals.md)

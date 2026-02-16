@@ -10,8 +10,6 @@
   "demo_login_failed": "Přihlášení do dema selhalo.",
   "login_failed": "Přihlášení selhalo.",
   "load_departments_failed": "Nepodařilo se načíst oddělení.",
-  "directory_preview_failed": "Náhled selhal. Ujistěte se, že AD Emulator běží na portu 8001.",
-  "directory_apply_failed": "Použití synchronizace selhalo. Zkontrolujte logy backendu.",
   "save_control_failed": "Uložení kontroly selhalo. Zkontrolujte prosím vstup.",
   "save_risk_failed": "Uložení rizika selhalo. Zkontrolujte prosím vstup.",
   "save_kri_failed": "Uložení KRI selhalo.",

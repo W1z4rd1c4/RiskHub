@@ -92,27 +92,4 @@ async def test_20_concurrent_approval_requests(
 
 class TestProductionGuards:
     """Test production security guardrails."""
-    
-    def test_production_detection_with_env_production(self, monkeypatch):
-        """ENV=production should be detected as production."""
-        monkeypatch.setenv("ENV", "production")
-        monkeypatch.setenv("DEBUG", "true")  # Even with DEBUG=true
-        
-        from app.core.security import _is_production_environment
-        assert _is_production_environment() is True
-    
-    def test_production_detection_with_debug_false(self, monkeypatch):
-        """DEBUG=false should be detected as production."""
-        monkeypatch.setenv("ENV", "development")
-        monkeypatch.setenv("DEBUG", "false")
-        
-        from app.core.security import _is_production_environment
-        assert _is_production_environment() is True
-    
-    def test_development_detection(self, monkeypatch):
-        """DEBUG=true without ENV=production should NOT be production."""
-        monkeypatch.setenv("ENV", "development")
-        monkeypatch.setenv("DEBUG", "true")
-        
-        from app.core.security import _is_production_environment
-        assert _is_production_environment() is False
+    pass
