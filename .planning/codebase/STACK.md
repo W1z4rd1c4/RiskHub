@@ -1,12 +1,12 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-11
+**Analysis Date:** 2026-02-16
 
 ## Languages
 
 **Primary:**
-- Python 3.12+ - backend API and services (`backend/app/`)
-- TypeScript 5.9 - frontend application (`frontend/src/`)
+- Python 3.12+ - backend API and services (`backend/app/`, `backend/Dockerfile`)
+- TypeScript 5.9 - frontend application (`frontend/src/`, `frontend/package.json`)
 
 **Secondary:**
 - JavaScript - tooling/config (`frontend/*.js`)
@@ -31,10 +31,11 @@
 - APScheduler for background jobs (`backend/app/core/scheduler.py`)
 
 **Frontend:**
-- React 19 + React Router 7 (`frontend/src/main.tsx`, `frontend/src/App.tsx`)
-- TanStack Query for server-state caching (`frontend/src/App.tsx`)
+- React 19 + React Router 7 (`frontend/src/main.tsx`, `frontend/src/App.tsx`, `frontend/package.json`)
+- TanStack Query for server-state caching (`frontend/src/App.tsx`, `frontend/package.json`)
 - Tailwind CSS + PostCSS (`frontend/tailwind.config.js`, `frontend/postcss.config.js`)
-- i18next + react-i18next for localization (`frontend/src/i18n/`)
+- i18next + react-i18next for localization (`frontend/src/i18n/`, `frontend/package.json`)
+- Entra ID (SSO) client via MSAL (`frontend/src/services/entraAuth.ts`, `frontend/package.json`)
 
 ## Key Dependency Highlights
 
@@ -46,13 +47,16 @@
 **Frontend highlights (`frontend/package.json`):**
 - `react`, `react-dom`, `react-router-dom`, `@tanstack/react-query`
 - `axios`, `framer-motion`, `recharts`, `i18next`
+- `@azure/msal-browser` (Entra ID SSO)
 - `vitest`, `@playwright/test`, Testing Library, MSW
 
 ## Tooling and Quality Gates
 
 - Backend testing: `pytest`, `pytest-asyncio`, `pytest-cov` (`backend/pytest.ini`)
+- Backend linting: Ruff (`backend/ruff.toml`, `backend/requirements-dev.txt`)
 - Frontend testing: Vitest + Playwright (`frontend/vitest.config.ts`, `frontend/playwright.config.ts`)
-- Lint/security: ESLint, Bandit, pip-audit, gitleaks, Trivy (`.pre-commit-config.yaml`, `.github/workflows/security.yml`)
+- Frontend linting: ESLint (`frontend/eslint.config.js`)
+- Repo-level security checks: Bandit, pip-audit, Trivy, gitleaks (`.pre-commit-config.yaml`, `.github/workflows/security.yml`)
 
 ## Configuration Model
 
@@ -63,12 +67,12 @@
 
 ## Current Scale Snapshot
 
-- Backend models: 35 files (`backend/app/models/`)
-- Backend services: 21 files (`backend/app/services/`)
-- Backend tests: 206 files (`backend/tests/`)
-- Frontend source files: 258 files (`frontend/src/`)
-- Frontend E2E files: 52 files (`frontend/e2e/`)
+- Backend models: 36 Python files (`backend/app/models/`)
+- Backend services: 75 Python files (includes internal refactor packages) (`backend/app/services/`)
+- Backend tests: 82 Python files (234 total files) (`backend/tests/`)
+- Frontend source files: 306 files (`frontend/src/`)
+- Frontend E2E specs: 38 (`frontend/e2e/**/*.spec.ts`)
 
 ---
 
-*Stack analysis refreshed on 2026-02-11*
+*Stack analysis refreshed on 2026-02-16*
