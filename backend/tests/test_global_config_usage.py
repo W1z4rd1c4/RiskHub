@@ -5,24 +5,22 @@ Validates that configuration values from global_config affect:
 - Risk severity thresholds (is_high_risk_for_approval)
 - KRI notification timing (deadline service)
 """
+
 import pytest
-from datetime import date, timedelta
-from httpx import AsyncClient
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Risk, User, Department
-from app.models.global_config import (
-    GlobalConfig,
-    ConfigDefaults,
-    get_config_int,
-    get_config_float,
-    get_config_value,
-    clear_config_cache,
-)
 from app.core.permissions import (
     is_high_risk_for_approval,
     is_high_risk_for_approval_async,
+)
+from app.models import Department, Risk, User
+from app.models.global_config import (
+    ConfigDefaults,
+    GlobalConfig,
+    clear_config_cache,
+    get_config_float,
+    get_config_int,
+    get_config_value,
 )
 
 
@@ -37,6 +35,7 @@ def clear_cache():
 # ============================================================================
 # Config Helper Tests
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_get_config_value_returns_default_when_missing(
@@ -62,7 +61,7 @@ async def test_get_config_value_returns_typed_value(
     )
     db_session.add(config)
     await db_session.commit()
-    
+
     result = await get_config_value(db_session, "test_int_value", 0)
     assert result == 42
     assert isinstance(result, int)
@@ -82,7 +81,7 @@ async def test_get_config_int_validates_type(
     )
     db_session.add(config)
     await db_session.commit()
-    
+
     result = await get_config_int(db_session, "test_threshold", 15)
     assert result == 25
     assert isinstance(result, int)
@@ -102,7 +101,7 @@ async def test_get_config_float_validates_type(
     )
     db_session.add(config)
     await db_session.commit()
-    
+
     result = await get_config_float(db_session, "test_percentage", 0.80)
     assert result == 0.75
     assert isinstance(result, float)
@@ -111,6 +110,7 @@ async def test_get_config_float_validates_type(
 # ============================================================================
 # Risk Threshold Config Tests
 # ============================================================================
+
 
 def test_ConfigDefaults_thresholds_match_seed_defaults():
     assert ConfigDefaults.MEDIUM_RISK_MIN_NET_SCORE == 5
@@ -146,10 +146,10 @@ async def test_is_high_risk_for_approval_uses_default_threshold(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     # Default threshold is 10, score is 10 -> high risk for approval
     assert is_high_risk_for_approval(risk) is True
-    
+
     # Create risk below threshold
     risk2 = Risk(
         risk_id_code="LOW-001",
@@ -171,7 +171,7 @@ async def test_is_high_risk_for_approval_uses_default_threshold(
     db_session.add(risk2)
     await db_session.commit()
     await db_session.refresh(risk2)
-    
+
     assert is_high_risk_for_approval(risk2) is False
 
 
@@ -192,7 +192,7 @@ async def test_is_high_risk_for_approval_async_uses_db_config(
     )
     db_session.add(config)
     await db_session.commit()
-    
+
     # Create a risk with net_score = 12 (above default 10, below DB-configured 20)
     risk = Risk(
         risk_id_code="MED-001",
@@ -214,10 +214,10 @@ async def test_is_high_risk_for_approval_async_uses_db_config(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     # Sync version uses default (10), so high risk
     assert is_high_risk_for_approval(risk) is True
-    
+
     # Async version uses DB config (20), so not high risk
     assert await is_high_risk_for_approval_async(risk, db_session) is False
 
@@ -249,7 +249,7 @@ async def test_is_priority_overrides_threshold(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     assert is_high_risk_for_approval(risk) is True
     assert await is_high_risk_for_approval_async(risk, db_session) is True
 
@@ -258,13 +258,14 @@ async def test_is_priority_overrides_threshold(
 # KRI Notification Timing Config Tests
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_kri_deadline_service_loads_config(
     db_session: AsyncSession,
 ):
     """Test that KRIDeadlineService._load_config reads from global_config."""
     from app.services.kri_deadline_service import KRIDeadlineService
-    
+
     # Insert custom config values
     configs = [
         GlobalConfig(
@@ -292,10 +293,10 @@ async def test_kri_deadline_service_loads_config(
     for c in configs:
         db_session.add(c)
     await db_session.commit()
-    
+
     # Load config
     config = await KRIDeadlineService._load_config(db_session)
-    
+
     assert config["advance_reminder_days"] == 10
     assert config["overdue_reminder_weeks"] == 2
     assert config["near_breach_threshold"] == 0.90
@@ -310,9 +311,9 @@ async def test_kri_deadline_service_uses_defaults_when_no_config(
 ):
     """Test that KRIDeadlineService uses ConfigDefaults when no DB values."""
     from app.services.kri_deadline_service import KRIDeadlineService
-    
+
     config = await KRIDeadlineService._load_config(db_session)
-    
+
     assert config["near_breach_threshold"] == ConfigDefaults.NEAR_BREACH_THRESHOLD
     assert config["duplicate_lookback_days"] == ConfigDefaults.DUPLICATE_LOOKBACK_DAYS
     assert config["reporting_grace_days"] == ConfigDefaults.REPORTING_GRACE_DAYS
@@ -324,14 +325,15 @@ async def test_kri_deadline_service_uses_defaults_when_no_config(
 # Config Cache Tests
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_config_cache_prevents_repeated_queries(
     db_session: AsyncSession,
 ):
     """Test that config cache reduces DB queries."""
     # First call - should hit DB
-    result1 = await get_config_value(db_session, "cached_key", "cached_default")
-    
+    await get_config_value(db_session, "cached_key", "cached_default")
+
     # Second call - should use cache (even if we modify DB)
     config = GlobalConfig(
         key="cached_key",
@@ -342,11 +344,11 @@ async def test_config_cache_prevents_repeated_queries(
     )
     db_session.add(config)
     await db_session.commit()
-    
+
     # Still returns cached default (not DB value)
     result2 = await get_config_value(db_session, "cached_key", "cached_default")
     assert result2 == "cached_default"  # Cache still has default
-    
+
     # Clear cache and now DB value is returned
     clear_config_cache()
     result3 = await get_config_value(db_session, "cached_key", "cached_default")

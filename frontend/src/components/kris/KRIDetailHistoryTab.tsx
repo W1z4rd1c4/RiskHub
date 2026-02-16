@@ -140,7 +140,7 @@ export function KRIDetailHistoryTab({
                 {history.length >= 2 ? (
                     <HistoryComparisonPanel
                         entries={history}
-                        formatValue={formatNumber}
+                        formatValue={(val) => formatNumber(val, i18n.language)}
                     />
                 ) : (
                     <div className="text-center py-8 text-slate-500 text-sm">

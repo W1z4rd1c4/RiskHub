@@ -5,12 +5,16 @@ audit attribution as direct updates:
 - Risk: scores are recomputed when probability/impact changes
 - Control: updated_by_id is set when fields are modified
 """
+
 import pytest
-from sqlalchemy import select
 
 from app.models import (
-    Risk, Control, ApprovalRequest,
-    ApprovalStatus, ApprovalResourceType, ApprovalActionType,
+    ApprovalActionType,
+    ApprovalRequest,
+    ApprovalResourceType,
+    ApprovalStatus,
+    Control,
+    Risk,
 )
 from app.models.risk import RiskStatus
 from app.services.approval_execution_service import _apply_edit_risk_control
@@ -39,7 +43,7 @@ async def test_approval_edit_risk_recomputes_gross_score(db_session, test_depart
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     # Create approval with pending change to gross_probability
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
@@ -56,11 +60,11 @@ async def test_approval_edit_risk_recomputes_gross_score(db_session, test_depart
     db_session.add(approval)
     await db_session.commit()
     await db_session.refresh(approval)
-    
+
     # Apply the edit
     await _apply_edit_risk_control(db_session, approval, test_user_cro)
     await db_session.commit()
-    
+
     # Refresh and verify score was recomputed
     await db_session.refresh(risk)
     assert risk.gross_probability == 4
@@ -89,7 +93,7 @@ async def test_approval_edit_risk_recomputes_net_score(db_session, test_departme
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
         resource_id=risk.id,
@@ -105,17 +109,19 @@ async def test_approval_edit_risk_recomputes_net_score(db_session, test_departme
     db_session.add(approval)
     await db_session.commit()
     await db_session.refresh(approval)
-    
+
     await _apply_edit_risk_control(db_session, approval, test_user_cro)
     await db_session.commit()
-    
+
     await db_session.refresh(risk)
     assert risk.net_impact == 5
     assert risk.net_score == 10  # 2 * 5 = 10 (recomputed)
 
 
 @pytest.mark.asyncio
-async def test_approval_edit_control_sets_updated_by_id(db_session, test_department, test_user_cro, test_user_risk_manager):
+async def test_approval_edit_control_sets_updated_by_id(
+    db_session, test_department, test_user_cro, test_user_risk_manager
+):
     """Control approval edit sets updated_by_id to approving user."""
     control = Control(
         name="Test Control for Approval Edit",
@@ -130,7 +136,7 @@ async def test_approval_edit_control_sets_updated_by_id(db_session, test_departm
     db_session.add(control)
     await db_session.commit()
     await db_session.refresh(control)
-    
+
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.CONTROL,
         resource_id=control.id,
@@ -146,18 +152,20 @@ async def test_approval_edit_control_sets_updated_by_id(db_session, test_departm
     db_session.add(approval)
     await db_session.commit()
     await db_session.refresh(approval)
-    
+
     # CRO approves - their ID should be set as updated_by_id
     await _apply_edit_risk_control(db_session, approval, test_user_cro)
     await db_session.commit()
-    
+
     await db_session.refresh(control)
     assert control.description == "Updated description"
     assert control.updated_by_id == test_user_cro.id
 
 
 @pytest.mark.asyncio
-async def test_approval_edit_risk_no_score_change_when_no_probability_impact(db_session, test_department, test_user_cro):
+async def test_approval_edit_risk_no_score_change_when_no_probability_impact(
+    db_session, test_department, test_user_cro
+):
     """Risk approval edit without probability/impact changes does not alter scores."""
     risk = Risk(
         name="Test Risk No Score Change",
@@ -178,7 +186,7 @@ async def test_approval_edit_risk_no_score_change_when_no_probability_impact(db_
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
         resource_id=risk.id,
@@ -194,10 +202,10 @@ async def test_approval_edit_risk_no_score_change_when_no_probability_impact(db_
     db_session.add(approval)
     await db_session.commit()
     await db_session.refresh(approval)
-    
+
     await _apply_edit_risk_control(db_session, approval, test_user_cro)
     await db_session.commit()
-    
+
     await db_session.refresh(risk)
     assert risk.description == "Updated description"
     # Scores should remain unchanged

@@ -2,9 +2,10 @@
 RBAC tests for report endpoints.
 Tests department scoping and permission enforcement.
 """
+
 import csv
-from io import StringIO
 from datetime import UTC, datetime, timedelta
+from io import StringIO
 
 import pytest
 from httpx import AsyncClient
@@ -15,10 +16,7 @@ from app.models import (
     Control,
     Department,
     KeyRiskIndicator,
-    Permission,
     Risk,
-    Role,
-    RolePermission,
     User,
     Vendor,
 )
@@ -140,9 +138,7 @@ class TestReportDepartmentScoping:
         test_control_other_dept: Control,
     ):
         """Employee cannot request export for a department they don't belong to."""
-        response = await client_employee.get(
-            f"/api/v1/reports/controls/excel?department_id={second_department.id}"
-        )
+        response = await client_employee.get(f"/api/v1/reports/controls/excel?department_id={second_department.id}")
         assert response.status_code == 403
         assert "Access denied" in response.json()["detail"]
 
@@ -175,9 +171,7 @@ class TestReportDepartmentScoping:
         test_risk_other_dept: Risk,
     ):
         """Employee cannot export risks from another department."""
-        response = await client_employee.get(
-            f"/api/v1/reports/risks/excel?department_id={second_department.id}"
-        )
+        response = await client_employee.get(f"/api/v1/reports/risks/excel?department_id={second_department.id}")
         assert response.status_code == 403
 
     @pytest.mark.asyncio
@@ -189,7 +183,6 @@ class TestReportDepartmentScoping:
         """Employee's summary export only includes their department data."""
         response = await client_employee.get("/api/v1/reports/summary/excel")
         assert response.status_code == 200
-
 
 
 class TestReportExcelEndpoints:
@@ -217,7 +210,6 @@ class TestReportExcelEndpoints:
         assert response.status_code == 200
         assert "spreadsheetml" in response.headers["content-type"]
 
-
     @pytest.mark.asyncio
     async def test_employee_cannot_export_cross_department_excel(
         self,
@@ -226,9 +218,7 @@ class TestReportExcelEndpoints:
         test_control_other_dept: Control,
     ):
         """Employee blocked from cross-department Excel export."""
-        response = await client_employee.get(
-            f"/api/v1/reports/controls/excel?department_id={second_department.id}"
-        )
+        response = await client_employee.get(f"/api/v1/reports/controls/excel?department_id={second_department.id}")
         assert response.status_code == 403
 
 
@@ -614,9 +604,7 @@ class TestUnifiedExportEndpoints:
         await db_session.commit()
 
         as_of = (datetime.now(UTC) - timedelta(days=1)).date().isoformat()
-        response = await auth_client.get(
-            f"/api/v1/reports/kris/export?format=csv&as_of_date={as_of}&status=archived"
-        )
+        response = await auth_client.get(f"/api/v1/reports/kris/export?format=csv&as_of_date={as_of}&status=archived")
         assert response.status_code == 200
 
         csv_payload = response.content.decode("utf-8")

@@ -1,10 +1,13 @@
 """
 Tests for Dashboard API endpoints.
 """
+
 from datetime import UTC, datetime, timedelta
+
 import pytest
 from httpx import AsyncClient
-from app.models import Role, Department, Permission, RolePermission
+
+from app.models import Department, Permission, Role, RolePermission
 from app.models.user import AccessScope
 
 
@@ -12,7 +15,7 @@ from app.models.user import AccessScope
 async def test_dashboard_summary(auth_client: AsyncClient):
     """Test the dashboard summary endpoint."""
     response = await auth_client.get("/api/v1/dashboard/summary")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "total_controls" in data
@@ -23,7 +26,7 @@ async def test_dashboard_summary(auth_client: AsyncClient):
 async def test_risk_distribution(auth_client: AsyncClient):
     """Test the risk distribution endpoint."""
     response = await auth_client.get("/api/v1/dashboard/risk-distribution")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, dict)
@@ -33,7 +36,7 @@ async def test_risk_distribution(auth_client: AsyncClient):
 async def test_departments(auth_client: AsyncClient):
     """Test the departments endpoint."""
     response = await auth_client.get("/api/v1/dashboard/departments")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -50,15 +53,14 @@ async def test_control_trends_empty_dept_ids_returns_empty(
     Users with empty department scope (dept_ids=[]) should get empty control-trends.
     This tests the fix for the security issue where empty list was truthy-bypassed.
     """
-    from sqlalchemy import select
-    from app.models import User, Department
-    
+    from app.models import Department, User
+
     # Create a department first (required for FK)
     dept = Department(name="Test Dept for Empty Scope", code="TEST-EMPTY")
     db_session.add(dept)
     await db_session.commit()
     await db_session.refresh(dept)
-    
+
     # Create a user with NO department (will get dept_ids=[])
     user_no_dept = User(
         name="No Department User",
@@ -70,13 +72,10 @@ async def test_control_trends_empty_dept_ids_returns_empty(
     db_session.add(user_no_dept)
     await db_session.commit()
     await db_session.refresh(user_no_dept)
-    
+
     # Make request as this user (mock auth)
-    response = await client.get(
-        "/api/v1/dashboard/control-trends",
-        headers={"X-Mock-User-Id": str(user_no_dept.id)}
-    )
-    
+    response = await client.get("/api/v1/dashboard/control-trends", headers={"X-Mock-User-Id": str(user_no_dept.id)})
+
     assert response.status_code == 200
     data = response.json()
     # Should be empty list, not all data
@@ -91,21 +90,21 @@ async def test_departments_filtering_inactive(
 ):
     """Test that departments with no active users (and not system) are filtered out."""
     from app.models import Department, User
-    
+
     # 1. Create a system department (should STAY visible)
     system_dept = Department(name="System Dept", code="SYS-1", is_system=True)
-    
+
     # 2. Create a department with an active user (should STAY visible)
     active_dept = Department(name="Active Dept", code="ACT-1", is_system=False)
-    
+
     # 3. Create a department with NO users (should be HIDDEN)
     inactive_dept = Department(name="Inactive Dept", code="INA-1", is_system=False)
-    
+
     db_session.add_all([system_dept, active_dept, inactive_dept])
     await db_session.commit()
     await db_session.refresh(system_dept)
     await db_session.refresh(active_dept)
-    
+
     # Add active user to active_dept
     active_user = User(
         name="Active User",
@@ -116,7 +115,7 @@ async def test_departments_filtering_inactive(
         access_scope=AccessScope.GLOBAL,
     )
     db_session.add(active_user)
-    
+
     # Add an ADMIN user for the request (global scope)
     admin_user = User(
         name="Global Admin",
@@ -127,18 +126,15 @@ async def test_departments_filtering_inactive(
     )
     db_session.add(admin_user)
     await db_session.commit()
-    
+
     # Request dashboard departments as admin
-    response = await client.get(
-        "/api/v1/dashboard/departments",
-        headers={"X-Mock-User-Id": str(admin_user.id)}
-    )
-    
+    response = await client.get("/api/v1/dashboard/departments", headers={"X-Mock-User-Id": str(admin_user.id)})
+
     assert response.status_code == 200
     data = response.json()
-    
+
     dept_names = [d["department_name"] for d in data]
-    
+
     assert "System Dept" in dept_names
     assert "Active Dept" in dept_names
     assert "Inactive Dept" not in dept_names
@@ -148,7 +144,7 @@ async def test_departments_filtering_inactive(
 async def test_risk_trends(auth_client: AsyncClient):
     """Test the risk trends endpoint returns 200 and valid structure."""
     response = await auth_client.get("/api/v1/dashboard/risk-trends")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -163,7 +159,7 @@ async def test_risk_trends(auth_client: AsyncClient):
 async def test_kri_breach_trends(auth_client: AsyncClient):
     """Test the KRI breach trends endpoint returns 200 and valid structure."""
     response = await auth_client.get("/api/v1/dashboard/kri-breach-trends")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -178,7 +174,7 @@ async def test_kri_breach_trends(auth_client: AsyncClient):
 async def test_control_trends(auth_client: AsyncClient):
     """Test the control trends endpoint returns 200 and valid structure."""
     response = await auth_client.get("/api/v1/dashboard/control-trends")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -211,7 +207,7 @@ async def test_committee_endpoints_denied_for_admin(auth_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_committee_summary_scoped_for_department_head(client: AsyncClient, db_session):
     """Department Heads can access committee summary, but only for their department."""
-    from app.models import User, Risk, ActivityLog
+    from app.models import ActivityLog, Risk, User
     from app.models.risk import RiskStatus
 
     dept_a = Department(name="Dept A", code="D-A")
@@ -327,7 +323,7 @@ async def test_committee_summary_scoped_for_department_head(client: AsyncClient,
 @pytest.mark.asyncio
 async def test_quarterly_comparison_scoped_for_department_head(client: AsyncClient, db_session):
     """Department Heads can access quarterly metrics, scoped to their department."""
-    from app.models import User, Risk
+    from app.models import Risk, User
     from app.models.risk import RiskStatus
 
     dept_a = Department(name="Dept A2", code="D-A2")

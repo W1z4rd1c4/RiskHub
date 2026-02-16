@@ -4,20 +4,18 @@ Seeds approval requests in terminal states (APPROVED, REJECTED, CANCELLED) for E
 
 Enables approval workflow tests that verify status transitions and history display.
 """
+
 import asyncio
 from datetime import timedelta
 
 from sqlalchemy import select
 
-from app.core.datetime_utils import utc_now
 from app.core.config import get_settings
+from app.core.datetime_utils import utc_now
 from app.db.session import session_context
-from app.models import Risk, Control
-from app.models.approval_request import (
-    ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
-)
+from app.models import Control, Risk
+from app.models.approval_request import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 from scripts.e2e_mappings import load_mappings
-
 
 # Resolved approval scenarios for E2E testing
 RESOLVED_APPROVALS = [
@@ -64,51 +62,43 @@ RESOLVED_APPROVALS = [
 
 async def seed_resolved_approvals():
     """Seed resolved approval requests for E2E tests."""
-    print("="*60)
+    print("=" * 60)
     print("🔍 PHASE 179-08: Resolved Approval Data Seeding")
-    print("="*60)
-    
+    print("=" * 60)
+
     async with session_context(get_settings()) as db:
         users, depts = await load_mappings(db)
-        
+
         # Check for existing resolved E2E approvals
-        result = await db.execute(
-            select(ApprovalRequest).where(
-                ApprovalRequest.reason.contains("E2E-RESOLVED")
-            )
-        )
+        result = await db.execute(select(ApprovalRequest).where(ApprovalRequest.reason.contains("E2E-RESOLVED")))
         existing = result.scalars().all()
         if existing:
             print(f"   ⏭️  Resolved approvals already seeded ({len(existing)} entries)")
             return
-        
+
         # Get sample entities - try E2E risks first, then any risk
-        risk_result = await db.execute(
-            select(Risk).where(Risk.name.contains("E2E")).limit(3)
-        )
+        risk_result = await db.execute(select(Risk).where(Risk.name.contains("E2E")).limit(3))
         risks = risk_result.scalars().all()
         if not risks:
             risk_result = await db.execute(select(Risk).limit(3))
             risks = risk_result.scalars().all()
-        
-        control_result = await db.execute(
-            select(Control).where(Control.name.contains("E2E")).limit(2)
-        )
+
+        control_result = await db.execute(select(Control).where(Control.name.contains("E2E")).limit(2))
         controls = control_result.scalars().all()
         if not controls:
             control_result = await db.execute(select(Control).limit(2))
             controls = control_result.scalars().all()
-        
+
         # User mappings
         requester_id = users.get("ops.head@riskhub.local")
         primary_approver_id = users.get("risk.manager@riskhub.local")
         privileged_approver_id = users.get("cro@riskhub.local")
-        
+
         created = 0
         base_time = utc_now() - timedelta(days=7)
         risk_index = 0
         control_index = 0
-        
+
         for i, scenario in enumerate(RESOLVED_APPROVALS):
             # Get entity reference
             if scenario["resource_type"] == ApprovalResourceType.RISK and risks:
@@ -120,7 +110,7 @@ async def seed_resolved_approvals():
             else:
                 print(f"   ⚠️ Skipping {scenario['id_suffix']}: no entities available")
                 continue
-            
+
             # Determine resolver based on status
             if scenario["status"] == ApprovalStatus.CANCELLED:
                 resolver_id = requester_id  # Self-cancelled
@@ -128,7 +118,7 @@ async def seed_resolved_approvals():
                 resolver_id = privileged_approver_id
             else:
                 resolver_id = primary_approver_id
-            
+
             approval = ApprovalRequest(
                 resource_type=scenario["resource_type"],
                 resource_id=entity.id,
@@ -146,16 +136,16 @@ async def seed_resolved_approvals():
                 privileged_approver_id=privileged_approver_id if scenario.get("requires_privileged") else None,
                 # Don't set created_at - let the model default handle it
             )
-            
+
             # Set primary_approved_at for tiered approvals
             if scenario.get("requires_privileged"):
                 approval.primary_approved_at = base_time + timedelta(days=i, hours=1)
                 approval.privileged_approved_at = base_time + timedelta(days=i, hours=2)
-            
+
             db.add(approval)
             created += 1
             print(f"   ✓ {scenario['status'].value}: {scenario['resource_type'].value} {scenario['action_type'].value}")
-        
+
         await db.commit()
         print(f"\n✅ Created {created} resolved approval requests")
 

@@ -1,6 +1,7 @@
 """
 Tests for Risk API endpoints.
 """
+
 import pytest
 from httpx import AsyncClient
 
@@ -28,7 +29,7 @@ async def test_create_risk(auth_client: AsyncClient, test_user: User, test_depar
             "status": "active",
         },
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["process"] == "Test Process"
@@ -58,9 +59,9 @@ async def test_list_risks(auth_client: AsyncClient, test_user: User, test_depart
             "status": "active",
         },
     )
-    
+
     response = await auth_client.get("/api/v1/risks")
-    
+
     assert response.status_code == 200
     data = response.json()
     items = data.get("items", [])
@@ -91,10 +92,10 @@ async def test_get_risk(auth_client: AsyncClient, test_user: User, test_departme
         },
     )
     risk_id = create_response.json()["id"]
-    
+
     # Get the risk
     response = await auth_client.get(f"/api/v1/risks/{risk_id}")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == risk_id
@@ -124,7 +125,7 @@ async def test_update_risk(auth_client: AsyncClient, test_user: User, test_depar
         },
     )
     risk_id = create_response.json()["id"]
-    
+
     # Update the risk
     response = await auth_client.patch(
         f"/api/v1/risks/{risk_id}",
@@ -134,7 +135,7 @@ async def test_update_risk(auth_client: AsyncClient, test_user: User, test_depar
             "net_impact": 1,
         },
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["process"] == "Updated Risk Process"
@@ -142,7 +143,9 @@ async def test_update_risk(auth_client: AsyncClient, test_user: User, test_depar
 
 
 @pytest.mark.asyncio
-async def test_filter_risks_by_status(auth_client: AsyncClient, test_user: User, test_department: Department, seed_risk_types):
+async def test_filter_risks_by_status(
+    auth_client: AsyncClient, test_user: User, test_department: Department, seed_risk_types
+):
     """Test filtering risks by status."""
     # Create an active risk
     await auth_client.post(
@@ -163,9 +166,9 @@ async def test_filter_risks_by_status(auth_client: AsyncClient, test_user: User,
             "status": "active",
         },
     )
-    
+
     response = await auth_client.get("/api/v1/risks?status=active")
-    
+
     assert response.status_code == 200
     data = response.json().get("items", [])
     assert len(data) >= 1
@@ -177,7 +180,7 @@ async def test_filter_risks_by_status(auth_client: AsyncClient, test_user: User,
 async def test_risk_not_found(auth_client: AsyncClient, test_user: User):
     """Test getting a non-existent risk returns 404."""
     response = await auth_client.get("/api/v1/risks/99999")
-    
+
     assert response.status_code == 404
 
 
@@ -185,13 +188,13 @@ async def test_risk_not_found(auth_client: AsyncClient, test_user: User):
 async def test_generate_risk_id_code_r100_plus(db_session, test_department, test_user, seed_risk_types):
     """
     Regression test: generate_risk_id_code should correctly handle R100+ codes.
-    
+
     The old implementation used limit(20) which could miss the true max if >20 codes
     existed. This test creates R98, R99, R100, R101 and verifies the generator returns R102.
     """
     from app.api.v1.endpoints.risks import generate_risk_id_code
     from app.models import Risk
-    
+
     # Create risks with high-numbered codes for "Test" process (prefix = "TEST-R")
     for num in [98, 99, 100, 101]:
         risk = Risk(
@@ -213,10 +216,10 @@ async def test_generate_risk_id_code_r100_plus(db_session, test_department, test
         )
         db_session.add(risk)
     await db_session.commit()
-    
+
     # Generate next ID - should be TEST-R102, not TEST-R100 (lexicographic bug)
     next_code = await generate_risk_id_code(db_session, process="Test")
-    
+
     assert next_code == "TEST-R102", f"Expected TEST-R102 but got {next_code}"
 
 
@@ -340,7 +343,8 @@ async def test_risk_restore_requires_delete_permission(
     )
     assert archive_response.status_code == 204
 
-    from app.models import Role, User as UserModel
+    from app.models import Role
+    from app.models import User as UserModel
     from app.models.user import AccessScope
 
     readonly_role = Role(name="risk_readonly", display_name="Risk Read Only", description="risk read only")

@@ -1,8 +1,10 @@
 """Tests for the public risk types endpoint."""
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.risk_type import RiskTypeConfig
 
 
@@ -22,7 +24,7 @@ async def test_public_risk_types_accessible_to_non_cro(
         sort_order=1,
         is_active=True,
         is_system=False,
-        risk_count=0
+        risk_count=0,
     )
     inactive_type = RiskTypeConfig(
         code="test_inactive_type",
@@ -33,20 +35,20 @@ async def test_public_risk_types_accessible_to_non_cro(
         sort_order=2,
         is_active=False,
         is_system=False,
-        risk_count=0
+        risk_count=0,
     )
-    
+
     db_session.add(active_type)
     db_session.add(inactive_type)
     await db_session.commit()
-    
+
     # Non-CRO user should be able to access endpoint
     response = await client_employee.get("/api/v1/riskhub/public-risk-types")
     assert response.status_code == 200
-    
+
     data = response.json()
     assert isinstance(data, list)
-    
+
     # Find our test type in results
     codes = [item["code"] for item in data]
     assert "test_active_type" in codes
@@ -60,43 +62,45 @@ async def test_public_risk_types_returns_only_active(
 ):
     """Test that only active risk types are returned."""
     # Cleanup any existing test types
-    await db_session.execute(
-        select(RiskTypeConfig).where(RiskTypeConfig.code.like("filter_test_%"))
-    )
-    
+    await db_session.execute(select(RiskTypeConfig).where(RiskTypeConfig.code.like("filter_test_%")))
+
     # Create mixed active/inactive types
     for i in range(3):
-        db_session.add(RiskTypeConfig(
-            code=f"filter_test_active_{i}",
-            display_name=f"Active Filter Test {i}",
-            color="#aabbcc",
-            sort_order=i,
-            is_active=True,
-            is_system=False,
-            risk_count=0
-        ))
+        db_session.add(
+            RiskTypeConfig(
+                code=f"filter_test_active_{i}",
+                display_name=f"Active Filter Test {i}",
+                color="#aabbcc",
+                sort_order=i,
+                is_active=True,
+                is_system=False,
+                risk_count=0,
+            )
+        )
     for i in range(2):
-        db_session.add(RiskTypeConfig(
-            code=f"filter_test_inactive_{i}",
-            display_name=f"Inactive Filter Test {i}",
-            color="#ddeeff",
-            sort_order=10 + i,
-            is_active=False,
-            is_system=False,
-            risk_count=0
-        ))
+        db_session.add(
+            RiskTypeConfig(
+                code=f"filter_test_inactive_{i}",
+                display_name=f"Inactive Filter Test {i}",
+                color="#ddeeff",
+                sort_order=10 + i,
+                is_active=False,
+                is_system=False,
+                risk_count=0,
+            )
+        )
     await db_session.commit()
-    
+
     response = await client_employee.get("/api/v1/riskhub/public-risk-types")
     assert response.status_code == 200
-    
+
     data = response.json()
     codes = [item["code"] for item in data]
-    
+
     # All active should be present
     for i in range(3):
         assert f"filter_test_active_{i}" in codes
-    
+
     # No inactive should be present
     for i in range(2):
         assert f"filter_test_inactive_{i}" not in codes
@@ -109,39 +113,41 @@ async def test_public_risk_types_minimal_fields(
 ):
     """Test that response only includes expected fields (no admin metadata)."""
     # Create a risk type with all fields populated
-    db_session.add(RiskTypeConfig(
-        code="field_test_type",
-        display_name="Field Test Type",
-        description="Should not appear in response",
-        color="#112233",
-        icon="star",
-        sort_order=99,
-        is_active=True,
-        is_system=True,  # Admin field - should not appear
-        risk_count=5     # Admin field - should not appear
-    ))
+    db_session.add(
+        RiskTypeConfig(
+            code="field_test_type",
+            display_name="Field Test Type",
+            description="Should not appear in response",
+            color="#112233",
+            icon="star",
+            sort_order=99,
+            is_active=True,
+            is_system=True,  # Admin field - should not appear
+            risk_count=5,  # Admin field - should not appear
+        )
+    )
     await db_session.commit()
-    
+
     response = await client_employee.get("/api/v1/riskhub/public-risk-types")
     assert response.status_code == 200
-    
+
     data = response.json()
-    
+
     # Find our test type
     test_type = next((t for t in data if t["code"] == "field_test_type"), None)
     assert test_type is not None
-    
+
     # Verify only expected fields are present
     expected_fields = {"code", "display_name", "color", "icon", "sort_order"}
     assert set(test_type.keys()) == expected_fields
-    
+
     # Verify correct values
     assert test_type["code"] == "field_test_type"
     assert test_type["display_name"] == "Field Test Type"
     assert test_type["color"] == "#112233"
     assert test_type["icon"] == "star"
     assert test_type["sort_order"] == 99
-    
+
     # Admin-only fields should NOT be in response
     assert "description" not in test_type
     assert "is_active" not in test_type
@@ -172,25 +178,27 @@ async def test_public_risk_types_ordered_correctly(
     for code, name, order in [
         ("order_test_c", "Charlie", 1),
         ("order_test_a", "Alpha", 1),  # Same order, should sort by name
-        ("order_test_b", "Beta", 0),   # Lower order, should come first
+        ("order_test_b", "Beta", 0),  # Lower order, should come first
     ]:
-        db_session.add(RiskTypeConfig(
-            code=code,
-            display_name=name,
-            color="#000000",
-            sort_order=order,
-            is_active=True,
-            is_system=False,
-            risk_count=0
-        ))
+        db_session.add(
+            RiskTypeConfig(
+                code=code,
+                display_name=name,
+                color="#000000",
+                sort_order=order,
+                is_active=True,
+                is_system=False,
+                risk_count=0,
+            )
+        )
     await db_session.commit()
-    
+
     response = await client_employee.get("/api/v1/riskhub/public-risk-types")
     assert response.status_code == 200
-    
+
     data = response.json()
     order_test_types = [t for t in data if t["code"].startswith("order_test_")]
-    
+
     # Should be: Beta (order 0), Alpha (order 1), Charlie (order 1)
     assert len(order_test_types) == 3
     assert order_test_types[0]["code"] == "order_test_b"  # Beta, order 0

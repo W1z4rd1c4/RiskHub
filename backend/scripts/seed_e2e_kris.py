@@ -2,13 +2,15 @@
 Phase 179-04: KRI Data with Reporting Owners
 Creates 10 KRIs linked to E2E risks for testing.
 """
+
 import asyncio
+
 from sqlalchemy import select
+
 from app.core.config import get_settings
 from app.db.session import session_context
 from app.models import KeyRiskIndicator, Risk
 from scripts.e2e_mappings import load_mappings, require_user_id
-
 
 KRIS = [
     {
@@ -128,43 +130,37 @@ E2E_KRI_NAMES = tuple(kri["name"] for kri in KRIS)
 
 async def seed_kris():
     """Create E2E test KRIs linked to risks."""
-    print("="*60)
+    print("=" * 60)
     print("🔍 PHASE 179-04: KRI Data with Reporting Owners")
-    print("="*60)
-    
+    print("=" * 60)
+
     async with session_context(get_settings()) as db:
         users, _ = await load_mappings(db)
-        
+
         created = 0
         skipped = 0
-        
+
         for kri_data in KRIS:
             # Check if exists
-            result = await db.execute(
-                select(KeyRiskIndicator).where(KeyRiskIndicator.metric_name == kri_data["name"])
-            )
+            result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.metric_name == kri_data["name"]))
             if result.scalar_one_or_none():
                 skipped += 1
                 continue
-            
+
             # Make a copy
             data = kri_data.copy()
-            
+
             # Get linked risk
             risk_code = data.pop("risk_code")
-            result = await db.execute(
-                select(Risk).where(Risk.risk_id_code == risk_code)
-            )
+            result = await db.execute(select(Risk).where(Risk.risk_id_code == risk_code))
             risk = result.scalar_one_or_none()
             if not risk:
-                raise RuntimeError(
-                    f"Deterministic KRI seed requires risk '{risk_code}', but it was not found."
-                )
-            
+                raise RuntimeError(f"Deterministic KRI seed requires risk '{risk_code}', but it was not found.")
+
             # Resolve reporting owner
             reporting_owner_email = data.pop("reporting_owner")
             reporting_owner_id = require_user_id(users, reporting_owner_email)
-            
+
             kri = KeyRiskIndicator(
                 metric_name=data["name"],
                 description=data["description"],
@@ -179,9 +175,9 @@ async def seed_kris():
             db.add(kri)
             created += 1
             print(f"   ✓ {data['name'][:50]}... → {risk_code}")
-        
+
         await db.commit()
-        
+
         print(f"\n✅ Created {created} KRIs, skipped {skipped} existing")
         return {"created": created, "skipped": skipped}
 

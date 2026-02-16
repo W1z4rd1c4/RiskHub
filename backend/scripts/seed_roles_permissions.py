@@ -9,13 +9,13 @@ import asyncio
 
 from sqlalchemy import delete, select
 
+from app.core.config import get_settings
 from app.db.rbac_seed_contract import (
     RBAC_PERMISSIONS,
-    RBAC_ROLES,
     RBAC_ROLE_PERMISSIONS,
+    RBAC_ROLES,
     expand_permission_keys,
 )
-from app.core.config import get_settings
 from app.db.session import session_context
 from app.models import Permission, Role, RolePermission
 
@@ -70,9 +70,7 @@ async def seed_roles_permissions() -> None:
                     permissions_by_key[key].id for key in desired_keys if key in permissions_by_key
                 }
 
-                existing_rows = await db.execute(
-                    select(RolePermission).where(RolePermission.role_id == role.id)
-                )
+                existing_rows = await db.execute(select(RolePermission).where(RolePermission.role_id == role.id))
                 existing_links = list(existing_rows.scalars().all())
                 existing_permission_ids = {link.permission_id for link in existing_links}
 

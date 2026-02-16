@@ -2,13 +2,15 @@
 Phase 179-03: Cross-Department Control Data
 Creates 12 controls with risk linkages for E2E testing.
 """
+
 import asyncio
+
 from sqlalchemy import select
+
 from app.core.config import get_settings
 from app.db.session import session_context
-from app.models import Control, Risk, ControlRiskLink, ControlStatus
-from scripts.e2e_mappings import load_mappings, require_user_id, require_department_id
-
+from app.models import Control, ControlRiskLink, ControlStatus, Risk
+from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
 
 CONTROLS = [
     # === Operations Department (3 controls) ===
@@ -130,37 +132,35 @@ E2E_CONTROL_NAMES = tuple(control["name"] for control in CONTROLS)
 
 async def seed_controls():
     """Create E2E test controls with risk linkages."""
-    print("="*60)
+    print("=" * 60)
     print("🔍 PHASE 179-03: Cross-Department Control Data")
-    print("="*60)
-    
+    print("=" * 60)
+
     async with session_context(get_settings()) as db:
         users, depts = await load_mappings(db)
-        
+
         created_controls = 0
         created_links = 0
         skipped = 0
-        
+
         for ctrl_data in CONTROLS:
             # Check if exists
-            result = await db.execute(
-                select(Control).where(Control.name == ctrl_data["name"])
-            )
+            result = await db.execute(select(Control).where(Control.name == ctrl_data["name"]))
             if result.scalar_one_or_none():
                 skipped += 1
                 continue
-            
+
             # Make a copy
             data = ctrl_data.copy()
-            
+
             # Resolve IDs
             owner_email = data.pop("owner")
             dept_name = data.pop("dept")
             risk_codes = data.pop("risk_links")
-            
+
             owner_id = require_user_id(users, owner_email)
             dept_id = require_department_id(depts, dept_name)
-            
+
             control = Control(
                 name=data["name"],
                 description=data["description"],
@@ -174,17 +174,13 @@ async def seed_controls():
             db.add(control)
             await db.flush()  # Get control.id
             created_controls += 1
-            
+
             # Create risk linkages
             for risk_code in risk_codes:
-                result = await db.execute(
-                    select(Risk).where(Risk.risk_id_code == risk_code)
-                )
+                result = await db.execute(select(Risk).where(Risk.risk_id_code == risk_code))
                 risk = result.scalar_one_or_none()
                 if not risk:
-                    raise RuntimeError(
-                        f"Deterministic control seed requires risk '{risk_code}', but it was not found."
-                    )
+                    raise RuntimeError(f"Deterministic control seed requires risk '{risk_code}', but it was not found.")
                 link = ControlRiskLink(
                     control_id=control.id,
                     risk_id=risk.id,
@@ -192,11 +188,11 @@ async def seed_controls():
                 )
                 db.add(link)
                 created_links += 1
-            
+
             print(f"   ✓ {data['name'][:55]}{'...' if len(data['name']) > 55 else ''}")
-        
+
         await db.commit()
-        
+
         print(f"\n✅ Created {created_controls} controls, {created_links} risk links")
         print(f"   Skipped {skipped} existing")
         return {"created": created_controls, "links_created": created_links, "skipped": skipped}

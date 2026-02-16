@@ -42,7 +42,9 @@ async def sso_client(db_session: AsyncSession) -> AsyncClient:
 
 
 @pytest.mark.asyncio
-async def test_sso_exchange_success_external_id_match(sso_client: AsyncClient, db_session: AsyncSession, test_user: User, monkeypatch):
+async def test_sso_exchange_success_external_id_match(
+    sso_client: AsyncClient, db_session: AsyncSession, test_user: User, monkeypatch
+):
     test_user.external_id = "oid-123"
     db_session.add(test_user)
     await db_session.commit()
@@ -197,7 +199,9 @@ async def test_sso_exchange_blocks_unknown_user_when_jit_disabled(
 
 
 @pytest.mark.asyncio
-async def test_sso_exchange_blocks_inactive_user(sso_client: AsyncClient, db_session: AsyncSession, test_user: User, monkeypatch):
+async def test_sso_exchange_blocks_inactive_user(
+    sso_client: AsyncClient, db_session: AsyncSession, test_user: User, monkeypatch
+):
     test_user.external_id = "oid-inactive"
     test_user.is_active = False
     db_session.add(test_user)

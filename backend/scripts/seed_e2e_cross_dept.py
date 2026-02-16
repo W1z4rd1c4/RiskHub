@@ -5,17 +5,19 @@ Creates known user-entity ownership relationships across departments for predict
 These entities have deterministic owners from different departments than the entity's department,
 enabling tests to verify cross-department access patterns reliably.
 """
+
 import asyncio
+
 from sqlalchemy import select
+
 from app.core.config import get_settings
 from app.db.session import session_context
-from app.models import Risk, Control, KeyRiskIndicator
+from app.models import Control, KeyRiskIndicator, Risk
 from scripts.e2e_mappings import (
     load_mappings_strict,
     require_department_id,
     require_user_id,
 )
-
 
 # Deterministic cross-department scenarios
 # Each maps a user from one department to own an entity in another department
@@ -49,7 +51,7 @@ CROSS_DEPT_SCENARIOS = [
         "name": "E2E-XDEPT-OPS-IT-CTRL IT Control Owned by Ops",
         "description": "Control owned by Operations Analyst but hosted in IT department",
     },
-    # IT analyst owns Operations control  
+    # IT analyst owns Operations control
     {
         "scenario_name": "it_owns_ops_control",
         "owner_email": "it.analyst@riskhub.local",
@@ -73,35 +75,33 @@ CROSS_DEPT_SCENARIOS = [
 
 async def seed_cross_dept_scenarios():
     """Seed deterministic cross-department ownership scenarios."""
-    print("="*60)
+    print("=" * 60)
     print("🔍 PHASE 179-11: Deterministic Cross-Department Scenarios")
-    print("="*60)
-    
+    print("=" * 60)
+
     async with session_context(get_settings()) as db:
         users, depts = await load_mappings_strict(
             db,
             context="seed_e2e_cross_dept",
         )
-        
+
         # Get CRO as created_by for all entities
         cro_id = require_user_id(users, "cro@riskhub.local")
-        
+
         created = 0
         updated = 0
-        
+
         for scenario in CROSS_DEPT_SCENARIOS:
             owner_id = require_user_id(users, scenario["owner_email"])
             dept_id = require_department_id(depts, scenario["entity_dept"])
-            
+
             entity_type = scenario["entity_type"]
             name = scenario["name"]
             description = scenario["description"]
-            
+
             if entity_type == "RISK":
                 risk_id_code = scenario["risk_id_code"]
-                existing = await db.execute(
-                    select(Risk).where(Risk.risk_id_code == risk_id_code)
-                )
+                existing = await db.execute(select(Risk).where(Risk.risk_id_code == risk_id_code))
                 risk = existing.scalar_one_or_none()
 
                 if risk:
@@ -156,12 +156,10 @@ async def seed_cross_dept_scenarios():
                 db.add(risk)
                 created += 1
                 print(f"   ✓ RISK: {scenario['scenario_name']}")
-            
+
             elif entity_type == "CONTROL":
                 # Check if exists
-                existing = await db.execute(
-                    select(Control).where(Control.name == name)
-                )
+                existing = await db.execute(select(Control).where(Control.name == name))
                 existing_control = existing.scalar_one_or_none()
                 if existing_control:
                     needs_update = False
@@ -184,7 +182,7 @@ async def seed_cross_dept_scenarios():
                     else:
                         print(f"   ⏭️  {name[:40]}... exists")
                     continue
-                
+
                 entity = Control(
                     name=name,
                     description=description,
@@ -197,12 +195,10 @@ async def seed_cross_dept_scenarios():
                 db.add(entity)
                 created += 1
                 print(f"   ✓ CONTROL: {scenario['scenario_name']}")
-            
+
             elif entity_type == "KRI":
                 linked_risk_code = scenario.get("linked_risk_code", "E2E-IT-001")
-                linked_risk_result = await db.execute(
-                    select(Risk).where(Risk.risk_id_code == linked_risk_code)
-                )
+                linked_risk_result = await db.execute(select(Risk).where(Risk.risk_id_code == linked_risk_code))
                 linked_risk = linked_risk_result.scalar_one_or_none()
                 if not linked_risk:
                     raise RuntimeError(
@@ -210,9 +206,7 @@ async def seed_cross_dept_scenarios():
                     )
 
                 # Check if exists
-                existing = await db.execute(
-                    select(KeyRiskIndicator).where(KeyRiskIndicator.metric_name == name)
-                )
+                existing = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.metric_name == name))
                 kri = existing.scalar_one_or_none()
                 if kri:
                     needs_update = False
@@ -254,7 +248,7 @@ async def seed_cross_dept_scenarios():
                 db.add(kri)
                 created += 1
                 print(f"   ✓ KRI: {scenario['scenario_name']}")
-        
+
         await db.commit()
         print(f"\n✅ Cross-department entities: created={created}, updated={updated}")
 

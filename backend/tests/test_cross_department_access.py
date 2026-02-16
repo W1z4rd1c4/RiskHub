@@ -6,20 +6,21 @@ NOTE: These tests use auth_client (admin/CRO user with GLOBAL access) to test
 the cross-department ownership feature. The admin creates entities in a second
 department but owns them, verifying ownership-based access works.
 """
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Risk, Control, Department, User
-from app.models.risk import RiskStatus, ControlRiskLink
+from app.models import Control, Department, Risk, User
 from app.models.control import ControlStatus
 from app.models.control_execution import ControlExecution
-
+from app.models.risk import ControlRiskLink, RiskStatus
 
 # =============================================================================
 # Fixtures for Cross-Department Testing
 # =============================================================================
+
 
 @pytest_asyncio.fixture
 async def second_department(db_session: AsyncSession) -> Department:
@@ -93,6 +94,7 @@ async def cross_dept_risk(
 # Cross-Department Control Owner Execution Tests
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_control_owner_can_create_execution_via_main_endpoint(
     auth_client: AsyncClient,
@@ -109,7 +111,7 @@ async def test_control_owner_can_create_execution_via_main_endpoint(
             "findings": "Cross-department execution logged via ownership",
         },
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["control_id"] == cross_dept_control.id
@@ -131,7 +133,7 @@ async def test_control_owner_can_create_execution_via_control_endpoint(
             "findings": "Cross-department execution via control endpoint",
         },
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["control_id"] == cross_dept_control.id
@@ -157,11 +159,11 @@ async def test_control_owner_sees_cross_dept_executions_in_list(
     db_session.add(execution)
     await db_session.commit()
     await db_session.refresh(execution)
-    
+
     # Owner should see this execution in list
     response = await auth_client.get("/api/v1/executions")
     assert response.status_code == 200
-    
+
     executions = response.json()
     control_ids = [e["control_id"] for e in executions]
     assert cross_dept_control.id in control_ids
@@ -186,11 +188,11 @@ async def test_control_owner_can_view_executions_via_control_endpoint(
     )
     db_session.add(execution)
     await db_session.commit()
-    
+
     # Owner can view
     response = await auth_client.get(f"/api/v1/controls/{cross_dept_control.id}/executions")
     assert response.status_code == 200
-    
+
     executions = response.json()
     assert len(executions) >= 1
 
@@ -198,6 +200,7 @@ async def test_control_owner_can_view_executions_via_control_endpoint(
 # =============================================================================
 # Cross-Department Control-Risk Linking Tests
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_control_owner_can_view_risk_controls_cross_dept(
@@ -217,10 +220,10 @@ async def test_control_owner_can_view_risk_controls_cross_dept(
     )
     db_session.add(link)
     await db_session.commit()
-    
+
     # Owner can view risk's controls
     response = await auth_client.get(f"/api/v1/risks/{cross_dept_risk.id}/controls")
-    
+
     assert response.status_code == 200
     controls = response.json()
     assert len(controls) >= 1
@@ -246,7 +249,7 @@ async def test_control_owner_can_link_control_to_risk(
             "notes": "Cross-department link test",
         },
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["control_id"] == cross_dept_control.id
@@ -257,6 +260,7 @@ async def test_control_owner_can_link_control_to_risk(
 # Cross-Department Control-Side Linking Tests (Phase 154-02)
 # Validates control-side endpoints mirror risk-side cross-dept access
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_control_owner_can_list_risks_via_control_endpoint(
@@ -276,10 +280,10 @@ async def test_control_owner_can_list_risks_via_control_endpoint(
     )
     db_session.add(link)
     await db_session.commit()
-    
+
     # Control owner can list risks via control-side endpoint
     response = await auth_client.get(f"/api/v1/controls/{cross_dept_control.id}/risks")
-    
+
     assert response.status_code == 200
     risks = response.json()
     assert len(risks) >= 1
@@ -305,7 +309,7 @@ async def test_control_owner_can_link_risk_via_control_endpoint(
             "notes": "Control-side cross-department link test",
         },
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["control_id"] == cross_dept_control.id
@@ -330,18 +334,17 @@ async def test_control_owner_can_unlink_risk_via_control_endpoint(
     )
     db_session.add(link)
     await db_session.commit()
-    
+
     # Control owner can unlink via control-side endpoint
-    response = await auth_client.delete(
-        f"/api/v1/controls/{cross_dept_control.id}/risks/{cross_dept_risk.id}"
-    )
-    
+    response = await auth_client.delete(f"/api/v1/controls/{cross_dept_control.id}/risks/{cross_dept_risk.id}")
+
     assert response.status_code == 204
 
 
 # =============================================================================
 # Negative Cases - Non-Owner Access Denied
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_non_owner_cannot_create_execution_for_other_dept_control(
@@ -359,7 +362,7 @@ async def test_non_owner_cannot_create_execution_for_other_dept_control(
             "findings": "Should fail",
         },
     )
-    
+
     # Should be denied (no ownership, no dept access, and no execute permission)
     assert response.status_code in [403, 422]  # 403 or possibly permission check first
 

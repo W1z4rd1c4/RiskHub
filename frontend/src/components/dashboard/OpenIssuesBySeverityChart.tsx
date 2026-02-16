@@ -8,24 +8,53 @@ interface OpenIssuesBySeverityChartProps {
     items: IssueSeverityBreakdownItem[];
 }
 
+type SeverityKey = 'low' | 'medium' | 'high' | 'critical';
+const SEVERITY_KEYS: readonly SeverityKey[] = ['low', 'medium', 'high', 'critical'] as const;
+
+interface IssueSeverityChartDatum {
+    severity: string;
+    count: number;
+    [key: string]: string | number;
+}
+
+function isSeverityKey(value: string): value is SeverityKey {
+    return (SEVERITY_KEYS as readonly string[]).includes(value);
+}
+
 export function OpenIssuesBySeverityChart({ items }: OpenIssuesBySeverityChartProps) {
     const { t } = useTranslation('dashboard');
     const chartTheme = useChartTheme();
     const tooltipProps = getChartTooltipProps(chartTheme);
     const total = items.reduce((sum, item) => sum + item.count, 0);
+    const chartData: IssueSeverityChartDatum[] = items.map((item) => ({
+        severity: item.severity,
+        count: item.count,
+    }));
 
     return (
         <div className="h-[240px] w-full">
             <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 240 }}>
                 <PieChart>
-                    <Pie data={items} dataKey="count" nameKey="severity" outerRadius={84} innerRadius={40} paddingAngle={2}>
-                        {items.map((item) => (
-                            <Cell key={item.severity} fill={chartTheme.issueSeverity[item.severity] ?? chartTheme.issueSeverity.fallback} />
-                        ))}
+                    <Pie data={chartData} dataKey="count" nameKey="severity" outerRadius={84} innerRadius={40} paddingAngle={2}>
+                        {chartData.map((item) => {
+                            const severity = item.severity.toLowerCase();
+                            const fill = isSeverityKey(severity)
+                                ? chartTheme.issueSeverity[severity]
+                                : chartTheme.issueSeverity.fallback;
+
+                            return (
+                                <Cell key={`${item.severity}-${item.count}`} fill={fill} />
+                            );
+                        })}
                     </Pie>
                     <Tooltip
                         {...tooltipProps}
-                        formatter={(value: number, name: string) => [value, t(`issues.severity.${name}`, name)]}
+                        formatter={(value: number | string | undefined, name: string | number | undefined) => {
+                            const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+                            const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
+                            const severityName = typeof name === 'string' ? name : String(name ?? '');
+                            return [safeValue, t(`issues.severity.${severityName}`, severityName)];
+                        }}
                     />
                 </PieChart>
             </ResponsiveContainer>

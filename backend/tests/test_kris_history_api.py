@@ -1,10 +1,12 @@
 """Tests for KRI history API endpoints."""
+
+from datetime import UTC, date, datetime, timedelta
+
 import pytest
 import pytest_asyncio
-from datetime import datetime, UTC, timedelta, date
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
@@ -48,7 +50,7 @@ async def test_kri_with_history_for_api(db_session: AsyncSession, test_risk, tes
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     # Add a history entry
     history = KRIValueHistory(
         kri_id=kri.id,
@@ -64,11 +66,12 @@ async def test_kri_with_history_for_api(db_session: AsyncSession, test_risk, tes
     )
     db_session.add(history)
     await db_session.commit()
-    
+
     return kri
 
 
 # Record Value Endpoint Tests
+
 
 @pytest.mark.asyncio
 async def test_record_value_success(
@@ -76,11 +79,8 @@ async def test_record_value_success(
     test_kri_for_api,
 ):
     """Test POST /kris/{id}/values returns 200 and records value."""
-    response = await auth_client.post(
-        f"/api/v1/kris/{test_kri_for_api.id}/values",
-        json={"value": 75.0}
-    )
-    
+    response = await auth_client.post(f"/api/v1/kris/{test_kri_for_api.id}/values", json={"value": 75.0})
+
     assert response.status_code == 200
     data = response.json()
     assert data["current_value"] == 75.0
@@ -93,13 +93,10 @@ async def test_record_value_updates_kri(
     db_session: AsyncSession,
 ):
     """Test recording value updates the KRI's current_value."""
-    response = await auth_client.post(
-        f"/api/v1/kris/{test_kri_for_api.id}/values",
-        json={"value": 88.5}
-    )
-    
+    response = await auth_client.post(f"/api/v1/kris/{test_kri_for_api.id}/values", json={"value": 88.5})
+
     assert response.status_code == 200
-    
+
     # Verify KRI was updated
     await db_session.refresh(test_kri_for_api)
     assert test_kri_for_api.current_value == 88.5
@@ -112,17 +109,12 @@ async def test_update_kri_rejects_current_value_updates(
     db_session: AsyncSession,
 ):
     """PUT /kris/{id} must not allow current_value updates (use /values)."""
-    response = await auth_client.put(
-        f"/api/v1/kris/{test_kri_for_api.id}",
-        json={"current_value": 77.5}
-    )
-    
+    response = await auth_client.put(f"/api/v1/kris/{test_kri_for_api.id}", json={"current_value": 77.5})
+
     assert response.status_code == 400
     assert "Use POST /kris/{id}/values" in response.json()["detail"]
-    
-    result = await db_session.execute(
-        select(KRIValueHistory).where(KRIValueHistory.kri_id == test_kri_for_api.id)
-    )
+
+    result = await db_session.execute(select(KRIValueHistory).where(KRIValueHistory.kri_id == test_kri_for_api.id))
     entries = result.scalars().all()
     assert len(entries) == 0
 
@@ -134,21 +126,17 @@ async def test_record_value_creates_history_entry(
     db_session: AsyncSession,
 ):
     """POST /kris/{id}/values creates a history entry for privileged users."""
-    response = await auth_client.post(
-        f"/api/v1/kris/{test_kri_for_api.id}/values",
-        json={"value": 77.5}
-    )
-    
+    response = await auth_client.post(f"/api/v1/kris/{test_kri_for_api.id}/values", json={"value": 77.5})
+
     assert response.status_code == 200
-    
-    result = await db_session.execute(
-        select(KRIValueHistory).where(KRIValueHistory.kri_id == test_kri_for_api.id)
-    )
+
+    result = await db_session.execute(select(KRIValueHistory).where(KRIValueHistory.kri_id == test_kri_for_api.id))
     entries = result.scalars().all()
     assert len(entries) >= 1
 
 
 # History Endpoint Tests
+
 
 @pytest.mark.asyncio
 async def test_get_history_returns_entries(
@@ -156,10 +144,8 @@ async def test_get_history_returns_entries(
     test_kri_with_history_for_api,
 ):
     """Test GET /kris/{id}/history returns history entries."""
-    response = await auth_client.get(
-        f"/api/v1/kris/{test_kri_with_history_for_api.id}/history"
-    )
-    
+    response = await auth_client.get(f"/api/v1/kris/{test_kri_with_history_for_api.id}/history")
+
     assert response.status_code == 200
     data = response.json()
     assert "items" in data
@@ -173,10 +159,8 @@ async def test_get_history_empty_for_new_kri(
     test_kri_for_api,
 ):
     """Test GET /kris/{id}/history returns empty for KRI without history."""
-    response = await auth_client.get(
-        f"/api/v1/kris/{test_kri_for_api.id}/history"
-    )
-    
+    response = await auth_client.get(f"/api/v1/kris/{test_kri_for_api.id}/history")
+
     assert response.status_code == 200
     data = response.json()
     assert data["total"] == 0
@@ -190,10 +174,9 @@ async def test_get_history_pagination(
 ):
     """Test GET /kris/{id}/history supports pagination."""
     response = await auth_client.get(
-        f"/api/v1/kris/{test_kri_with_history_for_api.id}/history",
-        params={"page": 1, "size": 10}
+        f"/api/v1/kris/{test_kri_with_history_for_api.id}/history", params={"page": 1, "size": 10}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "page" in data
@@ -202,16 +185,18 @@ async def test_get_history_pagination(
 
 # Overdue Endpoint Tests
 
+
 @pytest.mark.asyncio
 async def test_get_overdue_returns_list(auth_client: AsyncClient):
     """Test GET /kris/overdue returns a list."""
     response = await auth_client.get("/api/v1/kris/overdue")
-    
+
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
 
 # Permission Tests
+
 
 @pytest.mark.asyncio
 async def test_record_value_requires_auth(
@@ -219,11 +204,8 @@ async def test_record_value_requires_auth(
     test_kri_for_api,
 ):
     """Test POST /kris/{id}/values requires authentication."""
-    response = await client.post(
-        f"/api/v1/kris/{test_kri_for_api.id}/values",
-        json={"value": 75.0}
-    )
-    
+    response = await client.post(f"/api/v1/kris/{test_kri_for_api.id}/values", json={"value": 75.0})
+
     # Should be 401 or 403 without auth
     assert response.status_code in [401, 403]
 
@@ -234,21 +216,20 @@ async def test_get_history_requires_auth(
     test_kri_for_api,
 ):
     """Test GET /kris/{id}/history requires authentication."""
-    response = await client.get(
-        f"/api/v1/kris/{test_kri_for_api.id}/history"
-    )
-    
+    response = await client.get(f"/api/v1/kris/{test_kri_for_api.id}/history")
+
     # Should be 401 or 403 without auth
     assert response.status_code in [401, 403]
 
 
 # Due Soon Endpoint Tests
 
+
 @pytest.mark.asyncio
 async def test_get_due_soon_returns_list(auth_client: AsyncClient):
     """Test GET /kris/due-soon returns a list."""
     response = await auth_client.get("/api/v1/kris/due-soon")
-    
+
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
@@ -257,10 +238,10 @@ async def test_get_due_soon_returns_list(auth_client: AsyncClient):
 async def test_due_soon_response_format(auth_client: AsyncClient):
     """Test GET /kris/due-soon response has correct format."""
     response = await auth_client.get("/api/v1/kris/due-soon")
-    
+
     assert response.status_code == 200
     data = response.json()
-    
+
     # If there are items, verify format
     if len(data) > 0:
         item = data[0]
@@ -281,10 +262,10 @@ async def test_due_soon_excludes_already_reported(
 ):
     """Test GET /kris/due-soon excludes KRIs already reported for current period."""
     from app.services.kri_history_service import KRIHistoryService
-    
+
     today = date.today()
     _, current_period_end = KRIHistoryService.period_bounds_for_date(today, "monthly")
-    
+
     # Create a KRI that's already reported for current period
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
@@ -299,12 +280,12 @@ async def test_due_soon_excludes_already_reported(
     )
     db_session.add(kri)
     await db_session.commit()
-    
+
     response = await auth_client.get("/api/v1/kris/due-soon")
-    
+
     assert response.status_code == 200
     data = response.json()
-    
+
     # The already-reported KRI should NOT be in the due-soon list
     kri_ids = [item["kri_id"] for item in data]
     assert kri.id not in kri_ids
@@ -318,14 +299,14 @@ async def test_non_privileged_value_submission_returns_202(
     test_role_employee,
 ):
     """Test POST /kris/{id}/values by non-privileged user returns 202 with approval."""
-    from app.models import User, Department
-    
+    from app.models import Department, User
+
     # Create a non-privileged user
     dept = Department(name="Test Dept", code="TEST-DEPT")
     db_session.add(dept)
     await db_session.commit()
     await db_session.refresh(dept)
-    
+
     employee = User(
         name="Employee",
         email="employee-test@example.com",
@@ -336,10 +317,11 @@ async def test_non_privileged_value_submission_returns_202(
     db_session.add(employee)
     await db_session.commit()
     await db_session.refresh(employee)
-    
+
     # Create a KRI in the employee's department
     from app.models import Risk
     from app.models.risk import RiskStatus
+
     risk = Risk(
         risk_id_code="RISK-EMP-TEST",
         name="Employee Test Risk",
@@ -358,7 +340,7 @@ async def test_non_privileged_value_submission_returns_202(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     kri = KeyRiskIndicator(
         risk_id=risk.id,
         metric_name="Employee Test KRI",
@@ -374,18 +356,16 @@ async def test_non_privileged_value_submission_returns_202(
     await db_session.refresh(kri)
     # Submit value as non-privileged user
     response = await client.post(
-        f"/api/v1/kris/{kri.id}/values",
-        headers={"X-Mock-User-Id": str(employee.id)},
-        json={"value": 75.0}
+        f"/api/v1/kris/{kri.id}/values", headers={"X-Mock-User-Id": str(employee.id)}, json={"value": 75.0}
     )
-    
+
     assert response.status_code == 202
     data = response.json()
     assert "approval_id" in data
     assert data["action_type"] == "edit"
     assert data["pending_changes"]["current_value"]["new"] == 75.0
     assert "period_end" in data["pending_changes"]
-    
+
     # Verify KRI was NOT updated
     await db_session.refresh(kri)
     assert kri.current_value == 50.0  # Still original value
@@ -399,14 +379,14 @@ async def test_non_privileged_cannot_specify_period_end(
     test_role_employee,
 ):
     """Test non-privileged users cannot specify custom period_end."""
-    from app.models import User, Department
-    
+    from app.models import Department, User
+
     # Create a non-privileged user
     dept = Department(name="Test Dept 2", code="TEST-DEPT-2")
     db_session.add(dept)
     await db_session.commit()
     await db_session.refresh(dept)
-    
+
     employee = User(
         name="Employee 2",
         email="employee-test-2@example.com",
@@ -417,10 +397,11 @@ async def test_non_privileged_cannot_specify_period_end(
     db_session.add(employee)
     await db_session.commit()
     await db_session.refresh(employee)
-    
+
     # Create a KRI in the employee's department
     from app.models import Risk
     from app.models.risk import RiskStatus
+
     risk = Risk(
         risk_id_code="RISK-EMP-TEST-2",
         name="Employee Test Risk 2",
@@ -439,7 +420,7 @@ async def test_non_privileged_cannot_specify_period_end(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     kri = KeyRiskIndicator(
         risk_id=risk.id,
         metric_name="Employee Test KRI 2",
@@ -453,14 +434,14 @@ async def test_non_privileged_cannot_specify_period_end(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     # Try to submit value with custom period_end as non-privileged user
     response = await client.post(
         f"/api/v1/kris/{kri.id}/values",
         headers={"X-Mock-User-Id": str(employee.id)},
-        json={"value": 75.0, "period_end": "2024-12-31"}
+        json={"value": 75.0, "period_end": "2024-12-31"},
     )
-    
+
     assert response.status_code == 400
     assert "cannot specify custom period_end" in response.json()["detail"]
 
@@ -468,6 +449,7 @@ async def test_non_privileged_cannot_specify_period_end(
 # =============================================================================
 # FULL MODALITY RBAC TESTS: Explicit permission independence
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_user_with_risks_write_without_kri_submit_is_denied(
@@ -478,16 +460,18 @@ async def test_user_with_risks_write_without_kri_submit_is_denied(
     """
     FULL MODALITY TEST: User with risks:write but WITHOUT kri:submit is denied (403)
     unless they are the reporting owner.
-    
+
     This proves that kri:submit is independent from risks:write.
     """
-    from app.models import User, Role, Permission, RolePermission
-    
+    from app.models import Permission, Role, RolePermission, User
+
     # Create a role with risks:write but NOT kri:submit
-    role = Role(name="risk_editor_no_submit", display_name="Risk Editor", description="Can edit risks but not submit KRI values")
+    role = Role(
+        name="risk_editor_no_submit", display_name="Risk Editor", description="Can edit risks but not submit KRI values"
+    )
     db_session.add(role)
     await db_session.commit()
-    
+
     # Grant risks:write, risks:read only
     perms = [
         Permission(resource="risks", action="read", description="Read risks"),
@@ -496,11 +480,11 @@ async def test_user_with_risks_write_without_kri_submit_is_denied(
     for p in perms:
         db_session.add(p)
     await db_session.commit()
-    
+
     for p in perms:
         db_session.add(RolePermission(role_id=role.id, permission_id=p.id))
     await db_session.commit()
-    
+
     # Create user with this role
     user = User(
         name="Risk Editor No Submit",
@@ -512,10 +496,11 @@ async def test_user_with_risks_write_without_kri_submit_is_denied(
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
-    
+
     # Create a KRI in the user's department (user is NOT reporting owner)
     from app.models import Risk
     from app.models.risk import RiskStatus
+
     risk = Risk(
         risk_id_code="RISK-NO-SUBMIT-TEST",
         process="Test Process",
@@ -534,7 +519,7 @@ async def test_user_with_risks_write_without_kri_submit_is_denied(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     kri = KeyRiskIndicator(
         risk_id=risk.id,
         metric_name="No Submit KRI",
@@ -549,14 +534,12 @@ async def test_user_with_risks_write_without_kri_submit_is_denied(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     # Try to submit value - should be denied (403)
     response = await client.post(
-        f"/api/v1/kris/{kri.id}/values",
-        headers={"X-Mock-User-Id": str(user.id)},
-        json={"value": 75.0}
+        f"/api/v1/kris/{kri.id}/values", headers={"X-Mock-User-Id": str(user.id)}, json={"value": 75.0}
     )
-    
+
     assert response.status_code == 403
     assert "kri:submit" in response.json()["detail"] or "Permission denied" in response.json()["detail"]
 
@@ -571,21 +554,21 @@ async def test_user_with_kri_submit_can_submit_returns_202(
     FULL MODALITY TEST: User with kri:submit (but not privileged) can submit
     and receives 202 with approval request.
     """
-    from app.models import User, Role, Permission, RolePermission
-    
+    from app.models import Permission, Role, RolePermission, User
+
     # Create a role with kri:submit only
     role = Role(name="kri_submitter", display_name="KRI Submitter", description="Can submit KRI values")
     db_session.add(role)
     await db_session.commit()
-    
+
     # Grant kri:submit only
     kri_submit = Permission(resource="kri", action="submit", description="Submit KRI values")
     db_session.add(kri_submit)
     await db_session.commit()
-    
+
     db_session.add(RolePermission(role_id=role.id, permission_id=kri_submit.id))
     await db_session.commit()
-    
+
     # Create user with this role
     user = User(
         name="KRI Submitter",
@@ -597,10 +580,11 @@ async def test_user_with_kri_submit_can_submit_returns_202(
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
-    
+
     # Create a KRI in the user's department
     from app.models import Risk
     from app.models.risk import RiskStatus
+
     risk = Risk(
         risk_id_code="RISK-SUBMIT-TEST",
         process="Test Process",
@@ -619,7 +603,7 @@ async def test_user_with_kri_submit_can_submit_returns_202(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     kri = KeyRiskIndicator(
         risk_id=risk.id,
         metric_name="Submit Test KRI",
@@ -633,19 +617,17 @@ async def test_user_with_kri_submit_can_submit_returns_202(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     # Submit value - should succeed with 202 (creates approval)
     response = await client.post(
-        f"/api/v1/kris/{kri.id}/values",
-        headers={"X-Mock-User-Id": str(user.id)},
-        json={"value": 75.0}
+        f"/api/v1/kris/{kri.id}/values", headers={"X-Mock-User-Id": str(user.id)}, json={"value": 75.0}
     )
-    
+
     assert response.status_code == 202
     data = response.json()
     assert "approval_id" in data
     assert data["action_type"] == "edit"
-    
+
     # Verify KRI was NOT updated yet (pending approval)
     await db_session.refresh(kri)
     assert kri.current_value == 50.0
@@ -661,27 +643,27 @@ async def test_reporting_owner_without_kri_submit_can_submit(
     FULL MODALITY TEST: KRI reporting owner can submit values even without
     kri:submit permission. This is the cross-department exception.
     """
-    from app.models import User, Role, Permission, RolePermission, Department
-    
+    from app.models import Department, Permission, Role, RolePermission, User
+
     # Create second department
     other_dept = Department(name="Other Department", code="OTHER-DEPT")
     db_session.add(other_dept)
     await db_session.commit()
     await db_session.refresh(other_dept)
-    
+
     # Create a role with NO kri:submit (just basic read)
     role = Role(name="no_kri_perms", display_name="No KRI Perms", description="No KRI submission permissions")
     db_session.add(role)
     await db_session.commit()
-    
+
     # Grant only risks:read (NOT kri:submit)
     read_perm = Permission(resource="risks", action="read", description="Read risks")
     db_session.add(read_perm)
     await db_session.commit()
-    
+
     db_session.add(RolePermission(role_id=role.id, permission_id=read_perm.id))
     await db_session.commit()
-    
+
     # Create user in OTHER department with this role
     user = User(
         name="Reporting Owner No Perms",
@@ -693,11 +675,12 @@ async def test_reporting_owner_without_kri_submit_can_submit(
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
-    
+
     # Create a KRI in TEST department (different from user's department)
     # but user IS the reporting owner
     from app.models import Risk
     from app.models.risk import RiskStatus
+
     risk = Risk(
         risk_id_code="RISK-REPORTING-OWNER-TEST",
         process="Test Process",
@@ -716,7 +699,7 @@ async def test_reporting_owner_without_kri_submit_can_submit(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     kri = KeyRiskIndicator(
         risk_id=risk.id,
         metric_name="Reporting Owner KRI",
@@ -731,14 +714,12 @@ async def test_reporting_owner_without_kri_submit_can_submit(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     # Submit value - should succeed (202) because user is reporting owner (non-privileged)
     response = await client.post(
-        f"/api/v1/kris/{kri.id}/values",
-        headers={"X-Mock-User-Id": str(user.id)},
-        json={"value": 75.0}
+        f"/api/v1/kris/{kri.id}/values", headers={"X-Mock-User-Id": str(user.id)}, json={"value": 75.0}
     )
-    
+
     assert response.status_code == 202
     data = response.json()
     assert "approval_id" in data
@@ -753,24 +734,24 @@ async def test_approvals_write_without_kri_submit_is_denied(
     """
     FULL MODALITY TEST: User with ONLY approvals:write (but not kri:submit)
     should be DENIED from submitting KRI values.
-    
+
     This proves approvals:write does not imply kri:submit.
     """
-    from app.models import User, Role, Permission, RolePermission
-    
+    from app.models import Permission, Role, RolePermission, User
+
     # Create a role with approvals:write but NOT kri:submit
     role = Role(name="approver_only", display_name="Approver Only", description="Can approve but not submit")
     db_session.add(role)
     await db_session.commit()
-    
+
     # Grant approvals:write only
     approvals_perm = Permission(resource="approvals", action="write", description="Approve/reject requests")
     db_session.add(approvals_perm)
     await db_session.commit()
-    
+
     db_session.add(RolePermission(role_id=role.id, permission_id=approvals_perm.id))
     await db_session.commit()
-    
+
     # Create user with this role
     user = User(
         name="Approver Only",
@@ -782,10 +763,11 @@ async def test_approvals_write_without_kri_submit_is_denied(
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
-    
+
     # Create a KRI (user is not reporting owner)
     from app.models import Risk
     from app.models.risk import RiskStatus
+
     risk = Risk(
         risk_id_code="RISK-APPROVER-TEST",
         process="Test Process",
@@ -804,7 +786,7 @@ async def test_approvals_write_without_kri_submit_is_denied(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     kri = KeyRiskIndicator(
         risk_id=risk.id,
         metric_name="Approver Test KRI",
@@ -819,14 +801,12 @@ async def test_approvals_write_without_kri_submit_is_denied(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     # Try to submit value - should be DENIED (403)
     response = await client.post(
-        f"/api/v1/kris/{kri.id}/values",
-        headers={"X-Mock-User-Id": str(user.id)},
-        json={"value": 75.0}
+        f"/api/v1/kris/{kri.id}/values", headers={"X-Mock-User-Id": str(user.id)}, json={"value": 75.0}
     )
-    
+
     assert response.status_code == 403
     assert "kri:submit" in response.json()["detail"] or "Permission denied" in response.json()["detail"]
 
@@ -835,6 +815,7 @@ async def test_approvals_write_without_kri_submit_is_denied(
 # RBAC REGRESSION TESTS: department_id filter scoping (Phase 156-audit)
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_overdue_department_id_filter_rbac_scoped_user(
     client: AsyncClient,
@@ -842,14 +823,14 @@ async def test_overdue_department_id_filter_rbac_scoped_user(
     test_role_employee,
 ):
     """
-    RBAC Test: Department-scoped user filtering /kris/overdue by unauthorized 
+    RBAC Test: Department-scoped user filtering /kris/overdue by unauthorized
     department_id returns [] (not other department's data).
-    
+
     This prevents cross-department data leakage via the department_id query param.
     """
-    from app.models import User, Department, Risk
+    from app.models import Department, Risk, User
     from app.models.risk import RiskStatus
-    
+
     # Create two departments
     dept_a = Department(name="Dept A for RBAC", code="DEPT-A-RBAC")
     dept_b = Department(name="Dept B for RBAC", code="DEPT-B-RBAC")
@@ -858,7 +839,7 @@ async def test_overdue_department_id_filter_rbac_scoped_user(
     await db_session.commit()
     await db_session.refresh(dept_a)
     await db_session.refresh(dept_b)
-    
+
     # Create user in Dept A (department-scoped)
     user_a = User(
         name="User A",
@@ -870,7 +851,7 @@ async def test_overdue_department_id_filter_rbac_scoped_user(
     db_session.add(user_a)
     await db_session.commit()
     await db_session.refresh(user_a)
-    
+
     # Create risks and KRIs in both departments
     risk_a = Risk(
         risk_id_code="RISK-RBAC-A",
@@ -907,7 +888,7 @@ async def test_overdue_department_id_filter_rbac_scoped_user(
     await db_session.commit()
     await db_session.refresh(risk_a)
     await db_session.refresh(risk_b)
-    
+
     # Create overdue KRIs in both departments (old created_at, no last_period_end)
     kri_a = KeyRiskIndicator(
         risk_id=risk_a.id,
@@ -938,14 +919,12 @@ async def test_overdue_department_id_filter_rbac_scoped_user(
     await db_session.commit()
     await db_session.refresh(kri_a)
     await db_session.refresh(kri_b)
-    
+
     # User A requesting department_id=Dept B should return [] (unauthorized)
     response = await client.get(
-        "/api/v1/kris/overdue",
-        headers={"X-Mock-User-Id": str(user_a.id)},
-        params={"department_id": dept_b.id}
+        "/api/v1/kris/overdue", headers={"X-Mock-User-Id": str(user_a.id)}, params={"department_id": dept_b.id}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data == [], f"Expected empty list for unauthorized department, got: {data}"
@@ -958,18 +937,18 @@ async def test_overdue_department_id_filter_own_department(
     test_role_employee,
 ):
     """
-    RBAC Test: Department-scoped user filtering /kris/overdue by their OWN 
+    RBAC Test: Department-scoped user filtering /kris/overdue by their OWN
     department_id returns only that department's items.
     """
-    from app.models import User, Department, Risk
+    from app.models import Department, Risk, User
     from app.models.risk import RiskStatus
-    
+
     # Create department
     dept = Department(name="Own Dept RBAC", code="OWN-DEPT-RBAC")
     db_session.add(dept)
     await db_session.commit()
     await db_session.refresh(dept)
-    
+
     # Create user in department
     user = User(
         name="Own Dept User",
@@ -981,7 +960,7 @@ async def test_overdue_department_id_filter_own_department(
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
-    
+
     # Create risk and overdue KRI in user's department
     risk = Risk(
         risk_id_code="RISK-OWN-DEPT",
@@ -1001,7 +980,7 @@ async def test_overdue_department_id_filter_own_department(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     kri = KeyRiskIndicator(
         risk_id=risk.id,
         metric_name="Own Dept RBAC KRI",
@@ -1017,14 +996,12 @@ async def test_overdue_department_id_filter_own_department(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     # User filtering by own department should get their items
     response = await client.get(
-        "/api/v1/kris/overdue",
-        headers={"X-Mock-User-Id": str(user.id)},
-        params={"department_id": dept.id}
+        "/api/v1/kris/overdue", headers={"X-Mock-User-Id": str(user.id)}, params={"department_id": dept.id}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     # Should include the user's department KRI (if overdue)
@@ -1041,12 +1018,12 @@ async def test_due_soon_department_id_filter_rbac_scoped_user(
     test_role_employee,
 ):
     """
-    RBAC Test: Department-scoped user filtering /kris/due-soon by unauthorized 
+    RBAC Test: Department-scoped user filtering /kris/due-soon by unauthorized
     department_id returns [] (not other department's data).
     """
-    from app.models import User, Department, Risk
+    from app.models import Department, Risk, User
     from app.models.risk import RiskStatus
-    
+
     # Create two departments
     dept_a = Department(name="Due Soon Dept A", code="DUE-SOON-A")
     dept_b = Department(name="Due Soon Dept B", code="DUE-SOON-B")
@@ -1055,7 +1032,7 @@ async def test_due_soon_department_id_filter_rbac_scoped_user(
     await db_session.commit()
     await db_session.refresh(dept_a)
     await db_session.refresh(dept_b)
-    
+
     # Create user in Dept A
     user_a = User(
         name="Due Soon User A",
@@ -1067,7 +1044,7 @@ async def test_due_soon_department_id_filter_rbac_scoped_user(
     db_session.add(user_a)
     await db_session.commit()
     await db_session.refresh(user_a)
-    
+
     # Create risks in both departments
     risk_b = Risk(
         risk_id_code="RISK-DUE-SOON-B",
@@ -1087,7 +1064,7 @@ async def test_due_soon_department_id_filter_rbac_scoped_user(
     db_session.add(risk_b)
     await db_session.commit()
     await db_session.refresh(risk_b)
-    
+
     # Create KRI in Dept B that is due soon
     kri_b = KeyRiskIndicator(
         risk_id=risk_b.id,
@@ -1104,14 +1081,12 @@ async def test_due_soon_department_id_filter_rbac_scoped_user(
     db_session.add(kri_b)
     await db_session.commit()
     await db_session.refresh(kri_b)
-    
+
     # User A (Dept A) requesting department_id=Dept B should return []
     response = await client.get(
-        "/api/v1/kris/due-soon",
-        headers={"X-Mock-User-Id": str(user_a.id)},
-        params={"department_id": dept_b.id}
+        "/api/v1/kris/due-soon", headers={"X-Mock-User-Id": str(user_a.id)}, params={"department_id": dept_b.id}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data == [], f"Expected empty list for unauthorized department, got: {data}"
@@ -1127,13 +1102,13 @@ async def test_overdue_privileged_user_can_filter_any_department(
     """
     from app.models import Department, Risk
     from app.models.risk import RiskStatus
-    
+
     # Create a new department
     dept = Department(name="Privileged Filter Dept", code="PRIV-FILTER")
     db_session.add(dept)
     await db_session.commit()
     await db_session.refresh(dept)
-    
+
     # Create risk and potentially overdue KRI
     risk = Risk(
         risk_id_code="RISK-PRIV-FILTER",
@@ -1153,7 +1128,7 @@ async def test_overdue_privileged_user_can_filter_any_department(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     kri = KeyRiskIndicator(
         risk_id=risk.id,
         metric_name="Privileged Filter KRI",
@@ -1169,25 +1144,21 @@ async def test_overdue_privileged_user_can_filter_any_department(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     # Privileged user (auth_client is CRO) filtering by this department
-    response = await auth_client.get(
-        "/api/v1/kris/overdue",
-        params={"department_id": dept.id}
-    )
-    
+    response = await auth_client.get("/api/v1/kris/overdue", params={"department_id": dept.id})
+
     assert response.status_code == 200
     data = response.json()
     # Privileged user should be able to see items (or empty if none match criteria)
     assert isinstance(data, list)
-    # If KRI is overdue, it should be in results
-    overdue_kri_ids = [item["kri_id"] for item in data]
     # Note: may or may not be overdue depending on timing - just verify no error
 
 
 # =============================================================================
 # §5.3 KRI CORRECTION APPROVAL TESTS - Plan 157-02
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_kri_correction_requires_privileged_approval(
@@ -1198,10 +1169,10 @@ async def test_kri_correction_requires_privileged_approval(
     test_user_cro,
 ):
     """Test PATCH /kris/{id}/history/{entry_id} sets requires_privileged_approval=True per §5.3."""
-    from app.models import User, ApprovalRequest, ApprovalStatus
+    from app.models import ApprovalRequest, User
     from app.models.user import AccessScope
     from app.services.kri_history_service import KRIHistoryService
-    
+
     # Create employee user with risks:write permission
     employee = User(
         name="Correction Test Employee",
@@ -1214,12 +1185,10 @@ async def test_kri_correction_requires_privileged_approval(
     db_session.add(employee)
     await db_session.commit()
     await db_session.refresh(employee)
-    
+
     # Create KRI with history entry
-    _, period_end = KRIHistoryService.latest_closed_period_for_date(
-        date.today(), KRIFrequency.monthly.value
-    )
-    
+    _, period_end = KRIHistoryService.latest_closed_period_for_date(date.today(), KRIFrequency.monthly.value)
+
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
         metric_name="Correction Approval KRI",
@@ -1234,7 +1203,7 @@ async def test_kri_correction_requires_privileged_approval(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     history_entry = KRIValueHistory(
         kri_id=kri.id,
         period_start=period_end - timedelta(days=30),
@@ -1250,23 +1219,21 @@ async def test_kri_correction_requires_privileged_approval(
     db_session.add(history_entry)
     await db_session.commit()
     await db_session.refresh(history_entry)
-    
+
     # Employee attempts to correct the value
     response = await client.patch(
         f"/api/v1/kris/{kri.id}/history/{history_entry.id}",
         headers={"X-Mock-User-Id": str(employee.id)},
-        json={"value": 60.0, "reason": "Correcting misreported value"}
+        json={"value": 60.0, "reason": "Correcting misreported value"},
     )
-    
+
     assert response.status_code == 202
     data = response.json()
     assert data["requires_privileged_approval"] is True
     assert "CRO" in data["message"] or "§5.3" in data["message"]
-    
+
     # Verify the approval request was created with requires_privileged_approval=True
-    result = await db_session.execute(
-        select(ApprovalRequest).where(ApprovalRequest.id == data["approval_id"])
-    )
+    result = await db_session.execute(select(ApprovalRequest).where(ApprovalRequest.id == data["approval_id"]))
     approval = result.scalar_one()
     assert approval.requires_privileged_approval is True
     assert approval.primary_approver_id == test_risk.owner_id
@@ -1281,12 +1248,10 @@ async def test_privileged_user_can_directly_correct_kri(
 ):
     """Test privileged user (CRO) can correct KRI value immediately without approval."""
     from app.services.kri_history_service import KRIHistoryService
-    
+
     # Create KRI with history entry
-    _, period_end = KRIHistoryService.latest_closed_period_for_date(
-        date.today(), KRIFrequency.monthly.value
-    )
-    
+    _, period_end = KRIHistoryService.latest_closed_period_for_date(date.today(), KRIFrequency.monthly.value)
+
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
         metric_name="Direct Correction KRI",
@@ -1301,7 +1266,7 @@ async def test_privileged_user_can_directly_correct_kri(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     history_entry = KRIValueHistory(
         kri_id=kri.id,
         period_start=period_end - timedelta(days=30),
@@ -1317,17 +1282,16 @@ async def test_privileged_user_can_directly_correct_kri(
     db_session.add(history_entry)
     await db_session.commit()
     await db_session.refresh(history_entry)
-    
+
     # Privileged user corrects the value directly
     response = await auth_client.patch(
-        f"/api/v1/kris/{kri.id}/history/{history_entry.id}",
-        json={"value": 75.0, "reason": "Privileged correction"}
+        f"/api/v1/kris/{kri.id}/history/{history_entry.id}", json={"value": 75.0, "reason": "Privileged correction"}
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["value"] == 75.0
-    
+
     # Verify history entry was updated
     await db_session.refresh(history_entry)
     assert history_entry.value == 75.0
@@ -1341,19 +1305,18 @@ async def test_kri_initial_submission_non_priority_doesnt_require_privileged(
     test_department,
 ):
     """Test initial submission to non-priority risk doesn't require privileged approval (only correction does)."""
-    from app.models import User, Risk
+    from app.models import Permission, Risk, RolePermission, User
     from app.models.risk import RiskStatus
     from app.models.user import AccessScope
-    from app.models import Permission, RolePermission
-    
+
     # Create employee user with kri:submit permission
     kri_submit = Permission(resource="kri", action="submit", description="Submit KRI values")
     db_session.add(kri_submit)
     await db_session.commit()
-    
+
     db_session.add(RolePermission(role_id=test_role_employee.id, permission_id=kri_submit.id))
     await db_session.commit()
-    
+
     employee = User(
         name="Initial Submission Employee",
         email="initial-submission-test@example.com",
@@ -1365,7 +1328,7 @@ async def test_kri_initial_submission_non_priority_doesnt_require_privileged(
     db_session.add(employee)
     await db_session.commit()
     await db_session.refresh(employee)
-    
+
     # Create non-priority risk
     risk = Risk(
         risk_id_code="RISK-NON-PRIORITY",
@@ -1386,7 +1349,7 @@ async def test_kri_initial_submission_non_priority_doesnt_require_privileged(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
-    
+
     # Create KRI linked to non-priority risk
     kri = KeyRiskIndicator(
         risk_id=risk.id,
@@ -1401,14 +1364,12 @@ async def test_kri_initial_submission_non_priority_doesnt_require_privileged(
     db_session.add(kri)
     await db_session.commit()
     await db_session.refresh(kri)
-    
+
     # Initial submission (not correction)
     response = await client.post(
-        f"/api/v1/kris/{kri.id}/values",
-        headers={"X-Mock-User-Id": str(employee.id)},
-        json={"value": 75.0}
+        f"/api/v1/kris/{kri.id}/values", headers={"X-Mock-User-Id": str(employee.id)}, json={"value": 75.0}
     )
-    
+
     assert response.status_code == 202
     data = response.json()
     # Initial submission for non-priority should NOT require privileged

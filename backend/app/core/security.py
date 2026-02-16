@@ -2,8 +2,9 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Iterable, Optional
 
+import jwt
 from fastapi import Depends, Header, HTTPException, status
-from jose import jwt
+from jwt import InvalidTokenError
 from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,9 @@ from app.models import Role, RolePermission, User
 settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 logger = logging.getLogger(__name__)
+
+# Backward-compatible alias used by auth dependencies.
+TokenDecodeError = InvalidTokenError
 
 # Password hashing utilities
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -58,7 +62,7 @@ def decode_access_token(token: str) -> dict:
         Dictionary of decoded claims
 
     Raises:
-        JWTError: If token is invalid or expired
+        InvalidTokenError: If token is invalid or expired
     """
     return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
 

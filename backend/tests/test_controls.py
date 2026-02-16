@@ -1,6 +1,7 @@
 """
 Tests for Control API endpoints.
 """
+
 import pytest
 from httpx import AsyncClient
 
@@ -23,7 +24,7 @@ async def test_create_control(auth_client: AsyncClient, test_user: User, test_de
             "status": "active",
         },
     )
-    
+
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "Test Control"
@@ -47,9 +48,9 @@ async def test_list_controls(auth_client: AsyncClient, test_user: User, test_dep
             "status": "active",
         },
     )
-    
+
     response = await auth_client.get("/api/v1/controls")
-    
+
     assert response.status_code == 200
     data = response.json().get("items", [])
     assert isinstance(data, list)
@@ -107,10 +108,10 @@ async def test_get_control(auth_client: AsyncClient, test_user: User, test_depar
         },
     )
     control_id = create_response.json()["id"]
-    
+
     # Get the control
     response = await auth_client.get(f"/api/v1/controls/{control_id}")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["id"] == control_id
@@ -165,7 +166,7 @@ async def test_update_control(auth_client: AsyncClient, test_user: User, test_de
         },
     )
     control_id = create_response.json()["id"]
-    
+
     # Update the control
     response = await auth_client.patch(
         f"/api/v1/controls/{control_id}",
@@ -174,7 +175,7 @@ async def test_update_control(auth_client: AsyncClient, test_user: User, test_de
             "risk_level": 5,
         },
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["name"] == "Updated Control Name"
@@ -199,10 +200,10 @@ async def test_delete_control(auth_client: AsyncClient, test_user: User, test_de
         },
     )
     control_id = create_response.json()["id"]
-    
+
     # Delete the control
     response = await auth_client.delete(f"/api/v1/controls/{control_id}?reason=Testing deletion")
-    
+
     assert response.status_code == 204
 
 
@@ -210,7 +211,7 @@ async def test_delete_control(auth_client: AsyncClient, test_user: User, test_de
 async def test_control_not_found(auth_client: AsyncClient, test_user: User):
     """Test getting a non-existent control returns 404."""
     response = await auth_client.get("/api/v1/controls/99999")
-    
+
     assert response.status_code == 404
 
 
@@ -312,7 +313,8 @@ async def test_control_restore_requires_delete_permission(
     )
     assert archive_response.status_code == 204
 
-    from app.models import Role, User as UserModel
+    from app.models import Role
+    from app.models import User as UserModel
     from app.models.user import AccessScope
 
     readonly_role = Role(name="control_readonly", display_name="Control Read Only", description="control read only")

@@ -70,13 +70,17 @@ async def test_user_deactivation_flags_orphaned_risks_and_controls(
     assert resp.json()["is_active"] is False
 
     orphans = (
-        await db_session.execute(
-            select(OrphanedItem).where(
-                OrphanedItem.previous_owner_id == target_user.id,
-                OrphanedItem.status == "pending",
+        (
+            await db_session.execute(
+                select(OrphanedItem).where(
+                    OrphanedItem.previous_owner_id == target_user.id,
+                    OrphanedItem.status == "pending",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     assert {(o.item_type, o.item_id) for o in orphans} == {("risk", risk.id), ("control", control.id)}
 
@@ -85,12 +89,15 @@ async def test_user_deactivation_flags_orphaned_risks_and_controls(
     assert resp2.status_code == 200
 
     orphans2 = (
-        await db_session.execute(
-            select(OrphanedItem).where(
-                OrphanedItem.previous_owner_id == target_user.id,
-                OrphanedItem.status == "pending",
+        (
+            await db_session.execute(
+                select(OrphanedItem).where(
+                    OrphanedItem.previous_owner_id == target_user.id,
+                    OrphanedItem.status == "pending",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(orphans2) == 2
-

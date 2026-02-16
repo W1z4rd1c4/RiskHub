@@ -1,16 +1,18 @@
 """
 Tests for audit trail report endpoints.
 """
-from io import BytesIO
-import pytest
+
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
+
+import pytest
 from httpx import AsyncClient
 from openpyxl import load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.control import Control
-from app.models.risk import Risk, ControlRiskLink
 from app.models.control_execution import ControlExecution
+from app.models.risk import ControlRiskLink, Risk
 
 
 @pytest.fixture
@@ -28,7 +30,7 @@ async def audit_trail_test_data(db_session: AsyncSession, test_user, test_depart
     )
     db_session.add(control)
     await db_session.flush()
-    
+
     # Create a risk and link it
     risk = Risk(
         name="Audit Test Risk",
@@ -47,11 +49,11 @@ async def audit_trail_test_data(db_session: AsyncSession, test_user, test_depart
     )
     db_session.add(risk)
     await db_session.flush()
-    
+
     link = ControlRiskLink(control_id=control.id, risk_id=risk.id)
     db_session.add(link)
     await db_session.flush()
-    
+
     # Create control executions with different results
     exe_passed = ControlExecution(
         control_id=control.id,
@@ -69,13 +71,11 @@ async def audit_trail_test_data(db_session: AsyncSession, test_user, test_depart
         findings="Critical issue found in the control",
         executed_at=datetime.now(UTC) - timedelta(days=7),
     )
-    
+
     db_session.add_all([exe_passed, exe_failed])
     await db_session.commit()
-    
+
     return {"control": control, "risk": risk, "exe_passed": exe_passed, "exe_failed": exe_failed}
-
-
 
 
 @pytest.mark.asyncio
