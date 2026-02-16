@@ -28,4 +28,3 @@ def test_datetime_utcnow_not_used_in_app_or_scripts() -> None:
             violations.extend(_scan_for_substring(root, substring=needle))
 
     assert not violations, "Forbidden datetime patterns found:\n" + "\n".join(violations)
-

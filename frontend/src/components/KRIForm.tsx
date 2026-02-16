@@ -17,7 +17,7 @@ import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
 import { userApi } from '@/services/userApi';
 import { ApiClientError } from '@/services/apiClient';
-import type { KRICreate } from '@/types/kri';
+import { KRIFrequencies, type KRICreate, type KRIFrequency } from '@/types/kri';
 import type { RiskSummary } from '@/types/risk';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
@@ -477,7 +477,11 @@ export function KRIForm({ initialData, isEdit = false, kriId }: KRIFormProps) {
                                         </label>
                                         <ThemedSelect
                                             value={formData.frequency || 'quarterly'}
-                                            onValueChange={(v) => handleInputChange('frequency', v)}
+                                            onValueChange={(v) => {
+                                                if ((KRIFrequencies as readonly string[]).includes(v)) {
+                                                    handleInputChange('frequency', v as KRIFrequency);
+                                                }
+                                            }}
                                             className="w-full"
                                             options={[
                                                 { value: 'daily', label: t('frequencies.daily') },

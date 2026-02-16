@@ -1,7 +1,6 @@
 """
 Tests for risk questionnaire API endpoints.
 """
-from datetime import datetime
 
 import pytest
 import pytest_asyncio
@@ -9,7 +8,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department, Risk, User, RiskQuestionnaire
+from app.models import Department, Risk, RiskQuestionnaire, User
 from app.models.risk import RiskStatus
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 

@@ -1,9 +1,8 @@
 import pytest
-
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Permission, Role, RolePermission, User, Department
+from app.models import Department, Permission, Role, RolePermission, User
 from app.models.user import AccessScope
 
 
@@ -40,4 +39,3 @@ async def test_lookups_risk_filters_requires_risks_read(
 
     resp = await client.get("/api/v1/lookups/risk-filters", headers={"X-Mock-User-Id": str(user.id)})
     assert resp.status_code == 403
-

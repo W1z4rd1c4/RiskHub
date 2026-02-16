@@ -1,11 +1,11 @@
 """Tests for notification API endpoints."""
+
 import pytest
-import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.notification_service import NotificationService
 from app.models.notification import NotificationType
+from app.services.notification_service import NotificationService
 
 
 @pytest.mark.asyncio
@@ -35,7 +35,7 @@ async def test_list_notifications_returns_user_own(
         message="Test message",
     )
     await db_session.commit()
-    
+
     response = await auth_client.get("/api/v1/notifications")
     assert response.status_code == 200
     data = response.json()
@@ -61,7 +61,7 @@ async def test_unread_count(
             message="Message",
         )
     await db_session.commit()
-    
+
     response = await auth_client.get("/api/v1/notifications/unread/count")
     assert response.status_code == 200
     data = response.json()
@@ -83,14 +83,14 @@ async def test_mark_as_read(
         message="Message",
     )
     await db_session.commit()
-    
+
     # Mark as read - now returns 200 with unread_count
     response = await auth_client.post(f"/api/v1/notifications/{notification.id}/read")
     assert response.status_code == 200
     data = response.json()
     assert "unread_count" in data
     assert data["unread_count"] == 0  # Should be 0 after marking the only notification as read
-    
+
     # Verify via separate endpoint too
     count_response = await auth_client.get("/api/v1/notifications/unread/count")
     assert count_response.json()["count"] == 0
@@ -119,7 +119,7 @@ async def test_mark_as_read_not_owner(
         message="Message",
     )
     await db_session.commit()
-    
+
     # Try to mark as read with admin client - should fail with 404
     response = await auth_client.post(f"/api/v1/notifications/{notification.id}/read")
     assert response.status_code == 404
@@ -142,15 +142,15 @@ async def test_mark_all_as_read(
             message="Message",
         )
     await db_session.commit()
-    
+
     # Verify 3 unread
     count_response = await auth_client.get("/api/v1/notifications/unread/count")
     assert count_response.json()["count"] == 3
-    
+
     # Mark all as read
     response = await auth_client.post("/api/v1/notifications/read-all")
     assert response.status_code == 204
-    
+
     # Verify 0 unread
     count_response = await auth_client.get("/api/v1/notifications/unread/count")
     assert count_response.json()["count"] == 0

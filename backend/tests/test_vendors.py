@@ -1,10 +1,8 @@
 import pytest
-
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department, Permission, Role, RolePermission, User, Vendor
-from app.models.user import AccessScope
 
 
 async def _grant(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:

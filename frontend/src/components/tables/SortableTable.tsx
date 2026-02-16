@@ -30,7 +30,11 @@ interface SortableTableProps<T> {
     onSort?: (key: string, direction: SortDirection) => void;
 }
 
-export function SortableTable<T extends Record<string, unknown>>({
+function getItemValue<T extends object>(item: T, key: string): unknown {
+    return (item as Record<string, unknown>)[key];
+}
+
+export function SortableTable<T extends object>({
     data,
     columns,
     keyExtractor,
@@ -75,8 +79,8 @@ export function SortableTable<T extends Record<string, unknown>>({
         if (!internalSortKey || !internalSortDirection) return data;
 
         return [...data].sort((a, b) => {
-            const aVal = a[internalSortKey];
-            const bVal = b[internalSortKey];
+            const aVal = getItemValue(a, internalSortKey);
+            const bVal = getItemValue(b, internalSortKey);
 
             if (aVal == null) return 1;
             if (bVal == null) return -1;
@@ -155,7 +159,7 @@ export function SortableTable<T extends Record<string, unknown>>({
                                 >
                                     {col.render
                                         ? col.render(item, index)
-                                        : String(item[col.key as keyof T] ?? '')}
+                                        : String(getItemValue(item, String(col.key)) ?? '')}
                                 </td>
                             ))}
                         </tr>

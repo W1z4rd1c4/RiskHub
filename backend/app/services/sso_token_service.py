@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 
 from app.core.config import Settings
 
@@ -40,6 +41,19 @@ def _jwks_has_kid(jwks: dict[str, Any], kid: str) -> bool:
     if not isinstance(keys, list):
         return False
     return any(isinstance(k, dict) and k.get("kid") == kid for k in keys)
+
+
+def _extract_kid(token: str) -> str | None:
+    try:
+        header = jwt.get_unverified_header(token)
+    except Exception:
+        return None
+    if not isinstance(header, dict):
+        return None
+    kid = header.get("kid")
+    if isinstance(kid, str) and kid:
+        return kid
+    return None
 
 
 class EntraTokenVerifier:
@@ -100,6 +114,36 @@ class EntraTokenVerifier:
             self._jwks_fetched_at = now
             return jwks
 
+    def _decode_claims(self, *, id_token: str, jwks: dict[str, Any], issuer: str, kid: str | None) -> dict[str, Any]:
+        try:
+            jwk_set = jwt.PyJWKSet.from_dict(jwks)
+        except Exception as e:
+            raise SsoProviderUnavailableError(f"Invalid JWKS payload: {e}") from e
+
+        candidates = list(jwk_set.keys)
+        if kid:
+            candidates = [key for key in candidates if key.key_id == kid]
+            if not candidates:
+                raise PyJWTError(f"No signing key found for kid: {kid}")
+
+        last_error: Exception | None = None
+        for candidate in candidates:
+            try:
+                return jwt.decode(
+                    id_token,
+                    candidate.key,
+                    algorithms=["RS256"],
+                    audience=self._client_id,
+                    issuer=issuer,
+                    leeway=self._clock_skew_seconds,
+                )
+            except PyJWTError as e:
+                last_error = e
+
+        if last_error:
+            raise last_error
+        raise PyJWTError("No signing keys available in JWKS")
+
     async def verify_id_token(self, *, id_token: str) -> VerifiedIdentity:
         if not id_token:
             raise SsoTokenVerificationError(code="missing_token", detail="Missing id_token")
@@ -110,43 +154,22 @@ class EntraTokenVerifier:
         jwks_uri = str(discovery["jwks_uri"])
         jwks = await self._get_jwks(jwks_uri=jwks_uri, now=now)
 
-        kid = None
-        try:
-            header = jwt.get_unverified_header(id_token)
-            if isinstance(header, dict):
-                kid = header.get("kid")
-        except Exception:
-            kid = None
+        kid = _extract_kid(id_token)
 
         # If we can see the kid and it's not in our JWKS cache, refresh once.
         if kid and not _jwks_has_kid(jwks, kid):
             jwks = await self._get_jwks(jwks_uri=jwks_uri, now=now, force_refresh=True)
 
-        options = {"leeway": self._clock_skew_seconds}
         try:
-            claims = jwt.decode(
-                id_token,
-                jwks,
-                algorithms=["RS256"],
-                audience=self._client_id,
-                issuer=issuer,
-                options=options,
-            )
-        except JWTError as e:
+            claims = self._decode_claims(id_token=id_token, jwks=jwks, issuer=issuer, kid=kid)
+        except PyJWTError as e:
             # Best-effort refresh on signature-related failures (key rotation).
             if kid:
                 jwks = await self._get_jwks(jwks_uri=jwks_uri, now=now, force_refresh=True)
                 try:
-                    claims = jwt.decode(
-                        id_token,
-                        jwks,
-                        algorithms=["RS256"],
-                        audience=self._client_id,
-                        issuer=issuer,
-                        options=options,
-                    )
-                except JWTError:
-                    raise SsoTokenVerificationError(code="invalid_token", detail=str(e)) from e
+                    claims = self._decode_claims(id_token=id_token, jwks=jwks, issuer=issuer, kid=kid)
+                except PyJWTError as refreshed_error:
+                    raise SsoTokenVerificationError(code="invalid_token", detail=str(refreshed_error)) from e
             else:
                 raise SsoTokenVerificationError(code="invalid_token", detail=str(e)) from e
 

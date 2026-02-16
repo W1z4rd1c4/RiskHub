@@ -2,17 +2,17 @@
 Phase 179-15: Deterministic Archive Matrix Seeding
 Ensures active/archived pairs across all archive-capable entity families.
 """
+
 import asyncio
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 
-from app.core.datetime_utils import utc_now
 from app.core.config import get_settings
+from app.core.datetime_utils import utc_now
 from app.db.session import session_context
 from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk, Vendor, VendorSLA
 from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
-
 
 RISK_MATRIX = [
     {
@@ -168,13 +168,9 @@ async def _ensure_control_matrix(db, users, departments):
         owner_id = require_user_id(users, entry["owner"])
         department_id = require_department_id(departments, entry["dept"])
 
-        risk = (
-            await db.execute(select(Risk).where(Risk.risk_id_code == entry["risk_code"]))
-        ).scalar_one_or_none()
+        risk = (await db.execute(select(Risk).where(Risk.risk_id_code == entry["risk_code"]))).scalar_one_or_none()
         if risk is None:
-            raise RuntimeError(
-                f"Archive matrix control '{entry['name']}' requires risk '{entry['risk_code']}'."
-            )
+            raise RuntimeError(f"Archive matrix control '{entry['name']}' requires risk '{entry['risk_code']}'.")
 
         result = await db.execute(select(Control).where(Control.name == entry["name"]))
         control = result.scalar_one_or_none()
@@ -228,17 +224,11 @@ async def _ensure_kri_matrix(db, users):
 
     for entry in KRI_MATRIX:
         reporting_owner_id = require_user_id(users, entry["reporting_owner"])
-        risk = (
-            await db.execute(select(Risk).where(Risk.risk_id_code == entry["risk_code"]))
-        ).scalar_one_or_none()
+        risk = (await db.execute(select(Risk).where(Risk.risk_id_code == entry["risk_code"]))).scalar_one_or_none()
         if risk is None:
-            raise RuntimeError(
-                f"Archive matrix KRI '{entry['metric_name']}' requires risk '{entry['risk_code']}'."
-            )
+            raise RuntimeError(f"Archive matrix KRI '{entry['metric_name']}' requires risk '{entry['risk_code']}'.")
 
-        result = await db.execute(
-            select(KeyRiskIndicator).where(KeyRiskIndicator.metric_name == entry["metric_name"])
-        )
+        result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.metric_name == entry["metric_name"]))
         kri = result.scalar_one_or_none()
         payload = {
             "metric_name": entry["metric_name"],
@@ -276,8 +266,7 @@ async def _ensure_vendor_matrix(db):
         ).scalar_one_or_none()
         if vendor is None:
             raise RuntimeError(
-                f"Archive matrix requires seeded vendor '{entry['registration_id']}'. "
-                "Run seed_e2e_vendors first."
+                f"Archive matrix requires seeded vendor '{entry['registration_id']}'. " "Run seed_e2e_vendors first."
             )
         vendor.status = entry["status"]
         updated += 1

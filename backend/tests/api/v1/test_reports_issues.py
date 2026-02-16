@@ -152,7 +152,6 @@ async def issue_export_data(
     await db_session.commit()
 
 
-
 def _parse_csv(response_text: str) -> list[dict[str, str]]:
     return list(csv.DictReader(StringIO(response_text)))
 
@@ -207,9 +206,7 @@ async def test_export_issues_overdue_only_filter(
     issue_export_data,
 ):
     as_of = datetime.now(UTC).date().isoformat()
-    response = await auth_client.get(
-        f"/api/v1/reports/issues/export?format=csv&as_of_date={as_of}&overdue_only=true"
-    )
+    response = await auth_client.get(f"/api/v1/reports/issues/export?format=csv&as_of_date={as_of}&overdue_only=true")
     assert response.status_code == 200
 
     rows = _parse_csv(response.text)
@@ -234,9 +231,7 @@ async def test_export_issues_supports_severity_group_and_active_exception_exclus
     test_user,
 ):
     now = datetime.now(UTC).replace(microsecond=0)
-    dept_high_issue = (
-        await db_session.execute(select(Issue).where(Issue.title == "Dept issue overdue"))
-    ).scalar_one()
+    dept_high_issue = (await db_session.execute(select(Issue).where(Issue.title == "Dept issue overdue"))).scalar_one()
     db_session.add(
         IssueException(
             issue_id=dept_high_issue.id,

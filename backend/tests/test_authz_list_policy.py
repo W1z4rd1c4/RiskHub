@@ -17,4 +17,3 @@ async def test_users_lookup_department_filter_out_of_scope_returns_empty_list(
     resp = await client_employee.get(f"/api/v1/users/lookup?department_id={other_department.id}")
     assert resp.status_code == 200
     assert resp.json() == []
-

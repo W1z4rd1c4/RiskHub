@@ -17,4 +17,3 @@ async def test_vendor_slas_due_soon_static_route_not_shadowed(auth_client):
 async def test_vendor_slas_overdue_static_route_not_shadowed(auth_client):
     resp = await auth_client.get("/api/v1/vendor-slas/overdue")
     assert resp.status_code == 200, resp.text
-

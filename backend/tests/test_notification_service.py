@@ -1,16 +1,16 @@
 """Tests for NotificationService."""
+
 import pytest
-import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.services.notification_service import NotificationService
-from app.models import User, ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType, Risk
+from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus, Risk, User
 from app.models.notification import Notification, NotificationType
 from app.models.risk import RiskStatus
+from app.models.role import Permission, Role, RolePermission
 from app.models.user import AccessScope
-from app.models.role import Role, Permission, RolePermission
+from app.services.notification_service import NotificationService
 
 
 @pytest.mark.asyncio
@@ -26,7 +26,7 @@ async def test_create_notification(db_session: AsyncSession, test_user: User):
         resource_id=1,
     )
     await db_session.commit()
-    
+
     assert notification.id is not None
     assert notification.user_id == test_user.id
     assert notification.type == NotificationType.APPROVAL_PENDING
@@ -40,7 +40,7 @@ async def test_create_notification(db_session: AsyncSession, test_user: User):
 
 @pytest.mark.asyncio
 async def test_notify_approvers_creates_for_all_privileged(
-    db_session: AsyncSession, 
+    db_session: AsyncSession,
     test_user_employee: User,  # requester
     test_user_risk_manager: User,  # should get notification
     test_user_cro: User,  # should get notification
@@ -80,15 +80,15 @@ async def test_notify_approvers_creates_for_all_privileged(
     db_session.add(approval)
     await db_session.commit()
     await db_session.refresh(approval)
-    
+
     # Notify approvers
     notifications = await NotificationService.notify_approvers(db_session, approval)
     await db_session.commit()
-    
+
     # Should create notifications for admin, CRO, and risk_manager (3 privileged users), but not the requester.
     assert notifications
     assert all(n is not None for n in notifications)
-    
+
     # All notifications should be APPROVAL_PENDING type
     for n in notifications:
         assert n.type == NotificationType.APPROVAL_PENDING
@@ -226,7 +226,7 @@ async def test_notify_requester_resolved_approved(
     db_session.add(approval)
     await db_session.commit()
     await db_session.refresh(approval)
-    
+
     # Notify requester of approval
     notification = await NotificationService.notify_requester_resolved(
         db=db_session,
@@ -234,7 +234,7 @@ async def test_notify_requester_resolved_approved(
         approved=True,
     )
     await db_session.commit()
-    
+
     assert notification is not None
     assert notification.user_id == test_user_employee.id
     assert notification.type == NotificationType.APPROVAL_RESOLVED
@@ -263,7 +263,7 @@ async def test_notify_requester_resolved_rejected(
     db_session.add(approval)
     await db_session.commit()
     await db_session.refresh(approval)
-    
+
     # Notify requester of rejection
     notification = await NotificationService.notify_requester_resolved(
         db=db_session,
@@ -271,7 +271,7 @@ async def test_notify_requester_resolved_rejected(
         approved=False,
     )
     await db_session.commit()
-    
+
     assert notification is not None
     assert notification.user_id == test_user_employee.id
     assert notification.type == NotificationType.APPROVAL_RESOLVED

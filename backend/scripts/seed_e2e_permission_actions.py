@@ -4,37 +4,34 @@ Seeds delete approvals, control execution logs, and KRI value history.
 
 Enables permissions E2E tests that verify CRUD access rules.
 """
+
 import asyncio
-from datetime import timedelta, date
+from datetime import date, timedelta
+
 from sqlalchemy import select
+
 from app.core.config import get_settings
-from app.db.session import session_context
 from app.core.datetime_utils import utc_now
-from app.models import Risk, Control, KeyRiskIndicator, KRIValueHistory, ControlExecution
-from app.models.approval_request import (
-    ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType
-)
+from app.db.session import session_context
+from app.models import Control, ControlExecution, KeyRiskIndicator, KRIValueHistory, Risk
+from app.models.approval_request import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 from scripts.e2e_mappings import load_mappings
 
 
 async def seed_delete_approvals(db, users, risks, controls):
     """Seed DELETE approval requests from non-privileged users."""
     # Check if already seeded
-    result = await db.execute(
-        select(ApprovalRequest).where(
-            ApprovalRequest.reason.contains("E2E-DELETE-PERM")
-        )
-    )
+    result = await db.execute(select(ApprovalRequest).where(ApprovalRequest.reason.contains("E2E-DELETE-PERM")))
     if result.scalars().first():
         print("   ⏭️  Delete approvals already seeded")
         return 0
-    
+
     # Non-privileged user requests, department head approves
     requester_id = users.get("ops.analyst@riskhub.local")
     approver_id = users.get("ops.head@riskhub.local")
-    
+
     created = 0
-    
+
     # Risk delete approval
     if risks:
         approval = ApprovalRequest(
@@ -49,8 +46,8 @@ async def seed_delete_approvals(db, users, risks, controls):
         )
         db.add(approval)
         created += 1
-        print(f"   ✓ DELETE/risk: pending by employee")
-    
+        print("   ✓ DELETE/risk: pending by employee")
+
     # Control delete approval
     if controls:
         approval = ApprovalRequest(
@@ -65,69 +62,63 @@ async def seed_delete_approvals(db, users, risks, controls):
         )
         db.add(approval)
         created += 1
-        print(f"   ✓ DELETE/control: pending by employee")
-    
+        print("   ✓ DELETE/control: pending by employee")
+
     return created
 
 
 async def seed_control_executions(db, users, controls):
     """Seed control execution log entries."""
     # Check if already seeded
-    result = await db.execute(
-        select(ControlExecution).where(
-            ControlExecution.notes.contains("E2E-EXECUTION")
-        )
-    )
+    result = await db.execute(select(ControlExecution).where(ControlExecution.notes.contains("E2E-EXECUTION")))
     if result.scalars().first():
         print("   ⏭️  Control executions already seeded")
         return 0
-    
+
     executor_id = users.get("ops.analyst@riskhub.local")
     created = 0
     base_time = utc_now()
-    
+
     for i, control in enumerate(controls[:3]):  # First 3 controls
         execution = ControlExecution(
             control_id=control.id,
             executed_by_id=executor_id,
-            executed_at=base_time - timedelta(days=i*7, hours=i*2),
+            executed_at=base_time - timedelta(days=i * 7, hours=i * 2),
             result="passed" if i % 2 == 0 else "warning",
             findings="No issues found" if i % 2 == 0 else "Minor deviations observed",
             evidence_reference=f"/evidence/placeholder-pdf-012.pdf",
             notes=f"E2E-EXECUTION: Quarterly control test #{i+1}",
-            next_scheduled=base_time + timedelta(days=30-i*7),
+            next_scheduled=base_time + timedelta(days=30 - i * 7),
         )
         db.add(execution)
         created += 1
         print(f"   ✓ EXECUTION/control: {control.name[:40]}...")
-    
+
     return created
 
 
 async def seed_kri_value_history(db, users, kris):
     """Seed KRI value history entries including corrections."""
     # Check for existing E2E entries
-    result = await db.execute(
-        select(KRIValueHistory).limit(5)
-    )
+    result = await db.execute(select(KRIValueHistory).limit(5))
     existing = result.scalars().all()
-    
+
     # Only seed if there are very few history entries
     if len(existing) >= 10:
         print("   ⏭️  KRI value history already has sufficient entries")
         return 0
-    
+
     reporter_id = users.get("fin.analyst@riskhub.local")
     created = 0
     base_time = utc_now()
     today = date.today()
-    
+
     for i, kri in enumerate(kris[:3]):  # First 3 KRIs
         # Create historical value entries for past periods
         for period_offset in range(1, 4):  # Last 3 periods
             period_end = today - timedelta(days=period_offset * 30)
             period_start = period_end - timedelta(days=29)
-            
+
             # Determine value and breach status
             value = 50 + i * 10 + period_offset * 5
             breach_status = "within"
@@ -135,7 +126,7 @@ async def seed_kri_value_history(db, users, kris):
                 breach_status = "above"
             elif value < 30:
                 breach_status = "below"
-            
+
             history_entry = KRIValueHistory(
                 kri_id=kri.id,
                 period_start=period_start,
@@ -150,44 +141,44 @@ async def seed_kri_value_history(db, users, kris):
             )
             db.add(history_entry)
             created += 1
-    
+
     print(f"   ✓ KRI_VALUE_HISTORY: {created} period entries")
     return created
 
 
 async def seed_permission_actions():
     """Main entry point."""
-    print("="*60)
+    print("=" * 60)
     print("🔍 PHASE 179-10: Permission-Gated Action Data Seeding")
-    print("="*60)
-    
+    print("=" * 60)
+
     async with session_context(get_settings()) as db:
         users, depts = await load_mappings(db)
-        
+
         # Get sample entities
         risk_result = await db.execute(select(Risk).limit(3))
         risks = risk_result.scalars().all()
-        
+
         control_result = await db.execute(select(Control).limit(5))
         controls = control_result.scalars().all()
-        
+
         kri_result = await db.execute(select(KeyRiskIndicator).limit(5))
         kris = kri_result.scalars().all()
-        
+
         total = 0
-        
+
         # Seed delete approvals
         count = await seed_delete_approvals(db, users, risks, controls)
         total += count
-        
+
         # Seed control executions
         count = await seed_control_executions(db, users, controls)
         total += count
-        
+
         # Seed KRI value history
         count = await seed_kri_value_history(db, users, kris)
         total += count
-        
+
         await db.commit()
         print(f"\n✅ Created {total} permission-gated action entries")
 

@@ -4,7 +4,6 @@ from httpx import ASGITransport, AsyncClient
 from app.core.config import Settings
 from app.main import DEFAULT_DATABASE_URL, create_app
 
-
 PRODUCTION_SECRET = "test-secret-for-production-mode-123456"
 PRODUCTION_DATABASE_URL = "postgresql+asyncpg://riskhub:tests@prod-db:5432/riskhub"
 PRODUCTION_AUTH_MODE = "microsoft_sso"

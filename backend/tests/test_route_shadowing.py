@@ -87,4 +87,3 @@ def test_no_dynamic_string_route_shadows_static_sibling() -> None:
             for a, b in collisions
         )
     )
-

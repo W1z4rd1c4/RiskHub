@@ -2,6 +2,7 @@
 Phase 179-14: Deterministic Vendor SLA Seed Matrix
 Seeds deterministic E2E vendor SLAs with active/archived states.
 """
+
 import asyncio
 from datetime import UTC, datetime
 
@@ -11,7 +12,6 @@ from app.core.config import get_settings
 from app.db.session import session_context
 from app.models import Vendor, VendorSLA
 from scripts.e2e_mappings import load_mappings, require_user_id
-
 
 E2E_VENDOR_SLAS = [
     {
@@ -100,8 +100,8 @@ async def seed_vendor_slas():
         archive_actor_id = require_user_id(users, "risk.manager@riskhub.local")
 
         vendor_rows = (
-            await db.execute(select(Vendor).where(Vendor.registration_id.like("E2E-VREG-%")))
-        ).scalars().all()
+            (await db.execute(select(Vendor).where(Vendor.registration_id.like("E2E-VREG-%")))).scalars().all()
+        )
         vendors_by_registration = {vendor.registration_id: vendor for vendor in vendor_rows}
 
         created = 0
@@ -159,9 +159,7 @@ async def seed_vendor_slas():
         await db.commit()
 
         total = (
-            await db.execute(
-                select(func.count(VendorSLA.id)).where(VendorSLA.metric_name.like("E2E-SLA-%"))
-            )
+            await db.execute(select(func.count(VendorSLA.id)).where(VendorSLA.metric_name.like("E2E-SLA-%")))
         ).scalar_one()
         archived = (
             await db.execute(

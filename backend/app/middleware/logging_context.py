@@ -112,7 +112,8 @@ def _extract_user_id_from_token(token: str) -> int | None:
     Invalid/expired tokens return None (no attribution).
     """
     try:
-        from jose import JWTError, jwt
+        import jwt
+        from jwt import InvalidTokenError
 
         from app.core.config import get_settings
 
@@ -129,7 +130,7 @@ def _extract_user_id_from_token(token: str) -> int | None:
         if user_id is not None:
             return int(user_id)
         return None
-    except (JWTError, ValueError, TypeError):
+    except (InvalidTokenError, ValueError, TypeError):
         # Invalid/expired token - no user attribution
         return None
     except Exception:

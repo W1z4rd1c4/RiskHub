@@ -69,8 +69,38 @@
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
 | 500 Production Installation Scripts | ✅ Complete (8/8) | 2026-02-16 |
+| 501 Production Readiness Hardening | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Phase 501 Execution (2026-02-16)
+
+- ✅ Executed full hardening scope from deep-scan findings across frontend, backend auth, stale code cleanup, lint debt, and CI quality/security gates.
+- ✅ Frontend hardening:
+  - restored strict TypeScript/build stability for generic table and related typed surfaces,
+  - upgraded `axios` to non-vulnerable lock state,
+  - verified lint/typecheck/build/test/audit gates.
+- ✅ Backend hardening:
+  - replaced `python-jose` with `PyJWT[crypto]` while preserving token claim contract and SSO verification behavior,
+  - removed stale legacy test artifact + dead translation module,
+  - cleared Ruff debt across `tests/` and `scripts/`.
+- ✅ CI hardening:
+  - added frontend `tsc --noEmit` and `npm run build` gates,
+  - expanded backend Ruff scope to `app tests scripts`,
+  - made security scans blocking for actionable issues with explicit pip-audit allowlist mechanism.
+- Added Phase 501 summaries:
+  - `.planning/phases/501-production-readiness-hardening/501-01-SUMMARY.md` through `501-08-SUMMARY.md`
+- Verification executed:
+  - `cd frontend && npm run lint -- --max-warnings=0` → passed
+  - `cd frontend && npx tsc --noEmit` → passed
+  - `cd frontend && npm run build` → passed
+  - `cd frontend && npm run test:run` → passed
+  - `cd frontend && npm audit --audit-level=high` → passed (`0 vulnerabilities`)
+  - `cd backend && ./venv/bin/python -m ruff check app tests scripts` → passed
+  - `cd backend && ./venv/bin/pytest -q` → passed
+  - `cd backend && ./venv/bin/pytest -q tests/test_sso_token_service.py tests/test_sso_exchange.py tests/test_users.py tests/test_production_hardening.py` → passed
+  - `cd backend && ./venv/bin/bandit --ini .bandit -r app -f txt --severity-level high` → passed (no high findings)
+  - `cd backend && ./venv/bin/python -m pip_audit -r requirements.txt` → passed (`No known vulnerabilities found`)
 
 ### Phase 70/156 Metadata Reconciliation (2026-02-16)
 

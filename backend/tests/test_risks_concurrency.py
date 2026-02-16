@@ -1,5 +1,7 @@
 """Concurrency tests for Risk ID generation."""
+
 import asyncio
+
 import pytest
 from httpx import AsyncClient
 
@@ -16,9 +18,10 @@ async def test_concurrent_risk_creation_no_duplicates(
 ):
     """
     Verify that 10 concurrent risk creations all succeed with unique IDs.
-    
+
     This tests the atomic-retry pattern for Risk ID generation.
     """
+
     # Create 10 risks concurrently with same process
     async def create_risk(i: int):
         response = await auth_client.post(
@@ -37,18 +40,18 @@ async def test_concurrent_risk_creation_no_duplicates(
             },
         )
         return response
-    
+
     # Fire all 10 requests concurrently
     results = await asyncio.gather(*[create_risk(i) for i in range(10)])
-    
+
     # All should succeed (201 Created)
     for i, response in enumerate(results):
         assert response.status_code == 201, f"Request {i} failed: {response.json()}"
-    
+
     # All IDs should be unique
     risk_ids = [r.json()["risk_id_code"] for r in results]
     assert len(set(risk_ids)) == 10, f"Duplicate IDs found: {risk_ids}"
-    
+
     # All should follow pattern CONC-RNN
     for rid in risk_ids:
         assert rid.startswith("CONC-R"), f"Unexpected ID format: {rid}"
@@ -80,7 +83,7 @@ async def test_user_provided_id_collision_returns_409(
         },
     )
     assert response1.status_code == 201
-    
+
     # Try to create second risk with same ID
     response2 = await auth_client.post(
         "/api/v1/risks",

@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo } from 'react';
+import { type ComponentPropsWithoutRef, type ReactNode, useMemo } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -11,6 +11,21 @@ interface DocumentationMarkdownProps {
     onOpenDoc: (docId: string, anchor?: string) => void;
     onNavigateApp: (path: string) => void;
 }
+
+type HeadingTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+
+interface MarkdownNodeWithPosition {
+    position?: {
+        start?: {
+            line?: number;
+        };
+    };
+}
+
+type HeadingComponentProps = ComponentPropsWithoutRef<'h1'> & {
+    children?: ReactNode;
+    node?: MarkdownNodeWithPosition;
+};
 
 const EXTERNAL_PREFIXES = ['http://', 'https://', 'mailto:'];
 const MARKDOWN_HEADING_PATTERN = /^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$/;
@@ -209,11 +224,7 @@ export function DocumentationMarkdown({
         return map;
     }, [docs]);
 
-    type HeadingComponentProps = Parameters<NonNullable<Components['h1']>>[0];
-
-    const makeHeading =
-        (tag: keyof Pick<JSX.IntrinsicElements, 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'>) =>
-        ({ children, node }: HeadingComponentProps) => {
+    const makeHeading = (tag: HeadingTag) => ({ children, node }: HeadingComponentProps) => {
             const headingText = textFromChildren(children).trim();
             const sourceLine = node?.position?.start?.line;
             const id = (typeof sourceLine === 'number' ? headingIdByLine.get(sourceLine) : undefined)

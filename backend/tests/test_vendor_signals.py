@@ -1,6 +1,5 @@
-import pytest
-
 import httpx
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -95,4 +94,3 @@ async def test_vendor_signals_refresh_ok_when_registry_available(
     assert ok_item["provider_key"] == "public_registry"
     assert ok_item["signal_type"] == "company_profile"
     assert ok_item["payload_json"]["company_status"] == "active"
-

@@ -1,12 +1,11 @@
 import pytest
-
 from httpx import AsyncClient
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department, Risk, Control, OrphanedItem, Role, User
-from app.models.user import AccessScope
+from app.models import Control, Department, OrphanedItem, Risk, Role, User
 from app.models.risk import RiskStatus
+from app.models.user import AccessScope
 
 
 @pytest.mark.asyncio
@@ -73,7 +72,9 @@ async def test_orphaned_items_scan_creates_orphans_for_uncategorised(
     assert resp.status_code == 200
     assert resp.json()["flagged"] >= 2
 
-    count = (await db_session.execute(select(func.count(OrphanedItem.id)).where(OrphanedItem.status == "pending"))).scalar() or 0
+    count = (
+        await db_session.execute(select(func.count(OrphanedItem.id)).where(OrphanedItem.status == "pending"))
+    ).scalar() or 0
     assert count >= 2
 
 
@@ -152,4 +153,3 @@ async def test_orphan_stats_are_scoped_by_department(
     assert data["risk_count"] == 1
     assert data["control_count"] == 0
     assert data["total_count"] == 1
-

@@ -1,5 +1,4 @@
 import pytest
-
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -153,9 +152,25 @@ async def test_vendor_assessment_workflow_transitions_and_notifications(
     result = await db_session.execute(select(Notification).order_by(Notification.id))
     notifications = result.scalars().all()
 
-    assert any(n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == test_user_risk_manager.id for n in notifications)
-    assert any(n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == compliance_user.id for n in notifications)
-    assert any(n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == test_user_cro.id for n in notifications)
-    assert not any(n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == rm_other_dept.id for n in notifications)
-    assert any(n.type == NotificationType.VENDOR_ASSESSMENT_COMMITTEE_RECOMMENDED and n.user_id == test_user_cro.id for n in notifications)
-    assert any(n.type == NotificationType.VENDOR_ASSESSMENT_DECIDED and n.user_id == test_user_employee.id for n in notifications)
+    assert any(
+        n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == test_user_risk_manager.id
+        for n in notifications
+    )
+    assert any(
+        n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == compliance_user.id
+        for n in notifications
+    )
+    assert any(
+        n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == test_user_cro.id for n in notifications
+    )
+    assert not any(
+        n.type == NotificationType.VENDOR_ASSESSMENT_SUBMITTED and n.user_id == rm_other_dept.id for n in notifications
+    )
+    assert any(
+        n.type == NotificationType.VENDOR_ASSESSMENT_COMMITTEE_RECOMMENDED and n.user_id == test_user_cro.id
+        for n in notifications
+    )
+    assert any(
+        n.type == NotificationType.VENDOR_ASSESSMENT_DECIDED and n.user_id == test_user_employee.id
+        for n in notifications
+    )

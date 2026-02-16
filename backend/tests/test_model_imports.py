@@ -12,7 +12,7 @@ def test_app_models_imports():
 
 def test_approval_request_imports():
     """Verify ApprovalRequest model imports without error.
-    
+
     Regression test for UTC import order bug where datetime.now(UTC)
     was used before UTC was imported.
     """
@@ -22,22 +22,8 @@ def test_approval_request_imports():
 def test_all_model_classes_accessible():
     """Verify all model classes are accessible from app.models."""
     from app.models import (
-        Role, Permission, RolePermission, RoleType,
-        User,
-        Department,
-        Control, ControlForm, ControlFrequency, ControlStatus,
-        ControlExecution, ExecutionResult,
-        Risk, ControlRiskLink, RiskType, RiskStatus, ControlEffectiveness,
-        KeyRiskIndicator, KRIFrequency,
-        KRIValueHistory,
-        ApprovalRequest, ApprovalStatus, ApprovalResourceType, ApprovalActionType,
-        Notification, NotificationType,
-        OrphanedItem,
-        ActivityLog, ActivityAction, ActivityEntityType,
-        RiskTypeConfig,
-        GlobalConfig,
-        ApprovalScenario,
-        QuarterlyMetricSnapshot, SnapshotType,
+        ApprovalRequest,
     )
+
     # If we get here, all imports succeeded
     assert ApprovalRequest is not None

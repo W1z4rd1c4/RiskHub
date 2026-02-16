@@ -34,6 +34,12 @@ jobs:
           npm run lint | tee ../lint-frontend.log
         working-directory: frontend
 
+      - name: Frontend typecheck
+        run: |
+          set -euo pipefail
+          npx tsc --noEmit | tee ../lint-frontend-typecheck.log
+        working-directory: frontend
+
       - name: Frontend debt budget
         run: |
           set -euo pipefail
@@ -45,11 +51,16 @@ jobs:
           set -euo pipefail
           npm run cleanup:deadcode | tee ../lint-frontend-cleanup.log
           grep -q "Candidates: 0" cleanup-audit/unreachable.md
-          grep -q "DirectoryEmulatorPage" cleanup-audit/dormant.md
           if git ls-files | grep -q '^frontend/playwright-report/'; then
             echo "Tracked playwright-report artifacts are not allowed."
             exit 1
           fi
+        working-directory: frontend
+
+      - name: Frontend build
+        run: |
+          set -euo pipefail
+          npm run build | tee ../lint-frontend-build.log
         working-directory: frontend
 
       - name: Set up Python
@@ -67,7 +78,7 @@ jobs:
       - name: Backend lint (Ruff hard gate)
         run: |
           set -euo pipefail
-          ruff check app | tee ../lint-backend-ruff.log
+          ruff check app tests scripts | tee ../lint-backend-ruff.log
         working-directory: backend
 
       - name: Validate ratchet status documentation contract
@@ -99,9 +110,11 @@ jobs:
             echo "# Lint Summary";
             echo "";
             echo "- Frontend lint: PASS";
+            echo "- Frontend typecheck: PASS";
             echo "- Frontend debt budget: PASS";
             echo "- Frontend cleanup audit contract: PASS";
-            echo "- Backend Ruff hard gate (backend/app): PASS";
+            echo "- Frontend build: PASS";
+            echo "- Backend Ruff hard gate (backend/app + backend/tests + backend/scripts): PASS";
             echo "- Ruff ratchet status: E712=${E712_COUNT}, E402=${E402_COUNT}, E501=${E501_COUNT}";
           } > lint-summary.md
 
@@ -113,8 +126,10 @@ jobs:
           path: |
             lint-summary.md
             lint-frontend.log
+            lint-frontend-typecheck.log
             lint-frontend-debt.log
             lint-frontend-cleanup.log
+            lint-frontend-build.log
             lint-backend-ruff.log
             frontend/quality-audit/debt.json
           retention-days: 30
