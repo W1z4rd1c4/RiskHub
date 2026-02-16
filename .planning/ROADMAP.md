@@ -39,9 +39,9 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 14: Risk Assessments** — Campaigns and questionnaires (7/7)
 - [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (6/6)
 - [x] **Phase 16: Risk Assessment Polish** — Review, reminders, reporting (3/3)
-- [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing (9/15)
+- [ ] **Phase 17: Production Deployment** — Docker, Azure, AD SSO, testing (11/15)
 - [x] **Phase 18: Vendor Risk Management** — Third-party risk assessments (12/12)
-- [ ] **Phase 19: Polish & Deploy** — Advanced audit workflows (0/6)
+- [ ] **Phase 19: Advanced Audit Workflows** — Advanced audit workflows (0/2)
 - [x] **Phase 20: Czech Localization** — Full i18n infrastructure (16/12 — overdelivered)
 - [x] **Phase 25: User-Specific Settings** — Theme/language persistence (5/5)
 - [ ] **Phase 26: Dark Mode Polish** — Dark mode refinements (0/1)
@@ -51,7 +51,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [ ] **Phase 73: Approval Permission Fix** — Approval permissions (0/6)
 - [x] **Phase 85: Workflow & Users** — Access mapping and user management (6/6)
 - [ ] **Phase 90: AD Emulator** — Standalone AD emulator (2/3)
-- [ ] **Phase 90: AD Integration** — AD sync with RiskHub (11/12)
+- [x] **Phase 90: AD Integration** — AD sync with RiskHub (12/12)
 - [x] **Phase 99: Data Migration** — Data migration & standalone AD (8/8)
 - [x] **Phase 100: Marketing Presentation** — Single HTML presentation (3/3)
 - [ ] **Phase 150: Audit** — Systematic code and logic audit (8/11)
@@ -467,7 +467,7 @@ Plans:
 
 **Goal**: Production-ready deployment, Azure AD/Entra SSO, comprehensive documentation, and enterprise testing
 **Depends on**: Can run independently
-**Status**: Planned
+**Status**: In Progress
 **Plans**: 15 plans
 
 **Security Concerns (Penetration Test - 2026-01-08):**
@@ -516,9 +516,9 @@ Plans:
 - [x] 17-03: Automated Security Scanning (SAST, dependency scanning, secrets detection)
 - [x] 17-04: End-to-End Regression Suite (Playwright full coverage)
 - [x] 17-05: Performance & Load Testing (Locust, benchmarks)
-- [ ] 17-06: VM Deployment Scripts (systemd, nginx, install scripts)
+- [x] 17-06: VM Deployment Scripts (systemd, nginx, install scripts)
 - [ ] 17-07: Azure Deployment (Bicep templates, App Service, CI/CD)
-- [ ] 17-08: Technical Deployment Documentation (IT/DevOps guides)
+- [x] 17-08: Technical Deployment Documentation (IT/DevOps guides)
 - [x] 17-09: Administrator Guide (CRO/Admin configuration)
 - [x] 17-10: End-User Guide (Risk manager documentation)
 - [x] 17-11: Azure AD/Entra SSO (MSAL integration, token validation)
@@ -623,8 +623,9 @@ Plans:
 **Goal**: Implement real-time sync from AD Emulator to RiskHub via webhooks, with Governance UI for managing orphaned risks/controls
 **Depends on**: Phase 99 (Data Migration & Standalone AD Emulator)
 **Research**: None (building on existing webhook patterns)
-**Status**: In Progress
-**Plans**: 9 plans
+**Status**: Complete
+**Completed**: 2026-02-16
+**Plans**: 12 plans
 
 Plans:
 
@@ -639,7 +640,7 @@ Plans:
 - [x] 90-12: AD Emulator Role Awareness (Dept Head vs Employee)
 - [x] 90-13: Empty Department Cleanup (hide empty depts & move legacy items)
 - [x] 90-14: Uncategorised Items Governance (auto-flag uncat items as orphans)
-- [ ] 90-15: Governance UI Redesign & KRI Orphans
+- [x] 90-15: Governance UI Redesign & KRI Orphans
 
 ### Phase 99: Data Migration & AD Emulator Standalone
 
@@ -828,9 +829,9 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 12.1 Compliance Review | 10/10 | ✅ Complete | 2026-01-04 |
 | 13. Issue & Remediation Management | 8/8 | ✅ Complete | 2026-02-12 |
 | 15. Settings Page | 6/6 | ✅ Complete | 2026-02-16 |
-| 17. Production Deploy | 8/15 | ⏳ In progress | - |
-| 18. Vendor Risk | 0/0 | ⏸️ Deferred | - |
-| 19. Polish & Deploy | 0/6 | ⏸️ Planned | - |
+| 17. Production Deploy | 11/15 | ⏳ In progress | - |
+| 18. Vendor Risk | 12/12 | ✅ Complete | 2026-01-26 |
+| 19. Advanced Audit Workflows | 0/2 | ⏸️ Deferred | - |
 | 20. Czech Localization | 16/12 | ✅ Complete | - |
 | 25. User Settings | 5/5 | ✅ Complete | 2026-01-11 |
 | 26. Dark Mode Polish | 0/1 | ⏸️ Open | - |
@@ -840,7 +841,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 73. Approval Permission Fix | 0/6 | ⏸️ Planned | - |
 | 85. Workflow & Users | 6/6 | ✅ Complete | 2026-01-01 |
 | 90. AD Emulator | 2/3 | ⏳ In progress | - |
-| 90. AD Integration | 11/12 | ⏳ In progress | - |
+| 90. AD Integration | 12/12 | ✅ Complete | 2026-02-16 |
 | 99. Data Migration | 8/8 | ✅ Complete | 2026-01-04 |
 | 100. Marketing | 3/3 | ✅ Complete | 2025-12-29 |
 | 150. Audit | 8/11 | ⏳ In progress | - |
@@ -857,10 +858,10 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 179. E2E Test Data | 17/17 | ✅ Complete | 2026-02-11 |
 | 180. E2E Business Logic | 15/15 | ✅ Complete | 2026-02-11 |
 | 200. Entity Naming | 10/10 | ✅ Complete | 2026-02-11 |
-| 201. Archived Visibility + Restore | 4/5 | ⏳ In progress | - |
+| 201. Archived Visibility + Restore | 5/5 | ✅ Complete | 2026-02-15 |
 | 250. Spaghetti Simplification | 10/10 | ✅ Complete | 2026-01-10 |
 | 251. Spaghetti Simplification 2 | 11/11 | ✅ Complete | 2026-01-10 |
-| 500. Production Installation Scripts | 0/8 | ⏸️ Planned | - |
+| 500. Production Installation Scripts | 8/8 | ✅ Complete | 2026-02-16 |
 
 ### Phase 179: E2E Test Data
 
