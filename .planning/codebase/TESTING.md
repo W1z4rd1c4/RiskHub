@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-02-11
+**Analysis Date:** 2026-02-16
 
 ## Test Stack Overview
 
@@ -17,12 +17,14 @@
   - `slow` for longer-running suites
 
 ### Fixture strategy
-- Default backend tests use in-memory SQLite (`backend/tests/conftest.py`)
+- Default backend tests use fast SQLite in-memory (`TEST_DATABASE_URL=sqlite+aiosqlite:///:memory:`) (`backend/tests/conftest.py`)
+- Postgres-mode is opt-in via `TEST_DATABASE_URL` and applies Alembic migrations once per session, then truncates tables per test (`backend/tests/conftest.py`)
 - Role/user fixtures include wildcard and platform-admin variants (`backend/tests/conftest.py`)
 - Dependency override and header-based auth patterns are both used in test clients
+- Session-scoped engine disposal prevents pytest interpreter-exit hangs caused by leaked `aiosqlite` worker threads (`backend/tests/conftest.py`)
 
 ### Scale snapshot
-- Backend tests: 206 files
+- Backend tests: 234 files (82 Python)
 - API-focused backend tests: 18 files under `backend/tests/api/`
 
 ## Frontend Unit/Integration Patterns
@@ -36,7 +38,9 @@
 
 - Playwright projects: Chromium, Firefox, WebKit, plus CI profile (`frontend/playwright.config.ts`)
 - Global setup performs health/preflight checks (`frontend/e2e/setup/global-setup.ts`)
+- Global setup also verifies deterministic seed fixtures for stable selectors and assertions (`frontend/e2e/setup/global-setup.ts`)
 - Domain-oriented E2E suites cover permissions, approvals, sensitive fields, cross-department access, and activity logging (`frontend/e2e/`)
+- “polish-audit” is intentionally heavier and is lightweight-by-default; set `POLISH_AUDIT_DEEP=1` when you want full-page/deep audit mode (`frontend/e2e/polish-audit.spec.ts`)
 
 ## CI Test/Security Execution
 
@@ -46,6 +50,7 @@
 ## Canonical Commands
 
 - Backend tests: `make test` or `cd backend && pytest -v`
+- Backend lint: `make lint-backend`
 - Backend Postgres-sensitive tests: `cd backend && pytest -m postgres -v`
 - Frontend unit tests: `cd frontend && npm run test:run`
 - Frontend type checks: `cd frontend && npx tsc --noEmit`
@@ -56,7 +61,9 @@
 - SQLite-default tests may not catch all Postgres-specific datetime/enum behavior
 - Authorization changes should be validated in both backend API tests and frontend gating tests
 - Approval-execution changes should include high-confidence regression tests around side effects
+- Route refactors must preserve static-route reachability (guarded by `backend/tests/test_route_shadowing.py`)
+- Time policy regressions are guarded by `backend/tests/test_timezone_policy.py` + `backend/tests/test_no_datetime_utcnow.py`
 
 ---
 
-*Testing audit refreshed on 2026-02-11*
+*Testing audit refreshed on 2026-02-16*

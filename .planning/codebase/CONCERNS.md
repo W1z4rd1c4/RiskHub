@@ -1,34 +1,35 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-02-11
+**Analysis Date:** 2026-02-16
 
 ## High-Risk Hotspots (Require Extra Care)
 
-- Approval side-effect orchestration: `backend/app/services/approval_execution_service.py`
-- Timezone handling across mixed naive/aware paths: multiple backend services and endpoints
-- RBAC scope enforcement consistency between backend and frontend gating: `backend/app/core/permissions.py`, `frontend/src/components/PermissionGate.tsx`
+- Approval side-effect orchestration: `backend/app/services/approval_execution_service.py` and internal modules in `backend/app/services/_approval_execution/`
+- RBAC scope enforcement consistency between backend and frontend gating: `backend/app/core/permissions.py`, `backend/app/core/_permissions/`, `frontend/src/components/PermissionGate.tsx`
+- Time policy (UTC-aware timestamps) and coercion boundaries: `backend/app/core/datetime_utils.py`
+- SSO token verification + exchange flow: `backend/app/services/sso_token_service.py`, `backend/app/api/v1/endpoints/auth/sso.py`, `frontend/src/services/entraAuth.ts`
 - Role/permission seed consistency across seed scripts: `backend/app/db/seed.py`, `backend/scripts/seed_*.py`
-- Mock auth and demo-login boundaries: `backend/app/main.py`, `backend/app/api/v1/endpoints/auth.py`
+- Mock auth and demo-login boundaries: `backend/app/main.py`, `backend/app/api/v1/endpoints/auth/demo.py`
 
-## Timezone Consistency Debt
+## Timezone & Datetime Regression Risk
 
-- Codebase still contains both timezone-aware model columns and explicit naive conversions (e.g. `.replace(tzinfo=None)`) in several write paths
-- This creates ongoing regression risk in Postgres-sensitive flows unless tested explicitly
-- Evidence: `backend/app/services/approval_execution_service.py`, `backend/app/services/kri_history_service.py`, `backend/app/api/v1/endpoints/approvals.py`
+- Current policy is “timezone-aware UTC everywhere”, enforced by tests (`backend/tests/test_timezone_policy.py`, `backend/tests/test_no_datetime_utcnow.py`).
+- Remaining risk is primarily around future contributors reintroducing naive datetimes at boundaries (payloads, script seeds) instead of using `coerce_utc()` / `utc_now()` (`backend/app/core/datetime_utils.py`).
+- Postgres confidence relies on periodically running `pytest -m postgres` (SQLite will not catch all tz/typing issues) (`backend/tests/conftest.py`).
 
 ## Large, Dense Modules
 
-- Several endpoint modules are very large, increasing maintenance and regression risk:
-  - `backend/app/api/v1/endpoints/riskhub.py` (1373 lines)
-  - `backend/app/api/v1/endpoints/reports.py` (1245 lines)
-  - `backend/app/api/v1/endpoints/dashboard.py` (1079 lines)
-  - `backend/app/api/v1/endpoints/controls.py` (1023 lines)
-- Large modules make focused refactoring and review harder without strict test coverage
+- Many “giant endpoints” have been split into packages with subrouters, but a few modules remain relatively dense and should be refactored carefully:
+  - Unified exports logic: `backend/app/api/v1/endpoints/reports/unified_exports/exports.py`
+  - KRI history endpoints: `backend/app/api/v1/endpoints/kris/history.py`
+  - Dashboard committee endpoints: `backend/app/api/v1/endpoints/dashboard/committee.py`
+  - Approvals resolution endpoints: `backend/app/api/v1/endpoints/approvals/resolve.py`
 
 ## Authentication and Session Risks
 
 - JWT access token stored in browser localStorage (`frontend/src/contexts/AuthContext.tsx`) remains an XSS-sensitive design choice
-- Dev/demo auth paths are intentionally present and must remain production-disabled (`backend/app/main.py`, `backend/app/api/v1/endpoints/auth.py`)
+- Dev/demo auth paths are intentionally present and must remain production-disabled (`backend/app/main.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
+- SSO token verification is monkeypatched in tests via `app.api.v1.endpoints.auth.verify_entra_id_token` and requires facade-style attribute lookup to keep patching working through refactors (`backend/app/api/v1/endpoints/auth/__init__.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
 
 ## Scheduler Operational Risk
 
@@ -54,4 +55,4 @@
 
 ---
 
-*Concerns audit refreshed on 2026-02-11*
+*Concerns audit refreshed on 2026-02-16*
