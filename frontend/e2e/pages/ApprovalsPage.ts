@@ -173,7 +173,7 @@ export class ApprovalsPage {
      */
     async isCancelButtonVisible(index: number): Promise<boolean> {
         const card = this.getCard(index);
-        const cancelBtn = card.locator('button[title="Cancel Request"], button[title=\"Zrušit žádost\"]');
+        const cancelBtn = card.locator('button[title="Cancel Request"], button[title="Zrušit žádost"]');
         return await cancelBtn.isVisible();
     }
 
@@ -201,7 +201,7 @@ export class ApprovalsPage {
     async clickCancel(index: number): Promise<void> {
         const card = this.getCard(index);
         this.page.once('dialog', dialog => dialog.accept());
-        await card.locator('button[title="Cancel Request"], button[title=\"Zrušit žádost\"]').click();
+        await card.locator('button[title="Cancel Request"], button[title="Zrušit žádost"]').click();
         await waitForDataLoad(this.page);
     }
 

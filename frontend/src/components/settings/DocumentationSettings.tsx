@@ -6,7 +6,6 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { useAuth } from '@/contexts/AuthContext';
 import { adminApi } from '@/services/adminApi';
-import type { DocumentationEntry } from '@/services/adminApi';
 import { DocumentationMarkdown } from '@/components/documentation';
 
 export function DocumentationSettings() {
