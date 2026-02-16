@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import random
+from random import SystemRandom
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -13,6 +13,7 @@ from app.schemas.admin import OrphanFixResponse, OrphanStatsResponse
 from ._deps import require_platform_admin
 
 router = APIRouter()
+_RNG = SystemRandom()
 
 
 @router.get("/orphan-stats", response_model=OrphanStatsResponse)
@@ -80,7 +81,7 @@ async def fix_orphan_mappings(
     orphan_kris = list(orphan_kris_result.scalars().all())
 
     for kri in orphan_kris:
-        kri.risk_id = random.choice(all_risks).id
+        kri.risk_id = _RNG.choice(all_risks).id
         kris_fixed += 1
 
     # Fix controls without risk links
@@ -91,8 +92,8 @@ async def fix_orphan_mappings(
 
     for control in controls_without_links:
         # Create 1-3 random risk links
-        num_links = random.randint(1, 3)
-        selected_risks = random.sample(all_risks, min(num_links, len(all_risks)))
+        num_links = _RNG.randint(1, 3)
+        selected_risks = _RNG.sample(all_risks, min(num_links, len(all_risks)))
 
         for risk in selected_risks:
             link = ControlRiskLink(
@@ -113,4 +114,3 @@ async def fix_orphan_mappings(
         controls_fixed=controls_fixed,
         links_created=links_created,
     )
-

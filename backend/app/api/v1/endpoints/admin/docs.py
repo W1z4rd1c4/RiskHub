@@ -117,10 +117,10 @@ def _normalize_tags(stem: str, audience: str) -> list[str]:
     if mapped:
         return mapped
 
-    tokens = [token for token in re.split(r"[-_]+", stem) if token and token != "readme"]
-    if not tokens:
-        tokens = [audience]
-    return tokens[:4]
+    parts = [segment for segment in re.split(r"[-_]+", stem) if segment and segment != "readme"]
+    if not parts:
+        parts = [audience]
+    return parts[:4]
 
 
 def _extract_tags_from_metadata(

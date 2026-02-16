@@ -21,12 +21,9 @@ DEFAULT_DATABASE_URL = "postgresql+asyncpg://riskhub:riskhub@db:5432/riskhub"
 def _derive_allowed_hosts(cors_origins: list[str]) -> list[str]:
     hosts: set[str] = {"localhost", "127.0.0.1"}
     for origin in cors_origins:
-        try:
-            parsed = urlparse(origin)
-            if parsed.hostname:
-                hosts.add(parsed.hostname)
-        except Exception:
-            continue
+        parsed = urlparse(origin)
+        if parsed.hostname:
+            hosts.add(parsed.hostname)
     return sorted(hosts)
 
 
@@ -117,15 +114,15 @@ async def lifespan(app: FastAPI):
     if db_engine is not None:
         try:
             await db_engine.dispose()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("shutdown_db_dispose_error", message=f"Failed to dispose DB engine: {exc}")
 
     redis = getattr(app.state, "redis", None)
     if redis is not None:
         try:
             await redis.aclose()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("shutdown_redis_close_error", message=f"Failed to close Redis client: {exc}")
 
 
 async def _apply_log_rotation_config(app: FastAPI):
