@@ -1,221 +1,78 @@
-# Notifications & Approvals
-
-> **Who uses this**: All users
-
+---
+title: Notifications and Approvals
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "docs/BUSINESS_LOGIC.md §5"
+summary: "Workflow guide for approval queues, notification triage, decision logging, and escalation management in daily operations."
+tags:
+  - notifications
+  - approvals
+  - workflow
 ---
 
-## Table of Contents
+# Notifications and Approvals
 
-1. [Notification Types](#notification-types)
-2. [Taking Action on Notifications](#taking-action-on-notifications)
-3. [Requesting Approvals](#requesting-approvals)
-4. [Understanding Approval Status](#understanding-approval-status)
-5. [Managing Your Workflow](#managing-your-workflow)
+## Overview
 
----
+RiskHub notifications are the operational inbox for workflow, approval, and control/KRI events.
 
-## Notification Types
+Primary routes:
 
-RiskHub keeps you informed with timely notifications.
+- notifications: `/notifications`
+- approvals queue: `/approvals`
 
-### Accessing Notifications
+## Recommended Triage Cadence
 
-Click the **bell icon** 🔔 in the header to see your notifications.
-- **Red badge**: Shows count of unread notifications
-- **Click** to open notification panel
+Run this cadence at least twice daily:
 
-### Types of Notifications
+1. Review critical/high-priority notifications.
+2. Process pending approvals with deadline pressure.
+3. Validate if any request needs escalation.
+4. Capture rationale for decisions.
+5. Confirm request end-state and follow-up actions.
 
-| Notification | When You Receive It |
-|--------------|-------------------|
-| **Approval Request** | Someone needs your approval |
-| **Approval Decision** | Your request was approved or rejected |
-| **KRI Due** | KRI value submission deadline approaching |
-| **KRI Overdue** | KRI value past due date |
-| **Breach Alert** | KRI exceeded threshold |
-| **Ownership Assigned** | You've been assigned as owner |
+## Approval Decision Protocol
 
-### Notification Settings
+When deciding on a request:
 
-Control what notifications you receive:
-1. Go to **Settings → Notifications** (if available)
-2. Toggle notification types on/off
-3. Choose email vs. in-app delivery
+- verify entity context and requested change
+- check whether requester/owner overlap triggers escalation constraints
+- ensure rationale is explicit and auditable
+- avoid one-line approvals for complex changes
 
----
+## Notification Types You Should Recognize
 
-## Taking Action on Notifications
+- pending approvals
+- approved/rejected request outcomes
+- KRI due and overdue reminders
+- threshold breach alerts
+- workflow transition updates
 
-### Quick Actions
+## How to Avoid Queue Backlog
 
-From the notification panel:
-1. **Click the notification** to navigate directly to the relevant item
-2. **Mark as read** by clicking the check mark
-3. **Clear all** to dismiss read notifications
+- keep approvals short but evidence-based
+- reject incomplete requests with actionable notes
+- escalate early when domain owner input is required
+- avoid deferring requests without a follow-up owner
 
-### Common Actions by Type
+## Troubleshooting
 
-| Notification | What to Do |
-|--------------|------------|
-| Approval Request | Click → Review → Approve or Reject |
-| Approval Decision | Click → See what was decided |
-| KRI Due | Click → Submit your KRI value |
-| Breach Alert | Click → Investigate the KRI breach |
-| Ownership Assigned | Click → Review your new responsibility |
+### I am not receiving expected notifications
 
----
+Check notification settings, then confirm role/scope and assignment context.
 
-## Requesting Approvals
+### Request appears stuck in pending
 
-Some actions automatically create approval requests.
+Inspect transition history and verify approver availability/escalation path.
 
-### Actions That Request Approval
+### I can view but cannot decide
 
-| Action | When Approval is Required |
-|--------|--------------------------|
-| Delete a risk | Always (for non-privileged users) |
-| Delete a control | Always (for non-privileged users) |
-| Delete a KRI | Always (for non-privileged users) |
-| Change owner | Always |
-| Change department | Always |
-| Edit priority risk | Always (any field) |
-| Correct KRI value | Always |
+Your role likely has read visibility but not approval-write capability for that request type.
 
-### What Happens When You Request Approval
+## Related Documentation
 
-1. You make the change as normal
-2. System creates an approval request
-3. Your change shows **"Pending Approval"**
-4. Primary approver is notified:
-   - Risk Owner (for risks they own)
-   - Department Head (fallback)
-5. Once approved, your change takes effect
-
-### Tracking Your Requests
-
-1. Navigate to **Workflow**
-2. Click **My Requests** tab
-3. View status of all your pending requests
-
----
-
-## Understanding Approval Status
-
-### Status Meanings
-
-| Status | What It Means | Your Action |
-|--------|---------------|-------------|
-| **Pending** | Awaiting primary approver | Wait |
-| **Pending Privileged** | Primary approved; needs CRO/RM | Wait |
-| **Approved** | Change executed ✅ | Done |
-| **Rejected** | Change denied ❌ | Review reason |
-| **Cancelled** | Request withdrawn | None |
-
-### Approval Flow
-
-```
-You submit → PENDING → Approver reviews
-                           │
-            ┌──────────────┼──────────────┐
-            ▼              ▼              ▼
-       CANCELLED      REJECTED       APPROVED
-      (by you)       (denied)       (executed)
-```
-
-For high-risk items, there's an additional tier:
-
-```
-Primary approves → PENDING_PRIVILEGED → CRO/RM reviews
-                                             │
-                          ┌──────────────────┼──────────────────┐
-                          ▼                  ▼                  ▼
-                     CANCELLED          REJECTED            APPROVED
-```
-
-### If Your Request is Rejected
-
-1. Check the rejection reason (visible in request detail)
-2. Understand what was wrong
-3. Modify your approach
-4. Submit a new request if appropriate
-
-### Cancelling Your Request
-
-While a request is pending, you can cancel it:
-1. Go to **Workflow → My Requests**
-2. Find the pending request
-3. Click **Cancel**
-4. Confirm cancellation
-
----
-
-## Managing Your Workflow
-
-### The Workflow Page
-
-**Workflow** in the sidebar shows all your pending actions:
-
-| Tab | What It Shows |
-|-----|---------------|
-| **My Approvals** | Requests waiting for YOUR approval |
-| **My Requests** | Requests YOU submitted |
-| **All Pending** | All pending requests (privileged users) |
-
-### Approving Requests (If You're an Approver)
-
-As a Department Head or privileged user, you may need to approve requests:
-
-1. Go to **Workflow → My Approvals**
-2. Click on a pending request
-3. Review the details:
-   - Who requested it
-   - What change is proposed
-   - Impact assessment
-4. Choose:
-   - **Approve**: Execute the change
-   - **Reject**: Deny with reason (required)
-
-### Self-Approval Prevention
-
-> [!NOTE]
-> You cannot approve your own requests. If you're the designated approver for your own request, it automatically escalates to the next level.
-
-### Best Practices
-
-1. **Check Workflow daily**: Don't let requests pile up
-2. **Approve promptly**: Others are waiting on your decision
-3. **Provide reasons**: When rejecting, explain clearly
-4. **Follow up**: If your request is rejected, address the concern
-
----
-
-## Quick Reference
-
-### Where to Find Things
-
-| I want to... | Go to... |
-|--------------|----------|
-| See my pending tasks | Workflow |
-| View my unread alerts | Bell icon 🔔 |
-| Check my request status | Workflow → My Requests |
-| Approve someone's request | Workflow → My Approvals |
-
-### Approval Timeline
-
-| Request Type | Typical Response Time |
-|--------------|----------------------|
-| Standard deletion | 1-2 business days |
-| Ownership change | 1-2 business days |
-| Priority risk edit | Same day (escalated) |
-| KRI correction | Same day to 2 days |
-
----
-
-## Next Steps
-
-- [FAQ](./faq.md) - Common questions answered
-- [Getting Started](./getting-started.md) - Review the basics
-
----
-
-*Not receiving notifications? Check your Settings or contact your Administrator.*
+- `./getting-started.md`
+- `./risks.md`
+- `./controls.md`
+- `./kris.md`

@@ -1,98 +1,80 @@
-# Oznámení a schvalování
-
-> **Cílová skupina**: Všichni uživatelé
-
 ---
+title: Oznámení a schvalování
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "docs/BUSINESS_LOGIC.md §5"
+summary: "Workflow příručka pro triage notifikací, zpracování schvalování a eskalace při provozních blokacích."
+tags:
+  - notifications
+  - approvals
+  - workflow
+---
+
+# Oznámení a schvalování
 
 ## Přehled
 
-RiskHub vás informuje o důležitých událostech a vyžaduje vaše schválení pro citlivé operace.
+Notifikace jsou provozní inbox pro workflow, schvalování a události okolo kontrol/KRI.
 
----
+Hlavní route:
 
-## Typy oznámení
+- notifikace: `/notifications`
+- fronta schvalování: `/approvals`
 
-### KRI oznámení
+## Doporučená triage kadence
 
-- **Termín odesílání** - Blíží se termín pro odeslání hodnoty
-- **Překročení limitu** - Hodnota KRI překročila práh
+Minimálně dvakrát denně:
 
-### Schvalovací oznámení
+1. Projděte kritické/high-priority notifikace.
+2. Zpracujte pending approvals s blížícím se termínem.
+3. Ověřte, které požadavky potřebují eskalaci.
+4. Zapište rozhodnutí s odůvodněním.
+5. Potvrďte finální stav a follow-up.
 
-- **Nová žádost** - Někdo vyžaduje vaše schválení
-- **Schváleno/Zamítnuto** - Vaše žádost byla vyřešena
+## Schvalovací rozhodování
 
-### Kontroly
+Před rozhodnutím vždy ověřte:
 
-- **Termín exekuce** - Blíží se termín provedení kontroly
-- **Opožděná kontrola** - Kontrola nebyla provedena včas
+- kontext entity a změny
+- zda platí self-approval eskalační pravidla
+- dostatečné auditní odůvodnění
 
----
+Vyhněte se jednovětým schválením u složitých změn.
 
-## Workflow
+## Typy notifikací
 
-### Fronta čekajících
+- pending approval požadavky
+- výsledky approved/rejected
+- KRI due/overdue reminders
+- breach upozornění
+- workflow transition notifikace
 
-Zobrazuje žádosti čekající na vaše schválení:
+## Jak předcházet backlogu
 
-1. Přejděte do **Workflow**
-2. Záložka **Fronta čekajících**
-3. Klikněte na žádost pro detail
-4. Rozhodněte: **Schválit** nebo **Zamítnout**
+- schvalujte stručně, ale důkazně
+- zamítejte nekompletní žádosti s konkrétními kroky
+- eskalujte včas, když je třeba business owner vstup
+- neodkládejte bez přiřazeného ownera follow-upu
+- každý den uzavřete triage mini-shrnutím, aby navazující směna viděla kontext rozhodnutí
 
-### Moje žádosti
+## Troubleshooting
 
-Zobrazuje vaše odeslané žádosti:
+### Nechodí očekávané notifikace
 
-1. Přejděte do **Workflow**
-2. Záložka **Moje žádosti**
-3. Sledujte stav vašich žádostí
+Ověřte preference v Settings, pak role/scope a assignment.
 
-### Historie
+### Žádost je zaseknutá v pending
 
-Zobrazuje archiv všech žádostí.
+Prověřte transition history, dostupnost approvera a eskalační cestu.
 
----
+### Vidím požadavek, ale nemohu rozhodnout
 
-## Schvalování
+Pravděpodobně máte read přístup bez approval-write capability.
 
-### Kdy je vyžadováno schválení
+## Related Documentation
 
-| Akce | Vyžaduje schválení pro |
-|------|----------------------|
-| Smazání | Všechny neprivilegované uživatele |
-| Změna vlastníka | Všechny neprivilegované uživatele |
-| Změna oddělení | Všechny neprivilegované uživatele |
-| Jakákoli změna prioritního rizika | Všechny neprivilegované uživatele |
-
-### Jak schválit žádost
-
-1. Klikněte na žádost
-2. Zkontrolujte navrhované změny
-3. Klikněte na **Schválit** nebo **Zamítnout**
-4. Zadejte poznámky k rozhodnutí (povinné)
-5. Potvrďte
-
-### Jak zrušit žádost
-
-1. V **Moje žádosti** najděte čekající žádost
-2. Klikněte na **Zrušit**
-3. Potvrďte zrušení
-
-> [!NOTE]
-> Můžete zrušit pouze vlastní žádosti ve stavu čekající.
-
----
-
-## Stavy žádostí
-
-| Stav | Popis | Co můžete udělat |
-|------|-------|------------------|
-| Čekající | Čeká na schválení | Čekat / Zrušit |
-| Schváleno | Změny byly provedeny | Nic |
-| Zamítnuto | Změny nebyly provedeny | Odeslat znovu |
-| Zrušeno | Žadatel zrušil | Odeslat znovu |
-
----
-
-*Pro více informací viz Příručka administrátora.*
+- `./getting-started.md`
+- `./risks.md`
+- `./controls.md`
+- `./kris.md`

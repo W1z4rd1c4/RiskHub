@@ -158,9 +158,14 @@
     "subtitle": "Přístup k průvodcům a dokumentaci přizpůsobené vaší roli ({{role}}).",
     "loading": "Načítání dokumentace...",
     "back": "Zpět na dokumentaci",
+    "audience_admin": "Administrátorská dokumentace",
+    "audience_user": "Uživatelská dokumentace",
+    "filter_all": "Vše",
     "view_manual": "Zobrazit manuál",
     "empty_title": "Dokumentace není dostupná",
     "empty_subtitle": "Dokumentace bude dostupná v budoucích aktualizacích.",
+    "no_matches_title": "Žádné odpovídající dokumenty",
+    "no_matches_subtitle": "Zkuste jiný tag filtr pro nalezení správného návodu.",
     "version_info": "RiskHub v1.0 • Dokumentace bude rozšířena v budoucích aktualizacích",
     "user_guide": "Uživatelská příručka"
   }

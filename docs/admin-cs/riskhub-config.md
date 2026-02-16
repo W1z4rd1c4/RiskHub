@@ -1,94 +1,71 @@
-# Konfigurace Risk Hub
-
-> **Cílová skupina**: CRO (Chief Risk Officer)  
-> **Přístup**: Pouze CRO role
-
 ---
+title: Hranice konfigurace Risk Hub a model podpory
+version: "2.0"
+last_updated: "2026-02-16"
+audience: admin
+source_of_truth: "role model a kontrakty přístupu Risk Hub"
+summary: "Vymezení odpovědností platformního admina při podpoře konfigurace Risk Hub oproti business vlastníkům."
+tags:
+  - configuration
+  - boundaries
+  - support
+---
+
+# Hranice konfigurace Risk Hub a model podpory
 
 ## Přehled
 
-Sekce konfigurace Risk Hub je přístupná výhradně pro roli CRO. Zde můžete konfigurovat systémové prahy, typy rizik, schvalovací pravidla a notifikace.
+Konfigurace Risk Hub je business-governance agenda. Platformní admin zajišťuje technickou dostupnost a provozní podporu, nikoliv obsahové rozhodnutí.
 
----
+## Co je ve scope admina
 
-## Prahy hodnocení rizik
+Admin odpovídá za:
 
-### Minimální hodnoty čistého skóre
+- funkčnost přístupových cest
+- dostupnost endpointů a auth integritu
+- auditovatelnost konfiguračních akcí
+- triage incidentů při selhání konfigurace
 
-| Úroveň | Výchozí hodnota | Popis |
-|--------|-----------------|-------|
-| Kritické riziko | 20 | Net score ≥ tato hodnota = kritické |
-| Vysoké riziko | 10 | Net score ≥ tato hodnota = vysoké |
-| Střední riziko | 5 | Net score ≥ tato hodnota = střední |
+Admin neodpovídá za business hodnoty thresholdů nebo policy semantiku.
 
-### Nastavení prahů
+## Support workflow pro incident konfigurace
 
-1. Přejděte do **Risk Hub** → **Konfigurace**
-2. Upravte prahy dle potřeby vaší organizace
-3. Klikněte na **Uložit změny**
+1. Ověřte roli a scope dotčeného účtu.
+2. Ověřte, zda denial není očekávaný podle kontraktu.
+3. Zkontrolujte API health/logy na technické chyby.
+4. Připravte evidence balíček.
+5. Pokud jde o policy problém, předejte business ownerovi.
 
-> [!WARNING]
-> Změny prahů ovlivní okamžitě klasifikaci všech existujících rizik.
+## Příklady hranic
 
----
+- "Konfigurační obrazovka nejde otevřít" -> technický support admina.
+- "Threshold má být 15 místo 20" -> business owner rozhodnutí.
+- "Uložení konfigurační změny padá" -> admin řeší auth/validaci/endpoint.
 
-## Typy rizik
+## Evidence checklist
 
-Předdefinované typy rizik:
-- **Operační** - Operační procesy a postupy
-- **Finanční** - Finanční dopady a ztráty
-- **Regulatorní** - Soulad s regulací
-- **Strategické** - Strategická rozhodnutí
-- **Reputační** - Reputace organizace
+- identita účtu a role
+- request path a kategorie payloadu
+- timestamp + request ID
+- relevantní logy
+- očekávané vs skutečné chování
 
----
+## Troubleshooting
 
-## Pravidla schvalování
+### Endpoint funguje jednomu účtu, jinému ne
 
-### Parametry schvalování
+Nejprve ověřte role kontrakt; rozdíl může být záměrný.
 
-| Parametr | Výchozí | Popis |
-|----------|---------|-------|
-| Práh privilegovaného schválení | 16 | Net score rizika, nad kterým je vyžadováno privilegované schválení |
-| Povolit vlastní schválení | Ne | Zda může uživatel schválit vlastní žádost |
+### Obrazovka se načte, ale uložení selže
 
----
+Ověřte permission path, validitu payloadu a backend response.
 
-## Notifikace
+### Business owner požaduje admin override
 
-### Typy notifikací
+Použijte schválenou governance cestu. Nerealizujte neřízené override mimo policy.
 
-- **KRI termíny** - Upozornění na blížící se odesílání hodnot
-- **Schválení** - Nové žádosti o schválení
-- **Překročení limitů** - Překročení prahových hodnot KRI
+## Related Documentation
 
-### Nastavení e-mailů
-
-1. Přejděte do **Risk Hub** → **Notifikace**
-2. Nakonfigurujte SMTP server
-3. Nastavte šablony e-mailů
-
----
-
-## Rotace logů
-
-### Nastavení pro typy logů
-
-| Log | Velikost rotace | Počet uchování |
-|-----|-----------------|----------------|
-| Aplikační log | 10 MB | 5 souborů |
-| Auditní log | 50 MB | 10 souborů |
-
----
-
-## Globální konfigurace
-
-### Celková hodnota aktiv
-
-Pro výpočet finančních dopadů u hodnocení rizik:
-- Nastavte celkovou hodnotu aktiv vaší organizace
-- Dopady Medium a Low budou počítány jako procenta z této hodnoty
-
----
-
-*Pro technické detaily viz dokumentaci nasazení.*
+- `./user-management.md`
+- `./approvals.md`
+- `./reports.md`
