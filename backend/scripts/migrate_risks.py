@@ -11,7 +11,8 @@ import openpyxl
 from pathlib import Path
 from collections import defaultdict
 from sqlalchemy import select, delete
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Risk, KeyRiskIndicator, Department, User, ControlRiskLink
 
 
@@ -79,7 +80,7 @@ async def migrate_risks():
     wb = openpyxl.load_workbook(excel_path, data_only=True)
     sheet = wb['Rizika']
     
-    async with async_session_maker() as session:
+    async with session_context(get_settings()) as session:
         # Step 1: Validate prerequisites FIRST (before any destructive operations)
         print("\n🔍 Validating prerequisites...")
         user_result = await session.execute(select(User).limit(1))

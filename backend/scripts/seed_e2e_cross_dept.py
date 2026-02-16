@@ -7,7 +7,8 @@ enabling tests to verify cross-department access patterns reliably.
 """
 import asyncio
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Risk, Control, KeyRiskIndicator
 from scripts.e2e_mappings import (
     load_mappings_strict,
@@ -76,7 +77,7 @@ async def seed_cross_dept_scenarios():
     print("🔍 PHASE 179-11: Deterministic Cross-Department Scenarios")
     print("="*60)
     
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         users, depts = await load_mappings_strict(
             db,
             context="seed_e2e_cross_dept",

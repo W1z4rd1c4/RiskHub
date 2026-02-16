@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '@/i18n/hooks';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
     Server, Users, Activity, Terminal, RefreshCw,
     Database, Clock, MemoryStick,

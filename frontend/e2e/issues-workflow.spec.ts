@@ -87,10 +87,17 @@ test.describe('issues workflow', () => {
         expect(closeResponse.ok()).toBeTruthy();
 
         await page.goto('/issues');
-        await expect(page.getByRole('heading', { name: 'Issues' })).toBeVisible({ timeout: 15000 });
-        await expect(page.locator('button', { hasText: issueTitle }).first()).toBeVisible({ timeout: 15000 });
+        await expect(page.getByRole('heading', { name: /Issues|Nálezy/i })).toBeVisible({ timeout: 15000 });
+
+        // Closed issues are hidden by default; include them so we can validate the full workflow end-state.
+        const includeClosed = page.getByRole('checkbox', { name: /Include closed|Zahrnout uzavřené|Včetně uzavřených/i });
+        if (await includeClosed.count()) {
+            await includeClosed.check();
+        }
+
+        await expect(page.locator('tr').filter({ hasText: issueTitle }).first()).toBeVisible({ timeout: 15000 });
 
         await page.goto('/');
-        await expect(page.getByRole('heading', { name: 'Open Issues by Severity' })).toBeVisible({ timeout: 15000 });
+        await expect(page.getByRole('heading', { name: /Open Issues by Severity|Otevřené nálezy podle závažnosti/i })).toBeVisible({ timeout: 15000 });
     });
 });

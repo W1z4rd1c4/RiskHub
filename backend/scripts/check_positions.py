@@ -1,10 +1,11 @@
 import asyncio
 from sqlalchemy import select, func
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Control
 
 async def check_positions():
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         # Get unique process owner positions
         result = await db.execute(select(Control.process_owner_position).distinct())
         process_owners = [r[0] for r in result.all() if r[0]]

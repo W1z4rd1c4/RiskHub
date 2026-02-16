@@ -1,9 +1,16 @@
 import { test, expect } from '../fixtures/auth.fixture';
 import { E2E_RISKS } from '../fixtures/e2e-data';
 import { RisksPage } from '../pages/RisksPage';
+import { ensureRiskStatus, getRiskByCode } from '../helpers/api-auth';
 import { waitForDataLoad, waitForTableRowByText } from '../helpers/wait';
 
 test.describe('Risk CRUD Permissions (Deterministic)', () => {
+    test.describe.configure({ mode: 'serial' });
+
+    test.beforeEach(async () => {
+        await ensureRiskStatus(E2E_RISKS.ARCHIVE_RESTORE_TARGET.code, 'archived');
+    });
+
     test('Risk Manager can see deterministic risk list rows', async ({ riskManagerPage }) => {
         const risksPage = new RisksPage(riskManagerPage);
         await risksPage.navigate();
@@ -70,5 +77,28 @@ test.describe('Risk CRUD Permissions (Deterministic)', () => {
         await risksPage.openRowByText(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
         await waitForDataLoad(riskManagerPage);
         await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
+    });
+
+    test('Risk Manager can restore archived risk and list/detail reflect active state', async ({ riskManagerPage }) => {
+        const risksPage = new RisksPage(riskManagerPage);
+        await risksPage.navigate();
+        await risksPage.setStatusFilterArchived();
+        await risksPage.search(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
+
+        await expect(risksPage.rowByText(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name)).toBeVisible();
+        await risksPage.clickUnarchiveForRow(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
+        await expect(risksPage.rowByText(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name)).not.toBeVisible();
+
+        const apiState = await getRiskByCode(E2E_RISKS.ARCHIVE_RESTORE_TARGET.code);
+        expect(apiState?.status).toBe('active');
+
+        await risksPage.navigate();
+        await risksPage.search(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
+        await expect(risksPage.rowByText(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name)).toBeVisible();
+
+        await risksPage.openRowByText(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
+        await expect(riskManagerPage.locator('span').filter({ hasText: /^active$/i }).first()).toBeVisible();
+
+        await ensureRiskStatus(E2E_RISKS.ARCHIVE_RESTORE_TARGET.code, 'archived');
     });
 });

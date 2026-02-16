@@ -30,7 +30,7 @@ services:
       POSTGRES_PASSWORD: riskhub_dev
       POSTGRES_DB: riskhub
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -48,7 +48,7 @@ services:
     image: redis:7-alpine
     container_name: riskhub-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -134,7 +134,7 @@ services:
       - DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@db:5432/ad_emulator
       - DEBUG=true
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     depends_on:
       db:
         condition: service_healthy

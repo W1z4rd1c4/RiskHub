@@ -8,7 +8,8 @@ with CREATE, UPDATE, and ARCHIVE actions to enable activity-logging tests.
 import asyncio
 from datetime import datetime, timedelta, UTC
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models.activity_log import ActivityLog, ActivityAction, ActivityEntityType
 from app.models import Risk, Control, KeyRiskIndicator, User
 from scripts.e2e_mappings import load_mappings
@@ -37,7 +38,7 @@ async def seed_activity_logs():
     print("🔍 PHASE 179-07: Activity Log Data Seeding")
     print("="*60)
     
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         users, depts = await load_mappings(db)
         
         # Check for existing E2E activity logs

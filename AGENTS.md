@@ -1,11 +1,47 @@
 # RiskHub — AGENTS Playbook
 
+## Repository Knowledge Map
+
+Canonical Source: `docs/agent/README.md`, `docs/agent/AGENTS_DOC_COVERAGE.md`
+
+This file is the navigation layer for agent behavior. Canonical details live in `docs/` and `.planning/codebase/`.
+Use `docs/agent/README.md` as the agent-doc index and `docs/agent/AGENTS_DOC_COVERAGE.md` for section coverage tracking.
+
+| AGENTS Section | Canonical Source(s) | Coverage | Owner | Last Verified |
+|---|---|---|---|---|
+| Repository Knowledge Map | `docs/agent/README.md`<br>`docs/agent/AGENTS_DOC_COVERAGE.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Mission | `docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Project Map | `.planning/codebase/STRUCTURE.md`<br>`.planning/codebase/ARCHITECTURE.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Source-of-Truth Order | `docs/agent/CODEX_WORKING_RULES.md`<br>`.planning/codebase/CONVENTIONS.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Active Work Focus (Default Bias) | `docs/agent/CODEX_WORKING_RULES.md`<br>`.planning/STATE.md`<br>`.planning/ROADMAP.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Execution Protocol | `docs/agent/EXECUTION_PROTOCOL.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Risk Hotspots (Mandatory Extra Care) | `.planning/codebase/CONCERNS.md`<br>`docs/agent/TIMEZONE_POLICY.md`<br>`docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Key Knowledge (Keep In Sync) | `docs/agent/TIMEZONE_POLICY.md`<br>`docs/agent/PYTEST_RUNTIME_NOTES.md`<br>`docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Key Knowledge > Timezone policy (UTC-aware) | `docs/agent/TIMEZONE_POLICY.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Key Knowledge > Postgres test mode | `docs/agent/PYTEST_RUNTIME_NOTES.md`<br>`.planning/codebase/TESTING.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Key Knowledge > Pytest exit hang (SQLite / aiosqlite) | `docs/agent/PYTEST_RUNTIME_NOTES.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Key Knowledge > Endpoint package splits (maintainability) | `docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Key Knowledge > SQLAlchemy FK cycles (SQLite tests) | `docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Testing Matrix | `.planning/codebase/TESTING.md`<br>`docs/TESTING.md` | full | RiskHub Maintainer | 2026-02-16 |
+| RBAC and Business Logic Guardrails | `docs/BUSINESS_LOGIC.md`<br>`.planning/codebase/CONCERNS.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Frontend Display Guardrails | `docs/BUSINESS_LOGIC.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Security and Production Guardrails | `docs/deployment/security-checklist.md`<br>`docs/deployment/README.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Quick Commands | `scripts/dev.sh`<br>`Makefile` | full | RiskHub Maintainer | 2026-02-16 |
+| Demo/Dev Auth (local) | `scripts/dev.sh`<br>`.planning/codebase/INTEGRATIONS.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Repo Hygiene | `.planning/codebase/STRUCTURE.md`<br>`docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Prompting and Tooling Best Practices (OpenAI-Aligned) | `docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Skills | `docs/agent/SKILLS_RESOLUTION.md` | full | RiskHub Maintainer | 2026-02-16 |
+
 ## Mission
+
+Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`
 
 - Deliver correct, test-verified changes to RiskHub with minimal unrelated churn.
 - Prefer evidence from repo artifacts over assumptions.
 
 ## Project Map
+
+Canonical Source: `.planning/codebase/STRUCTURE.md`, `.planning/codebase/ARCHITECTURE.md`
 
 - `backend/`: FastAPI + SQLAlchemy + Alembic + pytest
 - `frontend/`: React + TypeScript + Vite + Vitest + Playwright
@@ -14,6 +50,8 @@
 - `AD Emulator/`: separate directory simulation app (out of scope unless requested)
 
 ## Source-of-Truth Order
+
+Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `.planning/codebase/CONVENTIONS.md`
 
 Use this precedence when instructions conflict:
 
@@ -32,12 +70,16 @@ Rules:
 
 ## Active Work Focus (Default Bias)
 
+Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`, `.planning/STATE.md`, `.planning/ROADMAP.md`
+
 Unless user redirects, prioritize unresolved work identified as in progress in:
 
 - `.planning/STATE.md`
 - `.planning/ROADMAP.md`
 
 ## Execution Protocol
+
+Canonical Source: `docs/agent/EXECUTION_PROTOCOL.md`
 
 Before coding:
 
@@ -59,6 +101,8 @@ After coding:
 
 ## Risk Hotspots (Mandatory Extra Care)
 
+Canonical Source: `.planning/codebase/CONCERNS.md`, `docs/agent/TIMEZONE_POLICY.md`, `docs/agent/ENDPOINT_INVARIANTS.md`
+
 - Approval execution side effects (`backend/app/services/approval_execution_service.py`)
 - Timezone handling (naive vs aware datetime writes)
 - RBAC scoping/filtering logic across backend + frontend gates
@@ -69,7 +113,11 @@ For these areas, require stronger verification before closing.
 
 ## Key Knowledge (Keep In Sync)
 
+Canonical Source: `docs/agent/TIMEZONE_POLICY.md`, `docs/agent/PYTEST_RUNTIME_NOTES.md`, `docs/agent/ENDPOINT_INVARIANTS.md`
+
 ### Timezone policy (UTC-aware)
+
+Canonical Source: `docs/agent/TIMEZONE_POLICY.md`
 
 - Persist all “instant” timestamps as **timezone-aware UTC** (`datetime` with `tzinfo=UTC`) and Postgres **`timestamptz`**.
 - Use `backend/app/core/datetime_utils.py`:
@@ -81,17 +129,23 @@ For these areas, require stronger verification before closing.
 
 ### Postgres test mode
 
+Canonical Source: `docs/agent/PYTEST_RUNTIME_NOTES.md`, `.planning/codebase/TESTING.md`
+
 - Default tests run on in-memory SQLite; set `TEST_DATABASE_URL` to run the suite on Postgres.
 - `backend/tests/conftest.py` applies `alembic upgrade head` once per session and truncates all tables between tests when using Postgres.
 - Example: `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/riskhub_test pytest -v`
 
 ### Pytest exit hang (SQLite / aiosqlite)
 
+Canonical Source: `docs/agent/PYTEST_RUNTIME_NOTES.md`
+
 - Symptom: `pytest` completes but does not exit; a non-daemon `aiosqlite` `_connection_worker_thread` remains alive.
-- Canonical fix: in `backend/tests/conftest.py`, ensure the session `event_loop` is the current loop and dispose the app-global `app.db.session.engine` at session end via an autouse fixture.
+- Canonical fix: in `backend/tests/conftest.py`, ensure the session `event_loop` is the current loop and dispose the app’s `app.state.db_engine` at session end via an autouse fixture.
 - Debugging: set `PYTEST_THREAD_DEBUG=1` to dump remaining non-daemon threads at `pytest_sessionfinish`.
 
 ### Endpoint package splits (maintainability)
+
+Canonical Source: `docs/agent/ENDPOINT_INVARIANTS.md`
 
 - These endpoints are **packages** (not single files): `controls/`, `risks/`, `kris/`, `dashboard/`, `issues/`, `reports/`, `riskhub/`, `approvals/`, `departments/`, `users/`, `vendors/`, `vendor_incidents/`, `vendor_dependencies/`, `vendor_slas/`, `admin/`, `risk_questionnaires/`.
 - Invariant: `app.api.v1.endpoints.<name>.router` must remain the exported router object (see `backend/app/api/v1/endpoints/<name>/__init__.py`).
@@ -103,9 +157,13 @@ For these areas, require stronger verification before closing.
 
 ### SQLAlchemy FK cycles (SQLite tests)
 
+Canonical Source: `docs/agent/ENDPOINT_INVARIANTS.md`
+
 - SQLite `Base.metadata.drop_all()` can warn if a FK cycle exists; `Department.manager_id -> users.id` is marked with `use_alter=True` to break the `departments`/`users` cycle.
 
 ## Testing Matrix
+
+Canonical Source: `.planning/codebase/TESTING.md`, `docs/TESTING.md`
 
 Run based on change type:
 
@@ -122,6 +180,8 @@ Testing expectations:
 
 ## RBAC and Business Logic Guardrails
 
+Canonical Source: `docs/BUSINESS_LOGIC.md`, `.planning/codebase/CONCERNS.md`
+
 - Keep backend enforcement as the authority; frontend gating must mirror, not replace, backend checks.
 - For permission changes, reconcile:
   - endpoint guards/dependencies
@@ -131,12 +191,16 @@ Testing expectations:
 
 ## Frontend Display Guardrails
 
+Canonical Source: `docs/BUSINESS_LOGIC.md`
+
 - Do not render raw database numeric IDs in user-facing UI surfaces.
 - Prefer business identifiers: names, titles, codes, or human-readable labels.
 - If a related entity cannot be resolved, show `Unknown <entity>` text (for example, `Unknown user`) and never expose numeric IDs as fallback.
 - Technical IDs are acceptable in logs, telemetry, and developer tooling only, not in end-user screens.
 
 ## Security and Production Guardrails
+
+Canonical Source: `docs/deployment/security-checklist.md`, `docs/deployment/README.md`
 
 - Never commit real secrets or environment values.
 - Production defaults must keep:
@@ -147,6 +211,8 @@ Testing expectations:
 - Do not expose or depend on demo auth paths in production behavior.
 
 ## Quick Commands
+
+Canonical Source: `scripts/dev.sh`, `Makefile`
 
 - Canonical startup (new sessions): `./scripts/dev.sh --daemon`
 - Canonical startup (foreground): `./scripts/dev.sh`
@@ -162,6 +228,8 @@ For launch/runbook behavior, treat `scripts/dev.sh` as source of truth.
 
 ## Demo/Dev Auth (local)
 
+Canonical Source: `scripts/dev.sh`, `.planning/codebase/INTEGRATIONS.md`
+
 Local dev is expected to run in **demo-friendly auth mode** (keeps Playwright E2E stable).
 
 - `./scripts/dev.sh` (local backend) defaults to:
@@ -172,6 +240,8 @@ Local dev is expected to run in **demo-friendly auth mode** (keeps Playwright E2
 - Override example (no demo auth): `AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh`
 
 ## Repo Hygiene
+
+Canonical Source: `.planning/codebase/STRUCTURE.md`, `docs/agent/CODEX_WORKING_RULES.md`
 
 - Avoid editing generated/vendor folders:
   - `frontend/node_modules/`
@@ -184,6 +254,8 @@ Local dev is expected to run in **demo-friendly auth mode** (keeps Playwright E2
 
 ## Prompting and Tooling Best Practices (OpenAI-Aligned)
 
+Canonical Source: `docs/agent/CODEX_WORKING_RULES.md`
+
 - State objective, constraints, and expected output format before execution.
 - Use strict structured outputs for machine-consumed results when possible.
 - Keep tool/function contracts explicit, minimal, and schema-driven.
@@ -192,6 +264,8 @@ Local dev is expected to run in **demo-friendly auth mode** (keeps Playwright E2
 - Keep reusable instruction prefixes stable; append task-specific context after them for cache efficiency.
 
 ## Skills
+
+Canonical Source: `docs/agent/SKILLS_RESOLUTION.md`
 
 Codex resolves skills from:
 

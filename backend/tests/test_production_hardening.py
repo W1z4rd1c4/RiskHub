@@ -2,7 +2,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.config import Settings
-from app.main import create_app
+from app.main import DEFAULT_DATABASE_URL, create_app
 
 
 PRODUCTION_SECRET = "test-secret-for-production-mode-123456"
@@ -139,6 +139,58 @@ def test_auth_mode_guard_requires_entra_config_in_production():
                 entra_client_id=None,
                 cors_origins=["http://testserver"],
                 database_url=PRODUCTION_DATABASE_URL,
+                directory_webhook_enabled=False,
+            )
+        )
+
+
+def test_webhook_secret_required_when_directory_webhook_enabled_in_production():
+    with pytest.raises(RuntimeError, match="WEBHOOK_SECRET is required"):
+        create_app(
+            Settings(
+                debug=False,
+                secret_key=PRODUCTION_SECRET,
+                mock_auth_enabled=False,
+                auth_mode=PRODUCTION_AUTH_MODE,
+                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
+                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
+                cors_origins=["http://testserver"],
+                database_url=PRODUCTION_DATABASE_URL,
+                directory_webhook_enabled=True,
+                webhook_secret="",
+            )
+        )
+
+
+def test_secret_key_length_guard_triggers_in_production():
+    with pytest.raises(RuntimeError, match="SECRET_KEY must be at least 32 characters"):
+        create_app(
+            Settings(
+                debug=False,
+                secret_key="too-short",
+                mock_auth_enabled=False,
+                auth_mode=PRODUCTION_AUTH_MODE,
+                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
+                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
+                cors_origins=["http://testserver"],
+                database_url=PRODUCTION_DATABASE_URL,
+                directory_webhook_enabled=False,
+            )
+        )
+
+
+def test_database_url_default_guard_triggers_in_production():
+    with pytest.raises(RuntimeError, match="DATABASE_URL must be explicitly configured"):
+        create_app(
+            Settings(
+                debug=False,
+                secret_key=PRODUCTION_SECRET,
+                mock_auth_enabled=False,
+                auth_mode=PRODUCTION_AUTH_MODE,
+                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
+                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
+                cors_origins=["http://testserver"],
+                database_url=DEFAULT_DATABASE_URL,
                 directory_webhook_enabled=False,
             )
         )

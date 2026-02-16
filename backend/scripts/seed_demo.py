@@ -17,7 +17,8 @@ from app.db.rbac_seed_contract import (
     ROLE_BY_NAME,
     expand_permission_keys,
 )
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import User, Department, Role, Permission, RolePermission
 from app.models.user import AccessScope
 from app.models.risk import Risk, RiskType, RiskStatus, ControlEffectiveness, ControlRiskLink
@@ -74,7 +75,7 @@ PERMISSIONS = [dict(PERMISSION_BY_KEY[key]) for key in DEMO_PERMISSION_KEYS]
 
 
 async def seed_all():
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         print("=" * 60)
         print("🌱 DEMO SEED: Creating 9-user demo environment")
         print("=" * 60)

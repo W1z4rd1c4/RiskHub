@@ -2,7 +2,8 @@
 import asyncio
 import logging
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.services.orphaned_item_service import OrphanedItemService
 from app.models.orphaned_item import OrphanedItem
 
@@ -10,7 +11,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def verify_governance_updates():
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         logger.info("Triggering Orphan Scan (Risks, Controls, KRIs)...")
         new_count = await OrphanedItemService.scan_uncategorised_items(db)
         logger.info(f"Newly flagged items: {new_count}")

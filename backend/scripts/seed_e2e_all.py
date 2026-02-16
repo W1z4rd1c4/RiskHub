@@ -11,7 +11,8 @@ Or via seed_all.py with environment variable:
 import asyncio
 from sqlalchemy import func, select
 
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import ApprovalRequest, Control, KeyRiskIndicator, Risk, Vendor, VendorSLA
 
 from scripts.seed_e2e_foundation import seed_foundation
@@ -36,7 +37,7 @@ async def _run_step(step_number: int, label: str, coroutine):
 
 
 async def _collect_summary_counts():
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         risks_active = (
             await db.execute(
                 select(func.count(Risk.id)).where(

@@ -4,12 +4,13 @@ Run this before seeding users.
 """
 import asyncio
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Department
 
 
 async def seed_departments():
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         try:
             # Define all 10 departments
             departments_data = [

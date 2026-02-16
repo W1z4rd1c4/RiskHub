@@ -12,6 +12,8 @@ import { buildAuthz } from '@/authz/policy';
 
 import { KRIDetailPage } from '@/pages/KRIDetailPage';
 import { ControlDetailPage } from '@/pages/ControlDetailPage';
+import { ControlsPage } from '@/pages/ControlsPage';
+import { RisksPage } from '@/pages/RisksPage';
 import { UsersPage } from '@/pages/UsersPage';
 
 type AuthMeUser = {
@@ -105,7 +107,9 @@ function renderWithRoute(route: string) {
                     <DashboardFilterProvider>
                         <Routes>
                             <Route path="/kris/:id" element={<KRIDetailPage />} />
+                            <Route path="/controls" element={<ControlsPage />} />
                             <Route path="/controls/:id" element={<ControlDetailPage />} />
+                            <Route path="/risks" element={<RisksPage />} />
                             <Route path="/users" element={<UsersPage />} />
                         </Routes>
                     </DashboardFilterProvider>
@@ -564,5 +568,153 @@ describe('RBAC UI gating', () => {
 
         expect(await screen.findByText(/execution audit trail/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /log execution/i })).toBeInTheDocument();
+    });
+
+    it('RisksPage: risks:delete shows "Unarchive" action for archived risk row', async () => {
+        const user = makeUser({
+            id: 90,
+            effective_permissions: ['risks:delete'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/risks', () =>
+                HttpResponse.json({
+                    items: [
+                        {
+                            id: 1,
+                            risk_id_code: 'R-ARCH-001',
+                            name: 'Archived Risk',
+                            process: 'Mock Process',
+                            risk_type: 'operational',
+                            category: 'Mock',
+                            description: 'Mock Desc',
+                            gross_score: 9,
+                            gross_probability: 3,
+                            gross_impact: 3,
+                            net_score: 4,
+                            status: 'archived',
+                            is_priority: false,
+                        },
+                    ],
+                    total: 1,
+                    skip: 0,
+                    limit: 20,
+                })
+            )
+        );
+
+        renderWithRoute('/risks');
+
+        await screen.findByText('Archived Risk');
+        expect(screen.getByTestId('risk-unarchive-1')).toBeInTheDocument();
+    });
+
+    it('RisksPage: without risks:delete hides "Unarchive" action for archived risk row', async () => {
+        const user = makeUser({
+            id: 91,
+            effective_permissions: ['risks:read'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/risks', () =>
+                HttpResponse.json({
+                    items: [
+                        {
+                            id: 1,
+                            risk_id_code: 'R-ARCH-001',
+                            name: 'Archived Risk',
+                            process: 'Mock Process',
+                            risk_type: 'operational',
+                            category: 'Mock',
+                            description: 'Mock Desc',
+                            gross_score: 9,
+                            gross_probability: 3,
+                            gross_impact: 3,
+                            net_score: 4,
+                            status: 'archived',
+                            is_priority: false,
+                        },
+                    ],
+                    total: 1,
+                    skip: 0,
+                    limit: 20,
+                })
+            )
+        );
+
+        renderWithRoute('/risks');
+
+        await screen.findByText('Archived Risk');
+        expect(screen.queryByTestId('risk-unarchive-1')).not.toBeInTheDocument();
+    });
+
+    it('ControlsPage: controls:delete shows "Unarchive" action for archived control row', async () => {
+        const user = makeUser({
+            id: 92,
+            effective_permissions: ['controls:delete'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/controls', () =>
+                HttpResponse.json({
+                    items: [
+                        {
+                            id: 1,
+                            name: 'Archived Control',
+                            department_name: 'Operations',
+                            frequency: 'monthly',
+                            risk_level: 3,
+                            status: 'archived',
+                            control_form: 'manual',
+                        },
+                    ],
+                    total: 1,
+                    skip: 0,
+                    limit: 20,
+                })
+            )
+        );
+
+        renderWithRoute('/controls');
+
+        await screen.findByText('Archived Control');
+        expect(screen.getByTestId('control-unarchive-1')).toBeInTheDocument();
+    });
+
+    it('ControlsPage: without controls:delete hides "Unarchive" action for archived control row', async () => {
+        const user = makeUser({
+            id: 93,
+            effective_permissions: ['controls:read'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/controls', () =>
+                HttpResponse.json({
+                    items: [
+                        {
+                            id: 1,
+                            name: 'Archived Control',
+                            department_name: 'Operations',
+                            frequency: 'monthly',
+                            risk_level: 3,
+                            status: 'archived',
+                            control_form: 'manual',
+                        },
+                    ],
+                    total: 1,
+                    skip: 0,
+                    limit: 20,
+                })
+            )
+        );
+
+        renderWithRoute('/controls');
+
+        await screen.findByText('Archived Control');
+        expect(screen.queryByTestId('control-unarchive-1')).not.toBeInTheDocument();
     });
 });
