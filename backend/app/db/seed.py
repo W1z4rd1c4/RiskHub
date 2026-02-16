@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.db.rbac_seed_contract import (
     RBAC_PERMISSIONS as PERMISSIONS,
 )
@@ -15,7 +16,7 @@ from app.db.rbac_seed_contract import (
 from app.db.rbac_seed_contract import (
     RBAC_ROLES as ROLES,
 )
-from app.db.session import async_session_maker
+from app.db.session import session_context
 from app.models import (
     Control,
     ControlExecution,
@@ -318,7 +319,7 @@ CONTROL_RISK_LINKS = [
 
 async def seed_database():
     """Seed the database with initial data."""
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         # Check if already seeded
         result = await db.execute(select(Role))
         if result.scalars().first():

@@ -11,7 +11,8 @@ import openpyxl
 from pathlib import Path
 from difflib import SequenceMatcher
 from sqlalchemy import select, delete
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Control, Risk, ControlRiskLink, Department, User, ControlExecution
 
 
@@ -66,7 +67,7 @@ async def migrate_controls():
     wb = openpyxl.load_workbook(excel_path, data_only=True)
     sheet = wb.active
     
-    async with async_session_maker() as session:
+    async with session_context(get_settings()) as session:
         # Step 1: Validate prerequisites
         print("\n🔍 Validating prerequisites...")
         

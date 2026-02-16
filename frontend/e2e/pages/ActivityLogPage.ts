@@ -17,7 +17,9 @@ export class ActivityLogPage {
     // ─────────────────────────────────────────────────────────────
 
     get pageTitle(): Locator {
-        return this.page.locator('h1:has-text("Activity Log"), h1:has-text("Audit Trail")');
+        return this.page.locator(
+            'h1:has-text("Activity Log"), h1:has-text("Audit Trail"), h1:has-text("Auditní stopa")',
+        );
     }
 
     get entriesList(): Locator {
@@ -38,7 +40,7 @@ export class ActivityLogPage {
 
     // Filter controls
     get searchInput(): Locator {
-        return this.page.locator('input[placeholder*="Search"], input[type="search"]');
+        return this.page.locator('input[type="search"], input[placeholder*="Search"], input[placeholder*="Hledat"]');
     }
 
     get entityTypeFilter(): Locator {
@@ -59,19 +61,31 @@ export class ActivityLogPage {
 
     // View mode tabs
     get chronologicalTab(): Locator {
-        return this.page.locator('button:has-text("Chronological"), [role="tab"]:has-text("Chronological")');
+        return this.page.locator(
+            'button:has-text("Chronological"), [role="tab"]:has-text("Chronological"), ' +
+            'button:has-text("Chronologicky"), [role="tab"]:has-text("Chronologicky")',
+        );
     }
 
     get byPersonTab(): Locator {
-        return this.page.locator('button:has-text("By Person"), [role="tab"]:has-text("By Person")');
+        return this.page.locator(
+            'button:has-text("By Person"), [role="tab"]:has-text("By Person"), ' +
+            'button:has-text("Podle osoby"), [role="tab"]:has-text("Podle osoby")',
+        );
     }
 
     get byDepartmentTab(): Locator {
-        return this.page.locator('button:has-text("By Department"), [role="tab"]:has-text("By Department")');
+        return this.page.locator(
+            'button:has-text("By Department"), [role="tab"]:has-text("By Department"), ' +
+            'button:has-text("Podle oddělení"), [role="tab"]:has-text("Podle oddělení")',
+        );
     }
 
     get byRiskTab(): Locator {
-        return this.page.locator('button:has-text("By Risk"), [role="tab"]:has-text("By Risk")');
+        return this.page.locator(
+            'button:has-text("By Risk"), [role="tab"]:has-text("By Risk"), ' +
+            'button:has-text("Podle rizika"), [role="tab"]:has-text("Podle rizika")',
+        );
     }
 
     // Export buttons
@@ -109,7 +123,10 @@ export class ActivityLogPage {
         await this.page.goto('/settings');
         await waitForDataLoad(this.page);
         // Click Activity Log tab
-        await this.page.click('button:has-text("Activity Log"), [role="tab"]:has-text("Activity")');
+        await this.page.click(
+            'button:has-text("Activity Log"), [role="tab"]:has-text("Activity"), ' +
+            'button:has-text("Auditní stopa"), [role="tab"]:has-text("Auditní")',
+        );
         await waitForDataLoad(this.page);
     }
 
@@ -301,7 +318,11 @@ export class ActivityLogPage {
     // ─────────────────────────────────────────────────────────────
 
     async expectPageVisible(): Promise<void> {
-        await expect(this.page.locator('h1:has-text("Activity Log"), h1:has-text("Audit Trail")').first()).toBeVisible();
+        await expect(
+            this.page.locator(
+                'h1:has-text("Activity Log"), h1:has-text("Audit Trail"), h1:has-text("Auditní stopa")',
+            ).first(),
+        ).toBeVisible();
     }
 
     async expectEntriesLoaded(minEntries = 1): Promise<void> {

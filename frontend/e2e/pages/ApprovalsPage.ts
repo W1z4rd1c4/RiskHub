@@ -21,15 +21,15 @@ export class ApprovalsPage {
     }
 
     get pendingQueueTab(): Locator {
-        return this.page.locator('button:has-text("Pending Queue")');
+        return this.page.locator('button:has-text("Pending Queue"), button:has-text("Fronta čekajících")');
     }
 
     get myRequestsTab(): Locator {
-        return this.page.locator('button:has-text("My Requests")');
+        return this.page.locator('button:has-text("My Requests"), button:has-text("Moje žádosti")');
     }
 
     get historyTab(): Locator {
-        return this.page.locator('button:has-text("History")');
+        return this.page.locator('button:has-text("History"), button:has-text("Historie")');
     }
 
     get loadingSpinner(): Locator {
@@ -46,23 +46,23 @@ export class ApprovalsPage {
     }
 
     get resolutionDialog(): Locator {
-        return this.page.locator('.fixed.inset-0 >> .bg-slate-900');
+        return this.page.locator('.fixed.inset-0.z-50 .glass');
     }
 
     get resolutionNotesInput(): Locator {
-        return this.page.locator('textarea[placeholder="Enter resolution notes..."]');
+        return this.page.locator('.fixed.inset-0.z-50 textarea').first();
     }
 
     get dialogApproveButton(): Locator {
-        return this.resolutionDialog.locator('button:has-text("Approve")');
+        return this.resolutionDialog.locator('button:has-text("Approve"), button:has-text("Schválit")');
     }
 
     get dialogRejectButton(): Locator {
-        return this.resolutionDialog.locator('button:has-text("Reject")');
+        return this.resolutionDialog.locator('button:has-text("Reject"), button:has-text("Zamítnout")');
     }
 
     get dialogCancelButton(): Locator {
-        return this.resolutionDialog.locator('button:has-text("Cancel")');
+        return this.resolutionDialog.locator('button:has-text("Cancel"), button:has-text("Zrušit")');
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ export class ApprovalsPage {
      */
     async isApproveButtonVisible(index: number): Promise<boolean> {
         const card = this.getCard(index);
-        const approveBtn = card.locator('button[title="Approve"]');
+        const approveBtn = card.locator('button[title="Approve"], button[title="Schválit"]');
         return await approveBtn.isVisible();
     }
 
@@ -164,7 +164,7 @@ export class ApprovalsPage {
      */
     async isRejectButtonVisible(index: number): Promise<boolean> {
         const card = this.getCard(index);
-        const rejectBtn = card.locator('button[title="Reject"]');
+        const rejectBtn = card.locator('button[title="Reject"], button[title="Zamítnout"]');
         return await rejectBtn.isVisible();
     }
 
@@ -173,7 +173,7 @@ export class ApprovalsPage {
      */
     async isCancelButtonVisible(index: number): Promise<boolean> {
         const card = this.getCard(index);
-        const cancelBtn = card.locator('button[title="Cancel Request"]');
+        const cancelBtn = card.locator('button[title="Cancel Request"], button[title=\"Zrušit žádost\"]');
         return await cancelBtn.isVisible();
     }
 
@@ -182,7 +182,7 @@ export class ApprovalsPage {
      */
     async clickApprove(index: number): Promise<void> {
         const card = this.getCard(index);
-        await card.locator('button[title="Approve"]').click();
+        await card.locator('button[title="Approve"], button[title="Schválit"]').click();
         await expect(this.resolutionDialog).toBeVisible();
     }
 
@@ -191,7 +191,7 @@ export class ApprovalsPage {
      */
     async clickReject(index: number): Promise<void> {
         const card = this.getCard(index);
-        await card.locator('button[title="Reject"]').click();
+        await card.locator('button[title="Reject"], button[title="Zamítnout"]').click();
         await expect(this.resolutionDialog).toBeVisible();
     }
 
@@ -201,7 +201,7 @@ export class ApprovalsPage {
     async clickCancel(index: number): Promise<void> {
         const card = this.getCard(index);
         this.page.once('dialog', dialog => dialog.accept());
-        await card.locator('button[title="Cancel Request"]').click();
+        await card.locator('button[title="Cancel Request"], button[title=\"Zrušit žádost\"]').click();
         await waitForDataLoad(this.page);
     }
 

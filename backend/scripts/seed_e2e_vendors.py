@@ -7,7 +7,8 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Vendor, VendorStatus
 from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
 
@@ -148,7 +149,7 @@ async def seed_vendors():
     print("🔍 PHASE 179-13: Deterministic Vendor Seed Matrix")
     print("=" * 60)
 
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         users, departments = await load_mappings(db)
 
         created = 0

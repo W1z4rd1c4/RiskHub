@@ -30,7 +30,7 @@
 | **Name** | Risk title (click to open detail page) |
 | **Department** | Which department owns this risk |
 | **Owner** | Person responsible for this risk |
-| **Status** | Active, Mitigated, or Archived |
+| **Status** | Active, Emerging, or Archived |
 | **Gross Score** | Risk score before controls |
 | **Net Score** | Risk score after controls |
 | **Priority** | ⭐ indicates priority risks |

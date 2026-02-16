@@ -7,7 +7,8 @@ Enables permissions E2E tests that verify CRUD access rules.
 import asyncio
 from datetime import timedelta, date
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.core.datetime_utils import utc_now
 from app.models import Risk, Control, KeyRiskIndicator, KRIValueHistory, ControlExecution
 from app.models.approval_request import (
@@ -160,7 +161,7 @@ async def seed_permission_actions():
     print("🔍 PHASE 179-10: Permission-Gated Action Data Seeding")
     print("="*60)
     
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         users, depts = await load_mappings(db)
         
         # Get sample entities

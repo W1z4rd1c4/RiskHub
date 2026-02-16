@@ -3,12 +3,16 @@
  * Verifies that theme and language persist server-side per-user
  */
 import { test, expect } from '@playwright/test';
-import { loginAsDemoUser, logout } from './helpers/login';
+import { loginAsDemoUser, logout, DEMO_ACCOUNTS } from './helpers/login';
 
 test.describe('User Settings Isolation', () => {
     test('theme should not persist across different users', async ({ page }) => {
-        // Login as User A (CRO)
-        await loginAsDemoUser(page, 'Anna Kowalski');
+        // Use demo accounts that are not used by most other E2E suites, to avoid cross-test interference.
+        const userA = DEMO_ACCOUNTS.EMPLOYEE_FINANCE;
+        const userB = DEMO_ACCOUNTS.EMPLOYEE_IT;
+
+        // Login as User A
+        await loginAsDemoUser(page, userA);
         await page.goto('/settings');
 
         // Click Appearance tab first
@@ -22,8 +26,8 @@ test.describe('User Settings Isolation', () => {
         // Logout
         await logout(page);
 
-        // Login as User B (Department Head)
-        await loginAsDemoUser(page, 'Eva Králová');
+        // Login as User B
+        await loginAsDemoUser(page, userB);
         await page.goto('/settings');
 
         // Verify theme is NOT dark (should be default riskhub)
@@ -38,8 +42,10 @@ test.describe('User Settings Isolation', () => {
     });
 
     test('user settings should persist across sessions', async ({ page }) => {
+        const userA = DEMO_ACCOUNTS.EMPLOYEE_FINANCE;
+
         // Login as User A, set dark theme
-        await loginAsDemoUser(page, 'Anna Kowalski');
+        await loginAsDemoUser(page, userA);
         await page.goto('/settings');
 
         // Click Appearance tab first
@@ -56,7 +62,7 @@ test.describe('User Settings Isolation', () => {
         await logout(page);
 
         // Login as User A again
-        await loginAsDemoUser(page, 'Anna Kowalski');
+        await loginAsDemoUser(page, userA);
 
         // Verify dark theme loaded from server
         await expect(page.locator('html')).toHaveClass(/dark/);
@@ -70,8 +76,11 @@ test.describe('User Settings Isolation', () => {
     });
 
     test('language should not persist across different users', async ({ page }) => {
+        const userA = DEMO_ACCOUNTS.EMPLOYEE_FINANCE;
+        const userB = DEMO_ACCOUNTS.EMPLOYEE_IT;
+
         // Login as User A, set Czech
-        await loginAsDemoUser(page, 'Anna Kowalski');
+        await loginAsDemoUser(page, userA);
         await page.goto('/settings');
 
         // Click Localization tab first
@@ -91,7 +100,7 @@ test.describe('User Settings Isolation', () => {
         await logout(page);
 
         // Login as User B
-        await loginAsDemoUser(page, 'Eva Králová');
+        await loginAsDemoUser(page, userB);
         await page.goto('/settings');
 
         // Click Localization tab
@@ -103,7 +112,7 @@ test.describe('User Settings Isolation', () => {
 
         // Cleanup: Reset User A's language
         await logout(page);
-        await loginAsDemoUser(page, 'Anna Kowalski');
+        await loginAsDemoUser(page, userA);
         await page.goto('/settings');
         await page.click('[data-testid="settings-tab-localization"]');
         await page.waitForSelector('[data-testid="language-en"]', { timeout: 5000 });

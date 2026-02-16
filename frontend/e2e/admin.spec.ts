@@ -15,6 +15,7 @@ async function ensureAdminAccess(page: Page): Promise<void> {
         await page.goto('/admin');
         await waitForDataLoad(page);
         await expect(page).toHaveURL(/\/admin/, { timeout: 15000 });
+        await expect(page.locator('h1')).toHaveText(/Admin Console|Administrace/i, { timeout: 15000 });
     }).toPass({ timeout: 90000 });
 }
 
@@ -104,7 +105,7 @@ test.describe('Admin Console', () => {
             await page.getByRole('button', { name: /Audit Logs|Auditní logy/i }).click();
 
             const numericInputs = page.locator('input[type="number"]');
-            await expect(numericInputs).toHaveCount(4);
+            await expect(numericInputs).toHaveCount(4, { timeout: 15000 });
             await numericInputs.nth(0).fill('11');
             await numericInputs.nth(1).fill('7');
             await numericInputs.nth(2).fill('13');

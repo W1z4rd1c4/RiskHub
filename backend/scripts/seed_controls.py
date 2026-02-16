@@ -6,7 +6,8 @@ import asyncio
 import openpyxl
 from pathlib import Path
 from sqlalchemy import select
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Control, ControlForm, ControlFrequency, ControlStatus, Department, User, Risk
 
 # Column mapping (Czech → English model fields)
@@ -66,7 +67,7 @@ async def seed_controls(excel_path: str):
     # Get header row
     headers = [cell.value for cell in ws[1]]
     
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         imported_count = 0
         
         for row in ws.iter_rows(min_row=2, values_only=True):
@@ -173,7 +174,7 @@ async def seed_mock_risks():
         },
     ]
     
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         for risk_data in mock_risks:
             # Check if already exists
             result = await db.execute(

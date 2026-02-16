@@ -7,7 +7,8 @@ from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 
-from app.db.session import async_session_maker
+from app.core.config import get_settings
+from app.db.session import session_context
 from app.models import Vendor, VendorSLA
 from scripts.e2e_mappings import load_mappings, require_user_id
 
@@ -94,7 +95,7 @@ async def seed_vendor_slas():
     print("🔍 PHASE 179-14: Deterministic Vendor SLA Seed Matrix")
     print("=" * 60)
 
-    async with async_session_maker() as db:
+    async with session_context(get_settings()) as db:
         users, _ = await load_mappings(db)
         archive_actor_id = require_user_id(users, "risk.manager@riskhub.local")
 

@@ -16,7 +16,7 @@ test.describe('Department Access Rules', () => {
             await waitForDataLoad(croPage);
 
             // CRO has GLOBAL scope - should see departments page
-            await expect(croPage.locator('h1, h2').first()).toContainText(/department/i);
+            await expect(croPage.locator('h1, h2').first()).toContainText(/department|odd[eě]len/i);
 
             // Should show department list/grid/table
             const departmentCards = croPage.locator('[class*="card"], table tbody tr, [role="listitem"]');
@@ -29,7 +29,7 @@ test.describe('Department Access Rules', () => {
             await waitForDataLoad(riskManagerPage);
 
             // Risk Manager has GLOBAL scope
-            await expect(riskManagerPage.locator('h1, h2').first()).toContainText(/department/i);
+            await expect(riskManagerPage.locator('h1, h2').first()).toContainText(/department|odd[eě]len/i);
 
             const departmentCards = riskManagerPage.locator('[class*="card"], table tbody tr, [role="listitem"]');
             const count = await departmentCards.count();
@@ -94,7 +94,10 @@ test.describe('Department Access Rules', () => {
                 await waitForDataLoad(riskManagerPage);
 
                 // Look for Risks tab
-                const risksTab = riskManagerPage.locator('button:has-text("Risks"), [role="tab"]:has-text("Risks"), a:has-text("Risks")');
+                const risksTab = riskManagerPage
+                    .locator('button, [role="tab"], a')
+                    .filter({ hasText: /risks|rizika/i })
+                    .first();
                 if (await risksTab.isVisible({ timeout: 3000 }).catch(() => false)) {
                     await risksTab.click();
                     await waitForDataLoad(riskManagerPage);
@@ -116,7 +119,10 @@ test.describe('Department Access Rules', () => {
                 await waitForDataLoad(riskManagerPage);
 
                 // Look for Controls tab
-                const controlsTab = riskManagerPage.locator('button:has-text("Controls"), [role="tab"]:has-text("Controls"), a:has-text("Controls")');
+                const controlsTab = riskManagerPage
+                    .locator('button, [role="tab"], a')
+                    .filter({ hasText: /controls|kontroly/i })
+                    .first();
                 if (await controlsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
                     await controlsTab.click();
                     await waitForDataLoad(riskManagerPage);
@@ -137,7 +143,10 @@ test.describe('Department Access Rules', () => {
                 await waitForDataLoad(riskManagerPage);
 
                 // Look for KRIs tab
-                const krisTab = riskManagerPage.locator('button:has-text("KRI"), [role="tab"]:has-text("KRI"), a:has-text("Indicator"), a:has-text("Appetite")');
+                const krisTab = riskManagerPage
+                    .locator('button, [role="tab"], a')
+                    .filter({ hasText: /kri|indicator|indikátor|appetite|apetit/i })
+                    .first();
                 if (await krisTab.isVisible({ timeout: 3000 }).catch(() => false)) {
                     await krisTab.click();
                     await waitForDataLoad(riskManagerPage);
@@ -187,7 +196,7 @@ test.describe('Department Access Rules', () => {
 
                 // Look for stats/counts display
                 // Could be in header, overview tab, or sidebar
-                const statsArea = riskManagerPage.locator('text=/\\d+\\s*(risk|control|kri)/i').first();
+                const statsArea = riskManagerPage.locator('text=/\\d+\\s*(risk|control|kri|rizik|kontrol)/i').first();
                 if (await statsArea.isVisible({ timeout: 5000 }).catch(() => false)) {
                     await expect(statsArea).toBeVisible();
                 } else {
@@ -208,7 +217,10 @@ test.describe('Department Access Rules', () => {
                 await waitForDataLoad(riskManagerPage);
 
                 // Navigate to risks tab and count items
-                const risksTab = riskManagerPage.locator('button:has-text("Risks"), [role="tab"]:has-text("Risks")');
+                const risksTab = riskManagerPage
+                    .locator('button, [role="tab"], a')
+                    .filter({ hasText: /risks|rizika/i })
+                    .first();
                 if (await risksTab.isVisible({ timeout: 3000 }).catch(() => false)) {
                     await risksTab.click();
                     await waitForDataLoad(riskManagerPage);
@@ -233,7 +245,10 @@ test.describe('Department Access Rules', () => {
                 await waitForDataLoad(riskManagerPage);
 
                 // Navigate to controls tab
-                const controlsTab = riskManagerPage.locator('button:has-text("Controls"), [role="tab"]:has-text("Controls")');
+                const controlsTab = riskManagerPage
+                    .locator('button, [role="tab"], a')
+                    .filter({ hasText: /controls|kontroly/i })
+                    .first();
                 if (await controlsTab.isVisible({ timeout: 3000 }).catch(() => false)) {
                     await controlsTab.click();
                     await waitForDataLoad(riskManagerPage);
@@ -255,7 +270,10 @@ test.describe('Department Access Rules', () => {
                 await waitForDataLoad(riskManagerPage);
 
                 // Navigate to KRIs tab
-                const krisTab = riskManagerPage.locator('button:has-text("KRI"), [role="tab"]:has-text("KRI"), button:has-text("Indicator")');
+                const krisTab = riskManagerPage
+                    .locator('button, [role="tab"], a')
+                    .filter({ hasText: /kri|indicator|indikátor|appetite|apetit/i })
+                    .first();
                 if (await krisTab.isVisible({ timeout: 3000 }).catch(() => false)) {
                     await krisTab.click();
                     await waitForDataLoad(riskManagerPage);
