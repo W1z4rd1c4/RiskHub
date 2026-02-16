@@ -1,142 +1,92 @@
+---
+title: Getting Started with RiskHub
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "docs/BUSINESS_LOGIC.md §1-§4"
+summary: "First-day onboarding guide for non-admin users, including role scope validation, dashboard orientation, and workflow readiness checks."
+tags:
+  - onboarding
+  - navigation
+  - settings
+---
+
 # Getting Started with RiskHub
 
-> **Time to Read**: 5 minutes
+## Overview
 
----
+This guide gets you from first login to productive daily use. It focuses on operational readiness: scope verification, queue awareness, and baseline navigation.
 
-## Logging In
+## Before You Start
 
-### Standard Login
+Confirm these prerequisites with your team lead or system owner:
 
-1. Navigate to your organization's RiskHub URL
-2. You'll see the login screen with available accounts
-3. Select your account or enter your credentials
-4. Click **Sign In**
+- your role assignment is correct
+- your department assignment is correct (if applicable)
+- your account is active and you can sign in
+- your browser language preference is set as expected
 
-### First-Time Login
+## First Login Checklist
 
-On your first login:
-1. Review and accept the terms of use (if prompted)
-2. Take a moment to explore the Dashboard
-3. Check your Workflow for any pending tasks
+1. Sign in and confirm your display name and role badge.
+2. Open `/settings` and set language/theme preferences.
+3. Open `/` (Dashboard) and verify visible data matches your role/scope.
+4. Open `/notifications` and check pending items.
+5. Open the docs tab in Settings and confirm user documentation is available.
 
----
+## Validate Access Scope Early
 
-## Dashboard Overview
+Scope issues are easiest to fix on day one. Validate:
 
-The Dashboard is your home screen, providing at-a-glance visibility into your organization's risk landscape.
+- can you open entities your team expects you to manage?
+- are unrelated departments hidden (unless your role is global)?
+- do ownership exceptions behave correctly on assigned entities?
 
-### What You'll See
+If scope appears wrong, collect examples (entity ID + timestamp) and escalate.
 
-| Section | Description |
-|---------|-------------|
-| **Risk Statistics** | Total risks by status (active, mitigated, archived) |
-| **Risk Heatmap** | Visual 5×5 matrix showing risk distribution |
-| **Top Risks** | Highest-scoring risks requiring attention |
-| **KRI Status** | Key indicators and breach alerts |
-| **Pending Actions** | Your tasks requiring attention |
+## Learn the Core Navigation Paths
 
-### Understanding the Risk Heatmap
+- Risk register: `/risks`
+- Controls catalog: `/controls`
+- KRI monitoring: `/kris`
+- Issues and remediation: `/issues`
+- Vendor management: `/vendors`
+- Workflow queue: `/approvals` and `/notifications`
 
-The heatmap shows risks distributed by:
-- **X-Axis**: Impact (1-5, from Insignificant to Catastrophic)
-- **Y-Axis**: Probability (1-5, from Rare to Almost Certain)
-- **Colors**: Green (low) → Yellow (medium) → Red (high/critical)
+## Approval-Aware Editing Mindset
 
-Click any cell to see the risks in that category.
+RiskHub may convert certain edits into approval requests. This is expected behavior. Always:
 
----
+- review whether your change touched sensitive fields
+- confirm request status after save
+- include clear business rationale in request notes
 
-## Navigation Guide
+## Daily Operating Routine (Recommended)
 
-### Sidebar Menu
+1. Start on Dashboard.
+2. Review notifications and pending approvals.
+3. Process high-priority risks/controls/KRIs.
+4. Update tracked entities with complete notes.
+5. Export/share evidence only when needed.
 
-| Menu Item | Purpose |
-|-----------|---------|
-| **Dashboard** | Executive overview and metrics |
-| **Workflow** | Your pending tasks and approvals |
-| **Controls** | Manage control catalog |
-| **Risks** | Manage risk register |
-| **Risk Appetite** | KRIs and value submission |
-| **Departments** | View organizational structure |
-| **Settings** | Personal preferences |
+## Troubleshooting
 
-### Common Actions
+### I cannot see expected records
 
-| To do this... | Go here... |
-|---------------|-----------|
-| See overall risk status | Dashboard |
-| Check my pending tasks | Workflow |
-| Create a new risk | Risks → Create Risk |
-| Submit a KRI value | Risk Appetite → Select KRI |
-| Log control execution | Controls → Select Control → Log Execution |
+Check role, department scope, and ownership assignment first. If still incorrect, escalate with affected IDs.
 
----
+### My edit did not apply immediately
 
-## Personal Settings
+You likely triggered an approval workflow. Open notifications/workflow to check status.
 
-Access your settings by clicking **Settings** in the sidebar.
+### I see the wrong documentation audience
 
-### Profile Tab
-- View your name, email, and role
-- See your department assignment
+User accounts should receive user docs. Report role mismatch if admin docs appear unexpectedly.
 
-### Appearance Tab
-- Choose between light and dark theme
-- Adjust display preferences
+## Related Documentation
 
-### Localization Tab
-- Set your preferred language
-- Configure date/time format
-
-### Help & Docs Tab
-- Access user documentation
-- View helpful guides for your role
-
----
-
-## Understanding Your Access
-
-### What You Can See
-
-Your access depends on your role:
-
-| If you are... | You can see... |
-|---------------|---------------|
-| **Risk Manager** | All risks, controls, and KRIs across the organization |
-| **Department Head** | Your department's data plus items you own |
-| **Employee** | Your department's data plus items you're assigned to |
-
-### What Requires Approval
-
-Some actions need approval before taking effect:
-
-| Action | Approval Required? |
-|--------|-------------------|
-| Create a risk | No |
-| Edit a risk you own | No (unless sensitive field) |
-| Delete a risk | Yes |
-| Change risk owner | Yes |
-| Submit KRI value | No (usually) |
-| Correct KRI value | Yes |
-
----
-
-## Quick Tips
-
-1. **Check Workflow Daily**: Your pending tasks appear here
-2. **Use Filters**: Large lists have search and filter options
-3. **Watch for Notifications**: The bell icon shows new alerts
-4. **Export When Needed**: Most pages have PDF/Excel export options
-
----
-
-## Next Steps
-
-- [Managing Risks](./risks.md) - Learn to create and edit risks
-- [Managing Controls](./controls.md) - Understand the control catalog
-- [Key Risk Indicators](./kris.md) - Submit KRI values
-
----
-
-*Having trouble? Contact your system administrator or see the [FAQ](./faq.md).*
+- `./risks.md`
+- `./controls.md`
+- `./kris.md`
+- `./notifications.md`
+- `./faq.md`

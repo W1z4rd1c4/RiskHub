@@ -1,48 +1,78 @@
-# Uživatelská příručka RiskHub
-
-> **Verze**: 1.0  
-> **Poslední aktualizace**: 2026-01-11  
-> **Cílová skupina**: Všichni uživatelé RiskHub
-
+---
+title: Uživatelská dokumentace RiskHub
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "docs/BUSINESS_LOGIC.md"
+summary: "Kompletní uživatelská dokumentace pro každodenní práci s riziky, workflow schvalováním, dashboardy a správou dodavatelů."
+tags:
+  - overview
+  - onboarding
+  - workflows
 ---
 
-## Vítejte v RiskHub
+# Uživatelská dokumentace RiskHub
 
-RiskHub je vaše platforma pro řízení podnikových rizik. Tato příručka vám pomůže efektivně využívat systém pro správu rizik, kontrol a klíčových indikátorů rizik.
+Tato sada dokumentace je produkční manuál pro všechny ne-admin role. Není to stručný draft, ale provozní příručka pro reálnou práci.
 
----
+## Pro koho je tato knihovna
 
-## Rychlé odkazy
+Použijte tuto knihovnu, pokud máte některou z těchto rolí:
 
-| Příručka | Popis |
-|----------|-------|
-| [Začínáme](./getting-started.md) | Přihlášení, navigace a první kroky |
-| [Správa rizik](./risks.md) | Vytváření, editace a hodnocení rizik |
-| [Správa kontrol](./controls.md) | Katalog kontrol a logování exekucí |
-| [Klíčové indikátory rizik](./kris.md) | KRI, odesílání hodnot a limity |
-| [Přehled a zprávy](./dashboard.md) | Dashboard, grafy a exporty |
-| [Oznámení a schvalování](./notifications.md) | Upozornění a schvalovací workflow |
-| [Často kladené dotazy](./faq.md) | Odpovědi na časté otázky |
+- CRO
+- Risk Manager
+- Department Head
+- Employee
+- Compliance, Legal, Internal Audit, Actuarial
+- Viewer (read-only)
 
----
+Pokud jste platformní administrátor (`admin`), používejte admin dokumentaci: `../admin-cs/README.md`.
 
-## Vaše role
+## Jak se orientovat rychle
 
-### Co můžete dělat
+Čtečka dokumentace podporuje přímé odkazy mezi dokumenty. Například:
 
-V závislosti na vaší roli můžete:
-- **Zobrazit** rizika, kontroly a KRI vašeho oddělení
-- **Vytvářet** nová rizika a kontroly
-- **Odesílat** hodnoty KRI
-- **Logovat** provedení kontrol
-- **Schvalovat** žádosti (vedoucí oddělení)
+- onboarding: `./getting-started.md`
+- práce s riziky: `./risks.md`
+- správa kontrol: `./controls.md`
+- KRI monitoring: `./kris.md`
+- workflow a notifikace: `./notifications.md`
+- dashboard a exporty: `./dashboard.md`
+- správa dodavatelů: `./vendors.md`
+- rychlá podpora: `./faq.md`
 
-### Tipy pro začátečníky
+Odkazy mohou vést i na aplikační route:
 
-1. Začněte na **Dashboardu** pro přehled situace
-2. Zkontrolujte **Workflow** pro čekající úkoly
-3. Nastavte si preference v **Nastavení**
+- registr rizik: `/risks`
+- katalog kontrol: `/controls`
+- KRI přehled: `/kris`
+- dashboard: `/`
+- nastavení: `/settings`
 
----
+## Struktura dokumentů
 
-*© 2026 RiskHub. Všechna práva vyhrazena.*
+Každá příručka má stejné produkční členění:
+
+1. **Overview/Přehled**: co funkce řeší a kde ji najdete.
+2. **Role a oprávnění**: kdo může číst/zapisovat/schvalovat.
+3. **Hlavní workflow**: konkrétní postup krok za krokem.
+4. **Decision rules**: policy pravidla a omezení.
+5. **Troubleshooting**: co ověřit před eskalací.
+6. **Related docs**: navazující manuály.
+
+## Co tato knihovna garantuje
+
+- Obsah je sladěný s backend pravidly autorizace.
+- Interní odkazy se validují automatickým kontraktním testem.
+- Čeština a angličtina jsou v parity režimu (soubory i workflow).
+- Metadata (`version`, `last_updated`, `source_of_truth`) jsou explicitní.
+- Každý manuál obsahuje troubleshooting část pro řešení nejčastějších provozních potíží bez čekání na eskalaci.
+- Odkazy na aplikaci a odkazy na dokumentaci mají odlišné chování, aby nedocházelo k nechtěnému přesměrování.
+
+## Doporučené pořadí čtení
+
+- Začněte `./getting-started.md`.
+- Pokračujte `./risks.md`, `./controls.md`, `./kris.md`.
+- Poté `./notifications.md` a `./dashboard.md`.
+- Pro third-party governance přidejte `./vendors.md`.
+- `./faq.md` používejte jako rychlou provozní referenci.

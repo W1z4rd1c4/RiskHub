@@ -1,194 +1,72 @@
 # RiskHub Czech/English Glossary
 
-> **Version**: 1.0  
-> **Last Updated**: 2026-01-11
+> **Version**: 1.1
+> **Last Updated**: 2026-02-16
+> **Audience**: Product, Documentation, Localization Owners
+> **Source of Truth**: `frontend/src/i18n/locales/`, `backend/app/i18n/`, `docs/BUSINESS_LOGIC.md`
 
-This glossary provides the authoritative Czech translations for English ERM terminology used in RiskHub.
+This glossary standardizes the most common RiskHub domain terms used in UI, docs, and reports.
 
----
+## Roles
+
+| English | Czech |
+|---|---|
+| Administrator | Administrátor |
+| CRO (Chief Risk Officer) | CRO |
+| Risk Manager | Risk manažer |
+| Department Head | Vedoucí oddělení |
+| Employee | Zaměstnanec |
+| Compliance | Compliance |
+| Internal Audit | Interní audit |
+| Viewer | Uživatel pouze pro čtení |
 
 ## Core Entities
 
-| English | Czech | Notes |
-|---------|-------|-------|
-| Risk | Riziko | |
-| Control | Kontrola | |
-| Key Risk Indicator (KRI) | Klíčový indikátor rizika (KRI) | Abbreviation kept as KRI |
-| Department | Oddělení | |
-| User | Uživatel | |
-| Approval Request | Žádost o schválení | |
+| English | Czech |
+|---|---|
+| Risk | Riziko |
+| Control | Kontrola |
+| Key Risk Indicator (KRI) | Klíčový indikátor rizika (KRI) |
+| Department | Oddělení |
+| Vendor | Dodavatel |
+| Approval Request | Žádost o schválení |
+| Issue | Nález |
+| Remediation Plan | Nápravný plán |
 
----
-
-## Risk Attributes
+## Access and Scope
 
 | English | Czech |
-|---------|-------|
-| Process | Proces |
-| Category | Kategorie |
-| Description | Popis |
-| Owner | Vlastník |
-| Status | Stav |
-| Priority | Priorita |
-| Gross Probability | Hrubá pravděpodobnost |
-| Gross Impact | Hrubý dopad |
-| Net Probability | Čistá pravděpodobnost |
-| Net Impact | Čistý dopad |
-| Gross Score | Hrubé skóre |
-| Net Score | Čisté skóre |
-| Inherent Risk | Inherentní riziko |
-| Residual Risk | Reziduální riziko |
-| Risk Type | Typ rizika |
-| Risk Appetite | Rizikový apetit |
-| Mitigation Strategy | Strategie zmírnění |
+|---|---|
+| Access Scope | Rozsah přístupu |
+| Global | Globální |
+| Department Scope | Rozsah oddělení |
+| Manager Scope | Manažerský rozsah |
+| Permission | Oprávnění |
+| Platform Admin | Správce platformy |
 
----
-
-## Control Attributes
+## Workflow Terms
 
 | English | Czech |
-|---------|-------|
-| Control Type | Typ kontroly |
-| Preventive | Preventivní |
-| Detective | Detektivní |
-| Corrective | Korektivní |
-| Control Form | Forma kontroly |
-| Automatic | Automatická |
-| Manual | Manuální |
-| Frequency | Frekvence |
-| Daily | Denně |
-| Weekly | Týdně |
-| Monthly | Měsíčně |
-| Quarterly | Čtvrtletně |
-| Annually | Ročně |
-| Execution | Provedení |
-| Last Execution | Poslední provedení |
-| Effectiveness | Efektivita |
-| Risk Level | Úroveň rizika |
-
----
-
-## KRI Attributes
-
-| English | Czech |
-|---------|-------|
-| Metric | Metrika |
-| Value | Hodnota |
-| Upper Limit | Horní limit |
-| Lower Limit | Dolní limit |
-| Threshold | Prahová hodnota |
-| Breach | Překročení |
-| Within Limits | V limitech |
-| Breached | Překročeno |
-
----
-
-## Status Values
-
-| English | Czech |
-|---------|-------|
-| Active | Aktivní |
-| Inactive | Neaktivní |
-| Archived | Archivováno |
+|---|---|
 | Pending | Čekající |
 | Approved | Schváleno |
 | Rejected | Zamítnuto |
 | Cancelled | Zrušeno |
-| Monitoring | Monitorováno |
-| Closed | Uzavřeno |
-
----
-
-## Roles
-
-| English | Czech | Notes |
-|---------|-------|-------|
-| CRO (Chief Risk Officer) | CRO | Kept as abbreviation |
-| CEO | CEO | Kept as abbreviation |
-| CFO | CFO | Kept as abbreviation |
-| Risk Manager | Risk manažer | |
-| Compliance | Compliance | Kept in English |
-| Internal Audit | Interní audit | |
-| Department Head | Vedoucí oddělení | |
-| Employee | Zaměstnanec | |
-| Administrator | Administrátor | |
-| Viewer | Viewer / Čtenář | |
-
----
-
-## Access & Permissions
-
-| English | Czech |
-|---------|-------|
-| Privileged User | Privilegovaný uživatel |
-| Access Scope | Rozsah přístupu |
-| Global | Globální |
-| Department | Oddělení |
-| Manager Scope | Rozsah manažera |
-| Permission | Oprávnění |
-
----
-
-## Workflow
-
-| English | Czech |
-|---------|-------|
-| Workflow | Úkoly / Workflow |
-| Approval | Schválení |
-| Approve | Schválit |
-| Reject | Zamítnout |
-| Cancel | Zrušit |
-| Submit | Odeslat |
-| Pending Queue | Fronta čekajících |
-| My Requests | Moje žádosti |
-| History | Historie |
-| Resolution Notes | Poznámky k rozhodnutí |
-
----
-
-## Reports & Exports
-
-| English | Czech |
-|---------|-------|
-| Report | Zpráva |
-| Risk Register | Registr rizik |
-| Control Inventory | Katalog kontrol |
+| Escalation | Eskalace |
+| Sensitive Field | Citlivé pole |
 | Audit Trail | Auditní stopa |
-| Dashboard Summary | Manažerský přehled |
-| Export | Exportovat / Stáhnout |
-| Generated on | Vygenerováno |
-| Page X of Y | Strana X z Y |
 
----
-
-## UI Elements
+## Documentation Terms
 
 | English | Czech |
-|---------|-------|
-| Dashboard | Přehled |
-| Settings | Nastavení |
-| Filter | Filtrovat |
-| Search | Vyhledat |
-| Save | Uložit |
-| Create | Vytvořit |
-| Edit | Upravit |
-| Delete | Smazat |
-| Archive | Archivovat |
-| Restore | Obnovit |
-| Loading | Načítání |
-| Error | Chyba |
-| Success | Úspěch |
+|---|---|
+| Documentation Library | Knihovna dokumentace |
+| Audience | Cílová skupina |
+| Tag Filter | Filtrování podle štítků |
+| Per-file Fallback | Náhradní jazyk po jednotlivých souborech |
 
----
+## Maintenance Rules
 
-## Validation Messages
-
-| English | Czech |
-|---------|-------|
-| Required | Povinné pole |
-| Invalid email | Neplatný e-mail |
-| Invalid format | Neplatný formát |
-
----
-
-*This glossary should be used for all translations to ensure consistency.*
+- Keep this glossary aligned with translated UI strings and backend messages.
+- Update both EN and CS terms when introducing new domain concepts.
+- Prefer consistent terms over literal but ambiguous translations.

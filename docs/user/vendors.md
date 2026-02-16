@@ -1,56 +1,76 @@
+---
+title: Managing Vendors
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "vendor endpoints and issue/remediation workflows"
+summary: "Operational guide for vendor lifecycle governance, status tracking, and evidence-based updates aligned with access and reporting rules."
+tags:
+  - vendors
+  - third-party
+  - governance
+---
+
 # Managing Vendors
 
-> **Who uses this**: Risk Managers, Outsourcing Owners, Department Heads, Compliance
+## Overview
 
----
+Vendor management supports third-party risk oversight, lifecycle tracking, and reporting readiness.
 
-## Viewing Vendors
+Primary route: `/vendors`
 
-1. Open **Vendors** from the sidebar.
-2. The list contains vendors you can access based on role and department scope.
+## Core Vendor Workflow
 
-### Filtering Vendors
+1. Create or open a vendor profile.
+2. Validate ownership and department context.
+3. Maintain critical attributes (status, services, key risk factors).
+4. Link remediation/issue items where needed.
+5. Export scoped views for governance review.
 
-- **Search**: vendor name/process
-- **Status**: Active or Inactive
-- **Type**: ICT, Outsourcing, Professional Services, Partner, Other
+## Data Quality Requirements
 
-By default, inactive vendors are hidden. Set **Status = Inactive** to view archived/inactive vendors.
+Each active vendor record should include:
 
----
+- clear service/process context
+- accountable owner
+- current operational status
+- relevant risk and remediation context
 
-## Exporting Vendors
+Avoid placeholder vendor records that cannot be used in audit or committee review.
 
-Use the **Export** button in the Vendors header.
+## Lifecycle Operations
 
-### Export Workflow
+Common lifecycle actions:
 
-1. Open **Vendors**
-2. Click **Export**
-3. Select:
-   - **Format**: Excel (`.xlsx`) or CSV (`.csv`)
-   - **As of date**: defaults to today
-4. Click **Export**
+- onboarding new vendor
+- status transition (active/inactive)
+- archive/restore operations
+- periodic review updates
 
-### Export Scope and Data
+Each lifecycle action should be backed by clear notes and timestamped changes.
 
-- Export follows current list filters (status, search, vendor type).
-- Data is permission-scoped; only accessible vendors are included.
-- Inactive vendors are exported only when **Status = Inactive**.
+## Governance Tips
 
----
+- keep vendor records aligned with issue/remediation state
+- verify department fallback behavior where vendor department is unset
+- use exports for review meetings instead of ad-hoc screenshots
 
-## Archiving and Restoring Vendors
+## Troubleshooting
 
-- Vendor archive semantics use `status = inactive`.
-- Users with `vendors:delete` can restore vendors to `status = active`.
-- Restore actions are available in vendor detail and list rows (when inactive is visible).
+### I cannot edit a vendor
 
----
+Check write permissions and scope, then confirm entity ownership constraints.
 
-## Next Steps
+### Vendor data appears missing in export
 
-- [Managing Risks](./risks.md)
-- [Managing Controls](./controls.md)
-- [Key Risk Indicators](./kris.md)
-- [Dashboard & Reports](./dashboard.md)
+Exports are scope-aware. Validate filters and authorization context.
+
+### Related issues do not appear
+
+Confirm link integrity and whether issue visibility is limited by role or department.
+
+## Related Documentation
+
+- `./dashboard.md`
+- `./notifications.md`
+- `./faq.md`

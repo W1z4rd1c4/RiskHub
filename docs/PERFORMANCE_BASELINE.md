@@ -1,45 +1,44 @@
 # Performance Baseline Report
-**Date:** 2026-01-06
-**Phase:** 17-05
-**Environment:** Docker (Production Config)
 
-## Executive Summary
-The RiskHub application has been verified to meet performance requirements for the target production load of ~30 users (10 concurrent). All API endpoints respond within target thresholds, and the system handles parallel concurrent sessions without error or database bottlenecks.
+> **Version**: 1.1
+> **Last Updated**: 2026-02-16
+> **Audience**: Engineering, DevOps, QA
+> **Source of Truth**: `backend/tests/test_api_benchmarks.py`, Playwright CI artifacts
 
-## 1. Concurrency Testing
-- **Tool:** Playwright E2E Suite
-- **Load:** 5 concurrent worker processes (simulating 5 active simultaneous sessions)
-- **Result:** ✅ PASSED (21/21 tests passed)
-- **Total Execution Time:** ~16s for full regression suite
-- **Observations:** No race conditions observed after fixing login synchronization.
+This baseline captures practical performance expectations for the current MVP operating profile.
 
-## 2. API Response Time Benchmarks
-Baseline response times measured against local Docker environment:
+## Target Operating Profile
 
-| Endpoint Area | Target | Result | Status |
-|---------------|--------|--------|--------|
-| **Dashboard Summary** | < 500ms | < 450ms | ✅ PASS |
-| **Risk List** | < 300ms | < 250ms | ✅ PASS |
-| **Control List** | < 300ms | < 250ms | ✅ PASS |
-| **CRUD Operations** | < 200ms | < 150ms | ✅ PASS |
+- Expected users: ~30
+- Expected concurrent active sessions: ~10
+- Deployment model: containerized backend + frontend with PostgreSQL
 
-*Note: Measured using `pytest-benchmark` averaging 5 iterations per endpoint.*
+## Baseline Targets
 
-## 3. Database Performance
-- **Configuration:** PostgreSQL 16
-- **Slow Query Threshold:** 100ms
-- **Result:** No queries exceeded the 100ms threshold during load testing.
-- **N+1 Query Check:** No significant N+1 issues detected in logs.
+| Surface | Target |
+|---|---|
+| Dashboard summary API | p95 < 1s |
+| Core list endpoints (risks/controls/kris/vendors) | p95 < 600ms |
+| Standard write operations | p95 < 500ms |
+| Login/session checks | p95 < 400ms |
 
-## 4. Recommendations
-1. **Production Configuration:**
-   - Keep `log_min_duration_statement = 1000` (1s) for production to avoid log noise, but enable 100ms for debugging if needed.
-   - 5 concurrent workers is a safe continuous integration setting.
+## Regression Signals
 
-2. **Monitoring:**
-   - Monitor `GET /api/v1/dashboard/summary` response time as a key health metric.
-   - Alert if 95th percentile response time exceeds 1s.
+Investigate immediately when any of these appear:
 
-## 5. Artifacts
-- Benchmark Script: `backend/tests/test_api_benchmarks.py`
-- E2E Tests: `frontend/e2e/*.spec.ts`
+- Sustained p95 latency increase > 30% over baseline
+- Repeated timeouts in deterministic Playwright packs
+- Slow-query logs repeatedly above expected thresholds
+- E2E flakiness tied to slow backend responses
+
+## Recommended Checks
+
+- Backend benchmark or targeted timing tests for changed endpoints
+- Playwright targeted suites with stable seed data
+- DB query profiling for high-latency routes
+
+## Operational Guidance
+
+- Keep instrumentation enabled for API latency and error rates.
+- Use targeted packs for fast feedback, then run broader regression before release candidates.
+- Track baseline changes explicitly when major features or infrastructure changes land.

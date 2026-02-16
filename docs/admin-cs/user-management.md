@@ -1,90 +1,77 @@
-# Správa uživatelů
-
-> **Cílová skupina**: Administrátoři, CRO
-
 ---
+title: Runbook správy uživatelů a přístupů
+version: "2.0"
+last_updated: "2026-02-16"
+audience: admin
+source_of_truth: "access-management endpointy a RBAC policy"
+summary: "Provozní runbook pro user lifecycle, změny rolí, scope governance a auditovatelnou správu přístupů."
+tags:
+  - users
+  - access
+  - rbac
+---
+
+# Runbook správy uživatelů a přístupů
 
 ## Přehled
 
-Správa uživatelů umožňuje přidávat, upravovat a deaktivovat uživatele, přiřazovat role a oddělení, a konfigurovat rozsahy přístupu.
+Tento runbook pokrývá identity lifecycle a governance přístupů pro platformní administrátory.
 
----
+Hlavní route: `/users` a navazující access-management plochy.
 
-## Přidání uživatele
+## Vysoce rizikové operace
 
-### Ruční vytvoření
+Za high-impact považujte:
 
-1. Přejděte do **Správa přístupu** → **Uživatelé**
-2. Klikněte na **Nový uživatel**
-3. Vyplňte formulář:
-   - **Jméno** (povinné)
-   - **E-mail** (povinné)
-   - **Role** (povinné)
-   - **Oddělení** (volitelné pro privilegované role)
-4. Klikněte na **Vytvořit**
+- změnu role
+- rozšíření scope na global
+- změnu oddělení aktivního ownera
+- změnu manager chain ovlivňující delegated visibility
 
-### Synchronizace z Active Directory
+## Standardní workflow změny
 
-1. Přejděte do **Správa přístupu** → **Synchronizace AD**
-2. Nakonfigurujte připojení k AD
-3. Spusťte synchronizaci
-
----
-
-## Role a oprávnění
-
-### Privilegované role (globální přístup)
-
-| Role | Oprávnění |
-|------|-----------|
-| CRO | Konfigurace systému, plná autorita |
-| CEO | Exekutivní dohled, čtení všeho |
-| CFO | Finanční dohled, čtení všeho |
-| Risk Manager | Plná správa rizik/kontrol/KRI |
-| Compliance | Čtení + schválení |
-| Internal Audit | Auditní přístup |
-
-### Neprivilegované role (oddělení)
-
-| Role | Oprávnění |
-|------|-----------|
-| Department Head | Správa oddělení, schvalování |
-| Employee | Čtení oddělení, odesílání hodnot |
-
-### Speciální role
-
-| Role | Oprávnění |
-|------|-----------|
-| Administrator | Správa platformy, bez business dat |
-| Viewer | Pouze čtení |
-
----
-
-## Rozsahy přístupu
-
-| Rozsah | Popis |
-|--------|-------|
-| Global | Všechna data napříč organizací |
-| Department | Pouze data přiřazeného oddělení |
-| Manager | Data oddělení plus řízená oddělení |
-
----
+1. Najděte uživatele a zkontrolujte aktuální profil.
+2. Potvrďte zdroj požadavku a schválení.
+3. Proveďte minimální změnu.
+4. Ověřte effective permissions.
+5. Ověřte audit záznam.
 
 ## Deaktivace uživatele
 
-1. Přejděte do **Správa přístupu** → **Uživatelé**
-2. Najděte uživatele
-3. Klikněte na **Deaktivovat**
+Před deaktivací:
 
-> [!WARNING]
-> Deaktivovaní uživatelé se nemohou přihlásit, ale jejich historická data zůstávají zachována.
+- identifikujte vlastněné entity a pending workflow
+- dokončete ownership handoff
+- ověřte, že nezůstávají osiřelé odpovědnosti
 
----
+Poté deaktivujte účet a zkontrolujte vedlejší dopady.
 
-## Matice oprávnění
+## Safe rollback
 
-Podrobná matice oprávnění je dostupná v technické dokumentaci `/docs/BUSINESS_LOGIC.md`.
+Pokud změna způsobí regresi:
 
----
+- okamžitě vraťte last-known-good role/scope
+- zaznamenejte incident kontext
+- proveďte impact review dotčených entit
 
-*Pro technické detaily viz dokumentaci API.*
+Po rollbacku vždy napište stručnou handoff poznámku: co se změnilo, co bylo vráceno, jaký byl dopad a jaká preventivní kontrola se přidává. Tento krok snižuje opakování stejné chyby.
+
+## Troubleshooting
+
+### Uživatel po změně role nevidí data
+
+Zkontrolujte scope, poté oddělení, poté ownership výjimky.
+
+### Uživatel vidí příliš mnoho dat
+
+Pravděpodobně scope eskalace nebo role drift.
+
+### Změna není vidět okamžitě
+
+Ověřte uložení a proveďte re-login pro refresh session claims.
+
+## Related Documentation
+
+- `./departments.md`
+- `./approvals.md`
+- `./reports.md`

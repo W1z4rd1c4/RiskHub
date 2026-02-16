@@ -1,104 +1,89 @@
-# Správa rizik
-
-> **Cílová skupina**: Risk Manager, Department Head, Employee
-
 ---
+title: Správa rizik
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "docs/BUSINESS_LOGIC.md §2.1, §6, §7"
+summary: "Provozní příručka pro tvorbu a správu rizik se schvalováním citlivých změn a pravidly ownership napříč odděleními."
+tags:
+  - risks
+  - workflow
+  - approvals
+---
+
+# Správa rizik
 
 ## Přehled
 
-Sekce Rizika umožňuje zobrazit, vytvářet a spravovat registr rizik vaší organizace.
+Registr rizik je hlavní pracovní plocha pro identifikaci, hodnocení a řízení rizikové expozice.
 
----
+Hlavní route: `/risks`
 
-## Zobrazení rizik
+## Kdo co může dělat
 
-### Seznam rizik
+Možnosti závisí na roli a permission sadě:
 
-1. Přejděte do **Rizika**
-2. Zobrazí se tabulka všech rizik (dle vašeho přístupu)
-3. Použijte filtry pro vyhledání konkrétních rizik
+- čtení: podle role/scope + ownership výjimky
+- zápis: podle write oprávnění
+- citlivé změny: mohou vyžadovat schválení
 
-### Filtry
+Backend je vždy autoritativní zdroj pravdy.
 
-- **Oddělení** - Filtr podle oddělení
-- **Kategorie** - Filtr podle typu rizika
-- **Stav** - Aktivní, archivovaná
-- **Priorita** - Vysoká, normální
+## End-to-end workflow
 
-### Detail rizika
+1. Otevřete `/risks` a nastavte filtry.
+2. Vyberte riziko nebo založte nové.
+3. Vyplňte povinná pole kvalitním popisem.
+4. Ověřte owner/department kontext.
+5. Propojte relevantní kontroly.
+6. Uložte a zkontrolujte, zda vznikla žádost o schválení.
+7. Sledujte navazující stav v notifikacích/workflow.
 
-Klikněte na název rizika pro zobrazení:
-- Všech atributů rizika
-- Propojených kontrol
-- Propojených KRI
-- Historie změn
+## Citlivá pole a rozhodovací pravidla
 
----
+Za governance-citlivé považujte:
 
-## Vytvoření rizika
+- owner
+- department
+- category
+- priority
 
-1. Klikněte na **Nové riziko**
-2. Vyplňte formulář:
+Při změně očekávejte policy-driven workflow.
 
-### Základní informace
-- **Proces** (povinné) - Název procesu nebo aktivity
-- **Popis** - Detailní popis rizika
-- **Kategorie** - Typ rizika (operační, finanční, atd.)
-- **Oddělení** - Přiřazené oddělení
+## Standard kvality záznamu rizika
 
-### Hodnocení
-- **Hrubá pravděpodobnost** (1-5)
-- **Hrubý dopad** (1-5)
-- **Čistá pravděpodobnost** (1-5)
-- **Čistý dopad** (1-5)
+Produkční záznam rizika musí obsahovat:
 
-### Další atributy
-- **Vlastník** - Odpovědná osoba
-- **Priorita** - Označení jako prioritní riziko
-- **Strategie ošetření** - Plán zmírnění
+- srozumitelný popis hrozby
+- realistickou pravděpodobnost/dopad
+- jasného vlastníka odpovědnosti
+- smysluplné propojení s kontrolami
+- aktuální stav a kontext akcí
 
-3. Klikněte na **Uložit**
+## Časté provozní chyby
 
----
+- více citlivých změn bez vysvětlení
+- přiřazení ownera bez potvrzení odpovědnosti
+- nepropojené kontroly po zásadní změně rizika
+- předpoklad cross-department přístupu bez ownership
 
-## Hodnocení rizik
+## Troubleshooting
 
-### Skóre rizika
+### Riziko není vidět očekávanému uživateli
 
-Skóre = Pravděpodobnost × Dopad
+Ověřte scope, potom ownership, potom department mapping.
 
-| Skóre | Úroveň |
-|-------|--------|
-| 1-4 | Nízká |
-| 5-9 | Střední |
-| 10-15 | Vysoká |
-| 16-25 | Kritická |
+### Uložení proběhlo, ale hodnoty se nezměnily
 
-### Hrubé vs. čisté riziko
+Změna pravděpodobně čeká ve schvalování.
 
-- **Hrubé** = Inherentní riziko bez kontrol
-- **Čisté** = Reziduální riziko po aplikaci kontrol
+### Nejasný cross-department access
 
----
+Ownership může otevřít viditelnost i mimo oddělení. Ověřte vazby explicitně.
 
-## Propojení s kontrolami
+## Related Documentation
 
-1. V detailu rizika klikněte na **Propojené kontroly**
-2. Klikněte na **Přidat propojení**
-3. Vyberte kontrolu ze seznamu
-4. Potvrďte propojení
-
----
-
-## Archivace rizika
-
-> [!NOTE]
-> Neprivilegovaní uživatelé potřebují schválení pro archivaci.
-
-1. V detailu rizika klikněte na **Archivovat**
-2. Potvrďte akci
-3. (Pokud vyžadováno) Počkejte na schválení
-
----
-
-*Pro více informací viz Příručka administrátora.*
+- `./controls.md`
+- `./kris.md`
+- `./notifications.md`
+- `./dashboard.md`

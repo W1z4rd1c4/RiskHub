@@ -286,8 +286,13 @@
     "no_manuals_seeded": "No manuals are seeded yet.",
     "back_to_library": "Back to library",
     "platform_manual": "Platform manual",
+    "audience_admin": "Admin documentation",
+    "audience_user": "User documentation",
     "library_title": "Documentation Library",
     "library_subtitle": "Browse platform guides and reference manuals.",
+    "filter_all": "All",
+    "no_matches_title": "No matching documents",
+    "no_matches_subtitle": "Try another tag filter.",
     "view_manual": "View manual"
   },
   "tables": {

@@ -1,85 +1,71 @@
-# Zprávy a exporty
+---
+title: Provozní reporty a důkazní exporty
+version: "2.0"
+last_updated: "2026-02-16"
+audience: admin
+source_of_truth: "report/export endpointy a audit log"
+summary: "Runbook pro bezpečné generování provozních exportů pro incident response, kontrolní přezkum a governance evidence."
+tags:
+  - reports
+  - exports
+  - audit
+---
 
-> **Cílová skupina**: CRO, Risk Manager, Compliance, vedoucí oddělení
+# Provozní reporty a důkazní exporty
 
 ## Přehled
 
-RiskHub používá pro reporting pouze formáty **Excel** a **CSV**.
+Tato příručka popisuje, jak získat provozní důkazy bez narušení auditní dohledatelnosti.
 
-Hlavní pravidla:
-- Export je vždy omezený oprávněními uživatele.
-- Seznamové exporty (Rizika, Kontroly, KRI, Dodavatelé) používají jednotné exportní okno.
-- Souhrn dashboardu a auditní stopa jsou pouze v Excelu.
-- Roční report dodavatelů a DORA registr jsou pouze v Excelu.
+## Použití exportů
 
-## Kde se exportuje
+- rekonstrukce incident timeline
+- důkazní materiály ke změnám přístupů
+- analýza workflow anomálií
+- snapshoty provozního stavu systému
 
-### Seznamové stránky (Rizika, Kontroly, KRI, Dodavatelé)
+## Safe export workflow
 
-1. Otevřete stránku seznamu.
-2. Nastavte filtry (stav, hledání, typ...).
-3. Klikněte na **Export**.
-4. Zvolte **Excel (.xlsx)** nebo **CSV (.csv)**.
-5. Nastavte **Stav k datu**.
-6. Export se stáhne.
+1. Definujte přesnou otázku, kterou má export zodpovědět.
+2. Zvolte minimální dataset a období.
+3. Vygenerujte export standardní cestou.
+4. Ověřte scope a úplnost.
+5. Uložte/sdílejte jen v schváleném kanálu.
 
-Unified endpointy:
-- `/api/v1/reports/risks/export`
-- `/api/v1/reports/controls/export`
-- `/api/v1/reports/kris/export`
-- `/api/v1/reports/vendors/export`
+## Pravidla integrity dat
 
-Povinný parametr:
-- `format=xlsx|csv`
+- nikdy needitujte originál před archivací
+- zachovejte timestamp a filter kontext
+- při předání vždy připojte krátké vysvětlení
+- pokud kombinujete více exportů, přidejte manifest se scope a časy generování
 
-Volitelné parametry:
-- `as_of_date=YYYY-MM-DD`
-- filtry stránky (`status`, `search` atd.)
+## Časté chyby
 
-### Souhrn dashboardu
+- příliš široký export “pro jistotu”
+- ztráta filtračního kontextu při handoffu
+- míchání více exportů bez provenance označení
+- sdílení exportu bez vysvětlení účelu a rozhodovací otázky
 
-- Endpoint: `/api/v1/reports/summary/excel`
-- Formát: pouze Excel
-- Scope: stejný jako data dashboardu
+## Předání exportu dalším týmům
 
-### Auditní stopa
+Při předání mimo admin provoz připojte krátké shrnutí: jaká otázka se řeší, jaký je časový rozsah dat, které filtry byly použity a jaké limity interpretace platí. Příjemce tak nebude dělat závěry mimo platný kontext exportu.
 
-- Endpoint: `/api/v1/reports/audit-trail/excel`
-- Formát: pouze Excel
-- Scope: stejný jako auditní zobrazení
+## Troubleshooting
 
-### Reporty dodavatelů
+### Export neobsahuje očekávané záznamy
 
-- Roční report: `/api/v1/vendor-reports/annual?year=YYYY&format=xlsx`
-- DORA registr: `/api/v1/vendor-reports/dora-register?format=xlsx`
+Nejprve zkontrolujte autorizační scope a filtry.
 
-## Přístupová práva
+### Velký export timeoutuje
 
-Export respektuje backend RBAC:
-- Neprivilegovaní uživatelé vidí pouze vlastní scope.
-- Privilegovaní uživatelé mohou exportovat napříč povoleným scope.
-- Výjimky pro ownership/reporting-owner se chovají stejně jako v UI.
+Rozdělte export podle období nebo subsetu entit.
 
-## Provozní poznámky
+### Reporty mají konfliktní čísla
 
-- Export je snapshot podle zvoleného `as_of_date` (kde je podporováno).
-- Archivované/neaktivní položky se řídí stavovým filtrem.
-- CSV je vhodné pro integrace, Excel pro analýzu a reporting.
+Ověřte stejný as-of kontext a archived režim.
 
-## Řešení problémů
+## Related Documentation
 
-### Prázdný export
-
-Zkontrolujte:
-1. Filtry nejsou příliš omezující.
-2. Máte přístup k odpovídajícím datům.
-3. `as_of_date` nevylučuje hledané záznamy.
-
-### Odepřený export
-
-- Ověřte oprávnění `reports:read`.
-- Ověřte scope oddělení pro zadané filtry.
-
-### Odmítnutý formát
-
-- Podporované formáty pro seznamy jsou pouze `xlsx` a `csv`.
+- `./approvals.md`
+- `./departments.md`
+- `./user-management.md`

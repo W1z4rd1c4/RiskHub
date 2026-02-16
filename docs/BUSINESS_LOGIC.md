@@ -1,12 +1,15 @@
 # RiskHub Business Logic Reference
 
-> **Last Updated**: 2026-02-11  
-> **Purpose**: Comprehensive reference for entity ownership, permissions, approval workflows, and role-based access rules.
+> **Version**: 1.1  
+> **Last Updated**: 2026-02-16  
+> **Audience**: Product, Engineering, QA, Compliance  
+> **Source of Truth**: Backend RBAC and approval enforcement in `backend/app/`
 
 ---
 
 ## Table of Contents
 
+0. [Companion Guides](#0-companion-guides)
 1. [Roles & Access Scopes](#1-roles--access-scopes)
 2. [Entity Ownership Rules](#2-entity-ownership-rules)
 3. [Department Relationships](#3-department-relationships)
@@ -20,6 +23,20 @@
 11. [Issue Lifecycle](#11-issue-lifecycle)
 
 ---
+
+## 0. Companion Guides
+
+Use this document as policy truth. Use the guides below for operational workflow details:
+
+- Platform administration (admin role only):
+  - `docs/admin/README.md`
+  - `docs/admin-cs/README.md`
+- Business/end-user workflows (all non-admin roles):
+  - `docs/user/README.md`
+  - `docs/user-cs/README.md`
+- Localization and docs parity process:
+  - `docs/LOCALIZATION.md`
+  - `docs/README.md`
 
 ## 1. Roles & Access Scopes
 
@@ -94,6 +111,20 @@ Access-management read/list behavior and write behavior are intentionally differ
 
 > [!IMPORTANT]
 > `admin` is a platform role, not a business-data superuser. Admin capabilities must not be interpreted as unrestricted business access.
+
+### 1.5 Documentation Library Visibility
+
+Settings and platform documentation use a strict audience split:
+
+| Role | Documentation Audience |
+|------|------------------------|
+| `admin` | `admin` docs only |
+| All non-admin roles (`cro`, `risk_manager`, `department_head`, `employee`, etc.) | `user` docs only |
+
+Rules:
+- `GET /api/v1/admin/docs` always returns exactly one audience (`admin` or `user`) per request.
+- Payload includes metadata for UI navigation (`audience`, `tags`) so clients can show tag filters.
+- Locale lookup uses per-file fallback to English if a localized file is missing.
 
 ---
 

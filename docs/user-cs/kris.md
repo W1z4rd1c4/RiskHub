@@ -1,94 +1,81 @@
+---
+title: Klíčové indikátory rizik (KRI)
+version: "2.0"
+last_updated: "2026-02-16"
+audience: user
+source_of_truth: "docs/BUSINESS_LOGIC.md §2.3, §5"
+summary: "Provozní příručka pro zadávání KRI hodnot, práci s limity, breach scénáře a historické korekce."
+tags:
+  - kri
+  - thresholds
+  - reporting
+---
+
 # Klíčové indikátory rizik (KRI)
 
-> **Cílová skupina**: Risk Manager, Department Head, Employee
+## Přehled
 
----
+KRI poskytují měřitelný včasný signál rizikové expozice navázané na rizika.
 
-## Co jsou KRI?
+Hlavní route: `/kris`
 
-Klíčové indikátory rizik (KRI) jsou metriky, které měří expozici organizace vůči rizikům. Pomáhají včas identifikovat problémy.
+## Hlavní odpovědnosti
 
----
+- údržba KRI definic a ownership
+- pravidelné zadávání hodnot
+- monitoring breach/overdue stavů
+- řízené korekce historických hodnot
 
-## Zobrazení KRI
+## Workflow zadání hodnoty
 
-1. Přejděte do **Rizikový apetit**
-2. Zobrazí se seznam všech KRI
-3. Použijte filtry pro vyhledání
+1. Otevřete `/kris` a filtrujte relevantní indikátory.
+2. Otevřete detail a ověřte periodu.
+3. Zadejte hodnotu s kontextem.
+4. Uložte a ověřte timestamp.
+5. Zkontrolujte breach/overdue notifikace.
 
-### Stavy KRI
+## Reporting owner a fallback
 
-| Stav | Význam | Barva |
-|------|--------|-------|
-| V limitech | Hodnota je v přijatelném rozmezí | Zelená |
-| Překročeno | Hodnota přesahuje limit | Červená |
+- reporting owner je primární zadavatel
+- při chybějícím reporting owner se použije fallback logika podle linked risk ownera
+- department kontext se dědí z linked risk
 
----
+## Práce s breach eskalací
 
-## Odesílání hodnot
+Při překročení limitu:
 
-1. V detailu KRI klikněte na **Odeslat hodnotu**
-2. Vyplňte:
-   - **Hodnota** - Aktuální naměřená hodnota
-   - **Období** - Datum měření
-   - **Poznámka** (volitelné)
-3. Klikněte na **Odeslat**
+- nejdříve ověřte správnost hodnoty
+- zdokumentujte business důvod odchylky
+- sledujte navazující remediation kroky
+- hlídejte eskalační stav ve workflow
 
-### Frekvence odesílání
+## Historické korekce
 
-V závislosti na nastavení KRI:
-- Denně
-- Týdně
-- Měsíčně
-- Čtvrtletně
+Korekce jsou governance-citlivé:
 
-> [!IMPORTANT]
-> Odesílejte hodnoty včas! Budete upozorněni na blížící se termíny.
+- vysvětlete důvod korekce
+- zachovejte old/new kontext
+- připojte důkazní zdroj
 
----
+Nikdy nepřepisujte historii bez stopy.
 
-## Oprava hodnoty
+## Troubleshooting
 
-Pokud jste odeslali chybnou hodnotu:
+### Nelze zadat hodnotu KRI
 
-1. V detailu KRI najděte hodnotu v historii
-2. Klikněte na **Opravit**
-3. Zadejte správnou hodnotu a důvod opravy
-4. Nová hodnota bude označena jako korekce
+Ověřte permission a ownership kontext linked risk řetězce.
 
----
+### KRI má nečekaný department kontext
 
-## Limity a prahy
+KRIs dědí kontext z linked risk.
 
-### Horní limit
-Maximální přijatelná hodnota. Při překročení je aktivován alarm.
+### Breach alert nevypadá správně
 
-### Dolní limit
-Minimální přijatelná hodnota (pokud je nastavena).
+Ověřte limity, jednotku metriky a přesnost vstupní hodnoty.
 
-### Správa limitů
+## Related Documentation
 
-Limity nastavuje CRO nebo Risk Manager při vytváření KRI.
-
----
-
-## Historie hodnot
-
-1. V detailu KRI klikněte na **Historie**
-2. Zobrazí se:
-   - Všechny odeslané hodnoty
-   - Trend v čase
-   - Překročení limitů
-
----
-
-## Propojení s riziky
-
-Každý KRI je propojen s rizikem. Když je limit KRI překročen:
-- Riziko může být automaticky eskalováno
-- Budou odeslány notifikace
-- Záznamy jsou logovány v auditní stopě
-
----
-
-*Pro více informací viz Příručka administrátora.*
+- `./risks.md`
+- `./notifications.md`
+- `./dashboard.md`
+- `./faq.md`

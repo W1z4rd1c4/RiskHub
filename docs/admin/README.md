@@ -1,75 +1,76 @@
-# RiskHub Administrator Guide
-
-> **Version**: 1.0  
-> **Last Updated**: 2026-01-11  
-> **Audience**: CRO, Administrators, Risk Managers
-
+---
+title: RiskHub Platform Administration Documentation
+version: "2.0"
+last_updated: "2026-02-16"
+audience: admin
+source_of_truth: "docs/BUSINESS_LOGIC.md §1.5 and admin endpoints"
+summary: "Production runbook library for platform administrators covering access governance, org structure maintenance, observability, and admin support operations."
+tags:
+  - overview
+  - administration
+  - runbook
 ---
 
-## Introduction
+# RiskHub Platform Administration Documentation
 
-Welcome to the RiskHub Administration Guide. This documentation provides comprehensive instructions for configuring, managing, and maintaining your RiskHub deployment.
+This is the canonical admin manual for platform operators. It is not a business user guide.
 
-RiskHub is an enterprise risk management platform designed for insurance companies, enabling organizations to:
-- Manage risks, controls, and key risk indicators (KRIs)
-- Enforce role-based access and approval workflows
-- Generate compliance reports for regulatory requirements
-- Maintain complete audit trails for all system activities
+## Audience and Boundary
 
----
+This library is for `admin` role users who manage platform integrity, access governance, and operational support surfaces.
 
-## Quick Links
+It does **not** cover business ownership decisions. Business user workflows are in `../user/README.md`.
 
-| Guide | Description |
-|-------|-------------|
-| [Getting Started](./getting-started.md) | First-time setup, navigation, and initial configuration |
-| [Risk Hub Configuration](./riskhub-config.md) | System thresholds, risk types, approval rules, and notifications |
-| [User Management](./user-management.md) | Adding users, roles, departments, and access scopes |
-| [Department Management](./departments.md) | Creating departments, hierarchies, and handling orphaned items |
-| [Approvals & Governance](./approvals.md) | Understanding and managing approval workflows |
-| [Reports & Exports](./reports.md) | Available reports, PDF/Excel exports, and audit trails |
+## Admin Responsibilities Covered Here
 
----
+- access governance and user-role maintenance
+- department structure lifecycle operations
+- workflow observability and support triage
+- reporting and evidence extraction for operational incidents
+- Risk Hub configuration boundary support
 
-## Role-Based Access Overview
+## How to Use This Library
 
-RiskHub implements a sophisticated role-based access control (RBAC) system:
+Read in this order for new admins:
 
-### Privileged Users (Global Access)
-Users with organization-wide visibility and approval authority:
-- **CRO** – Chief Risk Officer (only role that can configure Risk Hub)
-- **CEO, CFO** – C-Suite executives
-- **Risk Manager** – Primary risk governance
-- **Compliance, Legal, Internal Audit, Actuarial** – Governance functions
+1. `./getting-started.md`
+2. `./user-management.md`
+3. `./departments.md`
+4. `./approvals.md`
+5. `./reports.md`
+6. `./riskhub-config.md`
 
-### Non-Privileged Users (Department-Scoped)
-Users with access limited to their assigned department:
-- **Department Head** – Manages department risks and approvals
-- **Employee** – View and submit data for their department
+## Operating Principles
 
-### Special Roles
-- **Administrator** – Platform management only (users, logs, system health) – **no business data access**
-- **Viewer** – Read-only access to permitted areas
+- least privilege on every change
+- explicit auditability of admin actions
+- no hidden manual overrides outside controlled flows
+- escalate domain decisions to business owners
 
----
+## Service-Level Expectations
 
-## System Requirements
+This admin library assumes platform operators work with clear response targets:
 
-RiskHub is deployed as a containerized application:
+- acknowledge high-impact access incidents quickly
+- provide reproducible evidence for each conclusion
+- separate technical root-cause from policy disputes
+- hand off business decisions with clean context, not assumptions
 
-| Component | Requirement |
-|-----------|-------------|
-| **Docker** | Version 20.10+ |
-| **PostgreSQL** | Version 14+ |
-| **Browser** | Chrome, Firefox, Edge (latest versions) |
-| **Network** | HTTPS (TLS 1.2+) |
+Operational quality is measured by traceability and predictability, not by speed alone.
 
----
+## Escalation and Handoff
 
-## Support
+If an issue crosses from platform operations into business policy, handoff must be explicit. Include the incident context, affected entities, attempted technical checks, and outstanding decision points. This keeps ownership clear, prevents duplicate investigation, and ensures admin actions stay inside platform-governance boundaries.
 
-For technical assistance, contact your system administrator or refer to the technical documentation in the main `/docs` directory.
+## Navigation and Linking
 
----
+In-app docs links support deterministic behavior:
 
-*© 2026 RiskHub. All rights reserved.*
+- `./file.md`: open another admin document inside reader
+- `/path`: navigate app route
+- `https://...`: open external source in a new tab
+
+## Related Sets
+
+- user docs (non-admin): `../user/README.md`
+- Czech admin parity: `../admin-cs/README.md`
