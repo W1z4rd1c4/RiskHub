@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from app.core.config import Settings, get_settings
 from app.db.session import get_db
@@ -11,7 +11,7 @@ from app.models import Role, RolePermission, User
 from app.schemas.auth import SsoExchangeRequest, TokenResponse
 from app.services.sso_token_service import SsoProviderUnavailableError, SsoTokenVerificationError
 
-from ._shared import _build_token_response, _resolve_safe_default_role, _sha256_trunc
+from ._shared import _build_token_response, _issue_refresh_session, _resolve_safe_default_role, _sha256_trunc
 
 router = APIRouter()
 
@@ -20,6 +20,7 @@ router = APIRouter()
 async def sso_exchange(
     payload: SsoExchangeRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
@@ -171,6 +172,7 @@ async def sso_exchange(
         return JSONResponse(status_code=403, content={"detail": "User account is inactive", "code": "USER_INACTIVE"})
 
     token_response = _build_token_response(user)
+    await _issue_refresh_session(db=db, request=request, response=response, user=user, settings=settings)
 
     await log_activity(
         db=db,
@@ -186,4 +188,3 @@ async def sso_exchange(
     )
     await db.commit()
     return token_response
-

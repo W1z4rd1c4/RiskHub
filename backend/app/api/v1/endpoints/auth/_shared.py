@@ -1,12 +1,23 @@
 import hashlib
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.requests import Request
+from starlette.responses import Response
 
+from app.core.config import Settings
+from app.core.datetime_utils import utc_now
 from app.core.permissions import get_effective_permissions, get_scope_label
 from app.core.security import create_access_token
-from app.models import Role, User
+from app.core.tokens import (
+    create_refresh_token,
+    get_request_client_ip,
+    get_request_user_agent,
+    new_token_jti,
+    set_refresh_cookie,
+)
+from app.models import RefreshToken, Role, User
 from app.schemas.auth import TokenResponse
 
 
@@ -30,8 +41,65 @@ def _build_token_response(user: User) -> TokenResponse:
         "access_scope": user.access_scope,
         "scope_label": scope_label,
     }
-    access_token = create_access_token(data={"sub": user.email, "user_id": user.id})
+    access_token = create_access_token(
+        data={"sub": user.email, "user_id": user.id, "token_version": user.token_version}
+    )
     return TokenResponse(access_token=access_token, user=user_data)
+
+
+async def _issue_refresh_session(
+    *,
+    db: AsyncSession,
+    request: Request,
+    response: Response,
+    user: User,
+    settings: Settings,
+    rotated_from: RefreshToken | None = None,
+) -> RefreshToken:
+    jti = new_token_jti()
+    refresh_token, expires_at = create_refresh_token(
+        user_id=user.id,
+        token_version=user.token_version,
+        jti=jti,
+        settings=settings,
+    )
+
+    now = utc_now()
+    refresh_row = RefreshToken(
+        user_id=user.id,
+        jti=jti,
+        token_version=user.token_version,
+        expires_at=expires_at,
+        issued_at=now,
+        last_used_at=now,
+        created_ip=get_request_client_ip(request),
+        user_agent=get_request_user_agent(request),
+    )
+    db.add(refresh_row)
+    if rotated_from is not None:
+        rotated_from.revoked_at = now
+        rotated_from.revoked_reason = "rotated"
+        rotated_from.replaced_by_jti = jti
+        db.add(rotated_from)
+
+    set_refresh_cookie(response, refresh_token, settings)
+    return refresh_row
+
+
+async def _revoke_user_refresh_tokens(
+    *,
+    db: AsyncSession,
+    user_id: int,
+    reason: str,
+) -> int:
+    now = utc_now()
+    result = await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user_id)
+        .where(RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=now, revoked_reason=reason)
+    )
+    return int(result.rowcount or 0)
 
 
 async def _resolve_safe_default_role(db: AsyncSession) -> Role:
@@ -45,4 +113,3 @@ async def _resolve_safe_default_role(db: AsyncSession) -> Role:
 
     candidates = ", ".join(str(name) for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES)
     raise HTTPException(status_code=500, detail=f"No safe default role found ({candidates}). Seed roles first.")
-

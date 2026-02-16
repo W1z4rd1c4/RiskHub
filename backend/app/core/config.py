@@ -4,6 +4,8 @@ from typing import Literal
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings
 
+from app.core.client_ip import DEFAULT_TRUSTED_PROXIES
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -31,6 +33,7 @@ class Settings(BaseSettings):
     # Microsoft Entra ID (SSO)
     entra_tenant_id: str | None = None
     entra_client_id: str | None = None
+    entra_client_secret: str | None = None
     # SECURITY: JIT provisioning creates local users on first SSO login. Disable if you require
     # pre-provisioning via admin.
     entra_jit_provisioning_enabled: bool = True
@@ -40,6 +43,11 @@ class Settings(BaseSettings):
     )
     entra_clock_skew_seconds: int = 60
     entra_oidc_discovery_url: str | None = None
+    directory_provider: Literal["auto", "graph", "ad_emulator"] = "auto"
+    ad_emulator_base_url: str | None = None
+    ad_emulator_api_key: str | None = None
+    ad_emulator_api_key_header: str = "X-API-Key"
+    graph_timeout_seconds: float = 10.0
 
     # CORS
     cors_origins: list[str] = Field(default_factory=list)
@@ -47,12 +55,25 @@ class Settings(BaseSettings):
     # Trusted hosts (production hardening). If not provided, allowed hosts are derived from CORS origins.
     allowed_hosts: list[str] | None = None
 
+    # Trusted reverse proxies (IP/CIDR) for safe client IP extraction from X-Forwarded-For.
+    trusted_proxies: list[str] = Field(default_factory=lambda: list(DEFAULT_TRUSTED_PROXIES))
+
     # Redis (required in production for multi-worker rate limiting and account lockout)
     redis_url: str | None = None
+
+    # Session/refresh-token behavior
+    refresh_token_expire_days: int = 7
+    refresh_cookie_name: str = "riskhub_refresh_token"
+    refresh_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
+    refresh_cookie_domain: str | None = None
 
     # Optional vendor external signals (Phase 18-10)
     vendor_signals_public_registry_base_url: str | None = None  # e.g., https://registry.example.com/api
     vendor_signals_min_interval_hours: int = 24
+
+    # AD deprovision scheduler
+    ad_deprovision_check_hour: int = 2
+    ad_deprovision_check_minute: int = 0
 
     model_config = {
         "env_file": ".env",

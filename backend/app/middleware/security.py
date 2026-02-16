@@ -5,16 +5,16 @@ This middleware implements:
 1. Security headers (CSP, HSTS, X-Frame-Options, etc.)
 2. Rate limiting for sensitive endpoints
 """
-import ipaddress
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple, Union
+from typing import Dict, Tuple
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from app.core.client_ip import DEFAULT_TRUSTED_PROXIES, ClientIPResolver
 from app.core.config import get_settings
 from app.core.logging import get_logger
 
@@ -127,14 +127,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     }
 
     # Trusted proxy CIDRs - only trust XFF from these sources
-    # Configure via environment or override in production
-    TRUSTED_PROXIES = {
-        "127.0.0.1",      # Loopback
-        "::1",            # IPv6 loopback
-        "10.0.0.0/8",     # Private networks (Docker, K8s)
-        "172.16.0.0/12",
-        "192.168.0.0/16",
-    }
+    TRUSTED_PROXIES = set(DEFAULT_TRUSTED_PROXIES)
 
     # Memory bounds
     MAX_STATE_KEYS = 10000  # Maximum unique IP:path combinations
@@ -168,7 +161,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         app,
         limits: Dict[str, Tuple[int, int]] | None = None,
         enabled: bool = True,
-        trusted_proxies: set[str] | None = None,
+        trusted_proxies: list[str] | set[str] | tuple[str, ...] | None = None,
         redis_key_prefix: str = "riskhub:rl",
     ):
         super().__init__(app)
@@ -176,62 +169,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.enabled = enabled
         self.redis_key_prefix = redis_key_prefix
         self.state: Dict[str, RateLimitState] = {}
-        self.trusted_proxies = trusted_proxies or self.TRUSTED_PROXIES
+        self.trusted_proxies = list(trusted_proxies) if trusted_proxies is not None else list(self.TRUSTED_PROXIES)
+        self._client_ip_resolver = ClientIPResolver(self.trusted_proxies)
         self._last_eviction = time.time()
 
-        # Parse CIDR networks once at init for efficiency
-        self._trusted_networks: List[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]] = []
-        for proxy in self.trusted_proxies:
-            try:
-                # Handle both single IPs and CIDR notation
-                if '/' in proxy:
-                    network = ipaddress.ip_network(proxy, strict=False)
-                else:
-                    # Single IP -> /32 (IPv4) or /128 (IPv6)
-                    addr = ipaddress.ip_address(proxy)
-                    prefix = 32 if addr.version == 4 else 128
-                    network = ipaddress.ip_network(f"{proxy}/{prefix}", strict=False)
-                self._trusted_networks.append(network)
-            except ValueError as e:
-                logger.warning("invalid_trusted_proxy_config", entry=proxy, error=str(e))
-
     def _is_trusted_proxy(self, ip_str: str) -> bool:
-        """
-        Check if an IP is in the trusted proxy list using proper CIDR matching.
-
-        Args:
-            ip_str: The IP address to check (e.g., "10.0.0.5")
-
-        Returns:
-            True if ip_str is in any trusted network, False otherwise
-        """
-        try:
-            ip = ipaddress.ip_address(ip_str)
-        except ValueError:
-            return False  # Invalid IP format
-
-        for network in self._trusted_networks:
-            try:
-                if ip in network:
-                    return True
-            except TypeError:
-                # IPv4 address in IPv6 network or vice versa
-                continue
-
-        return False
+        """Check whether `ip_str` belongs to a trusted proxy network."""
+        return self._client_ip_resolver.is_trusted_proxy(ip_str)
 
     def _get_client_ip(self, request: Request) -> str:
-        """Extract client IP, only trusting XFF from trusted proxies."""
+        """Resolve effective client IP using trusted-proxy chain semantics."""
         peer_ip = request.client.host if request.client else "unknown"
-
-        # Only trust X-Forwarded-For if request comes from trusted proxy
-        if not self._is_trusted_proxy(peer_ip):
-            return peer_ip
-
-        forwarded = request.headers.get("X-Forwarded-For", "")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-        return peer_ip
+        forwarded = request.headers.get("X-Forwarded-For")
+        return self._client_ip_resolver.resolve(peer_ip=peer_ip, forwarded_for=forwarded)
 
     def _get_limit_for_path(self, path: str) -> Tuple[int, int]:
         """Get rate limit for a path, falling back to default."""

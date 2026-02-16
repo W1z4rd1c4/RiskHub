@@ -29,7 +29,7 @@ export interface TechnicalLogEntry {
     user_name: string | null;
     user_email: string | null;
     entity_type: string | null;
-    details: string | null;
+    description: string | null;
 }
 
 export interface RecentLogEntry {
@@ -82,7 +82,26 @@ export interface ActiveSession {
     department: string | null;
     last_activity: string;
     is_active: boolean;
+    active_sessions: number;
     last_login: string | null;
+}
+
+export interface DirectoryCheckResult {
+    user_id: number;
+    email: string;
+    status: 'active' | 'deprovisioned' | 'error' | 'skipped';
+    reason: string | null;
+    revoked_sessions: number;
+    orphaned_items_flagged: number;
+}
+
+export interface DirectoryCheckAllResponse {
+    checked: number;
+    deprovisioned: number;
+    active: number;
+    errors: number;
+    skipped: number;
+    results: DirectoryCheckResult[];
 }
 
 // ============================================================================
@@ -128,4 +147,11 @@ export const adminApi = {
     // Revoke Session
     revokeSession: (userId: number) =>
         apiClient.post<{ status: string; message: string }>(`/admin/sessions/${userId}/revoke`, {}),
+
+    // Directory sync / deprovision checks
+    checkDirectoryUser: (userId: number) =>
+        apiClient.post<DirectoryCheckResult>(`/admin/directory/check-user/${userId}`, {}),
+
+    checkAllDirectoryUsers: () =>
+        apiClient.post<DirectoryCheckAllResponse>('/admin/directory/check-all', {}),
 };

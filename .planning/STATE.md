@@ -19,7 +19,7 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Active Phases:** Multiple in progress (see Progress Summary)
+**Active Phases:** 90 (AD Emulator) and 156 in progress; 19 and 70 deferred
 **Documentation Status:** Reconciled with phase folders (2026-01-24)
 
 ## Progress Summary
@@ -40,11 +40,12 @@
 | 14 Risk Assessments | ✅ Complete (7/7) | 2026-01-24 |
 | 15 Settings Page | ✅ Complete (6/6) | 2026-02-16 |
 | 16 Risk Assessment Polish | ✅ Complete (3/3) | 2026-01-24 |
-| 17 Production Deploy | ⏳ In progress (11/15) | - |
+| 17 Production Deploy | ✅ Complete (14/14) | 2026-02-16 |
 | 18 Vendor Risk Management | ✅ Complete (12/12) | 2026-01-26 |
+| 19 Advanced Audit Workflows | ⏸ Deferred (0/2) | - |
 | 20 Czech Localization | ✅ Complete (16/12) | - |
 | 25 User Settings | ✅ Complete (5/5) | 2026-01-11 |
-| 70 Risk Hub | ⏳ In progress (8/12) | - |
+| 70 Risk Hub | ⏸ Deferred (8/12) | - |
 | 71 Risk Hub Review | ✅ Complete (3/3) | 2026-01-03 |
 | 72 Risk Hub Resolution | ✅ Complete (12/12) | 2026-01-05 |
 | 85 Workflow & Users | ✅ Complete (6/6) | 2026-01-01 |
@@ -102,6 +103,17 @@
   - `cd backend && ./venv/bin/bandit --ini .bandit -r app -f txt --severity-level high` → passed (no high findings)
   - `cd backend && ./venv/bin/python -m pip_audit -r requirements.txt` → passed (`No known vulnerabilities found`)
 
+### Phase 17/19/70/156 Reconciliation (2026-02-16)
+
+- Removed `17-07` (Azure deployment) from active roadmap scope because deployment target is no longer Azure.
+- Implemented and verified `17-12`, `17-13`, and `17-14` with closeout summaries:
+  - `.planning/phases/17-production-deploy/17-12-SUMMARY.md`
+  - `.planning/phases/17-production-deploy/17-13-SUMMARY.md`
+  - `.planning/phases/17-production-deploy/17-14-SUMMARY.md`
+- Phase `19` remains deferred (confirmed and unchanged).
+- Phase `70` is now deferred (plans `70-08..70-12` paused for post-release).
+- `156-08` confirmed not done; it remains intentionally deferred per summary.
+
 ### Phase 70/156 Metadata Reconciliation (2026-02-16)
 
 - Reconciled planning drift for Phase 70 and Phase 156 in roadmap/state metadata.
@@ -139,14 +151,18 @@
   - `17-06` via Phase 500 production scripts/docs (`scripts/prod/*`, `docs/deployment/*`)
   - `17-08` via Phase 500 deployment documentation/runbook consolidation
 - Closed as implemented:
+  - `17-12` (Directory lookup/import via Graph provider + frontend picker)
+  - `17-13` (Refresh-token lifecycle with rotation, revocation, and admin real sessions)
+  - `17-14` (Directory deprovision checks, manual sync APIs, scheduler path)
   - `90-15` (Governance UI redesign + KRI orphan handling already present in backend/frontend)
 - Skipped unchanged (not implemented or partial-only):
-  - `17-07`, `17-12`, `17-13`, `17-14`
   - `19-01`, `19-02` (phase remains deferred)
-  - `150-04`, `150-10`, `150-11`
 - Added ex-post summaries:
   - `.planning/phases/17-production-deploy/17-06-SUMMARY.md`
   - `.planning/phases/17-production-deploy/17-08-SUMMARY.md`
+  - `.planning/phases/17-production-deploy/17-12-SUMMARY.md`
+  - `.planning/phases/17-production-deploy/17-13-SUMMARY.md`
+  - `.planning/phases/17-production-deploy/17-14-SUMMARY.md`
   - `.planning/phases/90-ad-integration/90-15-SUMMARY.md`
 - Reconciled roadmap/state metadata drift for phases 17, 18, 19, 90 AD Integration, 150, 201, and 500.
 
@@ -431,6 +447,9 @@
   - All API endpoints meet targets (<500ms dashboard, <200ms CRUD)
   - No slow queries (>100ms) detected under load
   - Created `docs/PERFORMANCE_BASELINE.md`
+- ✅ **17-12**: AD User Directory lookup/import (Graph provider + admin import UI)
+- ✅ **17-13**: Session management (refresh cookie flow, rotation, logout/logout-all, admin real sessions)
+- ✅ **17-14**: AD deprovision checks (manual/admin + scheduler service path with revocation/orphan handling)
 
 ### Phase 11 Progress
 

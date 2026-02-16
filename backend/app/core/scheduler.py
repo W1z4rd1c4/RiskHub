@@ -124,8 +124,37 @@ async def run_issue_deadline_check():
         logger.error(f"Issue deadline check failed: {e}")
 
 
+async def run_ad_deprovision_check():
+    """Background job: Check external-directory users and auto-deprovision missing accounts."""
+    logger.info("Starting scheduled AD deprovision check...")
+    try:
+        from app.core.config import get_settings
+        from app.services.ad_deprovision_service import ADDeprovisionService
+
+        settings = get_settings()
+        async with get_db_context() as db:
+            result = await ADDeprovisionService.check_all_users(
+                db,
+                settings=settings,
+                actor=None,
+                trigger="scheduler",
+            )
+            logger.info(
+                "AD deprovision check complete: "
+                f"checked={result.get('checked', 0)} "
+                f"deprovisioned={result.get('deprovisioned', 0)} "
+                f"errors={result.get('errors', 0)}"
+            )
+    except Exception as e:
+        logger.error(f"AD deprovision check failed: {e}")
+
+
 def setup_scheduler():
     """Configure scheduled jobs."""
+    from app.core.config import get_settings
+
+    settings = get_settings()
+
     # Daily KRI check at 8:00 AM
     scheduler.add_job(
         run_kri_check,
@@ -174,7 +203,17 @@ def setup_scheduler():
         name="Daily Issue Deadline Check",
         replace_existing=True,
     )
-    logger.info("Scheduler configured: KRI/questionnaire/vendor/issue checks scheduled daily")
+    # Daily AD deprovision check (config-driven)
+    scheduler.add_job(
+        run_ad_deprovision_check,
+        CronTrigger(hour=settings.ad_deprovision_check_hour, minute=settings.ad_deprovision_check_minute),
+        id="ad_deprovision_check",
+        name="Daily AD Deprovision Check",
+        replace_existing=True,
+    )
+    logger.info(
+        "Scheduler configured: KRI/questionnaire/vendor/issue/AD-deprovision checks scheduled daily"
+    )
 
 
 def start_scheduler():
