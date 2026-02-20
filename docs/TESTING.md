@@ -3,7 +3,7 @@
 > **Version**: 1.1
 > **Last Updated**: 2026-02-16
 > **Audience**: Engineering, QA
-> **Source of Truth**: `backend/tests/`, `backend/pytest.ini`, `frontend/package.json`, `frontend/playwright.config.ts`
+> **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
 This guide defines the current testing matrix for backend, frontend unit tests, frontend E2E, and docs-related verification.
 
@@ -11,8 +11,8 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 
 | Surface | Command | Purpose |
 |---|---|---|
-| Backend targeted | `cd backend && venv/bin/pytest tests/test_admin_docs.py -q` | Docs endpoint behavior and locale fallback |
-| Backend broad | `cd backend && make test` | Full backend regression |
+| Backend targeted | `cd backend && venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q` | Docs endpoint behavior and locale fallback |
+| Backend broad | `make -f scripts/Makefile test` | Full backend regression |
 | Backend Postgres marker | `cd backend && pytest -m postgres -v` | Postgres-sensitive behavior |
 | Frontend unit | `cd frontend && npm run test:run` | Component and integration tests |
 | Frontend docs UI | `cd frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx` | Docs cards/filter/audience behavior |
@@ -31,7 +31,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 
 - Unit/integration tests run with Vitest.
 - Docs UI behavior is covered in `DocumentationSettings.test.tsx`.
-- Playwright runs live browser flows from `frontend/e2e`.
+- Playwright runs live browser flows from `tests/frontend/e2e`.
 - Role-sensitive behavior must be verified for admin/non-admin views when docs contracts change.
 
 ## Docs Change Verification (Required)
@@ -43,7 +43,7 @@ cd "/Users/stefanlesnak/Antigravity/Risk App 2"
 python3 scripts/check_docs_contract.py
 
 cd backend
-venv/bin/pytest tests/test_admin_docs.py -q
+venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q
 
 cd ../frontend
 npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx

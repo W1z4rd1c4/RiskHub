@@ -30,10 +30,10 @@ repos:
     rev: v0.6.9
     hooks:
       - id: ruff
-        args: [--config=backend/ruff.toml, backend/app]
+        args: [--config=backend/ruff.toml, backend/app, tests/backend/pytest, backend/scripts]
       - id: ruff
         name: Ruff (manual autofix)
-        args: [--config=backend/ruff.toml, --fix, backend/app]
+        args: [--config=backend/ruff.toml, --fix, backend/app, tests/backend/pytest, backend/scripts]
         stages: [manual]
 
   # Python security - Bandit

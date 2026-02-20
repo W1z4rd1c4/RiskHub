@@ -7,9 +7,9 @@
 - `backend/` - FastAPI API, domain services, Alembic migrations, pytest suites
 - `frontend/` - React + TypeScript SPA, Vitest tests, Playwright E2E suites
 - `docs/` - product/business/admin/user documentation
+- `tests/` - centralized backend/frontend test suites and test result artifacts
 - `.planning/` - roadmap, state, phase plans/summaries, codebase map docs
 - `scripts/` - operational/dev utilities (including canonical `scripts/dev.sh`)
-- `AD Emulator/` - separate optional emulator app for directory-sync flows
 
 ## Backend Tree (`backend/`)
 
@@ -27,7 +27,7 @@
 - `backend/app/middleware/` - security/logging/language middleware
 - `backend/app/integrations/` - AD emulator and vendor-signal connectors
 - `backend/alembic/` - migration environment and versioned migrations
-- `backend/tests/` - 234 test files (82 Python)
+- `tests/backend/pytest/` - 234 test files (82 Python)
 
 ## Frontend Tree (`frontend/`)
 
@@ -43,8 +43,8 @@
 - `frontend/src/authz/` - authz policy derivation hooks
 - `frontend/src/hooks/` - shared hooks
 - `frontend/src/i18n/` - locale resources and typed translation hooks
-- `frontend/src/test/` - MSW handlers and test utilities
-- `frontend/e2e/` - 38 E2E specs (domain-focused test suites)
+- `tests/frontend/unit/src/test/` - MSW handlers and test utilities
+- `tests/frontend/e2e/` - 38 E2E specs (domain-focused test suites)
 
 ## Planning and Documentation Structure
 
@@ -61,15 +61,15 @@
 - `.github/workflows/e2e.yml` - CI E2E flow
 - `.github/workflows/security.yml` - security scanning flow
 - `docker-compose.yml` and `docker-compose.prod.yml` - service topology
-- `Makefile` - local command entrypoints
+- `scripts/Makefile` - local command entrypoints
 
 ## Generated or Heavy Directories (avoid manual edits)
 
 - `frontend/node_modules/`
 - `frontend/dist/`
 - `backend/venv/`
-- `coverage_html/`, `backend/coverage_html/`
-- `test-results/`, `frontend/playwright-report/`
+- `tests/results/backend/coverage_html/`
+- `tests/results/`, `tests/results/frontend/playwright/playwright-report/`, `tests/results/legacy/coverage_html/`
 
 ---
 

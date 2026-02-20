@@ -35,8 +35,8 @@ Unless user redirects, prioritize unresolved work identified as in progress in:
   - `frontend/node_modules/`
   - `frontend/dist/`
   - `backend/venv/`
-  - `backend/coverage_html/`
-  - `test-results/`
+  - `tests/results/backend/coverage_html/`
+  - `tests/results/`
 - Prefer small, reviewable diffs over broad rewrites.
 - Do not modify unrelated files just to satisfy formatting preferences.
 
