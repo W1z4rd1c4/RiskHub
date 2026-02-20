@@ -1,44 +1,45 @@
 # RiskHub Backend Dockerfile
-# Multi-stage build for optimized production image
+# Multi-stage Alpine build for reduced runtime attack surface.
 
 # =============================================================================
 # Stage 1: Build dependencies
 # =============================================================================
-FROM python:3.12-slim AS builder
+FROM python:3.13-alpine AS builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Build deps for cffi/bcrypt/psycopg2 and other native wheels.
+RUN apk add --no-cache \
+    build-base \
+    libffi-dev \
+    openssl-dev \
+    postgresql-dev
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --user -r requirements.txt
 
 # =============================================================================
 # Stage 2: Production runtime
 # =============================================================================
-FROM python:3.12-slim AS runtime
+FROM python:3.13-alpine AS runtime
 
 WORKDIR /app
 
-# Install runtime dependencies only
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+    libpq \
+    curl
 
 # Create non-root user for security
-RUN groupadd -r riskhub && useradd -r -g riskhub riskhub
+RUN addgroup -S riskhub && adduser -S riskhub -G riskhub
 
 # Copy Python packages from builder
 COPY --from=builder /root/.local /home/riskhub/.local
 
-# Copy application code
-COPY --chown=riskhub:riskhub . .
+# Copy runtime application files only
+COPY --chown=riskhub:riskhub app ./app
+COPY --chown=riskhub:riskhub alembic ./alembic
+COPY --chown=riskhub:riskhub alembic.ini ./alembic.ini
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R riskhub:riskhub /app/logs

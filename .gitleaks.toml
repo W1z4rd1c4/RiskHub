@@ -7,31 +7,25 @@ title = "RiskHub Secret Detection"
 # Use default gitleaks rules as base
 useDefault = true
 
-# Allow specific patterns that are known false positives
-[[rules]]
-id = "riskhub-dev-secret"
-description = "Allow development placeholder secrets"
-regex = '''your-secret-key-change-in-production-use-env-var'''
-allowlist = true
-
-[[rules]]
-id = "riskhub-example-secret"
-description = "Allow example secrets in documentation"
-regex = '''your-secret-key-here-min-32-chars'''
-allowlist = true
-
-# Files to ignore
 [allowlist]
 description = "Global allowlist"
+regexes = [
+    '''your-secret-key-change-in-production-use-env-var''',
+    '''your-secret-key-here-min-32-chars''',
+]
 paths = [
     '''\.env\.example$''',
     '''\.md$''',
     '''package-lock\.json$''',
     '''\.lock$''',
+    '''backend/tests/''',
+    '''frontend/src/components/risks/riskQuestionnaireQuestions\.ts$''',
+    '''presentation\.html$''',
     '''node_modules/''',
     '''__pycache__/''',
     '''\.git/''',
     '''\.venv/''',
     '''venv/''',
     '''archive_.*\.zip$''',
+    '''\.smart-coding-cache/''',
 ]

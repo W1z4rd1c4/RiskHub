@@ -1,4 +1,5 @@
 import hashlib
+from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy import select, update
@@ -55,16 +56,22 @@ async def _issue_refresh_session(
     user: User,
     settings: Settings,
     rotated_from: RefreshToken | None = None,
+    refresh_jti: str | None = None,
+    refresh_token_and_expiry: tuple[str, datetime] | None = None,
+    issued_at: datetime | None = None,
 ) -> RefreshToken:
-    jti = new_token_jti()
-    refresh_token, expires_at = create_refresh_token(
-        user_id=user.id,
-        token_version=user.token_version,
-        jti=jti,
-        settings=settings,
-    )
+    jti = refresh_jti or new_token_jti()
+    if refresh_token_and_expiry is None:
+        refresh_token, expires_at = create_refresh_token(
+            user_id=user.id,
+            token_version=user.token_version,
+            jti=jti,
+            settings=settings,
+        )
+    else:
+        refresh_token, expires_at = refresh_token_and_expiry
 
-    now = utc_now()
+    now = issued_at or utc_now()
     refresh_row = RefreshToken(
         user_id=user.id,
         jti=jti,

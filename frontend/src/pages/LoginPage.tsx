@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Shield, Building2, User, ChevronRight, Loader2 } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
+import { setAccessToken } from '@/services/accessTokenStore';
 import type { AuthConfigResponse } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
 import { entraAuth } from '@/services/entraAuth';
@@ -88,7 +89,7 @@ export default function LoginPage() {
             }
 
             const data = await response.json();
-            localStorage.setItem('access_token', data.access_token);
+            setAccessToken(data.access_token);
             window.location.assign(returnTo);
         } catch (err) {
             if (err instanceof Error && err.message.startsWith('errorKeys.')) {

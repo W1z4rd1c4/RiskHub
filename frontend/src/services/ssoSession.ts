@@ -1,4 +1,5 @@
 import { authApi } from '@/services/authApi';
+import { setAccessToken } from '@/services/accessTokenStore';
 import { getAuthConfig } from '@/services/authConfig';
 import { entraAuth } from '@/services/entraAuth';
 
@@ -9,7 +10,7 @@ export async function silentReauthAndExchange(): Promise<string | null> {
         refreshInFlight = (async () => {
             const refreshResponse = await authApi.refresh().catch(() => null);
             if (refreshResponse?.access_token) {
-                localStorage.setItem('access_token', refreshResponse.access_token);
+                setAccessToken(refreshResponse.access_token);
                 return refreshResponse.access_token;
             }
 
@@ -24,7 +25,7 @@ export async function silentReauthAndExchange(): Promise<string | null> {
             }
 
             const tokenResponse = await authApi.ssoExchange(idToken);
-            localStorage.setItem('access_token', tokenResponse.access_token);
+            setAccessToken(tokenResponse.access_token);
             return tokenResponse.access_token;
         })().finally(() => {
             refreshInFlight = null;

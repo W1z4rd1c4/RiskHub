@@ -17,15 +17,18 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@test/mocks/server';
 import { mockAuthUser } from '@test/mocks/handlers';
 import SsoCallbackPage from '@/pages/SsoCallbackPage';
+import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
 import { entraAuth } from '@/services/entraAuth';
 import { hardNavigate } from '@/utils/hardNavigate';
 
 afterEach(() => {
     vi.restoreAllMocks();
+    clearAccessToken();
 });
 
 describe('SsoCallbackPage', () => {
     it('exchanges id_token and stores RiskHub JWT', async () => {
+        clearAccessToken();
         (entraAuth.handleRedirect as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ idToken: 'id-token' });
 
         server.use(
@@ -50,7 +53,7 @@ describe('SsoCallbackPage', () => {
         );
 
         await waitFor(() => {
-            expect(localStorage.getItem('access_token')).toBe('riskhub-jwt');
+            expect(getAccessToken()).toBe('riskhub-jwt');
         });
 
         expect(hardNavigate).toHaveBeenCalledWith('/');

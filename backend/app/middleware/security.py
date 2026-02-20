@@ -47,31 +47,33 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.enable_hsts = enable_hsts
         self.csp_report_uri = csp_report_uri
-        self.settings = get_settings()
+        self._default_settings = get_settings()
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         response = await call_next(request)
+        settings = getattr(request.app.state, "settings", self._default_settings)
 
         # Security headers for all responses
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["Permissions-Policy"] = (
             "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
         )
 
         # HSTS only in production (requires HTTPS)
-        if self.enable_hsts and not self.settings.debug:
+        if self.enable_hsts and not settings.debug:
             # max-age=31536000 = 1 year, includeSubDomains for comprehensive coverage
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains; preload"
             )
 
         # Content Security Policy - tighter in production
-        if self.settings.debug:
+        if settings.debug:
             # Development: permissive for HMR, dev tools
             csp_directives = [
                 "default-src 'self'",

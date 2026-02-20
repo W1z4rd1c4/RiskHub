@@ -1,6 +1,6 @@
 # Production Security Checklist
 
-> **Last Updated**: 2026-02-16  
+> **Last Updated**: 2026-02-20  
 > **Audience**: DevOps / Security Engineering
 
 ---
@@ -43,6 +43,16 @@ Backend startup enforces these when `DEBUG=false`:
 - Never commit real secrets into `.env` files.
 - When using Phase 500 scripts, keep `/etc/riskhub/backend.env` and `/etc/riskhub/frontend.env` readable only by root or a dedicated ops user.
 - Do not echo secrets into shell history or CI logs. The Phase 500 scripts avoid printing `DATABASE_URL`, `SECRET_KEY`, and `REDIS_PASSWORD`.
+
+## Supply-Chain And Image Gates
+
+- Backend production image baseline is Python `3.13` on Alpine (`backend/Dockerfile`).
+- Security CI requires container + SBOM correlation gates:
+  - Trivy high/critical gate for built images.
+  - Syft SBOM generation and Grype high/critical gate for backend runtime packages.
+- Treat scanner discrepancies as open risk:
+  - A clean Trivy result does not close risk if Grype reports unresolved high/critical findings.
+  - Any suppression in `backend/security/grype-ignore.yaml` must be explicit, time-bound, and owner-attributed.
 
 ## Backups
 

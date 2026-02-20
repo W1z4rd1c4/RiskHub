@@ -30,7 +30,9 @@ test.describe('issues contextual create', () => {
         });
         await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
 
-        const token = await page.evaluate(() => localStorage.getItem('access_token'));
+        const token = await page.evaluate(
+            () => (window as Window & { __RISKHUB_ACCESS_TOKEN__?: string | null }).__RISKHUB_ACCESS_TOKEN__ ?? null
+        );
         test.skip(!token, 'Token not available after login');
 
         const headers = {

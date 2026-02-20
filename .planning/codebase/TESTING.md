@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-02-20
 
 ## Test Stack Overview
 
@@ -45,7 +45,7 @@
 ## CI Test/Security Execution
 
 - E2E workflow provisions Postgres service, runs backend + Playwright chromium suite (`.github/workflows/e2e.yml`)
-- Security workflow runs Bandit, pip-audit, npm audit, Trivy, gitleaks (`.github/workflows/security.yml`)
+- Security workflow runs Bandit, pip-audit, npm audit, Trivy, Syft+Grype correlation, and gitleaks parse+scan (`.github/workflows/security.yml`)
 
 ## Canonical Commands
 
@@ -66,4 +66,4 @@
 
 ---
 
-*Testing audit refreshed on 2026-02-16*
+*Testing audit refreshed on 2026-02-20*

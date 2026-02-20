@@ -206,7 +206,7 @@
     "unlink": "Unlink",
     "unarchive": "Unarchive",
     "export": "Export",
-    "export_excel": "Export Excel",
+    "export_excel": "Export CSV",
     "back_to_register": "Back to Register"
   },
   "form": {

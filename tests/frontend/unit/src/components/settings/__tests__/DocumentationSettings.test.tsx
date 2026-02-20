@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 
 import { server } from '@test/mocks/server';
+import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DocumentationSettings } from '@/components/settings/DocumentationSettings';
 
@@ -132,7 +133,7 @@ let scrollIntoViewMock = vi.fn();
 
 describe('DocumentationSettings', () => {
     beforeEach(() => {
-        localStorage.setItem('access_token', 'test-token');
+        setAccessToken('test-token');
         scrollToMock = vi.fn();
         scrollIntoViewMock = vi.fn();
         Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
@@ -146,7 +147,7 @@ describe('DocumentationSettings', () => {
     });
 
     afterEach(() => {
-        localStorage.clear();
+        clearAccessToken();
         Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
             configurable: true,
             value: originalScrollTo,

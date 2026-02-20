@@ -247,7 +247,7 @@ async def save_quarter_snapshot(
     quarter_number: int,
     metrics: dict,
     department_id: Optional[int] = None,
-    snapshot_type: SnapshotType = SnapshotType.QUARTER_END,
+    snapshot_type: SnapshotType | str = SnapshotType.QUARTER_END,
     captured_by_user_id: Optional[int] = None,
     notes: Optional[str] = None,
 ) -> QuarterlyMetricSnapshot:
@@ -268,6 +268,13 @@ async def save_quarter_snapshot(
     Returns:
         Created or updated snapshot
     """
+    if not isinstance(snapshot_type, SnapshotType):
+        if isinstance(snapshot_type, str):
+            normalized_snapshot_type = snapshot_type.strip().lower()
+            snapshot_type = SnapshotType(normalized_snapshot_type)
+        else:
+            raise ValueError("Invalid snapshot type")
+
     # Check if snapshot already exists
     existing = await db.execute(
         select(QuarterlyMetricSnapshot).where(

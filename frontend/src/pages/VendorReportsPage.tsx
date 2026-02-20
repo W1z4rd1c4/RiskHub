@@ -62,11 +62,11 @@ export function VendorReportsPage() {
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     disabled={isDownloading}
-                                    onClick={() => download(() => vendorReportApi.downloadAnnual(year, 'xlsx'))}
+                                    onClick={() => download(() => vendorReportApi.downloadAnnual(year, 'csv'))}
                                     className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center gap-2"
                                 >
                                     <FileSpreadsheet className="h-4 w-4" />
-                                    {t('reports.annual.download_excel')}
+                                    {t('reports.annual.download_csv')}
                                 </button>
                             </div>
                         </section>

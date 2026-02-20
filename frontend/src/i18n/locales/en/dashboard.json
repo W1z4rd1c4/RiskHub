@@ -37,7 +37,7 @@
     "calculated": "Calculated"
   },
   "actions": {
-    "export_summary_excel": "Export Summary Excel"
+    "export_summary_excel": "Export Summary CSV"
   },
   "risk_distribution_matrix": {
     "axis": {

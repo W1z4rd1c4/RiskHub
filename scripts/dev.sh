@@ -306,9 +306,14 @@ setup_backend_venv() {
     source venv/bin/activate
     
     # Quick check if requirements need updating (compare timestamps)
-    if [ "requirements.txt" -nt "venv/.deps_installed" ] 2>/dev/null || [ ! -f "venv/.deps_installed" ]; then
+    if [ "requirements.txt" -nt "venv/.deps_installed" ] 2>/dev/null \
+        || [ "requirements-dev.txt" -nt "venv/.deps_installed" ] 2>/dev/null \
+        || [ ! -f "venv/.deps_installed" ]; then
         echo "Installing/updating Python dependencies..."
         pip install -q -r requirements.txt
+        if [ -f "requirements-dev.txt" ]; then
+            pip install -q -r requirements-dev.txt
+        fi
         touch venv/.deps_installed
         echo -e "${GREEN}Dependencies up to date!${NC}"
     else

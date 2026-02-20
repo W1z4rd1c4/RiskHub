@@ -534,12 +534,12 @@
     "annual": {
       "title": "Annual Vendor Management Report",
       "year": "Year",
-      "download_excel": "Download Excel"
+      "download_csv": "Download CSV"
     },
     "dora": {
       "title": "DORA Register of Information",
       "subtitle": "Export the minimum DORA register dataset for vendor arrangements.",
-      "download": "Download Excel"
+      "download": "Download CSV"
     }
   }
 }

@@ -3,7 +3,7 @@ from typing import Any
 
 from fastapi.responses import StreamingResponse
 
-from app.services.report_service import generate_tabular_csv, generate_tabular_excel
+from app.services.report_service import generate_tabular_csv
 
 from .._streaming import _stream_binary
 from ._shared import ExportFormat
@@ -19,10 +19,7 @@ def _render_export(
     data_rows: list[list[Any]],
     as_of_date: date,
 ) -> StreamingResponse:
-    if export_format == "xlsx":
-        content = generate_tabular_excel(sheet_name, headers, data_rows)
-    else:
-        content = generate_tabular_csv(headers, data_rows)
+    content = generate_tabular_csv(headers, data_rows)
 
     return _stream_binary(
         filename_base=filename_base,
@@ -30,4 +27,3 @@ def _render_export(
         content_bytes=content,
         as_of_date=as_of_date,
     )
-

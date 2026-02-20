@@ -37,8 +37,6 @@ class AuthConfigResponse(BaseModel):
     auth_mode: Literal["password", "microsoft_sso", "hybrid_dev"]
     demo_login_enabled: bool
     password_login_enabled: bool
-    debug: bool
-    mock_auth_enabled: bool
     sso: AuthSsoConfig
     sso_error: str | None = None
 

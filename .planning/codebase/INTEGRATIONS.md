@@ -48,7 +48,7 @@
 ## CI/Security Integrations
 
 - E2E workflow runs Playwright against backend + Postgres service (`.github/workflows/e2e.yml`)
-- Security workflow runs Bandit, pip-audit, npm audit, Trivy, gitleaks (`.github/workflows/security.yml`)
+- Security workflow runs Bandit, pip-audit, npm audit, Trivy, Syft+Grype correlation, and gitleaks parse+scan (`.github/workflows/security.yml`)
 
 ## Observability and Logging
 

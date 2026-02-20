@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 
 import { server } from '@test/mocks/server';
+import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { ControlsPage } from '@/pages/ControlsPage';
@@ -45,11 +46,11 @@ function renderWithRoute(route: string) {
 
 describe('ControlsPage archived visibility', () => {
     beforeEach(() => {
-        localStorage.setItem('access_token', 'test-token');
+        setAccessToken('test-token');
     });
 
     afterEach(() => {
-        localStorage.clear();
+        clearAccessToken();
     });
 
     it('hides archived controls by default and shows them when status filter is set to Archived', async () => {
@@ -100,4 +101,3 @@ describe('ControlsPage archived visibility', () => {
         await screen.findByText('Archived Control');
     });
 });
-

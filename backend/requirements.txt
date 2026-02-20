@@ -7,23 +7,14 @@ pydantic>=2.5.0
 pydantic-settings>=2.1.0
 email-validator>=2.0.0
 alembic>=1.13.0
-python-multipart>=0.0.6
 PyJWT[crypto]>=2.8.0
+cryptography>=46.0.5
 passlib[bcrypt]>=1.7.4
 bcrypt==4.1.3  # Pin to 4.1.3 for passlib compatibility
-openpyxl>=3.1.0
-pytest>=8.0.0
-pytest-asyncio>=0.23.0
 httpx>=0.27.0
-pytest-cov>=4.1.0
 APScheduler==3.11.2
 structlog>=24.1.0
 python-json-logger>=2.0.0
 psutil>=5.9.0
 python-dateutil>=2.8.2
 redis>=5.0.0
-
-# Security scanning (dev dependencies)
-bandit>=1.7.8
-pip-audit>=2.7.0
-pre-commit>=3.7.0

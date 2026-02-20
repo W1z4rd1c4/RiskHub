@@ -2,12 +2,31 @@ from datetime import UTC, date, datetime
 from io import BytesIO
 from typing import Literal
 
+from fastapi import HTTPException, status
 from fastapi.responses import StreamingResponse
 
-_EXCEL_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 _CSV_MEDIA_TYPE = "text/csv; charset=utf-8"
 
-ExportFormat = Literal["xlsx", "csv"]
+ExportFormat = Literal["csv"]
+ExportFormatQuery = Literal["xlsx", "csv"]
+
+EXCEL_EXPORT_REMOVED_CODE = "excel_export_removed"
+
+
+def excel_export_removed(*, replacement: str | None = None) -> HTTPException:
+    detail: dict[str, str] = {
+        "code": EXCEL_EXPORT_REMOVED_CODE,
+        "message": "Excel export has been removed. Use CSV export instead.",
+    }
+    if replacement:
+        detail["replacement"] = replacement
+    return HTTPException(status_code=status.HTTP_410_GONE, detail=detail)
+
+
+def resolve_export_format(export_format: ExportFormatQuery, *, replacement: str | None = None) -> ExportFormat:
+    if export_format == "xlsx":
+        raise excel_export_removed(replacement=replacement)
+    return "csv"
 
 
 def _get_filename(base: str, ext: str, as_of_date: date | None = None) -> str:
@@ -22,11 +41,8 @@ def _stream_binary(
     content_bytes: bytes,
     as_of_date: date | None = None,
 ) -> StreamingResponse:
-    ext = "xlsx" if export_format == "xlsx" else "csv"
-    media_type = {
-        "xlsx": _EXCEL_MEDIA_TYPE,
-        "csv": _CSV_MEDIA_TYPE,
-    }[export_format]
+    ext = "csv"
+    media_type = _CSV_MEDIA_TYPE
     return StreamingResponse(
         BytesIO(content_bytes),
         media_type=media_type,

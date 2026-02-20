@@ -38,7 +38,16 @@ class QuarterlyMetricSnapshot(Base):
     quarter_number = Column(Integer, nullable=False)  # 1-4
 
     # Snapshot type (quarter_end or manual)
-    snapshot_type = Column(SQLAEnum(SnapshotType), default=SnapshotType.QUARTER_END, nullable=False)
+    snapshot_type = Column(
+        SQLAEnum(
+            SnapshotType,
+            name="snapshottype",
+            values_callable=lambda enum_cls: [member.value for member in enum_cls],
+            validate_strings=True,
+        ),
+        default=SnapshotType.QUARTER_END,
+        nullable=False,
+    )
 
     # Timestamp when snapshot was captured
     captured_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

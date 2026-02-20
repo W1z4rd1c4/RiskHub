@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authApi } from '@/services/authApi';
+import { clearAccessToken, getAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { silentReauthAndExchange } from '@/services/ssoSession';
 import { syncPreferencesFromServer, clearLocalSettings } from '@/utils/userSettingsStorage';
 
@@ -30,9 +31,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [token, setTokenState] = useState<string | null>(() =>
-        localStorage.getItem('access_token')
-    );
+    const [token, setTokenState] = useState<string | null>(() => getAccessToken());
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPreferencesHydrated, setIsPreferencesHydrated] = useState(!token);
@@ -46,10 +45,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    const setToken = (newToken: string) => {
-        localStorage.setItem('access_token', newToken);
+    const setToken = useCallback((newToken: string) => {
+        setAccessToken(newToken);
         setTokenState(newToken);
-    };
+    }, []);
+
+    const clearToken = useCallback(() => {
+        clearAccessToken();
+        setTokenState(null);
+    }, []);
 
     const hydratePreferences = useCallback(async () => {
         setIsPreferencesHydrated(false);
@@ -76,56 +80,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             return response.user;
         } catch (err) {
-            throw new Error(err instanceof Error ? err.message : 'Login failed');
+            throw new Error(err instanceof Error ? err.message : 'Login failed', { cause: err });
         }
     };
 
     const logout = useCallback(() => {
         void authApi.logout();
-        localStorage.removeItem('access_token');
+        clearToken();
         clearLocalSettings(); // Clear theme/language
-        setTokenState(null);
         setUser(null);
         setIsPreferencesHydrated(true);
         updatePreferencesReadySignal(true);
-    }, [updatePreferencesReadySignal]);
+    }, [clearToken, updatePreferencesReadySignal]);
 
     useEffect(() => {
         let isMounted = true;
 
         const fetchCurrentUser = async () => {
-            if (!token) {
-                if (isMounted) {
-                    setIsPreferencesHydrated(true);
-                    updatePreferencesReadySignal(true);
-                    setIsLoading(false);
-                }
-                return;
-            }
+            let activeToken = token;
+            let usedSilentToken = false;
 
             try {
+                if (!activeToken) {
+                    const refreshedToken = await silentReauthAndExchange();
+                    if (!refreshedToken) {
+                        if (isMounted) {
+                            setIsPreferencesHydrated(true);
+                            updatePreferencesReadySignal(true);
+                        }
+                        return;
+                    }
+                    usedSilentToken = true;
+                    activeToken = refreshedToken;
+                    if (isMounted) {
+                        setToken(refreshedToken);
+                    }
+                }
+
                 if (isMounted) {
                     setIsPreferencesHydrated(false);
                     updatePreferencesReadySignal(false);
                 }
-                const userData = await authApi.getCurrentUser(token);
+                const userData = await authApi.getCurrentUser(activeToken);
                 if (isMounted) {
                     setUser(userData);
                 }
                 await hydratePreferences();
             } catch {
-                const refreshedToken = await silentReauthAndExchange();
-                if (refreshedToken) {
+                if (!usedSilentToken) {
+                    const refreshedToken = await silentReauthAndExchange();
                     try {
-                        if (isMounted) {
-                            setToken(refreshedToken);
+                        if (refreshedToken) {
+                            if (isMounted) {
+                                setToken(refreshedToken);
+                            }
+                            const userData = await authApi.getCurrentUser(refreshedToken);
+                            if (isMounted) {
+                                setUser(userData);
+                            }
+                            await hydratePreferences();
+                            return;
                         }
-                        const userData = await authApi.getCurrentUser(refreshedToken);
-                        if (isMounted) {
-                            setUser(userData);
-                        }
-                        await hydratePreferences();
-                        return;
                     } catch {
                         // Fall through to logout.
                     }
@@ -146,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return () => {
             isMounted = false;
         };
-    }, [hydratePreferences, logout, token, updatePreferencesReadySignal]);
+    }, [hydratePreferences, logout, setToken, token, updatePreferencesReadySignal]);
 
     const hasPermission = (resource: string, action: string): boolean => {
         // Use effective_permissions if available, fallback to permissions

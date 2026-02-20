@@ -2,12 +2,13 @@
 Tests for audit trail report endpoints.
 """
 
+import csv
 from datetime import UTC, datetime, timedelta
-from io import BytesIO
+from io import StringIO
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
-from openpyxl import load_workbook
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.control import Control
@@ -15,7 +16,7 @@ from app.models.control_execution import ControlExecution
 from app.models.risk import ControlRiskLink, Risk
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def audit_trail_test_data(db_session: AsyncSession, test_user, test_department):
     """Create test data for audit trail report endpoints."""
     # Create a control
@@ -79,16 +80,16 @@ async def audit_trail_test_data(db_session: AsyncSession, test_user, test_depart
 
 
 @pytest.mark.asyncio
-async def test_download_audit_trail_excel(
+async def test_download_audit_trail_csv(
     auth_client: AsyncClient,
     audit_trail_test_data: dict,
 ):
-    """Test GET /reports/audit-trail/excel returns a valid Excel file."""
-    response = await auth_client.get("/api/v1/reports/audit-trail/excel")
+    """Test GET /reports/audit-trail/export returns CSV."""
+    response = await auth_client.get("/api/v1/reports/audit-trail/export?format=csv")
     assert response.status_code == 200
-    assert "spreadsheetml" in response.headers["content-type"]
-    # XLSX magic bytes check (PK for ZIP header)
-    assert response.content[:2] == b"PK"
+    assert "text/csv" in response.headers["content-type"]
+    payload = response.content.decode("utf-8")
+    assert "Control Name" in payload
 
 
 @pytest.mark.asyncio
@@ -97,9 +98,9 @@ async def test_audit_trail_filter_by_result(
     audit_trail_test_data: dict,
 ):
     """Test that result filter returns 200."""
-    response_passed = await auth_client.get("/api/v1/reports/audit-trail/excel?result=passed")
+    response_passed = await auth_client.get("/api/v1/reports/audit-trail/export?format=csv&result=passed")
     assert response_passed.status_code == 200
-    assert "spreadsheetml" in response_passed.headers["content-type"]
+    assert "text/csv" in response_passed.headers["content-type"]
 
 
 @pytest.mark.asyncio
@@ -109,9 +110,11 @@ async def test_audit_trail_department_scoping(
     test_department,
 ):
     """Test that department_id filter works."""
-    response = await auth_client.get(f"/api/v1/reports/audit-trail/excel?department_id={test_department.id}")
+    response = await auth_client.get(
+        f"/api/v1/reports/audit-trail/export?format=csv&department_id={test_department.id}"
+    )
     assert response.status_code == 200
-    assert "spreadsheetml" in response.headers["content-type"]
+    assert "text/csv" in response.headers["content-type"]
 
 
 @pytest.mark.asyncio
@@ -119,18 +122,26 @@ async def test_audit_trail_linked_risks_prefers_risk_name(
     auth_client: AsyncClient,
     audit_trail_test_data: dict,
 ):
-    response = await auth_client.get("/api/v1/reports/audit-trail/excel")
+    response = await auth_client.get("/api/v1/reports/audit-trail/export?format=csv")
     assert response.status_code == 200
 
-    workbook = load_workbook(filename=BytesIO(response.content))
-    sheet = workbook.active
-
-    header_values = [cell.value for cell in sheet[1]]
-    linked_risks_col = header_values.index("Linked Risks") + 1
-    linked_risks_value = sheet.cell(row=2, column=linked_risks_col).value or ""
+    rows = list(csv.DictReader(StringIO(response.content.decode("utf-8"))))
+    assert rows
+    linked_risks_value = rows[0].get("Linked Risks", "")
 
     assert "Audit Test Risk" in linked_risks_value
     assert "Audit Test Process" not in linked_risks_value
+
+
+@pytest.mark.asyncio
+async def test_audit_trail_legacy_excel_endpoint_returns_gone(
+    auth_client: AsyncClient,
+    audit_trail_test_data: dict,
+):
+    response = await auth_client.get("/api/v1/reports/audit-trail/excel")
+    assert response.status_code == 410
+    detail = response.json()["detail"]
+    assert detail["code"] == "excel_export_removed"
 
 
 @pytest.mark.asyncio

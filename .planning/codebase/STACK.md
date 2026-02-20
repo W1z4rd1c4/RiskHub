@@ -1,11 +1,11 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-02-20
 
 ## Languages
 
 **Primary:**
-- Python 3.12+ - backend API and services (`backend/app/`, `backend/Dockerfile`)
+- Python 3.13+ - backend API and services (`backend/app/`, `backend/Dockerfile`)
 - TypeScript 5.9 - frontend application (`frontend/src/`, `frontend/package.json`)
 
 **Secondary:**
@@ -15,7 +15,7 @@
 
 ## Runtime and Infrastructure
 
-- Backend runtime: `python:3.12-slim` (`backend/Dockerfile`)
+- Backend runtime: `python:3.13-alpine` (`backend/Dockerfile`)
 - Frontend build runtime: `node:20-alpine` (`frontend/Dockerfile`)
 - Frontend serving runtime: `nginx:alpine` (`frontend/Dockerfile`, `frontend/nginx.conf`)
 - Database: PostgreSQL 16 (`docker-compose.yml`)
@@ -56,7 +56,7 @@
 - Backend linting: Ruff (`backend/ruff.toml`, `backend/requirements-dev.txt`)
 - Frontend testing: Vitest + Playwright (`tests/frontend/unit/vitest.config.ts`, `tests/frontend/e2e/playwright.config.ts`)
 - Frontend linting: ESLint (`frontend/eslint.config.js`)
-- Repo-level security checks: Bandit, pip-audit, Trivy, gitleaks (`.pre-commit-config.yaml`, `.github/workflows/security.yml`)
+- Repo-level security checks: Bandit, pip-audit, Trivy, Syft+Grype correlation, gitleaks (`.pre-commit-config.yaml`, `.github/workflows/security.yml`)
 
 ## Configuration Model
 
@@ -75,4 +75,4 @@
 
 ---
 
-*Stack analysis refreshed on 2026-02-16*
+*Stack analysis refreshed on 2026-02-20*

@@ -4,7 +4,8 @@ from typing import Any, Literal
 from app.core.datetime_utils import coerce_utc
 from app.models import Issue
 
-ExportFormat = Literal["xlsx", "csv"]
+ExportFormat = Literal["csv"]
+ExportFormatQuery = Literal["xlsx", "csv"]
 KRIExportStatus = Literal["all", "within", "breach", "overdue", "archived"]
 
 
@@ -53,4 +54,3 @@ def _joined(values: list[str]) -> str:
 
 def _enum_value(value: Any) -> Any:
     return value.value if hasattr(value, "value") else value
-
