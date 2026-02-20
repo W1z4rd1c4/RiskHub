@@ -11,7 +11,7 @@
 **Secondary:**
 - JavaScript - tooling/config (`frontend/*.js`)
 - SQL - Alembic migrations (`backend/alembic/versions/`)
-- Shell/Make - local orchestration (`scripts/dev.sh`, `Makefile`)
+- Shell/Make - local orchestration (`scripts/dev.sh`, `scripts/Makefile`)
 
 ## Runtime and Infrastructure
 
@@ -54,7 +54,7 @@
 
 - Backend testing: `pytest`, `pytest-asyncio`, `pytest-cov` (`backend/pytest.ini`)
 - Backend linting: Ruff (`backend/ruff.toml`, `backend/requirements-dev.txt`)
-- Frontend testing: Vitest + Playwright (`frontend/vitest.config.ts`, `frontend/playwright.config.ts`)
+- Frontend testing: Vitest + Playwright (`tests/frontend/unit/vitest.config.ts`, `tests/frontend/e2e/playwright.config.ts`)
 - Frontend linting: ESLint (`frontend/eslint.config.js`)
 - Repo-level security checks: Bandit, pip-audit, Trivy, gitleaks (`.pre-commit-config.yaml`, `.github/workflows/security.yml`)
 
@@ -69,9 +69,9 @@
 
 - Backend models: 36 Python files (`backend/app/models/`)
 - Backend services: 75 Python files (includes internal refactor packages) (`backend/app/services/`)
-- Backend tests: 82 Python files (234 total files) (`backend/tests/`)
+- Backend tests: 82 Python files (234 total files) (`tests/backend/pytest/`)
 - Frontend source files: 306 files (`frontend/src/`)
-- Frontend E2E specs: 38 (`frontend/e2e/**/*.spec.ts`)
+- Frontend E2E specs: 38 (`tests/frontend/e2e/**/*.spec.ts`)
 
 ---
 

@@ -127,6 +127,8 @@ frontend/test-results/
 frontend/playwright-report/
 frontend/.playwright-browsers/
 backend/logs/
+tests/results/
+scripts/runtime-artifacts/
 
 # NotebookLM export files
 REPO.TXT

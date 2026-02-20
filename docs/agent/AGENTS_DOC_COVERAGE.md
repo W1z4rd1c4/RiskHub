@@ -29,7 +29,7 @@ Row schema:
 | rbac_business_logic_guardrails | `RBAC and Business Logic Guardrails` | `docs/BUSINESS_LOGIC.md`; `.planning/codebase/CONCERNS.md` | full | none | 2026-02-16 |
 | frontend_display_guardrails | `Frontend Display Guardrails` | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | none | 2026-02-16 |
 | security_production_guardrails | `Security and Production Guardrails` | `docs/deployment/security-checklist.md`; `docs/deployment/README.md` | full | none | 2026-02-16 |
-| quick_commands | `Quick Commands` | `scripts/dev.sh`; `Makefile` | full | none | 2026-02-16 |
+| quick_commands | `Quick Commands` | `scripts/dev.sh`; `scripts/Makefile` | full | none | 2026-02-16 |
 | demo_dev_auth_local | `Demo/Dev Auth (local)` | `scripts/dev.sh`; `.planning/codebase/INTEGRATIONS.md` | full | none | 2026-02-16 |
 | repo_hygiene | `Repo Hygiene` | `.planning/codebase/STRUCTURE.md`; `docs/agent/CODEX_WORKING_RULES.md` | full | none | 2026-02-16 |
 | prompting_tooling_best_practices | `Prompting and Tooling Best Practices (OpenAI-Aligned)` | `docs/agent/CODEX_WORKING_RULES.md` | full | none | 2026-02-16 |

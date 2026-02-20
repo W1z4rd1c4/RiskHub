@@ -10,7 +10,7 @@ If you want a full end-to-end installation guide (including prerequisites, Entra
 
 If you prefer a guided one-command install wizard, run:
 
-- `./setup.sh --mode prod` (recommended)
+- `./scripts/setup.sh --mode prod` (recommended)
 - `scripts/prod/setup.sh` (direct production wizard)
 
 This deployment path uses the Phase 500 scripts in `scripts/prod/`:

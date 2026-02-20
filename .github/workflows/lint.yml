@@ -51,8 +51,8 @@ jobs:
           set -euo pipefail
           npm run cleanup:deadcode | tee ../lint-frontend-cleanup.log
           grep -q "Candidates: 0" cleanup-audit/unreachable.md
-          if git ls-files | grep -q '^frontend/playwright-report/'; then
-            echo "Tracked playwright-report artifacts are not allowed."
+          if git ls-files | grep -q '^tests/results/frontend/playwright/playwright-report/'; then
+            echo "Tracked Playwright report artifacts are not allowed."
             exit 1
           fi
         working-directory: frontend
@@ -78,7 +78,7 @@ jobs:
       - name: Backend lint (Ruff hard gate)
         run: |
           set -euo pipefail
-          ruff check app tests scripts | tee ../lint-backend-ruff.log
+          ruff check app ../tests/backend/pytest scripts | tee ../lint-backend-ruff.log
         working-directory: backend
 
       - name: Validate ratchet status documentation contract
@@ -114,7 +114,7 @@ jobs:
             echo "- Frontend debt budget: PASS";
             echo "- Frontend cleanup audit contract: PASS";
             echo "- Frontend build: PASS";
-            echo "- Backend Ruff hard gate (backend/app + backend/tests + backend/scripts): PASS";
+            echo "- Backend Ruff hard gate (backend/app + tests/backend/pytest + backend/scripts): PASS";
             echo "- Ruff ratchet status: E712=${E712_COUNT}, E402=${E402_COUNT}, E501=${E501_COUNT}";
           } > lint-summary.md
 
