@@ -2,13 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from starlette.requests import Request
+from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
 from app.db.session import get_db
 from app.models import RolePermission, User
 from app.schemas.auth import DemoLoginRequest, TokenResponse
 
-from ._shared import _build_token_response
+from ._shared import _build_token_response, _issue_refresh_session
 
 router = APIRouter()
 
@@ -40,11 +42,20 @@ async def _resolve_demo_user_by_email(*, db: AsyncSession, email: str) -> User |
     return result.scalar_one_or_none()
 
 
-async def _build_demo_response(*, db: AsyncSession, user: User, login_detail: str) -> TokenResponse:
+async def _build_demo_response(
+    *,
+    db: AsyncSession,
+    request: Request,
+    response: Response,
+    user: User,
+    settings: Settings,
+    login_detail: str,
+) -> TokenResponse:
     if not user.is_active:
         raise HTTPException(status_code=403, detail="User account is inactive")
 
     token_response = _build_token_response(user)
+    await _issue_refresh_session(db=db, request=request, response=response, user=user, settings=settings)
 
     from app.core.activity_logger import log_activity
     from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -65,6 +76,8 @@ async def _build_demo_response(*, db: AsyncSession, user: User, login_detail: st
 @router.post("/demo-login", response_model=TokenResponse)
 async def demo_login_by_email(
     payload: DemoLoginRequest,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
@@ -74,12 +87,21 @@ async def demo_login_by_email(
     if not user:
         raise HTTPException(status_code=404, detail="Demo user not found")
 
-    return await _build_demo_response(db=db, user=user, login_detail=f"User logged in (demo): {user.email}")
+    return await _build_demo_response(
+        db=db,
+        request=request,
+        response=response,
+        user=user,
+        settings=settings,
+        login_detail=f"User logged in (demo): {user.email}",
+    )
 
 
 @router.post("/demo-login/{user_id}", response_model=TokenResponse)
 async def demo_login(
     user_id: int,
+    request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
@@ -101,4 +123,11 @@ async def demo_login(
     if not user:
         raise HTTPException(status_code=404, detail="Demo user not found")
 
-    return await _build_demo_response(db=db, user=user, login_detail=f"User logged in (demo): {user.email}")
+    return await _build_demo_response(
+        db=db,
+        request=request,
+        response=response,
+        user=user,
+        settings=settings,
+        login_detail=f"User logged in (demo): {user.email}",
+    )

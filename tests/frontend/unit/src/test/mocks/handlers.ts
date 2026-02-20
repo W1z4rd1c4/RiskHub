@@ -151,8 +151,6 @@ export const handlers = [
             auth_mode: 'hybrid_dev',
             demo_login_enabled: true,
             password_login_enabled: true,
-            debug: true,
-            mock_auth_enabled: true,
             sso: {
                 enabled: false,
                 provider: 'entra',

@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 
 import { server } from '@test/mocks/server';
+import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { buildAuthz } from '@/authz/policy';
@@ -121,11 +122,11 @@ function renderWithRoute(route: string) {
 
 describe('RBAC UI gating', () => {
     beforeEach(() => {
-        localStorage.setItem('access_token', 'test-token');
+        setAccessToken('test-token');
     });
 
     afterEach(() => {
-        localStorage.clear();
+        clearAccessToken();
     });
 
     it('Authz policy: derives capabilities only from permissions + explicit role gates', () => {

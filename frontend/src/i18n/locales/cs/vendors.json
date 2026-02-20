@@ -534,12 +534,12 @@
     "annual": {
       "title": "Roční report řízení dodavatelů",
       "year": "Rok",
-      "download_excel": "Stáhnout Excel"
+      "download_csv": "Stáhnout CSV"
     },
     "dora": {
       "title": "Registr informací DORA",
       "subtitle": "Export minimálního datasetu registru DORA pro dodavatelské vztahy.",
-      "download": "Stáhnout Excel"
+      "download": "Stáhnout CSV"
     }
   }
 }

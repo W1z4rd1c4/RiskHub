@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { setAccessToken } from '@/services/accessTokenStore';
 import { authApi } from '@/services/authApi';
 import { entraAuth } from '@/services/entraAuth';
 import { hardNavigate } from '@/utils/hardNavigate';
@@ -27,7 +28,7 @@ export default function SsoCallbackPage() {
                 }
 
                 const tokenResponse = await authApi.ssoExchange(idToken);
-                localStorage.setItem('access_token', tokenResponse.access_token);
+                setAccessToken(tokenResponse.access_token);
                 hardNavigate(sanitizeReturnTo(result?.state));
             } catch (e) {
                 console.error(e);

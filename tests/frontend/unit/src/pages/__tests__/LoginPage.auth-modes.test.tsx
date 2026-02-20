@@ -29,8 +29,6 @@ describe('LoginPage auth modes', () => {
                     auth_mode: 'microsoft_sso',
                     demo_login_enabled: false,
                     password_login_enabled: false,
-                    debug: false,
-                    mock_auth_enabled: false,
                     sso: {
                         enabled: true,
                         provider: 'entra',
@@ -57,8 +55,6 @@ describe('LoginPage auth modes', () => {
                     auth_mode: 'hybrid_dev',
                     demo_login_enabled: true,
                     password_login_enabled: true,
-                    debug: true,
-                    mock_auth_enabled: true,
                     sso: {
                         enabled: false,
                         provider: 'entra',
@@ -85,8 +81,6 @@ describe('LoginPage auth modes', () => {
                     auth_mode: 'hybrid_dev',
                     demo_login_enabled: true,
                     password_login_enabled: true,
-                    debug: true,
-                    mock_auth_enabled: true,
                     sso: {
                         enabled: false,
                         provider: 'entra',

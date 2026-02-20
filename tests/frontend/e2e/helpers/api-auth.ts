@@ -32,11 +32,11 @@ export async function getDemoToken(options: DemoTokenOptions): Promise<string> {
     try {
         const res = await fetch(`${apiBase}/api/v1/auth/config`);
         if (res.ok) {
-            const body = await res.json() as { demo_login_enabled?: unknown; auth_mode?: unknown; debug?: unknown; mock_auth_enabled?: unknown };
+            const body = await res.json() as { demo_login_enabled?: unknown; auth_mode?: unknown };
             if (body && typeof body === 'object' && body.demo_login_enabled === false) {
                 throw new Error(
-                    `Demo login is disabled (auth_mode=${String(body.auth_mode)} debug=${String(body.debug)} mock_auth_enabled=${String(body.mock_auth_enabled)}). ` +
-                    `Start backend with DEBUG=true, MOCK_AUTH_ENABLED=true, AUTH_MODE=hybrid_dev.`,
+                    `Demo login is disabled (auth_mode=${String(body.auth_mode)}). ` +
+                    'Start backend with AUTH_MODE=hybrid_dev and demo auth enabled.',
                 );
             }
         }

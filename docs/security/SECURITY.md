@@ -19,14 +19,14 @@ pre-commit run --all-files
 ### Run Individual Scans
 
 ```bash
-	# Python SAST (Bandit)
-	cd backend
-	pip install bandit
-	bandit --ini .bandit -r app
+# Python SAST (Bandit)
+cd backend
+pip install bandit
+bandit --ini .bandit -r app
 
 # Python Dependency Scan (pip-audit)
 pip install pip-audit
-pip-audit
+pip-audit -r requirements.txt
 
 # Frontend Dependency Scan
 cd frontend
@@ -40,6 +40,11 @@ gitleaks detect --config .gitleaks.toml
 # Install: brew install trivy (macOS)
 trivy image riskhub-backend:latest
 trivy image riskhub-frontend:latest
+
+# SBOM generation (Syft) + correlation scan (Grype)
+# Install: brew install syft grype (macOS)
+syft riskhub-backend:latest -o json > sbom-backend.json
+grype sbom:sbom-backend.json --config backend/security/grype-ignore.yaml -o json > grype-backend.json
 
 # Security Headers Verification
 python scripts/verify_security_headers.py --mock  # CI mode
@@ -57,6 +62,8 @@ python scripts/verify_security_headers.py         # Against running server
 | **ESLint** | Frontend code quality | `frontend/eslint.config.js` | Pre-commit, CI |
 | **npm audit** | Frontend dependency vulnerabilities | CI | CI only |
 | **Trivy** | Container image scanning | CI | CI (push/schedule) |
+| **Syft** | SBOM generation for image inventory | CI | CI (push/schedule) |
+| **Grype** | SBOM vulnerability correlation gate | `backend/security/grype-ignore.yaml` | CI (push/schedule) |
 | **Gitleaks** | Secrets detection | `.gitleaks.toml` | Pre-commit, CI |
 
 ---
@@ -69,9 +76,11 @@ The security workflow (`.github/workflows/security.yml`) runs:
 |-----|---------|-------------------|
 | Python Security | PR, Push, Weekly | Report all |
 | Frontend Security | PR, Push, Weekly | High+ |
-| Container Scan | Push, Weekly | Critical, High |
-| Secrets Detection | PR, Push | Any |
+| Container Scan + SBOM Correlation | Push, Weekly | Trivy High+/Critical + Grype High+/Critical |
+| Secrets Detection | PR, Push | Config parse + full scan |
 | Security Headers | PR only | Required headers |
+
+Backend CI jobs in security/lint/e2e workflows use Python `3.13` to align with the backend runtime baseline.
 
 ### Viewing Results
 - GitHub Security tab shows SARIF results
@@ -98,6 +107,14 @@ The security workflow (`.github/workflows/security.yml`) runs:
 3. **Fix/Mitigate**: Patch, update, or add controls
 4. **Verify**: Confirm fix resolves issue
 5. **Document**: Update CHANGELOG, close issue
+
+### Scanner Discrepancy Policy (Trivy vs Grype)
+
+If Trivy is clean but Grype reports unresolved **High/Critical**, treat the result as an open vulnerability until one of the following is completed:
+- Runtime/package upgrade removes the finding.
+- A time-bound suppression is added to `backend/security/grype-ignore.yaml` with explicit owner, rationale, and expiry.
+
+A Trivy-only pass is not sufficient to close supply-chain risk when SBOM correlation fails.
 
 ### Known Issues Allowlist
 

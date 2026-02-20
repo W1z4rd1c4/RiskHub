@@ -501,7 +501,9 @@ test.describe('Polish Audit (page-by-page)', () => {
                     // Login (demo account picker)
                     await loginAsDemoUser(page, accountName);
 
-                    const authToken = await page.evaluate(() => localStorage.getItem('access_token'));
+                    const authToken = await page.evaluate(
+                        () => (window as Window & { __RISKHUB_ACCESS_TOKEN__?: string | null }).__RISKHUB_ACCESS_TOKEN__ ?? null
+                    );
                     if (!authToken) {
                         throw new Error('polish-audit: missing access_token after login');
                     }

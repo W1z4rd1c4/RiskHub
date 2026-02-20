@@ -4,13 +4,14 @@ Validates that KRI mutations require risks:* permissions.
 """
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 
 from app.models import Department, KeyRiskIndicator, Risk
 from app.models.risk import RiskStatus
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_risk_for_kri(db_session, test_department: Department, test_user):
     """Create a risk for KRI testing."""
     risk = Risk(
@@ -33,7 +34,7 @@ async def test_risk_for_kri(db_session, test_department: Department, test_user):
     return risk
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_kri(db_session, test_risk_for_kri: Risk):
     """Create a KRI for testing."""
     kri = KeyRiskIndicator(
@@ -301,7 +302,7 @@ async def test_kri_restore_rejects_not_archived(auth_client: AsyncClient, test_k
 # The client_employee fixture has risks:read but we need to check write/delete denial
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_role_no_write(db_session):
     """Create a role with only risks:read (no write/delete)."""
     from app.models import Permission, RolePermission
@@ -321,7 +322,7 @@ async def test_role_no_write(db_session):
     return role
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_user_readonly(db_session, test_department, test_role_no_write):
     """Create a user with read-only permissions."""
     from app.models import User as UserModel
@@ -352,7 +353,7 @@ async def test_user_readonly(db_session, test_department, test_role_no_write):
     return result.scalar_one()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client_readonly(db_session, test_user_readonly):
     """Client for read-only user."""
     from httpx import ASGITransport, AsyncClient
@@ -418,7 +419,7 @@ async def test_readonly_cannot_delete_kri(client_readonly: AsyncClient, test_kri
 # Tests for all-edit approval workflow
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_role_with_write(db_session):
     """Create a role with risks:write but NOT a privileged role (not CRO/Risk Manager/Admin)."""
     from sqlalchemy import select
@@ -447,7 +448,7 @@ async def test_role_with_write(db_session):
     return role
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_user_dept_head(db_session, test_department, test_role_with_write):
     """Create a department head user (has risks:write but not privileged)."""
     from sqlalchemy import select
@@ -477,7 +478,7 @@ async def test_user_dept_head(db_session, test_department, test_role_with_write)
     return result.scalar_one()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client_dept_head(db_session, test_user_dept_head):
     """Client for department head user (has write but not privileged)."""
     from httpx import ASGITransport, AsyncClient
@@ -539,7 +540,7 @@ async def test_privileged_user_can_edit_directly(auth_client: AsyncClient, test_
 # =============================================================================
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def cross_dept_for_kri(db_session):
     """Create a second department for cross-dept KRI tests."""
     dept = Department(
@@ -554,7 +555,7 @@ async def cross_dept_for_kri(db_session):
     return dept
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def cross_dept_risk_for_kri(db_session, cross_dept_for_kri: Department, test_user):
     """Create a risk in cross-dept for KRI testing."""
     risk = Risk(
@@ -577,7 +578,7 @@ async def cross_dept_risk_for_kri(db_session, cross_dept_for_kri: Department, te
     return risk
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def cross_dept_kri_with_reporting_owner(db_session, cross_dept_risk_for_kri: Risk, test_user):
     """Create a KRI in cross-dept with test_user as reporting owner."""
     kri = KeyRiskIndicator(

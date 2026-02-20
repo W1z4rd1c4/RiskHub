@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 
 import { server } from '@test/mocks/server';
+import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { RisksPage } from '@/pages/RisksPage';
@@ -45,11 +46,11 @@ function renderWithRoute(route: string) {
 
 describe('RisksPage archived visibility', () => {
     beforeEach(() => {
-        localStorage.setItem('access_token', 'test-token');
+        setAccessToken('test-token');
     });
 
     afterEach(() => {
-        localStorage.clear();
+        clearAccessToken();
     });
 
     it('hides archived risks by default and shows them when status filter is set to Archived', async () => {
@@ -107,4 +108,3 @@ describe('RisksPage archived visibility', () => {
         await screen.findByText('Archived Risk');
     });
 });
-

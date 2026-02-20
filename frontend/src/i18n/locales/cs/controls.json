@@ -98,7 +98,7 @@
     "unlink": "Odpojit",
     "unarchive": "Obnovit z archivu",
     "export": "Export",
-    "export_excel": "Export Excel"
+    "export_excel": "Exportovat CSV"
   },
   "audit_trail": {
     "title": "Auditní stopa",

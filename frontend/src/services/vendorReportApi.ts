@@ -30,8 +30,7 @@ export const vendorReportApi = {
     },
 
     async downloadDoraRegister(): Promise<void> {
-        const url = `/vendor-reports/dora-register?format=xlsx`;
-        await downloadFile(url, 'placeholder-xlsx-012.xlsx');
+        const url = '/vendor-reports/dora-register?format=csv';
+        await downloadFile(url, 'vendor-dora-register.csv');
     },
 };
-

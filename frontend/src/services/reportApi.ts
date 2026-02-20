@@ -5,7 +5,7 @@ interface ReportFilters {
     status?: string | null;
 }
 
-export type UnifiedExportFormat = 'xlsx' | 'csv';
+export type UnifiedExportFormat = 'csv';
 
 interface RiskExportFilters extends ReportFilters {
     search?: string | null;
@@ -45,18 +45,6 @@ interface AuditTrailFilters extends ReportFilters {
     controlId?: number | null;
     fromDate?: string | null;
     toDate?: string | null;
-}
-
-function buildQueryString(filters: ReportFilters): string {
-    const params = new URLSearchParams();
-    if (filters.departmentId) {
-        params.append('department_id', filters.departmentId.toString());
-    }
-    if (filters.status) {
-        params.append('status', filters.status);
-    }
-    const query = params.toString();
-    return query ? `?${query}` : '';
 }
 
 function buildAuditQueryString(filters: AuditTrailFilters): string {
@@ -136,41 +124,24 @@ async function downloadUnifiedExport(
         as_of_date: asOfDate,
         ...filters,
     });
-    const extension = format === 'xlsx' ? 'xlsx' : format;
-    await downloadFile(`/reports/${entity}/export${queryString}`, `${entity}-${asOfDate}.${extension}`);
+    await downloadFile(`/reports/${entity}/export${queryString}`, `${entity}-${asOfDate}.csv`);
 }
 
 export const reportApi = {
-    /**
-     * Download controls report as Excel.
-     */
-    async downloadControlsExcel(filters: ReportFilters = {}): Promise<void> {
-        const url = `/reports/controls/excel${buildQueryString(filters)}`;
-        await downloadFile(url, 'placeholder-xlsx-003.xlsx');
+    async downloadSummaryCsv(filters: ReportFilters = {}): Promise<void> {
+        const query = buildExportQueryString({
+            format: 'csv',
+            department_id: filters.departmentId,
+        });
+        const url = `/reports/summary/export${query}`;
+        await downloadFile(url, 'dashboard-summary.csv');
     },
 
-    /**
-     * Download risks report as Excel.
-     */
-    async downloadRisksExcel(filters: ReportFilters = {}): Promise<void> {
-        const url = `/reports/risks/excel${buildQueryString(filters)}`;
-        await downloadFile(url, 'placeholder-xlsx-011.xlsx');
-    },
-
-    /**
-     * Download dashboard summary as Excel.
-     */
-    async downloadSummaryExcel(filters: ReportFilters = {}): Promise<void> {
-        const url = `/reports/summary/excel${buildQueryString(filters)}`;
-        await downloadFile(url, 'placeholder-xlsx-004.xlsx');
-    },
-
-    /**
-     * Download audit trail report as Excel.
-     */
-    async downloadAuditTrailExcel(filters: AuditTrailFilters = {}): Promise<void> {
-        const url = `/reports/audit-trail/excel${buildAuditQueryString(filters)}`;
-        await downloadFile(url, 'placeholder-xlsx-001.xlsx');
+    async downloadAuditTrailCsv(filters: AuditTrailFilters = {}): Promise<void> {
+        const filterQuery = buildAuditQueryString(filters);
+        const separator = filterQuery ? '&' : '?';
+        const url = `/reports/audit-trail/export${filterQuery}${separator}format=csv`;
+        await downloadFile(url, 'audit-trail.csv');
     },
 
     async exportRisks(request: ExportRequest<RiskExportFilters>): Promise<void> {
