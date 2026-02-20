@@ -2,6 +2,8 @@
  * Authentication API client for JWT-based authentication
  */
 
+import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
+
 const API_URL = '/api/v1/auth';
 
 export type AuthMode = 'password' | 'microsoft_sso' | 'hybrid_dev';
@@ -15,8 +17,6 @@ export interface AuthConfigResponse {
     auth_mode: AuthMode;
     demo_login_enabled: boolean;
     password_login_enabled: boolean;
-    debug: boolean;
-    mock_auth_enabled: boolean;
     sso: {
         enabled: boolean;
         provider: 'entra';
@@ -123,7 +123,7 @@ export const authApi = {
     },
 
     async logoutAll(): Promise<void> {
-        const accessToken = localStorage.getItem('access_token');
+        const accessToken = getAccessToken();
         const response = await fetch(`${API_URL}/logout-all`, {
             method: 'POST',
             headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
@@ -134,7 +134,7 @@ export const authApi = {
             const error = await response.json().catch(() => ({}));
             throw new Error((error as { detail?: string }).detail || 'Logout all failed');
         }
-        localStorage.removeItem('access_token');
+        clearAccessToken();
     },
 
     async logout(): Promise<void> {
@@ -143,6 +143,6 @@ export const authApi = {
             credentials: 'include',
         }).catch(() => null);
 
-        localStorage.removeItem('access_token');
+        clearAccessToken();
     },
 };

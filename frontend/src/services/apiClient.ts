@@ -1,4 +1,5 @@
 import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
+import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
 import { silentReauthAndExchange } from '@/services/ssoSession';
 
 // Use relative URL for nginx proxy (enables LAN access)
@@ -119,7 +120,7 @@ class ApiClient {
         const pathname = url.pathname;
 
         const headers = new Headers(init.headers);
-        const token = localStorage.getItem('access_token');
+        const token = getAccessToken();
         if (token) {
             headers.set('Authorization', `Bearer ${token}`);
         }
@@ -139,7 +140,7 @@ class ApiClient {
                     }
                 }
 
-                localStorage.removeItem('access_token');
+                clearAccessToken();
                 window.location.href = '/login';
                 throw new ApiClientError({
                     status: 401,
@@ -217,7 +218,7 @@ class ApiClient {
         const pathname = url.pathname;
 
         const headers = new Headers(init.headers);
-        const token = localStorage.getItem('access_token');
+        const token = getAccessToken();
         if (token) {
             headers.set('Authorization', `Bearer ${token}`);
         }
@@ -233,7 +234,7 @@ class ApiClient {
                     }
                 }
 
-                localStorage.removeItem('access_token');
+                clearAccessToken();
                 window.location.href = '/login';
                 throw new ApiClientError({
                     status: 401,

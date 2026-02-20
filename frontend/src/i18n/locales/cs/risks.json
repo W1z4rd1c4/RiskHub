@@ -206,7 +206,7 @@
     "unlink": "Odpojit",
     "unarchive": "Obnovit z archivu",
     "export": "Export",
-    "export_excel": "Export Excel",
+    "export_excel": "Exportovat CSV",
     "back_to_register": "Zpět do registru"
   },
   "form": {

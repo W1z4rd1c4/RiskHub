@@ -7,6 +7,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@test/mocks/server';
 import LoginPage from '@/pages/LoginPage';
 import SsoCallbackPage from '@/pages/SsoCallbackPage';
+import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
 import { entraAuth } from '@/services/entraAuth';
 
 // Mock i18next so tests don't depend on full i18n initialization.
@@ -46,6 +47,7 @@ function renderLogin(initialEntry = '/login') {
 
 describe('LoginPage (SSO + demo modes)', () => {
   beforeEach(() => {
+    clearAccessToken();
     vi.mocked(entraAuth.handleRedirect).mockResolvedValue(null);
     vi.mocked(entraAuth.loginRedirect).mockResolvedValue(undefined);
   });
@@ -62,8 +64,6 @@ describe('LoginPage (SSO + demo modes)', () => {
           auth_mode: 'microsoft_sso',
           demo_login_enabled: false,
           password_login_enabled: false,
-          debug: false,
-          mock_auth_enabled: false,
           sso: {
             enabled: true,
             provider: 'entra',
@@ -88,8 +88,6 @@ describe('LoginPage (SSO + demo modes)', () => {
           auth_mode: 'microsoft_sso',
           demo_login_enabled: false,
           password_login_enabled: false,
-          debug: false,
-          mock_auth_enabled: false,
           sso: {
             enabled: true,
             provider: 'entra',
@@ -119,8 +117,6 @@ describe('LoginPage (SSO + demo modes)', () => {
           auth_mode: 'microsoft_sso',
           demo_login_enabled: false,
           password_login_enabled: false,
-          debug: false,
-          mock_auth_enabled: false,
           sso: {
             enabled: true,
             provider: 'entra',
@@ -161,7 +157,7 @@ describe('LoginPage (SSO + demo modes)', () => {
     renderLogin('/auth/sso/callback');
 
     await waitFor(() => {
-      expect(localStorage.getItem('access_token')).toBe('exchanged-riskhub-token');
+      expect(getAccessToken()).toBe('exchanged-riskhub-token');
       expect(hardNavigate).toHaveBeenCalledWith('/controls');
     });
   });

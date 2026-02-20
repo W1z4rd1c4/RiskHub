@@ -90,7 +90,7 @@
     "link_risk": "Propojit riziko",
     "unarchive": "Obnovit z archivu",
     "export": "Export",
-    "export_excel": "Export Excel"
+    "export_excel": "Exportovat CSV"
   },
   "alerts": {
     "breach_alert": "Upozornění na překročení",

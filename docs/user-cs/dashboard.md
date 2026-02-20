@@ -173,7 +173,7 @@ Některé deploymenty mají committee/overview toggle.
 
 ### Exporty
 
-Dashboard může mít summary export (např. Excel).
+Dashboard podporuje summary export (CSV).
 
 Disciplína exportu:
 

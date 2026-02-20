@@ -170,7 +170,7 @@ Use overview view when:
 
 ### Exports
 
-Dashboard supports a summary export (for example, Excel summary download).
+Dashboard supports a summary export (CSV download).
 
 Export discipline:
 

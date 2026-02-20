@@ -242,7 +242,7 @@ export function DashboardPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => reportApi.downloadSummaryExcel({ departmentId: filters.departmentId })}
+                        onClick={() => reportApi.downloadSummaryCsv({ departmentId: filters.departmentId })}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
                         title={t('actions.export_summary_excel')}
                     >

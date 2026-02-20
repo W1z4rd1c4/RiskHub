@@ -8,12 +8,8 @@ Business/service-layer logic for `_reporting`.
 
 - `__init__.py`
 - `__pycache__/`
-- `audit_excel.py`
-- `controls_excel.py`
 - `counts.py`
-- `risks_excel.py`
 - `tabular.py`
-- `vendor_reports.py`
 
 ## Notes
 

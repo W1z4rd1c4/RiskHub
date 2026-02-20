@@ -1,0 +1,22 @@
+# Grype suppressions for RiskHub container scanning.
+# Keep this list minimal and time-bound.
+#
+# Required fields for each suppression entry:
+# - vulnerability: CVE identifier
+# - reason: why accepted
+# - expires-on: YYYY-MM-DD
+# - package.name: affected package
+# - package.version: affected version (or range rationale in reason)
+# - fix-state: optional, e.g. "not-fixed"
+#
+# Example:
+# ignore:
+#   - vulnerability: CVE-2099-0001
+#     reason: "No upstream fix; mitigated by strict egress controls. Owner: Platform."
+#     expires-on: 2026-06-30
+#     package:
+#       name: python
+#       version: 3.13.0
+#     fix-state: not-fixed
+
+ignore: []
