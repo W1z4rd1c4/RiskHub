@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-02-20
 
 ## Top-Level Layout
 
@@ -27,6 +27,8 @@
 - `backend/app/middleware/` - security/logging/language middleware
 - `backend/app/integrations/` - AD emulator and vendor-signal connectors
 - `backend/alembic/` - migration environment and versioned migrations
+- `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
+- `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/backend/pytest/` - 234 test files (82 Python)
 
 ## Frontend Tree (`frontend/`)
@@ -43,6 +45,7 @@
 - `frontend/src/authz/` - authz policy derivation hooks
 - `frontend/src/hooks/` - shared hooks
 - `frontend/src/i18n/` - locale resources and typed translation hooks
+- `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
 - `tests/frontend/e2e/` - 38 E2E specs (domain-focused test suites)
 
@@ -62,6 +65,7 @@
 - `.github/workflows/security.yml` - security scanning flow
 - `docker-compose.yml` and `docker-compose.prod.yml` - service topology
 - `scripts/Makefile` - local command entrypoints
+- `docs/deployment/component-runtime-entrypoints.md` - component runtime command contract
 
 ## Generated or Heavy Directories (avoid manual edits)
 
@@ -73,4 +77,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-02-16*
+*Structure audit refreshed on 2026-02-20*

@@ -1,7 +1,7 @@
 # RiskHub Installation Manual (Single-Host Docker)
 
-> **Version**: 1.0  
-> **Last Updated**: 2026-02-16  
+> **Version**: 1.1  
+> **Last Updated**: 2026-02-20  
 > **Audience**: IT / DevOps / Platform Engineering  
 > **Scope**: on-prem single-host install; TLS termination handled outside containers
 
@@ -228,6 +228,22 @@ Deploy order is enforced:
 8. build frontend image
 9. install frontend container
 10. smoke test
+
+## Component-Scoped Runtime Entrypoints (Optional Operations)
+
+Root orchestrators remain canonical for full-stack operations:
+- `scripts/dev.sh`
+- `scripts/setup.sh`
+- `scripts/prod/*`
+
+When you need to launch or update only one surface, use component entrypoints:
+
+- Frontend: `frontend/scripts/runtime/{dev,test,prod}.sh`
+- Backend: `backend/scripts/runtime/{dev,test,prod}.sh`
+- Database (backend-owned): `backend/scripts/runtime/db/{dev,test,prod}.sh`
+
+See full command matrix and usage examples in:
+- `docs/deployment/component-runtime-entrypoints.md`
 
 ## First Login and Bootstrap Users (SSO Safety)
 
