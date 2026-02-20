@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Download, FileDown, X } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
-export type ExportFormat = 'xlsx' | 'csv';
+export type ExportFormat = 'csv';
 
 export interface ExportDialogSubmitPayload {
     format: ExportFormat;
@@ -36,30 +35,20 @@ export function ExportDialog({
     dataTestId = 'export-dialog',
 }: ExportDialogProps) {
     const { t } = useTranslation('common');
-    const [format, setFormat] = useState<ExportFormat>('xlsx');
     const [asOfDate, setAsOfDate] = useState<string>(getTodayLocalDate());
 
     useEffect(() => {
         if (!isOpen) {
             return;
         }
-        setFormat('xlsx');
         setAsOfDate(getTodayLocalDate());
     }, [isOpen]);
-
-    const formatOptions = useMemo(
-        () => [
-            { value: 'xlsx', label: t('placeholder-xlsx-006.xlsx') },
-            { value: 'csv', label: t('export.formats.csv') },
-        ],
-        [t],
-    );
 
     const handleSubmit = async () => {
         if (!asOfDate || isSubmitting) {
             return;
         }
-        await onSubmit({ format, asOfDate });
+        await onSubmit({ format: 'csv', asOfDate });
     };
 
     if (!isOpen || typeof document === 'undefined') {
@@ -110,20 +99,6 @@ export function ExportDialog({
                         </div>
 
                         <div className="p-6 space-y-5">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                    {t('export.fields.format')}
-                                </label>
-                                <ThemedSelect
-                                    value={format}
-                                    onValueChange={(value) => setFormat(value as ExportFormat)}
-                                    options={formatOptions}
-                                    triggerTestId="export-format-trigger"
-                                    contentTestId="export-format-content"
-                                    optionTestIdPrefix="export-format-option"
-                                />
-                            </div>
-
                             <div className="space-y-2">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
                                     {t('export.fields.date')}

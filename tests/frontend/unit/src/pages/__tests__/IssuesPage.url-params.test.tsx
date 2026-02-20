@@ -33,7 +33,7 @@ vi.mock('@/components/reports/ExportDialog', () => ({
         onSubmit,
     }: {
         isOpen: boolean;
-        onSubmit: (payload: { format: 'csv' | 'xlsx'; asOfDate: string }) => Promise<void>;
+        onSubmit: (payload: { format: 'csv'; asOfDate: string }) => Promise<void>;
     }) =>
         isOpen ? (
             <button type="button" onClick={() => void onSubmit({ format: 'csv', asOfDate: '2026-02-14' })}>

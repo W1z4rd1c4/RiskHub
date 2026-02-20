@@ -40,7 +40,7 @@ async function fetchAllForGroupedView(
     const pageSize = GROUPED_VIEW_FETCH_PAGE_SIZE;
     let allControls: ControlSummary[] = [];
     let skip = 0;
-    let total = 0;
+    let total: number;
 
     do {
         const response = await controlApi.getControls({

@@ -615,7 +615,7 @@ RiskHub provides unified list export endpoints for:
 - Issues: `/api/v1/reports/issues/export`
 
 Shared query contract:
-- `format` = `xlsx` | `csv`
+- `format` = `csv` (`xlsx` returns `410 excel_export_removed`)
 - `as_of_date` = `YYYY-MM-DD` (optional; defaults to current date)
 - Issues export supports additional filters:
   - `status`
@@ -628,7 +628,7 @@ Shared query contract:
 
 List pages (Risks, Controls, KRIs, Vendors) use:
 - One **Export** button per page
-- Modal selection of format + as-of date
+- Modal selection of as-of date (CSV export only)
 - Page filter-aware exports (status/search/type where relevant)
 
 ### 10.3 Access Scope Enforcement
@@ -644,13 +644,15 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - KRIs: archived items included when status filter is `archived`
 - Vendors: archived semantics use `status = inactive`
 
-### 10.5 Specialized Excel Exports
+### 10.5 Specialized CSV Exports
 
-Specialized report exports are Excel-only:
-- `/api/v1/reports/summary/excel`
-- `/api/v1/reports/audit-trail/excel`
-- `/api/v1/vendor-reports/annual?format=xlsx`
-- `/api/v1/vendor-reports/dora-register?format=xlsx`
+Specialized report exports are CSV:
+- `/api/v1/reports/summary/export?format=csv`
+- `/api/v1/reports/audit-trail/export?format=csv`
+- `/api/v1/vendor-reports/annual?format=csv`
+- `/api/v1/vendor-reports/dora-register?format=csv`
+
+Legacy Excel endpoints return `410` with replacement metadata.
 
 ---
 

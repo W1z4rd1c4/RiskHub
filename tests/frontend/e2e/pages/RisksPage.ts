@@ -161,20 +161,17 @@ export class RisksPage {
         await expect(this.exportDialog).toBeVisible();
     }
 
-    async chooseExportFormat(format: 'xlsx' | 'csv'): Promise<void> {
-        const option = this.page.getByTestId(`export-format-option-${format}`);
-        const visible = await option.isVisible().catch(() => false);
-        if (!visible) {
-            await this.exportFormatTrigger.click();
+    async chooseExportFormat(format: 'csv'): Promise<void> {
+        if (format !== 'csv') {
+            throw new Error('Only CSV export is supported');
         }
-        await option.click();
     }
 
     async setExportDate(date: string): Promise<void> {
         await this.exportDateInput.fill(date);
     }
 
-    async submitExport(format: 'xlsx' | 'csv'): Promise<void> {
+    async submitExport(format: 'csv' = 'csv'): Promise<void> {
         await Promise.all([
             this.page.waitForResponse((response) => {
                 if (response.request().method() !== 'GET') return false;

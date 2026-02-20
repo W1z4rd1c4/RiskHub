@@ -210,7 +210,7 @@ export async function cleanupTestData(ids: CleanupIds): Promise<void> {
  */
 export async function getTokenFromPage(page: Page): Promise<string | null> {
     return page.evaluate(() => {
-        return localStorage.getItem('access_token');
+        return (window as Window & { __RISKHUB_ACCESS_TOKEN__?: string | null }).__RISKHUB_ACCESS_TOKEN__ ?? null;
     });
 }
 

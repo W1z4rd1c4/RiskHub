@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from io import StringIO
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +23,7 @@ from app.models import (
 )
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def second_department(db_session: AsyncSession) -> Department:
     """Create a second department for cross-department testing."""
     dept = Department(name="Finance", code="FIN", description="Finance department")
@@ -32,7 +33,7 @@ async def second_department(db_session: AsyncSession) -> Department:
     return dept
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_control_other_dept(db_session: AsyncSession, second_department: Department, test_user: User) -> Control:
     """Create a control in a different department."""
     control = Control(
@@ -48,7 +49,7 @@ async def test_control_other_dept(db_session: AsyncSession, second_department: D
     return control
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_control_own_dept(db_session: AsyncSession, test_department: Department, test_user: User) -> Control:
     """Create a control in the test user's department."""
     control = Control(
@@ -64,7 +65,7 @@ async def test_control_own_dept(db_session: AsyncSession, test_department: Depar
     return control
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_risk_other_dept(db_session: AsyncSession, second_department: Department, test_user: User) -> Risk:
     """Create a risk in a different department."""
     risk = Risk(
@@ -92,39 +93,39 @@ class TestReportPermissions:
     """Test permission enforcement on report endpoints."""
 
     @pytest.mark.asyncio
-    async def test_admin_can_export_all_controls_excel(
+    async def test_admin_can_export_all_controls_csv(
         self,
         auth_client: AsyncClient,
         test_control_own_dept: Control,
         test_control_other_dept: Control,
     ):
         """Admin (privileged) can export controls from all departments."""
-        response = await auth_client.get("/api/v1/reports/controls/excel")
+        response = await auth_client.get("/api/v1/reports/controls/export?format=csv")
         assert response.status_code == 200
-        assert "spreadsheetml" in response.headers["content-type"]
+        assert "text/csv" in response.headers["content-type"]
 
     @pytest.mark.asyncio
-    async def test_admin_can_export_all_risks_excel(
+    async def test_admin_can_export_all_risks_csv(
         self,
         auth_client: AsyncClient,
         test_risk: Risk,
         test_risk_other_dept: Risk,
     ):
         """Admin can export risks from all departments."""
-        response = await auth_client.get("/api/v1/reports/risks/excel")
+        response = await auth_client.get("/api/v1/reports/risks/export?format=csv")
         assert response.status_code == 200
-        assert "spreadsheetml" in response.headers["content-type"]
+        assert "text/csv" in response.headers["content-type"]
 
     @pytest.mark.asyncio
-    async def test_admin_can_export_summary_excel(
+    async def test_admin_can_export_summary_csv(
         self,
         auth_client: AsyncClient,
         test_control_own_dept: Control,
     ):
         """Admin can export dashboard summary."""
-        response = await auth_client.get("/api/v1/reports/summary/excel")
+        response = await auth_client.get("/api/v1/reports/summary/export?format=csv")
         assert response.status_code == 200
-        assert "spreadsheetml" in response.headers["content-type"]
+        assert "text/csv" in response.headers["content-type"]
 
 
 class TestReportDepartmentScoping:
@@ -138,7 +139,9 @@ class TestReportDepartmentScoping:
         test_control_other_dept: Control,
     ):
         """Employee cannot request export for a department they don't belong to."""
-        response = await client_employee.get(f"/api/v1/reports/controls/excel?department_id={second_department.id}")
+        response = await client_employee.get(
+            f"/api/v1/reports/controls/export?format=csv&department_id={second_department.id}"
+        )
         assert response.status_code == 403
         assert "Access denied" in response.json()["detail"]
 
@@ -149,9 +152,9 @@ class TestReportDepartmentScoping:
         test_control_own_dept: Control,
     ):
         """Employee can export controls from their own department."""
-        response = await client_employee.get("/api/v1/reports/controls/excel")
+        response = await client_employee.get("/api/v1/reports/controls/export?format=csv")
         assert response.status_code == 200
-        assert "spreadsheetml" in response.headers["content-type"]
+        assert "text/csv" in response.headers["content-type"]
 
     @pytest.mark.asyncio
     async def test_employee_can_export_own_department_risks(
@@ -160,8 +163,9 @@ class TestReportDepartmentScoping:
         test_risk: Risk,
     ):
         """Employee can export risks from their own department."""
-        response = await client_employee.get("/api/v1/reports/risks/excel")
+        response = await client_employee.get("/api/v1/reports/risks/export?format=csv")
         assert response.status_code == 200
+        assert "text/csv" in response.headers["content-type"]
 
     @pytest.mark.asyncio
     async def test_employee_cross_department_risks_blocked(
@@ -171,7 +175,9 @@ class TestReportDepartmentScoping:
         test_risk_other_dept: Risk,
     ):
         """Employee cannot export risks from another department."""
-        response = await client_employee.get(f"/api/v1/reports/risks/excel?department_id={second_department.id}")
+        response = await client_employee.get(
+            f"/api/v1/reports/risks/export?format=csv&department_id={second_department.id}"
+        )
         assert response.status_code == 403
 
     @pytest.mark.asyncio
@@ -181,34 +187,45 @@ class TestReportDepartmentScoping:
         test_control_own_dept: Control,
     ):
         """Employee's summary export only includes their department data."""
-        response = await client_employee.get("/api/v1/reports/summary/excel")
+        response = await client_employee.get("/api/v1/reports/summary/export?format=csv")
         assert response.status_code == 200
+        assert "text/csv" in response.headers["content-type"]
 
 
 class TestReportExcelEndpoints:
-    """Test Excel export endpoints RBAC behavior."""
+    """Test legacy Excel endpoint bridge behavior."""
 
     @pytest.mark.asyncio
-    async def test_admin_can_export_controls_excel(
+    async def test_admin_controls_excel_endpoint_returns_gone(
         self,
         auth_client: AsyncClient,
         test_control_own_dept: Control,
     ):
-        """Admin can export controls as Excel."""
+        """Legacy Excel endpoint is removed and returns 410."""
         response = await auth_client.get("/api/v1/reports/controls/excel")
-        assert response.status_code == 200
-        assert "spreadsheetml" in response.headers["content-type"]
+        assert response.status_code == 410
+        assert response.json()["detail"]["code"] == "excel_export_removed"
 
     @pytest.mark.asyncio
-    async def test_admin_can_export_risks_excel(
+    async def test_admin_risks_excel_endpoint_returns_gone(
         self,
         auth_client: AsyncClient,
         test_risk: Risk,
     ):
-        """Admin can export risks as Excel."""
+        """Legacy Excel endpoint is removed and returns 410."""
         response = await auth_client.get("/api/v1/reports/risks/excel")
-        assert response.status_code == 200
-        assert "spreadsheetml" in response.headers["content-type"]
+        assert response.status_code == 410
+        assert response.json()["detail"]["code"] == "excel_export_removed"
+
+    @pytest.mark.asyncio
+    async def test_admin_summary_excel_endpoint_returns_gone(
+        self,
+        auth_client: AsyncClient,
+        test_control_own_dept: Control,
+    ):
+        response = await auth_client.get("/api/v1/reports/summary/excel")
+        assert response.status_code == 410
+        assert response.json()["detail"]["code"] == "excel_export_removed"
 
     @pytest.mark.asyncio
     async def test_employee_cannot_export_cross_department_excel(
@@ -217,7 +234,7 @@ class TestReportExcelEndpoints:
         second_department: Department,
         test_control_other_dept: Control,
     ):
-        """Employee blocked from cross-department Excel export."""
+        """Employee remains blocked from cross-department legacy endpoint."""
         response = await client_employee.get(f"/api/v1/reports/controls/excel?department_id={second_department.id}")
         assert response.status_code == 403
 
@@ -231,13 +248,13 @@ class TestUnifiedExportEndpoints:
         auth_client: AsyncClient,
         test_risk: Risk,
     ):
-        for fmt in ("xlsx", "csv"):
-            response = await auth_client.get(f"/api/v1/reports/risks/export?format={fmt}")
-            assert response.status_code == 200
-            if fmt == "xlsx":
-                assert "spreadsheetml" in response.headers["content-type"]
-            else:
-                assert "text/csv" in response.headers["content-type"]
+        csv_response = await auth_client.get("/api/v1/reports/risks/export?format=csv")
+        assert csv_response.status_code == 200
+        assert "text/csv" in csv_response.headers["content-type"]
+
+        excel_removed = await auth_client.get("/api/v1/reports/risks/export?format=xlsx")
+        assert excel_removed.status_code == 410
+        assert excel_removed.json()["detail"]["code"] == "excel_export_removed"
 
     @pytest.mark.asyncio
     async def test_control_unified_export_supports_supported_formats(
@@ -245,13 +262,13 @@ class TestUnifiedExportEndpoints:
         auth_client: AsyncClient,
         test_control_own_dept: Control,
     ):
-        for fmt in ("xlsx", "csv"):
-            response = await auth_client.get(f"/api/v1/reports/controls/export?format={fmt}")
-            assert response.status_code == 200
-            if fmt == "xlsx":
-                assert "spreadsheetml" in response.headers["content-type"]
-            else:
-                assert "text/csv" in response.headers["content-type"]
+        csv_response = await auth_client.get("/api/v1/reports/controls/export?format=csv")
+        assert csv_response.status_code == 200
+        assert "text/csv" in csv_response.headers["content-type"]
+
+        excel_removed = await auth_client.get("/api/v1/reports/controls/export?format=xlsx")
+        assert excel_removed.status_code == 410
+        assert excel_removed.json()["detail"]["code"] == "excel_export_removed"
 
     @pytest.mark.asyncio
     async def test_risk_unified_export_csv_includes_name_column_and_values(
@@ -412,11 +429,15 @@ class TestUnifiedExportEndpoints:
         db_session.add_all([kri, vendor])
         await db_session.commit()
 
-        for fmt in ("xlsx", "csv"):
-            kri_resp = await auth_client.get(f"/api/v1/reports/kris/export?format={fmt}")
-            vendor_resp = await auth_client.get(f"/api/v1/reports/vendors/export?format={fmt}")
-            assert kri_resp.status_code == 200
-            assert vendor_resp.status_code == 200
+        kri_resp = await auth_client.get("/api/v1/reports/kris/export?format=csv")
+        vendor_resp = await auth_client.get("/api/v1/reports/vendors/export?format=csv")
+        assert kri_resp.status_code == 200
+        assert vendor_resp.status_code == 200
+
+        kri_excel_removed = await auth_client.get("/api/v1/reports/kris/export?format=xlsx")
+        vendor_excel_removed = await auth_client.get("/api/v1/reports/vendors/export?format=xlsx")
+        assert kri_excel_removed.status_code == 410
+        assert vendor_excel_removed.status_code == 410
 
     @pytest.mark.asyncio
     async def test_vendor_as_of_export_replays_post_cutoff_status_change(

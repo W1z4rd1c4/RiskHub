@@ -38,7 +38,7 @@
     "name": "RiskHub"
   },
   "formats": {
-    "excel": "Excel"
+    "excel": "CSV"
   },
   "export": {
     "button": "Export",
@@ -48,7 +48,7 @@
       "date": "Stav k datu"
     },
     "formats": {
-      "xlsx": "Excel (.xlsx)",
+      "xlsx": "CSV (.csv)",
       "csv": "CSV (.csv)"
     },
     "actions": {
@@ -227,7 +227,7 @@
   },
   "tooltips": {
     "refresh_log": "Obnovit záznamy",
-    "export_summary_excel": "Exportovat souhrn do Excelu",
+    "export_summary_excel": "Exportovat souhrn do CSV",
     "view_changes": "Zobrazit změny",
     "cancel_request": "Zrušit požadavek"
   },

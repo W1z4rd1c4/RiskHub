@@ -38,7 +38,7 @@
     "name": "RiskHub"
   },
   "formats": {
-    "excel": "Excel"
+    "excel": "CSV"
   },
   "export": {
     "button": "Export",
@@ -48,7 +48,7 @@
       "date": "As of date"
     },
     "formats": {
-      "xlsx": "Excel (.xlsx)",
+      "xlsx": "CSV (.csv)",
       "csv": "CSV (.csv)"
     },
     "actions": {
@@ -227,7 +227,7 @@
   },
   "tooltips": {
     "refresh_log": "Refresh Log",
-    "export_summary_excel": "Export Summary Excel",
+    "export_summary_excel": "Export Summary CSV",
     "view_changes": "View Changes",
     "cancel_request": "Cancel Request"
   },

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 const getCurrentUserMock = vi.fn();
@@ -41,17 +42,19 @@ function Probe() {
 describe('Auth preference hydration ordering', () => {
   beforeEach(() => {
     localStorage.clear();
+    clearAccessToken();
     window.__RISKHUB_PREFERENCES_READY__ = undefined;
   });
 
   afterEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    clearAccessToken();
     window.__RISKHUB_PREFERENCES_READY__ = undefined;
   });
 
   it('does not mark auth ready until preferences are synced from server', async () => {
-    localStorage.setItem('access_token', 'fake-token');
+    setAccessToken('fake-token');
 
     getCurrentUserMock.mockResolvedValueOnce({
       id: 1,

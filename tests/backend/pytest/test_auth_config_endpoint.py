@@ -25,6 +25,8 @@ async def test_auth_config_password_mode(client: AsyncClient):
         assert body["auth_mode"] == "password"
         assert body["password_login_enabled"] is True
         assert body["demo_login_enabled"] is False
+        assert "debug" not in body
+        assert "mock_auth_enabled" not in body
         assert body["sso"]["enabled"] is False
     finally:
         app.dependency_overrides.clear()
@@ -50,6 +52,8 @@ async def test_auth_config_hybrid_dev_enables_demo_and_optional_sso(client: Asyn
         assert body["auth_mode"] == "hybrid_dev"
         assert body["demo_login_enabled"] is True
         assert body["password_login_enabled"] is True
+        assert "debug" not in body
+        assert "mock_auth_enabled" not in body
         assert body["sso"]["enabled"] is True
         assert body["sso"]["provider"] == "entra"
         assert body["sso"]["tenant_id"] == "00000000-0000-0000-0000-000000000000"
@@ -77,6 +81,8 @@ async def test_auth_config_microsoft_sso_missing_config_sets_sso_error(client: A
         body = res.json()
         assert body["auth_mode"] == "microsoft_sso"
         assert body["password_login_enabled"] is False
+        assert "debug" not in body
+        assert "mock_auth_enabled" not in body
         assert body["sso"]["enabled"] is False
         assert body["sso_error"]
     finally:

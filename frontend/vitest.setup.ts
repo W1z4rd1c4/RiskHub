@@ -60,6 +60,8 @@ afterEach(async () => {
     if (typeof localStorage !== 'undefined') {
         localStorage.clear();
     }
+    const tokenStore = await import('./src/services/accessTokenStore');
+    tokenStore.clearAccessToken();
     // Clear auth config cache between tests to avoid cross-test leakage.
     const mod = await import('./src/services/authConfig');
     mod.clearAuthConfigCache();

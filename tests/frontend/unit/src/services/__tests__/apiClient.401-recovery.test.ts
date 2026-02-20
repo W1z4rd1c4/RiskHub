@@ -1,8 +1,10 @@
+import { clearAccessToken } from '@/services/accessTokenStore';
 import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/services/ssoSession', () => ({
     silentReauthAndExchange: vi.fn(async () => {
-        localStorage.setItem('access_token', 'refreshed-token');
+        const { setAccessToken } = await import('@/services/accessTokenStore');
+        setAccessToken('refreshed-token');
         return 'refreshed-token';
     }),
 }));
@@ -15,6 +17,7 @@ import { silentReauthAndExchange } from '@/services/ssoSession';
 
 describe('apiClient 401 recovery', () => {
     it('attempts silent reauth once and retries the request', async () => {
+        clearAccessToken();
         let calls = 0;
         let secondAuthHeader: string | null = null;
 
@@ -35,4 +38,3 @@ describe('apiClient 401 recovery', () => {
         expect(secondAuthHeader).toBe('Bearer refreshed-token');
     });
 });
-

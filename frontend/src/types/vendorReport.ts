@@ -1,1 +1,1 @@
-export type VendorReportFormat = 'xlsx';
+export type VendorReportFormat = 'csv';

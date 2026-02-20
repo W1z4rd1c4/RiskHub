@@ -37,7 +37,7 @@
     "calculated": "Vypočteno"
   },
   "actions": {
-    "export_summary_excel": "Exportovat souhrn do Excelu"
+    "export_summary_excel": "Exportovat souhrn do CSV"
   },
   "risk_distribution_matrix": {
     "axis": {

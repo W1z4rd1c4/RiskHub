@@ -9,21 +9,38 @@ from app.core.permissions import get_user_department_ids
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, Risk, User
-from app.services.report_service import generate_tabular_excel
+from app.services.report_service import generate_tabular_csv
 
 from ._scoping import _user_has_no_departments, _validate_department_access
-from ._streaming import _stream_binary
+from ._streaming import ExportFormatQuery, _stream_binary, excel_export_removed, resolve_export_format
 
 router = APIRouter()
 
 
-@router.get("/summary/excel")
-async def download_summary_excel(
-    department_id: Optional[int] = Query(None, description="Filter by department"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("reports", "read")),
-):
-    """Download dashboard summary as Excel. Scoped to user's accessible departments."""
+def _build_summary_rows(summary: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
+    headers = ["Metric", "Value"]
+    rows: list[list[Any]] = [
+        ["Total Controls", summary.get("total_controls", 0)],
+        ["Total Risks", summary.get("total_risks", 0)],
+        ["Critical Risks", summary.get("critical_risks_count", 0)],
+        ["Average Net Risk Score", f"{float(summary.get('average_net_risk_score', 0)):.1f}"],
+    ]
+
+    controls_by_status = summary.get("controls_by_status") or {}
+    if controls_by_status:
+        rows.append(["", ""])
+        rows.append(["Controls by Status", ""])
+        for ctrl_status, count in controls_by_status.items():
+            rows.append([str(ctrl_status).title(), count])
+    return headers, rows
+
+
+async def _build_summary_payload(
+    *,
+    db: AsyncSession,
+    current_user: User,
+    department_id: Optional[int],
+) -> tuple[list[str], list[list[Any]]]:
     dept_ids = get_user_department_ids(current_user)
     _validate_department_access(department_id, dept_ids)
 
@@ -74,24 +91,31 @@ async def download_summary_excel(
             "controls_by_status": controls_by_status,
         }
 
-    headers = ["Metric", "Value"]
-    rows: list[list[Any]] = [
-        ["Total Controls", summary.get("total_controls", 0)],
-        ["Total Risks", summary.get("total_risks", 0)],
-        ["Critical Risks", summary.get("critical_risks_count", 0)],
-        ["Average Net Risk Score", f"{float(summary.get('average_net_risk_score', 0)):.1f}"],
-    ]
+    return _build_summary_rows(summary)
 
-    controls_by_status = summary.get("controls_by_status") or {}
-    if controls_by_status:
-        rows.append(["", ""])
-        rows.append(["Controls by Status", ""])
-        for ctrl_status, count in controls_by_status.items():
-            rows.append([str(ctrl_status).title(), count])
 
+@router.get("/summary/excel")
+async def download_summary_excel(
+    department_id: Optional[int] = Query(None, description="Filter by department"),
+    current_user: User = Depends(require_permission("reports", "read")),
+):
+    dept_ids = get_user_department_ids(current_user)
+    _validate_department_access(department_id, dept_ids)
+    raise excel_export_removed(replacement="/api/v1/reports/summary/export?format=csv")
+
+
+@router.get("/summary/export")
+async def download_summary_export(
+    format: ExportFormatQuery = Query(..., description="Export format: csv"),
+    department_id: Optional[int] = Query(None, description="Filter by department"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("reports", "read")),
+):
+    export_format = resolve_export_format(format, replacement="/api/v1/reports/summary/export?format=csv")
+    headers, rows = await _build_summary_payload(db=db, current_user=current_user, department_id=department_id)
     return _stream_binary(
         filename_base="dashboard-summary",
-        export_format="xlsx",
-        content_bytes=generate_tabular_excel("Dashboard Summary", headers, rows),
+        export_format=export_format,
+        content_bytes=generate_tabular_csv(headers, rows),
         as_of_date=datetime.now(UTC).date(),
     )

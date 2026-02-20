@@ -11,7 +11,8 @@ from app.models import User
 from app.models.issue import IssueSeverity, IssueStatus
 
 from .._scoping import _validate_department_access
-from ._shared import ExportFormat, KRIExportStatus
+from .._streaming import resolve_export_format
+from ._shared import ExportFormatQuery, KRIExportStatus
 from .exports import _export_controls, _export_issues, _export_kris, _export_risks, _export_vendors
 
 router = APIRouter()
@@ -19,7 +20,7 @@ router = APIRouter()
 
 @router.get("/risks/export")
 async def export_risks(
-    format: ExportFormat = Query(..., description="Export format: xlsx, csv"),
+    format: ExportFormatQuery = Query(..., description="Export format: csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
@@ -29,13 +30,14 @@ async def export_risks(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
+    export_format = resolve_export_format(format, replacement="/api/v1/reports/risks/export?format=csv")
     dept_ids = get_user_department_ids(current_user)
     _validate_department_access(department_id, dept_ids)
     as_of = as_of_date or datetime.now(UTC).date()
     return await _export_risks(
         db=db,
         current_user=current_user,
-        export_format=format,
+        export_format=export_format,
         as_of_date=as_of,
         department_id=department_id,
         status_filter=status_filter,
@@ -47,7 +49,7 @@ async def export_risks(
 
 @router.get("/controls/export")
 async def export_controls(
-    format: ExportFormat = Query(..., description="Export format: xlsx, csv"),
+    format: ExportFormatQuery = Query(..., description="Export format: csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
@@ -55,13 +57,14 @@ async def export_controls(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
+    export_format = resolve_export_format(format, replacement="/api/v1/reports/controls/export?format=csv")
     dept_ids = get_user_department_ids(current_user)
     _validate_department_access(department_id, dept_ids)
     as_of = as_of_date or datetime.now(UTC).date()
     return await _export_controls(
         db=db,
         current_user=current_user,
-        export_format=format,
+        export_format=export_format,
         as_of_date=as_of,
         department_id=department_id,
         status_filter=status_filter,
@@ -71,7 +74,7 @@ async def export_controls(
 
 @router.get("/kris/export")
 async def export_kris(
-    format: ExportFormat = Query(..., description="Export format: xlsx, csv"),
+    format: ExportFormatQuery = Query(..., description="Export format: csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: KRIExportStatus = Query("all", alias="status"),
@@ -79,13 +82,14 @@ async def export_kris(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
+    export_format = resolve_export_format(format, replacement="/api/v1/reports/kris/export?format=csv")
     dept_ids = get_user_department_ids(current_user)
     _validate_department_access(department_id, dept_ids)
     as_of = as_of_date or datetime.now(UTC).date()
     return await _export_kris(
         db=db,
         current_user=current_user,
-        export_format=format,
+        export_format=export_format,
         as_of_date=as_of,
         department_id=department_id,
         status_filter=status_filter,
@@ -95,7 +99,7 @@ async def export_kris(
 
 @router.get("/vendors/export")
 async def export_vendors(
-    format: ExportFormat = Query(..., description="Export format: xlsx, csv"),
+    format: ExportFormatQuery = Query(..., description="Export format: csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
@@ -104,13 +108,14 @@ async def export_vendors(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
+    export_format = resolve_export_format(format, replacement="/api/v1/reports/vendors/export?format=csv")
     dept_ids = get_user_department_ids(current_user)
     _validate_department_access(department_id, dept_ids)
     as_of = as_of_date or datetime.now(UTC).date()
     return await _export_vendors(
         db=db,
         current_user=current_user,
-        export_format=format,
+        export_format=export_format,
         as_of_date=as_of,
         department_id=department_id,
         status_filter=status_filter,
@@ -121,7 +126,7 @@ async def export_vendors(
 
 @router.get("/issues/export")
 async def export_issues(
-    format: ExportFormat = Query(..., description="Export format: xlsx, csv"),
+    format: ExportFormatQuery = Query(..., description="Export format: csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: Optional[IssueStatus] = Query(None, alias="status"),
@@ -133,6 +138,7 @@ async def export_issues(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
+    export_format = resolve_export_format(format, replacement="/api/v1/reports/issues/export?format=csv")
     if not has_permission(current_user, "issues", "read"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -143,7 +149,7 @@ async def export_issues(
     return await _export_issues(
         db=db,
         current_user=current_user,
-        export_format=format,
+        export_format=export_format,
         as_of_date=as_of,
         department_id=department_id,
         status_filter=status_filter,
