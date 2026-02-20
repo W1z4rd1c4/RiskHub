@@ -1,7 +1,7 @@
 # RiskHub Deployment Guide
 
-> **Version**: 1.0  
-> **Last Updated**: 2026-02-16  
+> **Version**: 1.1  
+> **Last Updated**: 2026-02-20  
 > **Audience**: IT / DevOps / Platform Engineering
 
 ---
@@ -22,6 +22,7 @@ The backend enforces strict production guardrails when `DEBUG=false` (secrets, C
 | Doc | Purpose |
 |-----|---------|
 | [Installation Manual](./installation-manual.md) | Recommended starting point (single-host install; external PostgreSQL) |
+| [Component Runtime Entrypoints](./component-runtime-entrypoints.md) | Frontend/backend/database component-scoped dev/test/prod scripts |
 | [Install Scripts (external PostgreSQL)](./external-postgres-install-scripts.md) | Single-host deployment when PostgreSQL is managed outside Docker |
 | [Docker Compose (prod)](./docker-compose-prod.md) | Single-host deployment using dockerized PostgreSQL + Redis |
 | [Kubernetes](./kubernetes.md) | Cluster deployment guidance (no manifests in repo) |

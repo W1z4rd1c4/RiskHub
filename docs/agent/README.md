@@ -17,6 +17,7 @@ Canonical topic docs:
 - `FRONTEND_DISPLAY_GUARDRAILS.md` - frontend UI display rules (no raw numeric IDs, safe fallbacks)
 - `CODEX_WORKING_RULES.md` - mission, source-of-truth order, active focus, repo hygiene, prompting/tooling
 - `SKILLS_RESOLUTION.md` - skill resolution paths and usage rules
+- `../deployment/component-runtime-entrypoints.md` - FE/BE/DB component-scoped runtime command contract
 
 Verification date:
-- 2026-02-16
+- 2026-02-20
