@@ -1,0 +1,20 @@
+# backend/app/api/v1/endpoints/controls/crud
+
+## Purpose
+
+API endpoint package for `controls` domain.
+
+## Contents
+
+- `__init__.py`
+- `__pycache__/`
+- `archive.py`
+- `create.py`
+- `detail.py`
+- `list.py`
+- `restore.py`
+- `update.py`
+
+## Notes
+
+Keep this README updated when responsibilities or structure in this folder change.
