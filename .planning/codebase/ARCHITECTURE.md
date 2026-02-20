@@ -20,7 +20,7 @@ RiskHub is a containerized full-stack application:
 - Router composition in `backend/app/api/v1/router.py`
 - Endpoint modules/packages grouped by domain (risks, controls, approvals, vendors, admin, directory, etc.) (`backend/app/api/v1/endpoints/`)
 - Authentication and user resolution via dependency injection (`backend/app/api/deps.py`)
-- Route ordering is treated as a correctness constraint (static routes must not be shadowed by `{param}` routes) and is guarded by tests (`backend/tests/test_route_shadowing.py`, `backend/tests/api/v1/test_route_ordering_regressions.py`)
+- Route ordering is treated as a correctness constraint (static routes must not be shadowed by `{param}` routes) and is guarded by tests (`tests/backend/pytest/test_route_shadowing.py`, `tests/backend/pytest/api/v1/test_route_ordering_regressions.py`)
 
 ### Domain and Persistence
 - SQLAlchemy models in `backend/app/models/`
@@ -63,7 +63,7 @@ RiskHub is a containerized full-stack application:
 
 ## Deployment Topology
 
-- Dev/local hybrid flow orchestrated by `scripts/dev.sh` and `Makefile`
+- Dev/local hybrid flow orchestrated by `scripts/dev.sh` and `scripts/Makefile`
 - Dockerized production flow in `docker-compose.yml` + `docker-compose.prod.yml`
 - Frontend served by nginx, proxying backend API requests (`frontend/nginx.conf`)
 - Deployment runbooks live in `docs/deployment/`

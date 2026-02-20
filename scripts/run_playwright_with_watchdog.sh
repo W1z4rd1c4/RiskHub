@@ -14,6 +14,9 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
+PLAYWRIGHT_CONFIG="$PROJECT_ROOT/tests/frontend/e2e/playwright.config.ts"
+PLAYWRIGHT_REPORT_DIR="$PROJECT_ROOT/tests/results/frontend/playwright/playwright-report"
+PLAYWRIGHT_RESULTS_DIR="$PROJECT_ROOT/tests/results/frontend/playwright/test-results"
 
 TIMEOUT_SECONDS="${PLAYWRIGHT_TIMEOUT_SECONDS:-5400}"
 GRACE_SECONDS="${PLAYWRIGHT_GRACE_SECONDS:-30}"
@@ -42,10 +45,10 @@ mkdir -p "$ARTIFACT_ROOT"
 cd "$FRONTEND_DIR"
 
 # Clear default reporter outputs to avoid stale verdicts.
-rm -rf "$FRONTEND_DIR/playwright-report"
-rm -f "$FRONTEND_DIR/test-results/junit.xml" "$FRONTEND_DIR/test-results/results.json"
+rm -rf "$PLAYWRIGHT_REPORT_DIR"
+rm -f "$PLAYWRIGHT_RESULTS_DIR/junit.xml" "$PLAYWRIGHT_RESULTS_DIR/results.json"
 
-CMD=(npx playwright test --workers="$WORKERS" --retries="$RETRIES" "$@")
+CMD=(npx playwright test -c "$PLAYWRIGHT_CONFIG" --workers="$WORKERS" --retries="$RETRIES" "$@")
 
 {
   echo "run_label=$RUN_LABEL"
@@ -63,15 +66,15 @@ persist_artifacts() {
   mkdir -p "$ARTIFACT_ROOT"
 
   # Persist artifacts regardless of process exit.
-  if [ -f "$FRONTEND_DIR/test-results/junit.xml" ]; then
-    cp "$FRONTEND_DIR/test-results/junit.xml" "$JUNIT_COPY" || true
+  if [ -f "$PLAYWRIGHT_RESULTS_DIR/junit.xml" ]; then
+    cp "$PLAYWRIGHT_RESULTS_DIR/junit.xml" "$JUNIT_COPY" || true
   fi
-  if [ -f "$FRONTEND_DIR/test-results/results.json" ]; then
-    cp "$FRONTEND_DIR/test-results/results.json" "$JSON_COPY" || true
+  if [ -f "$PLAYWRIGHT_RESULTS_DIR/results.json" ]; then
+    cp "$PLAYWRIGHT_RESULTS_DIR/results.json" "$JSON_COPY" || true
   fi
-  if [ -d "$FRONTEND_DIR/playwright-report" ]; then
+  if [ -d "$PLAYWRIGHT_REPORT_DIR" ]; then
     rm -rf "$HTML_COPY" || true
-    cp -R "$FRONTEND_DIR/playwright-report" "$HTML_COPY" || true
+    cp -R "$PLAYWRIGHT_REPORT_DIR" "$HTML_COPY" || true
   fi
 }
 

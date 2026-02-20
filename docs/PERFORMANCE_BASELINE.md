@@ -3,7 +3,7 @@
 > **Version**: 1.1
 > **Last Updated**: 2026-02-16
 > **Audience**: Engineering, DevOps, QA
-> **Source of Truth**: `backend/tests/test_api_benchmarks.py`, Playwright CI artifacts
+> **Source of Truth**: `tests/backend/pytest/test_api_benchmarks.py`, Playwright CI artifacts
 
 This baseline captures practical performance expectations for the current MVP operating profile.
 

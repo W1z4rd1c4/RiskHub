@@ -203,7 +203,7 @@ while [[ $# -gt 0 ]]; do
       break
       ;;
     *)
-      die "Unknown argument: $1 (use --help). (Note: passthrough is not supported here; call via ./setup.sh if needed.)"
+      die "Unknown argument: $1 (use --help). (Note: passthrough is not supported here; call via ./scripts/setup.sh if needed.)"
       ;;
   esac
 done

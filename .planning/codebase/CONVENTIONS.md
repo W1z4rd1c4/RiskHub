@@ -9,7 +9,7 @@
 - Permission checks use `require_permission(resource, action)` and policy helpers (`backend/app/core/security.py`, `backend/app/core/permissions.py`, internal modules under `backend/app/core/_permissions/`)
 - Router composition is centralized in `backend/app/api/v1/router.py`
 - Endpoint files are increasingly split into packages with subrouters; package `__init__.py` must keep `router` available at `app.api.v1.endpoints.<name>.router` (`backend/app/api/v1/endpoints/`)
-- Static routes must be registered before dynamic `{param}` routes to avoid 422 shadowing; this is guarded by tests (`backend/tests/test_route_shadowing.py`, `backend/tests/api/v1/test_route_ordering_regressions.py`)
+- Static routes must be registered before dynamic `{param}` routes to avoid 422 shadowing; this is guarded by tests (`tests/backend/pytest/test_route_shadowing.py`, `tests/backend/pytest/api/v1/test_route_ordering_regressions.py`)
 
 ### Async and transaction boundaries
 - Async-first style across endpoints/services (`async def` + `AsyncSession`)
@@ -46,8 +46,8 @@
 ## Testing and Quality Conventions
 
 - Backend: pytest naming and markers in `backend/pytest.ini`
-- Frontend: Vitest jsdom tests + MSW mocks (`frontend/vitest.config.ts`, `frontend/src/test/mocks/`)
-- E2E: Playwright multi-browser projects (`frontend/playwright.config.ts`)
+- Frontend: Vitest jsdom tests + MSW mocks (`tests/frontend/unit/vitest.config.ts`, `tests/frontend/unit/src/test/mocks/`)
+- E2E: Playwright multi-browser projects (`tests/frontend/e2e/playwright.config.ts`)
 - Lint/security toolchain via ESLint + pre-commit + security workflows (`frontend/eslint.config.js`, `.pre-commit-config.yaml`, `.github/workflows/security.yml`)
 
 ## Time and Date Handling Convention (Policy)
@@ -55,9 +55,9 @@
 - Persisted “instant” timestamps are timezone-aware UTC (`TIMESTAMP WITH TIME ZONE` / `DateTime(timezone=True)`).
 - Central helpers: `utc_now()` + `coerce_utc()` (`backend/app/core/datetime_utils.py`).
 - Forbidden patterns:
-  - `datetime.utcnow()` (enforced by `backend/tests/test_no_datetime_utcnow.py`)
+  - `datetime.utcnow()` (enforced by `tests/backend/pytest/test_no_datetime_utcnow.py`)
   - `.replace(tzinfo=None)` (repo convention: do not drop tzinfo)
-- Guardrail: all SQLAlchemy `DateTime` columns must be timezone-aware (`backend/tests/test_timezone_policy.py`).
+- Guardrail: all SQLAlchemy `DateTime` columns must be timezone-aware (`tests/backend/pytest/test_timezone_policy.py`).
 
 ## Source-of-Truth Conventions
 
