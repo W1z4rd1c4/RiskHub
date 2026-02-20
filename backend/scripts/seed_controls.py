@@ -222,7 +222,7 @@ async def seed_mock_risks():
 
 
 async def main():
-    excel_path = Path(__file__).parent.parent.parent / "placeholder-controls-source.xlsx"
+    excel_path = Path(__file__).resolve().parents[1] / "data" / "seed_assets" / "placeholder-controls-source.xlsx"
 
     print("🌱 Seeding database...")
     print(f"📁 Excel file: {excel_path}")

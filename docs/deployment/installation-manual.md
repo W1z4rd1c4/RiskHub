@@ -99,7 +99,7 @@ Redirect URI required by the frontend (MSAL):
 Run the unified admin setup wizard from the repo root:
 
 ```bash
-./setup.sh --mode prod
+./scripts/setup.sh --mode prod
 ```
 
 This delegates to the Phase 500 production guided installer (`scripts/prod/setup.sh`) and will:
@@ -113,7 +113,7 @@ This delegates to the Phase 500 production guided installer (`scripts/prod/setup
 Dry-run (writes env files to temp paths and previews deploy/upgrade only):
 
 ```bash
-./setup.sh --mode prod --dry-run
+./scripts/setup.sh --mode prod --dry-run
 ```
 
 You can also run the production wizard directly:

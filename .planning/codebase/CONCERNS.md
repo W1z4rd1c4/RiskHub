@@ -13,9 +13,9 @@
 
 ## Timezone & Datetime Regression Risk
 
-- Current policy is “timezone-aware UTC everywhere”, enforced by tests (`backend/tests/test_timezone_policy.py`, `backend/tests/test_no_datetime_utcnow.py`).
+- Current policy is “timezone-aware UTC everywhere”, enforced by tests (`tests/backend/pytest/test_timezone_policy.py`, `tests/backend/pytest/test_no_datetime_utcnow.py`).
 - Remaining risk is primarily around future contributors reintroducing naive datetimes at boundaries (payloads, script seeds) instead of using `coerce_utc()` / `utc_now()` (`backend/app/core/datetime_utils.py`).
-- Postgres confidence relies on periodically running `pytest -m postgres` (SQLite will not catch all tz/typing issues) (`backend/tests/conftest.py`).
+- Postgres confidence relies on periodically running `pytest -m postgres` (SQLite will not catch all tz/typing issues) (`tests/backend/pytest/conftest.py`).
 
 ## Large, Dense Modules
 
@@ -43,7 +43,7 @@
 
 ## Test-Parity Risk
 
-- Most backend tests run on SQLite fixtures (`backend/tests/conftest.py`)
+- Most backend tests run on SQLite fixtures (`tests/backend/pytest/conftest.py`)
 - Critical paths with Postgres behavior (timestamps, SQL semantics, asyncpg strictness) need recurring `-m postgres` validation
 
 ## Recommended Ongoing Mitigations

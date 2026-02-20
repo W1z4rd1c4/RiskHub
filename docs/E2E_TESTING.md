@@ -3,7 +3,7 @@
 > **Version**: 1.1
 > **Last Updated**: 2026-02-16
 > **Audience**: QA, Engineering
-> **Source of Truth**: `frontend/playwright.config.ts`, `frontend/e2e/`, `frontend/package.json`
+> **Source of Truth**: `tests/frontend/e2e/playwright.config.ts`, `tests/frontend/e2e/`, `frontend/package.json`
 
 This guide covers Playwright execution, suite organization, and deterministic test prerequisites.
 
@@ -26,12 +26,12 @@ npm run e2e:business-logic
 ## Prerequisites
 
 1. Backend API running at `http://localhost:8000`.
-2. Frontend app running at `http://localhost:5173` (or Playwright web server configured in `playwright.config.ts`).
+2. Frontend app running at `http://localhost:5173` (or Playwright web server configured in `tests/frontend/e2e/playwright.config.ts`).
 3. Deterministic fixture data seeded for E2E when required by suite expectations.
 
 ## Suite Topology
 
-Primary suite groups in `frontend/e2e/`:
+Primary suite groups in `tests/frontend/e2e/`:
 
 - Core app: `auth`, `dashboard`, `risks`, `controls`, `kris`, `vendors`, `admin`
 - Business logic packs:
@@ -48,7 +48,7 @@ Primary suite groups in `frontend/e2e/`:
 One-command deterministic reset + full seed (recommended):
 
 ```bash
-./setup.sh --mode test
+./scripts/setup.sh --mode test
 ```
 
 This uses `docker-compose.yml`, wipes the compose DB volume, runs migrations, then seeds:
@@ -75,19 +75,19 @@ Examples:
 
 ```bash
 cd frontend
-npx playwright test e2e/cross-department --project=chromium
-npx playwright test e2e/permissions --project=chromium
-npx playwright test e2e/entity-ownership/risk-ownership.spec.ts --project=chromium
+npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/cross-department --project=chromium
+npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/permissions --project=chromium
+npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/entity-ownership/risk-ownership.spec.ts --project=chromium
 ```
 
 ## Debugging
 
 ```bash
 cd frontend
-npx playwright test --debug
-PWDEBUG=1 npx playwright test
-npx playwright test --trace on
-npx playwright show-trace test-results/<run>/placeholder-zip-017.zip
+npx playwright test -c ../tests/frontend/e2e/playwright.config.ts --debug
+PWDEBUG=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts
+npx playwright test -c ../tests/frontend/e2e/playwright.config.ts --trace on
+npx playwright show-trace ../tests/results/frontend/playwright/test-results/<run>/placeholder-zip-017.zip
 ```
 
 ## CI Notes

@@ -75,7 +75,7 @@ let mswServer:
 
 beforeAll(async () => {
     // Import MSW server lazily so our localStorage mock is installed first.
-    const mod = await import('./src/test/mocks/server');
+    const mod = await import('@test/mocks/server');
     mswServer = mod.server;
     mswServer.listen({ onUnhandledRequest: 'error' });
 });

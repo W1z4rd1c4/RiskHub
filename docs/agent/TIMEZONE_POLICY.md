@@ -11,8 +11,8 @@ Canonical timezone contract for backend writes and tests.
 
 ## Regression Guards
 
-- `backend/tests/test_no_datetime_utcnow.py` fails if `datetime.utcnow()` or `replace(tzinfo=None)` is reintroduced in `backend/app` or `backend/scripts`.
-- `backend/tests/test_timezone_policy.py` fails if any `DateTime(timezone=False)` column exists.
+- `tests/backend/pytest/test_no_datetime_utcnow.py` fails if `datetime.utcnow()` or `replace(tzinfo=None)` is reintroduced in `backend/app` or `backend/scripts`.
+- `tests/backend/pytest/test_timezone_policy.py` fails if any `DateTime(timezone=False)` column exists.
 
 ## Legacy Conversion Migration
 

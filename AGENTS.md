@@ -26,7 +26,7 @@ Use `docs/agent/README.md` as the agent-doc index and `docs/agent/AGENTS_DOC_COV
 | RBAC and Business Logic Guardrails | `docs/BUSINESS_LOGIC.md`<br>`.planning/codebase/CONCERNS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Frontend Display Guardrails | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Security and Production Guardrails | `docs/deployment/security-checklist.md`<br>`docs/deployment/README.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Quick Commands | `scripts/dev.sh`<br>`Makefile` | full | RiskHub Maintainer | 2026-02-16 |
+| Quick Commands | `scripts/dev.sh`<br>`scripts/Makefile` | full | RiskHub Maintainer | 2026-02-16 |
 | Demo/Dev Auth (local) | `scripts/dev.sh`<br>`.planning/codebase/INTEGRATIONS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Repo Hygiene | `.planning/codebase/STRUCTURE.md`<br>`docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Prompting and Tooling Best Practices (OpenAI-Aligned) | `docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
@@ -46,7 +46,13 @@ Canonical Source: `.planning/codebase/STRUCTURE.md`, `.planning/codebase/ARCHITE
 - `backend/`: FastAPI + SQLAlchemy + Alembic + pytest
 - `frontend/`: React + TypeScript + Vite + Vitest + Playwright
 - `docs/`: business logic, testing, user/admin documentation
+- `tests/`: centralized backend/frontend test suites and result artifacts
+- `scripts/`: operational/dev entrypoints and automation helpers
 - `.planning/`: roadmap, state, and phase plans/summaries
+
+Root non-dot contract:
+- folders: `backend/`, `frontend/`, `docs/`, `scripts/`, `tests/`
+- files: `AGENTS.md`, `docker-compose.yml`, `docker-compose.prod.yml`
 
 ## Source-of-Truth Order
 
@@ -122,8 +128,8 @@ Canonical Source: `docs/agent/TIMEZONE_POLICY.md`
 - Use `backend/app/core/datetime_utils.py`:
   - `utc_now()` for new timestamps.
   - `coerce_utc()` when accepting values that might be naive (naive is treated as UTC).
-- Regression guard: `backend/tests/test_no_datetime_utcnow.py` fails if `datetime.utcnow()` or `replace(tzinfo=None)` is reintroduced in `backend/app` or `backend/scripts`.
-- Regression guard: `backend/tests/test_timezone_policy.py` fails if any `DateTime(timezone=False)` column exists.
+- Regression guard: `tests/backend/pytest/test_no_datetime_utcnow.py` fails if `datetime.utcnow()` or `replace(tzinfo=None)` is reintroduced in `backend/app` or `backend/scripts`.
+- Regression guard: `tests/backend/pytest/test_timezone_policy.py` fails if any `DateTime(timezone=False)` column exists.
 - Legacy conversion migration: `backend/alembic/versions/e9c3a1b7d2f4_convert_naive_timestamps_to_timestamptz.py` converts old `timestamp without time zone` columns using `AT TIME ZONE 'UTC'` (assumes existing values represent UTC instants).
 
 ### Postgres test mode
@@ -131,7 +137,7 @@ Canonical Source: `docs/agent/TIMEZONE_POLICY.md`
 Canonical Source: `docs/agent/PYTEST_RUNTIME_NOTES.md`, `.planning/codebase/TESTING.md`
 
 - Default tests run on in-memory SQLite; set `TEST_DATABASE_URL` to run the suite on Postgres.
-- `backend/tests/conftest.py` applies `alembic upgrade head` once per session and truncates all tables between tests when using Postgres.
+- `tests/backend/pytest/conftest.py` applies `alembic upgrade head` once per session and truncates all tables between tests when using Postgres.
 - Example: `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/riskhub_test pytest -v`
 
 ### Pytest exit hang (SQLite / aiosqlite)
@@ -139,7 +145,7 @@ Canonical Source: `docs/agent/PYTEST_RUNTIME_NOTES.md`, `.planning/codebase/TEST
 Canonical Source: `docs/agent/PYTEST_RUNTIME_NOTES.md`
 
 - Symptom: `pytest` completes but does not exit; a non-daemon `aiosqlite` `_connection_worker_thread` remains alive.
-- Canonical fix: in `backend/tests/conftest.py`, ensure the session `event_loop` is the current loop and dispose the app’s `app.state.db_engine` at session end via an autouse fixture.
+- Canonical fix: in `tests/backend/pytest/conftest.py`, ensure the session `event_loop` is the current loop and dispose the app’s `app.state.db_engine` at session end via an autouse fixture.
 - Debugging: set `PYTEST_THREAD_DEBUG=1` to dump remaining non-daemon threads at `pytest_sessionfinish`.
 
 ### Endpoint package splits (maintainability)
@@ -166,11 +172,11 @@ Canonical Source: `.planning/codebase/TESTING.md`, `docs/TESTING.md`
 
 Run based on change type:
 
-- Backend API/domain logic: `make test`
+- Backend API/domain logic: `make -f scripts/Makefile test`
 - Approval/timezone/Postgres-specific behavior: `cd backend && pytest -m postgres -v`
 - Frontend unit/integration: `cd frontend && npm run test:run`
 - Frontend type safety: `cd frontend && npx tsc --noEmit`
-- End-to-end flows: `make test-e2e`
+- End-to-end flows: `make -f scripts/Makefile test-e2e`
 
 Testing expectations:
 
@@ -211,17 +217,17 @@ Canonical Source: `docs/deployment/security-checklist.md`, `docs/deployment/READ
 
 ## Quick Commands
 
-Canonical Source: `scripts/dev.sh`, `Makefile`
+Canonical Source: `scripts/dev.sh`, `scripts/Makefile`
 
 - Canonical startup (new sessions): `./scripts/dev.sh --daemon`
 - Canonical startup (foreground): `./scripts/dev.sh`
 - Stop canonical daemon sessions: `screen -S riskhub-backend -X quit && screen -S riskhub-frontend -X quit`
-- Dev backend only: `make dev`
-- Dev backend + frontend: `make dev-full`
-- Docker stack: `make docker`
-- Migrations: `make migrate`
-- Backend tests: `make test`
-- E2E tests: `make test-e2e`
+- Dev backend only: `make -f scripts/Makefile dev`
+- Dev backend + frontend: `make -f scripts/Makefile dev-full`
+- Docker stack: `make -f scripts/Makefile docker`
+- Migrations: `make -f scripts/Makefile migrate`
+- Backend tests: `make -f scripts/Makefile test`
+- E2E tests: `make -f scripts/Makefile test-e2e`
 
 For launch/runbook behavior, treat `scripts/dev.sh` as source of truth.
 
@@ -246,8 +252,8 @@ Canonical Source: `.planning/codebase/STRUCTURE.md`, `docs/agent/CODEX_WORKING_R
   - `frontend/node_modules/`
   - `frontend/dist/`
   - `backend/venv/`
-  - `backend/coverage_html/`
-  - `test-results/`
+  - `tests/results/backend/coverage_html/`
+  - `tests/results/`
 - Prefer small, reviewable diffs over broad rewrites.
 - Do not modify unrelated files just to satisfy formatting preferences.
 

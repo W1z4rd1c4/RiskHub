@@ -59,7 +59,7 @@ def similarity_score(a, b):
 
 async def migrate_controls():
     """Main migration function."""
-    excel_path = Path(__file__).parent.parent.parent / "placeholder-controls-source.xlsx"
+    excel_path = Path(__file__).resolve().parents[1] / "data" / "seed_assets" / "placeholder-controls-source.xlsx"
 
     if not excel_path.exists():
         print(f"❌ Excel file not found: {excel_path}")
