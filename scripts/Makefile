@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend verify-prod-install-scripts verify-setup-wizard
+.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage verify verify-prod-install-scripts verify-setup-wizard
 
 # Default target
 help:
@@ -34,6 +34,8 @@ help:
 	@echo "  make clean        - Remove containers, volumes, and caches"
 	@echo "  make verify-prod-install-scripts - Validate Phase 500 prod scripts"
 	@echo "  make verify-setup-wizard - Validate unified setup wizard scripts"
+	@echo "  make readme-coverage - Audit README coverage for all in-scope folders"
+	@echo "  make verify       - Run fast repository verification checks"
 
 # =============================================================================
 # Development
@@ -149,3 +151,8 @@ verify-prod-install-scripts:
 verify-setup-wizard:
 	bash -n scripts/setup.sh scripts/dev_test_setup.sh
 	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/setup.sh scripts/dev_test_setup.sh
+
+readme-coverage:
+	python3 scripts/tools/readme_coverage.py audit
+
+verify: readme-coverage
