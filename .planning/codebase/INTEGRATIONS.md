@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-02-20
 
 ## Core External Services
 
@@ -43,6 +43,7 @@
 - Frontend nginx proxies `/api/` to `backend:8000` in container network (`frontend/nginx.conf`)
 - Vite dev server proxies `/api` to local backend (`frontend/vite.config.ts`)
 - Docker Compose defines multi-service topology and healthchecks (`docker-compose.yml`, `docker-compose.prod.yml`)
+- Component runtime wrappers expose FE/BE/DB-scoped orchestration while delegating production installs to `scripts/prod/*` (`frontend/scripts/runtime/prod.sh`, `backend/scripts/runtime/prod.sh`, `backend/scripts/runtime/db/prod.sh`)
 
 ## CI/Security Integrations
 
@@ -68,4 +69,4 @@
 
 ---
 
-*Integration audit refreshed on 2026-02-16*
+*Integration audit refreshed on 2026-02-20*

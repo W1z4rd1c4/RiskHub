@@ -29,13 +29,15 @@ Options:
 Notes:
 - Dev/Test cannot run on the same host as Phase 500 prod (container name collisions).
   scripts/dev_test_setup.sh enforces this safety check.
+- In non-interactive TEST mode, pass the explicit wipe acknowledgement to the child script:
+  -- --i-understand-will-wipe-dev-db
 
 Examples:
   ./scripts/setup.sh                           # interactive menu
   ./scripts/setup.sh --mode dev                # bring up dev docker stack + base seed
   ./scripts/setup.sh --mode test               # wipe and seed deterministic E2E data
   ./scripts/setup.sh --mode prod               # run the production guided installer
-  ./scripts/setup.sh --mode test --yes --dry-run -- --no-build
+  ./scripts/setup.sh --mode test --yes --dry-run -- --i-understand-will-wipe-dev-db --no-build
 EOF
 }
 

@@ -1,6 +1,6 @@
 # Architecture
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-02-20
 
 ## System Shape
 
@@ -64,6 +64,7 @@ RiskHub is a containerized full-stack application:
 ## Deployment Topology
 
 - Dev/local hybrid flow orchestrated by `scripts/dev.sh` and `scripts/Makefile`
+- Component-scoped runtime entrypoints available under `frontend/scripts/runtime/`, `backend/scripts/runtime/`, and `backend/scripts/runtime/db/`
 - Dockerized production flow in `docker-compose.yml` + `docker-compose.prod.yml`
 - Frontend served by nginx, proxying backend API requests (`frontend/nginx.conf`)
 - Deployment runbooks live in `docs/deployment/`
@@ -77,4 +78,4 @@ RiskHub is a containerized full-stack application:
 
 ---
 
-*Architecture analysis refreshed on 2026-02-16*
+*Architecture analysis refreshed on 2026-02-20*
