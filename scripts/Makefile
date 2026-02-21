@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage verify verify-prod-install-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5
+.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage docs-tree-audit verify verify-prod-install-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5
 
 # Default target
 help:
@@ -35,6 +35,7 @@ help:
 	@echo "  make verify-prod-install-scripts - Validate Phase 500 prod scripts"
 	@echo "  make verify-setup-wizard - Validate unified setup wizard scripts"
 	@echo "  make readme-coverage - Audit README coverage for all in-scope folders"
+	@echo "  make docs-tree-audit - Audit canonical docs-tree topology/link integrity"
 	@echo "  make verify       - Run fast repository verification checks"
 	@echo "  make security-contract-probe - Run deterministic protocol/contract drift probe harness"
 	@echo "  make security-redis-resilience - Run Redis fail-closed resilience tests"
@@ -151,7 +152,10 @@ verify-prod-install-scripts:
 	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/prod/*.sh
 	docker build -t riskhub-backend:verify-prod-install-scripts backend
 	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'test -f /app/scripts/seed_roles_permissions.py && test -f /app/scripts/seed_departments.py && test -f /app/scripts/bootstrap_sso_user.py'
-	cd backend && venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py -q
+	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'python -c "import scripts.seed_roles_permissions, scripts.seed_departments, scripts.bootstrap_sso_user"'
+	docker build -t riskhub-frontend:verify-prod-install-scripts frontend
+	docker run --rm riskhub-frontend:verify-prod-install-scripts sh -lc 'test "$$(id -u)" != "0"'
+	cd backend && venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py -q
 
 verify-setup-wizard:
 	bash -n scripts/setup.sh scripts/dev_test_setup.sh
@@ -159,6 +163,9 @@ verify-setup-wizard:
 
 readme-coverage:
 	python3 scripts/tools/readme_coverage.py audit
+
+docs-tree-audit:
+	python3 scripts/tools/docs_tree_audit.py --scope canonical
 
 verify: readme-coverage
 

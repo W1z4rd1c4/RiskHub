@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-02-20
+**Analysis Date:** 2026-02-21
 
 ## Test Stack Overview
 
@@ -15,6 +15,7 @@
 - Markers include:
   - `postgres` for PostgreSQL-required behavior
   - `slow` for longer-running suites
+  - `redis_integration` for Docker-backed Redis fault-injection resilience checks
 
 ### Fixture strategy
 - Default backend tests use fast SQLite in-memory (`TEST_DATABASE_URL=sqlite+aiosqlite:///:memory:`) (`tests/backend/pytest/conftest.py`)
@@ -46,12 +47,14 @@
 
 - E2E workflow provisions Postgres service, runs backend + Playwright chromium suite (`.github/workflows/e2e.yml`)
 - Security workflow runs Bandit, pip-audit, npm audit, Trivy, Syft+Grype correlation, and gitleaks parse+scan (`.github/workflows/security.yml`)
+- Security workflow also runs nightly non-blocking Redis resilience integration checks (`redis_integration`) (`.github/workflows/security.yml`)
 
 ## Canonical Commands
 
 - Backend tests: `make -f scripts/Makefile test` or `cd backend && pytest -v`
 - Backend lint: `make -f scripts/Makefile lint-backend`
 - Backend Postgres-sensitive tests: `cd backend && pytest -m postgres -v`
+- Backend Redis integration marker: `cd backend && pytest -m redis_integration -q`
 - Frontend unit tests: `cd frontend && npm run test:run`
 - Frontend type checks: `cd frontend && npx tsc --noEmit`
 - E2E: `make -f scripts/Makefile test-e2e` or `cd frontend && npm run e2e`
@@ -66,4 +69,4 @@
 
 ---
 
-*Testing audit refreshed on 2026-02-20*
+*Testing audit refreshed on 2026-02-21*

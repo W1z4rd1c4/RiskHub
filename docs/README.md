@@ -1,73 +1,54 @@
 # RiskHub Documentation Index
 
-> **Version**: 1.1
-> **Last Updated**: 2026-02-16
+> **Version**: 1.2
+> **Last Updated**: 2026-02-21
 > **Audience**: Product, Engineering, QA, Operations
-> **Source of Truth**: `docs/BUSINESS_LOGIC.md`, `backend/app/api/v1/endpoints/admin/docs.py`
 
-This file defines documentation ownership, structure, and quality rules for all product-facing docs in `/docs`.
+This file is the primary documentation index for `docs/`.
 
-## Structure
+## Primary Navigation
 
-- `docs/admin/` - platform administrator documentation (admin role only)
-- `docs/admin-cs/` - Czech equivalent of `docs/admin/`
-- `docs/user/` - end-user/business documentation (all non-admin roles)
-- `docs/user-cs/` - Czech equivalent of `docs/user/`
-- Root docs (`BUSINESS_LOGIC.md`, `TESTING.md`, `LOCALIZATION.md`, etc.) - canonical policy and engineering guidance
+- Master tree (English-first): [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md`](./DOCUMENTATION_TREE.md)
+- Agent documentation index: [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/agent/README.md`](./agent/README.md)
+- Planning tree root: [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/README.md`](../.planning/README.md)
 
-## Audience Boundary Rules
+## Canonical Documentation Domains
 
-- `admin` users see **admin docs only**.
-- All non-admin users (`cro`, `risk_manager`, `department_head`, `employee`, etc.) see **user docs only**.
-- Admin docs must focus on platform administration and system governance.
-- User docs must focus on business workflows and day-to-day usage.
+| Domain | Purpose | Entry |
+|---|---|---|
+| Agent | Execution rules and AGENTS mappings | [`docs/agent/README.md`](./agent/README.md) |
+| Security | Security policy, reports, and closure records | [`docs/security/README.md`](./security/README.md) |
+| Deployment | Runtime and production deployment guidance | [`docs/deployment/README.md`](./deployment/README.md) |
+| Reference | Reference inventories and legacy path maps | [`docs/reference/README.md`](./reference/README.md) |
+| Quality | Lint/debt baseline and ratchet references | [`docs/quality/README.md`](./quality/README.md) |
+| Admin (EN) | Platform administration runbooks | [`docs/admin/README.md`](./admin/README.md) |
+| Admin (CS) | České admin runbooky | [`docs/admin-cs/README.md`](./admin-cs/README.md) |
+| User (EN) | End-user/business operation manuals | [`docs/user/README.md`](./user/README.md) |
+| User (CS) | České uživatelské manuály | [`docs/user-cs/README.md`](./user-cs/README.md) |
 
-## EN/CS Parity Rules
+## Core Root Docs
 
-- `docs/admin/` and `docs/admin-cs/` must have the same filenames.
-- `docs/user/` and `docs/user-cs/` must have the same filenames.
-- If an English guide is added, renamed, or removed, mirror the change in Czech in the same change set.
-- Content can differ in wording but must remain functionally equivalent.
+- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
+- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/TESTING.md`](./TESTING.md)
+- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/E2E_TESTING.md`](./E2E_TESTING.md)
+- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/LOCALIZATION.md`](./LOCALIZATION.md)
+- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/PERFORMANCE_BASELINE.md`](./PERFORMANCE_BASELINE.md)
 
-## Header Standard
-
-All refreshed docs must include a metadata block under the title.
-
-English docs:
-- `Version`
-- `Last Updated`
-- `Audience` or `Who uses this`
-- `Source of Truth`
-
-Czech docs:
-- `Verze`
-- `Poslední aktualizace`
-- `Cílová skupina`
-- `Zdroj pravdy`
-
-## Linking Rules
-
-- Use relative Markdown links for files inside `docs/`.
-- Keep links stable when possible; if renaming files, update all linked references in EN and CS docs in the same change.
-- Prefer section anchors for long references when they improve navigation.
-
-## Maintenance Workflow
-
-1. Update the relevant doc(s).
-2. Update corresponding Czech docs for parity.
-3. Run `python3 scripts/check_docs_contract.py`.
-4. Run targeted docs endpoint and frontend docs tests when behavior-related docs are changed.
-
-## Verification Commands
+## Validation Commands
 
 ```bash
-cd "/Users/stefanlesnak/Antigravity/Risk App 2"
 python3 scripts/check_docs_contract.py
-
-cd backend
-venv/bin/pytest tests/test_admin_docs.py -q
-
-cd ../frontend
-npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx
-npx tsc --noEmit
+python3 scripts/tools/docs_tree_audit.py --scope canonical
+python3 scripts/tools/docs_tree_audit.py --scope full
+python3 scripts/tools/readme_coverage.py audit
 ```
+
+Outputs:
+
+- `tests/results/docs/docs-tree-audit-<timestamp>/docs-tree-audit.json`
+- `tests/results/docs/docs-tree-audit-<timestamp>/docs-tree-audit.md`
+
+## Boundary Notes
+
+- Canonical docs for active operations are under `docs/`, `AGENTS.md`, `.planning/README.md`, `.planning/codebase/`, `.planning/{PROJECT,STATE,ROADMAP}.md`.
+- `.planning/phases/*` is archival and indexed via [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/phases/README.md`](../.planning/phases/README.md); historical phase bodies are preserved.
