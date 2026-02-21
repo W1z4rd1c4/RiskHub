@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage verify verify-prod-install-scripts verify-setup-wizard
+.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage verify verify-prod-install-scripts verify-setup-wizard security-contract-probe
 
 # Default target
 help:
@@ -36,6 +36,7 @@ help:
 	@echo "  make verify-setup-wizard - Validate unified setup wizard scripts"
 	@echo "  make readme-coverage - Audit README coverage for all in-scope folders"
 	@echo "  make verify       - Run fast repository verification checks"
+	@echo "  make security-contract-probe - Run deterministic protocol/contract drift probe harness"
 
 # =============================================================================
 # Development
@@ -156,3 +157,6 @@ readme-coverage:
 	python3 scripts/tools/readme_coverage.py audit
 
 verify: readme-coverage
+
+security-contract-probe:
+	bash scripts/security/run_protocol_contract_probe.sh

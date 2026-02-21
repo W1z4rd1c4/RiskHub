@@ -49,6 +49,9 @@ grype sbom:sbom-backend.json --config backend/security/grype-ignore.yaml -o json
 # Security Headers Verification
 python scripts/verify_security_headers.py --mock  # CI mode
 python scripts/verify_security_headers.py         # Against running server
+
+# Protocol / OpenAPI contract drift probe (deterministic, repo-tracked harness)
+make -f scripts/Makefile security-contract-probe
 ```
 
 ---
@@ -65,6 +68,7 @@ python scripts/verify_security_headers.py         # Against running server
 | **Syft** | SBOM generation for image inventory | CI | CI (push/schedule) |
 | **Grype** | SBOM vulnerability correlation gate | `backend/security/grype-ignore.yaml` | CI (push/schedule) |
 | **Gitleaks** | Secrets detection | `.gitleaks.toml` | Pre-commit, CI |
+| **Protocol Contract Probe** | Deterministic protocol/security-vs-contract triage | `scripts/security/protocol_contract_probe.py` | Local security closure runs |
 
 ---
 
@@ -115,6 +119,17 @@ If Trivy is clean but Grype reports unresolved **High/Critical**, treat the resu
 - A time-bound suppression is added to `backend/security/grype-ignore.yaml` with explicit owner, rationale, and expiry.
 
 A Trivy-only pass is not sufficient to close supply-chain risk when SBOM correlation fails.
+
+### Protocol Drift Triage Classes
+
+The protocol probe harness classifies outcomes as:
+- `security_defect`: runtime behavior deviates from fail-closed expected status.
+- `contract_drift`: runtime status is expected but missing from OpenAPI documented responses.
+- `auth_precondition`: authentication/session precondition failed (for example, missing auth), not treated as contract drift.
+
+Artifacts are emitted to:
+- `tests/results/security/contract-drift-remediation-<timestamp>/protocol/probe-results.json`
+- `tests/results/security/contract-drift-remediation-<timestamp>/protocol/probe-triage.csv`
 
 ### Known Issues Allowlist
 
