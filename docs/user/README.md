@@ -17,6 +17,8 @@ tags:
 
 # RiskHub User Documentation
 
+Back to tree: <a href="../DOCUMENTATION_TREE.md">/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md</a>
+
 This library is the production user manual for all non-admin roles. It is written for real day-to-day operations: what to do, where to do it, and how to diagnose problems when the app behaves differently than you expect.
 
 **On this page**
@@ -149,7 +151,7 @@ When in doubt, reproduce with:
 RiskHub manuals use deterministic link conventions so navigation is predictable:
 
 - [Getting Started](./getting-started.md) opens another manual inside the reader.
-- `[/route](/path)` navigates to an app page.
+- App route examples should be shown as code, for example: `` `/approvals` ``.
 - `[#anchor](#heading-id)` scrolls within the current manual.
 - External links use `https://...` and open in a new tab.
 

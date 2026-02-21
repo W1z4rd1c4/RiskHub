@@ -156,3 +156,27 @@ jobs:
 
       - name: Run full backend Ruff report (informational)
         run: ruff check --config backend/ruff.toml backend --output-format=github
+
+  docs-tree-audit:
+    name: Docs Tree Audit (Informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Run canonical docs-tree topology audit (informational)
+        run: python3 scripts/tools/docs_tree_audit.py --scope canonical
+
+      - name: Upload docs-tree audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-tree-audit
+          path: tests/results/docs/docs-tree-audit-*
+          retention-days: 30

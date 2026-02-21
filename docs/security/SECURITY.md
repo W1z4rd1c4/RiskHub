@@ -1,6 +1,7 @@
 # Security Scanning & Vulnerability Management
 
 This document describes the security scanning tools, processes, and response procedures for RiskHub.
+Back to tree: [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 ## Quick Start
 
@@ -61,6 +62,13 @@ make -f scripts/Makefile security-gap-round5
 
 # Real staging replay pack (requires RH_STAGING_* env vars)
 bash scripts/security/run_real_staging_replay.sh
+
+# Compose Round-5 Point-3 consolidated findings index
+python3 scripts/security/compose_round5_point3_index.py
+
+# Documentation topology audit (canonical / full)
+python3 scripts/tools/docs_tree_audit.py --scope canonical
+python3 scripts/tools/docs_tree_audit.py --scope full
 ```
 
 ---
@@ -80,6 +88,8 @@ bash scripts/security/run_real_staging_replay.sh
 | **Protocol Contract Probe** | Deterministic protocol/security-vs-contract triage | `scripts/security/protocol_contract_probe.py` | Local security closure runs |
 | **Redis Resilience Tests** | Redis fault-injection fail-closed checks | `tests/backend/pytest/test_*redis*_resilience.py` | Local + nightly CI |
 | **Round-5 Replay Harnesses** | Real staging + state-machine/RBAC sweeps | `scripts/security/*.py` | Local security audits |
+| **Round-5 Parity Index Composer** | Consolidated machine-readable findings index for Point-3 parity | `scripts/security/compose_round5_point3_index.py` | Local security closure runs |
+| **Docs Tree Audit** | Canonical docs-link integrity and topology contract audit | `scripts/tools/docs_tree_audit.py` | Local + CI informational |
 
 ---
 
@@ -142,6 +152,10 @@ The protocol probe harness classifies outcomes as:
 Artifacts are emitted to:
 - `tests/results/security/contract-drift-remediation-<timestamp>/protocol/probe-results.json`
 - `tests/results/security/contract-drift-remediation-<timestamp>/protocol/probe-triage.csv`
+
+Docs topology artifacts are emitted to:
+- `tests/results/docs/docs-tree-audit-<timestamp>/docs-tree-audit.json`
+- `tests/results/docs/docs-tree-audit-<timestamp>/docs-tree-audit.md`
 
 ### Known Issues Allowlist
 

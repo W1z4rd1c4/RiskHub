@@ -17,6 +17,8 @@ tags:
 
 # Uživatelská dokumentace RiskHub
 
+Zpět na strom dokumentace: <a href="../DOCUMENTATION_TREE.md">/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md</a>
+
 Tato knihovna je produkční manuál pro všechny ne-admin role. Je napsaná pro reálnou práci: co dělat, kde to dělat a jak rychle diagnostikovat situace typu „nic se nezměnilo“, „nevidím modul“ nebo „nevím, kdo to upravil“.
 
 **Na této stránce**
@@ -143,7 +145,7 @@ Praktická pravidla:
 Manuály používají deterministická pravidla, aby se odkazy chovaly předvídatelně:
 
 - [Začínáme](./getting-started.md) otevře jiný manuál v rámci čtečky.
-- `[/route](/path)` přepne na aplikační stránku.
+- Příklady aplikačních route zapisujte jako kód, například: `` `/approvals` ``.
 - `[#anchor](#heading-id)` posune v rámci aktuální stránky.
 - Externí odkazy jsou `https://...` a otevřou se v novém tabu.
 
