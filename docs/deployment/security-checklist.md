@@ -37,6 +37,11 @@ Backend startup enforces these when `DEBUG=false`:
 - `ENABLE_SCHEDULER=true` must run in exactly one backend process (otherwise jobs duplicate).
 - Prefer a dedicated scheduler deployment/pod with one worker.
 
+## Container runtime hardening
+
+- Backend and frontend runtime containers should run as non-root users.
+- Frontend install path uses `--cap-drop ALL` with `--cap-add NET_BIND_SERVICE` so port `80` binding remains possible without running as root.
+
 ## Secrets handling
 
 - Store `SECRET_KEY`, DB passwords, and Redis password in a secret manager or Kubernetes `Secret`.

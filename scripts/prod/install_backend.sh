@@ -144,20 +144,28 @@ fi
 
 log "Installing backend container: $container_name (instance=$instance workers=$workers scheduler=$enable_scheduler)"
 
+docker_run_args=(
+  docker run -d
+  --name "$container_name"
+  --restart unless-stopped
+  --security-opt no-new-privileges
+  "${label_args[@]}"
+  "${network_alias_args[@]}"
+)
+if [[ ${#publish_args[@]} -gt 0 ]]; then
+  docker_run_args+=("${publish_args[@]}")
+fi
+docker_run_args+=(
+  -v "${BACKEND_LOGS_VOLUME}:/app/logs"
+  --env-file "$BACKEND_ENV"
+  -e "REDIS_URL=${redis_url}"
+  -e "ENABLE_SCHEDULER=${enable_scheduler}"
+  "$backend_image"
+  uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers "$workers"
+)
+
 run_redacted \
   "docker run -d --name $container_name ... --env-file $BACKEND_ENV -e REDIS_URL=*** -e ENABLE_SCHEDULER=$enable_scheduler $backend_image uvicorn ... --workers $workers" \
-  docker run -d \
-  --name "$container_name" \
-  --restart unless-stopped \
-  --security-opt no-new-privileges \
-  "${label_args[@]}" \
-  "${network_alias_args[@]}" \
-  "${publish_args[@]}" \
-  -v "${BACKEND_LOGS_VOLUME}:/app/logs" \
-  --env-file "$BACKEND_ENV" \
-  -e "REDIS_URL=${redis_url}" \
-  -e "ENABLE_SCHEDULER=${enable_scheduler}" \
-  "$backend_image" \
-  uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers "$workers"
+  "${docker_run_args[@]}"
 
 log "Backend install: OK ($container_name)"

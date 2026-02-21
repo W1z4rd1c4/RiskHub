@@ -585,6 +585,7 @@ frontend_env_local=""
 cleanup() {
   if [[ -n "$backend_env_local" && -f "$backend_env_local" ]]; then rm -f "$backend_env_local" || true; fi
   if [[ -n "$frontend_env_local" && -f "$frontend_env_local" ]]; then rm -f "$frontend_env_local" || true; fi
+  if [[ -n "$setup_tmp_dir" && -d "$setup_tmp_dir" ]]; then rm -rf "$setup_tmp_dir" || true; fi
 }
 trap cleanup EXIT
 

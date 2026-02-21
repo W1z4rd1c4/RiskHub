@@ -5,7 +5,8 @@
 Canonical Source: `docs/agent/README.md`, `docs/agent/AGENTS_DOC_COVERAGE.md`
 
 This file is the navigation layer for agent behavior. Canonical details live in `docs/` and `.planning/codebase/`.
-Use `docs/agent/README.md` as the agent-doc index and `docs/agent/AGENTS_DOC_COVERAGE.md` for section coverage tracking.
+Use [`docs/agent/README.md`](docs/agent/README.md) as the agent-doc index and [`docs/agent/AGENTS_DOC_COVERAGE.md`](docs/agent/AGENTS_DOC_COVERAGE.md) for section coverage tracking.
+Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-domain documentation navigation and [`.planning/README.md`](.planning/README.md) for planning-tree navigation.
 
 | AGENTS Section | Canonical Source(s) | Coverage | Owner | Last Verified |
 |---|---|---|---|---|

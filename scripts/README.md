@@ -16,6 +16,7 @@ Folder for `scripts` implementation assets.
 - `run_playwright_with_watchdog.sh`
 - `runtime-artifacts/`
 - `security/`
+  - `compose_round5_point3_index.py`
   - `protocol_contract_probe.py`
   - `rbac_idor_write_sweep.py`
   - `real_staging_replay.py`
@@ -53,3 +54,22 @@ Real staging replay harness:
 ```bash
 bash scripts/security/run_real_staging_replay.sh
 ```
+
+Round-5 Point-3 consolidated findings index:
+
+```bash
+python3 scripts/security/compose_round5_point3_index.py
+```
+
+Default output:
+`tests/results/security/deep-gap-round5-point3-parity-20260221-230550/findings-round5-point3-parity.json`
+
+## Documentation Topology Audit
+
+```bash
+make -f scripts/Makefile docs-tree-audit
+python3 scripts/tools/docs_tree_audit.py --scope full
+```
+
+Outputs are written under:
+`tests/results/docs/docs-tree-audit-<timestamp>/`

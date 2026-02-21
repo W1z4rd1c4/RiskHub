@@ -94,6 +94,8 @@ run docker run -d \
   --name "$FRONTEND_CONTAINER" \
   --restart unless-stopped \
   --security-opt no-new-privileges \
+  --cap-drop ALL \
+  --cap-add NET_BIND_SERVICE \
   "${label_args[@]}" \
   --network "$NETWORK_NAME" \
   -p "${host_port}:${container_port}" \
