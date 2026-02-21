@@ -59,6 +59,14 @@ _ALEMBIC_INI_PATH = _BACKEND_ROOT / "alembic.ini"
 _USING_POSTGRES = TEST_DATABASE_URL.startswith("postgresql")
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    # Ensure marker availability even when pytest rootdir resolves to repository root.
+    config.addinivalue_line(
+        "markers",
+        "redis_integration: Tests that require Docker-backed Redis fault-injection/integration",
+    )
+
+
 @pytest.fixture(scope="session")
 def event_loop() -> Generator:
     """Create an instance of the default event loop for the test session."""

@@ -9,6 +9,12 @@ import jwt
 from jwt import PyJWTError
 
 from app.core.config import Settings
+from app.core.outbound_guard import (
+    OutboundRequestError,
+    build_outbound_client,
+    extract_host,
+    guard_outbound_url,
+)
 
 
 class SsoTokenVerificationError(Exception):
@@ -63,6 +69,7 @@ class EntraTokenVerifier:
     def __init__(self, *, settings: Settings):
         if not settings.entra_tenant_id or not settings.entra_client_id:
             raise SsoProviderUnavailableError("Missing Entra configuration")
+        self._settings = settings
         self._tenant_id = settings.entra_tenant_id
         self._client_id = settings.entra_client_id
         self._allowed_domains = [d.strip().lower() for d in settings.entra_allowed_email_domains if d.strip()]
@@ -71,6 +78,7 @@ class EntraTokenVerifier:
             settings.entra_oidc_discovery_url
             or f"https://login.microsoftonline.com/{self._tenant_id}/v2.0/.well-known/openid-configuration"
         )
+        self._discovery_host = extract_host(self._discovery_url)
 
         self._lock = asyncio.Lock()
         self._discovery: dict[str, Any] | None = None
@@ -79,8 +87,13 @@ class EntraTokenVerifier:
         self._jwks_fetched_at: float = 0.0
 
     async def _fetch_json(self, url: str) -> dict[str, Any]:
+        allow_hosts = [self._discovery_host] if self._discovery_host else None
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
+            guard_outbound_url(url=url, settings=self._settings, allowed_hosts=allow_hosts)
+        except OutboundRequestError as exc:
+            raise SsoProviderUnavailableError(str(exc)) from exc
+        try:
+            async with build_outbound_client(settings=self._settings, timeout_seconds=10.0) as client:
                 res = await client.get(url)
                 res.raise_for_status()
                 data = res.json()
@@ -99,6 +112,20 @@ class EntraTokenVerifier:
             jwks_uri = discovery.get("jwks_uri")
             if not issuer or not jwks_uri:
                 raise SsoProviderUnavailableError("OIDC discovery missing issuer/jwks_uri")
+            allowed_hosts: list[str] = []
+            if self._discovery_host:
+                allowed_hosts.append(self._discovery_host)
+            issuer_host = extract_host(str(issuer))
+            if issuer_host:
+                allowed_hosts.append(issuer_host)
+            try:
+                guard_outbound_url(
+                    url=str(jwks_uri),
+                    settings=self._settings,
+                    allowed_hosts=allowed_hosts or None,
+                )
+            except OutboundRequestError as exc:
+                raise SsoProviderUnavailableError(str(exc)) from exc
             self._discovery = discovery
             self._discovery_fetched_at = now
             return discovery

@@ -62,7 +62,8 @@ docker_require_running
 if [[ -z "$FRONTEND_ENV" ]]; then
   die "Missing --frontend-env"
 fi
-preflight_frontend_env "$FRONTEND_ENV"
+# Smoke checks validate an active deployment, so the frontend port is expected to be in use.
+preflight_frontend_env "$FRONTEND_ENV" "true"
 
 host_port="$(envfile_get "$FRONTEND_ENV" "FRONTEND_HOST_PORT" || true)"
 if [[ -z "$host_port" ]]; then

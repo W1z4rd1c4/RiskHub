@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.db.session import get_db
 from app.models import User
 
@@ -13,16 +13,16 @@ router = APIRouter()
 
 
 # Keep mock login for development
-@router.post("/mock-login/{user_id}")
+@router.post("/mock-login/{user_id}", include_in_schema=False)
 async def mock_login(
     user_id: int,
+    settings: Settings = Depends(get_settings),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Mock login endpoint for development.
     Returns user info that can be used with X-Mock-User-Id header.
     """
-    settings = get_settings()
     if not (settings.debug and settings.mock_auth_enabled):
         raise HTTPException(status_code=404, detail="Mock auth not enabled")
 
