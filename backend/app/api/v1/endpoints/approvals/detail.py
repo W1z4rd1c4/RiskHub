@@ -16,7 +16,15 @@ from ._shared import _build_approval_read
 router = APIRouter()
 
 
-@router.get("/{approval_id}", response_model=ApprovalRequestRead)
+@router.get(
+    "/{approval_id}",
+    response_model=ApprovalRequestRead,
+    responses={
+        401: {"description": "Authentication required."},
+        403: {"description": "Authenticated user cannot access this approval request."},
+        404: {"description": "Approval request not found."},
+    },
+)
 async def get_approval_request(
     approval_id: int,
     db: AsyncSession = Depends(get_db),

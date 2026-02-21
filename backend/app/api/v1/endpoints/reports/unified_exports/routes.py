@@ -11,14 +11,14 @@ from app.models import User
 from app.models.issue import IssueSeverity, IssueStatus
 
 from .._scoping import _validate_department_access
-from .._streaming import resolve_export_format
+from .._streaming import EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE, resolve_export_format
 from ._shared import ExportFormatQuery, KRIExportStatus
 from .exports import _export_controls, _export_issues, _export_kris, _export_risks, _export_vendors
 
 router = APIRouter()
 
 
-@router.get("/risks/export")
+@router.get("/risks/export", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)
 async def export_risks(
     format: ExportFormatQuery = Query(..., description="Export format: csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
@@ -47,7 +47,7 @@ async def export_risks(
     )
 
 
-@router.get("/controls/export")
+@router.get("/controls/export", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)
 async def export_controls(
     format: ExportFormatQuery = Query(..., description="Export format: csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
@@ -72,7 +72,7 @@ async def export_controls(
     )
 
 
-@router.get("/kris/export")
+@router.get("/kris/export", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)
 async def export_kris(
     format: ExportFormatQuery = Query(..., description="Export format: csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
@@ -97,7 +97,7 @@ async def export_kris(
     )
 
 
-@router.get("/vendors/export")
+@router.get("/vendors/export", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)
 async def export_vendors(
     format: ExportFormatQuery = Query(..., description="Export format: csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
@@ -124,7 +124,7 @@ async def export_vendors(
     )
 
 
-@router.get("/issues/export")
+@router.get("/issues/export", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)
 async def export_issues(
     format: ExportFormatQuery = Query(..., description="Export format: csv"),
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),

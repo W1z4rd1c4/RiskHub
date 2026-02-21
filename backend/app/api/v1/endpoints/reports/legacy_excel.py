@@ -7,12 +7,12 @@ from app.core.security import require_permission
 from app.models import User
 
 from ._scoping import _validate_department_access
-from ._streaming import excel_export_removed
+from ._streaming import EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE, excel_export_removed
 
 router = APIRouter()
 
 
-@router.get("/controls/excel")
+@router.get("/controls/excel", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)
 async def download_controls_excel(
     department_id: Optional[int] = Query(None, description="Filter by department"),
     current_user: User = Depends(require_permission("reports", "read")),
@@ -22,7 +22,7 @@ async def download_controls_excel(
     raise excel_export_removed(replacement="/api/v1/reports/controls/export?format=csv")
 
 
-@router.get("/risks/excel")
+@router.get("/risks/excel", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)
 async def download_risks_excel(
     department_id: Optional[int] = Query(None, description="Filter by department"),
     current_user: User = Depends(require_permission("reports", "read")),
