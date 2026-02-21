@@ -59,7 +59,13 @@ docker_require_running
 if [[ -z "$FRONTEND_ENV" ]]; then
   die "Missing --frontend-env"
 fi
-preflight_frontend_env "$FRONTEND_ENV"
+
+# Replacement flows (upgrade/rollback) can legitimately see the frontend host port in use.
+allow_port_in_use="false"
+if [[ -n "$previous_image" ]] && container_exists "$FRONTEND_CONTAINER"; then
+  allow_port_in_use="true"
+fi
+preflight_frontend_env "$FRONTEND_ENV" "$allow_port_in_use"
 
 if [[ -z "$frontend_image" ]]; then
   die "Missing --frontend-image"

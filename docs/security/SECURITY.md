@@ -52,6 +52,15 @@ python scripts/verify_security_headers.py         # Against running server
 
 # Protocol / OpenAPI contract drift probe (deterministic, repo-tracked harness)
 make -f scripts/Makefile security-contract-probe
+
+# Redis fault-injection resilience checks (fail-closed verification)
+make -f scripts/Makefile security-redis-resilience
+
+# Round-5 targeted security gap suite
+make -f scripts/Makefile security-gap-round5
+
+# Real staging replay pack (requires RH_STAGING_* env vars)
+bash scripts/security/run_real_staging_replay.sh
 ```
 
 ---
@@ -69,6 +78,8 @@ make -f scripts/Makefile security-contract-probe
 | **Grype** | SBOM vulnerability correlation gate | `backend/security/grype-ignore.yaml` | CI (push/schedule) |
 | **Gitleaks** | Secrets detection | `.gitleaks.toml` | Pre-commit, CI |
 | **Protocol Contract Probe** | Deterministic protocol/security-vs-contract triage | `scripts/security/protocol_contract_probe.py` | Local security closure runs |
+| **Redis Resilience Tests** | Redis fault-injection fail-closed checks | `tests/backend/pytest/test_*redis*_resilience.py` | Local + nightly CI |
+| **Round-5 Replay Harnesses** | Real staging + state-machine/RBAC sweeps | `scripts/security/*.py` | Local security audits |
 
 ---
 
@@ -83,6 +94,7 @@ The security workflow (`.github/workflows/security.yml`) runs:
 | Container Scan + SBOM Correlation | Push, Weekly | Trivy High+/Critical + Grype High+/Critical |
 | Secrets Detection | PR, Push | Config parse + full scan |
 | Security Headers | PR only | Required headers |
+| Redis Resilience Integration (non-blocking) | Nightly | Informational (`redis_integration`) |
 
 Backend CI jobs in security/lint/e2e workflows use Python `3.13` to align with the backend runtime baseline.
 

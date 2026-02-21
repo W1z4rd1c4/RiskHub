@@ -11,6 +11,7 @@ source "${SCRIPT_DIR}/lib/preflight.sh"
 backend_image=""
 check_db=false
 check_only=false
+allow_frontend_port_in_use=false
 
 usage() {
   cat <<EOF
@@ -22,6 +23,8 @@ Options:
   --backend-image IMAGE    Backend image ref to use for --check-db (e.g. riskhub-backend:1.0.0)
   --check-db               Run SELECT 1 against external PostgreSQL using an ephemeral backend container
   --check-only             Alias for --check-db=false (skip DB check)
+  --allow-frontend-port-in-use
+                           Allow FRONTEND_HOST_PORT to be occupied (replacement/validation flows)
   --dry-run                Print commands without executing them
   --yes                    Non-interactive mode (no prompts)
   --verbose                More logging
@@ -49,6 +52,10 @@ while [[ $# -gt 0 ]]; do
       check_only=true
       shift
       ;;
+    --allow-frontend-port-in-use)
+      allow_frontend_port_in_use=true
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -71,7 +78,7 @@ fi
 
 log "Preflight: validating configuration and host readiness"
 preflight_backend_env "$BACKEND_ENV"
-preflight_frontend_env "$FRONTEND_ENV"
+preflight_frontend_env "$FRONTEND_ENV" "$allow_frontend_port_in_use"
 
 if [[ "$check_only" == "true" ]]; then
   check_db=false

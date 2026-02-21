@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from app.core.config import Settings
+from app.core.outbound_guard import OutboundRequestError, build_outbound_client, guard_outbound_url
 from app.schemas.directory import DirectoryUserRead
 
 _GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
@@ -79,7 +80,12 @@ class GraphDirectoryService:
         headers = {"Authorization": f"Bearer {token}"}
         timeout = httpx.Timeout(self._settings.graph_timeout_seconds)
         url = f"{_GRAPH_BASE_URL}{path}"
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            guard_outbound_url(url=url, settings=self._settings, allowed_hosts=["graph.microsoft.com"])
+        except OutboundRequestError as exc:
+            raise GraphProviderUnavailableError(str(exc)) from exc
+
+        async with build_outbound_client(settings=self._settings, timeout_seconds=self._settings.graph_timeout_seconds) as client:
             try:
                 response = await client.get(url, headers=headers, params=params)
             except httpx.HTTPError as exc:
@@ -112,8 +118,12 @@ class GraphDirectoryService:
             )
 
         token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-        timeout = httpx.Timeout(self._settings.graph_timeout_seconds)
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        try:
+            guard_outbound_url(url=token_url, settings=self._settings, allowed_hosts=["login.microsoftonline.com"])
+        except OutboundRequestError as exc:
+            raise GraphProviderUnavailableError(str(exc)) from exc
+
+        async with build_outbound_client(settings=self._settings, timeout_seconds=self._settings.graph_timeout_seconds) as client:
             try:
                 response = await client.post(
                     token_url,

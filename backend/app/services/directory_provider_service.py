@@ -6,6 +6,12 @@ from urllib.parse import urljoin
 import httpx
 
 from app.core.config import Settings
+from app.core.outbound_guard import (
+    OutboundRequestError,
+    build_outbound_client,
+    extract_host,
+    guard_outbound_url,
+)
 from app.schemas.directory import DirectoryUserRead
 from app.services.graph_directory_service import (
     GraphDirectoryProviderError,
@@ -33,6 +39,7 @@ class _ADEmulatorDirectoryService:
     def __init__(self, settings: Settings):
         self._settings = settings
         self._base_url = (settings.ad_emulator_base_url or "").rstrip("/")
+        self._base_host = extract_host(self._base_url) if self._base_url else None
 
     @property
     def source_name(self) -> str:
@@ -67,11 +74,19 @@ class _ADEmulatorDirectoryService:
         not_found_is_error: bool = False,
     ) -> dict[str, Any]:
         url = urljoin(f"{self._base_url}/", path.lstrip("/"))
-        timeout = httpx.Timeout(self._settings.graph_timeout_seconds)
+        try:
+            guard_outbound_url(
+                url=url,
+                settings=self._settings,
+                allowed_hosts=([self._base_host] if self._base_host else None),
+            )
+        except OutboundRequestError as exc:
+            raise DirectoryProviderUnavailableError(str(exc)) from exc
+
         headers: dict[str, str] = {}
         if self._settings.ad_emulator_api_key:
             headers[self._settings.ad_emulator_api_key_header] = self._settings.ad_emulator_api_key
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with build_outbound_client(settings=self._settings, timeout_seconds=self._settings.graph_timeout_seconds) as client:
             try:
                 response = await client.get(url, params=params, headers=headers)
             except httpx.HTTPError as exc:

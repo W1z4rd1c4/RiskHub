@@ -9,6 +9,8 @@ on:
   pull_request:
     branches: [main, develop]
   schedule:
+    # Run nightly at 02:00 UTC for resilience smoke checks
+    - cron: '0 2 * * *'
     # Run weekly on Sunday at 00:00 UTC
     - cron: '0 0 * * 0'
 
@@ -156,6 +158,40 @@ jobs:
 
       - name: Run i18n test gate
         run: npm run i18n:test
+
+  # Redis resilience integration (non-blocking during initial rollout)
+  redis-resilience-integration:
+    name: Redis Resilience Integration (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    if: github.event_name == 'schedule'
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run redis integration resilience test
+        run: pytest ../tests/backend/pytest/test_rate_limit_redis_integration.py -m redis_integration -q
+
+      - name: Upload redis resilience artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: redis-resilience-integration
+          path: |
+            backend/.pytest_cache
+          retention-days: 7
 
   # Container Security Scan
   container-security:

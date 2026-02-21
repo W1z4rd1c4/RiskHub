@@ -17,7 +17,7 @@ router = APIRouter()
 
 def _assert_demo_login_enabled(settings: Settings) -> None:
     if not settings.debug or not settings.mock_auth_enabled or settings.auth_mode != "hybrid_dev":
-        raise HTTPException(status_code=403, detail="Demo login is only available in development mode")
+        raise HTTPException(status_code=404, detail="Not Found")
 
 
 def _user_with_demo_load():
@@ -73,7 +73,7 @@ async def _build_demo_response(
     return token_response
 
 
-@router.post("/demo-login", response_model=TokenResponse)
+@router.post("/demo-login", response_model=TokenResponse, include_in_schema=False)
 async def demo_login_by_email(
     payload: DemoLoginRequest,
     request: Request,
@@ -97,7 +97,7 @@ async def demo_login_by_email(
     )
 
 
-@router.post("/demo-login/{user_id}", response_model=TokenResponse)
+@router.post("/demo-login/{user_id}", response_model=TokenResponse, include_in_schema=False)
 async def demo_login(
     user_id: int,
     request: Request,
