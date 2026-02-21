@@ -1,5 +1,7 @@
 # Agent Documentation Index
 
+Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
+
 This directory is the canonical documentation layer for AGENTS-specific development rules that are not product feature specs.
 
 Canonical scope for AGENTS mapping:
@@ -20,4 +22,4 @@ Canonical topic docs:
 - `../deployment/component-runtime-entrypoints.md` - FE/BE/DB component-scoped runtime command contract
 
 Verification date:
-- 2026-02-20
+- 2026-02-21

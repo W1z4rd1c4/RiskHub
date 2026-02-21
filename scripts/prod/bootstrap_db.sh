@@ -135,13 +135,13 @@ fi
 confirm_or_die "Run DB bootstrap (RBAC + departments + bootstrap privileged users) against external PostgreSQL?"
 
 log "Seeding RBAC roles/permissions (canonical contract)..."
-run docker run --rm --env-file "$BACKEND_ENV" "$backend_image" python scripts/seed_roles_permissions.py
+run docker run --rm --env-file "$BACKEND_ENV" "$backend_image" python -m scripts.seed_roles_permissions
 
 log "Seeding departments..."
-run docker run --rm --env-file "$BACKEND_ENV" "$backend_image" python scripts/seed_departments.py
+run docker run --rm --env-file "$BACKEND_ENV" "$backend_image" python -m scripts.seed_departments
 
 log "Bootstrapping initial SSO user by email (idempotent upsert)..."
-bootstrap_args=(python scripts/bootstrap_sso_user.py --email "$bootstrap_email" --role "$bootstrap_role" --access-scope "$bootstrap_scope")
+bootstrap_args=(python -m scripts.bootstrap_sso_user --email "$bootstrap_email" --role "$bootstrap_role" --access-scope "$bootstrap_scope")
 if [[ -n "$bootstrap_department" ]]; then
   bootstrap_args+=(--department "$bootstrap_department")
 fi
@@ -149,7 +149,7 @@ run docker run --rm --env-file "$BACKEND_ENV" "$backend_image" "${bootstrap_args
 
 if [[ -n "$cro_email" ]]; then
   log "Bootstrapping CRO SSO user by email (idempotent upsert)..."
-  cro_args=(python scripts/bootstrap_sso_user.py --email "$cro_email" --role "cro" --access-scope "$cro_scope")
+  cro_args=(python -m scripts.bootstrap_sso_user --email "$cro_email" --role "cro" --access-scope "$cro_scope")
   run docker run --rm --env-file "$BACKEND_ENV" "$backend_image" "${cro_args[@]}"
 fi
 

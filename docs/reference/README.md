@@ -1,5 +1,7 @@
 # docs/reference
 
+Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
+
 ## Purpose
 
 Folder for `docs/reference` implementation assets.
@@ -8,6 +10,7 @@ Folder for `docs/reference` implementation assets.
 
 - `file_list.txt`
 - `LEGACY_PATH_MAP.md`
+- `documentation-topology-audit-2026-02-21.md`
 - `permission_filtering_summary.md`
 - `README_COVERAGE_POLICY.md`
 

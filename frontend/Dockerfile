@@ -40,8 +40,12 @@ RUN addgroup -g 1001 -S riskhub && \
     adduser -S riskhub -u 1001 -G riskhub && \
     chown -R riskhub:riskhub /usr/share/nginx/html && \
     chown -R riskhub:riskhub /var/cache/nginx && \
+    chown -R riskhub:riskhub /var/log/nginx && \
     touch /var/run/nginx.pid && \
     chown -R riskhub:riskhub /var/run/nginx.pid
+
+# Run runtime as non-root (install_frontend.sh grants NET_BIND_SERVICE for port 80)
+USER riskhub
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

@@ -17,6 +17,8 @@ tags:
 
 # Dokumentace správy platformy RiskHub
 
+Zpět na strom dokumentace: <a href="../DOCUMENTATION_TREE.md">docs/DOCUMENTATION_TREE.md</a>
+
 Tato knihovna je kanonická sada runbooků pro provozní správu platformy. Je napsaná pro roli `admin` a soustředí se na stabilitu, přístupy a podpůrné provozní plochy.
 
 Záměrně to není business manuál. Pokud se ticket změní na policy rozhodnutí („máme akceptovat toto riziko?“, „jaký má být limit?“), správný výsledek je strukturované předání vlastníkovi domény, ne admin override.

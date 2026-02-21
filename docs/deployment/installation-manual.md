@@ -110,7 +110,7 @@ This delegates to the Phase 500 production guided installer (`scripts/prod/setup
 - run `scripts/prod/preflight.sh`
 - preview the deploy actions, then deploy after confirmation
 
-Dry-run (writes env files to temp paths and previews deploy/upgrade only):
+Dry-run (writes env files to temp paths, cleans them on exit, and previews deploy/upgrade only):
 
 ```bash
 ./scripts/setup.sh --mode prod --dry-run

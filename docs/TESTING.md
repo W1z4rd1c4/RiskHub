@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
-> **Version**: 1.1
-> **Last Updated**: 2026-02-16
+> **Version**: 1.2
+> **Last Updated**: 2026-02-21
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
@@ -14,6 +14,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Backend targeted | `cd backend && venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q` | Docs endpoint behavior and locale fallback |
 | Backend broad | `make -f scripts/Makefile test` | Full backend regression |
 | Backend Postgres marker | `cd backend && pytest -m postgres -v` | Postgres-sensitive behavior |
+| Backend Redis integration marker | `cd backend && pytest -m redis_integration -q` | Redis fault-injection resilience checks (Docker-backed) |
 | Frontend unit | `cd frontend && npm run test:run` | Component and integration tests |
 | Frontend docs UI | `cd frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx` | Docs cards/filter/audience behavior |
 | Frontend types | `cd frontend && npx tsc --noEmit` | Type safety gate |
@@ -25,6 +26,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - `backend/pytest.ini` defines discovery and default coverage settings.
 - SQLite in-memory is used by default test path unless `TEST_DATABASE_URL` is set.
 - Postgres-specific tests are marked with `@pytest.mark.postgres`.
+- Redis integration tests are marked with `@pytest.mark.redis_integration` and require Docker-backed test dependencies.
 - For docs endpoint behavior, keep role-scoped fixtures (`client_platform_admin`, `client_cro`, `client_employee`) green.
 
 ## Frontend Testing Notes

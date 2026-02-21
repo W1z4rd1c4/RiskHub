@@ -46,7 +46,7 @@ Run artifact root:
 ## 7-Point Closure Status
 1. Real staging infra-only chains: `BLOCKED_PRECONDITION` (missing RH_STAGING_* credentials).
 2. Redis fault-injection bypass risk: `FIXED` (fail-closed + resilience tests).
-3. State-machine valid-session depth: `PARTIAL` (local completed, staging-sim unavailable).
+3. State-machine valid-session depth: `PARTIAL` (base run only; closed by addendum below).
 4. Protocol/parser abuse with valid auth: `FIXED` (middleware + tests).
 5. IDOR/write side-effect depth: `FIXED` (write-surface sweep + RBAC regression).
 6. Outbound connector abuse depth: `FIXED` (central guard + service integrations + tests).
@@ -54,7 +54,45 @@ Run artifact root:
 
 ## Follow-up Required
 1. Re-run real staging replay with full `RH_STAGING_*` credentials and publish resulting artifact in a follow-up addendum.
-2. Start staging-sim backend (`:18000`) and rerun `state_machine_campaign.py` for parity completion.
+2. Point 3 parity completion: completed in addendum; no further staging-sim action required for this report cycle.
 
 ## Machine-Readable Findings
 - `tests/results/security/deep-gap-round5-20260221-225327/findings-round5.json`
+- `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/findings-round5-point3-parity.json` (consolidated Point 3 parity status view)
+
+## Addendum — Point 3 Parity Completion (2026-02-21 UTC)
+
+Addendum artifact root:
+`tests/results/security/deep-gap-round5-point3-parity-20260221-230550`
+
+### Execution Scope
+1. Started staging-sim backend on `http://127.0.0.1:18000` using:
+   - `backend/scripts/runtime/dev.sh --port 18000 --no-reload`
+2. Re-ran:
+   - `scripts/security/state_machine_campaign.py`
+   - Targets:
+     - `local=http://127.0.0.1:8000`
+     - `staging-sim=http://127.0.0.1:18000`
+
+### Addendum Decision
+- Point 3 parity decision: `PASS`
+- Campaign decision: `PASS`
+- `staging_sim_failed_cases`: `0`
+- `staging_sim_transport_errors`: `0`
+- `staging_sim_session_noise_401`: `0`
+
+### Evidence
+- Campaign output:
+  - `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/campaigns/state-machine-valid-session.json`
+- Parity summary:
+  - `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/reports/point3-parity-summary.json`
+- Closure status:
+  - `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/reports/parity-status.txt`
+- Closure note:
+  - `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/reports/point3-closure-note.md`
+- Consolidated machine-readable index:
+  - `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/findings-round5-point3-parity.json`
+
+### Revised 7-Point Status (Delta Only)
+- Point 3. State-machine valid-session depth: `FIXED` for local + staging-sim parity.
+- Point 1 (real staging replay) remains `BLOCKED_PRECONDITION` pending `RH_STAGING_*` credentials.
