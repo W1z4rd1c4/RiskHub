@@ -16,7 +16,18 @@ from ._shared import _build_token_response, _issue_refresh_session, _resolve_saf
 router = APIRouter()
 
 
-@router.post("/sso/exchange", response_model=TokenResponse)
+@router.post(
+    "/sso/exchange",
+    response_model=TokenResponse,
+    responses={
+        400: {"description": "Invalid request payload for SSO exchange."},
+        401: {"description": "SSO token verification failed."},
+        403: {"description": "SSO disabled or identity/user is not allowed."},
+        409: {"description": "SSO identity collision detected."},
+        422: {"description": "Validation error for malformed or invalid JSON payload."},
+        503: {"description": "SSO provider metadata/discovery unavailable."},
+    },
+)
 async def sso_exchange(
     payload: SsoExchangeRequest,
     request: Request,

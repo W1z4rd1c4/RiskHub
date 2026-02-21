@@ -14,7 +14,13 @@ from app.models.risk import ControlRiskLink
 from app.services.report_service import generate_tabular_csv
 
 from ._scoping import _user_has_no_departments, _validate_department_access
-from ._streaming import ExportFormatQuery, _stream_binary, excel_export_removed, resolve_export_format
+from ._streaming import (
+    EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE,
+    ExportFormatQuery,
+    _stream_binary,
+    excel_export_removed,
+    resolve_export_format,
+)
 
 router = APIRouter()
 
@@ -104,7 +110,7 @@ def _to_csv_rows(executions: list[ControlExecution]) -> tuple[list[str], list[li
     return headers, rows
 
 
-@router.get("/audit-trail/excel")
+@router.get("/audit-trail/excel", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)
 async def download_audit_trail_excel(
     department_id: Optional[int] = Query(None, description="Filter by department"),
     current_user: User = Depends(require_permission("reports", "read")),
@@ -114,7 +120,7 @@ async def download_audit_trail_excel(
     raise excel_export_removed(replacement="/api/v1/reports/audit-trail/export?format=csv")
 
 
-@router.get("/audit-trail/export")
+@router.get("/audit-trail/export", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)
 async def download_audit_trail_export(
     format: ExportFormatQuery = Query(..., description="Export format: csv"),
     department_id: Optional[int] = Query(None, description="Filter by department"),

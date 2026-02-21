@@ -19,8 +19,13 @@ from ._shared import _build_approval_read, _get_approval_department_id, _notify_
 
 router = APIRouter()
 
+_APPROVAL_AUTH_NOT_FOUND_RESPONSES = {
+    401: {"description": "Authentication required."},
+    403: {"description": "Authenticated user is not allowed to resolve this approval."},
+    404: {"description": "Approval request not found."},
+}
 
-@router.post("/{approval_id}/approve", response_model=ApprovalRequestRead)
+@router.post("/{approval_id}/approve", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)
 async def approve_request(
     approval_id: int,
     resolve_data: ApprovalRequestResolve,
@@ -128,7 +133,7 @@ async def approve_request(
     return _build_approval_read(approval)
 
 
-@router.post("/{approval_id}/reject", response_model=ApprovalRequestRead)
+@router.post("/{approval_id}/reject", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)
 async def reject_request(
     approval_id: int,
     resolve_data: ApprovalRequestResolve,
@@ -199,7 +204,7 @@ async def reject_request(
     return _build_approval_read(approval)
 
 
-@router.post("/{approval_id}/cancel", response_model=ApprovalRequestRead)
+@router.post("/{approval_id}/cancel", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)
 async def cancel_request(
     approval_id: int,
     db: AsyncSession = Depends(get_db),
@@ -271,7 +276,12 @@ async def cancel_request(
     return _build_approval_read(approval)
 
 
-@router.get("/pending/count")
+@router.get(
+    "/pending/count",
+    responses={
+        401: {"description": "Authentication required."},
+    },
+)
 async def get_pending_count(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
@@ -310,7 +320,13 @@ async def get_pending_count(
     return {"count": count}
 
 
-@router.get("/my-approvals", response_model=ApprovalRequestListResponse)
+@router.get(
+    "/my-approvals",
+    response_model=ApprovalRequestListResponse,
+    responses={
+        401: {"description": "Authentication required."},
+    },
+)
 async def list_my_approval_requests(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
@@ -344,4 +360,3 @@ async def list_my_approval_requests(
     return ApprovalRequestListResponse(
         items=[_build_approval_read(a) for a in approvals], total=total, skip=skip, limit=limit
     )
-
