@@ -15,6 +15,9 @@ Folder for `scripts` implementation assets.
 - `prod/`
 - `run_playwright_with_watchdog.sh`
 - `runtime-artifacts/`
+- `security/`
+  - `protocol_contract_probe.py`
+  - `run_protocol_contract_probe.sh`
 - `setup-dev.sh`
 - `setup.sh`
 - `tools/`
@@ -23,3 +26,13 @@ Folder for `scripts` implementation assets.
 ## Notes
 
 Keep this README updated when responsibilities or structure in this folder change.
+
+## Security Probe Command
+
+Run deterministic protocol/contract drift triage:
+
+```bash
+make -f scripts/Makefile security-contract-probe
+```
+
+Outputs are written under `tests/results/security/contract-drift-remediation-<timestamp>/protocol/`.

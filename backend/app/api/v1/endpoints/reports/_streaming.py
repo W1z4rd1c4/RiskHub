@@ -11,6 +11,22 @@ ExportFormat = Literal["csv"]
 ExportFormatQuery = Literal["xlsx", "csv"]
 
 EXCEL_EXPORT_REMOVED_CODE = "excel_export_removed"
+EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE = {
+    410: {
+        "description": "Excel export has been removed. Use CSV export instead.",
+        "content": {
+            "application/json": {
+                "example": {
+                    "detail": {
+                        "code": EXCEL_EXPORT_REMOVED_CODE,
+                        "message": "Excel export has been removed. Use CSV export instead.",
+                        "replacement": "/api/v1/reports/controls/export?format=csv",
+                    }
+                }
+            }
+        },
+    }
+}
 
 
 def excel_export_removed(*, replacement: str | None = None) -> HTTPException:
