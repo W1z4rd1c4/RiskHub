@@ -60,6 +60,26 @@ class Settings(BaseSettings):
 
     # Redis (required in production for multi-worker rate limiting and account lockout)
     redis_url: str | None = None
+    # Fail-closed route prefixes when Redis-backed controls are unavailable.
+    rate_limit_fail_closed_prefixes: list[str] = Field(
+        default_factory=lambda: ["/api/v1/auth", "/api/v1/admin", "/api/v1/approvals"]
+    )
+    lockout_fail_closed_on_backend_error: bool = True
+
+    # Request protocol hardening
+    protocol_guard_enabled: bool = True
+    protocol_guard_block_method_override: bool = True
+    protocol_guard_sensitive_query_keys: list[str] = Field(
+        default_factory=lambda: ["department_id", "skip", "limit", "format", "user_id", "role_id"]
+    )
+    protocol_guard_json_prefixes: list[str] = Field(
+        default_factory=lambda: ["/api/v1/auth", "/api/v1/admin", "/api/v1/approvals"]
+    )
+
+    # Outbound call hardening
+    outbound_allow_private_destinations: bool = False
+    outbound_allowed_hosts: list[str] = Field(default_factory=list)
+    outbound_block_redirects: bool = True
 
     # Session/refresh-token behavior
     refresh_token_expire_days: int = 7

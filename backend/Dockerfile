@@ -36,10 +36,11 @@ RUN addgroup -S riskhub && adduser -S riskhub -G riskhub
 # Copy Python packages from builder
 COPY --from=builder /root/.local /home/riskhub/.local
 
-# Copy runtime application files only
+# Copy runtime application files and operational scripts used by prod bootstrap flows
 COPY --chown=riskhub:riskhub app ./app
 COPY --chown=riskhub:riskhub alembic ./alembic
 COPY --chown=riskhub:riskhub alembic.ini ./alembic.ini
+COPY --chown=riskhub:riskhub scripts ./scripts
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R riskhub:riskhub /app/logs

@@ -1,7 +1,7 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from app.core.config import Settings
+from app.core.config import Settings, get_settings
 from app.main import DEFAULT_DATABASE_URL, _derive_allowed_hosts, create_app
 
 PRODUCTION_SECRET = "test-secret-for-production-mode-123456"
@@ -71,6 +71,34 @@ async def test_trusted_host_blocks_unexpected_host_in_production_mode():
 
         blocked = await client.get("/api/v1/health", headers={"host": "evil.example"})
         assert blocked.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_dev_auth_routes_are_unavailable_in_production_mode(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("DEBUG", "false")
+    monkeypatch.setenv("MOCK_AUTH_ENABLED", "false")
+    get_settings.cache_clear()
+
+    app = create_app(
+        Settings(
+            debug=False,
+            secret_key=PRODUCTION_SECRET,
+            mock_auth_enabled=False,
+            auth_mode=PRODUCTION_AUTH_MODE,
+            entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
+            entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
+            cors_origins=["http://testserver"],
+            database_url=PRODUCTION_DATABASE_URL,
+        )
+    )
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        demo = await client.post("/api/v1/auth/demo-login/1")
+        mock_login = await client.post("/api/v1/users/mock-login/1")
+
+    get_settings.cache_clear()
+    assert demo.status_code == 404
+    assert mock_login.status_code == 404
 
 
 def test_cors_guard_rejects_wildcard_origins_in_production_mode():

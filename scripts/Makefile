@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage verify verify-prod-install-scripts verify-setup-wizard security-contract-probe
+.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage verify verify-prod-install-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5
 
 # Default target
 help:
@@ -37,6 +37,8 @@ help:
 	@echo "  make readme-coverage - Audit README coverage for all in-scope folders"
 	@echo "  make verify       - Run fast repository verification checks"
 	@echo "  make security-contract-probe - Run deterministic protocol/contract drift probe harness"
+	@echo "  make security-redis-resilience - Run Redis fail-closed resilience tests"
+	@echo "  make security-gap-round5 - Run Round-5 targeted security gap tests"
 
 # =============================================================================
 # Development
@@ -147,7 +149,9 @@ clean:
 verify-prod-install-scripts:
 	bash -n scripts/prod/*.sh scripts/prod/lib/*.sh
 	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/prod/*.sh
-	cd backend && venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py -q
+	docker build -t riskhub-backend:verify-prod-install-scripts backend
+	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'test -f /app/scripts/seed_roles_permissions.py && test -f /app/scripts/seed_departments.py && test -f /app/scripts/bootstrap_sso_user.py'
+	cd backend && venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py -q
 
 verify-setup-wizard:
 	bash -n scripts/setup.sh scripts/dev_test_setup.sh
@@ -160,3 +164,16 @@ verify: readme-coverage
 
 security-contract-probe:
 	bash scripts/security/run_protocol_contract_probe.sh
+
+security-redis-resilience:
+	cd backend && ./venv/bin/pytest ../tests/backend/pytest/test_rate_limit_redis_resilience.py ../tests/backend/pytest/test_auth_lockout_redis_resilience.py -q
+
+security-gap-round5:
+	cd backend && ./venv/bin/pytest \
+		../tests/backend/pytest/test_rate_limit_redis_resilience.py \
+		../tests/backend/pytest/test_auth_lockout_redis_resilience.py \
+		../tests/backend/pytest/test_protocol_parser_security.py \
+		../tests/backend/pytest/test_state_machine_valid_session.py \
+		../tests/backend/pytest/test_rbac_write_surface.py \
+		../tests/backend/pytest/test_outbound_egress_guards.py \
+		../tests/backend/pytest/test_dev_auth_boundary.py -q
