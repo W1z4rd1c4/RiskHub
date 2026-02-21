@@ -655,9 +655,6 @@ log "  BOOTSTRAP_ADMIN_EMAIL=${bootstrap_admin_email}"
 log "  BOOTSTRAP_CRO_EMAIL=${bootstrap_cro_email}"
 log_kv_redacted "REDIS_PASSWORD" "$redis_password"
 
-log "Running preflight checks"
-"${SCRIPT_DIR}/preflight.sh" --backend-env "$BACKEND_ENV" --frontend-env "$FRONTEND_ENV"
-
 installed=false
 if container_exists "$BACKEND_CONTAINER"; then
   installed=true
@@ -688,6 +685,14 @@ fi
 if [[ "$action" == "upgrade" && "$installed" == "false" ]]; then
   die "No existing install detected. Use --action deploy for first install."
 fi
+
+preflight_args=(--backend-env "$BACKEND_ENV" --frontend-env "$FRONTEND_ENV")
+if [[ "$action" == "upgrade" ]]; then
+  preflight_args+=(--allow-frontend-port-in-use)
+fi
+
+log "Running preflight checks"
+"${SCRIPT_DIR}/preflight.sh" "${preflight_args[@]}"
 
 if [[ -z "$tag" ]]; then
   default_tag=""

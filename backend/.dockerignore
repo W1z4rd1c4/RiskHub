@@ -27,8 +27,7 @@ pip-audit-report.json
 *.swp
 *.swo
 
-# Docs and local scripts not required in runtime image
+# Docs and local security artifacts not required in runtime image
 README.md
 docs/
-scripts/
 security/

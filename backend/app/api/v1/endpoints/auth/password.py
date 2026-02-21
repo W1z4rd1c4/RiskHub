@@ -6,6 +6,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
+from app.core.logging import get_logger
 from app.core.security import verify_password
 from app.db.session import get_db
 from app.models import RolePermission, User
@@ -14,6 +15,15 @@ from app.schemas.auth import LoginRequest, TokenResponse
 from ._shared import _build_token_response, _issue_refresh_session
 
 router = APIRouter()
+logger = get_logger("auth.password")
+
+
+def _raise_lockout_backend_unavailable() -> None:
+    raise HTTPException(
+        status_code=503,
+        detail="Authentication backend temporarily unavailable. Please retry.",
+        headers={"Retry-After": "5"},
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -42,7 +52,13 @@ async def login(
 
     # Check if account is locked due to too many failed attempts
     account_lockout = request.app.state.account_lockout
-    is_locked, lockout_remaining = await account_lockout.is_locked(credentials.email)
+    try:
+        is_locked, lockout_remaining = await account_lockout.is_locked(credentials.email)
+    except Exception as exc:  # noqa: BLE001 - fail-closed option is policy-driven
+        logger.warning("auth_lockout_backend_error", operation="is_locked", error=str(exc))
+        if settings.lockout_fail_closed_on_backend_error:
+            _raise_lockout_backend_unavailable()
+        is_locked, lockout_remaining = False, 0
     if is_locked:
         raise HTTPException(
             status_code=429,
@@ -65,7 +81,13 @@ async def login(
 
     if not user or not user.hashed_password:
         # Track failed attempt
-        is_now_locked, info = await account_lockout.record_failed_attempt(credentials.email)
+        try:
+            is_now_locked, info = await account_lockout.record_failed_attempt(credentials.email)
+        except Exception as exc:  # noqa: BLE001 - fail-closed option is policy-driven
+            logger.warning("auth_lockout_backend_error", operation="record_failed_attempt_missing_user", error=str(exc))
+            if settings.lockout_fail_closed_on_backend_error:
+                _raise_lockout_backend_unavailable()
+            is_now_locked, info = False, 0
 
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -84,7 +106,13 @@ async def login(
 
     if not verify_password(credentials.password, user.hashed_password):
         # Track failed attempt
-        is_now_locked, info = await account_lockout.record_failed_attempt(credentials.email)
+        try:
+            is_now_locked, info = await account_lockout.record_failed_attempt(credentials.email)
+        except Exception as exc:  # noqa: BLE001 - fail-closed option is policy-driven
+            logger.warning("auth_lockout_backend_error", operation="record_failed_attempt_bad_password", error=str(exc))
+            if settings.lockout_fail_closed_on_backend_error:
+                _raise_lockout_backend_unavailable()
+            is_now_locked, info = False, 0
 
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -104,11 +132,16 @@ async def login(
     if not user.is_active:
         raise HTTPException(status_code=403, detail="User account is inactive")
 
+    # Clear lockout tracking on successful login before issuing tokens.
+    try:
+        await account_lockout.record_successful_login(credentials.email)
+    except Exception as exc:  # noqa: BLE001 - fail-closed option is policy-driven
+        logger.warning("auth_lockout_backend_error", operation="record_successful_login", error=str(exc))
+        if settings.lockout_fail_closed_on_backend_error:
+            _raise_lockout_backend_unavailable()
+
     token_response = _build_token_response(user)
     await _issue_refresh_session(db=db, request=request, response=response, user=user, settings=settings)
-
-    # Clear lockout tracking on successful login
-    await account_lockout.record_successful_login(credentials.email)
 
     from app.core.activity_logger import log_activity
     from app.models.activity_log import ActivityAction, ActivityEntityType

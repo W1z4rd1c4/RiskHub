@@ -110,14 +110,14 @@ if [[ "$YES" == "true" ]]; then common_args+=(--yes); fi
 if [[ "$VERBOSE" == "true" ]]; then common_args+=(--verbose); fi
 
 log "Preflight (basic)"
-run "${SCRIPT_DIR}/preflight.sh" "${common_args[@]}"
+run "${SCRIPT_DIR}/preflight.sh" "${common_args[@]}" --allow-frontend-port-in-use
 
 log "Building backend image: $backend_image"
 run docker build -t "$backend_image" "${REPO_ROOT}/backend"
 
 if [[ "$check_db" == "true" ]]; then
   log "Preflight (DB check)"
-  run "${SCRIPT_DIR}/preflight.sh" "${common_args[@]}" --backend-image "$backend_image" --check-db
+  run "${SCRIPT_DIR}/preflight.sh" "${common_args[@]}" --allow-frontend-port-in-use --backend-image "$backend_image" --check-db
 fi
 
 log "Ensuring redis container"

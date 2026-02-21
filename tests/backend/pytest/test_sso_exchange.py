@@ -230,10 +230,10 @@ async def test_password_login_disabled_in_microsoft_sso_mode(sso_client: AsyncCl
 @pytest.mark.asyncio
 async def test_demo_login_requires_hybrid_dev_mode(sso_client: AsyncClient, test_user: User):
     by_id = await sso_client.post(f"/api/v1/auth/demo-login/{test_user.id}")
-    assert by_id.status_code == 403
+    assert by_id.status_code == 404
 
     by_email = await sso_client.post("/api/v1/auth/demo-login", json={"email": test_user.email})
-    assert by_email.status_code == 403
+    assert by_email.status_code == 404
 
 
 @pytest.mark.asyncio

@@ -201,6 +201,13 @@ def create_app(settings: Settings) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = settings
+
+    # Bind Settings dependency resolution to this app instance.
+    def _app_settings_override() -> Settings:
+        return settings
+
+    app.dependency_overrides[get_settings] = _app_settings_override
+
     # Defaults for transports/tests that don't run lifespan.
     app.state.redis = None
     from app.services.account_lockout_service import AccountLockoutService, InMemoryAccountLockoutBackend
@@ -232,9 +239,10 @@ def create_app(settings: Settings) -> FastAPI:
     app.add_middleware(LoggingContextMiddleware, trusted_proxies=settings.trusted_proxies)
 
     # Security headers middleware (CSP, HSTS, X-Frame-Options, etc.)
-    from app.middleware.security import RateLimitMiddleware, SecurityHeadersMiddleware
+    from app.middleware.security import ProtocolGuardMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 
     app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
+    app.add_middleware(ProtocolGuardMiddleware)
 
     # Rate limiting middleware (disabled in debug mode)
     app.add_middleware(

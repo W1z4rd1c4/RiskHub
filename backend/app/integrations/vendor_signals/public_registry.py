@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 
 from app.core.config import get_settings
+from app.core.outbound_guard import OutboundRequestError, build_outbound_client, extract_host, guard_outbound_url
 from app.integrations.vendor_signals.base import VendorSignalConnector, VendorSignalResult
 from app.models.vendor import Vendor
 
@@ -25,9 +26,19 @@ class PublicRegistryConnector(VendorSignalConnector):
             raise RuntimeError("Public registry connector not configured")
 
         registration_id = vendor.registration_id
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        target_url = f"{base_url.rstrip('/')}/company"
+        try:
+            guard_outbound_url(
+                url=target_url,
+                settings=settings,
+                allowed_hosts=([extract_host(base_url)] if extract_host(base_url) else None),
+            )
+        except OutboundRequestError as exc:
+            raise RuntimeError(str(exc)) from exc
+
+        async with build_outbound_client(settings=settings, timeout_seconds=10.0) as client:
             resp = await client.get(
-                f"{base_url.rstrip('/')}/company",
+                target_url,
                 params={"registration_id": registration_id},
                 headers={"Accept": "application/json"},
             )
@@ -48,4 +59,3 @@ class PublicRegistryConnector(VendorSignalConnector):
                 payload=payload,
             )
         ]
-
