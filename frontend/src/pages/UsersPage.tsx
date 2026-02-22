@@ -12,6 +12,8 @@ import {
 import { accessApi } from '@/services/accessApi';
 import { adminApi } from '@/services/adminApi';
 import { userApi } from '@/services/userApi';
+import type { AuthMode } from '@/services/authApi';
+import { getAuthConfig } from '@/services/authConfig';
 import type { AccessUserRead } from '@/types/access';
 import type { DirectoryImportResponse } from '@/types/directory';
 import type { UserLookup } from '@/types/user';
@@ -38,6 +40,7 @@ export function UsersPage() {
     const [directoryMessage, setDirectoryMessage] = useState<string | null>(null);
     const [isCheckingAllDirectory, setIsCheckingAllDirectory] = useState(false);
     const [checkingDirectoryUserId, setCheckingDirectoryUserId] = useState<number | null>(null);
+    const [authMode, setAuthMode] = useState<AuthMode | null>(null);
 
     // Confirm dialog state for user status toggle (only used in access mode)
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -88,6 +91,26 @@ export function UsersPage() {
             fetchUsers();
         }
     }, [currentUser, fetchUsers]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const run = async () => {
+            try {
+                const config = await getAuthConfig();
+                if (cancelled) return;
+                setAuthMode(config.auth_mode);
+            } catch (error) {
+                console.error('Failed to load auth mode for UsersPage', error);
+            }
+        };
+
+        void run();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const handleToggleClick = (user: AccessUserRead) => {
         setUserToToggle(user);
@@ -182,6 +205,7 @@ export function UsersPage() {
     const privilegedCount = isAccessMode
         ? users.filter(u => u.access_scope === 'global' && u.role.name !== 'admin').length
         : 0;
+    const isSsoMode = authMode === 'microsoft_sso';
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -197,15 +221,17 @@ export function UsersPage() {
                 </div>
                 {canManageUsers && (
                     <div className="flex flex-wrap items-center gap-2">
-                        <button
-                            onClick={() => setIsADPickerOpen(true)}
-                            className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-white transition hover:bg-white/10"
-                        >
-                            <span className="inline-flex items-center gap-2">
-                                <Building2 className="h-4 w-4" />
-                                {t('users.add_from_ad', { defaultValue: 'Add from AD' })}
-                            </span>
-                        </button>
+                        {!isSsoMode && (
+                            <button
+                                onClick={() => setIsADPickerOpen(true)}
+                                className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-white transition hover:bg-white/10"
+                            >
+                                <span className="inline-flex items-center gap-2">
+                                    <Building2 className="h-4 w-4" />
+                                    {t('users.add_from_ad', { defaultValue: 'Add from AD' })}
+                                </span>
+                            </button>
+                        )}
                         {authz.isPlatformAdmin && (
                             <button
                                 onClick={handleCheckAllDirectory}
@@ -224,8 +250,10 @@ export function UsersPage() {
                             onClick={() => navigate('/users/new')}
                             className="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
                         >
-                            <UserPlus className="h-5 w-5" />
-                            {t('access.add_user')}
+                            {isSsoMode ? <Building2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                            {isSsoMode
+                                ? t('users.add_from_ad', { defaultValue: 'Add from AD' })
+                                : t('access.add_user')}
                         </button>
                     </div>
                 )}

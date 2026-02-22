@@ -7,6 +7,7 @@ UI components for `users` area.
 ## Contents
 
 - `ADUserPicker.tsx`
+- `DirectoryUserImportPanel.tsx`
 
 ## Notes
 

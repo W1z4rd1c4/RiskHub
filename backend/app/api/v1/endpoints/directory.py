@@ -26,6 +26,7 @@ from app.services.directory_provider_service import (
     DirectoryProviderUnavailableError,
     DirectoryUserNotFoundError,
 )
+from app.services.ad_deprovision_service import ADDeprovisionService
 
 from .auth._shared import _resolve_safe_default_role
 
@@ -194,7 +195,7 @@ async def import_directory_user(
     user.directory_last_seen_at = now
     user.directory_sync_status = "active" if directory_user.account_enabled else "directory_disabled"
 
-    if directory_user.account_enabled and user.deprovision_reason == "ad_deprovision":
+    if directory_user.account_enabled and user.deprovision_reason in ADDeprovisionService.AUTO_DEPROVISION_REASONS:
         user.is_active = True
         user.deprovisioned_at = None
         user.deprovision_reason = None

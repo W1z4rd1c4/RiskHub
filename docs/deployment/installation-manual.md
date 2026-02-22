@@ -87,6 +87,7 @@ You need:
 
 - `ENTRA_TENANT_ID`
 - `ENTRA_CLIENT_ID`
+- `ENTRA_CLIENT_SECRET`
 
 Redirect URI required by the frontend (MSAL):
 
@@ -104,7 +105,7 @@ Run the unified admin setup wizard from the repo root:
 
 This delegates to the Phase 500 production guided installer (`scripts/prod/setup.sh`) and will:
 
-- prompt for the required production values (public URL, external `DATABASE_URL`, Entra IDs, bootstrap admin + CRO emails)
+- prompt for the required production values (public URL, external `DATABASE_URL`, Entra IDs + client secret, bootstrap admin + CRO emails)
 - generate strong secrets automatically (never printed to the terminal)
 - write `/etc/riskhub/backend.env` and `/etc/riskhub/frontend.env` with `0600` permissions
 - run `scripts/prod/preflight.sh`
@@ -160,7 +161,7 @@ At minimum, set real values for:
 - `SECRET_KEY` (>= 32 chars)
 - `CORS_ORIGINS` (explicit JSON array allowlist; never `*`)
 - `REDIS_PASSWORD`
-- `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`
+- `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`
 - `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_ROLE`, `BOOTSTRAP_ADMIN_ACCESS_SCOPE`
 - `BOOTSTRAP_CRO_EMAIL`, `BOOTSTRAP_CRO_ACCESS_SCOPE`
 

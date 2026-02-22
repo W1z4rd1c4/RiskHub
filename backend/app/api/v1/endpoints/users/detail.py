@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.config import Settings, get_settings
 from app.core.permissions import can_manage_users
 from app.core.security import get_password_hash
 from app.core.user_query_options import user_selectinload_options
@@ -56,6 +57,7 @@ async def update_user(
     user_data: UserUpdate,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ):
     """
     Update user (admin-only).
@@ -89,7 +91,14 @@ async def update_user(
 
     # Update fields
     update_data = user_data.model_dump(exclude_unset=True)
+    password_field_provided = "password" in update_data
     password = update_data.pop("password", None)
+
+    if settings.auth_mode == "microsoft_sso" and password_field_provided:
+        raise HTTPException(
+            status_code=403,
+            detail="Password updates are disabled in microsoft_sso mode.",
+        )
 
     extra_changes = {}
     if password is not None:

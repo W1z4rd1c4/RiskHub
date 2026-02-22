@@ -1,10 +1,39 @@
 import pytest
+import pytest_asyncio
+from httpx import ASGITransport
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
+from app.api import deps
+from app.core import security
+from app.core.config import Settings, get_settings
 from app.core.security import verify_password
+from app.db.session import get_db
+from app.main import app
 from app.models import User
+
+
+@pytest_asyncio.fixture
+async def auth_client_sso(db_session: AsyncSession, test_user: User):
+    async def override_get_db():
+        yield db_session
+
+    async def override_get_current_user():
+        return test_user
+
+    def override_settings():
+        return Settings(mock_auth_enabled=True, debug=True, auth_mode="microsoft_sso")
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[deps.get_current_user] = override_get_current_user
+    app.dependency_overrides[security.get_current_user] = override_get_current_user
+    app.dependency_overrides[get_settings] = override_settings
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
@@ -42,6 +71,24 @@ async def test_update_user_fields(auth_client: AsyncClient, test_user: User):
 
 
 @pytest.mark.asyncio
+async def test_create_user_rejected_in_microsoft_sso_mode(auth_client_sso: AsyncClient, test_user: User):
+    response = await auth_client_sso.post(
+        "/api/v1/users",
+        json={
+            "email": "new.user@example.com",
+            "name": "New User",
+            "password": "StrongPass123!",
+            "role_id": test_user.role_id,
+            "department_id": None,
+            "manager_id": None,
+            "is_active": True,
+        },
+    )
+    assert response.status_code == 403
+    assert "directory/users/{oid}/import" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_update_user_password(auth_client: AsyncClient, test_user: User, db_session: AsyncSession):
     """Test updating user password hashes correctly."""
     new_password = "new_secure_password"
@@ -55,6 +102,49 @@ async def test_update_user_password(auth_client: AsyncClient, test_user: User, d
     assert verify_password(new_password, test_user.hashed_password)
     # Ensure it's not stored as plain text
     assert test_user.hashed_password != new_password
+
+
+@pytest.mark.asyncio
+async def test_update_user_password_rejected_in_microsoft_sso_mode(
+    auth_client_sso: AsyncClient,
+    test_user: User,
+    db_session: AsyncSession,
+):
+    old_hash = test_user.hashed_password
+    response = await auth_client_sso.patch(f"/api/v1/users/{test_user.id}", json={"password": "another-password"})
+    assert response.status_code == 403
+    assert "disabled in microsoft_sso mode" in response.json()["detail"]
+
+    await db_session.refresh(test_user)
+    assert test_user.hashed_password == old_hash
+
+
+@pytest.mark.asyncio
+async def test_update_user_password_key_null_rejected_in_microsoft_sso_mode(
+    auth_client_sso: AsyncClient,
+    test_user: User,
+    db_session: AsyncSession,
+):
+    old_hash = test_user.hashed_password
+    response = await auth_client_sso.patch(f"/api/v1/users/{test_user.id}", json={"password": None})
+    assert response.status_code == 403
+    assert "disabled in microsoft_sso mode" in response.json()["detail"]
+
+    await db_session.refresh(test_user)
+    assert test_user.hashed_password == old_hash
+
+
+@pytest.mark.asyncio
+async def test_update_user_non_password_fields_allowed_in_microsoft_sso_mode(
+    auth_client_sso: AsyncClient,
+    test_user: User,
+):
+    response = await auth_client_sso.patch(
+        f"/api/v1/users/{test_user.id}",
+        json={"name": "SSO Allowed Update", "is_active": test_user.is_active},
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "SSO Allowed Update"
 
 
 @pytest.mark.asyncio
@@ -94,38 +184,38 @@ async def test_list_roles(auth_client: AsyncClient):
 async def test_mock_login_disabled_returns_404(
     client: AsyncClient,
     test_user: User,
-    monkeypatch: pytest.MonkeyPatch,
 ):
     """Mock login endpoint should be unavailable unless debug+mock auth are both enabled."""
-    monkeypatch.setenv("DEBUG", "true")
-    monkeypatch.setenv("MOCK_AUTH_ENABLED", "false")
-    get_settings.cache_clear()
+    def override_settings_disabled():
+        return Settings(secret_key="test-secret-key", debug=True, mock_auth_enabled=False)
 
-    response = await client.post(f"/api/v1/users/mock-login/{test_user.id}")
-    assert response.status_code == 404
-    assert response.json()["detail"] == "Mock auth not enabled"
-
-    get_settings.cache_clear()
+    app.dependency_overrides[get_settings] = override_settings_disabled
+    try:
+        response = await client.post(f"/api/v1/users/mock-login/{test_user.id}")
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Mock auth not enabled"
+    finally:
+        app.dependency_overrides.pop(get_settings, None)
 
 
 @pytest.mark.asyncio
 async def test_mock_login_enabled_in_debug_mode(
     client: AsyncClient,
     test_user: User,
-    monkeypatch: pytest.MonkeyPatch,
 ):
     """Mock login endpoint should work only when debug+mock auth are enabled."""
-    monkeypatch.setenv("DEBUG", "true")
-    monkeypatch.setenv("MOCK_AUTH_ENABLED", "true")
-    get_settings.cache_clear()
+    def override_settings_enabled():
+        return Settings(secret_key="test-secret-key", debug=True, mock_auth_enabled=True)
 
-    response = await client.post(f"/api/v1/users/mock-login/{test_user.id}")
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["user"]["id"] == test_user.id
-    assert payload["user"]["email"] == test_user.email
-
-    get_settings.cache_clear()
+    app.dependency_overrides[get_settings] = override_settings_enabled
+    try:
+        response = await client.post(f"/api/v1/users/mock-login/{test_user.id}")
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["user"]["id"] == test_user.id
+        assert payload["user"]["email"] == test_user.email
+    finally:
+        app.dependency_overrides.pop(get_settings, None)
 
 
 @pytest.mark.asyncio
