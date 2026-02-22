@@ -1,7 +1,7 @@
 # RiskHub Component Runtime Entrypoints
 
-> **Version**: 1.0  
-> **Last Updated**: 2026-02-20  
+> **Version**: 1.1  
+> **Last Updated**: 2026-02-22  
 > **Audience**: Engineering, DevOps  
 > **Source of Truth**: `frontend/scripts/runtime/`, `backend/scripts/runtime/`, `backend/scripts/runtime/db/`, `scripts/prod/`
 
@@ -34,12 +34,16 @@ Root startup/deployment scripts remain valid and unchanged:
 
 ## Prerequisites
 
-- Frontend runtime scripts: `node`, `npm`, `frontend/package.json`.
+- Frontend runtime scripts: `node` major `20`, `npm`, `frontend/package.json`.
 - Backend runtime scripts: `backend/venv` available for local uvicorn startup.
 - DB dev/test scripts: Docker daemon + Docker Compose (`docker-compose` or `docker compose`).
 - Prod component scripts: Docker daemon and environment files:
   - backend env default: `/etc/riskhub/backend.env`
   - frontend env default: `/etc/riskhub/frontend.env`
+
+Frontend runtime fail-fast behavior:
+- `frontend/scripts/runtime/dev.sh` and `frontend/scripts/runtime/test.sh` enforce Node major `20` and exit non-zero on mismatch.
+- Remediation example: `brew install node@20 && export PATH="/opt/homebrew/opt/node@20/bin:$PATH"`.
 
 ## Examples
 
@@ -77,4 +81,3 @@ backend/scripts/runtime/db/prod.sh --tag 1.2.3 --yes
   - `backend/scripts/runtime/db/prod.sh`
   - `scripts/prod/install_redis.sh`
   - `scripts/prod/install_backend.sh`
-

@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
-> **Version**: 1.2
-> **Last Updated**: 2026-02-21
+> **Version**: 1.3
+> **Last Updated**: 2026-02-22
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
@@ -20,6 +20,8 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Frontend types | `cd frontend && npx tsc --noEmit` | Type safety gate |
 | Frontend E2E | `cd frontend && npm run e2e` | Browser-level regression |
 | Docs contract | `cd . && python3 scripts/check_docs_contract.py` | Header/parity/link/audience checks |
+| Release parity (fast) | `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness` | Fast rerun loop for startup/dependency/UI parity checks |
+| Release parity (full) | `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>` | Final pre-release parity gate including prod-readiness execution/ingestion |
 
 ## Backend Testing Notes
 
@@ -35,6 +37,12 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - Docs UI behavior is covered in `DocumentationSettings.test.tsx`.
 - Playwright runs live browser flows from `tests/frontend/e2e`.
 - Role-sensitive behavior must be verified for admin/non-admin views when docs contracts change.
+
+## Release Gate (Parity)
+
+- For release candidates, parity artifacts are emitted under `tests/results/release-parity-audit-<run-id>/`.
+- Evaluate `decision.json` at that path.
+- Release candidate is blocked unless parity `decision` is `GO`.
 
 ## Docs Change Verification (Required)
 

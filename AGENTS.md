@@ -27,9 +27,9 @@ Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-do
 | RBAC and Business Logic Guardrails | `docs/BUSINESS_LOGIC.md`<br>`.planning/codebase/CONCERNS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Frontend Display Guardrails | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Security and Production Guardrails | `docs/deployment/security-checklist.md`<br>`docs/deployment/README.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Quick Commands | `scripts/dev.sh`<br>`scripts/Makefile`<br>`docs/deployment/component-runtime-entrypoints.md` | full | RiskHub Maintainer | 2026-02-20 |
+| Quick Commands | `scripts/dev.sh`<br>`scripts/Makefile`<br>`docs/deployment/component-runtime-entrypoints.md` | full | RiskHub Maintainer | 2026-02-22 |
 | Component Runtime Commands | `docs/deployment/component-runtime-entrypoints.md` | full | RiskHub Maintainer | 2026-02-20 |
-| Demo/Dev Auth (local) | `scripts/dev.sh`<br>`.planning/codebase/INTEGRATIONS.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Demo/Dev Auth (local) | `scripts/dev.sh`<br>`.planning/codebase/INTEGRATIONS.md` | full | RiskHub Maintainer | 2026-02-22 |
 | Repo Hygiene | `.planning/codebase/STRUCTURE.md`<br>`docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Prompting and Tooling Best Practices (OpenAI-Aligned) | `docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Skills | `docs/agent/SKILLS_RESOLUTION.md` | full | RiskHub Maintainer | 2026-02-16 |
@@ -230,6 +230,9 @@ Canonical Source: `scripts/dev.sh`, `scripts/Makefile`, `docs/deployment/compone
 - Migrations: `make -f scripts/Makefile migrate`
 - Backend tests: `make -f scripts/Makefile test`
 - E2E tests: `make -f scripts/Makefile test-e2e`
+- Release parity audit: `make -f scripts/Makefile release-parity-audit`
+- Release parity fast loop: `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness`
+- Release parity full gate: `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>`
 
 For launch/runbook behavior, treat `scripts/dev.sh` as source of truth.
 
@@ -257,6 +260,7 @@ Local dev is expected to run in **demo-friendly auth mode** (keeps Playwright E2
   - `AUTH_MODE=hybrid_dev`
   - `DEBUG=true`
   - `MOCK_AUTH_ENABLED=true`
+- Local startup/runtime parity with CI and Docker requires Node major `20` (`.nvmrc` and `.node-version`).
 - This enables the demo login picker at `http://localhost:5173/login` via `POST /api/v1/auth/demo-login/{user_id}`.
 - Override example (no demo auth): `AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh`
 

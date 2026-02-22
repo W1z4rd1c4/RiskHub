@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-20
+**Analysis Date:** 2026-02-22
 
 ## Languages
 
@@ -18,6 +18,7 @@
 - Backend runtime: `python:3.13-alpine` (`backend/Dockerfile`)
 - Frontend build runtime: `node:20-alpine` (`frontend/Dockerfile`)
 - Frontend serving runtime: `nginx:alpine` (`frontend/Dockerfile`, `frontend/nginx.conf`)
+- Local Node parity baseline: Node major `20` via `.nvmrc` and `.node-version` for startup/runtime script parity with CI/Docker
 - Database: PostgreSQL 16 (`docker-compose.yml`)
 - Cache/rate-limit backend: Redis 7 (`docker-compose.yml`, `backend/app/main.py`)
 
@@ -41,8 +42,9 @@
 
 **Backend highlights (`backend/requirements.txt`):**
 - `fastapi`, `uvicorn[standard]`, `sqlalchemy[asyncio]`, `asyncpg`, `alembic`
-- `python-jose`, `passlib[bcrypt]`, `bcrypt==4.1.3`
+- `PyJWT[crypto]`, `passlib[bcrypt]`, `bcrypt==4.1.3`
 - `redis`, `APScheduler`, `structlog`, `python-json-logger`
+- Runtime dependency set is pinned to exact versions in `backend/requirements.txt` for release reproducibility
 
 **Frontend highlights (`frontend/package.json`):**
 - `react`, `react-dom`, `react-router-dom`, `@tanstack/react-query`
@@ -75,4 +77,4 @@
 
 ---
 
-*Stack analysis refreshed on 2026-02-20*
+*Stack analysis refreshed on 2026-02-22*
