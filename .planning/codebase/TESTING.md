@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-02-21
+**Analysis Date:** 2026-02-22
 
 ## Test Stack Overview
 
@@ -58,6 +58,12 @@
 - Frontend unit tests: `cd frontend && npm run test:run`
 - Frontend type checks: `cd frontend && npx tsc --noEmit`
 - E2E: `make -f scripts/Makefile test-e2e` or `cd frontend && npm run e2e`
+- Release parity (fast loop): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness`
+- Release parity (full gate): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>`
+
+## Release Gate Note
+
+- For production release cuts, parity is a gate and `tests/results/release-parity-audit-<run-id>/decision.json` must report `GO`.
 
 ## Practical Gaps to Watch
 
@@ -69,4 +75,4 @@
 
 ---
 
-*Testing audit refreshed on 2026-02-21*
+*Testing audit refreshed on 2026-02-22*

@@ -1,7 +1,7 @@
 # RiskHub Deployment Guide
 
-> **Version**: 1.1  
-> **Last Updated**: 2026-02-20  
+> **Version**: 1.2  
+> **Last Updated**: 2026-02-22  
 > **Audience**: IT / DevOps / Platform Engineering
 
 Back to tree: [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
@@ -48,3 +48,19 @@ The backend enforces strict production guardrails when `DEBUG=false` (secrets, C
 - **Redis required**: production startup fails if `REDIS_URL` is unset/unreachable.
 - **Scheduler**: disabled unless `ENABLE_SCHEDULER=true`. Run it in exactly one backend *process* to avoid duplicate jobs (see Compose/K8s docs).
 - **Docs/OpenAPI disabled**: `/docs` and `/openapi.json` are not served in production (`DEBUG=false`).
+
+## Release Parity Gate (Pre-Release)
+
+Run release parity before cutting a production release candidate:
+
+```bash
+# Fast iteration loop (skips prod-readiness execution)
+python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness
+
+# Final release gate (includes prod-readiness execution/ingestion)
+python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>
+```
+
+- Evaluate `tests/results/release-parity-audit-<run-id>/decision.json`.
+- Release cut is blocked unless `decision == "GO"`.
+- Required evidence set lives under `tests/results/release-parity-audit-<run-id>/` and includes `report.md`, `decision.json`, `findings.json`, `matrix.json`, `fingerprints/runtime.json`, `deps/diffs.json`, and `ui/parity.json`.
