@@ -70,6 +70,11 @@ Edit `/etc/riskhub/backend.env` and set real values for at minimum:
 - `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`
 - `REDIS_PASSWORD`
 
+Edit `/etc/riskhub/frontend.env` and confirm:
+
+- `FRONTEND_HOST_PORT`
+- `SERVER_NAME` (for host-aware smoke checks)
+
 ### Redis URL note (important)
 
 Docker `--env-file` does **not** expand `${VARS}`.
@@ -141,9 +146,14 @@ You can also run:
 
 ```bash
 scripts/prod/status.sh
-scripts/prod/smoke_test.sh --frontend-env /etc/riskhub/frontend.env
+scripts/prod/smoke_test.sh --frontend-env /etc/riskhub/frontend.env --backend-env /etc/riskhub/backend.env
 scripts/prod/verify_runtime.sh
 ```
+
+`smoke_test.sh` resolves request host in this order:
+1. `--host-header`
+2. `SERVER_NAME` from `frontend.env`
+3. first value in `ALLOWED_HOSTS` from `backend.env`
 
 ## Upgrades
 

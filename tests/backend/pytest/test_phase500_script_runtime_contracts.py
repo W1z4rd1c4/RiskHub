@@ -45,7 +45,7 @@ def _write_backend_env(path: Path) -> None:
                 "DEBUG=false",
                 "MOCK_AUTH_ENABLED=false",
                 "AUTH_MODE=microsoft_sso",
-                "SECRET_KEY=abcdefghijklmnopqrstuvwxyz1234567890",
+                "SECRET_KEY=phase500-local-test-key-phase500-local-test",
                 "DATABASE_URL=postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub",
                 'CORS_ORIGINS=["https://riskhub.example.com"]',
                 'ALLOWED_HOSTS=["riskhub.example.com"]',

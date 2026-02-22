@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage docs-tree-audit verify verify-prod-install-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5
+.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5 prod-readiness-audit-local
 
 # Default target
 help:
@@ -36,10 +36,12 @@ help:
 	@echo "  make verify-setup-wizard - Validate unified setup wizard scripts"
 	@echo "  make readme-coverage - Audit README coverage for all in-scope folders"
 	@echo "  make docs-tree-audit - Audit canonical docs-tree topology/link integrity"
+	@echo "  make docs-topology-consistency - Enforce canonical docs topology + structure metrics guard"
 	@echo "  make verify       - Run fast repository verification checks"
 	@echo "  make security-contract-probe - Run deterministic protocol/contract drift probe harness"
 	@echo "  make security-redis-resilience - Run Redis fail-closed resilience tests"
 	@echo "  make security-gap-round5 - Run Round-5 targeted security gap tests"
+	@echo "  make prod-readiness-audit-local - Run local production-readiness deep audit runner"
 
 # =============================================================================
 # Development
@@ -167,6 +169,12 @@ readme-coverage:
 docs-tree-audit:
 	python3 scripts/tools/docs_tree_audit.py --scope canonical
 
+docs-topology-consistency:
+	python3 scripts/check_docs_contract.py
+	python3 scripts/tools/readme_coverage.py audit
+	python3 scripts/tools/docs_tree_audit.py --scope canonical --max-root-hops 3 --fail-on-unreachable
+	python3 scripts/tools/structure_metrics_guard.py
+
 verify: readme-coverage
 
 security-contract-probe:
@@ -184,3 +192,6 @@ security-gap-round5:
 		../tests/backend/pytest/test_rbac_write_surface.py \
 		../tests/backend/pytest/test_outbound_egress_guards.py \
 		../tests/backend/pytest/test_dev_auth_boundary.py -q
+
+prod-readiness-audit-local:
+	bash scripts/security/run_prod_readiness_audit_local.sh

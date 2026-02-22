@@ -65,6 +65,24 @@ def test_protocol_contract_probe_classification_rules() -> None:
     assert classification == probe.CLASSIFICATION_AUTH_PRECONDITION
     assert drift_detected is False
 
+    auth_case = probe.ProbeCase(
+        case_id="auth-precondition",
+        method="GET",
+        path="/api/v1/approvals/my-approvals?skip=0&skip=1",
+        expected_statuses=(400, 401),
+        classification_hint=probe.CLASSIFICATION_AUTH_PRECONDITION,
+        description="duplicate query params can preempt auth with safe 400 response",
+    )
+    classification, drift_detected, reason = probe.classify_probe_result(
+        case=auth_case,
+        status_code=400,
+        documented_statuses=["200", "401", "422"],
+        auth_error=None,
+    )
+    assert classification == probe.CLASSIFICATION_AUTH_PRECONDITION
+    assert drift_detected is False
+    assert "auth/sanitization precondition accepted" in reason
+
 
 def test_protocol_contract_probe_output_schema(tmp_path: Path) -> None:
     probe = _load_probe_module()
