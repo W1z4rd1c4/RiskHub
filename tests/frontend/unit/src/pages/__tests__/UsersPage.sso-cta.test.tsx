@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UsersPage } from '@/pages/UsersPage';
+import type { AuthConfigResponse } from '@/services/authApi';
 
 const mockNavigate = vi.fn();
 const mockGetAuthConfig = vi.fn();
@@ -84,6 +85,22 @@ vi.mock('react-router-dom', async () => {
 });
 
 describe('UsersPage SSO add CTA', () => {
+    const makeAuthConfig = (overrides: Partial<AuthConfigResponse>): AuthConfigResponse => ({
+        auth_mode: 'microsoft_sso',
+        demo_login_enabled: false,
+        password_login_enabled: false,
+        sso: {
+            enabled: true,
+            provider: 'entra',
+            tenant_id: 'tenant',
+            client_id: 'client',
+            authority: 'https://login.microsoftonline.com/tenant',
+            scopes: ['openid', 'profile', 'email'],
+        },
+        sso_error: null,
+        ...overrides,
+    });
+
     beforeEach(() => {
         mockNavigate.mockReset();
         mockGetAuthConfig.mockReset();
@@ -91,8 +108,8 @@ describe('UsersPage SSO add CTA', () => {
         mockListAccessUsers.mockResolvedValue([]);
     });
 
-    it('shows a single SSO add flow CTA to /users/new without duplicate add options', async () => {
-        mockGetAuthConfig.mockResolvedValue({ auth_mode: 'microsoft_sso' });
+    it('shows a single AD add flow CTA in microsoft_sso mode', async () => {
+        mockGetAuthConfig.mockResolvedValue(makeAuthConfig({ auth_mode: 'microsoft_sso' }));
 
         render(<UsersPage />);
 
@@ -105,5 +122,62 @@ describe('UsersPage SSO add CTA', () => {
 
         expect(mockNavigate).toHaveBeenCalledWith('/users/new');
         expect(screen.queryByRole('button', { name: 'access.add_user' })).not.toBeInTheDocument();
+    });
+
+    it('shows a single AD add flow CTA in hybrid_dev mode', async () => {
+        mockGetAuthConfig.mockResolvedValue(
+            makeAuthConfig({
+                auth_mode: 'hybrid_dev',
+                demo_login_enabled: true,
+                password_login_enabled: true,
+                sso: {
+                    enabled: false,
+                    provider: 'entra',
+                    tenant_id: null,
+                    client_id: null,
+                    authority: null,
+                    scopes: ['openid', 'profile', 'email'],
+                },
+                sso_error: 'SSO enabled by AUTH_MODE but missing ENTRA_TENANT_ID/ENTRA_CLIENT_ID',
+            })
+        );
+
+        render(<UsersPage />);
+
+        await waitFor(() => {
+            expect(mockListAccessUsers).toHaveBeenCalled();
+        });
+
+        const ssoAddButton = await screen.findByRole('button', { name: 'Add from AD' });
+        fireEvent.click(ssoAddButton);
+
+        expect(mockNavigate).toHaveBeenCalledWith('/users/new');
+        expect(screen.queryByRole('button', { name: 'access.add_user' })).not.toBeInTheDocument();
+    });
+
+    it('keeps password-mode CTAs in password mode', async () => {
+        mockGetAuthConfig.mockResolvedValue(
+            makeAuthConfig({
+                auth_mode: 'password',
+                password_login_enabled: true,
+                sso: {
+                    enabled: false,
+                    provider: 'entra',
+                    tenant_id: null,
+                    client_id: null,
+                    authority: null,
+                    scopes: ['openid', 'profile', 'email'],
+                },
+            })
+        );
+
+        render(<UsersPage />);
+
+        await waitFor(() => {
+            expect(mockListAccessUsers).toHaveBeenCalled();
+        });
+
+        expect(await screen.findByRole('button', { name: 'Add from AD' })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: 'access.add_user' })).toBeInTheDocument();
     });
 });

@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import re
+import subprocess
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -41,10 +43,35 @@ def resolve_output_dir(arg_output_dir: str, run_id: str) -> Path:
     return REPO_ROOT / "tests" / "results" / "docs" / run_id
 
 
-def count_files(path: Path, pattern: str | None = None) -> int:
+def _git_ls_files(path: Path) -> list[str]:
+    try:
+        rel_path = path.relative_to(REPO_ROOT).as_posix()
+    except ValueError as exc:
+        raise RuntimeError(f"Path is outside repository root: {path}") from exc
+
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--", rel_path],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except Exception as exc:  # pragma: no cover - defensive runtime path
+        raise RuntimeError(f"Failed to run git ls-files for {rel_path}: {exc}") from exc
+
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "<no stderr>"
+        raise RuntimeError(f"git ls-files failed for {rel_path}: {stderr}")
+
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def count_tracked_files(path: Path, pattern: str | None = None) -> int:
+    tracked_files = _git_ls_files(path)
     if pattern is None:
-        return sum(1 for candidate in path.rglob("*") if candidate.is_file())
-    return sum(1 for candidate in path.rglob(pattern) if candidate.is_file())
+        return len(tracked_files)
+    return sum(1 for rel in tracked_files if fnmatch.fnmatch(Path(rel).name, pattern))
 
 
 def line_number_and_value(lines: list[str], pattern: re.Pattern[str]) -> tuple[int, re.Match[str]] | None:
@@ -66,8 +93,8 @@ def build_metric_expectations(structure_lines: list[str]) -> dict[str, dict[str,
         ("backend_model_modules", re.compile(r"`backend/app/models/`\s*-\s*(\d+)\s+model modules")),
         ("backend_schema_modules", re.compile(r"`backend/app/schemas/`\s*-\s*(\d+)\s+schema modules")),
         ("backend_service_modules", re.compile(r"`backend/app/services/`\s*-\s*(\d+)\s+Python modules")),
-        ("frontend_pages_files", re.compile(r"`frontend/src/pages/`\s*-\s*(\d+)\s+files")),
-        ("frontend_components_files", re.compile(r"`frontend/src/components/`\s*-\s*(\d+)\s+files")),
+        ("frontend_pages_files", re.compile(r"`frontend/src/pages/`\s*-\s*(\d+)\s+(?:tracked\s+)?files")),
+        ("frontend_components_files", re.compile(r"`frontend/src/components/`\s*-\s*(\d+)\s+(?:tracked\s+)?files")),
         ("tests_frontend_e2e_specs", re.compile(r"`tests/frontend/e2e/`\s*-\s*(\d+)\s+E2E specs")),
     ]
 
@@ -86,7 +113,7 @@ def build_metric_expectations(structure_lines: list[str]) -> dict[str, dict[str,
         }
 
     backend_test_pattern = re.compile(
-        r"`tests/backend/pytest/`\s*-\s*(\d+)\s+test files\s+\((\d+)\s+Python\)"
+        r"`tests/backend/pytest/`\s*-\s*(\d+)\s+(?:tracked\s+)?test files\s+\((\d+)\s+Python\)"
     )
     located_backend_tests = line_number_and_value(structure_lines, backend_test_pattern)
     if not located_backend_tests:
@@ -114,15 +141,15 @@ def build_metric_expectations(structure_lines: list[str]) -> dict[str, dict[str,
 
 def build_metric_observed() -> dict[str, int]:
     return {
-        "backend_endpoints_py_modules": count_files(REPO_ROOT / "backend/app/api/v1/endpoints", "*.py"),
-        "backend_model_modules": count_files(REPO_ROOT / "backend/app/models", "*.py"),
-        "backend_schema_modules": count_files(REPO_ROOT / "backend/app/schemas", "*.py"),
-        "backend_service_modules": count_files(REPO_ROOT / "backend/app/services", "*.py"),
-        "tests_backend_pytest_total_files": count_files(REPO_ROOT / "tests/backend/pytest"),
-        "tests_backend_pytest_python_files": count_files(REPO_ROOT / "tests/backend/pytest", "*.py"),
-        "frontend_pages_files": count_files(REPO_ROOT / "frontend/src/pages"),
-        "frontend_components_files": count_files(REPO_ROOT / "frontend/src/components"),
-        "tests_frontend_e2e_specs": count_files(REPO_ROOT / "tests/frontend/e2e", "*.spec.ts"),
+        "backend_endpoints_py_modules": count_tracked_files(REPO_ROOT / "backend/app/api/v1/endpoints", "*.py"),
+        "backend_model_modules": count_tracked_files(REPO_ROOT / "backend/app/models", "*.py"),
+        "backend_schema_modules": count_tracked_files(REPO_ROOT / "backend/app/schemas", "*.py"),
+        "backend_service_modules": count_tracked_files(REPO_ROOT / "backend/app/services", "*.py"),
+        "tests_backend_pytest_total_files": count_tracked_files(REPO_ROOT / "tests/backend/pytest"),
+        "tests_backend_pytest_python_files": count_tracked_files(REPO_ROOT / "tests/backend/pytest", "*.py"),
+        "frontend_pages_files": count_tracked_files(REPO_ROOT / "frontend/src/pages"),
+        "frontend_components_files": count_tracked_files(REPO_ROOT / "frontend/src/components"),
+        "tests_frontend_e2e_specs": count_tracked_files(REPO_ROOT / "tests/frontend/e2e", "*.spec.ts"),
     }
 
 
@@ -225,6 +252,7 @@ def run_guard(run_id: str) -> tuple[dict[str, object], int]:
         "run_id": run_id,
         "generated_at_utc": utc_now_iso(),
         "repo_root": str(REPO_ROOT),
+        "counting_mode": "git_tracked_files",
         "status": "fail" if has_failures else "pass",
         "summary": {
             "metrics_checked": len(metrics),

@@ -14,7 +14,7 @@ import { userApi } from '@/services/userApi';
 import { apiClient } from '@/services/apiClient';
 import { departmentApi } from '@/services/departmentApi';
 import type { DepartmentSummary } from '@/services/departmentApi';
-import type { AuthMode } from '@/services/authApi';
+import type { AuthConfigResponse } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
 import type { UserCreate, Role } from '@/types/user';
 import type { DirectoryImportResponse } from '@/types/directory';
@@ -32,9 +32,10 @@ export function UserNewPage() {
     const navigate = useNavigate();
     const { t } = useTranslation(['admin', 'common', 'errorKeys']);
     const { canManageUsers } = usePermissions();
-    const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+    const [authConfig, setAuthConfig] = useState<AuthConfigResponse | null>(null);
     const [isAuthConfigLoading, setIsAuthConfigLoading] = useState(true);
     const [authConfigError, setAuthConfigError] = useState<string | null>(null);
+    const [isDirectoryProviderUnavailable, setIsDirectoryProviderUnavailable] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
@@ -62,7 +63,7 @@ export function UserNewPage() {
             try {
                 const config = await getAuthConfig();
                 if (cancelled) return;
-                setAuthMode(config.auth_mode);
+                setAuthConfig(config);
             } catch (err) {
                 if (cancelled) return;
                 console.error('Failed to load auth mode:', err);
@@ -119,11 +120,11 @@ export function UserNewPage() {
     }, []);
 
     useEffect(() => {
-        if (canManageUsers && authMode !== null && authMode !== 'microsoft_sso') {
+        if (canManageUsers && authConfig?.auth_mode === 'password') {
             fetchDepartments();
             fetchRoles();
         }
-    }, [authMode, canManageUsers, fetchDepartments, fetchRoles]);
+    }, [authConfig, canManageUsers, fetchDepartments, fetchRoles]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -144,7 +145,10 @@ export function UserNewPage() {
         navigate(`/users/${result.user_id}`);
     };
 
-    const isSsoMode = authMode === 'microsoft_sso';
+    const isDirectoryFirstMode = authConfig?.auth_mode
+        ? authConfig.auth_mode !== 'password'
+        : false;
+    const showDirectorySetupHint = Boolean(authConfig?.sso_error) || isDirectoryProviderUnavailable;
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -192,7 +196,7 @@ export function UserNewPage() {
                         })}
                     </p>
                 </div>
-            ) : isSsoMode ? (
+            ) : isDirectoryFirstMode ? (
                 <div className="glass-card p-6 space-y-4">
                     <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                         <Building2 className="h-5 w-5 text-accent" />
@@ -205,7 +209,30 @@ export function UserNewPage() {
                                 'Import a user from directory, then configure role, department, and active status before first login.',
                         })}
                     </p>
-                    <DirectoryUserImportPanel onImported={handleDirectoryImported} />
+                    {showDirectorySetupHint && (
+                        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                            <p className="font-medium">
+                                {t('user_new.directory_setup_hint_title', {
+                                    ns: 'admin',
+                                    defaultValue: 'Directory provider setup required',
+                                })}
+                            </p>
+                            <p className="mt-1 text-amber-100/90">
+                                {t('user_new.directory_setup_hint_body', {
+                                    ns: 'admin',
+                                    defaultValue:
+                                        'Configure Entra credentials (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET) or AD emulator (AD_EMULATOR_BASE_URL), then reload.',
+                                })}
+                            </p>
+                            {authConfig?.sso_error && (
+                                <p className="mt-2 text-xs text-amber-100/80">{authConfig.sso_error}</p>
+                            )}
+                        </div>
+                    )}
+                    <DirectoryUserImportPanel
+                        onImported={handleDirectoryImported}
+                        onProviderUnavailableChange={setIsDirectoryProviderUnavailable}
+                    />
                 </div>
             ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
