@@ -1,28 +1,35 @@
-# tests/frontend/e2e
+# Frontend E2E Tests (`tests/frontend/e2e`)
 
 ## Purpose
 
-Folder for `tests/frontend/e2e` implementation assets.
+End-to-end coverage for user-facing flows, RBAC behavior, and deterministic production-critical workflows.
 
-## Contents
+## Conventions
 
-- `access-scope.spec.ts`
-- `activity-logging/`
-- `admin.spec.ts`
-- `approval-workflows/`
-- `auth.spec.ts`
-- `controls.spec.ts`
-- `cross-department/`
-- `dashboard.spec.ts`
-- `department-access.spec.ts`
-- `entity-ownership/`
-- `fixtures/`
-- `helpers/`
-- `index.ts`
-- `issues-contextual-create.spec.ts`
-- `issues-workflow.spec.ts`
-- `...`
+- Prefer resilient selectors (`getByRole`, `getByTestId`) over brittle text/DOM-coupled selectors.
+- Keep assertions locale-agnostic for translatable surfaces:
+  - avoid hardcoded localized labels unless that label is the explicit contract under test;
+  - use stable invariants (URL, presence/absence of controls, deterministic record IDs, ISO date input values).
+- Export dialog contract for deterministic list pages (`controls`, `risks`, `kris`, `vendors`):
+  - dialog is CSV-only;
+  - format chooser controls are intentionally absent;
+  - tests should submit export with `csv` and assert dialog closes.
 
-## Notes
+## Deterministic Data Baseline
 
-Keep this README updated when responsibilities or structure in this folder change.
+Playwright global setup validates fixture health before tests run (risks, controls, KRIs, vendors, SLAs, approvals). Keep tests aligned with those seeded entities.
+
+## Targeted Run Command
+
+```bash
+cd frontend
+npx playwright test -c ../tests/frontend/e2e/playwright.config.ts \
+  ../tests/frontend/e2e/controls.spec.ts \
+  ../tests/frontend/e2e/risks.spec.ts \
+  ../tests/frontend/e2e/navigation-stability.spec.ts \
+  ../tests/frontend/e2e/questionnaires.spec.ts \
+  ../tests/frontend/e2e/kris.spec.ts \
+  ../tests/frontend/e2e/vendors.spec.ts \
+  ../tests/frontend/e2e/polish-audit.spec.ts \
+  --project=chromium
+```

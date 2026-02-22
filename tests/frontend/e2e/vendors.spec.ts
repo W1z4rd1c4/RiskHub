@@ -18,10 +18,7 @@ test.describe('Vendor Management (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId('vendors-export-button')).toHaveCount(1);
         await vendorsPage.openExportDialog();
         await expect(vendorsPage.exportDateInput).toHaveValue(todayLocalIso());
-        await vendorsPage.exportFormatTrigger.click();
-        await expect(riskManagerPage.getByTestId('export-format-option-pdf')).toHaveCount(0);
-
-        await vendorsPage.chooseExportFormat('csv');
+        // Export dialog is CSV-only; format chooser is intentionally absent.
         await vendorsPage.submitExport('csv');
         await expect(vendorsPage.exportDialog).not.toBeVisible();
     });

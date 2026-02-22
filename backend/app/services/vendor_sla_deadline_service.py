@@ -74,6 +74,341 @@ class VendorSLADeadlineService:
         return result.scalars().all()
 
     @staticmethod
+    def _resolve_reporting_owner(sla: VendorSLA, owners_by_id: dict[int, User]) -> User | None:
+        reporting_owner = owners_by_id.get(sla.reporting_owner_id) if sla.reporting_owner_id else None
+        if not reporting_owner and sla.vendor and sla.vendor.outsourcing_owner_user_id:
+            reporting_owner = owners_by_id.get(sla.vendor.outsourcing_owner_user_id)
+        return reporting_owner
+
+    @staticmethod
+    def _resolve_period_end(sla: VendorSLA, today: date) -> date:
+        _, current_period_end = KRIHistoryService.period_bounds_for_date(today, sla.frequency)
+        _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, sla.frequency)
+        if sla.last_period_end and sla.last_period_end >= latest_closed_end:
+            return current_period_end
+        return latest_closed_end
+
+    @staticmethod
+    async def _create_due_notification(
+        db: AsyncSession,
+        *,
+        reporting_owner: User,
+        vendor_id: int,
+        notification_type: NotificationType,
+        title_key: str,
+        message_key: str,
+        vendor_name: str,
+        sla_name: str,
+        due_str: str,
+        lookback_days: int,
+        now: datetime,
+        visibility_cache: dict[tuple[int, int], bool],
+    ) -> bool:
+        if await VendorSLADeadlineService._check_duplicate_notification(
+            db,
+            vendor_id=vendor_id,
+            notification_type=notification_type,
+            lookback_days=lookback_days,
+            now=now,
+        ):
+            return False
+
+        locale = getattr(reporting_owner, "preferred_language", None) or "en"
+        return await NotificationService.create_vendor_notification_if_visible(
+            db=db,
+            user=reporting_owner,
+            vendor_id=vendor_id,
+            notification_type=notification_type,
+            title=t(title_key, locale=locale),
+            message=t(
+                message_key,
+                locale=locale,
+                vendor_name=vendor_name,
+                sla_name=sla_name,
+                due_date=due_str,
+            ),
+            created_at=now,
+            visibility_cache=visibility_cache,
+        )
+
+    @staticmethod
+    async def _process_due_notifications(
+        db: AsyncSession,
+        *,
+        sla: VendorSLA,
+        reporting_owner: User,
+        vendor_id: int,
+        due: date,
+        today: date,
+        due_str: str,
+        config: dict,
+        now: datetime,
+        visibility_cache: dict[tuple[int, int], bool],
+        results: dict[str, int],
+    ) -> None:
+        if due == today + timedelta(days=1):
+            created = await VendorSLADeadlineService._create_due_notification(
+                db,
+                reporting_owner=reporting_owner,
+                vendor_id=vendor_id,
+                notification_type=NotificationType.VENDOR_SLA_DUE_TOMORROW,
+                title_key="notifications.vendor_sla_due_tomorrow_title",
+                message_key="notifications.vendor_sla_due_tomorrow_message",
+                vendor_name=sla.vendor.name,
+                sla_name=sla.metric_name,
+                due_str=due_str,
+                lookback_days=config["duplicate_lookback_days"],
+                now=now,
+                visibility_cache=visibility_cache,
+            )
+            if created:
+                results["due_tomorrow"] += 1
+                results["notifications_created"] += 1
+
+        if today <= due <= (today + timedelta(days=7)):
+            created = await VendorSLADeadlineService._create_due_notification(
+                db,
+                reporting_owner=reporting_owner,
+                vendor_id=vendor_id,
+                notification_type=NotificationType.VENDOR_SLA_DUE_SOON,
+                title_key="notifications.vendor_sla_due_soon_title",
+                message_key="notifications.vendor_sla_due_soon_message",
+                vendor_name=sla.vendor.name,
+                sla_name=sla.metric_name,
+                due_str=due_str,
+                lookback_days=config["duplicate_lookback_days"],
+                now=now,
+                visibility_cache=visibility_cache,
+            )
+            if created:
+                results["due_soon"] += 1
+                results["notifications_created"] += 1
+
+        if due < today:
+            created = await VendorSLADeadlineService._create_due_notification(
+                db,
+                reporting_owner=reporting_owner,
+                vendor_id=vendor_id,
+                notification_type=NotificationType.VENDOR_SLA_OVERDUE,
+                title_key="notifications.vendor_sla_overdue_title",
+                message_key="notifications.vendor_sla_overdue_message",
+                vendor_name=sla.vendor.name,
+                sla_name=sla.metric_name,
+                due_str=due_str,
+                lookback_days=config["duplicate_lookback_days"],
+                now=now,
+                visibility_cache=visibility_cache,
+            )
+            if created:
+                results["overdue"] += 1
+                results["notifications_created"] += 1
+
+    @staticmethod
+    async def _process_detected_breach(
+        db: AsyncSession,
+        *,
+        sla: VendorSLA,
+        reporting_owner: User,
+        governance_recipients: list[User],
+        owners_by_id: dict[int, User],
+        vendor_id: int,
+        lookback_days: int,
+        now: datetime,
+        visibility_cache: dict[tuple[int, int], bool],
+        results: dict[str, int],
+    ) -> bool:
+        vendor = sla.vendor
+        if not vendor or sla.breach_status not in ("above", "below"):
+            return False
+
+        if await VendorSLADeadlineService._check_duplicate_notification(
+            db,
+            vendor_id=vendor_id,
+            notification_type=NotificationType.VENDOR_SLA_BREACH_DETECTED,
+            lookback_days=lookback_days,
+            now=now,
+        ):
+            return True
+
+        recipients: list[User] = [reporting_owner]
+        owner_id = vendor.outsourcing_owner_user_id
+        if owner_id and owner_id != reporting_owner.id:
+            owner = owners_by_id.get(owner_id)
+            if owner:
+                recipients.append(owner)
+
+        skip_ids = {reporting_owner.id, owner_id}
+        recipients.extend(gov for gov in governance_recipients if gov.id not in skip_ids)
+
+        for recipient in recipients:
+            locale = getattr(recipient, "preferred_language", None) or "en"
+            await NotificationService.create_vendor_notification_if_visible(
+                db=db,
+                user=recipient,
+                vendor_id=vendor_id,
+                notification_type=NotificationType.VENDOR_SLA_BREACH_DETECTED,
+                title=t("notifications.vendor_sla_breach_detected_title", locale=locale),
+                message=t(
+                    "notifications.vendor_sla_breach_detected_message",
+                    locale=locale,
+                    vendor_name=vendor.name,
+                    sla_name=sla.metric_name,
+                ),
+                created_at=now,
+                visibility_cache=visibility_cache,
+            )
+
+        results["breached"] += 1
+        return True
+
+    @staticmethod
+    async def _process_near_breach(
+        db: AsyncSession,
+        *,
+        sla: VendorSLA,
+        reporting_owner: User,
+        vendor_id: int,
+        near_breach_threshold: float,
+        duplicate_lookback_days: int,
+        now: datetime,
+        visibility_cache: dict[tuple[int, int], bool],
+        results: dict[str, int],
+    ) -> None:
+        vendor = sla.vendor
+        if not vendor:
+            return
+
+        range_size = sla.upper_limit - sla.lower_limit
+        if range_size <= 0:
+            return
+
+        threshold_value = sla.lower_limit + (range_size * near_breach_threshold)
+        if sla.current_value < threshold_value:
+            return
+
+        if await VendorSLADeadlineService._check_duplicate_notification(
+            db,
+            vendor_id=vendor_id,
+            notification_type=NotificationType.VENDOR_SLA_NEAR_BREACH,
+            lookback_days=duplicate_lookback_days,
+            now=now,
+        ):
+            return
+
+        locale = getattr(reporting_owner, "preferred_language", None) or "en"
+        created = await NotificationService.create_vendor_notification_if_visible(
+            db=db,
+            user=reporting_owner,
+            vendor_id=vendor_id,
+            notification_type=NotificationType.VENDOR_SLA_NEAR_BREACH,
+            title=t("notifications.vendor_sla_near_breach_title", locale=locale),
+            message=t(
+                "notifications.vendor_sla_near_breach_message",
+                locale=locale,
+                vendor_name=vendor.name,
+                sla_name=sla.metric_name,
+            ),
+            created_at=now,
+            visibility_cache=visibility_cache,
+        )
+        if created:
+            results["near_breach"] += 1
+            results["notifications_created"] += 1
+
+    @staticmethod
+    async def _process_breach_notifications(
+        db: AsyncSession,
+        *,
+        sla: VendorSLA,
+        reporting_owner: User,
+        governance_recipients: list[User],
+        owners_by_id: dict[int, User],
+        vendor_id: int,
+        config: dict,
+        now: datetime,
+        visibility_cache: dict[tuple[int, int], bool],
+        results: dict[str, int],
+    ) -> None:
+        detected_breach_processed = await VendorSLADeadlineService._process_detected_breach(
+            db,
+            sla=sla,
+            reporting_owner=reporting_owner,
+            governance_recipients=governance_recipients,
+            owners_by_id=owners_by_id,
+            vendor_id=vendor_id,
+            lookback_days=config["duplicate_lookback_days"],
+            now=now,
+            visibility_cache=visibility_cache,
+            results=results,
+        )
+        if detected_breach_processed:
+            return
+
+        await VendorSLADeadlineService._process_near_breach(
+            db,
+            sla=sla,
+            reporting_owner=reporting_owner,
+            vendor_id=vendor_id,
+            near_breach_threshold=config["near_breach_threshold"],
+            duplicate_lookback_days=config["duplicate_lookback_days"],
+            now=now,
+            visibility_cache=visibility_cache,
+            results=results,
+        )
+
+    @staticmethod
+    async def _process_single_sla(
+        db: AsyncSession,
+        *,
+        sla: VendorSLA,
+        today: date,
+        now: datetime,
+        config: dict,
+        governance_recipients: list[User],
+        owners_by_id: dict[int, User],
+        visibility_cache: dict[tuple[int, int], bool],
+        results: dict[str, int],
+    ) -> None:
+        vendor = sla.vendor
+        if not vendor:
+            return
+
+        reporting_owner = VendorSLADeadlineService._resolve_reporting_owner(sla, owners_by_id)
+        if not reporting_owner:
+            return
+
+        period_end = VendorSLADeadlineService._resolve_period_end(sla, today)
+        due = VendorSLAHistoryService.due_date(period_end)
+        due_str = due.isoformat()
+        vendor_id = vendor.id
+
+        await VendorSLADeadlineService._process_due_notifications(
+            db,
+            sla=sla,
+            reporting_owner=reporting_owner,
+            vendor_id=vendor_id,
+            due=due,
+            today=today,
+            due_str=due_str,
+            config=config,
+            now=now,
+            visibility_cache=visibility_cache,
+            results=results,
+        )
+        await VendorSLADeadlineService._process_breach_notifications(
+            db,
+            sla=sla,
+            reporting_owner=reporting_owner,
+            governance_recipients=governance_recipients,
+            owners_by_id=owners_by_id,
+            vendor_id=vendor_id,
+            config=config,
+            now=now,
+            visibility_cache=visibility_cache,
+            results=results,
+        )
+
+    @staticmethod
     async def check_vendor_sla_deadlines(db: AsyncSession, *, now: datetime | None = None) -> dict[str, int]:
         now = now or datetime.now(UTC)
         today = date.today()
@@ -122,219 +457,17 @@ class VendorSLADeadlineService:
 
         for sla in slas:
             try:
-                vendor = sla.vendor
-                if not vendor:
-                    continue
-
-                reporting_owner = owners_by_id.get(sla.reporting_owner_id) if sla.reporting_owner_id else None
-                if not reporting_owner and vendor.outsourcing_owner_user_id:
-                    reporting_owner = owners_by_id.get(vendor.outsourcing_owner_user_id)
-
-                if not reporting_owner:
-                    continue
-
-                _, current_period_end = KRIHistoryService.period_bounds_for_date(today, sla.frequency)
-                _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, sla.frequency)
-
-                # Use same semantics as KRIs: if reported through latest closed period, next expected is current period.
-                if sla.last_period_end and sla.last_period_end >= latest_closed_end:
-                    period_end = current_period_end
-                else:
-                    period_end = latest_closed_end
-
-                due = VendorSLAHistoryService.due_date(period_end)
-                vendor_id = vendor.id
-
-                locale = getattr(reporting_owner, "preferred_language", None) or "en"
-                due_str = due.isoformat()
-
-                # Due soon / tomorrow / overdue
-                if due == today + timedelta(days=1):
-                    if not await VendorSLADeadlineService._check_duplicate_notification(
-                        db,
-                        vendor_id=vendor_id,
-                        notification_type=NotificationType.VENDOR_SLA_DUE_TOMORROW,
-                        lookback_days=config["duplicate_lookback_days"],
-                        now=now,
-                    ):
-                        created = await NotificationService.create_vendor_notification_if_visible(
-                            db=db,
-                            user=reporting_owner,
-                            vendor_id=vendor_id,
-                            notification_type=NotificationType.VENDOR_SLA_DUE_TOMORROW,
-                            title=t("notifications.vendor_sla_due_tomorrow_title", locale=locale),
-                            message=t(
-                                "notifications.vendor_sla_due_tomorrow_message",
-                                locale=locale,
-                                vendor_name=vendor.name,
-                                sla_name=sla.metric_name,
-                                due_date=due_str,
-                            ),
-                            created_at=now,
-                            visibility_cache=visibility_cache,
-                        )
-                        if created:
-                            results["due_tomorrow"] += 1
-                            results["notifications_created"] += 1
-
-                if today <= due <= (today + timedelta(days=7)):
-                    if not await VendorSLADeadlineService._check_duplicate_notification(
-                        db,
-                        vendor_id=vendor_id,
-                        notification_type=NotificationType.VENDOR_SLA_DUE_SOON,
-                        lookback_days=config["duplicate_lookback_days"],
-                        now=now,
-                    ):
-                        created = await NotificationService.create_vendor_notification_if_visible(
-                            db=db,
-                            user=reporting_owner,
-                            vendor_id=vendor_id,
-                            notification_type=NotificationType.VENDOR_SLA_DUE_SOON,
-                            title=t("notifications.vendor_sla_due_soon_title", locale=locale),
-                            message=t(
-                                "notifications.vendor_sla_due_soon_message",
-                                locale=locale,
-                                vendor_name=vendor.name,
-                                sla_name=sla.metric_name,
-                                due_date=due_str,
-                            ),
-                            created_at=now,
-                            visibility_cache=visibility_cache,
-                        )
-                        if created:
-                            results["due_soon"] += 1
-                            results["notifications_created"] += 1
-
-                if due < today:
-                    if not await VendorSLADeadlineService._check_duplicate_notification(
-                        db,
-                        vendor_id=vendor_id,
-                        notification_type=NotificationType.VENDOR_SLA_OVERDUE,
-                        lookback_days=config["duplicate_lookback_days"],
-                        now=now,
-                    ):
-                        created = await NotificationService.create_vendor_notification_if_visible(
-                            db=db,
-                            user=reporting_owner,
-                            vendor_id=vendor_id,
-                            notification_type=NotificationType.VENDOR_SLA_OVERDUE,
-                            title=t("notifications.vendor_sla_overdue_title", locale=locale),
-                            message=t(
-                                "notifications.vendor_sla_overdue_message",
-                                locale=locale,
-                                vendor_name=vendor.name,
-                                sla_name=sla.metric_name,
-                                due_date=due_str,
-                            ),
-                            created_at=now,
-                            visibility_cache=visibility_cache,
-                        )
-                        if created:
-                            results["overdue"] += 1
-                            results["notifications_created"] += 1
-
-                # Breach / near breach
-                breach_status = sla.breach_status
-                if breach_status in ("above", "below"):
-                    if not await VendorSLADeadlineService._check_duplicate_notification(
-                        db,
-                        vendor_id=vendor_id,
-                        notification_type=NotificationType.VENDOR_SLA_BREACH_DETECTED,
-                        lookback_days=config["duplicate_lookback_days"],
-                        now=now,
-                    ):
-                        # Reporting owner
-                        await NotificationService.create_vendor_notification_if_visible(
-                            db=db,
-                            user=reporting_owner,
-                            vendor_id=vendor_id,
-                            notification_type=NotificationType.VENDOR_SLA_BREACH_DETECTED,
-                            title=t("notifications.vendor_sla_breach_detected_title", locale=locale),
-                            message=t(
-                                "notifications.vendor_sla_breach_detected_message",
-                                locale=locale,
-                                vendor_name=vendor.name,
-                                sla_name=sla.metric_name,
-                            ),
-                            created_at=now,
-                            visibility_cache=visibility_cache,
-                        )
-
-                        # Outsourcing owner (visibility)
-                        if vendor.outsourcing_owner_user_id and vendor.outsourcing_owner_user_id != reporting_owner.id:
-                            owner = owners_by_id.get(vendor.outsourcing_owner_user_id)
-                            if owner:
-                                owner_locale = getattr(owner, "preferred_language", None) or "en"
-                                await NotificationService.create_vendor_notification_if_visible(
-                                    db=db,
-                                    user=owner,
-                                    vendor_id=vendor_id,
-                                    notification_type=NotificationType.VENDOR_SLA_BREACH_DETECTED,
-                                    title=t("notifications.vendor_sla_breach_detected_title", locale=owner_locale),
-                                    message=t(
-                                        "notifications.vendor_sla_breach_detected_message",
-                                        locale=owner_locale,
-                                        vendor_name=vendor.name,
-                                        sla_name=sla.metric_name,
-                                    ),
-                                    created_at=now,
-                                    visibility_cache=visibility_cache,
-                                )
-
-                        # Risk Manager / Compliance fan-out
-                        for gov in governance_recipients:
-                            if gov.id in {reporting_owner.id, vendor.outsourcing_owner_user_id}:
-                                continue
-                            gov_locale = getattr(gov, "preferred_language", None) or "en"
-                            await NotificationService.create_vendor_notification_if_visible(
-                                db=db,
-                                user=gov,
-                                vendor_id=vendor_id,
-                                notification_type=NotificationType.VENDOR_SLA_BREACH_DETECTED,
-                                title=t("notifications.vendor_sla_breach_detected_title", locale=gov_locale),
-                                message=t(
-                                    "notifications.vendor_sla_breach_detected_message",
-                                    locale=gov_locale,
-                                    vendor_name=vendor.name,
-                                    sla_name=sla.metric_name,
-                                ),
-                                created_at=now,
-                                visibility_cache=visibility_cache,
-                            )
-
-                        results["breached"] += 1
-
-                else:
-                    range_size = sla.upper_limit - sla.lower_limit
-                    if range_size > 0:
-                        threshold_value = sla.lower_limit + (range_size * config["near_breach_threshold"])
-                        if sla.current_value >= threshold_value:
-                            if not await VendorSLADeadlineService._check_duplicate_notification(
-                                db,
-                                vendor_id=vendor_id,
-                                notification_type=NotificationType.VENDOR_SLA_NEAR_BREACH,
-                                lookback_days=config["duplicate_lookback_days"],
-                                now=now,
-                            ):
-                                created = await NotificationService.create_vendor_notification_if_visible(
-                                    db=db,
-                                    user=reporting_owner,
-                                    vendor_id=vendor_id,
-                                    notification_type=NotificationType.VENDOR_SLA_NEAR_BREACH,
-                                    title=t("notifications.vendor_sla_near_breach_title", locale=locale),
-                                    message=t(
-                                        "notifications.vendor_sla_near_breach_message",
-                                        locale=locale,
-                                        vendor_name=vendor.name,
-                                        sla_name=sla.metric_name,
-                                    ),
-                                    created_at=now,
-                                    visibility_cache=visibility_cache,
-                                )
-                                if created:
-                                    results["near_breach"] += 1
-                                    results["notifications_created"] += 1
-
+                await VendorSLADeadlineService._process_single_sla(
+                    db,
+                    sla=sla,
+                    today=today,
+                    now=now,
+                    config=config,
+                    governance_recipients=governance_recipients,
+                    owners_by_id=owners_by_id,
+                    visibility_cache=visibility_cache,
+                    results=results,
+                )
             except Exception as e:
                 logger.error(f"Error checking vendor SLA {getattr(sla, 'id', None)}: {e}")
                 continue

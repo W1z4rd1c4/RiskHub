@@ -43,6 +43,7 @@ Root startup/deployment scripts remain valid and unchanged:
 
 Frontend runtime fail-fast behavior:
 - `frontend/scripts/runtime/dev.sh` and `frontend/scripts/runtime/test.sh` enforce Node major `20` and exit non-zero on mismatch.
+- `scripts/dev.sh` also enforces Node major `20`, but first auto-prefers detected Node 20 runtimes (`NODE20_BIN`, Homebrew `node@20`, then NVM `v20*`) when available.
 - Remediation example: `brew install node@20 && export PATH="/opt/homebrew/opt/node@20/bin:$PATH"`.
 
 ## Examples

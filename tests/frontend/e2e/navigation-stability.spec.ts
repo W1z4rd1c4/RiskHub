@@ -26,7 +26,8 @@ test.describe('Navigation Stability', () => {
         await croPage.waitForURL(/\/vendors$/, { timeout: 15000 });
         await waitForDataLoad(croPage);
 
-        await expect(croPage.getByRole('heading', { name: /vendors/i }).first()).toBeVisible();
+        // Locale-agnostic assertion: verify core vendors list UI is present.
+        await expect(croPage.getByTestId('vendors-search-input')).toBeVisible();
         await expect(croPage.getByRole('heading', { name: TARGET_RISK_NAME })).toHaveCount(0);
 
         await croPage.waitForTimeout(1000);
