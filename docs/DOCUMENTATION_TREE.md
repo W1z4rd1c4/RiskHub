@@ -72,9 +72,14 @@ AGENTS.md
 Run topology validation from repo root:
 
 ```bash
-python3 scripts/tools/docs_tree_audit.py --scope canonical
+python3 scripts/tools/docs_tree_audit.py --scope canonical --max-root-hops 3 --fail-on-unreachable
 python3 scripts/tools/docs_tree_audit.py --scope full
+python3 scripts/tools/structure_metrics_guard.py
 ```
+
+## Reachability Contract
+
+- Canonical leaf documents under `docs/` and `.planning/codebase/` must be reachable through markdown links from at least one root entrypoint (`AGENTS.md`, `docs/README.md`, `.planning/README.md`) within 3 hops.
 
 Latest audit report location pattern:
 

@@ -179,6 +179,7 @@ Keep the `REDIS_URL` key present in `backend.env` (it may be empty).
 Set:
 
 - `FRONTEND_HOST_PORT=80` (or another port if you run behind a reverse proxy/terminator that forwards to a non-80 port)
+- `SERVER_NAME=riskhub.example.com` (used by host-aware smoke checks and backend trusted-host validation)
 
 ### Step 5: Preflight validation (no changes)
 
@@ -268,9 +269,14 @@ Operator commands:
 ```bash
 scripts/prod/status.sh
 scripts/prod/logs.sh --service all --tail 200
-scripts/prod/smoke_test.sh --frontend-env /etc/riskhub/frontend.env
+scripts/prod/smoke_test.sh --frontend-env /etc/riskhub/frontend.env --backend-env /etc/riskhub/backend.env
 scripts/prod/verify_runtime.sh
 ```
+
+`smoke_test.sh` resolves request host in this order:
+1. `--host-header`
+2. `SERVER_NAME` from `frontend.env`
+3. first value in `ALLOWED_HOSTS` from `backend.env`
 
 ## Upgrades
 

@@ -6,9 +6,9 @@ Folder for `docs/quality/baseline` implementation assets.
 
 ## Contents
 
-- `e402-app.txt`
-- `e501-app.txt`
-- `e712-app.txt`
+- [`e402-app.txt`](./e402-app.txt)
+- [`e501-app.txt`](./e501-app.txt)
+- [`e712-app.txt`](./e712-app.txt)
 
 ## Notes
 

@@ -1,3 +1,5 @@
+> Supersession note (2026-02-22): Prior blockers PH500-DA-001..004 revalidated as fixed in `docs/security/reports/prod-readiness-deep-audit-2026-02-22.md`.
+
 # Phase 500 Production Deep-Dive Audit Report (2026-02-21 UTC)
 
 ## Result

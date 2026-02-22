@@ -73,3 +73,14 @@ python3 scripts/tools/docs_tree_audit.py --scope full
 
 Outputs are written under:
 `tests/results/docs/docs-tree-audit-<timestamp>/`
+
+## Documentation Topology Consistency Gate
+
+```bash
+make -f scripts/Makefile docs-topology-consistency
+python3 scripts/tools/structure_metrics_guard.py
+python3 scripts/tools/docs_tree_audit.py --scope canonical --max-root-hops 3 --fail-on-unreachable
+```
+
+Outputs are written under:
+`tests/results/docs/structure-metrics-guard-<timestamp>/`

@@ -1,7 +1,7 @@
 # RiskHub Documentation Index
 
 > **Version**: 1.2
-> **Last Updated**: 2026-02-21
+> **Last Updated**: 2026-02-22
 > **Audience**: Product, Engineering, QA, Operations
 
 This file is the primary documentation index for `docs/`.
@@ -33,14 +33,17 @@ This file is the primary documentation index for `docs/`.
 - [`docs/E2E_TESTING.md`](./E2E_TESTING.md)
 - [`docs/LOCALIZATION.md`](./LOCALIZATION.md)
 - [`docs/PERFORMANCE_BASELINE.md`](./PERFORMANCE_BASELINE.md)
+- [`docs/AUTHZ_LIST_POLICY.md`](./AUTHZ_LIST_POLICY.md)
+- [`docs/GLOSSARY.md`](./GLOSSARY.md)
 
 ## Validation Commands
 
 ```bash
 python3 scripts/check_docs_contract.py
-python3 scripts/tools/docs_tree_audit.py --scope canonical
+python3 scripts/tools/docs_tree_audit.py --scope canonical --max-root-hops 3 --fail-on-unreachable
 python3 scripts/tools/docs_tree_audit.py --scope full
 python3 scripts/tools/readme_coverage.py audit
+python3 scripts/tools/structure_metrics_guard.py
 ```
 
 Outputs:
