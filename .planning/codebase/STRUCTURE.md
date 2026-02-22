@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-02-20
+**Analysis Date:** 2026-02-22
 
 ## Top-Level Layout
 
@@ -19,17 +19,17 @@
 - `backend/app/db/session.py` - engine/sessionmaker lifecycle + `get_db` dependency (sessionmaker stored on `app.state`)
 
 ### Primary subdirectories
-- `backend/app/api/v1/endpoints/` - 166 Python modules/packages (extensively split into subrouters for maintainability)
-- `backend/app/models/` - 36 model modules
-- `backend/app/schemas/` - 30 schema modules
-- `backend/app/services/` - 75 Python modules (business services + internal refactor packages; facade modules re-export public symbols)
+- `backend/app/api/v1/endpoints/` - 168 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
+- `backend/app/models/` - 35 model modules (measured `*.py` snapshot)
+- `backend/app/schemas/` - 29 schema modules (measured `*.py` snapshot)
+- `backend/app/services/` - 62 Python modules (measured `*.py` snapshot; business services + internal refactor packages; facade modules re-export public symbols)
 - `backend/app/core/` - configuration, auth, permissions, logging, scheduler
 - `backend/app/middleware/` - security/logging/language middleware
 - `backend/app/integrations/` - AD emulator and vendor-signal connectors
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 234 test files (82 Python)
+- `tests/backend/pytest/` - 319 test files (107 Python) (measured filesystem snapshot)
 
 ## Frontend Tree (`frontend/`)
 
@@ -38,8 +38,8 @@
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 53 files (route-level pages + tests)
-- `frontend/src/components/` - 116 files (components + tests)
+- `frontend/src/pages/` - 36 files (measured filesystem snapshot; route-level pages + tests)
+- `frontend/src/components/` - 142 files (measured filesystem snapshot; components + tests)
 - `frontend/src/services/` - API client and domain service wrappers
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -47,7 +47,7 @@
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 38 E2E specs (domain-focused test suites)
+- `tests/frontend/e2e/` - 42 E2E specs (measured `*.spec.ts` snapshot; domain-focused test suites)
 
 ## Planning and Documentation Structure
 
@@ -77,4 +77,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-02-20*
+*Structure audit refreshed on 2026-02-22*

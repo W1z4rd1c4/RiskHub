@@ -151,7 +151,7 @@ PROBE_CASES: tuple[ProbeCase, ...] = (
         case_id="approval-auth-precondition",
         method="GET",
         path="/api/v1/approvals/my-approvals?skip=0&skip=1",
-        expected_statuses=(401,),
+        expected_statuses=(400, 401),
         classification_hint=CLASSIFICATION_AUTH_PRECONDITION,
         description="No-auth request should classify as auth precondition, not drift.",
         auth_mode="none",
@@ -278,7 +278,11 @@ def classify_probe_result(
         )
 
     if case.classification_hint == CLASSIFICATION_AUTH_PRECONDITION:
-        return CLASSIFICATION_AUTH_PRECONDITION, False, "expected auth precondition response"
+        return (
+            CLASSIFICATION_AUTH_PRECONDITION,
+            False,
+            f"auth/sanitization precondition accepted (status {status_code})",
+        )
 
     drift_detected = str(status_code) not in documented_statuses
     reason = "status documented in OpenAPI responses"

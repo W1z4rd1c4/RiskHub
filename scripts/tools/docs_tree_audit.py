@@ -7,6 +7,7 @@ import argparse
 import json
 import re
 import sys
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,6 +39,12 @@ REQUIRED_CROSSLINKS = [
     (Path("docs/DOCUMENTATION_TREE.md"), Path(".planning/README.md")),
     (Path(".planning/README.md"), Path(".planning/phases/README.md")),
     (Path(".planning/phases/README.md"), Path("docs/reference/LEGACY_PATH_MAP.md")),
+]
+
+ROOT_REACHABILITY_ROOTS = [
+    Path("AGENTS.md"),
+    Path("docs/README.md"),
+    Path(".planning/README.md"),
 ]
 
 
@@ -72,6 +79,17 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         default="",
         help="Optional output directory. Defaults to tests/results/docs/docs-tree-audit-<timestamp>.",
+    )
+    parser.add_argument(
+        "--max-root-hops",
+        type=int,
+        default=3,
+        help="Maximum allowed hop distance from root entrypoints for canonical documentation reachability checks.",
+    )
+    parser.add_argument(
+        "--fail-on-unreachable",
+        action="store_true",
+        help="Fail the audit when canonical docs are unreachable or exceed --max-root-hops from root entrypoints.",
     )
     return parser.parse_args()
 
@@ -251,11 +269,52 @@ def evaluate_required_crosslinks(resolved_targets_by_source: dict[str, set[str]]
     return records
 
 
+def evaluate_reachability(
+    resolved_targets_by_source: dict[str, set[str]], max_root_hops: int
+) -> dict[str, object]:
+    canonical_files = {path.as_posix() for path in canonical_scope_files()}
+    roots = [path.as_posix() for path in ROOT_REACHABILITY_ROOTS if path.as_posix() in canonical_files]
+    adjacency: dict[str, set[str]] = {source: set() for source in canonical_files}
+
+    for source, targets in resolved_targets_by_source.items():
+        if source not in canonical_files:
+            continue
+        for target in targets:
+            if target in canonical_files:
+                adjacency[source].add(target)
+
+    distance: dict[str, int] = {root: 0 for root in roots}
+    queue: deque[str] = deque(roots)
+    while queue:
+        current = queue.popleft()
+        for target in adjacency.get(current, set()):
+            if target in distance:
+                continue
+            distance[target] = distance[current] + 1
+            queue.append(target)
+
+    unreachable = sorted(canonical_files - set(distance.keys()))
+    weakly_connected = sorted(path for path, hops in distance.items() if hops > max_root_hops)
+    return {
+        "roots": roots,
+        "max_root_hops": max_root_hops,
+        "canonical_files_count": len(canonical_files),
+        "reachable_count": len(distance),
+        "unreachable_count": len(unreachable),
+        "weakly_connected_count": len(weakly_connected),
+        "unreachable_files": unreachable,
+        "weakly_connected_files": [
+            {"path": path, "hops": distance[path]} for path in weakly_connected
+        ],
+    }
+
+
 def render_markdown_report(payload: dict[str, object]) -> str:
     summary = payload["summary"]
     entrypoints = payload["required_entrypoints"]
     crosslinks = payload["required_crosslinks"]
     unresolved = payload["unresolved"]
+    reachability = payload["reachability"]
 
     lines: list[str] = []
     lines.append("# Documentation Tree Audit")
@@ -273,6 +332,8 @@ def render_markdown_report(payload: dict[str, object]) -> str:
     lines.append(f"- Missing required cross-links: `{summary['crosslink_missing_count']}`")
     lines.append(f"- Canonical unresolved links: `{summary['canonical_unresolved_count']}`")
     lines.append(f"- Archival unresolved links: `{summary['archival_unresolved_count']}`")
+    lines.append(f"- Reachability unreachable count: `{summary['reachability_unreachable_count']}`")
+    lines.append(f"- Reachability weakly connected count: `{summary['reachability_weakly_connected_count']}`")
     lines.append("")
     lines.append("## Required Entrypoints")
     lines.append("")
@@ -288,6 +349,30 @@ def render_markdown_report(payload: dict[str, object]) -> str:
     for item in crosslinks:
         lines.append(f"| `{item['source']}` | `{item['target']}` | `{item['present']}` |")
     lines.append("")
+
+    lines.append("## Reachability")
+    lines.append("")
+    lines.append(f"- Roots: `{', '.join(reachability['roots'])}`")
+    lines.append(f"- Max root hops: `{reachability['max_root_hops']}`")
+    lines.append(f"- Canonical files: `{reachability['canonical_files_count']}`")
+    lines.append(f"- Reachable files: `{reachability['reachable_count']}`")
+    lines.append(f"- Unreachable files: `{reachability['unreachable_count']}`")
+    lines.append(f"- Weakly connected files: `{reachability['weakly_connected_count']}`")
+    lines.append("")
+    if reachability["unreachable_files"]:
+        lines.append("### Unreachable Canonical Files")
+        lines.append("")
+        for path in reachability["unreachable_files"]:
+            lines.append(f"- `{path}`")
+        lines.append("")
+    if reachability["weakly_connected_files"]:
+        lines.append("### Weakly Connected Canonical Files")
+        lines.append("")
+        lines.append("| Path | Hops |")
+        lines.append("|---|---:|")
+        for item in reachability["weakly_connected_files"]:
+            lines.append(f"| `{item['path']}` | `{item['hops']}` |")
+        lines.append("")
 
     for bucket_name in ("canonical", "archival"):
         rows = unresolved.get(bucket_name, [])
@@ -310,7 +395,9 @@ def render_markdown_report(payload: dict[str, object]) -> str:
     return "\n".join(lines)
 
 
-def run_audit(scope: str, run_id: str) -> tuple[dict[str, object], int]:
+def run_audit(
+    scope: str, run_id: str, max_root_hops: int, fail_on_unreachable: bool
+) -> tuple[dict[str, object], int]:
     files = canonical_scope_files() if scope == "canonical" else full_scope_files()
 
     link_results: list[LinkResult] = []
@@ -338,6 +425,7 @@ def run_audit(scope: str, run_id: str) -> tuple[dict[str, object], int]:
 
     required_entrypoints = check_required_entrypoints()
     required_crosslinks = evaluate_required_crosslinks(resolved_targets_by_source)
+    reachability = evaluate_reachability(resolved_targets_by_source, max_root_hops)
 
     unresolved_canonical = [
         result for result in link_results if result.unresolved and result.bucket == "canonical"
@@ -352,6 +440,11 @@ def run_audit(scope: str, run_id: str) -> tuple[dict[str, object], int]:
     has_canonical_violations = (
         entrypoint_missing_count > 0 or crosslink_missing_count > 0 or len(unresolved_canonical) > 0
     )
+    has_reachability_violations = (
+        reachability["unreachable_count"] > 0 or reachability["weakly_connected_count"] > 0
+    )
+    if fail_on_unreachable:
+        has_canonical_violations = has_canonical_violations or has_reachability_violations
     status = "fail" if has_canonical_violations else "pass"
     exit_code = 1 if has_canonical_violations else 0
 
@@ -370,7 +463,11 @@ def run_audit(scope: str, run_id: str) -> tuple[dict[str, object], int]:
             "crosslink_missing_count": crosslink_missing_count,
             "canonical_unresolved_count": len(unresolved_canonical),
             "archival_unresolved_count": len(unresolved_archival),
+            "reachability_unreachable_count": reachability["unreachable_count"],
+            "reachability_weakly_connected_count": reachability["weakly_connected_count"],
+            "fail_on_unreachable_enabled": fail_on_unreachable,
         },
+        "reachability": reachability,
         "unresolved": {
             "canonical": [
                 {
@@ -407,7 +504,12 @@ def main() -> int:
     args = parse_args()
     try:
         run_id = run_id_now()
-        payload, audit_exit_code = run_audit(args.scope, run_id)
+        payload, audit_exit_code = run_audit(
+            args.scope,
+            run_id,
+            max_root_hops=args.max_root_hops,
+            fail_on_unreachable=args.fail_on_unreachable,
+        )
         output_dir = resolve_output_dir(args.output_dir, run_id)
         output_dir.mkdir(parents=True, exist_ok=True)
 

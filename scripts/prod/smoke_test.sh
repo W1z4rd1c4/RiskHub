@@ -10,6 +10,7 @@ source "${SCRIPT_DIR}/lib/preflight.sh"
 
 retries=30
 sleep_seconds=2
+host_header=""
 
 usage() {
   cat <<EOF
@@ -22,6 +23,8 @@ Validates a Phase 500 deployment:
 
 Options:
   --frontend-env PATH     Path to frontend.env
+  --backend-env PATH      Optional path to backend.env (used for ALLOWED_HOSTS fallback)
+  --host-header HOST      Optional explicit Host header override for smoke requests
   --retries N             Retry count (default: $retries)
   --sleep SECONDS         Sleep between retries (default: $sleep_seconds)
   --dry-run               Print commands without executing
@@ -38,6 +41,10 @@ fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --host-header)
+      host_header="${2:-}"
+      shift 2
+      ;;
     --retries)
       retries="${2:-}"
       shift 2
@@ -62,6 +69,9 @@ docker_require_running
 if [[ -z "$FRONTEND_ENV" ]]; then
   die "Missing --frontend-env"
 fi
+if [[ -n "$BACKEND_ENV" ]]; then
+  require_file "$BACKEND_ENV"
+fi
 # Smoke checks validate an active deployment, so the frontend port is expected to be in use.
 preflight_frontend_env "$FRONTEND_ENV" "true"
 
@@ -70,23 +80,100 @@ if [[ -z "$host_port" ]]; then
   die "FRONTEND_HOST_PORT missing in frontend env"
 fi
 
+normalize_host_value() {
+  local raw="$1"
+  local normalized
+  normalized="$(printf '%s' "$raw" | tr -d '\r\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//; s/^"//; s/"$//')"
+  normalized="${normalized#http://}"
+  normalized="${normalized#https://}"
+  normalized="${normalized%%/*}"
+  printf '%s' "$normalized"
+}
+
+extract_first_allowed_host() {
+  local allowed_hosts_raw="$1"
+  local first_entry
+  first_entry="$(
+    printf '%s' "$allowed_hosts_raw" \
+      | tr -d '\r\n' \
+      | sed -E 's/^[[:space:]]*\[//; s/\][[:space:]]*$//' \
+      | awk -F',' '{print $1}'
+  )"
+  normalize_host_value "$first_entry"
+}
+
+resolved_host=""
+host_source=""
+if [[ -n "$host_header" ]]; then
+  resolved_host="$(normalize_host_value "$host_header")"
+  host_source="cli --host-header"
+fi
+
+if [[ -z "$resolved_host" ]]; then
+  server_name="$(envfile_get "$FRONTEND_ENV" "SERVER_NAME" || true)"
+  server_name="$(normalize_host_value "$server_name")"
+  if [[ -n "$server_name" ]]; then
+    resolved_host="$server_name"
+    host_source="frontend.env SERVER_NAME"
+  fi
+fi
+
+if [[ -z "$resolved_host" && -n "$BACKEND_ENV" ]]; then
+  allowed_hosts="$(envfile_get "$BACKEND_ENV" "ALLOWED_HOSTS" || true)"
+  first_allowed_host="$(extract_first_allowed_host "$allowed_hosts")"
+  if [[ -n "$first_allowed_host" ]]; then
+    resolved_host="$first_allowed_host"
+    host_source="backend.env ALLOWED_HOSTS[0]"
+  fi
+fi
+
+if [[ -z "$resolved_host" ]]; then
+  die "Unable to resolve Host header. Provide --host-header, set SERVER_NAME in frontend env, or pass --backend-env with ALLOWED_HOSTS."
+fi
+
+if [[ "$VERBOSE" == "true" ]]; then
+  log "Smoke Host header resolved: ${resolved_host} (source: ${host_source})"
+fi
+
 if [[ "$DRY_RUN" == "true" ]]; then
-  printf '+ curl -f http://localhost:%s/\\n' "$host_port"
-  printf '+ curl -f http://localhost:%s/api/v1/health\\n' "$host_port"
-  printf '+ docker exec %s curl -sS -o /dev/null -w \"%%{http_code}\" http://localhost:8000/docs\\n' "$BACKEND_CONTAINER"
-  printf '+ docker exec %s curl -sS -o /dev/null -w \"%%{http_code}\" http://localhost:8000/openapi.json\\n' "$BACKEND_CONTAINER"
+  printf '+ curl -f -H "Host: %s" http://localhost:%s/\\n' "$resolved_host" "$host_port"
+  printf '+ curl -f -H "Host: %s" http://localhost:%s/api/v1/health\\n' "$resolved_host" "$host_port"
+  printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/docs\\n' "$BACKEND_CONTAINER" "$resolved_host"
+  printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/openapi.json\\n' "$BACKEND_CONTAINER" "$resolved_host"
   exit 0
 fi
 
+body_excerpt() {
+  local raw="$1"
+  local compact
+  compact="$(printf '%s' "$raw" | tr '\r\n' ' ' | sed -E 's/[[:space:]]+/ /g')"
+  printf '%.200s' "$compact"
+}
+
 attempt=1
+last_frontend_status=""
+last_frontend_body=""
+last_health_status=""
+last_health_body=""
 while [[ "$attempt" -le "$retries" ]]; do
   if [[ "$VERBOSE" == "true" ]]; then
     log "Smoke attempt $attempt/$retries"
   fi
 
-  if curl -fsS "http://localhost:${host_port}/" >/dev/null 2>&1; then
-    health_json="$(curl -fsS "http://localhost:${host_port}/api/v1/health" 2>/dev/null || true)"
-    if [[ -n "$health_json" ]] && [[ "$health_json" == *"\"status\":\"healthy\""* ]] && [[ "$health_json" == *"\"database\":\"connected\""* ]]; then
+  frontend_probe="$(curl -sS -H "Host: ${resolved_host}" -w $'\n%{http_code}' "http://localhost:${host_port}/" 2>/dev/null || true)"
+  last_frontend_status="$(printf '%s' "$frontend_probe" | tail -n 1 | tr -d '\r')"
+  last_frontend_body="$(printf '%s' "$frontend_probe" | sed '$d')"
+
+  health_probe="$(curl -sS -H "Host: ${resolved_host}" -w $'\n%{http_code}' "http://localhost:${host_port}/api/v1/health" 2>/dev/null || true)"
+  last_health_status="$(printf '%s' "$health_probe" | tail -n 1 | tr -d '\r')"
+  last_health_body="$(printf '%s' "$health_probe" | sed '$d')"
+
+  if [[ "$VERBOSE" == "true" ]]; then
+    log "Smoke attempt statuses: root=${last_frontend_status:-n/a} health=${last_health_status:-n/a}"
+  fi
+
+  if [[ "$last_frontend_status" =~ ^[23][0-9][0-9]$ ]] && [[ "$last_health_status" == "200" ]]; then
+    if [[ "$last_health_body" == *"\"status\":\"healthy\""* ]] && [[ "$last_health_body" == *"\"database\":\"connected\""* ]]; then
       break
     fi
   fi
@@ -96,7 +183,7 @@ while [[ "$attempt" -le "$retries" ]]; do
 done
 
 if [[ "$attempt" -gt "$retries" ]]; then
-  die "Smoke failed: frontend or /api/v1/health did not become ready"
+  die "Smoke failed: frontend or /api/v1/health did not become ready (host=${resolved_host} root_status=${last_frontend_status:-n/a} root_body='$(body_excerpt "$last_frontend_body")' health_status=${last_health_status:-n/a} health_body='$(body_excerpt "$last_health_body")')"
 fi
 
 log "Smoke: frontend OK and backend health OK via /api proxy"
@@ -106,12 +193,12 @@ if ! container_exists "$BACKEND_CONTAINER"; then
   die "Backend container not found: $BACKEND_CONTAINER"
 fi
 
-docs_code="$(docker exec "$BACKEND_CONTAINER" curl -sS -o /dev/null -w "%{http_code}" http://localhost:8000/docs 2>/dev/null || true)"
+docs_code="$(docker exec "$BACKEND_CONTAINER" curl -sS -H "Host: ${resolved_host}" -o /dev/null -w "%{http_code}" http://localhost:8000/docs 2>/dev/null || true)"
 if [[ "$docs_code" != "404" ]]; then
   die "Expected backend /docs to be disabled in production (404), got: $docs_code"
 fi
 
-openapi_code="$(docker exec "$BACKEND_CONTAINER" curl -sS -o /dev/null -w "%{http_code}" http://localhost:8000/openapi.json 2>/dev/null || true)"
+openapi_code="$(docker exec "$BACKEND_CONTAINER" curl -sS -H "Host: ${resolved_host}" -o /dev/null -w "%{http_code}" http://localhost:8000/openapi.json 2>/dev/null || true)"
 if [[ "$openapi_code" != "404" ]]; then
   die "Expected backend /openapi.json to be disabled in production (404), got: $openapi_code"
 fi

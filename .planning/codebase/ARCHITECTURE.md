@@ -1,6 +1,6 @@
 # Architecture
 
-**Analysis Date:** 2026-02-20
+**Analysis Date:** 2026-02-22
 
 ## System Shape
 
@@ -8,6 +8,7 @@ RiskHub is a containerized full-stack application:
 - Backend: FastAPI monolith with modular domain endpoints (many split into packages with subrouters) (`backend/app/api/v1/endpoints/`)
 - Frontend: React SPA with route-based pages (`frontend/src/App.tsx`, `frontend/src/pages/`)
 - Datastore: PostgreSQL, with Redis for production runtime controls (`docker-compose.yml`, `docker-compose.prod.yml`)
+- Quantitative repository-size metrics are tracked in `.planning/codebase/STRUCTURE.md` as the count source of truth.
 
 ## Backend Layering
 
@@ -78,4 +79,4 @@ RiskHub is a containerized full-stack application:
 
 ---
 
-*Architecture analysis refreshed on 2026-02-20*
+*Architecture analysis refreshed on 2026-02-22*

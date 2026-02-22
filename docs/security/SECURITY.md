@@ -60,6 +60,9 @@ make -f scripts/Makefile security-redis-resilience
 # Round-5 targeted security gap suite
 make -f scripts/Makefile security-gap-round5
 
+# Local production-readiness deep audit (SOC2-oriented, local evidence)
+make -f scripts/Makefile prod-readiness-audit-local
+
 # Real staging replay pack (requires RH_STAGING_* env vars)
 bash scripts/security/run_real_staging_replay.sh
 

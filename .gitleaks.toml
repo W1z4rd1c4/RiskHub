@@ -12,6 +12,8 @@ description = "Global allowlist"
 regexes = [
     '''your-secret-key-change-in-production-use-env-var''',
     '''your-secret-key-here-min-32-chars''',
+    '''SECRET_KEY=abcdefghijklmnopqrstuvwxyz1234567890''',
+    '''abcdefghijklmnopqrstuvwxyz1234567890''',
 ]
 paths = [
     '''\.env\.example$''',

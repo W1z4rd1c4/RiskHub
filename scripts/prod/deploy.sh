@@ -135,6 +135,6 @@ log "Installing frontend"
 run "${SCRIPT_DIR}/install_frontend.sh" --frontend-env "$FRONTEND_ENV" --frontend-image "$frontend_image" "${child_flags[@]}"
 
 log "Smoke test"
-run "${SCRIPT_DIR}/smoke_test.sh" --frontend-env "$FRONTEND_ENV" "${child_flags[@]}"
+run "${SCRIPT_DIR}/smoke_test.sh" --frontend-env "$FRONTEND_ENV" --backend-env "$BACKEND_ENV" "${child_flags[@]}"
 
 log "Deploy: OK"
