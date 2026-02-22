@@ -77,13 +77,9 @@ Safety rules:
 
 1. Go to `/users`.
 2. Click **Add user** and open `/users/new`.
-3. Populate:
-   - full name
-   - email
-   - initial password (per your org policy)
-   - role (start with the least-privileged role that fits)
-   - department (if the user should be scoped)
-4. Create the user.
+3. Follow the flow based on auth mode:
+   - `AUTH_MODE=microsoft_sso`: use **Add from AD** on `/users/new`, import the Entra user, then immediately configure role/department/active status on `/users/{id}` before first login.
+   - `AUTH_MODE=password` or `AUTH_MODE=hybrid_dev`: fill in full name, email, initial password, role, and department (if needed), then create the user.
 
 Verification:
 
