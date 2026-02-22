@@ -68,6 +68,7 @@ show_help() {
     echo "Demo/dev auth defaults:"
     echo "  Local modes default to AUTH_MODE=hybrid_dev with MOCK_AUTH_ENABLED=true (demo login picker)."
     echo "  Node.js major ${NODE_MAJOR_REQUIRED} is required for CI/Docker parity."
+    echo "  This script auto-prefers Homebrew/NVM Node ${NODE_MAJOR_REQUIRED} when available."
     echo "  Override example:"
     echo "    AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh"
     exit 0
@@ -82,11 +83,80 @@ sha256_of_file() {
     shasum -a 256 "$target_file" | awk '{print $1}'
 }
 
+node_major_from_binary() {
+    local node_binary="$1"
+    "$node_binary" -p "process.versions.node.split('.')[0]" 2>/dev/null || true
+}
+
+add_node20_bin_dir_if_valid() {
+    local candidate_dir="$1"
+    if [ -z "$candidate_dir" ] || [ ! -d "$candidate_dir" ]; then
+        return 1
+    fi
+    if [ ! -x "$candidate_dir/node" ] || [ ! -x "$candidate_dir/npm" ]; then
+        return 1
+    fi
+
+    local candidate_major
+    candidate_major="$(node_major_from_binary "$candidate_dir/node")"
+    if [ "$candidate_major" != "$NODE_MAJOR_REQUIRED" ]; then
+        return 1
+    fi
+
+    case ":$PATH:" in
+        *":$candidate_dir:"*) ;;
+        *) export PATH="$candidate_dir:$PATH" ;;
+    esac
+    hash -r 2>/dev/null || true
+    return 0
+}
+
+configure_node_major_20_runtime() {
+    local current_major=""
+    if command -v node >/dev/null 2>&1; then
+        current_major="$(node_major_from_binary "$(command -v node)")"
+    fi
+    if [ "$current_major" = "$NODE_MAJOR_REQUIRED" ] && command -v npm >/dev/null 2>&1; then
+        return 0
+    fi
+
+    local candidate_dirs=(
+        "${NODE20_BIN:-}"
+        "/opt/homebrew/opt/node@20/bin"
+        "/usr/local/opt/node@20/bin"
+    )
+
+    if command -v brew >/dev/null 2>&1; then
+        local brew_prefix
+        brew_prefix="$(brew --prefix node@20 2>/dev/null || true)"
+        if [ -n "$brew_prefix" ]; then
+            candidate_dirs+=("${brew_prefix}/bin")
+        fi
+    fi
+
+    local nvm_candidate
+    nvm_candidate="$(ls -d "$HOME"/.nvm/versions/node/v20*/bin 2>/dev/null | head -n 1 || true)"
+    if [ -n "$nvm_candidate" ]; then
+        candidate_dirs+=("$nvm_candidate")
+    fi
+
+    local candidate_dir
+    for candidate_dir in "${candidate_dirs[@]}"; do
+        if add_node20_bin_dir_if_valid "$candidate_dir"; then
+            echo -e "${YELLOW}Using Node ${NODE_MAJOR_REQUIRED} runtime from ${candidate_dir}${NC}"
+            return 0
+        fi
+    done
+}
+
 require_node_major_20() {
+    configure_node_major_20_runtime
+
     if ! command -v node >/dev/null 2>&1; then
         echo -e "${RED}Node.js is required but was not found in PATH.${NC}"
         echo "Install Node ${NODE_MAJOR_REQUIRED} (CI/Docker parity baseline)."
         echo "Example: brew install node@20 && export PATH=\"/opt/homebrew/opt/node@20/bin:\$PATH\""
+        echo "Optional override: NODE20_BIN=/path/to/node20/bin ./scripts/dev.sh"
         exit 1
     fi
     if ! command -v npm >/dev/null 2>&1; then
@@ -101,6 +171,7 @@ require_node_major_20() {
         echo -e "${RED}Unsupported Node.js major: $(node --version 2>/dev/null || echo unknown)${NC}"
         echo "This startup path requires Node ${NODE_MAJOR_REQUIRED} to match CI/Docker parity."
         echo "Example: brew install node@20 && export PATH=\"/opt/homebrew/opt/node@20/bin:\$PATH\""
+        echo "Optional override: NODE20_BIN=/path/to/node20/bin ./scripts/dev.sh"
         exit 1
     fi
 }

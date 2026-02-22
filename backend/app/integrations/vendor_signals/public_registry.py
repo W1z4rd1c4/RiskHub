@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-import httpx
-
 from app.core.config import get_settings
 from app.core.outbound_guard import OutboundRequestError, build_outbound_client, extract_host, guard_outbound_url
 from app.integrations.vendor_signals.base import VendorSignalConnector, VendorSignalResult

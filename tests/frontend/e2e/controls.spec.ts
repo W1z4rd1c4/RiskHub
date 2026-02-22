@@ -17,10 +17,7 @@ test.describe('Control Management (Deterministic)', () => {
         await expect(riskManagerPage.getByTestId('controls-export-button')).toHaveCount(1);
         await controlsPage.openExportDialog();
         await expect(controlsPage.exportDateInput).toHaveValue(todayLocalIso());
-        await controlsPage.exportFormatTrigger.click();
-        await expect(riskManagerPage.getByTestId('export-format-option-pdf')).toHaveCount(0);
-
-        await controlsPage.chooseExportFormat('csv');
+        // Export dialog is CSV-only; format chooser is intentionally absent.
         await controlsPage.submitExport('csv');
         await expect(controlsPage.exportDialog).not.toBeVisible();
     });

@@ -20,13 +20,13 @@ from app.schemas.directory import (
     DirectoryImportResponse,
     DirectoryUserRead,
 )
+from app.services.ad_deprovision_service import ADDeprovisionService
 from app.services.directory_provider_service import (
     DirectoryProviderError,
     DirectoryProviderService,
     DirectoryProviderUnavailableError,
     DirectoryUserNotFoundError,
 )
-from app.services.ad_deprovision_service import ADDeprovisionService
 
 from .auth._shared import _resolve_safe_default_role
 

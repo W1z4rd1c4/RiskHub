@@ -78,14 +78,16 @@ class GraphDirectoryService:
     ) -> dict[str, Any]:
         token = await self._get_access_token()
         headers = {"Authorization": f"Bearer {token}"}
-        timeout = httpx.Timeout(self._settings.graph_timeout_seconds)
         url = f"{_GRAPH_BASE_URL}{path}"
         try:
             guard_outbound_url(url=url, settings=self._settings, allowed_hosts=["graph.microsoft.com"])
         except OutboundRequestError as exc:
             raise GraphProviderUnavailableError(str(exc)) from exc
 
-        async with build_outbound_client(settings=self._settings, timeout_seconds=self._settings.graph_timeout_seconds) as client:
+        async with build_outbound_client(
+            settings=self._settings,
+            timeout_seconds=self._settings.graph_timeout_seconds,
+        ) as client:
             try:
                 response = await client.get(url, headers=headers, params=params)
             except httpx.HTTPError as exc:
@@ -123,7 +125,10 @@ class GraphDirectoryService:
         except OutboundRequestError as exc:
             raise GraphProviderUnavailableError(str(exc)) from exc
 
-        async with build_outbound_client(settings=self._settings, timeout_seconds=self._settings.graph_timeout_seconds) as client:
+        async with build_outbound_client(
+            settings=self._settings,
+            timeout_seconds=self._settings.graph_timeout_seconds,
+        ) as client:
             try:
                 response = await client.post(
                     token_url,
