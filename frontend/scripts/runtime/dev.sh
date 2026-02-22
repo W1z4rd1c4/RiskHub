@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
 FRONTEND_DIR="${REPO_ROOT}/frontend"
+NODE_MAJOR_REQUIRED="20"
 
 usage() {
   cat <<'USAGE'
@@ -22,6 +23,16 @@ require_cmd() {
     printf 'ERROR: Missing required command: %s\n' "$1" >&2
     exit 1
   }
+}
+
+require_node_major_20() {
+  local current_major
+  current_major="$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || true)"
+  if [[ "$current_major" != "$NODE_MAJOR_REQUIRED" ]]; then
+    printf 'ERROR: Node %s required for parity (found %s)\n' "$NODE_MAJOR_REQUIRED" "$(node --version 2>/dev/null || echo unknown)" >&2
+    printf 'Remediation: brew install node@20 && export PATH="/opt/homebrew/opt/node@20/bin:$PATH"\n' >&2
+    exit 1
+  fi
 }
 
 passthrough=()
@@ -45,6 +56,7 @@ done
 
 require_cmd node
 require_cmd npm
+require_node_major_20
 [[ -f "${FRONTEND_DIR}/package.json" ]] || {
   printf 'ERROR: Missing frontend/package.json at %s\n' "${FRONTEND_DIR}" >&2
   exit 1
