@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5 prod-readiness-audit-local
+.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5 prod-readiness-audit-local release-parity-audit
 
 # Default target
 help:
@@ -42,6 +42,7 @@ help:
 	@echo "  make security-redis-resilience - Run Redis fail-closed resilience tests"
 	@echo "  make security-gap-round5 - Run Round-5 targeted security gap tests"
 	@echo "  make prod-readiness-audit-local - Run local production-readiness deep audit runner"
+	@echo "  make release-parity-audit - Run startup/dependency release parity audit"
 
 # =============================================================================
 # Development
@@ -195,3 +196,6 @@ security-gap-round5:
 
 prod-readiness-audit-local:
 	bash scripts/security/run_prod_readiness_audit_local.sh
+
+release-parity-audit:
+	python3 scripts/security/run_release_parity_audit.py
