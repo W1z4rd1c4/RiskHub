@@ -8,8 +8,8 @@ Canonical security policy and reporting documentation for RiskHub.
 
 ## Contents
 
-- `SECURITY.md`: Security scanning standards, CI gates, and vulnerability response policy.
-- `reports/`: Time-stamped security scan and remediation reports.
+- [`SECURITY.md`](./SECURITY.md): Security scanning standards, CI gates, and vulnerability response policy.
+- [`reports/README.md`](./reports/README.md): Time-stamped security scan and remediation reports.
 
 ## Notes
 

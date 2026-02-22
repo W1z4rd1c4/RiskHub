@@ -8,11 +8,13 @@ Folder for `docs/reference` implementation assets.
 
 ## Contents
 
-- `file_list.txt`
-- `LEGACY_PATH_MAP.md`
-- `documentation-topology-audit-2026-02-21.md`
-- `permission_filtering_summary.md`
-- `README_COVERAGE_POLICY.md`
+- [`file_list.txt`](./file_list.txt)
+- [`LEGACY_PATH_MAP.md`](./LEGACY_PATH_MAP.md)
+- [`README_COVERAGE_POLICY.md`](./README_COVERAGE_POLICY.md)
+- [`readme_coverage.md`](./readme_coverage.md)
+- [`documentation-topology-audit-2026-02-21.md`](./documentation-topology-audit-2026-02-21.md)
+- [`permission_filtering_summary.md`](./permission_filtering_summary.md)
+- [`topology-critical-review-2026-02-21.md`](./topology-critical-review-2026-02-21.md)
 
 ## Notes
 

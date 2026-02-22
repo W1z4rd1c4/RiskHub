@@ -69,6 +69,11 @@ jobs:
           python-version: '3.13'
           cache: 'pip'
 
+      - name: Docs topology consistency gate (blocking)
+        run: |
+          set -euo pipefail
+          make -f scripts/Makefile docs-topology-consistency | tee lint-docs-topology.log
+
       - name: Install backend lint dependencies
         run: |
           pip install -r requirements.txt
@@ -130,6 +135,7 @@ jobs:
             lint-frontend-debt.log
             lint-frontend-cleanup.log
             lint-frontend-build.log
+            lint-docs-topology.log
             lint-backend-ruff.log
             frontend/quality-audit/debt.json
           retention-days: 30
