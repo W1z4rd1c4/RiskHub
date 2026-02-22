@@ -86,7 +86,10 @@ class _ADEmulatorDirectoryService:
         headers: dict[str, str] = {}
         if self._settings.ad_emulator_api_key:
             headers[self._settings.ad_emulator_api_key_header] = self._settings.ad_emulator_api_key
-        async with build_outbound_client(settings=self._settings, timeout_seconds=self._settings.graph_timeout_seconds) as client:
+        async with build_outbound_client(
+            settings=self._settings,
+            timeout_seconds=self._settings.graph_timeout_seconds,
+        ) as client:
             try:
                 response = await client.get(url, params=params, headers=headers)
             except httpx.HTTPError as exc:

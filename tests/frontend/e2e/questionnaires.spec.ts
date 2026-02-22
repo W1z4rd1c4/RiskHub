@@ -9,6 +9,26 @@ test.describe('questionnaire workflow', () => {
         const clickNext = async () => {
             await page.getByRole('button', { name: /next step|next|další/i }).click();
         };
+        const fillTextInputForLabel = async (label: RegExp, value: string) => {
+            const input = page
+                .locator('label')
+                .filter({ hasText: label })
+                .first()
+                .locator('xpath=..')
+                .locator('input[type="text"]')
+                .first();
+            await input.fill(value);
+        };
+        const fillTextareaForLabel = async (label: RegExp, value: string) => {
+            const textarea = page
+                .locator('label')
+                .filter({ hasText: label })
+                .first()
+                .locator('xpath=..')
+                .locator('textarea')
+                .first();
+            await textarea.fill(value);
+        };
 
         // 1) CRO creates a risk and sends questionnaire
         await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
@@ -17,14 +37,14 @@ test.describe('questionnaire workflow', () => {
         await page.getByRole('button', { name: /new risk|nové riziko/i }).click();
 
         // Step 1
-        await page.getByPlaceholder('Enter a short, descriptive name for this risk...').fill(riskName);
-        await page.locator('div:has(> label:has-text("Main Process")) input[type="text"]').fill('E2E Process');
-        await page.locator('div:has(> label:has-text("Category")) input[type="text"]').fill('E2E Category');
-        await page.locator('textarea[placeholder="Describe the risk in detail..."]').fill('E2E created risk for questionnaire flow.');
+        await fillTextInputForLabel(/risk name|název rizika/i, riskName);
+        await fillTextInputForLabel(/main process|hlavní proces/i, 'E2E Process');
+        await fillTextInputForLabel(/category|kategorie/i, 'E2E Category');
+        await fillTextareaForLabel(/risk description|popis rizika/i, 'E2E created risk for questionnaire flow.');
         await clickNext();
 
         // Step 2 (owner)
-        await page.getByPlaceholder(/search by name|hledat podle názvu/i).fill(DEMO_ACCOUNTS.EMPLOYEE_OPERATIONS);
+        await fillTextInputForLabel(/risk owner|vlastník rizika|owner/i, DEMO_ACCOUNTS.EMPLOYEE_OPERATIONS);
         await page.getByRole('button', { name: DEMO_ACCOUNTS.EMPLOYEE_OPERATIONS }).first().click();
         await clickNext();
 
@@ -37,7 +57,7 @@ test.describe('questionnaire workflow', () => {
         // Send questionnaire from Risk Assessment tab
         await page.getByRole('button', { name: /risk assessment|hodnocení rizik|hodnocení rizika/i }).click();
         await page.getByRole('button', { name: /send questionnaire|odeslat dotazník/i }).click();
-        await expect(page.getByText(/questionnaire sent|dotazník odeslán/i)).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText(/questionnaire sent|dotazník.*odeslán/i)).toBeVisible({ timeout: 15000 });
 
         // Logout CRO
         await logout(page);
@@ -101,7 +121,7 @@ test.describe('questionnaire workflow', () => {
         await page.goto('/dashboard');
 
         // Open notification bell and assert submitted notification exists
-        await page.getByRole('button', { name: /Notifications/i }).click({ timeout: 15000 });
+        await page.getByRole('button', { name: /notifications|oznámení/i }).click({ timeout: 15000 });
 
         await expect(page.getByRole('button', { name: riskNameRe }).first()).toBeVisible({ timeout: 15000 });
     });
