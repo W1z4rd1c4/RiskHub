@@ -29,6 +29,7 @@ FRONTEND_SCREEN_SESSION="riskhub-frontend"
 
 DAEMON_MODE="false"
 USE_SCREEN_DAEMON="false"
+NODE_MAJOR_REQUIRED="20"
 
 if command -v docker-compose >/dev/null 2>&1; then
     COMPOSE_CMD=(docker-compose)
@@ -66,9 +67,42 @@ show_help() {
     echo ""
     echo "Demo/dev auth defaults:"
     echo "  Local modes default to AUTH_MODE=hybrid_dev with MOCK_AUTH_ENABLED=true (demo login picker)."
+    echo "  Node.js major ${NODE_MAJOR_REQUIRED} is required for CI/Docker parity."
     echo "  Override example:"
     echo "    AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh"
     exit 0
+}
+
+sha256_of_file() {
+    local target_file="$1"
+    if [ ! -f "$target_file" ]; then
+        echo "missing"
+        return 0
+    fi
+    shasum -a 256 "$target_file" | awk '{print $1}'
+}
+
+require_node_major_20() {
+    if ! command -v node >/dev/null 2>&1; then
+        echo -e "${RED}Node.js is required but was not found in PATH.${NC}"
+        echo "Install Node ${NODE_MAJOR_REQUIRED} (CI/Docker parity baseline)."
+        echo "Example: brew install node@20 && export PATH=\"/opt/homebrew/opt/node@20/bin:\$PATH\""
+        exit 1
+    fi
+    if ! command -v npm >/dev/null 2>&1; then
+        echo -e "${RED}npm is required but was not found in PATH.${NC}"
+        echo "Install Node ${NODE_MAJOR_REQUIRED} (CI/Docker parity baseline)."
+        exit 1
+    fi
+
+    local node_major
+    node_major="$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || true)"
+    if [ "$node_major" != "$NODE_MAJOR_REQUIRED" ]; then
+        echo -e "${RED}Unsupported Node.js major: $(node --version 2>/dev/null || echo unknown)${NC}"
+        echo "This startup path requires Node ${NODE_MAJOR_REQUIRED} to match CI/Docker parity."
+        echo "Example: brew install node@20 && export PATH=\"/opt/homebrew/opt/node@20/bin:\$PATH\""
+        exit 1
+    fi
 }
 
 wait_for_docker() {
@@ -228,9 +262,45 @@ start_backend_local() {
 start_frontend_local() {
     echo -e "${YELLOW}Starting frontend...${NC}"
     cd frontend
-    if [ ! -d node_modules ]; then
+
+    local lock_file="package-lock.json"
+    local lock_hash
+    lock_hash="$(sha256_of_file "$lock_file")"
+    local node_major
+    node_major="$(node -p "process.versions.node.split('.')[0]")"
+    local install_mode
+    if [ -f "$lock_file" ]; then
+        install_mode="npm_ci"
+    else
+        install_mode="npm_install"
+    fi
+    local expected_state
+    expected_state="$(cat <<EOF
+lock_sha256=${lock_hash}
+node_major=${node_major}
+install_mode=${install_mode}
+EOF
+)"
+    local state_file="node_modules/.deps_state"
+    local needs_install="false"
+    if [ ! -d node_modules ] || [ ! -f "$state_file" ]; then
+        needs_install="true"
+    elif [ "$(cat "$state_file")" != "$expected_state" ]; then
+        needs_install="true"
+    fi
+
+    if [ "$needs_install" = "true" ]; then
         echo -e "${YELLOW}Installing frontend dependencies...${NC}"
-        npm install
+        if [ "$install_mode" = "npm_ci" ]; then
+            npm ci
+        else
+            npm install
+        fi
+        mkdir -p node_modules
+        printf '%s\n' "$expected_state" >"$state_file"
+        echo -e "${GREEN}Frontend dependencies up to date!${NC}"
+    else
+        echo -e "${GREEN}Frontend dependencies already up to date${NC}"
     fi
     : > "$FRONTEND_LOG_FILE"
     if [ "$DAEMON_MODE" = "true" ] && [ "$USE_SCREEN_DAEMON" = "true" ]; then
@@ -304,17 +374,39 @@ setup_backend_venv() {
     
     # Activate and install/update dependencies
     source venv/bin/activate
-    
-    # Quick check if requirements need updating (compare timestamps)
-    if [ "requirements.txt" -nt "venv/.deps_installed" ] 2>/dev/null \
-        || [ "requirements-dev.txt" -nt "venv/.deps_installed" ] 2>/dev/null \
-        || [ ! -f "venv/.deps_installed" ]; then
+
+    # Invalidate legacy marker-only dependency cache in favor of hash-based state tracking.
+    rm -f "venv/.deps_installed"
+
+    local req_hash
+    req_hash="$(sha256_of_file "requirements.txt")"
+    local req_dev_hash
+    req_dev_hash="$(sha256_of_file "requirements-dev.txt")"
+    local py_major_minor
+    py_major_minor="$(venv/bin/python -c 'import sys; print(f"{sys.version_info[0]}.{sys.version_info[1]}")')"
+    local state_file="venv/.deps_state"
+    local expected_state
+    expected_state="$(cat <<EOF
+requirements_sha256=${req_hash}
+requirements_dev_sha256=${req_dev_hash}
+python_major_minor=${py_major_minor}
+EOF
+)"
+
+    local needs_install="false"
+    if [ ! -f "$state_file" ]; then
+        needs_install="true"
+    elif [ "$(cat "$state_file")" != "$expected_state" ]; then
+        needs_install="true"
+    fi
+
+    if [ "$needs_install" = "true" ]; then
         echo "Installing/updating Python dependencies..."
         pip install -q -r requirements.txt
         if [ -f "requirements-dev.txt" ]; then
             pip install -q -r requirements-dev.txt
         fi
-        touch venv/.deps_installed
+        printf '%s\n' "$expected_state" >"$state_file"
         echo -e "${GREEN}Dependencies up to date!${NC}"
     else
         echo -e "${GREEN}Dependencies already up to date${NC}"
@@ -364,6 +456,8 @@ fi
 if [ "$DAEMON_MODE" = "true" ] && command -v screen >/dev/null 2>&1; then
     USE_SCREEN_DAEMON="true"
 fi
+
+require_node_major_20
 
 print_header
 
