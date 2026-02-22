@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 import { UserNewPage } from '@/pages/UserNewPage';
+import type { AuthConfigResponse } from '@/services/authApi';
 
 const mockNavigate = vi.fn();
 const mockGetAuthConfig = vi.fn();
@@ -47,11 +48,20 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 }));
 
 vi.mock('@/components/users/DirectoryUserImportPanel', () => ({
-    DirectoryUserImportPanel: ({ onImported }: { onImported: (result: { user_id: number }) => void }) => (
+    DirectoryUserImportPanel: ({
+        onImported,
+        onProviderUnavailableChange,
+    }: {
+        onImported: (result: { user_id: number }) => void;
+        onProviderUnavailableChange?: (isUnavailable: boolean) => void;
+    }) => (
         <div>
             <div>Directory import panel</div>
             <button type="button" onClick={() => onImported({ user_id: 42 })}>
                 Import user
+            </button>
+            <button type="button" onClick={() => onProviderUnavailableChange?.(true)}>
+                Simulate provider unavailable
             </button>
         </div>
     ),
@@ -66,15 +76,29 @@ vi.mock('react-router-dom', async () => {
 });
 
 describe('UserNewPage SSO mode', () => {
+    const makeAuthConfig = (overrides: Partial<AuthConfigResponse>): AuthConfigResponse => ({
+        auth_mode: 'microsoft_sso',
+        demo_login_enabled: false,
+        password_login_enabled: false,
+        sso: {
+            enabled: true,
+            provider: 'entra',
+            tenant_id: 'tenant',
+            client_id: 'client',
+            authority: 'https://login.microsoftonline.com/tenant',
+            scopes: ['openid', 'profile', 'email'],
+        },
+        sso_error: null,
+        ...overrides,
+    });
+
     beforeEach(() => {
         mockNavigate.mockReset();
         mockGetAuthConfig.mockReset();
     });
 
     it('renders directory import flow and no password field in microsoft_sso mode', async () => {
-        mockGetAuthConfig.mockResolvedValue({
-            auth_mode: 'microsoft_sso',
-        });
+        mockGetAuthConfig.mockResolvedValue(makeAuthConfig({ auth_mode: 'microsoft_sso' }));
 
         render(<UserNewPage />);
 
@@ -82,10 +106,56 @@ describe('UserNewPage SSO mode', () => {
         expect(document.querySelector('input[type="password"]')).toBeNull();
     });
 
-    it('navigates to imported user detail after successful directory import', async () => {
-        mockGetAuthConfig.mockResolvedValue({
-            auth_mode: 'microsoft_sso',
+    it('renders directory import flow and no password field in hybrid_dev mode', async () => {
+        mockGetAuthConfig.mockResolvedValue(
+            makeAuthConfig({
+                auth_mode: 'hybrid_dev',
+                demo_login_enabled: true,
+                password_login_enabled: true,
+                sso: {
+                    enabled: false,
+                    provider: 'entra',
+                    tenant_id: null,
+                    client_id: null,
+                    authority: null,
+                    scopes: ['openid', 'profile', 'email'],
+                },
+                sso_error: 'SSO enabled by AUTH_MODE but missing ENTRA_TENANT_ID/ENTRA_CLIENT_ID',
+            })
+        );
+
+        render(<UserNewPage />);
+
+        await screen.findByText('Directory import panel');
+        expect(document.querySelector('input[type="password"]')).toBeNull();
+        expect(screen.getByText('Directory provider setup required')).toBeInTheDocument();
+    });
+
+    it('renders password form in password mode', async () => {
+        mockGetAuthConfig.mockResolvedValue(
+            makeAuthConfig({
+                auth_mode: 'password',
+                password_login_enabled: true,
+                sso: {
+                    enabled: false,
+                    provider: 'entra',
+                    tenant_id: null,
+                    client_id: null,
+                    authority: null,
+                    scopes: ['openid', 'profile', 'email'],
+                },
+            })
+        );
+
+        render(<UserNewPage />);
+
+        await waitFor(() => {
+            expect(document.querySelector('input[type="password"]')).not.toBeNull();
         });
+    });
+
+    it('navigates to imported user detail after successful directory import', async () => {
+        mockGetAuthConfig.mockResolvedValue(makeAuthConfig({ auth_mode: 'microsoft_sso' }));
 
         render(<UserNewPage />);
 
@@ -94,5 +164,29 @@ describe('UserNewPage SSO mode', () => {
         await waitFor(() => {
             expect(mockNavigate).toHaveBeenCalledWith('/users/42');
         });
+    });
+
+    it('shows setup guidance when panel reports provider unavailable', async () => {
+        mockGetAuthConfig.mockResolvedValue(
+            makeAuthConfig({
+                auth_mode: 'hybrid_dev',
+                demo_login_enabled: true,
+                password_login_enabled: true,
+                sso: {
+                    enabled: true,
+                    provider: 'entra',
+                    tenant_id: 'tenant',
+                    client_id: 'client',
+                    authority: 'https://login.microsoftonline.com/tenant',
+                    scopes: ['openid', 'profile', 'email'],
+                },
+                sso_error: null,
+            })
+        );
+
+        render(<UserNewPage />);
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Simulate provider unavailable' }));
+        expect(screen.getByText('Directory provider setup required')).toBeInTheDocument();
     });
 });

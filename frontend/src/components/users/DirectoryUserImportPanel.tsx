@@ -2,27 +2,42 @@ import { useEffect, useMemo, useState } from 'react';
 import { Search, UserPlus } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
+import { apiClient, ApiClientError } from '@/services/apiClient';
 import { directoryApi } from '@/services/directoryApi';
 import type { DirectoryImportResponse, DirectoryUser } from '@/types/directory';
 
 interface DirectoryUserImportPanelProps {
     onImported: (result: DirectoryImportResponse) => void | Promise<void>;
+    onProviderUnavailableChange?: (isUnavailable: boolean) => void;
     className?: string;
 }
 
-export function DirectoryUserImportPanel({ onImported, className = '' }: DirectoryUserImportPanelProps) {
+function isProviderUnavailableError(error: unknown): boolean {
+    if (error instanceof ApiClientError && error.status === 503) return true;
+    const raw = apiClient.getRawErrorMessage(error)?.toLowerCase() ?? '';
+    return raw.includes('no directory provider configured') || raw.includes('provider unavailable');
+}
+
+export function DirectoryUserImportPanel({
+    onImported,
+    onProviderUnavailableChange,
+    className = '',
+}: DirectoryUserImportPanelProps) {
     const { t } = useTranslation('admin');
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<DirectoryUser[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [isImportingOid, setIsImportingOid] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [showProviderSetupHint, setShowProviderSetupHint] = useState(false);
 
     useEffect(() => {
         const trimmed = query.trim();
         if (!trimmed) {
             setResults([]);
             setError(null);
+            setShowProviderSetupHint(false);
+            onProviderUnavailableChange?.(false);
             setIsSearching(false);
             return;
         }
@@ -33,9 +48,20 @@ export function DirectoryUserImportPanel({ onImported, className = '' }: Directo
                 setError(null);
                 const users = await directoryApi.searchUsers(trimmed, 25);
                 setResults(users);
+                setShowProviderSetupHint(false);
+                onProviderUnavailableChange?.(false);
             } catch (err) {
                 console.error('Directory search failed', err);
-                setError(t('users.directory_search_failed', { defaultValue: 'Directory search failed.' }));
+                const providerUnavailable = isProviderUnavailableError(err);
+                setShowProviderSetupHint(providerUnavailable);
+                onProviderUnavailableChange?.(providerUnavailable);
+                setError(
+                    providerUnavailable
+                        ? t('users.directory_setup_required', {
+                              defaultValue: 'Directory provider is not configured.',
+                          })
+                        : t('users.directory_search_failed', { defaultValue: 'Directory search failed.' })
+                );
             } finally {
                 setIsSearching(false);
             }
@@ -52,9 +78,20 @@ export function DirectoryUserImportPanel({ onImported, className = '' }: Directo
             setError(null);
             const response = await directoryApi.importUser(user.external_id);
             await onImported(response);
+            setShowProviderSetupHint(false);
+            onProviderUnavailableChange?.(false);
         } catch (err) {
             console.error('Directory import failed', err);
-            setError(t('users.directory_import_failed', { defaultValue: 'Directory import failed.' }));
+            const providerUnavailable = isProviderUnavailableError(err);
+            setShowProviderSetupHint(providerUnavailable);
+            onProviderUnavailableChange?.(providerUnavailable);
+            setError(
+                providerUnavailable
+                    ? t('users.directory_setup_required', {
+                          defaultValue: 'Directory provider is not configured.',
+                      })
+                    : t('users.directory_import_failed', { defaultValue: 'Directory import failed.' })
+            );
         } finally {
             setIsImportingOid(null);
         }
@@ -75,6 +112,14 @@ export function DirectoryUserImportPanel({ onImported, className = '' }: Directo
             {error && (
                 <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
                     {error}
+                </div>
+            )}
+            {showProviderSetupHint && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                    {t('users.directory_setup_help', {
+                        defaultValue:
+                            'Configure ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET or AD_EMULATOR_BASE_URL, then retry.',
+                    })}
                 </div>
             )}
 

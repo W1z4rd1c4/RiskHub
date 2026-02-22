@@ -205,7 +205,7 @@ export function UsersPage() {
     const privilegedCount = isAccessMode
         ? users.filter(u => u.access_scope === 'global' && u.role.name !== 'admin').length
         : 0;
-    const isSsoMode = authMode === 'microsoft_sso';
+    const isDirectoryFirstMode = authMode !== null && authMode !== 'password';
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -221,7 +221,7 @@ export function UsersPage() {
                 </div>
                 {canManageUsers && (
                     <div className="flex flex-wrap items-center gap-2">
-                        {!isSsoMode && (
+                        {!isDirectoryFirstMode && (
                             <button
                                 onClick={() => setIsADPickerOpen(true)}
                                 className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-white transition hover:bg-white/10"
@@ -250,8 +250,8 @@ export function UsersPage() {
                             onClick={() => navigate('/users/new')}
                             className="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
                         >
-                            {isSsoMode ? <Building2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                            {isSsoMode
+                            {isDirectoryFirstMode ? <Building2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                            {isDirectoryFirstMode
                                 ? t('users.add_from_ad', { defaultValue: 'Add from AD' })
                                 : t('access.add_user')}
                         </button>
