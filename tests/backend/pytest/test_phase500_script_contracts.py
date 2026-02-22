@@ -23,6 +23,7 @@ def test_preflight_validates_frontend_port_ranges_and_container_port():
     assert "FRONTEND_HOST_PORT must be between 1 and 65535" in text
     assert "FRONTEND_CONTAINER_PORT must be numeric" in text
     assert "FRONTEND_CONTAINER_PORT must be between 1 and 65535" in text
+    assert 'envfile_require_nonempty "$backend_env" "ENTRA_CLIENT_SECRET"' in text
 
 
 def test_upgrade_preflight_calls_allow_frontend_port_in_use():
@@ -45,6 +46,14 @@ def test_setup_cleanup_removes_dry_run_temp_dir():
     text = _script_text("setup.sh")
     assert 'setup_tmp_dir=""' in text
     assert 'if [[ -n "$setup_tmp_dir" && -d "$setup_tmp_dir" ]]; then rm -rf "$setup_tmp_dir" || true; fi' in text
+
+
+def test_setup_requires_entra_client_secret_flag_and_writes_backend_env_value():
+    text = _script_text("setup.sh")
+    assert "--entra-client-secret SECRET" in text
+    assert '--entra-client-secret)' in text
+    assert 'missing_required+=(--entra-client-secret)' in text
+    assert "ENTRA_CLIENT_SECRET=${entra_client_secret}" in text
 
 
 def test_bootstrap_db_uses_module_execution_for_seed_scripts():

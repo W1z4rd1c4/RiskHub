@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.activity_logger import log_activity
+from app.core.config import Settings, get_settings
 from app.core.permissions import can_manage_users
 from app.core.security import get_password_hash
 from app.core.user_query_options import user_selectinload_options
@@ -62,6 +63,7 @@ async def create_user(
     user_data: UserCreate,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ):
     """
     Create new user (admin-only).
@@ -79,6 +81,11 @@ async def create_user(
     """
     if not can_manage_users(current_user):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
+    if settings.auth_mode == "microsoft_sso":
+        raise HTTPException(
+            status_code=403,
+            detail="Manual user creation is disabled in microsoft_sso mode. Use /api/v1/directory/users/{oid}/import.",
+        )
 
     # Check if email already exists
     result = await db.execute(select(User).where(User.email == user_data.email))

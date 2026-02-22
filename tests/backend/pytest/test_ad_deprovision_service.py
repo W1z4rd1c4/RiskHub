@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
+from app.core.datetime_utils import utc_now
 from app.models import Control, OrphanedItem, RefreshToken, Risk, User
 from app.schemas.directory import DirectoryUserRead
 from app.services.ad_deprovision_service import ADDeprovisionService
@@ -89,7 +90,7 @@ async def test_deprovision_missing_user_deactivates_revokes_and_flags_orphans(
 
     refreshed_user = (await db_session.execute(select(User).where(User.id == test_user_employee.id))).scalar_one()
     assert refreshed_user.is_active is False
-    assert refreshed_user.deprovision_reason == ADDeprovisionService.DEPROVISION_REASON
+    assert refreshed_user.deprovision_reason == ADDeprovisionService.DEPROVISION_REASON_MISSING
     assert refreshed_user.token_version == 2
 
     refresh_rows = (
@@ -146,3 +147,102 @@ async def test_deprovision_active_user_updates_sync_metadata(
     assert refreshed_user.directory_sync_status == "active"
     assert refreshed_user.directory_last_checked_at is not None
     assert refreshed_user.directory_last_seen_at is not None
+
+
+@pytest.mark.asyncio
+async def test_directory_disabled_user_is_auto_deprovisioned(
+    db_session: AsyncSession,
+    test_user_employee: User,
+    monkeypatch,
+):
+    test_user_employee.external_id = "oid-disabled-user"
+    test_user_employee.is_active = True
+    test_user_employee.token_version = 3
+    db_session.add(test_user_employee)
+    db_session.add(
+        RefreshToken(
+            user_id=test_user_employee.id,
+            jti="deprov-jti-disabled",
+            token_version=test_user_employee.token_version,
+            issued_at=datetime.now(UTC) - timedelta(minutes=5),
+            last_used_at=datetime.now(UTC) - timedelta(minutes=1),
+            expires_at=datetime.now(UTC) + timedelta(days=7),
+            created_ip="127.0.0.1",
+            user_agent="pytest",
+        )
+    )
+    await db_session.commit()
+
+    async def stub_get_user(self, external_id: str):
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name="Disabled User",
+            email=test_user_employee.email,
+            user_principal_name=test_user_employee.email,
+            department="Risk",
+            job_title="Analyst",
+            account_enabled=False,
+            source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+
+    result = await ADDeprovisionService.check_user_by_id(
+        db_session,
+        user_id=test_user_employee.id,
+        settings=_service_settings(),
+        trigger="pytest",
+    )
+
+    assert result["status"] == "deprovisioned"
+    assert result["reason"] == ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED
+    assert result["revoked_sessions"] == 1
+
+    refreshed_user = (await db_session.execute(select(User).where(User.id == test_user_employee.id))).scalar_one()
+    assert refreshed_user.is_active is False
+    assert refreshed_user.directory_sync_status == "directory_disabled"
+    assert refreshed_user.deprovision_reason == ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED
+    assert refreshed_user.token_version == 4
+
+
+@pytest.mark.asyncio
+async def test_reenabled_directory_user_is_auto_reactivated(
+    db_session: AsyncSession,
+    test_user_employee: User,
+    monkeypatch,
+):
+    test_user_employee.external_id = "oid-reactivation-user"
+    test_user_employee.is_active = False
+    test_user_employee.directory_sync_status = "directory_disabled"
+    test_user_employee.deprovision_reason = ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED
+    test_user_employee.deprovisioned_at = utc_now() - timedelta(days=1)
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    async def stub_get_user(self, external_id: str):
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name="Reenabled User",
+            email=test_user_employee.email,
+            user_principal_name=test_user_employee.email,
+            department="Risk",
+            job_title="Analyst",
+            account_enabled=True,
+            source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+
+    result = await ADDeprovisionService.check_user_by_id(
+        db_session,
+        user_id=test_user_employee.id,
+        settings=_service_settings(),
+        trigger="pytest",
+    )
+
+    assert result["status"] == "active"
+    refreshed_user = (await db_session.execute(select(User).where(User.id == test_user_employee.id))).scalar_one()
+    assert refreshed_user.is_active is True
+    assert refreshed_user.directory_sync_status == "active"
+    assert refreshed_user.deprovision_reason is None
+    assert refreshed_user.deprovisioned_at is None

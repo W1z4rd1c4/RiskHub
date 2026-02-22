@@ -55,6 +55,7 @@ docker run --rm -v "$PWD":/work -w /work koalaman/shellcheck:stable \
 - Rollbacks do not downgrade the database. Use forward-fix migrations + backups/PITR.
 - Scheduler is deployed as a dedicated backend container with `ENABLE_SCHEDULER=true` and `--workers 1`.
 - For SSO safety, production deploy bootstraps privileged users by email. Configure `BOOTSTRAP_ADMIN_*` and `BOOTSTRAP_CRO_*` in your `backend.env`.
+- Directory/Graph-backed admin features in production require `ENTRA_CLIENT_SECRET` in `backend.env` (also required by setup/preflight).
 - Frontend first-deploy preflight remains strict about host-port collisions.
 - Frontend preflight now validates both `FRONTEND_HOST_PORT` and `FRONTEND_CONTAINER_PORT` as numeric values in range `1..65535`.
 - Upgrade/rollback flows and smoke checks allow an already bound frontend port when validating/replacing an active deployment.

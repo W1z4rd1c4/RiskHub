@@ -22,7 +22,16 @@ from app.services.orphaned_item_service import OrphanedItemService
 class ADDeprovisionService:
     """Directory deprovision checks and automatic local-account remediation."""
 
-    DEPROVISION_REASON = "ad_deprovision"
+    DEPROVISION_REASON = "ad_deprovision"  # legacy marker kept for backwards compatibility
+    DEPROVISION_REASON_MISSING = "missing"
+    DEPROVISION_REASON_DIRECTORY_DISABLED = "directory_disabled"
+    AUTO_DEPROVISION_REASONS = frozenset(
+        {
+            DEPROVISION_REASON,
+            DEPROVISION_REASON_MISSING,
+            DEPROVISION_REASON_DIRECTORY_DISABLED,
+        }
+    )
 
     @classmethod
     async def check_user_by_id(
@@ -100,7 +109,14 @@ class ADDeprovisionService:
         try:
             remote_user = await provider.get_user(user.external_id)
         except DirectoryUserNotFoundError:
-            return await cls._deprovision_missing_user(db, user=user, actor=actor, trigger=trigger)
+            return await cls._deprovision_user(
+                db,
+                user=user,
+                actor=actor,
+                trigger=trigger,
+                sync_status="missing",
+                deprovision_reason=cls.DEPROVISION_REASON_MISSING,
+            )
         except DirectoryProviderUnavailableError as exc:
             user.directory_sync_status = "provider_unavailable"
             db.add(user)
@@ -125,8 +141,19 @@ class ADDeprovisionService:
             }
 
         user.directory_last_seen_at = now
-        user.directory_sync_status = "active" if remote_user.account_enabled else "directory_disabled"
-        if remote_user.account_enabled and user.deprovision_reason == cls.DEPROVISION_REASON:
+        if not remote_user.account_enabled:
+            return await cls._deprovision_user(
+                db,
+                user=user,
+                actor=actor,
+                trigger=trigger,
+                sync_status="directory_disabled",
+                deprovision_reason=cls.DEPROVISION_REASON_DIRECTORY_DISABLED,
+            )
+
+        user.directory_sync_status = "active"
+        if user.deprovision_reason in cls.AUTO_DEPROVISION_REASONS:
+            user.is_active = True
             user.deprovisioned_at = None
             user.deprovision_reason = None
         db.add(user)
@@ -140,18 +167,20 @@ class ADDeprovisionService:
         }
 
     @classmethod
-    async def _deprovision_missing_user(
+    async def _deprovision_user(
         cls,
         db: AsyncSession,
         *,
         user: User,
         actor: User | None,
         trigger: str,
+        sync_status: str,
+        deprovision_reason: str,
     ) -> dict[str, Any]:
         now = utc_now()
-        user.directory_sync_status = "missing"
+        user.directory_sync_status = sync_status
         user.deprovisioned_at = user.deprovisioned_at or now
-        user.deprovision_reason = cls.DEPROVISION_REASON
+        user.deprovision_reason = deprovision_reason
 
         if user.is_active:
             user.is_active = False
@@ -162,7 +191,7 @@ class ADDeprovisionService:
             update(RefreshToken)
             .where(RefreshToken.user_id == user.id)
             .where(RefreshToken.revoked_at.is_(None))
-            .values(revoked_at=now, revoked_reason=f"{cls.DEPROVISION_REASON}:{trigger}")
+            .values(revoked_at=now, revoked_reason=f"{deprovision_reason}:{trigger}")
         )
         revoked_sessions = int(revoked_rows.rowcount or 0)
 
@@ -178,14 +207,14 @@ class ADDeprovisionService:
             entity_name=user.name,
             description=(
                 f"User auto-deactivated due to directory deprovision "
-                f"(reason={cls.DEPROVISION_REASON}, trigger={trigger}, revoked_sessions={revoked_sessions})"
+                f"(reason={deprovision_reason}, trigger={trigger}, revoked_sessions={revoked_sessions})"
             ),
         )
         return {
             "user_id": user.id,
             "email": user.email,
             "status": "deprovisioned",
-            "reason": cls.DEPROVISION_REASON,
+            "reason": deprovision_reason,
             "revoked_sessions": revoked_sessions,
             "orphaned_items_flagged": orphan_count,
         }

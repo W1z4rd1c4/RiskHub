@@ -20,6 +20,7 @@ frontend_host_port=""
 database_url=""
 entra_tenant_id=""
 entra_client_id=""
+entra_client_secret=""
 
 bootstrap_admin_email=""
 bootstrap_admin_role="admin" # fixed to admin in this wizard (CRO has its own bootstrap email)
@@ -56,6 +57,7 @@ Non-interactive inputs (optional in interactive mode):
   --database-url URL          Full postgresql+asyncpg URL (external PostgreSQL)
   --entra-tenant-id GUID
   --entra-client-id GUID
+  --entra-client-secret SECRET
   --bootstrap-admin-email EMAIL
   --bootstrap-admin-role admin      Fixed to admin in this wizard (CRO uses --bootstrap-cro-email)
   --bootstrap-cro-email EMAIL
@@ -110,6 +112,15 @@ prompt_value() {
   else
     read -r -p "${prompt}: " value
   fi
+  printf '%s' "$value"
+}
+
+prompt_secret_value() {
+  local prompt="$1"
+  local value=""
+  require_interactive_or_die
+  read -r -s -p "${prompt}: " value
+  printf '\n' >&2
   printf '%s' "$value"
 }
 
@@ -404,6 +415,10 @@ while [[ $# -gt 0 ]]; do
       entra_client_id="${2:-}"
       shift 2
       ;;
+    --entra-client-secret)
+      entra_client_secret="${2:-}"
+      shift 2
+      ;;
     --bootstrap-admin-email)
       bootstrap_admin_email="${2:-}"
       shift 2
@@ -467,6 +482,7 @@ if [[ "$YES" == "true" ]]; then
   if [[ -z "$database_url" ]]; then missing_required+=(--database-url); fi
   if [[ -z "$entra_tenant_id" ]]; then missing_required+=(--entra-tenant-id); fi
   if [[ -z "$entra_client_id" ]]; then missing_required+=(--entra-client-id); fi
+  if [[ -z "$entra_client_secret" ]]; then missing_required+=(--entra-client-secret); fi
   if [[ -z "$bootstrap_admin_email" ]]; then missing_required+=(--bootstrap-admin-email); fi
   if [[ -z "$bootstrap_cro_email" ]]; then missing_required+=(--bootstrap-cro-email); fi
 
@@ -519,6 +535,13 @@ fi
 entra_client_id="$(printf '%s' "$entra_client_id" | xargs)"
 if ! is_guid "$entra_client_id"; then
   die "Invalid ENTRA_CLIENT_ID (expected GUID)"
+fi
+
+if [[ -z "$entra_client_secret" ]]; then
+  entra_client_secret="$(prompt_secret_value "ENTRA_CLIENT_SECRET (app client secret)")"
+fi
+if [[ -z "$entra_client_secret" ]]; then
+  die "ENTRA_CLIENT_SECRET is required"
 fi
 
 if [[ -z "$bootstrap_admin_email" ]]; then
@@ -624,6 +647,7 @@ REDIS_URL=
 
 ENTRA_TENANT_ID=${entra_tenant_id}
 ENTRA_CLIENT_ID=${entra_client_id}
+ENTRA_CLIENT_SECRET=${entra_client_secret}
 ENTRA_JIT_PROVISIONING_ENABLED=${entra_jit}
 ENTRA_ALLOWED_EMAIL_DOMAINS=${allowed_domains_json}
 
@@ -651,6 +675,7 @@ log "  PUBLIC_URL=${public_url}"
 log "  FRONTEND_HOST_PORT=${frontend_host_port}"
 log "  ENTRA_TENANT_ID=${entra_tenant_id}"
 log "  ENTRA_CLIENT_ID=${entra_client_id}"
+log_kv_redacted "ENTRA_CLIENT_SECRET" "$entra_client_secret"
 log "  ENTRA_REDIRECT_URI=${redirect_uri}"
 log "  BOOTSTRAP_ADMIN_EMAIL=${bootstrap_admin_email}"
 log "  BOOTSTRAP_CRO_EMAIL=${bootstrap_cro_email}"

@@ -2,7 +2,7 @@
 
 This directory contains templates for the Phase 500 production install scripts:
 
-- `backend.env.example` -> `backend.env` (backend + DB + SSO + redis + bootstrap config)
+- `backend.env.example` -> `backend.env` (backend + DB + SSO + redis + bootstrap config, including `ENTRA_CLIENT_SECRET`)
 - `frontend.env.example` -> `frontend.env` (frontend published port config)
 
 Recommended host paths:
