@@ -22,5 +22,27 @@ make -f scripts/Makefile security-contract-probe
 make -f scripts/Makefile security-gap-round5
 make -f scripts/Makefile release-parity-audit
 python3 scripts/security/compose_round5_point3_index.py
-python3 scripts/security/run_release_parity_audit.py --skip-prod-readiness
+python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness
+python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>
 ```
+
+## Release Parity Audit
+
+- Tool: `scripts/security/run_release_parity_audit.py`
+- Make target: `make -f scripts/Makefile release-parity-audit`
+- Fast rerun loop command:
+  - `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness`
+- Full gate command:
+  - `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>`
+- Artifact root pattern:
+  - `tests/results/release-parity-audit-<run-id>/`
+- Required evidence files:
+  - `report.md`
+  - `decision.json`
+  - `findings.json`
+  - `matrix.json`
+  - `fingerprints/runtime.json`
+  - `deps/diffs.json`
+  - `ui/parity.json`
+- Release bar for this cycle: `GO` requires `P0=0`, `P1=0`, `P2=0`.
+- Local prerequisite: Node major `20` for parity with CI/Docker startup paths.
