@@ -16,7 +16,7 @@ Backend startup enforces these when `DEBUG=false`:
 - `DATABASE_URL` is explicitly set (not the default placeholder)
 - `CORS_ORIGINS` is an explicit allowlist (no `*`)
 - `REDIS_URL` is set and reachable
-- `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` set
+- `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and `ENTRA_CLIENT_SECRET` set
 - `TRUSTED_PROXIES` reviewed when deploying behind non-default proxy networks
 
 ## Network
@@ -44,10 +44,10 @@ Backend startup enforces these when `DEBUG=false`:
 
 ## Secrets handling
 
-- Store `SECRET_KEY`, DB passwords, and Redis password in a secret manager or Kubernetes `Secret`.
+- Store `SECRET_KEY`, DB passwords, Redis password, and `ENTRA_CLIENT_SECRET` in a secret manager or Kubernetes `Secret`.
 - Never commit real secrets into `.env` files.
 - When using Phase 500 scripts, keep `/etc/riskhub/backend.env` and `/etc/riskhub/frontend.env` readable only by root or a dedicated ops user.
-- Do not echo secrets into shell history or CI logs. The Phase 500 scripts avoid printing `DATABASE_URL`, `SECRET_KEY`, and `REDIS_PASSWORD`.
+- Do not echo secrets into shell history or CI logs. The Phase 500 scripts avoid printing `DATABASE_URL`, `SECRET_KEY`, `REDIS_PASSWORD`, and `ENTRA_CLIENT_SECRET`.
 
 ## Supply-Chain And Image Gates
 

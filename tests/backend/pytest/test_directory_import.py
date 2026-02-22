@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.main import app
 from app.models import Department, User
 from app.schemas.directory import DirectoryUserRead
+from app.services.ad_deprovision_service import ADDeprovisionService
 
 
 @pytest_asyncio.fixture
@@ -150,3 +151,44 @@ async def test_directory_import_detects_external_id_email_collision(
     response = await directory_import_client.post("/api/v1/directory/users/oid-other/import", json={})
     assert response.status_code == 409
     assert "identity conflict" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_directory_import_reactivates_user_for_auto_deprovision_reasons(
+    directory_import_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee,
+    monkeypatch,
+):
+    test_user_employee.external_id = "oid-reactivate-import"
+    test_user_employee.is_active = False
+    test_user_employee.directory_sync_status = "directory_disabled"
+    test_user_employee.deprovision_reason = ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    async def stub_get_user(self, external_id: str):
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name="Reactivated By Import",
+            email=test_user_employee.email,
+            user_principal_name=test_user_employee.email,
+            department="Risk",
+            job_title="Analyst",
+            account_enabled=True,
+            source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+
+    response = await directory_import_client.post("/api/v1/directory/users/oid-reactivate-import/import", json={})
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "updated"
+
+    refreshed_user = (
+        await db_session.execute(select(User).where(User.external_id == "oid-reactivate-import"))
+    ).scalar_one()
+    assert refreshed_user.is_active is True
+    assert refreshed_user.deprovision_reason is None
+    assert refreshed_user.deprovisioned_at is None
+    assert refreshed_user.directory_sync_status == "active"

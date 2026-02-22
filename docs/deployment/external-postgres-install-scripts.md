@@ -44,7 +44,7 @@ Optional (ops/debug only): you can publish the backend API to localhost by passi
 - An externally managed PostgreSQL database + user already provisioned.
   - Ensure the Docker host can reach the DB over the network.
   - Ensure `DATABASE_URL` uses `postgresql+asyncpg://...`.
-- Microsoft Entra ID app registration (tenant ID + client ID) for `AUTH_MODE=microsoft_sso`.
+- Microsoft Entra ID app registration (tenant ID + client ID + client secret) for `AUTH_MODE=microsoft_sso`.
 - TLS termination is expected to be handled outside the containers (reverse proxy / ingress / load balancer).
 
 ## 1) Create production env files
@@ -67,7 +67,7 @@ Edit `/etc/riskhub/backend.env` and set real values for at minimum:
 - `DATABASE_URL` (external PostgreSQL; must not be the default placeholder and must not use hostname `db`)
 - `SECRET_KEY` (>= 32 chars)
 - `CORS_ORIGINS` (explicit allowlist JSON array; never `*`)
-- `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`
+- `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`
 - `REDIS_PASSWORD`
 
 Edit `/etc/riskhub/frontend.env` and confirm:
