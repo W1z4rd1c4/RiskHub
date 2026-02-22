@@ -68,7 +68,7 @@ export function DirectoryUserImportPanel({
         }, 250);
 
         return () => window.clearTimeout(handle);
-    }, [query, t]);
+    }, [query, t, onProviderUnavailableChange]);
 
     const hasResults = useMemo(() => results.length > 0, [results.length]);
 

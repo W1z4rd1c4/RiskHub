@@ -17,51 +17,34 @@ from ._shared import validate_risk_type
 router = APIRouter()
 
 
-@router.patch("/{risk_id}", response_model=RiskRead)
-async def update_risk(
-    risk_id: int,
-    risk_data: RiskUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
-):
-    """
-    Update a risk. Requires risks:write permission OR being the risk owner.
-    Non-privileged users changing sensitive fields (owner, department, category, is_priority)
-    will trigger an approval request instead of immediate update.
-    """
-
-    from app.core.permissions import can_resolve_approvals, has_sensitive_field_changes
-    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
-
+async def _load_risk_or_404(db: AsyncSession, risk_id: int) -> Risk:
     result = await db.execute(select(Risk).where(Risk.id == risk_id))
     risk = result.scalar_one_or_none()
-
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
+    return risk
 
-    # Check permission: either risks:write or is risk owner
+
+def _assert_risk_update_access(risk: Risk, current_user: User) -> tuple[bool, bool]:
     has_write = check_permission(current_user, "risks", "write")
     is_owner = risk.owner_id == current_user.id
 
-    # Risk owners can edit their risk regardless of department (cross-department access)
-    # per BUSINESS_LOGIC.md §7.1
     if not is_owner:
-        # Verify department access only for non-owners
         check_department_access(risk.department_id, current_user)
 
     if not has_write and not is_owner:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:write or risk owner required"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied: risks:write or risk owner required",
         )
 
-    # Update fields
-    update_data = risk_data.model_dump(exclude_unset=True)
+    return has_write, is_owner
 
-    # Validate risk type if being updated
+
+async def _validate_risk_update_payload(db: AsyncSession, risk: Risk, update_data: dict) -> None:
     if "risk_type" in update_data:
         await validate_risk_type(db, update_data["risk_type"])
 
-    # Prevent un-archiving via update
     if risk.status == RiskStatusEnum.archived.value:
         if "status" in update_data and update_data["status"] != RiskStatusEnum.archived.value:
             raise HTTPException(
@@ -69,11 +52,14 @@ async def update_risk(
                 detail="Cannot reactivate archived risk. Please create a new risk or contact administrator.",
             )
 
-    # Check for pending DELETE request (block any updates if delete is pending)
+
+async def _assert_no_pending_risk_delete(db: AsyncSession, risk_id: int) -> None:
+    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
+
     existing_delete = await db.execute(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType.RISK,
-            ApprovalRequest.resource_id == risk.id,
+            ApprovalRequest.resource_id == risk_id,
             ApprovalRequest.action_type == ApprovalActionType.DELETE,
             ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
         )
@@ -81,84 +67,97 @@ async def update_risk(
     if existing_delete.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Cannot update risk while deletion is pending approval")
 
-    # Check for sensitive field changes OR priority risk edits (non-privileged users only)
-    if not can_resolve_approvals(current_user):
-        old_data = {
-            "owner_id": risk.owner_id,
-            "department_id": risk.department_id,
-            "category": risk.category,
-            "is_priority": risk.is_priority,
-        }
-        has_sensitive, changed = has_sensitive_field_changes("risk", old_data, update_data)
 
-        # NEW: Any edit on a priority risk requires approval
-        is_priority_risk_edit = risk.is_priority and bool(update_data)
+def _build_priority_risk_change_set(risk: Risk, update_data: dict) -> dict:
+    changed = {}
+    for field, new_val in update_data.items():
+        old_val = getattr(risk, field, None)
+        if hasattr(new_val, "value"):
+            new_val = new_val.value
+        if old_val != new_val:
+            changed[field] = {"old": old_val, "new": new_val}
+    return changed
 
-        if has_sensitive or is_priority_risk_edit:
-            # Check for existing pending edit request (both statuses)
-            existing = await db.execute(
-                select(ApprovalRequest).where(
-                    ApprovalRequest.resource_type == ApprovalResourceType.RISK,
-                    ApprovalRequest.resource_id == risk.id,
-                    ApprovalRequest.action_type == ApprovalActionType.EDIT,
-                    ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
-                )
-            )
-            if existing.scalar_one_or_none():
-                raise HTTPException(status_code=400, detail="Edit request already pending for this risk")
 
-            # Build pending_changes for all fields being changed (not just sensitive ones)
-            if is_priority_risk_edit and not has_sensitive:
-                # For priority risks, include ALL changes in the approval request
-                changed = {}
-                for field, new_val in update_data.items():
-                    old_val = getattr(risk, field, None)
-                    if hasattr(new_val, "value"):  # Handle enums
-                        new_val = new_val.value
-                    if old_val != new_val:
-                        changed[field] = {"old": old_val, "new": new_val}
+async def _create_risk_edit_approval_if_required(
+    db: AsyncSession,
+    *,
+    risk: Risk,
+    update_data: dict,
+    current_user: User,
+):
+    from fastapi.responses import JSONResponse
 
-            # Create approval request instead of applying changes
-            desc_snippet = risk.description[:50] if risk.description else ""
-            reason = (
-                f"Edit to priority risk - fields: {', '.join(changed.keys())}"
-                if is_priority_risk_edit and not has_sensitive
-                else f"Change to sensitive fields: {', '.join(changed.keys())}"
-            )
-            approval = ApprovalRequest(
-                resource_type=ApprovalResourceType.RISK,
-                resource_id=risk.id,
-                resource_name=f"{risk.risk_id_code}: {desc_snippet}",
-                requested_by_id=current_user.id,
-                reason=reason,
-                action_type=ApprovalActionType.EDIT,
-                pending_changes=changed,
-                status=ApprovalStatus.PENDING,
-            )
+    from app.core.approval_helpers import create_approval_request_with_audit
+    from app.core.permissions import can_resolve_approvals, has_sensitive_field_changes
+    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
-            from app.core.approval_helpers import create_approval_request_with_audit
+    if can_resolve_approvals(current_user):
+        return None
 
-            await create_approval_request_with_audit(
-                db,
-                approval=approval,
-                actor=current_user,
-                department_id=risk.department_id,
-            )
+    old_data = {
+        "owner_id": risk.owner_id,
+        "department_id": risk.department_id,
+        "category": risk.category,
+        "is_priority": risk.is_priority,
+    }
+    has_sensitive, changed = has_sensitive_field_changes("risk", old_data, update_data)
+    is_priority_risk_edit = risk.is_priority and bool(update_data)
 
-            # Return 202 with approval info
-            from fastapi.responses import JSONResponse
+    if not has_sensitive and not is_priority_risk_edit:
+        return None
 
-            return JSONResponse(
-                status_code=status.HTTP_202_ACCEPTED,
-                content={
-                    "message": "Change requires approval" + (" (priority risk)" if is_priority_risk_edit else ""),
-                    "approval_id": approval.id,
-                    "action_type": "edit",
-                    "pending_fields": list(changed.keys()),
-                    "pending_changes": changed,
-                },
-            )
+    existing = await db.execute(
+        select(ApprovalRequest).where(
+            ApprovalRequest.resource_type == ApprovalResourceType.RISK,
+            ApprovalRequest.resource_id == risk.id,
+            ApprovalRequest.action_type == ApprovalActionType.EDIT,
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Edit request already pending for this risk")
 
+    if is_priority_risk_edit and not has_sensitive:
+        changed = _build_priority_risk_change_set(risk, update_data)
+
+    desc_snippet = risk.description[:50] if risk.description else ""
+    reason = (
+        f"Edit to priority risk - fields: {', '.join(changed.keys())}"
+        if is_priority_risk_edit and not has_sensitive
+        else f"Change to sensitive fields: {', '.join(changed.keys())}"
+    )
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=risk.id,
+        resource_name=f"{risk.risk_id_code}: {desc_snippet}",
+        requested_by_id=current_user.id,
+        reason=reason,
+        action_type=ApprovalActionType.EDIT,
+        pending_changes=changed,
+        status=ApprovalStatus.PENDING,
+    )
+
+    await create_approval_request_with_audit(
+        db,
+        approval=approval,
+        actor=current_user,
+        department_id=risk.department_id,
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED,
+        content={
+            "message": "Change requires approval" + (" (priority risk)" if is_priority_risk_edit else ""),
+            "approval_id": approval.id,
+            "action_type": "edit",
+            "pending_fields": list(changed.keys()),
+            "pending_changes": changed,
+        },
+    )
+
+
+def _risk_score_change_set(risk: Risk, update_data: dict) -> dict:
     new_gross_probability = update_data.get("gross_probability", risk.gross_probability)
     new_gross_impact = update_data.get("gross_impact", risk.gross_impact)
     new_net_probability = update_data.get("net_probability", risk.net_probability)
@@ -174,6 +173,51 @@ async def update_risk(
             "old": risk.net_score,
             "new": new_net_probability * new_net_impact,
         }
+    return extra_changes
+
+
+async def _reload_risk_with_relationships(db: AsyncSession, risk_id: int) -> Risk:
+    result = await db.execute(
+        select(Risk)
+        .options(
+            selectinload(Risk.department),
+            selectinload(Risk.owner),
+            selectinload(Risk.kris),
+        )
+        .where(Risk.id == risk_id)
+    )
+    return result.scalar_one()
+
+
+@router.patch("/{risk_id}", response_model=RiskRead)
+async def update_risk(
+    risk_id: int,
+    risk_data: RiskUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    """
+    Update a risk. Requires risks:write permission OR being the risk owner.
+    Non-privileged users changing sensitive fields (owner, department, category, is_priority)
+    will trigger an approval request instead of immediate update.
+    """
+
+    risk = await _load_risk_or_404(db, risk_id)
+    _assert_risk_update_access(risk, current_user)
+    update_data = risk_data.model_dump(exclude_unset=True)
+    await _validate_risk_update_payload(db, risk, update_data)
+    await _assert_no_pending_risk_delete(db, risk.id)
+
+    approval_response = await _create_risk_edit_approval_if_required(
+        db,
+        risk=risk,
+        update_data=update_data,
+        current_user=current_user,
+    )
+    if approval_response is not None:
+        return approval_response
+
+    extra_changes = _risk_score_change_set(risk, update_data)
 
     changes = build_change_set(risk, update_data, extra_changes=extra_changes)
 
@@ -199,15 +243,4 @@ async def update_risk(
     )
     await db.commit()
     await db.refresh(risk)
-
-    # Reload with relationships
-    result = await db.execute(
-        select(Risk)
-        .options(
-            selectinload(Risk.department),
-            selectinload(Risk.owner),
-            selectinload(Risk.kris),
-        )
-        .where(Risk.id == risk.id)
-    )
-    return result.scalar_one()
+    return await _reload_risk_with_relationships(db, risk.id)

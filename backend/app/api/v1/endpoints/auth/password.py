@@ -82,12 +82,12 @@ async def login(
     if not user or not user.hashed_password:
         # Track failed attempt
         try:
-            is_now_locked, info = await account_lockout.record_failed_attempt(credentials.email)
+            is_now_locked = (await account_lockout.record_failed_attempt(credentials.email))[0]
         except Exception as exc:  # noqa: BLE001 - fail-closed option is policy-driven
             logger.warning("auth_lockout_backend_error", operation="record_failed_attempt_missing_user", error=str(exc))
             if settings.lockout_fail_closed_on_backend_error:
                 _raise_lockout_backend_unavailable()
-            is_now_locked, info = False, 0
+            is_now_locked = False
 
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -107,12 +107,12 @@ async def login(
     if not verify_password(credentials.password, user.hashed_password):
         # Track failed attempt
         try:
-            is_now_locked, info = await account_lockout.record_failed_attempt(credentials.email)
+            is_now_locked = (await account_lockout.record_failed_attempt(credentials.email))[0]
         except Exception as exc:  # noqa: BLE001 - fail-closed option is policy-driven
             logger.warning("auth_lockout_backend_error", operation="record_failed_attempt_bad_password", error=str(exc))
             if settings.lockout_fail_closed_on_backend_error:
                 _raise_lockout_backend_unavailable()
-            is_now_locked, info = False, 0
+            is_now_locked = False
 
         from app.core.activity_logger import log_activity
         from app.models.activity_log import ActivityAction, ActivityEntityType

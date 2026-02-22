@@ -4,7 +4,6 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-import httpx
 import jwt
 from jwt import PyJWTError
 

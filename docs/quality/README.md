@@ -12,6 +12,7 @@ Folder for `docs/quality` implementation assets.
 - [`DEBT_POLICY.md`](./DEBT_POLICY.md)
 - [`lint-baseline-2026-02-14.md`](./lint-baseline-2026-02-14.md)
 - [`lint-ratchet-status.md`](./lint-ratchet-status.md)
+- [`production-code-quality-review-2026-02-22.md`](./production-code-quality-review-2026-02-22.md)
 
 ## Notes
 

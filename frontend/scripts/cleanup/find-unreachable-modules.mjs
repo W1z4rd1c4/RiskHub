@@ -110,6 +110,28 @@ function parseModule(file, content) {
     }
   }
 
+  const dynamicImportSpecifiers = [];
+  const collectDynamicImports = (node) => {
+    if (
+      ts.isCallExpression(node)
+      && node.expression.kind === ts.SyntaxKind.ImportKeyword
+      && node.arguments.length === 1
+      && ts.isStringLiteral(node.arguments[0])
+    ) {
+      dynamicImportSpecifiers.push(node.arguments[0].text);
+    }
+    ts.forEachChild(node, collectDynamicImports);
+  };
+  collectDynamicImports(sf);
+  for (const specifier of dynamicImportSpecifiers) {
+    imports.push({
+      specifier,
+      namedImports: [],
+      hasDefaultImport: false,
+      hasNamespaceImport: false,
+    });
+  }
+
   return { imports, namedReExports, exportAllSpecs };
 }
 
@@ -207,6 +229,25 @@ function extractDirectPageImports(content) {
 
     importedModules.add(moduleName);
   }
+
+  const collectDynamicImports = (node) => {
+    if (
+      ts.isCallExpression(node)
+      && node.expression.kind === ts.SyntaxKind.ImportKeyword
+      && node.arguments.length === 1
+      && ts.isStringLiteral(node.arguments[0])
+    ) {
+      const specifier = node.arguments[0].text;
+      if (!specifier.startsWith('@/pages/') && !specifier.startsWith('./pages/')) return;
+      const moduleName = specifier
+        .replace(/^@\/pages\//, '')
+        .replace(/^\.\/pages\//, '')
+        .replace(/\.(ts|tsx)$/, '');
+      importedModules.add(moduleName);
+    }
+    ts.forEachChild(node, collectDynamicImports);
+  };
+  collectDynamicImports(sf);
 
   return importedModules;
 }

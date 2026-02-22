@@ -1,7 +1,6 @@
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
