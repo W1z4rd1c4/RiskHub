@@ -29,7 +29,7 @@
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 319 test files (107 Python) (measured filesystem snapshot)
+- `tests/backend/pytest/` - 110 tracked test files (107 Python) (measured git-tracked snapshot)
 
 ## Frontend Tree (`frontend/`)
 
@@ -38,8 +38,8 @@
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 36 files (measured filesystem snapshot; route-level pages + tests)
-- `frontend/src/components/` - 142 files (measured filesystem snapshot; components + tests)
+- `frontend/src/pages/` - 36 tracked files (measured git-tracked snapshot; route-level pages + tests)
+- `frontend/src/components/` - 143 tracked files (measured git-tracked snapshot; components + tests)
 - `frontend/src/services/` - API client and domain service wrappers
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -47,7 +47,7 @@
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 42 E2E specs (measured `*.spec.ts` snapshot; domain-focused test suites)
+- `tests/frontend/e2e/` - 42 E2E specs (measured git-tracked `*.spec.ts` snapshot; domain-focused test suites)
 
 ## Planning and Documentation Structure
 

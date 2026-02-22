@@ -78,8 +78,10 @@ Safety rules:
 1. Go to `/users`.
 2. Click **Add user** and open `/users/new`.
 3. Follow the flow based on auth mode:
-   - `AUTH_MODE=microsoft_sso`: use **Add from AD** on `/users/new`, import the Entra user, then immediately configure role/department/active status on `/users/{id}` before first login.
-   - `AUTH_MODE=password` or `AUTH_MODE=hybrid_dev`: fill in full name, email, initial password, role, and department (if needed), then create the user.
+   - `AUTH_MODE=microsoft_sso` or `AUTH_MODE=hybrid_dev`: use **Add from AD** on `/users/new`, import the Entra user, then immediately configure role/department/active status on `/users/{id}` before first login.
+   - `AUTH_MODE=password`: fill in full name, email, initial password, role, and department (if needed), then create the user.
+
+If Add from AD shows a setup warning in local/dev, configure Entra credentials (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`) or set `AD_EMULATOR_BASE_URL`, then reload and retry.
 
 Verification:
 

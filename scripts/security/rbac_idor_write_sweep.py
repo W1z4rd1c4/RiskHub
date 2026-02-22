@@ -106,6 +106,23 @@ def _parse_target(value: str) -> tuple[str, str]:
     return label.strip(), url.strip().rstrip("/")
 
 
+def _build_decision(rows: list[dict[str, Any]]) -> tuple[str, int, int, bool, list[str]]:
+    potential_write_count = sum(1 for row in rows if row.get("result") == "potential_write")
+    precondition_failure_count = sum(
+        1 for row in rows if row.get("result") in {"openapi_unavailable", "login_failed"}
+    )
+    coverage_complete = precondition_failure_count == 0
+
+    blocking_reasons: list[str] = []
+    if potential_write_count > 0:
+        blocking_reasons.append("potential_write_detected")
+    if precondition_failure_count > 0:
+        blocking_reasons.append("precondition_failures_detected")
+
+    decision = "BLOCK" if blocking_reasons else "PASS"
+    return decision, potential_write_count, precondition_failure_count, coverage_complete, blocking_reasons
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run RBAC/IDOR write-surface sweep")
     parser.add_argument("--target", action="append", required=True, type=_parse_target)
@@ -170,11 +187,14 @@ def main() -> int:
                     }
                 )
 
-    decision = "PASS" if not any(row.get("result") == "potential_write" for row in rows) else "BLOCK"
+    decision, potential_write_count, precondition_failure_count, coverage_complete, blocking_reasons = _build_decision(rows)
     payload = {
         "decision": decision,
         "rows": rows,
-        "potential_write_count": sum(1 for row in rows if row.get("result") == "potential_write"),
+        "potential_write_count": potential_write_count,
+        "precondition_failure_count": precondition_failure_count,
+        "coverage_complete": coverage_complete,
+        "blocking_reasons": blocking_reasons,
     }
 
     json_path = Path(args.output_json)
