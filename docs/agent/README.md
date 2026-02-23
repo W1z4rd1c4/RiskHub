@@ -22,4 +22,4 @@ Canonical topic docs:
 - [`../deployment/component-runtime-entrypoints.md`](../deployment/component-runtime-entrypoints.md) - FE/BE/DB component-scoped runtime command contract
 
 Verification date:
-- 2026-02-21
+- 2026-02-22

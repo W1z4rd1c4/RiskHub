@@ -37,9 +37,10 @@ export async function loginAsDemoUser(
             await page.waitForURL(/^http:\/\/localhost:5173\/(dashboard|admin|risks|controls|kris|settings|$)/, {
                 timeout: timeout + 5000
             });
+            await page.waitForLoadState('domcontentloaded');
 
             // Verify we're actually logged in by checking for nav element
-            await page.waitForSelector('nav', { timeout: 10000 });
+            await page.waitForSelector('nav, [data-testid="logout-button"]', { timeout });
             await waitForPreferencesHydration(page, timeout);
 
             return; // Success
