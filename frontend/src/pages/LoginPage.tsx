@@ -187,7 +187,7 @@ export default function LoginPage() {
 
                 {showConfigWarning && (
                     <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-300 text-sm font-medium text-center">
-                        Auth config unavailable; showing demo login (development fallback).
+                        {t('login_demo.auth_config_unavailable')}
                     </div>
                 )}
 
@@ -270,7 +270,7 @@ export default function LoginPage() {
                     <h1 className="text-4xl font-black text-white tracking-tight mb-2">
                         RiskHub
                     </h1>
-                    <p className="text-slate-500 font-medium">Sign in with your Microsoft account</p>
+                    <p className="text-slate-500 font-medium">{t('login_sso.subtitle')}</p>
                 </div>
 
                 {errorKey && (
@@ -292,7 +292,7 @@ export default function LoginPage() {
                     </button>
                 ) : (
                     <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-300 text-sm font-medium text-center">
-                        {authConfig?.sso_error || 'SSO is not configured.'}
+                        {authConfig?.sso_error || t('login_sso.not_configured')}
                     </div>
                 )}
             </div>
@@ -317,8 +317,8 @@ export default function LoginPage() {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
                 <div className="w-full max-w-md text-center">
-                    <h1 className="text-xl font-bold mb-2">Login unavailable</h1>
-                    <p className="text-sm text-slate-300">{authConfigError || 'Failed to load auth config'}</p>
+                    <h1 className="text-xl font-bold mb-2">{t('login.unavailable_title')}</h1>
+                    <p className="text-sm text-slate-300">{authConfigError || t('login.unavailable_config_error')}</p>
                 </div>
             </div>
         );
@@ -340,9 +340,9 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
             <div className="w-full max-w-md text-center">
-                <h1 className="text-xl font-bold mb-2">Login not configured</h1>
+                <h1 className="text-xl font-bold mb-2">{t('login.not_configured_title')}</h1>
                 <p className="text-sm text-slate-300">
-                    Demo login is disabled. Configure SSO (AUTH_MODE=microsoft_sso) or enable hybrid_dev for demo login.
+                    {t('login.not_configured_description')}
                 </p>
             </div>
         </div>

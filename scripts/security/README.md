@@ -45,4 +45,4 @@ python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>
   - `deps/diffs.json`
   - `ui/parity.json`
 - Release bar for this cycle: `GO` requires `P0=0`, `P1=0`, `P2=0`.
-- Local prerequisite: Node major `20` for parity with CI/Docker startup paths.
+- Local prerequisite: Node major `24` for parity with CI/Docker startup paths.
