@@ -153,7 +153,7 @@
     "super_admin": "Super Admin (všechna oprávnění)",
     "approvals_write": "Spravovat schválení"
   },
-  "documentation": {
+    "documentation": {
     "title": "Dokumentace a nápověda",
     "subtitle": "Přístup k průvodcům a dokumentaci přizpůsobené vaší roli ({{role}}).",
     "loading": "Načítání dokumentace...",
@@ -166,7 +166,8 @@
     "empty_subtitle": "Dokumentace bude dostupná v budoucích aktualizacích.",
     "no_matches_title": "Žádné odpovídající dokumenty",
     "no_matches_subtitle": "Zkuste jiný tag filtr pro nalezení správného návodu.",
-    "version_info": "RiskHub v1.0 • Dokumentace bude rozšířena v budoucích aktualizacích",
-    "user_guide": "Uživatelská příručka"
+      "version_info": "RiskHub v1.0 • Dokumentace bude rozšířena v budoucích aktualizacích",
+      "user_guide": "Uživatelská příručka",
+      "library_footer": "Knihovna dokumentace"
+    }
   }
-}

@@ -29,7 +29,7 @@ FRONTEND_SCREEN_SESSION="riskhub-frontend"
 
 DAEMON_MODE="false"
 USE_SCREEN_DAEMON="false"
-NODE_MAJOR_REQUIRED="20"
+NODE_MAJOR_REQUIRED="24"
 
 if command -v docker-compose >/dev/null 2>&1; then
     COMPOSE_CMD=(docker-compose)
@@ -88,7 +88,7 @@ node_major_from_binary() {
     "$node_binary" -p "process.versions.node.split('.')[0]" 2>/dev/null || true
 }
 
-add_node20_bin_dir_if_valid() {
+add_required_node_bin_dir_if_valid() {
     local candidate_dir="$1"
     if [ -z "$candidate_dir" ] || [ ! -d "$candidate_dir" ]; then
         return 1
@@ -111,7 +111,7 @@ add_node20_bin_dir_if_valid() {
     return 0
 }
 
-configure_node_major_20_runtime() {
+configure_required_node_runtime() {
     local current_major=""
     if command -v node >/dev/null 2>&1; then
         current_major="$(node_major_from_binary "$(command -v node)")"
@@ -121,42 +121,42 @@ configure_node_major_20_runtime() {
     fi
 
     local candidate_dirs=(
-        "${NODE20_BIN:-}"
-        "/opt/homebrew/opt/node@20/bin"
-        "/usr/local/opt/node@20/bin"
+        "${NODE24_BIN:-}"
+        "/opt/homebrew/opt/node@24/bin"
+        "/usr/local/opt/node@24/bin"
     )
 
     if command -v brew >/dev/null 2>&1; then
         local brew_prefix
-        brew_prefix="$(brew --prefix node@20 2>/dev/null || true)"
+        brew_prefix="$(brew --prefix node@24 2>/dev/null || true)"
         if [ -n "$brew_prefix" ]; then
             candidate_dirs+=("${brew_prefix}/bin")
         fi
     fi
 
     local nvm_candidate
-    nvm_candidate="$(ls -d "$HOME"/.nvm/versions/node/v20*/bin 2>/dev/null | head -n 1 || true)"
+    nvm_candidate="$(ls -d "$HOME"/.nvm/versions/node/v24*/bin 2>/dev/null | head -n 1 || true)"
     if [ -n "$nvm_candidate" ]; then
         candidate_dirs+=("$nvm_candidate")
     fi
 
     local candidate_dir
     for candidate_dir in "${candidate_dirs[@]}"; do
-        if add_node20_bin_dir_if_valid "$candidate_dir"; then
+        if add_required_node_bin_dir_if_valid "$candidate_dir"; then
             echo -e "${YELLOW}Using Node ${NODE_MAJOR_REQUIRED} runtime from ${candidate_dir}${NC}"
             return 0
         fi
     done
 }
 
-require_node_major_20() {
-    configure_node_major_20_runtime
+require_node_major_runtime() {
+    configure_required_node_runtime
 
     if ! command -v node >/dev/null 2>&1; then
         echo -e "${RED}Node.js is required but was not found in PATH.${NC}"
         echo "Install Node ${NODE_MAJOR_REQUIRED} (CI/Docker parity baseline)."
-        echo "Example: brew install node@20 && export PATH=\"/opt/homebrew/opt/node@20/bin:\$PATH\""
-        echo "Optional override: NODE20_BIN=/path/to/node20/bin ./scripts/dev.sh"
+        echo "Example: brew install node@24 && export PATH=\"/opt/homebrew/opt/node@24/bin:\$PATH\""
+        echo "Optional override: NODE24_BIN=/path/to/node24/bin ./scripts/dev.sh"
         exit 1
     fi
     if ! command -v npm >/dev/null 2>&1; then
@@ -170,8 +170,8 @@ require_node_major_20() {
     if [ "$node_major" != "$NODE_MAJOR_REQUIRED" ]; then
         echo -e "${RED}Unsupported Node.js major: $(node --version 2>/dev/null || echo unknown)${NC}"
         echo "This startup path requires Node ${NODE_MAJOR_REQUIRED} to match CI/Docker parity."
-        echo "Example: brew install node@20 && export PATH=\"/opt/homebrew/opt/node@20/bin:\$PATH\""
-        echo "Optional override: NODE20_BIN=/path/to/node20/bin ./scripts/dev.sh"
+        echo "Example: brew install node@24 && export PATH=\"/opt/homebrew/opt/node@24/bin:\$PATH\""
+        echo "Optional override: NODE24_BIN=/path/to/node24/bin ./scripts/dev.sh"
         exit 1
     fi
 }
@@ -528,7 +528,7 @@ if [ "$DAEMON_MODE" = "true" ] && command -v screen >/dev/null 2>&1; then
     USE_SCREEN_DAEMON="true"
 fi
 
-require_node_major_20
+require_node_major_runtime
 
 print_header
 

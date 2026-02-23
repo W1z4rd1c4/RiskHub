@@ -46,18 +46,22 @@
 ## CI Test/Security Execution
 
 - E2E workflow provisions Postgres service, runs backend + Playwright chromium suite (`.github/workflows/e2e.yml`)
+- Lint workflow enforces frontend dead-code/debt gates, backend Ruff hard gate, backend suppression budget, and docs topology consistency (`.github/workflows/lint.yml`)
 - Security workflow runs Bandit, pip-audit, npm audit, Trivy, Syft+Grype correlation, and gitleaks parse+scan (`.github/workflows/security.yml`)
 - Security workflow also runs nightly non-blocking Redis resilience integration checks (`redis_integration`) (`.github/workflows/security.yml`)
 
 ## Canonical Commands
 
 - Backend tests: `make -f scripts/Makefile test` or `cd backend && pytest -v`
-- Backend lint: `make -f scripts/Makefile lint-backend`
+- Backend lint + suppression budget: `make -f scripts/Makefile lint-backend`
+- Backend suppression budget only: `make -f scripts/Makefile quality-suppression-budget`
 - Backend Postgres-sensitive tests: `cd backend && pytest -m postgres -v`
 - Backend Redis integration marker: `cd backend && pytest -m redis_integration -q`
 - Frontend unit tests: `cd frontend && npm run test:run`
 - Frontend type checks: `cd frontend && npx tsc --noEmit`
+- Frontend quality gate chain: `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build`
 - E2E: `make -f scripts/Makefile test-e2e` or `cd frontend && npm run e2e`
+- Docs topology consistency: `make -f scripts/Makefile docs-topology-consistency`
 - Release parity (fast loop): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness`
 - Release parity (full gate): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>`
 

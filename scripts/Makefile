@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5 prod-readiness-audit-local release-parity-audit
+.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend quality-suppression-budget readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5 prod-readiness-audit-local release-parity-audit
 
 # Default target
 help:
@@ -25,8 +25,9 @@ help:
 	@echo "  make test         - Run backend tests"
 	@echo "  make test-e2e     - Run Playwright E2E tests"
 	@echo "  make lint         - Run frontend + backend lint"
-	@echo "  make lint-frontend - Run frontend lint + typecheck + build + debt budget"
-	@echo "  make lint-backend - Run backend Ruff lint (app + tests/backend/pytest + backend/scripts)"
+	@echo "  make lint-frontend - Run frontend lint + typecheck + deadcode + build + debt budget"
+	@echo "  make lint-backend - Run backend Ruff lint (app + tests/backend/pytest + backend/scripts) + suppression budget"
+	@echo "  make quality-suppression-budget - Enforce backend/app suppression allowlist budget"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make logs         - Tail all Docker logs"
@@ -117,11 +118,15 @@ test-e2e:
 
 # Run frontend lint and debt budget
 lint-frontend:
-	cd frontend && npm run lint && npx tsc --noEmit && npm run build && npm run quality:debt
+	cd frontend && npm run lint && npx tsc --noEmit && npm run cleanup:deadcode && npm run build && npm run quality:debt
 
 # Run backend lint
 lint-backend:
 	cd backend && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts
+	python3 scripts/tools/suppression_budget.py
+
+quality-suppression-budget:
+	python3 scripts/tools/suppression_budget.py
 
 # Run full lint suite
 lint: lint-frontend lint-backend

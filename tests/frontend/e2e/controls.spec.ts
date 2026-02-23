@@ -48,7 +48,12 @@ test.describe('Control Management (Deterministic)', () => {
         await controlsPage.navigate();
         await controlsPage.search(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name);
 
-        await expect(controlsPage.rowByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name)).toBeVisible();
+        const rowVisible = await waitForTableRowByText(
+            riskManagerPage,
+            E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name,
+            15000
+        );
+        expect(rowVisible).toBe(true);
         await controlsPage.openRowByText(E2E_CONTROLS.CROSS_DEPT_OPS_OWNS_IT.name);
         await expect(riskManagerPage).toHaveURL(/\/controls\/\d+$/);
         await waitForDataLoad(riskManagerPage, 15000);
@@ -61,8 +66,14 @@ test.describe('Control Management (Deterministic)', () => {
         await controlsPage.setStatusFilterArchived();
         await controlsPage.search(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
 
+        const rowVisible = await waitForTableRowByText(
+            riskManagerPage,
+            E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name,
+            15000
+        );
+        expect(rowVisible).toBe(true);
         const row = controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
-        await expect(row).toBeVisible();
+        await expect(row).toBeVisible({ timeout: 15000 });
         await expect(row.locator('[data-testid^="control-unarchive-"]').first()).toBeVisible();
     });
 });

@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
+import httpx
 import jwt
 from jwt import PyJWTError
 
@@ -51,7 +52,7 @@ def _jwks_has_kid(jwks: dict[str, Any], kid: str) -> bool:
 def _extract_kid(token: str) -> str | None:
     try:
         header = jwt.get_unverified_header(token)
-    except Exception:
+    except (PyJWTError, ValueError, TypeError):
         return None
     if not isinstance(header, dict):
         return None
@@ -99,7 +100,7 @@ class EntraTokenVerifier:
                 if not isinstance(data, dict):
                     raise ValueError("Expected JSON object")
                 return data
-        except Exception as e:  # noqa: BLE001 - map to provider unavailable
+        except (httpx.HTTPError, ValueError, TypeError) as e:
             raise SsoProviderUnavailableError(str(e)) from e
 
     async def _get_discovery(self, *, now: float) -> dict[str, Any]:
@@ -143,7 +144,7 @@ class EntraTokenVerifier:
     def _decode_claims(self, *, id_token: str, jwks: dict[str, Any], issuer: str, kid: str | None) -> dict[str, Any]:
         try:
             jwk_set = jwt.PyJWKSet.from_dict(jwks)
-        except Exception as e:
+        except (PyJWTError, ValueError, TypeError) as e:
             raise SsoProviderUnavailableError(f"Invalid JWKS payload: {e}") from e
 
         candidates = list(jwk_set.keys)

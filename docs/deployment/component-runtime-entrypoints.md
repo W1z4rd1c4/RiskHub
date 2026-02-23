@@ -34,7 +34,7 @@ Root startup/deployment scripts remain valid and unchanged:
 
 ## Prerequisites
 
-- Frontend runtime scripts: `node` major `20`, `npm`, `frontend/package.json`.
+- Frontend runtime scripts: `node` major `24`, `npm`, `frontend/package.json`.
 - Backend runtime scripts: `backend/venv` available for local uvicorn startup.
 - DB dev/test scripts: Docker daemon + Docker Compose (`docker-compose` or `docker compose`).
 - Prod component scripts: Docker daemon and environment files:
@@ -42,9 +42,9 @@ Root startup/deployment scripts remain valid and unchanged:
   - frontend env default: `/etc/riskhub/frontend.env`
 
 Frontend runtime fail-fast behavior:
-- `frontend/scripts/runtime/dev.sh` and `frontend/scripts/runtime/test.sh` enforce Node major `20` and exit non-zero on mismatch.
-- `scripts/dev.sh` also enforces Node major `20`, but first auto-prefers detected Node 20 runtimes (`NODE20_BIN`, Homebrew `node@20`, then NVM `v20*`) when available.
-- Remediation example: `brew install node@20 && export PATH="/opt/homebrew/opt/node@20/bin:$PATH"`.
+- `frontend/scripts/runtime/dev.sh` and `frontend/scripts/runtime/test.sh` enforce Node major `24` and exit non-zero on mismatch.
+- `scripts/dev.sh` also enforces Node major `24`, but first auto-prefers detected Node 24 runtimes (`NODE24_BIN`, Homebrew `node@24`, then NVM `v24*`) when available.
+- Remediation example: `brew install node@24 && export PATH="/opt/homebrew/opt/node@24/bin:$PATH"`.
 
 ## Examples
 
