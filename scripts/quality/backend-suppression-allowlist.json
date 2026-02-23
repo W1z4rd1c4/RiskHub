@@ -1,0 +1,23 @@
+{
+  "scope": "backend/app",
+  "max_total": 2,
+  "owner": "RiskHub Maintainer",
+  "entries": [
+    {
+      "path": "backend/app/api/v1/endpoints/auth/password.py",
+      "line": 41,
+      "match": "noqa: BLE001",
+      "owner": "RiskHub Maintainer",
+      "expires_on": "2026-05-31",
+      "reason": "Lockout backend implementations can raise provider-specific runtime errors; endpoint applies explicit fail-open/fail-closed policy."
+    },
+    {
+      "path": "backend/app/api/v1/endpoints/kris/history_helpers.py",
+      "line": 25,
+      "match": "noqa: BLE001",
+      "owner": "RiskHub Maintainer",
+      "expires_on": "2026-05-31",
+      "reason": "KRI notification side effects are intentionally best-effort and must not block request success."
+    }
+  ]
+}
