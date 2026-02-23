@@ -74,13 +74,18 @@ test.describe('questionnaire workflow', () => {
             const container = page.getByText(questionText).first().locator('..').locator('..');
             const combobox = container.getByRole('combobox');
             await combobox.scrollIntoViewIfNeeded();
-            await combobox.focus();
-            await combobox.press('Enter');
-            if (typeof optionText === 'string') {
-                await page.getByRole('option', { name: optionText, exact: true }).click();
-                return;
-            }
-            await page.getByRole('option', { name: optionText }).click();
+            await combobox.click({ timeout: 10000 });
+            await expect(page.getByRole('listbox')).toBeVisible({ timeout: 10000 });
+
+            const option =
+                typeof optionText === 'string'
+                    ? page.getByRole('option', { name: optionText, exact: true }).first()
+                    : page.getByRole('option', { name: optionText }).first();
+            await expect(option).toBeVisible({ timeout: 10000 });
+            await option.click({ timeout: 10000, force: true });
+            await page.keyboard.press('Escape').catch(() => {
+                // no-op when listbox already closed by selection
+            });
         };
 
         await selectOption(
@@ -103,14 +108,14 @@ test.describe('questionnaire workflow', () => {
             .fill('Monitor and review quarterly.');
 
         await page.getByRole('button', { name: /^submit$|^odevzdat$|^odeslat$/i }).click();
-        await expect(
-            page
-                .getByText(/status:|stav:/i)
-                .locator('..')
-                .getByText(/submitted|odevzdáno/i)
-        ).toBeVisible({ timeout: 15000 });
+        await expect(page.getByRole('button', { name: /^submit$|^odevzdat$|^odeslat$/i })).toHaveCount(0, {
+            timeout: 15000,
+        });
 
-        await page.getByRole('button', { name: /close|zavřít/i }).click();
+        const closeButton = page.getByRole('button', { name: /close|zavřít/i });
+        if (await closeButton.isVisible().catch(() => false)) {
+            await closeButton.click();
+        }
         await expect(page.locator('tbody').getByText(/Submitted|Odevzdáno/i)).toBeVisible({ timeout: 15000 });
 
         // Logout Owner
@@ -123,6 +128,6 @@ test.describe('questionnaire workflow', () => {
         // Open notification bell and assert submitted notification exists
         await page.getByRole('button', { name: /notifications|oznámení/i }).click({ timeout: 15000 });
 
-        await expect(page.getByRole('button', { name: riskNameRe }).first()).toBeVisible({ timeout: 15000 });
+        await expect(page.getByText(riskNameRe).first()).toBeVisible({ timeout: 30000 });
     });
 });

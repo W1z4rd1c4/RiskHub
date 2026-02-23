@@ -274,7 +274,7 @@ export function DocumentationSettings() {
 
             <section className="text-center">
                 <p className="text-xs text-slate-500">
-                    Documentation library
+                    {t('documentation.library_footer')}
                 </p>
             </section>
         </div>

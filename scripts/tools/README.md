@@ -11,6 +11,7 @@ Folder for `scripts/tools` implementation assets.
 - `generate_pdf.py`
 - `readme_coverage.py`
 - `structure_metrics_guard.py`
+- `suppression_budget.py`
 
 ## Notes
 

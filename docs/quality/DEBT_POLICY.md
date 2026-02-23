@@ -23,7 +23,7 @@ Blocked by `npm run quality:debt`:
 
 ### Backend
 
-Blocked by CI Ruff hard gate (`ruff check app`) and ratcheted over time by reducing ignores/excludes.
+Blocked by CI Ruff hard gate (`ruff check app`) and suppression budget gate (`python3 scripts/tools/suppression_budget.py`) against `backend/app/**`.
 
 Production backend comment debt policy (`backend/app/**`):
 
@@ -32,12 +32,14 @@ Production backend comment debt policy (`backend/app/**`):
    that states current constraints and intended behavior without debt markers.
 3. Link deferred work through tracked planning/docs artifacts instead of inline
    debt markers.
+4. Suppression directives (`noqa`, `type: ignore`, `pylint: disable`) require an allowlist entry and must not increase the approved budget.
 
 ## Exception Lifecycle
 
 Exceptions are defined in:
 
 - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/scripts/quality/debt-allowlist.json`
+- `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/quality/backend-suppression-allowlist.json`
 
 Each exception must include:
 
@@ -49,11 +51,23 @@ Each exception must include:
 6. Expiration date in `YYYY-MM-DD`.
 7. Brief reason.
 
+Backend suppression allowlist entries must include:
+
+1. File path.
+2. Line number.
+3. Match snippet for suppression directive.
+4. Owner (`team` or `person`) responsible for removal.
+5. Expiration date in `YYYY-MM-DD` (`expires_on`).
+6. Brief reason.
+
 ## Expiration Policy
 
 1. Expired exceptions fail `quality:debt`.
 2. New exceptions without issue id or expiration date fail `quality:debt`.
 3. Exception renewals require explicit review in PR.
+4. Expired backend suppression entries fail `suppression_budget.py`.
+5. New backend suppressions without allowlist match fail `suppression_budget.py`.
+6. Total backend suppressions above allowlist `max_total` fail `suppression_budget.py`.
 
 ## CI Governance
 
