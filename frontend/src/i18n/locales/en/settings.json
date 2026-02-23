@@ -153,7 +153,7 @@
     "super_admin": "Super Admin (All Permissions)",
     "approvals_write": "Manage Approvals"
   },
-  "documentation": {
+    "documentation": {
     "title": "Documentation & Help",
     "subtitle": "Access guides and documentation tailored to your role ({{role}}).",
     "loading": "Loading documentation...",
@@ -166,7 +166,8 @@
     "empty_subtitle": "Documentation will be available in future updates.",
     "no_matches_title": "No Matching Documents",
     "no_matches_subtitle": "Try another tag filter to find the right guide.",
-    "version_info": "RiskHub v1.0 • Documentation will be expanded in future updates",
-    "user_guide": "User guide"
+      "version_info": "RiskHub v1.0 • Documentation will be expanded in future updates",
+      "user_guide": "User guide",
+      "library_footer": "Documentation library"
+    }
   }
-}

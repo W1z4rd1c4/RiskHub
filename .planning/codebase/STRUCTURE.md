@@ -38,8 +38,8 @@
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 36 tracked files (measured git-tracked snapshot; route-level pages + tests)
-- `frontend/src/components/` - 143 tracked files (measured git-tracked snapshot; components + tests)
+- `frontend/src/pages/` - 37 tracked files (measured git-tracked snapshot; route-level pages + tests)
+- `frontend/src/components/` - 149 tracked files (measured git-tracked snapshot; components + tests)
 - `frontend/src/services/` - API client and domain service wrappers
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks

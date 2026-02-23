@@ -247,6 +247,28 @@
     "search_controls": "Search controls...",
     "include_archived": "Include archived"
   },
+  "form": {
+    "placeholders": {
+      "name": "Enter name",
+      "description": "Enter description",
+      "type_or_select": "Type or select...",
+      "subprocess_of": "Subprocess of {{process}}",
+      "select_process_first": "Select process first",
+      "select_department": "Select a department...",
+      "process_owner_position": "Select process owner position...",
+      "search_owners": "Search owners...",
+      "search_by_name": "Search by name...",
+      "link_rationale": "Describe linkage rationale...",
+      "all_departments": "All Departments",
+      "all_processes": "All Processes",
+      "all_categories": "All Categories",
+      "search_risks": "Search risks..."
+    },
+    "financial": {
+      "loss": "Financial loss",
+      "no_loss": "No financial loss"
+    }
+  },
   "linking": {
     "try_adjust_filters": "Try adjusting your filters or search query",
     "confirm_linkage": "Confirm Linkage",

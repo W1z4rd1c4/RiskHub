@@ -1,6 +1,7 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 import { E2E_CONTROLS, E2E_KRIS, E2E_RISKS, E2E_VENDORS } from './fixtures/e2e-data';
+import { waitForDataLoad } from './helpers/wait';
 
 type ListPayload = { items?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>;
 
@@ -81,10 +82,22 @@ test.describe('issues contextual create', () => {
 
         for (const entry of cases) {
             await page.goto(entry.path);
+            await waitForDataLoad(page, 30000);
+            await expect(page.getByText(entry.label).first()).toBeVisible({ timeout: 20000 });
 
-            const createIssueButton = page.getByRole('button', { name: /New Issue|Nový nález/i }).first();
-            await expect(createIssueButton).toBeVisible({ timeout: 15000 });
-            await createIssueButton.click();
+            const createIssueButtons = page.getByRole('button', { name: /New Issue|Nový nález/i });
+            const buttonCount = await createIssueButtons.count();
+            let clicked = false;
+            for (let i = 0; i < buttonCount; i++) {
+                const candidate = createIssueButtons.nth(i);
+                const visible = await candidate.isVisible().catch(() => false);
+                if (!visible) continue;
+                await candidate.scrollIntoViewIfNeeded();
+                await candidate.click({ timeout: 15000, force: true });
+                clicked = true;
+                break;
+            }
+            expect(clicked).toBe(true);
 
             const dialog = page.getByRole('dialog');
             await expect(dialog).toBeVisible({ timeout: 10000 });

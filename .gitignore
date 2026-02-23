@@ -118,6 +118,7 @@ backend/*.db
 # Temporary/Test artifacts
 *.json
 !frontend/src/i18n/locales/**/*.json
+!scripts/quality/backend-suppression-allowlist.json
 
 # Codex / agent local tooling (keep local-only; install via scripts/setup-dev.sh)
 .agent/

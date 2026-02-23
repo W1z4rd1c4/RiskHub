@@ -25,11 +25,11 @@ Row schema:
 | pytest_exit_hang | `Pytest exit hang (SQLite / aiosqlite)` | `docs/agent/PYTEST_RUNTIME_NOTES.md` | full | none | 2026-02-16 |
 | endpoint_package_splits | `Endpoint package splits (maintainability)` | `docs/agent/ENDPOINT_INVARIANTS.md` | full | none | 2026-02-16 |
 | sqlalchemy_fk_cycles | `SQLAlchemy FK cycles (SQLite tests)` | `docs/agent/ENDPOINT_INVARIANTS.md` | full | none | 2026-02-16 |
-| testing_matrix | `Testing Matrix` | `.planning/codebase/TESTING.md`; `docs/TESTING.md` | full | none | 2026-02-21 |
+| testing_matrix | `Testing Matrix` | `.planning/codebase/TESTING.md`; `docs/TESTING.md` | full | none | 2026-02-22 |
 | rbac_business_logic_guardrails | `RBAC and Business Logic Guardrails` | `docs/BUSINESS_LOGIC.md`; `.planning/codebase/CONCERNS.md` | full | none | 2026-02-16 |
 | frontend_display_guardrails | `Frontend Display Guardrails` | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | none | 2026-02-16 |
 | security_production_guardrails | `Security and Production Guardrails` | `docs/deployment/security-checklist.md`; `docs/deployment/README.md` | full | none | 2026-02-20 |
-| quick_commands | `Quick Commands` | `scripts/dev.sh`; `scripts/Makefile`; `docs/deployment/component-runtime-entrypoints.md` | full | none | 2026-02-20 |
+| quick_commands | `Quick Commands` | `scripts/dev.sh`; `scripts/Makefile`; `docs/deployment/component-runtime-entrypoints.md` | full | none | 2026-02-22 |
 | component_runtime_commands | `Component Runtime Commands` | `docs/deployment/component-runtime-entrypoints.md` | full | none | 2026-02-20 |
 | demo_dev_auth_local | `Demo/Dev Auth (local)` | `scripts/dev.sh`; `.planning/codebase/INTEGRATIONS.md` | full | none | 2026-02-20 |
 | repo_hygiene | `Repo Hygiene` | `.planning/codebase/STRUCTURE.md`; `docs/agent/CODEX_WORKING_RULES.md` | full | none | 2026-02-16 |
