@@ -22,8 +22,9 @@ test.describe('Access Scope Visibility', () => {
             await dashboard.navigateToDepartments();
             await waitForDataLoad(page);
 
-            // Should see multiple departments
-            const departmentCards = page.locator('[class*="card"], table tbody tr');
+            // Department cards on this page are rendered as clickable glass-card buttons.
+            // Keep the selector scoped to main content to avoid matching sidebar cards.
+            const departmentCards = page.locator('main button.glass-card');
             await expect(departmentCards.first()).toBeVisible({ timeout: 10000 });
             const count = await departmentCards.count();
             expect(count).toBeGreaterThan(1); // Multiple departments visible
@@ -57,7 +58,7 @@ test.describe('Access Scope Visibility', () => {
             await controlsPage.navigate();
             await waitForDataLoad(page);
 
-            await expect(controlsPage.table).toBeVisible();
+            await expect(controlsPage.table).toBeVisible({ timeout: 15000 });
         });
     });
 

@@ -1579,7 +1579,13 @@ class ReleaseParityAudit:
                     report_lines.append("   - Fix: switch `scripts/dev.sh` frontend bootstrap from `npm install` to `npm ci` when lockfile is present.")
                     report_lines.append("   - Guard: add a script-contract test asserting lockfile-respecting install path.")
                 elif finding["id"] == "P2-node-major-mismatch":
-                    report_lines.append("   - Fix: align host Node to CI/Docker baseline major (20) for release-critical validation runs.")
+                    expected_major = finding.get("expected_node_major")
+                    if expected_major is None:
+                        report_lines.append("   - Fix: align host Node to CI/Docker baseline major from workflow config for release-critical validation runs.")
+                    else:
+                        report_lines.append(
+                            f"   - Fix: align host Node to CI/Docker baseline major ({expected_major}) for release-critical validation runs."
+                        )
                     report_lines.append("   - Guard: enforce `.nvmrc`/`.node-version` + preflight version check in startup scripts.")
                 elif finding["id"] == "P1-ui-parity-mismatch":
                     report_lines.append("   - Fix: align auth/profile inputs and frontend build/runtime mode before comparing screenshots.")
