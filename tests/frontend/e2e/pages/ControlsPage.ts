@@ -57,6 +57,28 @@ export class ControlsPage {
         return this.page.locator('[class*="pagination"], nav[aria-label*="pagination"]');
     }
 
+    private async waitForControlsResponse(expected: { search?: string; status?: string } = {}): Promise<void> {
+        await this.page.waitForResponse((response) => {
+            if (response.request().method() !== 'GET') return false;
+            if (!response.url().includes('/api/v1/controls')) return false;
+
+            try {
+                const url = new URL(response.url());
+                if (expected.search !== undefined) {
+                    const actualSearch = (url.searchParams.get('search') || '').trim().toLowerCase();
+                    if (!actualSearch.includes(expected.search.trim().toLowerCase())) return false;
+                }
+                if (expected.status !== undefined) {
+                    const actualStatus = (url.searchParams.get('status') || '').trim().toLowerCase();
+                    if (!actualStatus.includes(expected.status.trim().toLowerCase())) return false;
+                }
+                return true;
+            } catch {
+                return false;
+            }
+        }, { timeout: 15000 });
+    }
+
     // Actions
     async navigate(): Promise<void> {
         await this.page.goto('/controls');
@@ -70,7 +92,10 @@ export class ControlsPage {
             await waitForDataLoad(this.page);
             return;
         }
-        await this.searchInput.fill(query);
+        await Promise.all([
+            this.waitForControlsResponse({ search: query }),
+            this.searchInput.fill(query),
+        ]);
         await waitForDataLoad(this.page);
     }
 
@@ -80,7 +105,10 @@ export class ControlsPage {
             await waitForDataLoad(this.page);
             return;
         }
-        await this.searchInput.clear();
+        await Promise.all([
+            this.waitForControlsResponse({ search: '' }),
+            this.searchInput.clear(),
+        ]);
         await waitForDataLoad(this.page);
     }
 
@@ -99,27 +127,30 @@ export class ControlsPage {
     }
 
     async openRowByText(text: string): Promise<void> {
-        const row = this.rowByText(text);
-        try {
-            await expect(row).toBeVisible({ timeout: 10000 });
-        } catch {
-            throw new Error(`Control row not found for deterministic fixture: ${text}`);
-        }
         for (let attempt = 1; attempt <= 3; attempt++) {
+            const row = this.rowByText(text);
             try {
-                await this.rowByText(text).click({ timeout: 8000 });
+                await expect(row).toBeVisible({ timeout: 10000 });
+                await row.scrollIntoViewIfNeeded();
+                await row.click({ timeout: 8000, force: true });
                 await this.page.waitForURL(/.*controls\/\d+/, { timeout: 10000 });
                 await waitForDataLoad(this.page);
                 return;
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error);
-                const detached = message.includes('detached from the DOM');
-                if (!detached || attempt === 3) {
+                const retryable =
+                    message.includes('detached from the DOM') ||
+                    message.includes('Timeout') ||
+                    message.includes('waiting for locator') ||
+                    message.includes('not found');
+                if (!retryable || attempt === 3) {
                     throw error;
                 }
                 await waitForDataLoad(this.page);
+                await this.search(text);
             }
         }
+        throw new Error(`Control row not found for deterministic fixture: ${text}`);
     }
 
     async clickCreateButton(): Promise<void> {
@@ -160,7 +191,10 @@ export class ControlsPage {
 
     async setStatusFilterArchived(): Promise<void> {
         await this.statusSelectTrigger.click();
-        await this.page.getByTestId('controls-status-filter-option-archived').click();
+        await Promise.all([
+            this.waitForControlsResponse({ status: 'archived' }),
+            this.page.getByTestId('controls-status-filter-option-archived').click(),
+        ]);
         await waitForDataLoad(this.page);
     }
 

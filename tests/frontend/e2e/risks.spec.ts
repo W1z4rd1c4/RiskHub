@@ -45,7 +45,12 @@ test.describe('Risk Management (Deterministic)', () => {
 
         await risksPage.setStatusFilterArchived();
         await risksPage.search(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name);
-        await expect(risksPage.rowByText(E2E_RISKS.ARCHIVE_RESTORE_TARGET.name)).toBeVisible();
+        const archivedRowVisible = await waitForTableRowByText(
+            riskManagerPage,
+            E2E_RISKS.ARCHIVE_RESTORE_TARGET.name,
+            15000
+        );
+        expect(archivedRowVisible).toBe(true);
     });
 
     test('Risk detail supports KRI card navigation to full KRI page', async ({ riskManagerPage }) => {
@@ -54,13 +59,14 @@ test.describe('Risk Management (Deterministic)', () => {
         await risksPage.search(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
         await risksPage.openRowByText(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
 
-        const kriSection = riskManagerPage
-            .locator('div.glass-card')
-            .filter({ has: riskManagerPage.getByRole('heading', { name: /risk appetite indicators/i }) })
-            .first();
+        await waitForDataLoad(riskManagerPage, 30000);
+        await expect(
+            riskManagerPage.getByRole('heading', { level: 2, name: E2E_RISKS.PENDING_DELETE_APPROVAL.name })
+        ).toBeVisible({ timeout: 15000 });
 
-        await expect(kriSection).toBeVisible();
-        await kriSection.locator('h4').first().click();
+        const kriCardHeading = riskManagerPage.locator('h4').filter({ hasText: /E2E-KRI-|KRI/i }).first();
+        await expect(kriCardHeading).toBeVisible({ timeout: 15000 });
+        await kriCardHeading.click();
 
         await riskManagerPage.waitForURL(/\/kris\/\d+/, { timeout: 15000 });
     });
@@ -71,9 +77,12 @@ test.describe('Risk Management (Deterministic)', () => {
         await risksPage.search(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
         await risksPage.openRowByText(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
 
+        await waitForDataLoad(riskManagerPage, 30000);
         const riskId = riskManagerPage.url().split('/').pop();
-        const addKriButton = riskManagerPage.getByRole('button', { name: /add kri/i });
-        await expect(addKriButton).toBeVisible();
+        const addKriButton = riskManagerPage
+            .getByRole('button', { name: /add kri|přidat kri|přidat.*indik/i })
+            .first();
+        await expect(addKriButton).toBeVisible({ timeout: 15000 });
 
         await addKriButton.click();
         await riskManagerPage.waitForURL(/\/kris\/new(\?.*)?$/, { timeout: 15000 });

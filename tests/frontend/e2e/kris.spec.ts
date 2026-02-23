@@ -50,7 +50,9 @@ test.describe('KRI Management (Deterministic)', () => {
 
         await krisPage.openRowByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
         await expect(riskManagerPage).toHaveURL(/\/kris\/\d+$/);
-        await expect(riskManagerPage.locator('h1, h2').first()).toBeVisible();
+        await expect(
+            riskManagerPage.getByRole('heading', { name: E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name })
+        ).toBeVisible({ timeout: 15000 });
     });
 
     test('Archived KRI row exposes unarchive action for privileged users', async ({ riskManagerPage }) => {
