@@ -43,6 +43,15 @@ def _build_request(*, app, path: str, peer_ip: str = "198.51.100.20") -> Request
     return Request(scope)
 
 
+def _redis_container_url(container) -> str:
+    # testcontainers-python API differs by version; prefer helper when present.
+    if hasattr(container, "get_connection_url"):
+        return container.get_connection_url()
+    host = container.get_container_host_ip()
+    port = container.get_exposed_port(6379)
+    return f"redis://{host}:{port}/0"
+
+
 @pytest.mark.asyncio
 @pytest.mark.redis_integration
 async def test_rate_limit_redis_lua_enforces_limit_with_real_redis_container():
@@ -53,7 +62,7 @@ async def test_rate_limit_redis_lua_enforces_limit_with_real_redis_container():
     RedisContainer = testcontainers_redis.RedisContainer
 
     with RedisContainer("redis:7-alpine") as container:
-        redis_url = container.get_connection_url()
+        redis_url = _redis_container_url(container)
         redis = Redis.from_url(redis_url, decode_responses=True)
         await redis.ping()
 

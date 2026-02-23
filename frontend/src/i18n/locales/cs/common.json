@@ -247,6 +247,28 @@
     "search_controls": "Hledat kontroly...",
     "include_archived": "Zobrazit archivované"
   },
+  "form": {
+    "placeholders": {
+      "name": "Zadejte název",
+      "description": "Zadejte popis",
+      "type_or_select": "Napište nebo vyberte...",
+      "subprocess_of": "Podproces {{process}}",
+      "select_process_first": "Nejprve vyberte proces",
+      "select_department": "Vybrat oddělení...",
+      "process_owner_position": "Vyberte pozici vlastníka procesu...",
+      "search_owners": "Hledat vlastníky...",
+      "search_by_name": "Hledat podle názvu...",
+      "link_rationale": "Popište důvod propojení...",
+      "all_departments": "Všechna oddělení",
+      "all_processes": "Všechny procesy",
+      "all_categories": "Všechny kategorie",
+      "search_risks": "Hledat rizika..."
+    },
+    "financial": {
+      "loss": "Finanční ztráta",
+      "no_loss": "Bez finanční ztráty"
+    }
+  },
   "linking": {
     "try_adjust_filters": "Zkuste upravit filtry nebo vyhledávací dotaz",
     "confirm_linkage": "Potvrdit propojení",

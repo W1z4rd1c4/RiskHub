@@ -8,9 +8,7 @@ import {
     AlertCircle,
     Info,
     User,
-    Star,
     Activity,
-    Plus,
     Clock,
     CheckCircle
 } from 'lucide-react';
@@ -22,15 +20,11 @@ import { lookupApi } from '@/services/lookupApi';
 import type { UserLookupItem } from '@/services/lookupApi';
 import type { Risk, RiskCreate, RiskUpdate } from '@/types/risk';
 import { RiskStatus } from '@/types/risk';
-import { RiskScoreMatrix } from '@/components/RiskScoreMatrix';
 import { useRiskTypes, useTotalAssetsValue, useRiskThresholds } from '@/hooks/useRiskHubConfig';
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import {
-    PROBABILITY_DESCRIPTIONS,
-    IMPACT_DESCRIPTIONS,
-    formatFinancialRange
-} from '@/constants/riskScoreDescriptions';
 import { parseUpdateResult } from '@/lib/approvalUi';
+import { RiskFormIdentityStep } from './RiskFormIdentityStep';
+import { RiskFormOwnershipStep } from './RiskFormOwnershipStep';
+import { RiskFormScoringStep } from './RiskFormScoringStep';
 
 interface RiskFormProps {
     initialData?: Risk;
@@ -349,485 +343,52 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                 )}
 
                 <div className="flex-1 space-y-6">
-                    {/* Step 1: Identity */}
                     {currentStep === 0 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            {/* Risk Name - Primary identifier */}
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                    {t('risks:fields.name')} <span className="text-rose-400">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.name || ''}
-                                    onChange={(e) => handleInputChange('name', e.target.value)}
-                                    className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all ${fieldErrors.name ? 'border-rose-500' : 'border-white/10'
-                                        }`}
-                                    placeholder={t('form.placeholders.name')}
-                                />
-                                {fieldErrors.name && (
-                                    <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
-                                        <AlertCircle className="h-3 w-3" /> {fieldErrors.name}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="grid md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('risks:form.labels.risk_type')}</label>
-                                    <ThemedSelect
-                                        value={formData.risk_type || 'operational'}
-                                        onValueChange={(v) => handleInputChange('risk_type', v)}
-                                        disabled={riskTypesLoading}
-                                        className="w-full"
-                                        options={riskTypes.map(rt => ({ value: rt.code, label: rt.display_name }))}
-                                    />
-                                </div>
-                                <div className="relative">
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        {t('risks:form.labels.main_process')} <span className="text-rose-400">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={formData.process}
-                                            onChange={(e) => {
-                                                handleInputChange('process', e.target.value);
-                                                setShowProcessDropdown(true);
-                                            }}
-                                            onFocus={() => setShowProcessDropdown(true)}
-                                            onBlur={() => setTimeout(() => setShowProcessDropdown(false), 150)}
-                                            className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all ${fieldErrors.process ? 'border-rose-500' : 'border-white/10'
-                                                }`}
-                                            placeholder={t('form.placeholders.type_or_select')}
-                                        />
-                                        {/* Dropdown with existing processes */}
-                                        {showProcessDropdown && existingProcesses.length > 0 && (
-                                            <div className="absolute z-20 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur-sm divide-y divide-white/5">
-                                                {existingProcesses
-                                                    .filter(p => !formData.process || p.toLowerCase().includes(formData.process.toLowerCase()))
-                                                    .map(process => (
-                                                        <button
-                                                            key={process}
-                                                            type="button"
-                                                            onMouseDown={(e) => e.preventDefault()}
-                                                            onClick={() => {
-                                                                handleInputChange('process', process);
-                                                                setShowProcessDropdown(false);
-                                                            }}
-                                                            className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-white/10 transition-colors"
-                                                        >
-                                                            {process}
-                                                        </button>
-                                                    ))}
-                                                {formData.process && !existingProcesses.includes(formData.process) && (
-                                                    <div className="px-4 py-2.5 text-xs text-slate-400 flex items-center gap-2">
-                                                        <Plus className="h-3 w-3" />
-                                                        {t('risks:form.labels.create_value', { value: formData.process })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                    {fieldErrors.process && (
-                                        <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
-                                            <AlertCircle className="h-3 w-3" /> {fieldErrors.process}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="grid md:grid-cols-2 gap-6">
-                                <div className="relative">
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('risks:form.labels.subprocess_optional')}</label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={formData.subprocess || ''}
-                                            onChange={(e) => {
-                                                handleInputChange('subprocess', e.target.value);
-                                                setShowSubprocessDropdown(true);
-                                            }}
-                                            onFocus={() => setShowSubprocessDropdown(true)}
-                                            onBlur={() => setTimeout(() => setShowSubprocessDropdown(false), 150)}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                            placeholder={formData.process ? t('form.placeholders.subprocess_of', { process: formData.process }) : t('form.placeholders.select_process_first')}
-                                        />
-                                        {/* Dropdown with subprocesses for selected process */}
-                                        {showSubprocessDropdown && formData.process && (subprocessesByProcess[formData.process]?.length || formData.subprocess) && (
-                                            <div className="absolute z-20 top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur-sm divide-y divide-white/5">
-                                                {(subprocessesByProcess[formData.process] || [])
-                                                    .filter(s => !formData.subprocess || s.toLowerCase().includes(formData.subprocess.toLowerCase()))
-                                                    .map(subprocess => (
-                                                        <button
-                                                            key={subprocess}
-                                                            type="button"
-                                                            onMouseDown={(e) => e.preventDefault()}
-                                                            onClick={() => {
-                                                                handleInputChange('subprocess', subprocess);
-                                                                setShowSubprocessDropdown(false);
-                                                            }}
-                                                            className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-white/10 transition-colors"
-                                                        >
-                                                            {subprocess}
-                                                        </button>
-                                                    ))}
-                                                {formData.subprocess && !(subprocessesByProcess[formData.process] || []).includes(formData.subprocess) && (
-                                                    <div className="px-4 py-2.5 text-xs text-slate-400 flex items-center gap-2">
-                                                        <Plus className="h-3 w-3" />
-                                                        {t('risks:form.labels.create_value', { value: formData.subprocess })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="relative">
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        {t('common:labels.category')} <span className="text-rose-400">*</span>
-                                    </label>
-                                    <div className="relative">
-                                        <input
-                                            type="text"
-                                            value={formData.category || ''}
-                                            onChange={(e) => {
-                                                handleInputChange('category', e.target.value);
-                                                setShowCategoryDropdown(true);
-                                            }}
-                                            onFocus={() => setShowCategoryDropdown(true)}
-                                            onBlur={() => setTimeout(() => setShowCategoryDropdown(false), 150)}
-                                            className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all ${fieldErrors.category ? 'border-rose-500' : 'border-white/10'
-                                                }`}
-                                            placeholder={t('form.placeholders.type_or_select')}
-                                        />
-                                        {/* Dropdown with existing categories */}
-                                        {showCategoryDropdown && existingCategories.length > 0 && (
-                                            <div className="absolute z-20 top-full left-0 right-0 mt-1 max-h-40 overflow-y-auto rounded-xl border border-white/10 bg-slate-900/95 backdrop-blur-sm divide-y divide-white/5">
-                                                {existingCategories
-                                                    .filter(c => !formData.category || c.toLowerCase().includes(formData.category.toLowerCase()))
-                                                    .map(category => (
-                                                        <button
-                                                            key={category}
-                                                            type="button"
-                                                            onMouseDown={(e) => e.preventDefault()}
-                                                            onClick={() => {
-                                                                handleInputChange('category', category);
-                                                                setShowCategoryDropdown(false);
-                                                            }}
-                                                            className="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-white/10 transition-colors"
-                                                        >
-                                                            {category}
-                                                        </button>
-                                                    ))}
-                                                {formData.category && !existingCategories.includes(formData.category) && (
-                                                    <div className="px-4 py-2.5 text-xs text-slate-400 flex items-center gap-2">
-                                                        <Plus className="h-3 w-3" />
-                                                        {t('risks:form.labels.create_value', { value: formData.category })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                    {fieldErrors.category && (
-                                        <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
-                                            <AlertCircle className="h-3 w-3" /> {fieldErrors.category}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                    {t('risks:form.labels.risk_description')} <span className="text-rose-400">*</span>
-                                </label>
-                                <textarea
-                                    rows={3}
-                                    value={formData.description}
-                                    onChange={(e) => handleInputChange('description', e.target.value)}
-                                    className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all resize-none ${fieldErrors.description ? 'border-rose-500' : 'border-white/10'
-                                        }`}
-                                    placeholder={t('form.placeholders.description')}
-                                />
-                                {fieldErrors.description && (
-                                    <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
-                                        <AlertCircle className="h-3 w-3" /> {fieldErrors.description}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
+                        <RiskFormIdentityStep
+                            t={t}
+                            formData={formData}
+                            fieldErrors={fieldErrors}
+                            riskTypes={riskTypes}
+                            riskTypesLoading={riskTypesLoading}
+                            existingProcesses={existingProcesses}
+                            existingCategories={existingCategories}
+                            subprocessesByProcess={subprocessesByProcess}
+                            showProcessDropdown={showProcessDropdown}
+                            showSubprocessDropdown={showSubprocessDropdown}
+                            showCategoryDropdown={showCategoryDropdown}
+                            setShowProcessDropdown={setShowProcessDropdown}
+                            setShowSubprocessDropdown={setShowSubprocessDropdown}
+                            setShowCategoryDropdown={setShowCategoryDropdown}
+                            handleInputChange={handleInputChange}
+                        />
                     )}
 
-                    {/* Step 2: Details & Ownership */}
                     {currentStep === 1 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="grid md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        {t('common:labels.department')} <span className="text-rose-400">*</span>
-                                    </label>
-                                    <ThemedSelect
-                                        value={formData.department_id?.toString() ?? ''}
-                                        onValueChange={(v) => handleInputChange('department_id', v ? parseInt(v) : null)}
-                                        placeholder={t('form.placeholders.select_department')}
-                                        allowEmpty
-                                        emptyLabel={t('form.placeholders.select_department')}
-                                        className={fieldErrors.department_id ? 'border-rose-500' : ''}
-                                        options={departments.map(d => ({ value: d.id.toString(), label: `${d.name} (${d.code})` }))}
-                                    />
-                                    {fieldErrors.department_id && (
-                                        <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
-                                            <AlertCircle className="h-3 w-3" /> {fieldErrors.department_id}
-                                        </p>
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                                        {t('risks:fields.owner')} <span className="text-rose-400">*</span>
-                                    </label>
-                                    {/* Role filter chips + search */}
-                                    <div className="flex flex-wrap gap-1.5 mb-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setRoleFilter('');
-                                                handleInputChange('owner_id', null);
-                                            }}
-                                            className={`px-2.5 py-1 text-xs rounded-lg transition-all ${!roleFilter
-                                                ? 'bg-accent text-white'
-                                                : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                                                }`}
-                                        >
-                                            All
-                                        </button>
-                                        {uniqueRoles.map(role => (
-                                            <button
-                                                key={role}
-                                                type="button"
-                                                onClick={() => {
-                                                    setRoleFilter(role);
-                                                    // Clear department filter when selecting role
-                                                    // Find all users with this role (not filtered by department)
-                                                    const usersWithRole = users.filter(u => u.role_name === role);
-                                                    // Auto-select if only one user, else clear owner
-                                                    if (usersWithRole.length === 1) {
-                                                        handleInputChange('owner_id', usersWithRole[0].id);
-                                                        // Department will auto-fill via handleInputChange
-                                                    } else {
-                                                        handleInputChange('owner_id', null);
-                                                        handleInputChange('department_id', null);
-                                                    }
-                                                }}
-                                                className={`px-2.5 py-1 text-xs rounded-lg transition-all capitalize ${roleFilter === role
-                                                    ? 'bg-accent text-white'
-                                                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                                                    }`}
-                                            >
-                                                {role}
-                                            </button>
-                                        ))}
-                                    </div>
-                                    {/* Selected user or user list */}
-                                    {formData.owner_id ? (
-                                        <div className={`flex items-center justify-between bg-accent/10 border rounded-xl px-4 py-3 ${fieldErrors.owner_id ? 'border-rose-500' : 'border-accent/30'
-                                            }`}>
-                                            <div>
-                                                <p className="text-sm font-medium text-white">
-                                                    {users.find(u => u.id === formData.owner_id)?.name}
-                                                </p>
-                                                <p className="text-xs text-slate-400">
-                                                    {users.find(u => u.id === formData.owner_id)?.role_name}
-                                                </p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleInputChange('owner_id', null)}
-                                                className="text-slate-400 hover:text-white p-1"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            <input
-                                                type="text"
-                                                placeholder={t('form.placeholders.search_by_name')}
-                                                value={ownerSearch}
-                                                onChange={(e) => setOwnerSearch(e.target.value)}
-                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-accent/50 transition-all"
-                                            />
-                                            <div className={`max-h-40 overflow-y-auto rounded-xl border divide-y divide-white/5 ${fieldErrors.owner_id ? 'border-rose-500' : 'border-white/10'
-                                                }`}>
-                                                {filteredUsers.length === 0 ? (
-                                                    <p className="px-4 py-3 text-sm text-slate-500">{t('common:empty.no_users_found')}</p>
-                                                ) : (
-                                                    filteredUsers.slice(0, 8).map(u => (
-                                                        <button
-                                                            key={u.id}
-                                                            type="button"
-                                                            onClick={() => handleInputChange('owner_id', u.id)}
-                                                            className="w-full px-4 py-2.5 flex items-center justify-between hover:bg-white/5 transition-colors"
-                                                        >
-                                                            <span className="text-sm text-white">{u.name}</span>
-                                                            <span className="text-xs text-slate-500 capitalize">{u.role_name}</span>
-                                                        </button>
-                                                    ))
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {fieldErrors.owner_id && (
-                                        <p className="text-rose-400 text-xs mt-1.5 flex items-center gap-1">
-                                            <AlertCircle className="h-3 w-3" /> {fieldErrors.owner_id}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <label className="flex items-center gap-3 cursor-pointer group">
-                                    <div className={`relative w-12 h-6 rounded-full transition-all ${formData.is_priority ? 'bg-accent' : 'bg-white/10'}`}>
-                                        <input
-                                            type="checkbox"
-                                            className="sr-only"
-                                            checked={formData.is_priority}
-                                            onChange={(e) => handleInputChange('is_priority', e.target.checked)}
-                                        />
-                                        <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${formData.is_priority ? 'translate-x-6' : 'translate-x-0'}`} />
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <Star className={`h-4 w-4 ${formData.is_priority ? 'text-amber-400 fill-amber-400' : 'text-slate-500'}`} />
-                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest group-hover:text-slate-300 transition-colors">{t('risks:fields.is_priority')}</span>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
+                        <RiskFormOwnershipStep
+                            t={t}
+                            formData={formData}
+                            fieldErrors={fieldErrors}
+                            departments={departments}
+                            users={users}
+                            filteredUsers={filteredUsers}
+                            uniqueRoles={uniqueRoles}
+                            ownerSearch={ownerSearch}
+                            roleFilter={roleFilter}
+                            setOwnerSearch={setOwnerSearch}
+                            setRoleFilter={setRoleFilter}
+                            handleInputChange={handleInputChange}
+                        />
                     )}
 
-                    {/* Step 3: Scoring */}
                     {currentStep === 2 && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="grid md:grid-cols-2 gap-12">
-                                <section className="space-y-6">
-                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>{t('risks:fields.gross_score')} ({t('risks:scoring.inherent_risk')})</h4>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
-                                                <span>{t('risks:fields.probability')}</span>
-                                                <span className="text-white">{formData.gross_probability} / 5</span>
-                                            </label>
-                                            <input
-                                                type="range" min="1" max="5" step="1"
-                                                value={formData.gross_probability}
-                                                onChange={(e) => handleInputChange('gross_probability', parseInt(e.target.value))}
-                                                className={`w-full ${getSliderAccent((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}
-                                            />
-                                            {formData.gross_probability && PROBABILITY_DESCRIPTIONS[formData.gross_probability] && (
-                                                <p className="text-xs text-slate-400 mt-1">
-                                                    <span className={`font-semibold ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>
-                                                        {t(PROBABILITY_DESCRIPTIONS[formData.gross_probability].labelKey, PROBABILITY_DESCRIPTIONS[formData.gross_probability].labelKey)}
-                                                    </span>
-                                                    <span className="mx-1">—</span>
-                                                    {t(PROBABILITY_DESCRIPTIONS[formData.gross_probability].descriptionKey, PROBABILITY_DESCRIPTIONS[formData.gross_probability].descriptionKey)}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
-                                                <span>{t('risks:fields.impact')}</span>
-                                                <span className="text-white">{formData.gross_impact} / 5</span>
-                                            </label>
-                                            <input
-                                                type="range" min="1" max="5" step="1"
-                                                value={formData.gross_impact}
-                                                onChange={(e) => handleInputChange('gross_impact', parseInt(e.target.value))}
-                                                className={`w-full ${getSliderAccent((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}
-                                            />
-                                            {formData.gross_impact && IMPACT_DESCRIPTIONS[formData.gross_impact] && (
-                                                <p className="text-xs text-slate-400 mt-1">
-                                                    <span className={`font-semibold ${getScoreTextColor((formData.gross_probability || 1) * (formData.gross_impact || 1))}`}>
-                                                        {t(IMPACT_DESCRIPTIONS[formData.gross_impact].labelKey, IMPACT_DESCRIPTIONS[formData.gross_impact].labelKey)}
-                                                    </span>
-                                                    <span className="mx-1">—</span>
-                                                    {t(IMPACT_DESCRIPTIONS[formData.gross_impact].descriptionKey, IMPACT_DESCRIPTIONS[formData.gross_impact].descriptionKey)}.
-                                                    <span className="text-slate-500 ml-1">
-                                                        {t('form.financial.loss')}: {formatFinancialRange(formData.gross_impact, totalAssets, t('form.financial.no_loss'))}
-                                                    </span>
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <RiskScoreMatrix
-                                        probability={formData.gross_probability || 1}
-                                        impact={formData.gross_impact || 1}
-                                        type="gross"
-                                        size="large"
-                                        onSelect={(p, i) => {
-                                            handleInputChange('gross_probability', p);
-                                            handleInputChange('gross_impact', i);
-                                        }}
-                                    />
-                                </section>
-
-                                <section className="space-y-6">
-                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>{t('risks:fields.net_score')} ({t('risks:scoring.residual_risk')})</h4>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
-                                                <span>{t('risks:fields.probability')}</span>
-                                                <span className="text-white">{formData.net_probability} / 5</span>
-                                            </label>
-                                            <input
-                                                type="range" min="1" max="5" step="1"
-                                                value={formData.net_probability}
-                                                onChange={(e) => handleInputChange('net_probability', parseInt(e.target.value))}
-                                                className={`w-full ${getSliderAccent((formData.net_probability || 1) * (formData.net_impact || 1))}`}
-                                            />
-                                            {formData.net_probability && PROBABILITY_DESCRIPTIONS[formData.net_probability] && (
-                                                <p className="text-xs text-slate-400 mt-1">
-                                                    <span className={`font-semibold ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>
-                                                        {t(PROBABILITY_DESCRIPTIONS[formData.net_probability].labelKey, PROBABILITY_DESCRIPTIONS[formData.net_probability].labelKey)}
-                                                    </span>
-                                                    <span className="mx-1">—</span>
-                                                    {t(PROBABILITY_DESCRIPTIONS[formData.net_probability].descriptionKey, PROBABILITY_DESCRIPTIONS[formData.net_probability].descriptionKey)}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <label className="flex justify-between text-[10px] font-bold text-slate-500 uppercase mb-2">
-                                                <span>{t('risks:fields.impact')}</span>
-                                                <span className="text-white">{formData.net_impact} / 5</span>
-                                            </label>
-                                            <input
-                                                type="range" min="1" max="5" step="1"
-                                                value={formData.net_impact}
-                                                onChange={(e) => handleInputChange('net_impact', parseInt(e.target.value))}
-                                                className={`w-full ${getSliderAccent((formData.net_probability || 1) * (formData.net_impact || 1))}`}
-                                            />
-                                            {formData.net_impact && IMPACT_DESCRIPTIONS[formData.net_impact] && (
-                                                <p className="text-xs text-slate-400 mt-1">
-                                                    <span className={`font-semibold ${getScoreTextColor((formData.net_probability || 1) * (formData.net_impact || 1))}`}>
-                                                        {t(IMPACT_DESCRIPTIONS[formData.net_impact].labelKey, IMPACT_DESCRIPTIONS[formData.net_impact].labelKey)}
-                                                    </span>
-                                                    <span className="mx-1">—</span>
-                                                    {t(IMPACT_DESCRIPTIONS[formData.net_impact].descriptionKey, IMPACT_DESCRIPTIONS[formData.net_impact].descriptionKey)}.
-                                                    <span className="text-slate-500 ml-1">
-                                                        {t('form.financial.loss')}: {formatFinancialRange(formData.net_impact, totalAssets, t('form.financial.no_loss'))}
-                                                    </span>
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <RiskScoreMatrix
-                                        probability={formData.net_probability || 1}
-                                        impact={formData.net_impact || 1}
-                                        type="net"
-                                        size="large"
-                                        onSelect={(p, i) => {
-                                            handleInputChange('net_probability', p);
-                                            handleInputChange('net_impact', i);
-                                        }}
-                                    />
-                                </section>
-                            </div>
-                        </div>
+                        <RiskFormScoringStep
+                            t={t}
+                            formData={formData}
+                            totalAssets={totalAssets}
+                            handleInputChange={handleInputChange}
+                            getScoreTextColor={getScoreTextColor}
+                            getSliderAccent={getSliderAccent}
+                        />
                     )}
 
                 </div>

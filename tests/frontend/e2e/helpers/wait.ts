@@ -129,5 +129,10 @@ export async function waitForTableRowByText(
 ): Promise<boolean> {
     await waitForDataLoad(page, timeout);
     const row = page.locator('table tbody tr').filter({ hasText: text }).first();
-    return await row.isVisible({ timeout }).catch(() => false);
+    try {
+        await expect(row).toBeVisible({ timeout });
+        return true;
+    } catch {
+        return false;
+    }
 }

@@ -260,7 +260,7 @@ Local dev is expected to run in **demo-friendly auth mode** (keeps Playwright E2
   - `AUTH_MODE=hybrid_dev`
   - `DEBUG=true`
   - `MOCK_AUTH_ENABLED=true`
-- Local startup/runtime parity with CI and Docker requires Node major `20` (`.nvmrc` and `.node-version`).
+- Local startup/runtime parity with CI and Docker requires Node major `24` (`.nvmrc` and `.node-version`).
 - This enables the demo login picker at `http://localhost:5173/login` via `POST /api/v1/auth/demo-login/{user_id}`.
 - Override example (no demo auth): `AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh`
 

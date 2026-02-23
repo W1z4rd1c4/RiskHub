@@ -8,8 +8,6 @@ This module provides:
 5. Cross-department ownership helpers - KRI reporting owners, control owners
 """
 
-# ruff: noqa: F401
-
 from ._permissions.entity_access import (
     can_read_control_id,
     can_read_kri_id,
@@ -53,7 +51,6 @@ from ._permissions.scoping import (
     redact_name_if_no_access,
 )
 from ._permissions.sensitive import (
-    _is_priority_downgrade,
     has_sensitive_field_changes,
     is_high_risk_for_approval,
     is_high_risk_for_approval_async,
