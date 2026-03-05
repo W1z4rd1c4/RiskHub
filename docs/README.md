@@ -1,7 +1,7 @@
 # RiskHub Documentation Index
 
 > **Version**: 1.2
-> **Last Updated**: 2026-02-22
+> **Last Updated**: 2026-03-05
 > **Audience**: Product, Engineering, QA, Operations
 
 This file is the primary documentation index for `docs/`.
@@ -40,6 +40,9 @@ This file is the primary documentation index for `docs/`.
 
 ```bash
 python3 scripts/check_docs_contract.py
+make -f scripts/Makefile docs-topology-consistency
+cd backend && venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q
+cd ../frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx
 python3 scripts/tools/docs_tree_audit.py --scope canonical --max-root-hops 3 --fail-on-unreachable
 python3 scripts/tools/docs_tree_audit.py --scope full
 python3 scripts/tools/readme_coverage.py audit

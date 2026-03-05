@@ -1,7 +1,7 @@
 ---
 title: Managing Controls
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.2, §4, §7 + frontend/src/pages/ControlsPage.tsx"
 summary: "Full manual for control lifecycle management: design, ownership, execution logging, linkage to risks, exports, and approval-aware governance."
@@ -62,11 +62,14 @@ Write access is permission-gated:
 
 - `controls:write` to create/edit
 - `controls:delete` for archive/restore actions (depending on policy)
+- `controls:execute` to log executions
 
 Execution logging may also be permission-gated. In most environments:
 
 - control owners and delegated executors can log executions
 - reviewers can read execution history
+
+Default seeded roles with `controls:execute` are CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Department Head, and Employee.
 
 ## Data Model and Key Fields
 

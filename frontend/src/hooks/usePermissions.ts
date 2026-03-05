@@ -38,8 +38,8 @@ export function usePermissions() {
         canManageAccess: authz.canManageAccess,  // Users with global scope can view access data
         canEditAccessUsers: authz.canEditAccessUsers, // Admin/CRO only for access-user mutations
         canManagePrivileged: isAdminOrCro,  // Only admin/CRO can toggle privileged status/roles
-        // Activity Log: Admin is console-only and should not access business views
-        // Even though admin has *:* permissions, we explicitly block them from Activity Log
+        // Activity Log: Admin is console-only and should not access business views.
+        // Follow authz here so test/demo fixtures cannot accidentally re-enable the route.
         canViewActivityLog: authz.canViewActivityLog,
         isAdmin: isAdminOrCro,
         isPrivileged: authz.hasGlobalScope,

@@ -1,7 +1,7 @@
 ---
 title: Governance: Orphaned Items and Ownership Hygiene
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "frontend/src/pages/GovernancePage.tsx + frontend/src/components/governance/*"
 summary: "How to use Governance to detect and resolve orphaned Risks, Controls, and KRIs so ownership, scope, and reporting stay correct."
@@ -52,8 +52,8 @@ Primary route: `/governance`
 
 If you do not see Governance:
 
-- your account likely cannot view Governance (`canViewGovernance` is typically CRO-only)
-- platform admins do not use business Governance; they use admin tooling instead
+- your account likely cannot view Governance (`canViewGovernance` is CRO-only in the default contract)
+- platform admins do not use business Governance; direct route/API access is blocked and they use admin tooling instead
 
 Governance is designed as a review surface. Treat it as a periodic control:
 

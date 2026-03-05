@@ -1,7 +1,7 @@
 ---
 title: Runbook správy uživatelů a přístupů
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
 summary: "Provozní runbook pro user lifecycle, role/scope governance, auditovatelné změny přístupů a incident-safe access zásahy."
@@ -48,7 +48,7 @@ Použijte tento runbook, když potřebujete:
 - řešit access incident (nevidí modul, nejde edit, vidí moc)
 - udělat emergency containment (deaktivace + revoke sessions)
 
-Nepoužívejte jej pro řešení business ownership sporů. Pokud ticket je ve skutečnosti „kdo má vlastnit riziko/kontrolu“, je to business rozhodnutí. Vaše role je držet přístupy konzistentní s rozhodnutou policy a dodat evidenci, když chování překvapuje.
+Nepoužívejte jej pro řešení business ownership sporů. Pokud ticket je ve skutečnosti „kdo má vlastnit riziko/kontrolu“, je to business rozhodnutí. Vaše role je držet přístupy konzistentní s rozhodnutou policy a dodat evidenci, když chování překvapuje. Admin má takové incidenty ověřovat přes `/users` a `/admin`, ne přes business `/governance` nebo `/activity-log`.
 
 ## Předpoklady a bezpečnost
 

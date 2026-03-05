@@ -1,7 +1,7 @@
 ---
 title: Admin Onboarding and First-Day Runbook
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + frontend/src/pages/UsersPage.tsx + backend/app/api/v1/endpoints/admin/*"
 summary: "First-day operational runbook for platform admins: validate access, docs audience boundaries, observability, and safe-change readiness."
@@ -59,6 +59,7 @@ Safety rules:
 1. Confirm your effective role is `admin`.
 2. Confirm your default landing route is `/admin` (admins should not default to the business dashboard).
 3. Confirm the sidebar shows only admin-safe navigation (typically Settings, Users/Access, Admin Console, Documentation).
+4. Confirm direct navigation to `/activity-log` and `/governance` is denied or redirected. That boundary is expected for `admin`.
 
 If you see business modules (Risks/Controls/Vendors) as `admin`, treat it as a boundary regression and escalate.
 

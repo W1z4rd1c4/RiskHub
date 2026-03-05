@@ -1,7 +1,7 @@
 ---
 title: Správa kontrol
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.2, §4, §7 + frontend/src/pages/ControlsPage.tsx"
 summary: "Kompletní manuál pro lifecycle kontrol: návrh, ownership, logování exekuce, linkování na rizika, exporty a schvalování citlivých změn."
@@ -62,11 +62,14 @@ Zápis je permission-gated:
 
 - `controls:write` pro create/edit
 - `controls:delete` pro archive/restore (dle policy)
+- `controls:execute` pro logování exekuce
 
 Logování exekuce může být také permission-gated. V praxi:
 
 - owner a delegovaný executor často mohou logovat exekuce
 - review role typicky čtou historii exekucí
+
+Výchozí seedované role s `controls:execute` jsou CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Department Head a Employee.
 
 ## Datový model a klíčová pole
 

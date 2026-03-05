@@ -3,6 +3,7 @@ Tests for Execution API endpoints.
 """
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 
 from app.models import Control, Department, User
@@ -122,7 +123,7 @@ async def test_filter_executions_by_result(auth_client: AsyncClient, test_user: 
 # =============================================================================
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def second_dept_control(db_session, test_user):
     """Create a control in a different department."""
     from app.models import Department

@@ -1,7 +1,7 @@
 ---
 title: Uživatelská dokumentace RiskHub
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md"
 summary: "Produkční manuály pro každodenní práci v RiskHubu: navigace, oprávnění, workflow (schvalování), exporty a troubleshooting."
@@ -45,7 +45,7 @@ Použijte tuto knihovnu, pokud máte některou z těchto rolí:
 - Compliance, Legal, Internal Audit, Actuarial
 - Viewer (pouze čtení)
 
-Pokud jste platformní administrátor (role `admin`), v in-app čtečce uvidíte jinou knihovnu. Tato sada je záměrně zaměřená na business provoz, ne na správu platformy.
+Pokud jste platformní administrátor (role `admin`), v in-app čtečce uvidíte jinou knihovnu. Tato sada je záměrně zaměřená na business provoz, ne na správu platformy. U admina je očekávané, že business routy jako `/governance` a `/activity-log` zůstanou nedostupné.
 
 ## Co můžete od manuálů čekat
 
@@ -96,8 +96,8 @@ Tato tabulka mapuje položky v menu na kanonický manuál.
 | KRI | `/kris` | [Správa KRI](./kris.md) | Limity, zápis hodnot, breach signály | `kri`, `notifications`, `exports` |
 | Dodavatelé (pokud jsou zapnutí) | `/vendors` | [Správa dodavatelů](./vendors.md) | Third-party governance, assessmenty, incidenty, exporty | `vendors`, `approvals`, `exports` |
 | Oddělení | `/departments` | [Oddělení](./departments.md) | Expozice podle org jednotek, drill-down a odpovědnosti | `departments`, `workflow`, `exports` |
-| Governance (role-gated) | `/governance` | [Governance](./governance.md) | Orphans, ownership mezery a jejich řešení | `governance`, `audit`, `troubleshooting` |
-| Activity Log (permission-gated) | `/activity-log` | [Activity Log](./activity-log.md) | „Kdo změnil co“, časová osa, auditní evidence | `activity-log`, `audit`, `exports` |
+| Governance (jen CRO, ne-admin) | `/governance` | [Governance](./governance.md) | Orphans, ownership mezery a jejich řešení | `governance`, `audit`, `troubleshooting` |
+| Activity Log (permission-gated, ne-admin) | `/activity-log` | [Activity Log](./activity-log.md) | „Kdo změnil co“, časová osa, auditní evidence | `activity-log`, `audit`, `exports` |
 | Uživatelé / přístupy (role-gated) | `/users` | [Správa přístupů](./access-management.md) | Interpretace rolí/scope a kontrola přístupů | `access`, `audit`, `settings` |
 | Risk Hub (CRO only) | `/risk-hub` | [Risk Hub](./risk-hub.md) | Konfigurační koncepty a bezpečné provozní vzory | `riskhub`, `settings`, `approvals` |
 | Nastavení | `/settings` | [Začínáme](./getting-started.md) | Preference (jazyk/téma) a navigace v dokumentaci | `settings`, `onboarding`, `workflow` |
@@ -139,6 +139,7 @@ Praktická pravidla:
 - Pokud položka v menu úplně chybí (např. Nálezy), ověřte oprávnění.
 - Pokud položka existuje, ale seznam je prázdný, ověřte scope a filtry.
 - Pokud detail otevřete přes odkaz, ale záznam nemůžete najít v seznamu, je to často scope hranice + ownership výjimka.
+- Pokud jste přihlášení jako platform admin, chybějící business moduly jsou očekávané. Používejte admin knihovnu dokumentace a plochy pod `/admin`.
 
 ## Jak fungují odkazy v manuálech
 

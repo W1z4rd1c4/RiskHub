@@ -1,7 +1,7 @@
 ---
 title: Activity Log (audit trail pro business změny)
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "frontend/src/pages/ActivityLogPage.tsx + backend activity log endpoints"
 summary: "Jak používat Activity Log pro vyšetřování změn, potvrzení schválení a vytvoření auditovatelné historie bez úniku citlivých dat."
@@ -47,7 +47,7 @@ Hlavní route: `/activity-log`
 Pokud Activity Log nevidíte:
 
 - pravděpodobně nemáte `activity_log:read` (resource `activity_log`, action `read`)
-- platform admin je záměrně blokovaný z business Activity Logu (admin má používat admin console logy)
+- platform admin je záměrně blokovaný z business Activity Logu, včetně přímého route/API přístupu (admin má používat admin console logy)
 
 ## Role, scope a viditelnost
 

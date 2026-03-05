@@ -7,6 +7,7 @@ Folder for `tests/frontend/unit/src` implementation assets.
 ## Contents
 
 - `__tests__/`
+- `authz/`
 - `components/`
 - `contexts/`
 - `i18n/`

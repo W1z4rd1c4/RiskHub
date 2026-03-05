@@ -1,9 +1,9 @@
 ---
 title: Managing Issues and Findings
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-03-05"
 audience: user
-source_of_truth: "frontend/src/pages/IssuesPage.tsx + issue workflows in backend"
+source_of_truth: "frontend/src/pages/IssuesPage.tsx + frontend/src/pages/issues/* + issue workflows in backend"
 summary: "How to log, triage, remediate, and close Issues (findings) with clear ownership, due dates, exceptions, and audit-ready exports."
 tags:
   - issues
@@ -193,6 +193,8 @@ Common filters and what they are for:
 - **Overdue**: find broken commitments quickly
 - **Exclude active exceptions**: focus on issues that still require action (not temporarily waived)
 - **Search**: use stable keywords (system name, process name, vendor name)
+
+Links from dashboards and other modules can open `/issues` with filters already applied. Treat those URL parameters as the starting view for triage, not as a live saved view that rewrites itself while you work.
 
 Sorting is useful when you are preparing for a review:
 

@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-02-22
+**Analysis Date:** 2026-03-05
 
 ## Top-Level Layout
 
@@ -19,7 +19,7 @@
 - `backend/app/db/session.py` - engine/sessionmaker lifecycle + `get_db` dependency (sessionmaker stored on `app.state`)
 
 ### Primary subdirectories
-- `backend/app/api/v1/endpoints/` - 168 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
+- `backend/app/api/v1/endpoints/` - 172 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
 - `backend/app/models/` - 35 model modules (measured `*.py` snapshot)
 - `backend/app/schemas/` - 29 schema modules (measured `*.py` snapshot)
 - `backend/app/services/` - 62 Python modules (measured `*.py` snapshot; business services + internal refactor packages; facade modules re-export public symbols)
@@ -38,8 +38,8 @@
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 37 tracked files (measured git-tracked snapshot; route-level pages + tests)
-- `frontend/src/components/` - 149 tracked files (measured git-tracked snapshot; components + tests)
+- `frontend/src/pages/` - 46 tracked files (measured git-tracked snapshot; route-level pages + tests)
+- `frontend/src/components/` - 156 tracked files (measured git-tracked snapshot; components + tests)
 - `frontend/src/services/` - API client and domain service wrappers
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -77,4 +77,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-02-22*
+*Structure audit refreshed on 2026-03-05*

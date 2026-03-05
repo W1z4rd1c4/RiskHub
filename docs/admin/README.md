@@ -1,7 +1,7 @@
 ---
 title: RiskHub Platform Administration Documentation
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: admin
 source_of_truth: "docs/BUSINESS_LOGIC.md §1.5 and admin endpoints"
 summary: "Production runbook library for platform administrators: access governance, safe changes, observability, evidence exports, and operational support procedures."
@@ -60,6 +60,7 @@ Boundary rules:
 - Admins enable access and stability. They do not own business semantics.
 - Admins may mention business roles only for **handoff context** (who to talk to), not as “instructions for business users”.
 - If a workflow is blocked because a business owner must approve something, the admin role is to prove what is blocked and why, not to bypass the workflow.
+- Admins are blocked from business `/governance` and business `/activity-log`. Use `/admin` audit/log surfaces and evidence exports instead.
 
 ## Quick Start (First Hour)
 

@@ -1,7 +1,7 @@
 ---
 title: Governance: orphaned položky a hygiena ownership
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "frontend/src/pages/GovernancePage.tsx + frontend/src/components/governance/*"
 summary: "Jak používat Governance pro detekci a řešení orphaned Rizik/Kontrol/KRI tak, aby byl správný ownership, scope a reporting."
@@ -52,8 +52,8 @@ Hlavní route: `/governance`
 
 Pokud Governance nevidíte:
 
-- váš účet pravděpodobně nemá přístup (typicky jen CRO / globální governance)
-- platform admin nepoužívá business Governance; používá admin tooling
+- váš účet pravděpodobně nemá přístup (`canViewGovernance` je ve výchozím kontraktu CRO-only)
+- platform admin nepoužívá business Governance; přímý route/API přístup je blokovaný a používá admin tooling
 
 Governance berte jako pravidelnou kontrolu:
 

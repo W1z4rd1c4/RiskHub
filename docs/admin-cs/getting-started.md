@@ -1,7 +1,7 @@
 ---
 title: Admin onboarding a runbook prvního dne
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + frontend/src/pages/UsersPage.tsx + backend/app/api/v1/endpoints/admin/*"
 summary: "Provozní runbook pro první den admina: ověření přístupů, audience split dokumentace, observabilita a připravenost na bezpečné změny."
@@ -59,6 +59,7 @@ Bezpečnostní pravidla:
 1. Ověřte, že vaše efektivní role je `admin`.
 2. Ověřte, že default landing route je `/admin` (admin nemá defaultně dashboard).
 3. Ověřte, že sidebar ukazuje pouze admin-safe navigaci (typicky Settings, Users/Access, Admin Console, Documentation).
+4. Ověřte, že přímá navigace na `/activity-log` a `/governance` je odmítnutá nebo přesměrovaná. Pro `admin` je to očekávané chování.
 
 Pokud jako `admin` vidíte business moduly (Rizika/Kontroly/Dodavatelé), berte to jako boundary regresi a eskalujte.
 

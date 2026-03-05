@@ -1,7 +1,7 @@
 ---
 title: Admin Console (/admin)
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + admin API endpoints"
 summary: "Runbook for platform admins to use the Admin Console for health checks, log/audit export, session triage, and safe operational support."
@@ -42,6 +42,7 @@ Important boundary:
 
 - Platform admins should not operate business modules (Risks, Controls, KRIs, Vendors, Issues).
 - Platform admins should validate platform behavior and support governance safely.
+- Direct business `/activity-log` and `/governance` access is intentionally blocked for `admin`; use Admin Console audit/application logs and the admin reports runbook instead.
 
 ## When To Use This
 

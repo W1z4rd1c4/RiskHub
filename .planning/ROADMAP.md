@@ -601,6 +601,10 @@ Plans:
 Note:
 - `70-07-1` is a follow-up patch summary for `70-07` and does not change the phase plan count.
 
+Current contract note (2026-03-05):
+- Platform `admin` remains console-only and does not access business `/governance` or business `/activity-log`.
+- CRO owns Risk Hub/Governance business configuration and governance sweeps.
+
 ### Phase 71: Risk Hub Review
 
 **Goal**: Audit Risk Hub implementation for logical/technical errors and bugs
@@ -635,6 +639,10 @@ Plans:
 - [x] 72-10: Public endpoints for thresholds + risk types (non-CRO)
 - [x] 72-11: Frontend public-config consumption + dynamic type display
 - [x] 72-12: Naming cleanup for approval threshold helpers (`is_critical_risk_*` semantics)
+
+Current contract note (2026-03-05):
+- Canonical RBAC seed and the convergence script are aligned on `controls:execute` for `cro`, `risk_manager`, `compliance`, `internal_audit`, `actuarial`, `department_head`, and `employee`.
+- Documentation reconciliation for the Phase 72 permission-independence cleanup is complete in the canonical user/admin libraries and current-truth planning docs.
 
 ### Phase 85: Workflow & Users
 

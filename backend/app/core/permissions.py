@@ -18,9 +18,11 @@ from ._permissions.evaluation import (
     can_manage_users,
     can_resolve_approvals,
     can_view_risk_committee,
+    ensure_business_view_access,
     get_effective_permissions,
     has_any_role,
     has_permission,
+    is_platform_admin,
     is_role,
 )
 from ._permissions.issues import (
@@ -77,7 +79,9 @@ __all__ = [
     "is_issue_owner_assignable_to_department",
     "get_effective_permissions",
     "can_manage_users",
+    "ensure_business_view_access",
     "is_role",
+    "is_platform_admin",
     "has_any_role",
     "can_resolve_approvals",
     "can_view_risk_committee",
