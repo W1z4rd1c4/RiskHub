@@ -1,65 +1,9 @@
-/**
- * Activity Log Page unit tests covering:
- * - Diff value formatting helpers
- * - Pagination window calculation
- * 
- * Note: Full integration tests for permission gating, view modes, and API calls
- * require MSW setup in the global vitest.setup.ts. The helpers tested here are
- * extracted to ensure the core logic is correct.
- */
 import { describe, it, expect } from 'vitest';
-
-// Test the diff formatting logic (re-implemented here for testing)
-const formatDiffValue = (value: unknown): string => {
-    if (value === null || value === undefined) {
-        return '(empty)';
-    }
-    if (typeof value === 'object') {
-        const json = JSON.stringify(value);
-        return json.length > 80 ? json.slice(0, 77) + '...' : json;
-    }
-    return String(value);
-};
-
-const getDiffPair = (delta: unknown): { old: string; new: string; isLegacy: boolean } => {
-    if (delta === null || delta === undefined) {
-        return { old: '(empty)', new: '(empty)', isLegacy: true };
-    }
-    if (typeof delta !== 'object') {
-        return { old: '(empty)', new: formatDiffValue(delta), isLegacy: true };
-    }
-    const d = delta as { old?: unknown; new?: unknown };
-    return {
-        old: formatDiffValue(d.old),
-        new: formatDiffValue(d.new),
-        isLegacy: !('old' in d && 'new' in d)
-    };
-};
-
-// Test the pagination window calculation logic
-const calculatePageWindow = (page: number, totalPages: number): (number | 'ellipsis')[] => {
-    const pageNumbers: number[] = [];
-    const addPage = (p: number) => {
-        if (p >= 0 && p < totalPages && !pageNumbers.includes(p)) {
-            pageNumbers.push(p);
-        }
-    };
-    addPage(0);
-    addPage(page - 1);
-    addPage(page);
-    addPage(page + 1);
-    addPage(totalPages - 1);
-    pageNumbers.sort((a, b) => a - b);
-
-    const withEllipses: (number | 'ellipsis')[] = [];
-    for (let i = 0; i < pageNumbers.length; i++) {
-        if (i > 0 && pageNumbers[i] - pageNumbers[i - 1] > 1) {
-            withEllipses.push('ellipsis');
-        }
-        withEllipses.push(pageNumbers[i]);
-    }
-    return withEllipses;
-};
+import {
+    calculatePageWindow,
+    formatDiffValue,
+    getDiffPair,
+} from '@/components/activity-log/activityLogPresentation';
 
 describe('Activity Log Helpers', () => {
     describe('formatDiffValue', () => {

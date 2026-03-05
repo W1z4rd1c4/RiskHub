@@ -1,9 +1,9 @@
 ---
 title: Managing Vendors
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-03-05"
 audience: user
-source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + vendor assessment workflows"
+source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/* + vendor assessment workflows"
 summary: "Full manual for third-party risk operations: vendor onboarding, ownership, assessments, reassessments, incidents, SLAs, exports, and notifications."
 tags:
   - vendors
@@ -101,6 +101,8 @@ Vendor detail tabs (high-level):
 - Schedule: cadence and due dates
 - Contract controls / resilience / dependencies: governance depth
 - Incidents / remediation / SLA / signals: monitoring and response
+
+The active detail tab is linkable. If you need to route someone directly to a section, use a URL like `/vendors/<id>?tab=sla`.
 
 ## Core Workflows
 

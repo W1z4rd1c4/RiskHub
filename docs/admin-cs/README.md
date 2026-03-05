@@ -1,7 +1,7 @@
 ---
 title: Dokumentace správy platformy RiskHub
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: admin
 source_of_truth: "docs/BUSINESS_LOGIC.md §1.5 a admin endpointy"
 summary: "Produkční runbook knihovna pro platformní administrátory: správa přístupů, bezpečné změny, observabilita, exporty evidence a provozní podpora."
@@ -60,6 +60,7 @@ Hranice odpovědnosti:
 - Admin zajišťuje přístup a stabilitu. Neřeší business semantiku.
 - Business role se mohou objevit pouze jako **handoff kontext** (koho kontaktovat), ne jako „návod pro business uživatele“.
 - Pokud je workflow blokované schvalováním, role admina je doložit, co je blokované a proč, ne schvalování obcházet.
+- Admin má blokovaný business `/governance` i business `/activity-log`. Pro evidenci a observabilitu používá plochy pod `/admin`.
 
 ## Rychlý start (první hodina)
 

@@ -7,7 +7,7 @@ from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import get_user_department_ids
-from app.core.security import require_permission
+from app.core.security import require_business_permission
 from app.db.session import get_db
 from app.models import ActivityLog, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -19,7 +19,13 @@ router = APIRouter()
 @router.get("", response_model=ActivityLogListResponse)
 async def list_activity_logs(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("activity_log", "read")),
+    current_user: User = Depends(
+        require_business_permission(
+            "activity_log",
+            "read",
+            detail="Platform admins cannot access the business Activity Log",
+        )
+    ),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     # Filters
@@ -100,7 +106,13 @@ async def list_activity_logs(
 
 @router.get("/entity-types", response_model=list[str])
 async def get_entity_types(
-    current_user: User = Depends(require_permission("activity_log", "read")),
+    current_user: User = Depends(
+        require_business_permission(
+            "activity_log",
+            "read",
+            detail="Platform admins cannot access the business Activity Log",
+        )
+    ),
 ):
     """Get list of all entity types for filter dropdown."""
     return [e.value for e in ActivityEntityType]
@@ -108,7 +120,13 @@ async def get_entity_types(
 
 @router.get("/actions", response_model=list[str])
 async def get_actions(
-    current_user: User = Depends(require_permission("activity_log", "read")),
+    current_user: User = Depends(
+        require_business_permission(
+            "activity_log",
+            "read",
+            detail="Platform admins cannot access the business Activity Log",
+        )
+    ),
 ):
     """Get list of all action types for filter dropdown."""
     return [a.value for a in ActivityAction]

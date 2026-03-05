@@ -1,4 +1,5 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from types import SimpleNamespace
 
 import pytest
 from httpx import AsyncClient
@@ -10,6 +11,11 @@ from app.models.notification import Notification, NotificationType
 from app.models.user import AccessScope
 from app.models.vendor_sla import VendorSLA
 from app.services.vendor_sla_deadline_service import VendorSLADeadlineService
+from app.services.vendor_sla_deadline_support import VendorSLADeadlineContext, initialize_results
+from app.services.vendor_sla_notification_policy import (
+    process_breach_notifications,
+    process_due_notifications,
+)
 
 
 async def _grant(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:
@@ -200,6 +206,233 @@ async def test_vendor_sla_deadline_service_filters_cross_scope_recipients(
     assert not any(
         n.type == NotificationType.VENDOR_SLA_BREACH_DETECTED and n.user_id == rm_other_dept.id for n in notifications
     )
+
+
+@pytest.mark.asyncio
+async def test_vendor_sla_deadline_service_uses_supplied_now_date(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    observed: dict[str, object] = {}
+    supplied_now = datetime(2025, 1, 15, 12, 0, tzinfo=UTC)
+    fake_sla = SimpleNamespace(id=999, reporting_owner_id=None, vendor=None)
+
+    async def fake_load_config(_db: AsyncSession) -> dict[str, float | int]:
+        return {"near_breach_threshold": 0.8, "duplicate_lookback_days": 7}
+
+    async def fake_list_active_slas(_db: AsyncSession) -> list[SimpleNamespace]:
+        return [fake_sla]
+
+    async def fake_load_governance_recipients(_db: AsyncSession) -> list[User]:
+        return []
+
+    async def fake_load_owners_by_id(_db: AsyncSession, _owner_ids: set[int]) -> dict[int, User]:
+        return {}
+
+    async def fake_process_slas(
+        _db: AsyncSession,
+        *,
+        slas,
+        today,
+        now,
+        config,
+        governance_recipients,
+        owners_by_id,
+        visibility_cache,
+        results,
+    ) -> None:
+        observed["slas"] = slas
+        observed["today"] = today
+        observed["now"] = now
+        observed["config"] = config
+        observed["governance_recipients"] = governance_recipients
+        observed["owners_by_id"] = owners_by_id
+        observed["visibility_cache"] = visibility_cache
+        observed["results"] = dict(results)
+
+    monkeypatch.setattr(
+        VendorSLADeadlineService,
+        "_load_governance_recipients",
+        staticmethod(fake_load_governance_recipients),
+    )
+    monkeypatch.setattr(VendorSLADeadlineService, "_process_slas", staticmethod(fake_process_slas))
+    monkeypatch.setattr("app.services.vendor_sla_deadline_service.load_vendor_sla_config", fake_load_config)
+    monkeypatch.setattr("app.services.vendor_sla_deadline_service.list_active_slas", fake_list_active_slas)
+    monkeypatch.setattr("app.services.vendor_sla_deadline_service.load_owners_by_id", fake_load_owners_by_id)
+
+    result = await VendorSLADeadlineService.check_vendor_sla_deadlines(db_session, now=supplied_now)
+
+    assert observed["today"] == supplied_now.date()
+    assert observed["now"] == supplied_now
+    assert observed["slas"] == [fake_sla]
+    assert observed["config"] == {"near_breach_threshold": 0.8, "duplicate_lookback_days": 7}
+    assert observed["governance_recipients"] == []
+    assert observed["owners_by_id"] == {}
+    assert observed["visibility_cache"] == {}
+    assert result["total_checked"] == 1
+
+
+@pytest.mark.asyncio
+async def test_vendor_sla_due_notifications_increment_expected_counters(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    reporting_owner = SimpleNamespace(id=101, preferred_language="en")
+    context = VendorSLADeadlineContext(
+        due=date(2025, 1, 16),
+        due_str="2025-01-16",
+        reporting_owner=reporting_owner,
+        vendor_id=55,
+        vendor_name="Counterparty X",
+        outsourcing_owner_id=None,
+    )
+    sla = SimpleNamespace(metric_name="Availability")
+    results = initialize_results()
+    created_calls: list[NotificationType] = []
+
+    async def fake_duplicate_check(*args, **kwargs) -> bool:
+        return False
+
+    async def fake_create_vendor_notification_if_visible(**kwargs) -> bool:
+        created_calls.append(kwargs["notification_type"])
+        return True
+
+    monkeypatch.setattr(
+        "app.services.vendor_sla_notification_policy.check_duplicate_vendor_notification",
+        fake_duplicate_check,
+    )
+    monkeypatch.setattr(
+        "app.services.vendor_sla_notification_policy.NotificationService.create_vendor_notification_if_visible",
+        fake_create_vendor_notification_if_visible,
+    )
+
+    await process_due_notifications(
+        db_session,
+        sla=sla,
+        context=context,
+        today=date(2025, 1, 15),
+        config={"duplicate_lookback_days": 7, "near_breach_threshold": 0.8},
+        now=datetime(2025, 1, 15, 12, 0, tzinfo=UTC),
+        visibility_cache={},
+        results=results,
+    )
+
+    assert created_calls == [
+        NotificationType.VENDOR_SLA_DUE_TOMORROW,
+        NotificationType.VENDOR_SLA_DUE_SOON,
+    ]
+    assert results["due_tomorrow"] == 1
+    assert results["due_soon"] == 1
+    assert results["notifications_created"] == 2
+
+
+@pytest.mark.asyncio
+async def test_vendor_sla_near_breach_notifications_increment_results(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    reporting_owner = SimpleNamespace(id=101, preferred_language="en")
+    context = VendorSLADeadlineContext(
+        due=date(2025, 1, 16),
+        due_str="2025-01-16",
+        reporting_owner=reporting_owner,
+        vendor_id=55,
+        vendor_name="Counterparty X",
+        outsourcing_owner_id=None,
+    )
+    sla = SimpleNamespace(
+        breach_status=None,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        current_value=80.0,
+        metric_name="Availability",
+    )
+    results = initialize_results()
+
+    async def fake_duplicate_check(*args, **kwargs) -> bool:
+        return False
+
+    async def fake_create_vendor_notification_if_visible(**kwargs) -> bool:
+        return True
+
+    monkeypatch.setattr(
+        "app.services.vendor_sla_notification_policy.check_duplicate_vendor_notification",
+        fake_duplicate_check,
+    )
+    monkeypatch.setattr(
+        "app.services.vendor_sla_notification_policy.NotificationService.create_vendor_notification_if_visible",
+        fake_create_vendor_notification_if_visible,
+    )
+
+    await process_breach_notifications(
+        db_session,
+        sla=sla,
+        context=context,
+        governance_recipients=[],
+        owners_by_id={},
+        config={"duplicate_lookback_days": 7, "near_breach_threshold": 0.8},
+        now=datetime(2025, 1, 15, 12, 0, tzinfo=UTC),
+        visibility_cache={},
+        results=results,
+    )
+
+    assert results["near_breach"] == 1
+    assert results["notifications_created"] == 1
+
+
+@pytest.mark.asyncio
+async def test_vendor_sla_breach_duplicate_suppresses_notifications(
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    reporting_owner = SimpleNamespace(id=101, preferred_language="en")
+    governance_user = SimpleNamespace(id=202, preferred_language="en")
+    context = VendorSLADeadlineContext(
+        due=date(2025, 1, 16),
+        due_str="2025-01-16",
+        reporting_owner=reporting_owner,
+        vendor_id=55,
+        vendor_name="Counterparty X",
+        outsourcing_owner_id=None,
+    )
+    sla = SimpleNamespace(
+        breach_status="below",
+        lower_limit=98.0,
+        upper_limit=100.0,
+        current_value=95.0,
+        metric_name="Availability",
+    )
+    results = initialize_results()
+
+    async def fake_duplicate_check(*args, **kwargs) -> bool:
+        return True
+
+    async def fail_create_vendor_notification_if_visible(**kwargs) -> bool:
+        raise AssertionError("duplicate breach should not create notifications")
+
+    monkeypatch.setattr(
+        "app.services.vendor_sla_notification_policy.check_duplicate_vendor_notification",
+        fake_duplicate_check,
+    )
+    monkeypatch.setattr(
+        "app.services.vendor_sla_notification_policy.NotificationService.create_vendor_notification_if_visible",
+        fail_create_vendor_notification_if_visible,
+    )
+
+    await process_breach_notifications(
+        db_session,
+        sla=sla,
+        context=context,
+        governance_recipients=[governance_user],
+        owners_by_id={},
+        config={"duplicate_lookback_days": 7, "near_breach_threshold": 0.8},
+        now=datetime(2025, 1, 15, 12, 0, tzinfo=UTC),
+        visibility_cache={},
+        results=results,
+    )
+
+    assert results["breached"] == 0
+    assert results["notifications_created"] == 0
 
 
 @pytest.mark.asyncio

@@ -202,6 +202,25 @@ async def test_breached_kri_does_not_notify_out_of_scope_risk_manager(
     assert notifications == []
 
 
+@pytest.mark.asyncio
+async def test_breached_kri_notifies_in_scope_risk_manager(
+    db_session: AsyncSession,
+    test_kri_breached: KeyRiskIndicator,
+    test_user_risk_manager: User,
+):
+    await KRIDeadlineService.check_kri_deadlines(db_session)
+
+    stmt = select(Notification).where(
+        Notification.user_id == test_user_risk_manager.id,
+        Notification.resource_type == "kri",
+        Notification.resource_id == test_kri_breached.id,
+        Notification.type == NotificationType.KRI_BREACH_DETECTED,
+    )
+    notifications = (await db_session.execute(stmt)).scalars().all()
+
+    assert len(notifications) == 1
+
+
 # Frequency-based Reminder Tests
 
 

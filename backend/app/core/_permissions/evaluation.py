@@ -1,3 +1,5 @@
+from fastapi import HTTPException, status
+
 from app.models import User
 from app.models.role import RoleType
 
@@ -40,6 +42,17 @@ def can_manage_users(user: User) -> bool:
     return is_privileged_user(user) and has_permission(user, "users", "write")
 
 
+def is_platform_admin(user: User) -> bool:
+    """Return True when the user is a platform-only admin."""
+    return is_role(user, RoleType.ADMIN)
+
+
+def ensure_business_view_access(user: User, detail: str = "Platform admins cannot access business data") -> None:
+    """Raise 403 when a platform admin attempts to access business surfaces."""
+    if is_platform_admin(user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+
+
 def is_role(user: User, role: RoleType) -> bool:
     return bool(getattr(getattr(user, "role", None), "name", None) == role)
 
@@ -67,9 +80,8 @@ def can_view_risk_committee(user: User) -> bool:
     - Department Heads can view the committee dashboard, scoped to their department(s).
     """
     role_name = getattr(getattr(user, "role", None), "name", None)
-    if role_name == RoleType.ADMIN:
+    if is_platform_admin(user):
         return False
     if is_privileged_user(user):
         return True
     return role_name == RoleType.DEPARTMENT_HEAD
-

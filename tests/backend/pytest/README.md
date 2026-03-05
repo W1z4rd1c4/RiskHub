@@ -76,3 +76,10 @@ pytest -m postgres -v
 2. Use fixtures for common entities
 3. Mark PostgreSQL-specific tests with `@pytest.mark.postgres`
 4. Document any test database limitations in test docstrings
+
+## Structure Notes
+
+- Split oversized endpoint suites into behavior-focused files when a module grows
+  beyond a single workflow or contract surface.
+- Shared support for the KRI history API split lives in
+  `tests/backend/pytest/kri_history_api_support.py`.

@@ -1,7 +1,7 @@
 ---
 title: User FAQ and Operational Support
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + in-app workflow behavior"
 summary: "Fast answers for common user issues: visibility, approvals, edits, notifications, exports, and where to look before escalating."
@@ -45,7 +45,7 @@ Before escalating, try to capture:
 - Many answers reference key routes:
   - `/notifications`
   - `/approvals`
-  - `/activity-log` (if enabled)
+  - `/activity-log` (if enabled for your business role; not for platform admin)
 
 ## Roles, Scope, and Visibility
 
@@ -57,13 +57,14 @@ Checklist:
 - Is your scope global or department?
 - Is the entity owned by you (ownership exception)?
 - Was the entity archived?
-- Do you even have the permission for the feature? (for example `issues:read`, `vendors:read`, `activity_log:read`)
+- Do you even have the permission for the feature? (for example `issues:read`, `vendors:read`, `controls:execute`, `activity_log:read`)
 
 Practical signals:
 
 - If a sidebar item is missing (for example **Issues**), it is usually **permission** (`issues:read`), not filters.
 - If the sidebar item exists but lists look empty, it is usually **scope** + **filters**.
 - If you can open a detail page from a notification link but can’t find it via lists, it is often an **ownership exception** (you can act on a record you own even if it is outside your department scope).
+- If you are logged in as `admin`, missing business routes such as `/governance` and `/activity-log` is expected. Use `/admin` and the admin docs library instead.
 
 If you learn one thing from this FAQ, learn this:
 
