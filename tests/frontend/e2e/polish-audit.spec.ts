@@ -566,8 +566,8 @@ test.describe('Polish Audit (page-by-page)', () => {
                         const routePath = toVisit[i];
                         await auditRoute(routePath, baseRoutes.includes(routePath) ? 'expected-visible' : 'forced-direct');
 
-                        // Access-control guardrail: governance is CRO/Admin only (should redirect for others).
-                        if (routePath === '/governance' && role === 'RISK_MANAGER') {
+                        // Access-control guardrail: governance is CRO-only business surface.
+                        if (routePath === '/governance' && (role === 'RISK_MANAGER' || role === 'ADMIN')) {
                             await expect(page).not.toHaveURL(/\/governance/);
                         }
 

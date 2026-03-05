@@ -53,6 +53,7 @@ RBAC_PERMISSIONS: tuple[dict[str, str], ...] = (
     {"resource": "controls", "action": "write", "description": "Create/edit controls"},
     {"resource": "controls", "action": "delete", "description": "Delete controls"},
     {"resource": "controls", "action": "approve", "description": "Approve control changes"},
+    {"resource": "controls", "action": "execute", "description": "Log control execution results"},
     {"resource": "risks", "action": "read", "description": "View risks"},
     {"resource": "risks", "action": "write", "description": "Create/edit risks"},
     {"resource": "risks", "action": "delete", "description": "Delete risks"},
@@ -75,7 +76,7 @@ RBAC_PERMISSIONS: tuple[dict[str, str], ...] = (
 )
 
 RBAC_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
-    "admin": ("users:*", "activity_log:read", "departments:read"),
+    "admin": ("users:*", "departments:read"),
     "cro": ("*:*",),
     "risk_manager": (
         "controls:*",
@@ -89,10 +90,18 @@ RBAC_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "activity_log:read",
         "kri:submit",
     ),
-    "actuarial": ("controls:read", "controls:write", "risks:read", "vendors:read", "reports:read"),
+    "actuarial": (
+        "controls:read",
+        "controls:write",
+        "controls:execute",
+        "risks:read",
+        "vendors:read",
+        "reports:read",
+    ),
     "compliance": (
         "controls:read",
         "controls:write",
+        "controls:execute",
         "risks:read",
         "issues:read",
         "vendors:read",
@@ -101,6 +110,7 @@ RBAC_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
     ),
     "internal_audit": (
         "controls:read",
+        "controls:execute",
         "risks:read",
         "issues:read",
         "vendors:read",
@@ -110,6 +120,7 @@ RBAC_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
     "department_head": (
         "controls:read",
         "controls:write",
+        "controls:execute",
         "risks:read",
         "issues:read",
         "issues:write",
@@ -120,7 +131,7 @@ RBAC_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
         "kri:submit",
         "activity_log:read",
     ),
-    "employee": ("controls:read", "risks:read", "vendors:read", "departments:read", "reports:read"),
+    "employee": ("controls:read", "controls:execute", "risks:read", "vendors:read", "departments:read", "reports:read"),
     "viewer": ("controls:read", "risks:read", "vendors:read", "departments:read", "reports:read"),
 }
 
@@ -135,6 +146,10 @@ def expand_permission_keys(permission_keys: Iterable[str]) -> set[str]:
     """Expand wildcard entries (for example, ``controls:*``) into concrete keys."""
     expanded: set[str] = set()
     for key in permission_keys:
+        if key == "*:*":
+            expanded.update(PERMISSION_BY_KEY)
+            continue
+
         if key in PERMISSION_BY_KEY:
             expanded.add(key)
             continue

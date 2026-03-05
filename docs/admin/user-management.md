@@ -1,7 +1,7 @@
 ---
 title: User and Access Governance Runbook
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
 summary: "Operational runbook for user lifecycle, role/scope governance, auditable access edits, and incident-safe access changes."
@@ -48,7 +48,7 @@ Use this runbook when you need to:
 - resolve an access incident (user can’t see a module, can’t edit, sees too much)
 - perform an emergency containment action (disable account, revoke sessions)
 
-Do not use this runbook to “fix business ownership disputes”. If a ticket is really “who should own this risk/control”, that is a business decision. Your role is to keep access consistent with the decided policy and to provide evidence when behavior is surprising.
+Do not use this runbook to “fix business ownership disputes”. If a ticket is really “who should own this risk/control”, that is a business decision. Your role is to keep access consistent with the decided policy and to provide evidence when behavior is surprising. Admins should validate those incidents through `/users` and `/admin`, not through business `/governance` or `/activity-log`.
 
 ## Preconditions and Safety
 

@@ -7,6 +7,7 @@ Folder for `frontend/src/pages` implementation assets.
 ## Contents
 
 - `__tests__/`
+- `approvals/`
 - `ActivityLogPage.tsx`
 - `AdminConsolePage.tsx`
 - `ApprovalsPage.tsx`
@@ -21,6 +22,8 @@ Folder for `frontend/src/pages` implementation assets.
 - `GovernancePage.tsx`
 - `HeroPage.tsx`
 - `index.ts`
+- `issues/`
+- `vendors/`
 - `...`
 
 ## Notes

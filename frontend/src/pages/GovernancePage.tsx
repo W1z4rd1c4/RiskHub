@@ -246,7 +246,7 @@ function GovernancePageInner() {
 export default function GovernancePage() {
     const authz = useAuthz();
 
-    // CRO/Admin only – prevent any orphaned-items API calls for other roles.
+    // CRO-only business route. Keep a local guard so direct page mounts never hit orphan APIs for blocked roles.
     if (!authz.canViewGovernance) {
         return <Navigate to="/" replace />;
     }

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from '@/i18n/hooks';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { ActivityLogRouteGuard, GovernanceRouteGuard } from '@/authz/BusinessRouteGuards';
 import { useAuthz } from '@/authz/useAuthz';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
@@ -87,14 +88,6 @@ function RoleBasedIndex() {
   return <DashboardPage />;
 }
 
-function GovernanceGuard() {
-  const authz = useAuthz();
-  if (!authz.canViewGovernance) {
-    return <Navigate to="/" replace />;
-  }
-  return <GovernancePage />;
-}
-
 function RouteLoadingFallback() {
   const { t } = useTranslation('common');
   return <div className="flex items-center justify-center min-h-screen">{t('loading.generic')}</div>;
@@ -144,11 +137,19 @@ function App() {
                   <Route path="vendors/:id/edit" element={<VendorDetailPage mode="edit" />} />
                   <Route path="vendor-reports" element={<VendorReportsPage />} />
                   <Route path="audit-trail" element={<AuditTrailPage />} />
-                  <Route path="activity-log" element={<ActivityLogPage />} />
+                  <Route path="activity-log" element={
+                    <ActivityLogRouteGuard>
+                      <ActivityLogPage />
+                    </ActivityLogRouteGuard>
+                  } />
                   <Route path="users" element={<UsersPage />} />
                   <Route path="users/new" element={<UserNewPage />} />
                   <Route path="users/:id" element={<UserDetailPage />} />
-                  <Route path="governance" element={<GovernanceGuard />} />
+                  <Route path="governance" element={
+                    <GovernanceRouteGuard>
+                      <GovernancePage />
+                    </GovernanceRouteGuard>
+                  } />
                   <Route path="settings" element={<SettingsPage />} />
                   {/* Risk Hub (CRO only) */}
                   <Route path="risk-hub" element={<RiskHubPage />} />

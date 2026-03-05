@@ -6,6 +6,7 @@ Folder for `tests/frontend/unit/src/components/__tests__` implementation assets.
 
 ## Contents
 
+- `ControlForm.helpers.test.ts`
 - `ExecutionHistory.test.tsx`
 - `RiskScoreMatrix.test.tsx`
 

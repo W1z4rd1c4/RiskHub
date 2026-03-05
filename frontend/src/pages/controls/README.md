@@ -2,12 +2,18 @@
 
 ## Purpose
 
-Control-detail page section modules and helpers.
+Controls register page modules and control-detail support helpers.
 
 ## Contents
 
+- `ControlsFilterBar.tsx`
+- `ControlsPageHeader.tsx`
+- `ControlsTableSection.tsx`
+- `controlsPagePresentation.ts`
+- `useControlsPageState.ts`
 - `ControlDetailOverviewTab.tsx`
 
 ## Notes
 
-Keep orchestration/state in `ControlDetailPage.tsx`; keep this folder for extracted presentation sections.
+Keep route orchestration in `ControlsPage.tsx`, keep control-detail orchestration in
+`ControlDetailPage.tsx`, and use this folder for page-local state/presentation seams.

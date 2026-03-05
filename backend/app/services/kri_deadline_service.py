@@ -5,14 +5,18 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.permissions import can_read_kri_id
-from app.models.global_config import ConfigDefaults, get_config_float, get_config_int
+from app.models.global_config import ConfigDefaults
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.notification import Notification, NotificationType
-from app.models.role import Role, RolePermission, RoleType
 from app.models.user import User
+from app.services.kri_deadline_support import (
+    initialize_results,
+    list_active_kris,
+    list_risk_managers,
+    load_kri_deadline_config,
+)
 from app.services.kri_history_service import KRIHistoryService
 from app.services.notification_service import NotificationService
 
@@ -33,23 +37,7 @@ class KRIDeadlineService:
     @staticmethod
     async def _load_config(db: AsyncSession) -> dict:
         """Load notification timing config from database once."""
-        return {
-            "near_breach_threshold": await get_config_float(
-                db, "near_breach_threshold", ConfigDefaults.NEAR_BREACH_THRESHOLD
-            ),
-            "duplicate_lookback_days": await get_config_int(
-                db, "duplicate_lookback_days", ConfigDefaults.DUPLICATE_LOOKBACK_DAYS
-            ),
-            "reporting_grace_days": await get_config_int(
-                db, "reporting_grace_days", ConfigDefaults.REPORTING_GRACE_DAYS
-            ),
-            "advance_reminder_days": await get_config_int(
-                db, "advance_reminder_days", ConfigDefaults.ADVANCE_REMINDER_DAYS
-            ),
-            "overdue_reminder_weeks": await get_config_int(
-                db, "overdue_reminder_weeks", ConfigDefaults.OVERDUE_REMINDER_WEEKS
-            ),
-        }
+        return await load_kri_deadline_config(db)
 
     @staticmethod
     def _due_date(period_end: date) -> date:
@@ -184,18 +172,20 @@ class KRIDeadlineService:
             ):
                 return
 
+            title = f"KRI Breached: {kri.metric_name[:50]}"
+            message = (
+                f"KRI '{kri.metric_name}' is {breach_status} limit. "
+                f"Current: {kri.current_value}, "
+                f"Limits: [{kri.lower_limit}, {kri.upper_limit}]"
+            )
             owner_id = kri.risk.owner_id if kri.risk else None
             if owner_id:
                 await NotificationService.create_notification(
                     db=db,
                     user_id=owner_id,
                     notification_type=NotificationType.KRI_BREACH_DETECTED,
-                    title=f"KRI Breached: {kri.metric_name[:50]}",
-                    message=(
-                        f"KRI '{kri.metric_name}' is {breach_status} limit. "
-                        f"Current: {kri.current_value}, "
-                        f"Limits: [{kri.lower_limit}, {kri.upper_limit}]"
-                    ),
+                    title=title,
+                    message=message,
                     resource_type="kri",
                     resource_id=kri.id,
                 )
@@ -206,20 +196,16 @@ class KRIDeadlineService:
                     continue
                 if not await can_read_kri_id(db, rm, kri.id):
                     continue
-                    await NotificationService.create_notification(
-                        db=db,
-                        user_id=rm.id,
-                        notification_type=NotificationType.KRI_BREACH_DETECTED,
-                        title=f"KRI Breached: {kri.metric_name[:50]}",
-                        message=(
-                            f"KRI '{kri.metric_name}' is {breach_status} limit. "
-                            f"Current: {kri.current_value}, "
-                            f"Limits: [{kri.lower_limit}, {kri.upper_limit}]"
-                        ),
-                        resource_type="kri",
-                        resource_id=kri.id,
-                    )
-                    results["notifications_created"] += 1
+                await NotificationService.create_notification(
+                    db=db,
+                    user_id=rm.id,
+                    notification_type=NotificationType.KRI_BREACH_DETECTED,
+                    title=title,
+                    message=message,
+                    resource_type="kri",
+                    resource_id=kri.id,
+                )
+                results["notifications_created"] += 1
 
             results["breached"] += 1
             return
@@ -309,30 +295,12 @@ class KRIDeadlineService:
         # Load config once at start
         config = await KRIDeadlineService._load_config(db)
 
-        results = {
-            "due_soon": 0,
-            "deadline": 0,
-            "overdue": 0,
-            "near_breach": 0,
-            "breached": 0,
-            "total_kris_checked": 0,
-            "notifications_created": 0,
-        }
+        results = initialize_results()
 
         today = date.today()
 
         # Fetch all ACTIVE (non-archived) KRIs with their relationships
-        stmt = (
-            select(KeyRiskIndicator)
-            .where(KeyRiskIndicator.is_archived.is_(False))
-            .options(
-                selectinload(KeyRiskIndicator.risk),
-                selectinload(KeyRiskIndicator.reporting_owner),
-            )
-        )
-        result = await db.execute(stmt)
-        kris = result.scalars().all()
-
+        kris = await list_active_kris(db)
         results["total_kris_checked"] = len(kris)
 
         # Get all Risk Managers/CROs for escalation
@@ -391,16 +359,4 @@ class KRIDeadlineService:
     @staticmethod
     async def _get_risk_managers(db: AsyncSession) -> list[User]:
         """Get all users with Risk Manager, CRO, or Admin roles for escalation."""
-        approver_roles = {RoleType.RISK_MANAGER, RoleType.CRO, RoleType.ADMIN}
-
-        role_names = [r.value for r in approver_roles]
-        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-        stmt = (
-            select(User)
-            .join(Role, User.role_id == Role.id)
-            .options(permission_load)
-            .where(User.is_active.is_(True))
-            .where(Role.name.in_(role_names))
-        )
-        result = await db.execute(stmt)
-        return result.scalars().all()
+        return await list_risk_managers(db)

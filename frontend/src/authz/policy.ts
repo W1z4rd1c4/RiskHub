@@ -48,7 +48,7 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
     const canViewDepartmentAccess = isDepartmentHead || hasGlobalScope;
     const canViewAdminConsole = isPlatformAdmin;
     const canViewRiskHub = isCRO;
-    const canViewGovernance = isPlatformAdmin || isCRO;
+    const canViewGovernance = isCRO;
     const canViewActivityLog = !isPlatformAdmin && hasPermission('activity_log', 'read');
     const canViewCommittee = (hasGlobalScope && !isPlatformAdmin) || isDepartmentHead;
     const canViewUsersPage = canManageAccess || isDepartmentHead || hasPermission('users', 'read');

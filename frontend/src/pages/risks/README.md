@@ -2,12 +2,18 @@
 
 ## Purpose
 
-Risk page support modules extracted for maintainability.
+Risk register page support modules extracted for maintainability.
 
 ## Contents
 
+- `RisksFilterBar.tsx`
+- `RisksPageHeader.tsx`
+- `RisksTableSection.tsx`
+- `risksPagePresentation.ts`
+- `useRisksPageState.ts`
 - `riskColumns.tsx`
 
 ## Notes
 
-Keep `RisksPage.tsx` as the route container; keep reusable table-column definitions/helpers in this folder.
+Keep `RisksPage.tsx` as the route container and use this folder for page-local
+state, filter/query helpers, and reusable table-column definitions.

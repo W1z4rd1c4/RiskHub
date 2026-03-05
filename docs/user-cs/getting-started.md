@@ -1,7 +1,7 @@
 ---
 title: Začínáme s RiskHub
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routy"
 summary: "Onboarding manuál pro non-admin uživatele: ověření scope, navigace, workflow připravenost a nejčastější chyby na začátku."
@@ -55,6 +55,7 @@ Tyto routy budete používat často:
 - nálezy: `/issues` (pokud je povoleno)
 - dodavatelé: `/vendors` (pokud je povoleno)
 - oddělení: `/departments`
+- governance: `/governance` (jen CRO)
 - nastavení (včetně dokumentace): `/settings`
 
 Pokud routu neotevřete, berte to nejdřív jako access/scope problém, ne jako „bug“.
@@ -71,6 +72,7 @@ Praktické příklady:
 
 - `/vendors` uvidíte jen s `vendors:read`
 - `/issues` uvidíte jen s `issues:read`
+- `/governance` uvidíte ve výchozím kontraktu jen jako CRO
 - `/activity-log` uvidíte jen s `activity_log:read` (a nejste platform admin)
 
 Scope určuje *jak široko* je baseline viditelnost. Ownership může vytvářet výjimky.

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,7 +33,7 @@ async def _grant(db: AsyncSession, role_id: int, resource: str, action: str) -> 
     db.expire_all()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def second_department(db_session: AsyncSession) -> Department:
     department = Department(name="Second Department", code="SECM", description="Second department")
     db_session.add(department)
@@ -41,7 +42,7 @@ async def second_department(db_session: AsyncSession) -> Department:
     return department
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def issue_metrics_data(
     db_session: AsyncSession,
     test_department: Department,

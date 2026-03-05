@@ -31,7 +31,15 @@ TARGET_PERMISSIONS = {
         "roles_to_revoke": ["control_owner"],  # Explicitly remove from control_owner
     },
     "controls:execute": {
-        "roles_to_grant": ["cro", "risk_manager", "internal_audit", "compliance"],
+        "roles_to_grant": [
+            "cro",
+            "risk_manager",
+            "compliance",
+            "internal_audit",
+            "actuarial",
+            "department_head",
+            "employee",
+        ],
         "roles_to_revoke": [],
     },
 }
