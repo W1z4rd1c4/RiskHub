@@ -1,7 +1,7 @@
 # RiskHub Business Logic Reference
 
 > **Version**: 1.1  
-> **Last Updated**: 2026-02-16  
+> **Last Updated**: 2026-03-05  
 > **Audience**: Product, Engineering, QA, Compliance  
 > **Source of Truth**: Backend RBAC and approval enforcement in `backend/app/`
 
@@ -110,7 +110,7 @@ Access-management read/list behavior and write behavior are intentionally differ
 | `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Applies to all mutable fields (`role_id`, `department_id`, `manager_id`, `access_scope`) |
 
 > [!IMPORTANT]
-> `admin` is a platform role, not a business-data superuser. Admin capabilities must not be interpreted as unrestricted business access.
+> `admin` is a platform role, not a business-data superuser. Admin capabilities must not be interpreted as unrestricted business access. Direct business `/governance` and `/activity-log` access remains blocked for `admin`, including direct route/API requests.
 
 ### 1.5 Documentation Library Visibility
 
@@ -246,7 +246,7 @@ Rules:
 | `controls:read` | View controls | All (scoped) |
 | `controls:write` | Create/edit controls | Risk Manager, Dept Head |
 | `controls:delete` | Delete controls | Privileged only (via approval) |
-| `controls:execute` | Log control executions | Control Owner, Executor |
+| `controls:execute` | Log control executions | CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Department Head, Employee |
 | `kri:read` | View KRIs | All (scoped) |
 | `kri:write` | Create/edit KRIs | Risk Manager |
 | `kri:submit` | Submit KRI values | Reporting Owner, Risk Owner |
@@ -254,7 +254,7 @@ Rules:
 | `approvals:write` | Approve/reject requests | Privileged users only |
 | `users:read` | View user list | Admin, CRO |
 | `users:write` | Create/edit users | Admin only |
-| `activity_log:read` | View activity log | Risk Manager, Compliance, Admin |
+| `activity_log:read` | View activity log | CRO, Risk Manager, Compliance, Department Head |
 | `vendors:read` | View vendors (Vendor Risk Management) | Governance + business users (scoped) |
 | `vendors:write` | Create/edit vendors | Outsourcing Owners, Risk Manager, Department Head |
 | `vendors:delete` | Archive vendors | Privileged users only |
@@ -263,6 +263,9 @@ Rules:
 | `issues:read` | View issues/findings | CRO, Risk Manager, Compliance, Internal Audit, Dept Head (scoped) |
 | `issues:write` | Create/edit issues and remediation | CRO, Risk Manager, Dept Head (scoped) |
 | `issues:approve` | Approve issue exceptions | CRO, Risk Manager (global approvers) |
+
+> [!NOTE]
+> Platform admins are console-only and are explicitly blocked from business Activity Log and Governance surfaces, including direct route/API access.
 
 ### 4.2 Role-Permission Grid
 
@@ -545,6 +548,9 @@ User requests action (DELETE or EDIT sensitive field)
 | Control Owner | `controls:execute` | Can log own controls (cross-dept) |
 | Department Member | `controls:execute` | Department controls only |
 | Privileged User | `controls:execute` | All controls |
+
+Default seeded roles with `controls:execute`: `cro`, `risk_manager`, `compliance`, `internal_audit`, `actuarial`, `department_head`, `employee`.
+The canonical RBAC seed contract and the idempotent permission-convergence script must stay aligned on that same role set.
 
 ### 8.7 Notification Types (Stable Keys)
 

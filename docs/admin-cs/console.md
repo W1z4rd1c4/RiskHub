@@ -1,7 +1,7 @@
 ---
 title: Admin Console (/admin)
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + admin API endpoints"
 summary: "Runbook pro platform adminy: Health check, application/audit logy, export evidence, triage session a bezpečná operativní podpora."
@@ -42,6 +42,7 @@ Důležitá hranice:
 
 - Platform admin nemá operovat business moduly (Rizika, Kontroly, KRI, Dodavatele, Issues).
 - Platform admin má ověřovat platformní chování a podporovat governance bezpečně.
+- Přímý business přístup na `/activity-log` a `/governance` je pro `admin` záměrně blokovaný; pro evidenci používejte audit/application logy a admin reports runbook.
 
 ## Kdy to použít
 

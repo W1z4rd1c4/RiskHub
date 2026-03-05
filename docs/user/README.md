@@ -1,7 +1,7 @@
 ---
 title: RiskHub User Documentation
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md"
 summary: "Production-grade manuals for day-to-day RiskHub usage: navigation, permissions, risk/control/KRI workflows, approvals, exports, and troubleshooting."
@@ -45,7 +45,7 @@ Use this library if your role is one of the following:
 - Compliance, Legal, Internal Audit, Actuarial
 - Viewer (read-only usage)
 
-If your account is a platform administrator (role `admin`), you will see a different documentation set in the in-app reader. This library remains focused on business operations, not platform administration.
+If your account is a platform administrator (role `admin`), you will see a different documentation set in the in-app reader. This library remains focused on business operations, not platform administration. Admins should expect business routes such as `/governance` and `/activity-log` to remain unavailable.
 
 ## What You Can Expect From These Manuals
 
@@ -96,8 +96,8 @@ This table maps what you see in the sidebar to the canonical manual page.
 | KRIs | `/kris` | [Managing KRIs](./kris.md) | Thresholds, value recording rules, breach signals | `kri`, `notifications`, `exports` |
 | Vendors (if enabled) | `/vendors` | [Managing Vendors](./vendors.md) | Third-party governance, assessments, incidents, exports | `vendors`, `approvals`, `exports` |
 | Departments | `/departments` | [Departments](./departments.md) | Exposure by org unit, drill-down, and responsibility patterns | `departments`, `workflow`, `exports` |
-| Governance (role-gated) | `/governance` | [Governance](./governance.md) | Orphans, ownership gaps, and governance resolution patterns | `governance`, `audit`, `troubleshooting` |
-| Activity Log (permission-gated) | `/activity-log` | [Activity Log](./activity-log.md) | “Who changed what”, timeline reconstruction, and audit evidence | `activity-log`, `audit`, `exports` |
+| Governance (CRO-only, non-admin) | `/governance` | [Governance](./governance.md) | Orphans, ownership gaps, and governance resolution patterns | `governance`, `audit`, `troubleshooting` |
+| Activity Log (permission-gated, non-admin) | `/activity-log` | [Activity Log](./activity-log.md) | “Who changed what”, timeline reconstruction, and audit evidence | `activity-log`, `audit`, `exports` |
 | Users / Access Management (role-gated) | `/users` | [Access Management](./access-management.md) | Visibility rules, role/scope interpretation, and access checks | `access`, `audit`, `settings` |
 | Risk Hub (CRO only) | `/risk-hub` | [Risk Hub](./risk-hub.md) | Governance configuration concepts and safe operating patterns | `riskhub`, `settings`, `approvals` |
 | Settings | `/settings` | [Getting Started](./getting-started.md) | Preferences (language/theme) and documentation navigation | `settings`, `onboarding`, `workflow` |
@@ -139,6 +139,7 @@ Practical rules:
 - If a sidebar item is missing (for example Issues), check permissions first.
 - If the sidebar item exists but lists look empty, check scope and filters.
 - If you can open a detail page from a link but can’t find it via lists, it is often a scope boundary plus an ownership exception.
+- If you are logged in as platform admin, missing business modules is expected. Use the admin documentation library and `/admin` surfaces instead.
 
 When in doubt, reproduce with:
 

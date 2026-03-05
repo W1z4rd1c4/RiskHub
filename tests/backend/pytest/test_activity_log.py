@@ -33,7 +33,7 @@ from app.models.user import AccessScope
 
 
 @pytest.mark.asyncio
-async def test_activity_log_allows_null_actor_id(auth_client: AsyncClient, db_session):
+async def test_activity_log_allows_null_actor_id(client_cro: AsyncClient, db_session):
     await log_activity(
         db_session,
         entity_type=ActivityEntityType.RISK,
@@ -47,7 +47,7 @@ async def test_activity_log_allows_null_actor_id(auth_client: AsyncClient, db_se
     )
     await db_session.commit()
 
-    response = await auth_client.get("/api/v1/activity-log")
+    response = await client_cro.get("/api/v1/activity-log")
     assert response.status_code == 200
     items = response.json()["items"]
     assert any(item["actor_id"] is None for item in items)
@@ -466,7 +466,7 @@ async def test_user_create_update_activity_log(
 
 @pytest.mark.asyncio
 async def test_activity_log_search_in_changes_and_default_window(
-    auth_client: AsyncClient,
+    client_cro: AsyncClient,
     db_session,
 ):
     await log_activity(
@@ -495,15 +495,15 @@ async def test_activity_log_search_in_changes_and_default_window(
     db_session.add(old_entry)
     await db_session.commit()
 
-    response = await auth_client.get("/api/v1/activity-log", params={"search": "search-needle"})
+    response = await client_cro.get("/api/v1/activity-log", params={"search": "search-needle"})
     assert response.status_code == 200
     assert any(item["entity_name"] == "Recent Entry" for item in response.json()["items"])
 
-    response = await auth_client.get("/api/v1/activity-log", params={"search": "ancient-needle"})
+    response = await client_cro.get("/api/v1/activity-log", params={"search": "ancient-needle"})
     assert response.status_code == 200
     assert all(item["entity_name"] != "Old Entry" for item in response.json()["items"])
 
-    response = await auth_client.get(
+    response = await client_cro.get(
         "/api/v1/activity-log",
         params={
             "search": "ancient-needle",
@@ -701,3 +701,22 @@ async def test_activity_log_department_scoping(db_session):
             assert all(item["entity_name"] != "Dept B Entry" for item in items)
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/v1/activity-log",
+        "/api/v1/activity-log/entity-types",
+        "/api/v1/activity-log/actions",
+    ],
+)
+async def test_platform_admin_is_denied_business_activity_log(
+    client_platform_admin: AsyncClient,
+    path: str,
+):
+    response = await client_platform_admin.get(path)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Platform admins cannot access the business Activity Log"

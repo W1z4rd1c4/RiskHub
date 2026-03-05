@@ -137,6 +137,7 @@ describe('RBAC UI gating', () => {
         });
         const adminAuthz = buildAuthz(admin, makeHasPermission(admin.effective_permissions));
         expect(adminAuthz.canViewAdminConsole).toBe(true);
+        expect(adminAuthz.canViewGovernance).toBe(false);
         expect(adminAuthz.canViewRiskHub).toBe(false);
         expect(adminAuthz.canViewActivityLog).toBe(false);
         expect(adminAuthz.canManageAccess).toBe(true);

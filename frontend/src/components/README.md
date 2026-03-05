@@ -13,6 +13,7 @@ Folder for `frontend/src/components` implementation assets.
 - `ConfirmDialog.tsx`
 - `ControlCreateDialog.tsx`
 - `ControlForm.tsx`
+- `control-form/`
 - `controls/`
 - `dashboard/`
 - `documentation/`

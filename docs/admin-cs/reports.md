@@ -1,7 +1,7 @@
 ---
 title: Reporty a evidence exporty (admin runbook)
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + backend/app/api/v1/endpoints/admin/*"
 summary: "Admin runbook pro audit-ready exporty: co exportovat, jak správně omezit scope, jak zachovat provenance a jak bezpečně předat evidenci."
@@ -18,6 +18,8 @@ tags:
 ## Přehled
 
 “Reporting” pro platformního admina nejsou business dashboardy. Je to **produkce evidence**: vytváření dohledatelných exportů, které odpoví na konkrétní otázku při incidentu, auditu nebo podpůrné investigaci.
+
+Admin nepoužívá business `/activity-log` ani `/governance` jako evidence plochu. Tyto routy jsou business-facing a pro `admin` záměrně blokované; podporovaná cesta evidence vede přes `/admin`.
 
 Admin evidence musí být:
 

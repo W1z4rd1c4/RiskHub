@@ -20,7 +20,7 @@
 
 **Milestone:** v1.0 MVP
 **Active Phases:** 90 (AD Emulator) and 156 in progress; 19 and 70 deferred
-**Documentation Status:** Reconciled with phase folders (2026-01-24)
+**Documentation Status:** Reconciled with phase folders and canonical docs (2026-03-05)
 
 ## Progress Summary
 
@@ -91,6 +91,29 @@
   - `docs/security/README.md`
   - `docs/security/reports/README.md`
   - `docs/security/reports/release-parity-go-2026-02-22.md`
+
+### Admin Boundary Verification + Documentation Reconciliation (2026-03-05)
+
+- ✅ Re-verified the admin/business boundary and RBAC seed contract after the latest fixes.
+- ✅ Focused authz/RBAC regression pack passed on current test topology:
+  - `PYTHONPATH=backend pytest tests/backend/pytest/test_activity_log.py tests/backend/pytest/test_orphaned_items_scan_and_stats.py tests/backend/pytest/test_executions.py tests/backend/pytest/api/v1/test_issues_rbac_api.py tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py tests/backend/pytest/api/v1/test_reports_issues.py tests/backend/pytest/test_seed_rbac_parity.py -q` → `50 passed`
+- ✅ Full backend regression gate passed:
+  - `make -f scripts/Makefile test` → `631 passed, 8 skipped, 13 warnings in 610.37s`
+- ✅ Frontend regression gates re-passed:
+  - `cd frontend && npm run test:run` → `48 files, 181 tests passed`
+  - `cd frontend && npx tsc --noEmit` → passed
+- ✅ Business-logic E2E regression gate passed:
+  - `cd frontend && npm run e2e:business-logic` → `572 passed, 152 skipped`
+- ✅ Documentation validation gates passed:
+  - `python3 scripts/check_docs_contract.py` → `Documentation contract OK`
+  - `make -f scripts/Makefile docs-topology-consistency` → passed after refreshing `.planning/codebase/STRUCTURE.md` to current tracked-file counts
+  - `cd backend && venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q` → `4 passed`
+  - `cd frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx` → `6 passed`
+- ✅ Canonical docs reconciled so the current contract is explicit across user/admin libraries:
+  - platform `admin` is console-only
+  - business `/governance` is CRO-only
+  - business `/activity-log` is permission-gated and blocked for platform admin
+  - `controls:execute` seed + convergence role set is aligned (`cro`, `risk_manager`, `compliance`, `internal_audit`, `actuarial`, `department_head`, `employee`)
 
 ### Phase 501 Execution (2026-02-16)
 
@@ -523,8 +546,8 @@
 - ✅ **72-04**: Risk Hub CRUD hardening + public-config gating
 - ✅ **72-05**: Frontend alignment with Risk Hub config (risk types, thresholds, approvals)
 - ✅ **72-06**: Granular permissions for KRI submission + execution logging (`kri:submit`, `controls:execute`)
-- ⏳ **72-07**: Full-modality permission independence + documentation reconciliation
-- ⏳ **72-08**: Full-modality cleanup (RBAC enforcement, migration convergence, repo hygiene)
+- ✅ **72-07**: Full-modality permission independence + documentation reconciliation
+- ✅ **72-08**: Full-modality cleanup (RBAC enforcement, migration convergence, repo hygiene)
 - ✅ **72-09**: Backend threshold propagation cleanup (reports + approvals)
 - ✅ **72-10**: Public endpoints for thresholds + risk types (non-CRO)
 - ✅ **72-11**: Frontend public-config consumption + dynamic type display
@@ -555,6 +578,8 @@
 | Activity Log Search | Default-window ILIKE with changes search (90-day default) | 2026-01-04 |
 | Activity Log Logging | Write in same transaction as business change (fail if logging fails) | 2026-01-04 |
 | Admin Activity Log Access | Admin console-only (explicitly blocked from activity_log:read) | 2026-01-04 |
+| Governance Surface Access | Governance is a CRO-only business surface; platform admin is blocked from direct route/API access | 2026-03-05 |
+| Control Execution Seed Contract | Canonical seed + convergence both grant `controls:execute` to `cro`, `risk_manager`, `compliance`, `internal_audit`, `actuarial`, `department_head`, `employee` | 2026-03-05 |
 | Activity Log View Modes | Implemented (Chronological, By Person, By Department, By Risk) | 2026-01-04 |
 | Quarterly Metric Semantics | Historical snapshots (Option C) for truthful QoQ comparisons | 2026-01-04 |
 

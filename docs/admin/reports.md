@@ -1,7 +1,7 @@
 ---
 title: Reports and Evidence Exports (Admin Runbook)
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + backend/app/api/v1/endpoints/admin/*"
 summary: "Admin runbook for producing audit-ready evidence exports: what to export, how to scope it, how to preserve provenance, and how to hand off safely."
@@ -18,6 +18,8 @@ tags:
 ## Overview
 
 “Reporting” for platform admins is not business dashboards. It is **evidence production**: creating traceable exports that answer a specific question during an incident, audit, or support investigation.
+
+Admins do not use business `/activity-log` or `/governance` as evidence surfaces. Those routes are business-facing and intentionally blocked for `admin`; the supported evidence path is `/admin`.
 
 Admin evidence must be:
 

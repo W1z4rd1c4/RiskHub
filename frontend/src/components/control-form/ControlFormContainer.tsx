@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
     Save,
@@ -18,29 +18,22 @@ import { parseUpdateResult } from '@/lib/approvalUi';
 import { useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { controlApi } from '@/services/controlApi';
-import { ApiClientError } from '@/services/apiClient';
-import { lookupApi } from '@/services/lookupApi';
-import type { UserLookupItem } from '@/services/lookupApi';
-import { riskApi } from '@/services/riskApi';
 import type { Control, ControlCreate, ControlUpdate } from '@/types/control';
 import { ControlForm as ControlFormType, ControlFrequency, ControlStatus } from '@/types/control';
-import type { RiskSummary, ControlEffectiveness } from '@/types/risk';
+import type { ControlEffectiveness } from '@/types/risk';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { ControlFormOwnershipStep } from './ControlFormOwnershipStep';
 import { ControlFormRiskLinkStep } from './ControlFormRiskLinkStep';
-import { formatFrequencyLabel } from './controlFormUtils';
+import { collectRiskFilterOptions, filterRisks, filterUsers, getOwnerAutoDepartmentId, getUniqueRoles } from './controlFormFilters';
+import { getControlFormSubmissionError, getControlFormStepError } from './controlFormValidation';
+import { formatFrequencyLabel, getControlFormErrorKey } from './controlFormUtils';
+import { useControlFormLookups } from './useControlFormLookups';
 
 interface ControlFormProps {
     initialData?: Control;
     isEdit?: boolean;
     onSuccess?: (controlId: number) => void;
     onCancel?: () => void;
-}
-
-interface DepartmentOption {
-    id: number;
-    name: string;
-    code: string;
 }
 
 export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }: ControlFormProps) {
@@ -59,16 +52,16 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
 
     // Approval-queued state for edit flows (HTTP 202)
     const [approvalQueued, setApprovalQueued] = useState<{ id: number; message: string } | null>(null);
-
-    // Lookup data
-    const [users, setUsers] = useState<UserLookupItem[]>([]);
-    const [departments, setDepartments] = useState<DepartmentOption[]>([]);
-    const [isLoadingLookups, setIsLoadingLookups] = useState(true);
-
-    // Risk Linking State
-    const [risks, setRisks] = useState<RiskSummary[]>([]);
+    const {
+        users,
+        departments,
+        risks,
+        isLoadingLookups,
+        isLoadingRisks,
+        dataErrorKey,
+        reloadData,
+    } = useControlFormLookups();
     const [riskSearch, setRiskSearch] = useState('');
-    const [isLoadingRisks, setIsLoadingRisks] = useState(false);
 
     // Owner search/filter
     const [ownerSearch, setOwnerSearch] = useState('');
@@ -83,9 +76,6 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
     const [selectedDept, setSelectedDept] = useState('');
     const [selectedProcess, setSelectedProcess] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
-    const [uniqueDepartments, setUniqueDepartments] = useState<string[]>([]);
-    const [uniqueProcesses, setUniqueProcesses] = useState<string[]>([]);
-    const [uniqueCategories, setUniqueCategories] = useState<string[]>([]);
 
     const [formData, setFormData] = useState<Partial<Control>>({
         name: '',
@@ -97,55 +87,21 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
         ...initialData
     });
 
-    // Fetch lookup data and risks on mount
-    useEffect(() => {
-        const fetchLookups = async () => {
-            try {
-                setIsLoadingLookups(true);
-                const [usersData, deptData] = await Promise.all([
-                    lookupApi.getUsers(),
-                    lookupApi.getDepartments()
-                ]);
-                setUsers(usersData);
-                setDepartments(deptData);
-            } catch (err) {
-                console.error('Failed to load lookup data:', err);
-            } finally {
-                setIsLoadingLookups(false);
-            }
-        };
-
-        const fetchRisks = async () => {
-            try {
-                setIsLoadingRisks(true);
-                const response = await riskApi.getRisks({ limit: 100 });
-                if (response?.items) {
-                    setRisks(response.items);
-                }
-            } catch (err) {
-                console.error('Failed to load risks:', err);
-            } finally {
-                setIsLoadingRisks(false);
-            }
-        }
-
-        fetchLookups();
-        fetchRisks();
-    }, []);
-
-    // Extract unique filter options when risks load
-    useEffect(() => {
-        if (risks.length > 0) {
-            const depts = [...new Set(risks.map(r => r.department_name).filter(Boolean))].sort() as string[];
-            const procs = [...new Set(risks.map(r => r.process).filter(Boolean))].sort() as string[];
-            const cats = [...new Set(risks.map(r => r.category).filter(Boolean))].sort() as string[];
-
-            setUniqueDepartments(depts);
-            setUniqueProcesses(procs);
-            setUniqueCategories(cats);
-        }
-    }, [risks]);
-
+    const { uniqueDepartments, uniqueProcesses, uniqueCategories } = collectRiskFilterOptions(risks);
+    const filteredRisks = filterRisks(risks, {
+        riskSearch,
+        selectedDept,
+        selectedProcess,
+        selectedCategory,
+    });
+    const filteredUsers = filterUsers(users, {
+        ownerSearch,
+        roleFilter,
+        departmentId: formData.department_id,
+    });
+    const uniqueRoles = getUniqueRoles(users);
+    const selectedRisk = risks.find((risk) => risk.id === selectedRiskId);
+    const visibleError = error ?? dataErrorKey;
 
     const handleInputChange = (field: keyof Control, value: unknown) => {
         setFormData(prev => {
@@ -153,9 +109,9 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
 
             // Auto-fill department when owner is selected
             if (field === 'control_owner_id' && value) {
-                const selectedUser = users.find(u => u.id === value);
-                if (selectedUser?.department_id) {
-                    newData.department_id = selectedUser.department_id;
+                const departmentId = getOwnerAutoDepartmentId(users, value);
+                if (departmentId) {
+                    newData.department_id = departmentId;
                 }
             }
 
@@ -164,86 +120,22 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
         setError(null); // Clear error on change
     };
 
-    const validateStep0 = () => {
-        if (!formData.name?.trim()) {
-            setError(t('controls:form.validation.name_required'));
-            return false;
-        }
-        if (!formData.description?.trim()) {
-            setError(t('controls:form.validation.description_required'));
+    const validateStep = (stepIndex: number) => {
+        const nextError = getControlFormStepError(stepIndex, formData, t);
+        if (nextError) {
+            setError(nextError);
             return false;
         }
         return true;
     };
-
-    const validateStep1 = () => {
-        if (!formData.control_owner_id) {
-            setError(t('controls:form.validation.owner_required'));
-            return false;
-        }
-        if (!formData.process_owner_position?.trim()) {
-            setError(t('controls:form.validation.owner_position_required'));
-            return false;
-        }
-        if (!formData.department_id) {
-            setError(t('controls:form.validation.department_required'));
-            return false;
-        }
-        return true;
-    };
-
-    const validateStep2 = () => {
-        if (!formData.data_source?.trim()) {
-            setError(t('controls:form.validation.data_source_required'));
-            return false;
-        }
-        if (!formData.methodology_reference?.trim()) {
-            setError(t('controls:form.validation.methodology_reference_required'));
-            return false;
-        }
-        return true;
-    };
-
-    // Step 3 (Risk & Status) has defaults so it's always valid
-    // Step 4 (Risk Link) is optional
-
-    // Filter risks based on search AND dropdowns
-    const filteredRisks = risks.filter(risk => {
-        const matchesSearch = !riskSearch ||
-            risk.risk_id_code?.toLowerCase().includes(riskSearch.toLowerCase()) ||
-            risk.name?.toLowerCase().includes(riskSearch.toLowerCase()) ||
-            risk.process.toLowerCase().includes(riskSearch.toLowerCase()) ||
-            risk.category?.toLowerCase().includes(riskSearch.toLowerCase()) ||
-            risk.department_name?.toLowerCase().includes(riskSearch.toLowerCase());
-
-        const matchesDept = !selectedDept || risk.department_name === selectedDept;
-        const matchesProcess = !selectedProcess || risk.process === selectedProcess;
-        const matchesCategory = !selectedCategory || risk.category === selectedCategory;
-
-        return matchesSearch && matchesDept && matchesProcess && matchesCategory;
-    });
-
-    // Filtered users based on search, role, AND department
-    const filteredUsers = users.filter(user => {
-        const matchesSearch = !ownerSearch ||
-            user.name?.toLowerCase().includes(ownerSearch.toLowerCase()) ||
-            user.email?.toLowerCase().includes(ownerSearch.toLowerCase());
-        const matchesRole = !roleFilter || user.role_name === roleFilter;
-        // If department is selected, filter to that department's users
-        const matchesDepartment = !formData.department_id || user.department_id === formData.department_id;
-        return matchesSearch && matchesRole && matchesDepartment;
-    });
-
-    // Get unique roles for filter - role is an object with name property
-    const uniqueRoles: string[] = [...new Set(users.map(u => u.role_name).filter((r): r is string => !!r))];
-
-    const selectedRisk = risks.find(r => r.id === selectedRiskId);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // Final validation before submit
-        if (!validateStep0() || !validateStep1() || !validateStep2()) {
+        const submissionError = getControlFormSubmissionError(formData, t);
+        if (submissionError) {
+            setError(submissionError);
             return;
         }
 
@@ -293,11 +185,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
             }
         } catch (err: unknown) {
             console.error('Error saving control:', err);
-            if (err instanceof ApiClientError) {
-                setError(err.messageKey);
-            } else {
-                setError('errorKeys.save_control_failed');
-            }
+            setError(getControlFormErrorKey(err, 'errorKeys.save_control_failed'));
         } finally {
             setIsSubmitting(false);
         }
@@ -305,9 +193,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
 
     const nextStep = () => {
         setError(null);
-        if (currentStep === 0 && !validateStep0()) return;
-        if (currentStep === 1 && !validateStep1()) return;
-        if (currentStep === 2 && !validateStep2()) return;
+        if (!validateStep(currentStep)) return;
 
         setCurrentStep(prev => Math.min(prev + 1, steps.length - 1));
     };
@@ -384,10 +270,23 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                     </div>
                 )}
 
-                {error && (
+                {visibleError && (
                     <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-400 text-sm font-medium">
                         <AlertCircle className="h-5 w-5" />
-                        {error.startsWith('errorKeys.') ? t(error, { ns: 'errorKeys' }) : error}
+                        <span>
+                            {visibleError.startsWith('errorKeys.') ? t(visibleError, { ns: 'errorKeys' }) : visibleError}
+                        </span>
+                        {dataErrorKey && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    void reloadData();
+                                }}
+                                className="ml-auto text-xs underline hover:text-rose-300 transition-colors"
+                            >
+                                {t('common:actions.retry')}
+                            </button>
+                        )}
                     </div>
                 )}
 

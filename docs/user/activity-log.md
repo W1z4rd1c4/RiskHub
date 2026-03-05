@@ -1,7 +1,7 @@
 ---
 title: Activity Log (Audit Trail for Business Changes)
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "frontend/src/pages/ActivityLogPage.tsx + backend activity log endpoints"
 summary: "How to use the Activity Log to investigate changes, confirm approvals, and build an audit-ready narrative without exposing sensitive data."
@@ -47,7 +47,7 @@ Primary app route: `/activity-log`
 If you do not see Activity Log:
 
 - you likely do not have `activity_log:read` (resource `activity_log`, action `read`)
-- platform admins are explicitly blocked from business Activity Log (admins should use admin console logs instead)
+- platform admins are explicitly blocked from business Activity Log, including direct route/API access (admins should use admin console logs instead)
 
 ## Roles, Scope, and Visibility
 

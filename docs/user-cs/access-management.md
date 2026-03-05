@@ -1,7 +1,7 @@
 ---
 title: Správa přístupů a adresář uživatelů
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/authz/policy.ts + backend access APIs"
 summary: "Jak používat /users v directory módu a access módu, chápat role a scope a bezpečně žádat/ověřovat změny oprávnění."
@@ -69,6 +69,7 @@ Platform admin je záměrně oddělený:
 
 - nepracuje v business modulech
 - používá admin console a admin dokumentaci
+- business routy jako `/governance` a `/activity-log` pro něj zůstávají blokované i při přímém route/API přístupu
 
 Pokud jste platform admin, tento user manuál není váš primární runbook.
 
@@ -115,10 +116,10 @@ Diagnostický loop:
 2. Potvrďte svůj scope.
 3. Potvrďte permissions pro resource:
    - rizika: `risks:read` / `risks:write`
-   - kontroly: `controls:read` / `controls:write`
+   - kontroly: `controls:read` / `controls:write` / `controls:execute` (logování exekuce)
    - dodavatelé: `vendors:read` / `vendors:write`
    - nálezy: `issues:read` / `issues:write`
-   - activity log: `activity_log:read`
+   - business activity log: `activity_log:read` (jen pro ne-admin role)
 4. Pokud je potřeba, porovnejte effective permissions s privilegovaným uživatelem.
 
 ### 3) Jak správně požádat o změnu přístupu
@@ -170,6 +171,9 @@ Co očekávat:
 - uživatel může dostat notifikaci při změně přístupu
 - access akce často zanechávají stopu v Activity Logu
 
+Pokud změnu ověřujete jako platform admin, použijte admin console audit/log exporty místo business Activity Log route.
+  - platform admin má pro evidence použít admin console audit/log exporty místo business Activity Log route
+
 Pokud si myslíte, že změna čeká:
 
 - zkontrolujte `/approvals`
@@ -203,7 +207,7 @@ Users stránka není primárně export povrch.
 
 Pokud potřebujete audit evidence:
 
-- použijte Activity Log pro důkaz změny
+- použijte Activity Log pro důkaz změny, pokud jste business uživatel
 - koordinujte s platform adminy pro formální exporty, pokud jsou vyžadované
 
 ## Časté chyby

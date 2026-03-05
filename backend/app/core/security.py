@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import get_settings
-from app.core.permissions import has_permission
+from app.core.permissions import ensure_business_view_access, has_permission
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
 
@@ -142,6 +142,26 @@ def require_permission(resource: str, action: str):
     async def permission_checker(
         current_user: User = Depends(deps.get_current_user),
     ) -> User:
+        if not check_permission(current_user, resource, action):
+            forbid(f"Permission denied: {resource}:{action}")
+        return current_user
+
+    return permission_checker
+
+
+def require_business_permission(
+    resource: str,
+    action: str,
+    *,
+    detail: str = "Platform admins cannot access business data",
+):
+    """Require a permission while explicitly blocking platform admins from business views."""
+    from app.api import deps
+
+    async def permission_checker(
+        current_user: User = Depends(deps.get_current_user),
+    ) -> User:
+        ensure_business_view_access(current_user, detail=detail)
         if not check_permission(current_user, resource, action):
             forbid(f"Permission denied: {resource}:{action}")
         return current_user

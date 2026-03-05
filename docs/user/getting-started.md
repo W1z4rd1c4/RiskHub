@@ -1,7 +1,7 @@
 ---
 title: Getting Started with RiskHub
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routes"
 summary: "First-day onboarding manual for non-admin users: scope validation, navigation, workflow readiness, and how to avoid the most common early mistakes."
@@ -55,6 +55,7 @@ You will use these routes frequently:
 - issues: `/issues` (if enabled)
 - vendors: `/vendors` (if enabled)
 - departments: `/departments`
+- governance: `/governance` (CRO only)
 - settings (including docs): `/settings`
 
 If you can’t open a route you expect, treat it as an access/scope problem first, not a “bug”.
@@ -71,6 +72,7 @@ Practical examples:
 
 - you might see `/vendors` only if you have `vendors:read`
 - you might see `/issues` only if you have `issues:read`
+- you might see `/governance` only if you are CRO in the default contract
 - you might see `/activity-log` only if you have `activity_log:read` (and you are not a platform admin)
 
 Your scope determines *how wide* your default visibility is. Ownership can create exceptions.

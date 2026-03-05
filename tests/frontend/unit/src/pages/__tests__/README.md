@@ -7,6 +7,7 @@ Folder for `tests/frontend/unit/src/pages/__tests__` implementation assets.
 ## Contents
 
 - `ActivityLogPage.test.tsx`
+- `ApprovalsPage.presentation.test.ts`
 - `ControlDetailPage.issue-entry.test.tsx`
 - `ControlsPage.archived-visibility.test.tsx`
 - `DocumentationPage.test.tsx`

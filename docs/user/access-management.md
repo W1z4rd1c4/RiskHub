@@ -1,7 +1,7 @@
 ---
 title: Access Management and the Users Directory
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/authz/policy.ts + backend access APIs"
 summary: "How to use /users in directory mode and access mode, understand roles and scopes, and request/verify permission changes safely."
@@ -69,6 +69,7 @@ Platform admins are intentionally separated:
 
 - they do not browse business modules
 - they use admin console and admin documentation
+- business routes such as `/governance` and `/activity-log` stay blocked for them, even via direct route/API access
 
 If you are platform admin, these user docs are not your primary manual.
 
@@ -115,10 +116,10 @@ Use this diagnostic loop:
 2. Confirm your own scope.
 3. Confirm your permissions for the resource:
    - risks: `risks:read` / `risks:write`
-   - controls: `controls:read` / `controls:write`
+   - controls: `controls:read` / `controls:write` / `controls:execute` (execution logging)
    - vendors: `vendors:read` / `vendors:write`
    - issues: `issues:read` / `issues:write`
-   - activity log: `activity_log:read`
+   - business activity log: `activity_log:read` (non-admin only)
 4. If needed, ask a privileged user to compare your effective permissions.
 
 ### 3) Request an access change (safe pattern)
@@ -170,6 +171,9 @@ What to expect:
 - users may receive notifications when their access changes
 - access-related actions often leave a trail in the Activity Log
 
+If you are validating the change as platform admin, use admin console audit/log exports instead of the business Activity Log route.
+  - platform admins should use admin console audit/log exports instead of the business Activity Log route
+
 If you suspect a change is pending:
 
 - check `/approvals` for access-related requests
@@ -203,7 +207,7 @@ The Users page is not primarily an export surface.
 
 If you need evidence for an audit:
 
-- use Activity Log entries for change proof
+- use Activity Log entries for change proof when you are a business user
 - coordinate with platform admins for formal exports where required
 
 ## Common Mistakes

@@ -1,7 +1,7 @@
 ---
 title: FAQ a provozní podpora
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-05"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + chování workflow v aplikaci"
 summary: "Rychlé odpovědi na časté problémy: viditelnost, schvalování, editace, notifikace, exporty a co zkontrolovat před eskalací."
@@ -45,7 +45,7 @@ Před eskalací si uložte:
 - Mnoho odpovědí odkazuje na routy:
   - `/notifications`
   - `/approvals`
-  - `/activity-log` (pokud je povoleno)
+  - `/activity-log` (pokud je povoleno pro business roli; ne pro platform admina)
 
 ## Role, scope a viditelnost
 
@@ -57,13 +57,14 @@ Checklist:
 - scope je global nebo oddělení?
 - jste owner (ownership výjimka)?
 - není entita archivovaná?
-- máte vůbec oprávnění na danou funkcionalitu? (např. `issues:read`, `vendors:read`, `activity_log:read`)
+- máte vůbec oprávnění na danou funkcionalitu? (např. `issues:read`, `vendors:read`, `controls:execute`, `activity_log:read`)
 
 Praktické signály:
 
 - Pokud položka v menu úplně chybí (např. **Nálezy**), bývá to obvykle **oprávnění** (`issues:read`), ne filtry.
 - Pokud položka existuje, ale seznamy jsou prázdné, bývá to **scope** + **filtry**.
 - Pokud detail otevřete přes odkaz z notifikace, ale v seznamu ho nenajdete, často jde o **ownership výjimku** (owner může vidět/řešit záznam i mimo department scope).
+- Pokud jste přihlášeni jako `admin`, je očekávané, že business routy jako `/governance` a `/activity-log` neuvidíte. Používejte `/admin` a admin dokumentaci.
 
 Jedna klíčová věta:
 

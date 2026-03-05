@@ -1,9 +1,9 @@
 ---
 title: Správa dodavatelů
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-03-05"
 audience: user
-source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + vendor assessment workflows"
+source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/* + vendor assessment workflows"
 summary: "Kompletní manuál pro third‑party risk: onboarding dodavatelů, ownership, assessmenty, reassessmenty, incidenty, SLA, exporty a notifikace."
 tags:
   - vendors
@@ -101,6 +101,8 @@ Taby na detailu (high-level):
 - Schedule: cadence a due dates
 - Contract controls / resilience / dependencies: governance hloubka
 - Incidents / remediation / SLA / signals: monitoring a reakce
+
+Aktivní tab na detailu je možné linkovat. Pokud potřebujete někoho poslat rovnou do konkrétní sekce, použijte URL ve tvaru `/vendors/<id>?tab=sla`.
 
 ## Hlavní workflow
 

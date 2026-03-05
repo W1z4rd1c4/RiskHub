@@ -10,11 +10,11 @@ from app.models.user import AccessScope
 
 @pytest.mark.asyncio
 async def test_orphaned_items_list_does_not_scan_uncategorised(
-    auth_client: AsyncClient,
+    client_cro: AsyncClient,
     db_session: AsyncSession,
 ):
     before = (await db_session.execute(select(func.count(OrphanedItem.id)))).scalar() or 0
-    resp = await auth_client.get("/api/v1/orphaned-items/")
+    resp = await client_cro.get("/api/v1/orphaned-items/")
     assert resp.status_code == 200
     after = (await db_session.execute(select(func.count(OrphanedItem.id)))).scalar() or 0
     assert after == before
@@ -22,7 +22,7 @@ async def test_orphaned_items_list_does_not_scan_uncategorised(
 
 @pytest.mark.asyncio
 async def test_orphaned_items_scan_creates_orphans_for_uncategorised(
-    auth_client: AsyncClient,
+    client_cro: AsyncClient,
     db_session: AsyncSession,
     test_user: User,
 ):
@@ -68,7 +68,7 @@ async def test_orphaned_items_scan_creates_orphans_for_uncategorised(
     db_session.add_all([risk, control])
     await db_session.commit()
 
-    resp = await auth_client.post("/api/v1/orphaned-items/scan")
+    resp = await client_cro.post("/api/v1/orphaned-items/scan")
     assert resp.status_code == 200
     assert resp.json()["flagged"] >= 2
 
@@ -153,3 +153,22 @@ async def test_orphan_stats_are_scoped_by_department(
     assert data["risk_count"] == 1
     assert data["control_count"] == 0
     assert data["total_count"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "method,path",
+    [
+        ("get", "/api/v1/orphaned-items/"),
+        ("get", "/api/v1/orphaned-items/stats"),
+    ],
+)
+async def test_platform_admin_is_denied_governance_business_endpoints(
+    client_platform_admin: AsyncClient,
+    method: str,
+    path: str,
+):
+    response = await getattr(client_platform_admin, method)(path)
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Platform admins cannot access Governance business data"

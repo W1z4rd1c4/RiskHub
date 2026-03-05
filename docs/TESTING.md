@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
-> **Version**: 1.4
-> **Last Updated**: 2026-02-22
+> **Version**: 1.5
+> **Last Updated**: 2026-03-05
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
@@ -11,6 +11,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 
 | Surface | Command | Purpose |
 |---|---|---|
+| Backend RBAC/authz sweep | `cd . && PYTHONPATH=backend pytest tests/backend/pytest/test_activity_log.py tests/backend/pytest/test_orphaned_items_scan_and_stats.py tests/backend/pytest/test_executions.py tests/backend/pytest/api/v1/test_issues_rbac_api.py tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py tests/backend/pytest/api/v1/test_reports_issues.py tests/backend/pytest/test_seed_rbac_parity.py -q` | Focused admin-boundary, RBAC, and seed-contract regression pack |
 | Backend targeted | `cd backend && venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q` | Docs endpoint behavior and locale fallback |
 | Backend broad | `make -f scripts/Makefile test` | Full backend regression |
 | Backend lint + suppression budget | `make -f scripts/Makefile lint-backend` | Ruff hard gate plus backend/app suppression budget enforcement |
@@ -21,6 +22,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Frontend types | `cd frontend && npx tsc --noEmit` | Type safety gate |
 | Frontend quality chain | `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build` | Full frontend production quality gate |
 | Frontend E2E | `cd frontend && npm run e2e` | Browser-level regression |
+| Frontend business-logic E2E | `cd frontend && npm run e2e:business-logic` | Focused role/scope/admin-boundary and workflow regression |
 | Docs topology consistency | `cd . && make -f scripts/Makefile docs-topology-consistency` | README coverage, docs tree audit scope, and structure metrics consistency |
 | Suppression budget only | `cd . && make -f scripts/Makefile quality-suppression-budget` | Enforce backend suppression allowlist max budget/no-expired entries |
 | Docs contract | `cd . && python3 scripts/check_docs_contract.py` | Header/parity/link/audience checks |
@@ -63,6 +65,7 @@ When editing documentation libraries (`docs/admin*`, `docs/user*`) or docs endpo
 ```bash
 cd "."
 python3 scripts/check_docs_contract.py
+make -f scripts/Makefile docs-topology-consistency
 
 cd backend
 venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q
@@ -70,6 +73,16 @@ venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q
 cd ../frontend
 npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx
 npx tsc --noEmit
+```
+
+For RBAC/docs reconciliation sweeps that touch role boundaries or permission contracts, add:
+
+```bash
+cd "."
+PYTHONPATH=backend pytest tests/backend/pytest/test_activity_log.py tests/backend/pytest/test_orphaned_items_scan_and_stats.py tests/backend/pytest/test_executions.py tests/backend/pytest/api/v1/test_issues_rbac_api.py tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py tests/backend/pytest/api/v1/test_reports_issues.py tests/backend/pytest/test_seed_rbac_parity.py -q
+
+cd frontend
+npm run e2e:business-logic
 ```
 
 ## Troubleshooting
