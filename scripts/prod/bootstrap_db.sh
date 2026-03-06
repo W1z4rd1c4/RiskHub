@@ -90,10 +90,15 @@ if [[ -z "$BACKEND_ENV" ]]; then
   die "Missing --backend-env"
 fi
 preflight_backend_env "$BACKEND_ENV"
+if [[ "$DRY_RUN" != "true" ]]; then
+  require_file "$(envfile_get "$BACKEND_ENV" "REDIS_URL_FILE")"
+fi
 
 if [[ -z "$backend_image" ]]; then
   die "Missing --backend-image"
 fi
+require_dir "$SECRET_DIR"
+require_dir "$RUNTIME_DIR"
 
 if [[ -z "$bootstrap_email" ]]; then
   bootstrap_email="$(envfile_get "$BACKEND_ENV" "BOOTSTRAP_ADMIN_EMAIL" || true)"
@@ -134,23 +139,31 @@ fi
 
 confirm_or_die "Run DB bootstrap (RBAC + departments + bootstrap privileged users) against external PostgreSQL?"
 
+docker_common_args=(
+  docker run --rm
+  -v "${SECRET_DIR}:${SECRET_DIR}:ro"
+  -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro"
+  --env-file "$BACKEND_ENV"
+  "$backend_image"
+)
+
 log "Seeding RBAC roles/permissions (canonical contract)..."
-run docker run --rm --env-file "$BACKEND_ENV" "$backend_image" python -m scripts.seed_roles_permissions
+run "${docker_common_args[@]}" python -m scripts.seed_roles_permissions
 
 log "Seeding departments..."
-run docker run --rm --env-file "$BACKEND_ENV" "$backend_image" python -m scripts.seed_departments
+run "${docker_common_args[@]}" python -m scripts.seed_departments
 
 log "Bootstrapping initial SSO user by email (idempotent upsert)..."
 bootstrap_args=(python -m scripts.bootstrap_sso_user --email "$bootstrap_email" --role "$bootstrap_role" --access-scope "$bootstrap_scope")
 if [[ -n "$bootstrap_department" ]]; then
   bootstrap_args+=(--department "$bootstrap_department")
 fi
-run docker run --rm --env-file "$BACKEND_ENV" "$backend_image" "${bootstrap_args[@]}"
+run "${docker_common_args[@]}" "${bootstrap_args[@]}"
 
 if [[ -n "$cro_email" ]]; then
   log "Bootstrapping CRO SSO user by email (idempotent upsert)..."
   cro_args=(python -m scripts.bootstrap_sso_user --email "$cro_email" --role "cro" --access-scope "$cro_scope")
-  run docker run --rm --env-file "$BACKEND_ENV" "$backend_image" "${cro_args[@]}"
+  run "${docker_common_args[@]}" "${cro_args[@]}"
 fi
 
 log "DB bootstrap: OK"

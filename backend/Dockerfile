@@ -30,8 +30,8 @@ RUN apk add --no-cache \
     libpq \
     curl
 
-# Create non-root user for security
-RUN addgroup -S riskhub && adduser -S riskhub -G riskhub
+# Create non-root user with a stable uid/gid for host-mounted secret readability.
+RUN addgroup -S -g 10001 riskhub && adduser -S -D -u 10001 -G riskhub riskhub
 
 # Copy Python packages from builder
 COPY --from=builder /root/.local /home/riskhub/.local
