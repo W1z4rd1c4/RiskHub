@@ -12,6 +12,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { getDemoTokenByAccountName } from './helpers/api-auth';
 import { loginAsDemoUser, DEMO_ACCOUNTS } from './helpers/login';
 import { waitForDataLoad } from './helpers/wait';
 import { navigateSpa } from './helpers/spaNavigate';
@@ -501,12 +502,7 @@ test.describe('Polish Audit (page-by-page)', () => {
                     // Login (demo account picker)
                     await loginAsDemoUser(page, accountName);
 
-                    const authToken = await page.evaluate(
-                        () => (window as Window & { __RISKHUB_ACCESS_TOKEN__?: string | null }).__RISKHUB_ACCESS_TOKEN__ ?? null
-                    );
-                    if (!authToken) {
-                        throw new Error('polish-audit: missing access_token after login');
-                    }
+                    const authToken = await getDemoTokenByAccountName(accountName);
 
                     // Post-login: core routes per role
                     const baseRoutes: string[] = role === 'ADMIN'

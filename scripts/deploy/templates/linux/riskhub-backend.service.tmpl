@@ -1,0 +1,19 @@
+[Unit]
+Description=RiskHub Backend API
+After=network-online.target __REDIS_SERVICE__.service
+Wants=network-online.target
+Requires=__REDIS_SERVICE__.service
+
+[Service]
+Type=simple
+User=riskhub
+Group=riskhub
+WorkingDirectory=__CURRENT_LINK__/backend
+EnvironmentFile=__RUNTIME_ENV__
+Environment=ENABLE_SCHEDULER=false
+ExecStart=__CURRENT_LINK__/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers __API_WORKERS__
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

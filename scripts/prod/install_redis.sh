@@ -9,15 +9,17 @@ source "${SCRIPT_DIR}/lib/common.sh"
 source "${SCRIPT_DIR}/lib/preflight.sh"
 
 replace=false
+redis_image=""
 
 usage() {
   cat <<EOF
-Usage: scripts/prod/install_redis.sh --backend-env PATH [options]
+Usage: scripts/prod/install_redis.sh --backend-env PATH --redis-image IMAGE [options]
 
 Installs/ensures the Phase 500 Redis container (required for production mode).
 
 Options:
-  --backend-env PATH   Path to backend.env (reads REDIS_PASSWORD)
+  --backend-env PATH   Path to backend.env (validates the rendered runtime contract)
+  --redis-image IMAGE  Redis wrapper image ref (for example ghcr.io/<owner>/riskhub-redis:v1.2.3)
   --replace            Force recreate container even if it exists
   --dry-run            Print commands without executing
   --yes                Non-interactive confirmation
@@ -34,6 +36,10 @@ fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --redis-image)
+      redis_image="${2:-}"
+      shift 2
+      ;;
     --replace)
       replace=true
       shift
@@ -54,9 +60,13 @@ if [[ -z "$BACKEND_ENV" ]]; then
   die "Missing --backend-env"
 fi
 preflight_backend_env "$BACKEND_ENV"
+if [[ -z "$redis_image" ]]; then
+  die "Missing --redis-image"
+fi
 
 ensure_network "$NETWORK_NAME"
 ensure_volume "$REDIS_DATA_VOLUME"
+require_dir "$SECRET_DIR"
 
 if container_exists "$REDIS_CONTAINER"; then
   if [[ "$replace" != "true" ]]; then
@@ -66,22 +76,17 @@ if container_exists "$REDIS_CONTAINER"; then
   rm_container_if_exists "$REDIS_CONTAINER"
 fi
 
-redis_password="$(envfile_get "$BACKEND_ENV" "REDIS_PASSWORD" || true)"
-if [[ -z "$redis_password" ]]; then
-  die "REDIS_PASSWORD is required in backend env"
-fi
-
 log "Installing redis container: $REDIS_CONTAINER"
 run_redacted \
-  "docker run -d --name $REDIS_CONTAINER ... redis-server --requirepass ***" \
+  "docker run -d --name $REDIS_CONTAINER ... $redis_image" \
   docker run -d \
   --name "$REDIS_CONTAINER" \
   --restart unless-stopped \
   --security-opt no-new-privileges \
   --network "$NETWORK_NAME" \
   --network-alias redis \
+  -v "${SECRET_DIR}:${SECRET_DIR}:ro" \
   -v "${REDIS_DATA_VOLUME}:/data" \
-  redis:7-alpine \
-  redis-server --appendonly yes --requirepass "$redis_password"
+  "$redis_image"
 
 log "Redis install: OK"
