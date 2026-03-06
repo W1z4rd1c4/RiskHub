@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 
-class LocalStorageMock {
+class StorageMock {
     private store = new Map<string, string>();
 
     getItem(key: string) {
@@ -20,22 +20,23 @@ class LocalStorageMock {
     }
 }
 
-const ensureLocalStorage = () => {
+const ensureStorage = (name: 'localStorage' | 'sessionStorage') => {
     const target = typeof window !== 'undefined' ? window : globalThis;
-    // Avoid reading `target.localStorage` directly: in newer Node versions this can trigger
+    // Avoid reading `target[name]` directly: in newer Node versions this can trigger
     // the built-in WebStorage getter and emit warnings.
-    const descriptor = Object.getOwnPropertyDescriptor(target, 'localStorage');
+    const descriptor = Object.getOwnPropertyDescriptor(target, name);
     if (descriptor && descriptor.configurable === false) {
         return;
     }
 
-    Object.defineProperty(target, 'localStorage', {
-        value: new LocalStorageMock(),
+    Object.defineProperty(target, name, {
+        value: new StorageMock(),
         configurable: true,
     });
 };
 
-ensureLocalStorage();
+ensureStorage('localStorage');
+ensureStorage('sessionStorage');
 
 // Radix UI Select relies on Pointer Events + pointer capture APIs which are not
 // implemented in JSDOM. Provide minimal no-op polyfills for test environment.
@@ -59,6 +60,9 @@ if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !=
 afterEach(async () => {
     if (typeof localStorage !== 'undefined') {
         localStorage.clear();
+    }
+    if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.clear();
     }
     const tokenStore = await import('./src/services/accessTokenStore');
     tokenStore.clearAccessToken();

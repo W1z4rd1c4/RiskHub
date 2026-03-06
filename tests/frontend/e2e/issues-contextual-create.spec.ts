@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { getDemoTokenByAccountName } from './helpers/api-auth';
 import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 import { E2E_CONTROLS, E2E_KRIS, E2E_RISKS, E2E_VENDORS } from './fixtures/e2e-data';
 import { waitForDataLoad } from './helpers/wait';
@@ -31,10 +32,7 @@ test.describe('issues contextual create', () => {
         });
         await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
 
-        const token = await page.evaluate(
-            () => (window as Window & { __RISKHUB_ACCESS_TOKEN__?: string | null }).__RISKHUB_ACCESS_TOKEN__ ?? null
-        );
-        test.skip(!token, 'Token not available after login');
+        const token = await getDemoTokenByAccountName(DEMO_ACCOUNTS.CRO);
 
         const headers = {
             Authorization: `Bearer ${token}`,

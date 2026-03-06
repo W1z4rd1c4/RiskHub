@@ -54,14 +54,22 @@ if [[ -z "$BACKEND_ENV" ]]; then
   die "Missing --backend-env"
 fi
 preflight_backend_env "$BACKEND_ENV"
+if [[ "$DRY_RUN" != "true" ]]; then
+  require_file "$(envfile_get "$BACKEND_ENV" "REDIS_URL_FILE")"
+fi
 
 if [[ -z "$backend_image" ]]; then
   die "Missing --backend-image"
 fi
+require_dir "$SECRET_DIR"
+require_dir "$RUNTIME_DIR"
 
 log "Migration reminder: DB rollbacks are forward-fix/backup-driven (no automatic downgrade)."
 confirm_or_die "Run alembic migrations against external PostgreSQL?"
 
 log "Running migrations: alembic upgrade head"
-run docker run --rm --env-file "$BACKEND_ENV" "$backend_image" alembic upgrade head
+run docker run --rm \
+  -v "${SECRET_DIR}:${SECRET_DIR}:ro" \
+  -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro" \
+  --env-file "$BACKEND_ENV" "$backend_image" alembic upgrade head
 log "Migrations: OK"

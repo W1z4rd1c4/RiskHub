@@ -1,24 +1,20 @@
-# Phase 500 Config (Split Env Files)
+# Legacy Docker Runtime Env Templates
 
-This directory contains templates for the Phase 500 production install scripts:
+This directory is maintained only for the internal Docker executor behind `scripts/deploy.sh --target docker`.
 
-- `backend.env.example` -> `backend.env` (backend + DB + SSO + redis + bootstrap config, including `ENTRA_CLIENT_SECRET`)
-- `frontend.env.example` -> `frontend.env` (frontend published port config)
+- `backend.env.example` documents the rendered backend runtime contract.
+- `frontend.env.example` documents the rendered frontend runtime contract.
 
-Recommended host paths:
-
-- `/etc/riskhub/backend.env`
-- `/etc/riskhub/frontend.env`
-
-Key rules:
-
-- PostgreSQL is external. Do not use the compose `db` hostname in `DATABASE_URL`.
-- Redis is required when `DEBUG=false`. Phase 500 scripts install a redis container and use the docker network alias `redis`.
-- Backend is not published on the host by default. Frontend proxies `/api/*` to backend via docker network alias `backend`.
-- Docker `--env-file` does not expand `${VARS}`. The scripts compute `REDIS_URL` from `REDIS_PASSWORD` if `REDIS_URL` is empty.
-
-Example dry-run:
+Public production setup no longer asks operators to edit these files directly. Use:
 
 ```bash
-scripts/prod/deploy.sh --backend-env /etc/riskhub/backend.env --frontend-env /etc/riskhub/frontend.env --tag dev --dry-run --yes
+scripts/deploy.sh init --target docker
+scripts/deploy.sh secrets-edit --target docker
 ```
+
+Key rules for the internal Docker runtime contract:
+
+- PostgreSQL stays external.
+- `backend.env` must contain non-secret settings plus `*_FILE` references only.
+- Raw secret values live under `/etc/riskhub/secrets` and derived runtime files under `/etc/riskhub/runtime`.
+- Redis uses a dedicated wrapper image and reads its password from a mounted secret file.

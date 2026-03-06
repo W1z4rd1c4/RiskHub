@@ -152,18 +152,21 @@ clean:
 	rm -rf frontend/dist backend/.coverage tests/results
 
 # =============================================================================
-# Phase 500 (Production Install Scripts)
+# Production Deployment
 # =============================================================================
 
 verify-prod-install-scripts:
-	bash -n scripts/prod/*.sh scripts/prod/lib/*.sh
-	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/prod/*.sh
+	bash -n scripts/deploy.sh scripts/deploy/lib/*.sh scripts/prod/*.sh scripts/prod/lib/*.sh scripts/release/build_linux_bundle.sh docker/redis/entrypoint.sh
+	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/deploy.sh scripts/deploy/lib/*.sh scripts/prod/*.sh scripts/prod/lib/*.sh scripts/release/build_linux_bundle.sh docker/redis/entrypoint.sh
+	python3 -m py_compile scripts/deploy/lib/render.py
 	docker build -t riskhub-backend:verify-prod-install-scripts backend
 	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'test -f /app/scripts/seed_roles_permissions.py && test -f /app/scripts/seed_departments.py && test -f /app/scripts/bootstrap_sso_user.py'
 	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'python -c "import scripts.seed_roles_permissions, scripts.seed_departments, scripts.bootstrap_sso_user"'
 	docker build -t riskhub-frontend:verify-prod-install-scripts frontend
 	docker run --rm riskhub-frontend:verify-prod-install-scripts sh -lc 'test "$$(id -u)" != "0"'
-	cd backend && venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py -q
+	docker build -t riskhub-redis:verify-prod-install-scripts -f docker/redis/Dockerfile docker/redis
+	docker run --rm riskhub-redis:verify-prod-install-scripts sh -lc 'test "$$(id -u)" != "0"'
+	cd backend && venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py ../tests/backend/pytest/test_deploy_renderer_contracts.py ../tests/backend/pytest/test_deploy_cli_contracts.py ../tests/backend/pytest/test_settings_secret_files.py -q
 
 verify-setup-wizard:
 	bash -n scripts/setup.sh scripts/dev_test_setup.sh

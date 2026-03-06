@@ -1,66 +1,55 @@
-# RiskHub Deployment Guide
+# RiskHub Deployment
 
-> **Version**: 1.2  
-> **Last Updated**: 2026-02-22  
+> **Last Updated**: 2026-03-06
 > **Audience**: IT / DevOps / Platform Engineering
 
-Back to tree: [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
+Back to tree: [`../DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
----
+## Production Model
 
-## Overview
+RiskHub has one production deployment model with two supported targets:
 
-RiskHub is deployed as a containerized application:
+- `docker`: single Linux host with Docker, external PostgreSQL, Redis container, frontend/API same-origin on one host/domain
+- `linux`: Azure Linux VM or generic Linux VM without Docker, external PostgreSQL, local Redis managed by `riskhub-redis.service`, nginx + systemd
 
-- **backend**: FastAPI (Python) API server
-- **frontend**: nginx serving the SPA and reverse-proxying `/api` to the backend
-- **db**: PostgreSQL (system of record; either external/managed or containerized depending on deployment path)
-- **redis**: required in production for rate limiting + account lockout
+Common rules across both targets:
 
-The backend enforces strict production guardrails when `DEBUG=false` (secrets, CORS, auth mode, Redis reachability, webhook secret requirements).
+- External PostgreSQL is mandatory.
+- Operators edit `/etc/riskhub/riskhub.env` for non-secrets and `/etc/riskhub/secrets/` for secrets.
+- The admin entrypoint is `scripts/deploy.sh`.
+- The frontend serves the SPA and proxies `/api` on the same origin.
+- The scheduler runs as a separate singleton runtime.
+- Production runs with `DEBUG=false`, `MOCK_AUTH_ENABLED=false`, `AUTH_MODE=microsoft_sso`.
 
-## Quick Links
+## Read This First
 
 | Doc | Purpose |
-|-----|---------|
-| [Installation Manual](./installation-manual.md) | Recommended starting point (single-host install; external PostgreSQL) |
-| [Component Runtime Entrypoints](./component-runtime-entrypoints.md) | Frontend/backend/database component-scoped dev/test/prod scripts |
-| [Install Scripts (external PostgreSQL)](./external-postgres-install-scripts.md) | Single-host deployment when PostgreSQL is managed outside Docker |
-| [Docker Compose (prod)](./docker-compose-prod.md) | Single-host deployment using dockerized PostgreSQL + Redis |
-| [Kubernetes](./kubernetes.md) | Cluster deployment guidance (no manifests in repo) |
-| [Migrations](./migrations.md) | Alembic strategy, when/how to run, rollback posture |
-| [Security Checklist](./security-checklist.md) | Pre-flight and ongoing hardening checklist |
+|---|---|
+| [production.md](./production.md) | Operator quickstart for install, upgrade, smoke, logs, and rollback |
+| [reference.md](./reference.md) | Config keys, derived values, command reference, runtime defaults |
+| [advanced.md](./advanced.md) | Maintainer details, release artifacts, legacy/internal script mapping |
+| [migrations.md](./migrations.md) | Migration strategy and rollback posture |
+| [security-checklist.md](./security-checklist.md) | Hardening checklist before and after go-live |
 
-## Configuration Source of Truth
-
-- Install scripts path (external PostgreSQL):
-  - `scripts/prod/config/backend.env.example` + `scripts/prod/config/frontend.env.example`
-  - `scripts/prod/` (deploy/upgrade/rollback entrypoints)
-- Docker Compose path (dockerized PostgreSQL/Redis):
-  - `.env.example`
-  - `docker-compose.yml` + `docker-compose.prod.yml`
-- Production startup guards and invariants:
-  - `backend/app/main.py`
-
-## Operational Notes (Production)
-
-- **SSO-only**: when `DEBUG=false`, `AUTH_MODE` must be `microsoft_sso`.
-- **Redis required**: production startup fails if `REDIS_URL` is unset/unreachable.
-- **Scheduler**: disabled unless `ENABLE_SCHEDULER=true`. Run it in exactly one backend *process* to avoid duplicate jobs (see Compose/K8s docs).
-- **Docs/OpenAPI disabled**: `/docs` and `/openapi.json` are not served in production (`DEBUG=false`).
-
-## Release Parity Gate (Pre-Release)
-
-Run release parity before cutting a production release candidate:
+## Public Interface
 
 ```bash
-# Fast iteration loop (skips prod-readiness execution)
-python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness
-
-# Final release gate (includes prod-readiness execution/ingestion)
-python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>
+scripts/deploy.sh <init|secrets-init|secrets-edit|secrets-check|preflight|deploy|upgrade|status|logs|smoke|rollback> --target docker|linux
 ```
 
-- Evaluate `tests/results/release-parity-audit-<run-id>/decision.json`.
-- Release cut is blocked unless `decision == "GO"`.
-- Required evidence set lives under `tests/results/release-parity-audit-<run-id>/` and includes `report.md`, `decision.json`, `findings.json`, `matrix.json`, `fingerprints/runtime.json`, `deps/diffs.json`, and `ui/parity.json`.
+Release inputs:
+
+- `docker`: pull versioned GHCR images (`riskhub-backend:<version>`, `riskhub-frontend:<version>`, `riskhub-redis:<version>`)
+- `linux`: deploy `riskhub-linux-<version>.tar.gz`
+
+## Runtime Notes
+
+- Redis is required in production.
+- `/docs` and `/openapi.json` must stay disabled in production.
+- The scheduler must run exactly once:
+  - Docker target: dedicated scheduler container
+  - Linux target: dedicated `riskhub-scheduler.service`
+
+## Legacy Notes
+
+The old `scripts/prod/*` scripts remain in the repo as internal implementation for the Docker executor. They are no longer the operator-facing deployment surface.

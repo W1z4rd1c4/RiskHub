@@ -4,6 +4,7 @@
  */
 import { test, expect } from '@playwright/test';
 import { loginAsDemoUser } from './helpers/login';
+import { waitForPreferencesHydration } from './helpers/waitForPreferencesHydration';
 
 test.describe('Authentication', () => {
     test.describe('Demo Login', () => {
@@ -42,6 +43,16 @@ test.describe('Authentication', () => {
             await loginAsDemoUser(page, 'Jana Horáková');
 
             await expect(page).not.toHaveURL(/.*login/);
+        });
+
+        test('should stay authenticated after a same-tab reload', async ({ page }) => {
+            await loginAsDemoUser(page, 'Anna Kowalski');
+
+            await page.reload({ waitUntil: 'domcontentloaded' });
+            await waitForPreferencesHydration(page);
+
+            await expect(page).not.toHaveURL(/.*login/);
+            await expect(page.locator('[data-testid="logout-button"]')).toBeVisible();
         });
     });
 

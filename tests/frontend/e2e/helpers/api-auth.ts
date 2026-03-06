@@ -5,6 +5,18 @@ export interface DemoTokenOptions {
     fallbackUserIds?: number[];
 }
 
+const DEMO_TOKEN_OPTIONS_BY_ACCOUNT_NAME: Record<string, DemoTokenOptions> = {
+    'System Admin': { email: 'admin@riskhub.local', fallbackUserIds: [1] },
+    'Anna Kowalski': { email: 'cro@riskhub.local', fallbackUserIds: [2] },
+    'Petra Svobodová': { email: 'risk.manager@riskhub.local', fallbackUserIds: [3] },
+    'Eva Králová': { email: 'ops.head@riskhub.local', fallbackUserIds: [4] },
+    'Martin Procházka': { email: 'finance.head@riskhub.local', fallbackUserIds: [5] },
+    'Tomáš Novotný': { email: 'it.head@riskhub.local', fallbackUserIds: [6] },
+    'Jana Horáková': { email: 'ops.analyst@riskhub.local', fallbackUserIds: [7] },
+    'Lukáš Dvořák': { email: 'finance.analyst@riskhub.local', fallbackUserIds: [8] },
+    'Barbora Němcová': { email: 'it.analyst@riskhub.local', fallbackUserIds: [9] },
+};
+
 export interface VendorLookup {
     id: number;
     status: string;
@@ -22,6 +34,14 @@ export interface ControlLookup {
 
 export function getApiBaseUrl(): string {
     return process.env.BACKEND_URL || DEFAULT_API_BASE_URL;
+}
+
+export async function getDemoTokenByAccountName(accountName: string): Promise<string> {
+    const options = DEMO_TOKEN_OPTIONS_BY_ACCOUNT_NAME[accountName];
+    if (!options) {
+        throw new Error(`No demo token mapping defined for account '${accountName}'`);
+    }
+    return getDemoToken(options);
 }
 
 export async function getDemoToken(options: DemoTokenOptions): Promise<string> {

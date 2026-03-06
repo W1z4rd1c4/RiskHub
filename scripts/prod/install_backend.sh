@@ -80,6 +80,9 @@ if [[ -z "$BACKEND_ENV" ]]; then
   die "Missing --backend-env"
 fi
 preflight_backend_env "$BACKEND_ENV"
+if [[ "$DRY_RUN" != "true" ]]; then
+  require_file "$(envfile_get "$BACKEND_ENV" "REDIS_URL_FILE")"
+fi
 
 if [[ -z "$backend_image" ]]; then
   die "Missing --backend-image"
@@ -91,12 +94,8 @@ fi
 
 ensure_network "$NETWORK_NAME"
 ensure_volume "$BACKEND_LOGS_VOLUME"
-
-redis_password="$(envfile_get "$BACKEND_ENV" "REDIS_PASSWORD" || true)"
-if [[ -z "$redis_password" ]]; then
-  die "REDIS_PASSWORD is required in backend env"
-fi
-redis_url="redis://:${redis_password}@redis:6379/0"
+require_dir "$SECRET_DIR"
+require_dir "$RUNTIME_DIR"
 
 container_name="$BACKEND_CONTAINER"
 network_alias_args=(--network "$NETWORK_NAME")
@@ -157,15 +156,16 @@ if [[ ${#publish_args[@]} -gt 0 ]]; then
 fi
 docker_run_args+=(
   -v "${BACKEND_LOGS_VOLUME}:/app/logs"
+  -v "${SECRET_DIR}:${SECRET_DIR}:ro"
+  -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro"
   --env-file "$BACKEND_ENV"
-  -e "REDIS_URL=${redis_url}"
   -e "ENABLE_SCHEDULER=${enable_scheduler}"
   "$backend_image"
   uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers "$workers"
 )
 
 run_redacted \
-  "docker run -d --name $container_name ... --env-file $BACKEND_ENV -e REDIS_URL=*** -e ENABLE_SCHEDULER=$enable_scheduler $backend_image uvicorn ... --workers $workers" \
+  "docker run -d --name $container_name ... --env-file $BACKEND_ENV -e ENABLE_SCHEDULER=$enable_scheduler $backend_image uvicorn ... --workers $workers" \
   "${docker_run_args[@]}"
 
 log "Backend install: OK ($container_name)"

@@ -1,0 +1,18 @@
+[Unit]
+Description=RiskHub Local Redis
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=riskhub
+Group=riskhub
+RuntimeDirectory=riskhub
+StateDirectory=riskhub-redis
+ExecStartPre=/bin/sh -c 'umask 0077 && cat > /run/riskhub/redis.conf <<EOF\nbind 127.0.0.1\nport 6379\nappendonly yes\ndir /var/lib/riskhub-redis\nrequirepass $(cat __REDIS_PASSWORD_FILE__)\nEOF'
+ExecStart=redis-server /run/riskhub/redis.conf
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
