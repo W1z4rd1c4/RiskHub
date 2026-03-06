@@ -37,22 +37,21 @@ def _run_script(name: str, args: list[str], env: dict[str, str] | None = None) -
     )
 
 
-def _write_backend_env(path: Path) -> None:
+def _write_backend_env(path: Path, runtime_dir: Path, secret_dir: Path) -> None:
     path.write_text(
         "\n".join(
             [
                 "DEBUG=false",
                 "MOCK_AUTH_ENABLED=false",
                 "AUTH_MODE=microsoft_sso",
-                "SECRET_KEY=phase500-local-test-key-phase500-local-test",
-                "DATABASE_URL=postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub",
+                f"SECRET_KEY_FILE={secret_dir / 'secret_key'}",
+                f"DATABASE_URL_FILE={secret_dir / 'database_url'}",
                 'CORS_ORIGINS=["https://riskhub.example.com"]',
                 'ALLOWED_HOSTS=["riskhub.example.com"]',
-                "REDIS_PASSWORD=riskhub_test_password",
-                "REDIS_URL=",
+                f"REDIS_URL_FILE={runtime_dir / 'redis_url'}",
                 "ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000",
                 "ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111",
-                "ENTRA_CLIENT_SECRET=phase500-test-entra-client-secret",
+                f"ENTRA_CLIENT_SECRET_FILE={secret_dir / 'entra_client_secret'}",
                 "BOOTSTRAP_ADMIN_EMAIL=admin@example.com",
                 "BOOTSTRAP_ADMIN_ROLE=admin",
                 "BOOTSTRAP_ADMIN_ACCESS_SCOPE=global",
@@ -63,6 +62,18 @@ def _write_backend_env(path: Path) -> None:
         + "\n",
         encoding="utf-8",
     )
+
+
+def _write_secret_runtime(secret_dir: Path, runtime_dir: Path) -> None:
+    secret_dir.mkdir(parents=True, exist_ok=True)
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    (secret_dir / "secret_key").write_text("phase500-local-test-key-phase500-local-test\n", encoding="utf-8")
+    (secret_dir / "database_url").write_text(
+        "postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub\n",
+        encoding="utf-8",
+    )
+    (secret_dir / "entra_client_secret").write_text("phase500-test-entra-client-secret\n", encoding="utf-8")
+    (runtime_dir / "redis_url").write_text("redis://:riskhub_test_password@redis:6379/0\n", encoding="utf-8")
 
 
 def _write_frontend_env(path: Path, *, host_port: str, container_port: str) -> None:
@@ -80,12 +91,19 @@ def test_preflight_rejects_invalid_host_port_range() -> None:
         tmp = Path(td)
         backend_env = tmp / "backend.env"
         frontend_env = tmp / "frontend.env"
-        _write_backend_env(backend_env)
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_secret_runtime(secret_dir, runtime_dir)
+        _write_backend_env(backend_env, runtime_dir, secret_dir)
         _write_frontend_env(frontend_env, host_port="70000", container_port="80")
+        env = os.environ.copy()
+        env["RISKHUB_DEFAULT_SECRET_DIR"] = str(secret_dir)
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
 
         result = _run_script(
             "preflight.sh",
             ["--backend-env", str(backend_env), "--frontend-env", str(frontend_env), "--yes"],
+            env=env,
         )
         output = f"{result.stdout}\n{result.stderr}"
 
@@ -99,12 +117,19 @@ def test_preflight_rejects_invalid_container_port_format() -> None:
         tmp = Path(td)
         backend_env = tmp / "backend.env"
         frontend_env = tmp / "frontend.env"
-        _write_backend_env(backend_env)
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_secret_runtime(secret_dir, runtime_dir)
+        _write_backend_env(backend_env, runtime_dir, secret_dir)
         _write_frontend_env(frontend_env, host_port="18081", container_port="abc")
+        env = os.environ.copy()
+        env["RISKHUB_DEFAULT_SECRET_DIR"] = str(secret_dir)
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
 
         result = _run_script(
             "preflight.sh",
             ["--backend-env", str(backend_env), "--frontend-env", str(frontend_env), "--yes"],
+            env=env,
         )
         output = f"{result.stdout}\n{result.stderr}"
 

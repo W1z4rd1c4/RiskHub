@@ -1,10 +1,38 @@
 from functools import lru_cache
-from typing import Literal
+from pathlib import Path
+from typing import Any, Literal
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings
 
 from app.core.client_ip import DEFAULT_TRUSTED_PROXIES
+
+
+def _lookup_raw_value(data: dict[str, Any], *keys: str) -> tuple[bool, Any]:
+    for key in keys:
+        if key in data:
+            return True, data[key]
+    return False, None
+
+
+def _read_secret_value(file_env_name: str, raw_path: Any) -> str:
+    path = Path(str(raw_path)).expanduser()
+    try:
+        value = path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise ValueError(f"{file_env_name} points to a missing file: {path}") from exc
+    except PermissionError as exc:
+        raise ValueError(f"{file_env_name} is not readable: {path}") from exc
+    except OSError as exc:
+        raise ValueError(f"{file_env_name} could not be read: {path} ({exc})") from exc
+
+    if value.endswith("\n"):
+        value = value[:-1]
+        if value.endswith("\r"):
+            value = value[:-1]
+    if value == "":
+        raise ValueError(f"{file_env_name} must not point to an empty file: {path}")
+    return value
 
 
 class Settings(BaseSettings):
@@ -17,9 +45,21 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "postgresql+asyncpg://riskhub:riskhub@db:5432/riskhub"
+    database_url_file: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("DATABASE_URL_FILE", "database_url_file"),
+        exclude=True,
+        repr=False,
+    )
 
     # Authentication
     secret_key: str
+    secret_key_file: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("SECRET_KEY_FILE", "secret_key_file"),
+        exclude=True,
+        repr=False,
+    )
     # SECURITY: Never enable in production - allows X-Mock-User-Id header bypass
     mock_auth_enabled: bool = False  # Set to True in .env for development/demo
     access_token_expire_minutes: int = 60
@@ -34,6 +74,12 @@ class Settings(BaseSettings):
     entra_tenant_id: str | None = None
     entra_client_id: str | None = None
     entra_client_secret: str | None = None
+    entra_client_secret_file: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ENTRA_CLIENT_SECRET_FILE", "entra_client_secret_file"),
+        exclude=True,
+        repr=False,
+    )
     # SECURITY: JIT provisioning creates local users on first SSO login. Disable if you require
     # pre-provisioning via admin.
     entra_jit_provisioning_enabled: bool = True
@@ -60,6 +106,12 @@ class Settings(BaseSettings):
 
     # Redis (required in production for multi-worker rate limiting and account lockout)
     redis_url: str | None = None
+    redis_url_file: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("REDIS_URL_FILE", "redis_url_file"),
+        exclude=True,
+        repr=False,
+    )
     # Fail-closed route prefixes when Redis-backed controls are unavailable.
     rate_limit_fail_closed_prefixes: list[str] = Field(
         default_factory=lambda: ["/api/v1/auth", "/api/v1/admin", "/api/v1/approvals"]
@@ -94,6 +146,37 @@ class Settings(BaseSettings):
     # AD deprovision scheduler
     ad_deprovision_check_hour: int = 2
     ad_deprovision_check_minute: int = 0
+
+    @model_validator(mode="before")
+    @classmethod
+    def _resolve_file_backed_settings(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        resolved = dict(data)
+        mappings = (
+            ("database_url", "DATABASE_URL", "database_url_file", "DATABASE_URL_FILE"),
+            ("secret_key", "SECRET_KEY", "secret_key_file", "SECRET_KEY_FILE"),
+            (
+                "entra_client_secret",
+                "ENTRA_CLIENT_SECRET",
+                "entra_client_secret_file",
+                "ENTRA_CLIENT_SECRET_FILE",
+            ),
+            ("redis_url", "REDIS_URL", "redis_url_file", "REDIS_URL_FILE"),
+        )
+
+        for field_name, env_name, file_field_name, file_env_name in mappings:
+            value_found, _ = _lookup_raw_value(resolved, field_name, env_name)
+            file_found, file_path = _lookup_raw_value(resolved, file_field_name, file_env_name)
+            if value_found and file_found:
+                raise ValueError(f"{env_name} and {file_env_name} cannot both be set")
+            if not file_found:
+                continue
+            resolved[field_name] = _read_secret_value(file_env_name, file_path)
+            resolved[file_field_name] = str(file_path)
+
+        return resolved
 
     model_config = {
         "env_file": ".env",

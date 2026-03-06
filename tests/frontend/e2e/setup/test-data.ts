@@ -2,10 +2,10 @@
  * E2E Test Data Helpers
  *
  * API-based helpers for creating and cleaning up test data.
- * Use these for tests that need specific data state.
+ * Browser-global token access is intentionally unsupported; tests should use
+ * helper-driven demo-login token acquisition for API setup work.
  */
 
-import { Page } from '@playwright/test';
 import { E2E_APPROVALS, E2E_REQUIRED_FIXTURES } from '../fixtures/e2e-data';
 import { getApiBaseUrl, getDemoToken } from '../helpers/api-auth';
 
@@ -203,15 +203,6 @@ export async function cleanupTestData(ids: CleanupIds): Promise<void> {
     if (errors.length > 0) {
         console.warn('Cleanup warnings:', errors);
     }
-}
-
-/**
- * Extract auth token from page context (for tests that need API calls mid-test)
- */
-export async function getTokenFromPage(page: Page): Promise<string | null> {
-    return page.evaluate(() => {
-        return (window as Window & { __RISKHUB_ACCESS_TOKEN__?: string | null }).__RISKHUB_ACCESS_TOKEN__ ?? null;
-    });
 }
 
 interface DeterministicPreflightResult {

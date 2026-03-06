@@ -46,7 +46,7 @@ async function getMsalApp(): Promise<{ app: PublicClientApplication; scopes: str
                 redirectUri,
             },
             cache: {
-                cacheLocation: 'localStorage',
+                cacheLocation: 'sessionStorage',
             },
         });
 
