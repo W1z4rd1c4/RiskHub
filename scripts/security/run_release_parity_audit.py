@@ -472,10 +472,10 @@ class ReleaseParityAudit:
                 "type": "runtime",
             },
             {
-                "id": "setup_mode_prod",
-                "entrypoint": "scripts/setup.sh",
-                "mode": "prod",
-                "command": "./scripts/setup.sh --mode prod",
+                "id": "deploy_cli_prod_docker",
+                "entrypoint": "scripts/deploy.sh",
+                "mode": "prod_docker",
+                "command": "./scripts/deploy.sh deploy --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --version <version>",
                 "type": "runtime",
             },
             {
@@ -738,6 +738,45 @@ class ReleaseParityAudit:
         )
         return backend_env, frontend_env
 
+    def _prepare_deploy_cli_prod_layout(self) -> tuple[Path, Path, Path]:
+        config_path = self.tmp_dir / "riskhub.env"
+        secret_dir = self.tmp_dir / "secrets"
+        runtime_dir = self.tmp_dir / "runtime"
+
+        config_path.write_text(
+            "\n".join(
+                [
+                    "PUBLIC_URL=https://riskhub.example.com",
+                    "ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000",
+                    "ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111",
+                    "BOOTSTRAP_ADMIN_EMAIL=admin@example.com",
+                    "BOOTSTRAP_CRO_EMAIL=cro@example.com",
+                    "API_WORKERS=4",
+                    "FRONTEND_BIND_PORT=28081",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        secret_dir.mkdir(parents=True, exist_ok=True)
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        secret_dir.chmod(0o750)
+        runtime_dir.chmod(0o750)
+
+        secrets = {
+            "database_url": "postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub\n",
+            "secret_key": "release-parity-audit-secret-key-32-characters\n",
+            "entra_client_secret": "release-parity-entra-client-secret\n",
+            "redis_password": "release_parity_redis_password\n",
+        }
+        for name, value in secrets.items():
+            path = secret_dir / name
+            path.write_text(value, encoding="utf-8")
+            path.chmod(0o440)
+
+        return config_path, secret_dir, runtime_dir
+
     def _launch_failure_fingerprint(
         self,
         startup_path_id: str,
@@ -899,6 +938,7 @@ class ReleaseParityAudit:
 
     def _run_dynamic_paths(self) -> None:
         backend_env, frontend_env = self._prepare_prod_env_files()
+        deploy_config, deploy_secret_dir, deploy_runtime_dir = self._prepare_deploy_cli_prod_layout()
 
         self._stop_local_dev_processes()
         self._compose_down("cleanup_compose_down_pre")
@@ -1000,25 +1040,21 @@ class ReleaseParityAudit:
             }
         )
 
-        prod_setup_cmd = (
-            "./scripts/setup.sh --mode prod --yes --dry-run -- "
-            "--action exit "
-            f"--backend-env {shlex.quote(str(backend_env))} "
-            f"--frontend-env {shlex.quote(str(frontend_env))} "
-            "--public-url https://riskhub.example.com "
-            "--database-url postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub "
-            "--entra-tenant-id 00000000-0000-0000-0000-000000000000 "
-            "--entra-client-id 11111111-1111-1111-1111-111111111111 "
-            "--entra-client-secret release-parity-entra-client-secret "
-            "--bootstrap-admin-email admin@example.com "
-            "--bootstrap-cro-email cro@example.com "
-            f"--tag release-parity-{self.run_id}"
+        prod_deploy_cmd = (
+            f"RISKHUB_RUNTIME_DIR={shlex.quote(str(deploy_runtime_dir))} "
+            "./scripts/deploy.sh deploy --target docker "
+            f"--config {shlex.quote(str(deploy_config))} "
+            f"--secret-dir {shlex.quote(str(deploy_secret_dir))} "
+            "--backend-image ghcr.io/example/riskhub-backend:release-parity "
+            "--frontend-image ghcr.io/example/riskhub-frontend:release-parity "
+            "--redis-image ghcr.io/example/riskhub-redis:release-parity "
+            "--dry-run --yes"
         )
-        self._run("path_setup_mode_prod_dryrun", prod_setup_cmd, required=False, timeout_sec=1200)
+        self._run("path_deploy_cli_prod_docker_dryrun", prod_deploy_cmd, required=False, timeout_sec=1200)
         self.runtime_fingerprints.append(
             {
-                "startup_path_id": "setup_mode_prod",
-                "context_id": "setup_mode_prod_dryrun",
+                "startup_path_id": "deploy_cli_prod_docker",
+                "context_id": "deploy_cli_prod_docker_dryrun",
                 "captured_at_utc": self._iso(self._utc_now()),
                 "git_sha_expected": self.baseline.get("git_sha"),
                 "git_sha_observed": self.baseline.get("git_sha"),

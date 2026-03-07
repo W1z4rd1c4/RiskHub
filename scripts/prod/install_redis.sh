@@ -78,13 +78,14 @@ fi
 
 log "Installing redis container: $REDIS_CONTAINER"
 run_redacted \
-  "docker run -d --name $REDIS_CONTAINER ... $redis_image" \
+  "docker run -d --name $REDIS_CONTAINER -e RISKHUB_REDIS_PASSWORD_FILE=${SECRET_DIR}/redis_password ... $redis_image" \
   docker run -d \
   --name "$REDIS_CONTAINER" \
   --restart unless-stopped \
   --security-opt no-new-privileges \
   --network "$NETWORK_NAME" \
   --network-alias redis \
+  -e "RISKHUB_REDIS_PASSWORD_FILE=${SECRET_DIR}/redis_password" \
   -v "${SECRET_DIR}:${SECRET_DIR}:ro" \
   -v "${REDIS_DATA_VOLUME}:/data" \
   "$redis_image"

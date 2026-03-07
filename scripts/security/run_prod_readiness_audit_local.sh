@@ -159,55 +159,34 @@ PY
 POSTGRES_PORT="${POSTGRES_PORT:-$(pick_free_port 55432 55999)}"
 FRONTEND_HOST_PORT="${FRONTEND_HOST_PORT:-$(pick_free_port 28081 28999)}"
 POSTGRES_CONTAINER="riskhub-audit-pg-${RUN_ID//[^0-9]/}"
+REGISTRY_PORT="${REGISTRY_PORT:-$(pick_free_port 56000 56499)}"
+REGISTRY_CONTAINER="riskhub-audit-reg-${RUN_ID//[^0-9]/}"
+LOCAL_REGISTRY="127.0.0.1:${REGISTRY_PORT}"
 TAG_DEPLOY="audit-${RUN_ID//:/}"
 TAG_UPGRADE="${TAG_DEPLOY}-u1"
+CONFIG_PATH="$TMP_DIR/riskhub.env"
+SECRET_DIR_PATH="$TMP_DIR/secrets"
+RUNTIME_DIR_PATH="$TMP_DIR/runtime"
+BACKEND_IMAGE_DEPLOY="${LOCAL_REGISTRY}/riskhub-backend:${TAG_DEPLOY}"
+FRONTEND_IMAGE_DEPLOY="${LOCAL_REGISTRY}/riskhub-frontend:${TAG_DEPLOY}"
+REDIS_IMAGE_DEPLOY="${LOCAL_REGISTRY}/riskhub-redis:${TAG_DEPLOY}"
+BACKEND_IMAGE_UPGRADE="${LOCAL_REGISTRY}/riskhub-backend:${TAG_UPGRADE}"
+FRONTEND_IMAGE_UPGRADE="${LOCAL_REGISTRY}/riskhub-frontend:${TAG_UPGRADE}"
+REDIS_IMAGE_UPGRADE="${LOCAL_REGISTRY}/riskhub-redis:${TAG_UPGRADE}"
 
 cat >"$TMP_DIR/lifecycle_config.json" <<EOF
 {
   "postgres_container": "$POSTGRES_CONTAINER",
   "postgres_port": $POSTGRES_PORT,
+  "registry_container": "$REGISTRY_CONTAINER",
+  "registry_port": $REGISTRY_PORT,
   "frontend_host_port": $FRONTEND_HOST_PORT,
   "tag_deploy": "$TAG_DEPLOY",
-  "tag_upgrade": "$TAG_UPGRADE"
+  "tag_upgrade": "$TAG_UPGRADE",
+  "config_path": "$CONFIG_PATH",
+  "secret_dir": "$SECRET_DIR_PATH",
+  "runtime_dir": "$RUNTIME_DIR_PATH"
 }
-EOF
-
-cat >"$TMP_DIR/backend_valid.env" <<EOF
-DEBUG=false
-MOCK_AUTH_ENABLED=false
-AUTH_MODE=microsoft_sso
-SECRET_KEY=phase500-local-test-key-phase500-local-test
-DATABASE_URL=postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub
-CORS_ORIGINS=["https://riskhub.example.com"]
-ALLOWED_HOSTS=["riskhub.example.com"]
-REDIS_PASSWORD=riskhub_test_password
-REDIS_URL=
-ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000
-ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111
-BOOTSTRAP_ADMIN_EMAIL=admin@example.com
-BOOTSTRAP_ADMIN_ROLE=admin
-BOOTSTRAP_ADMIN_ACCESS_SCOPE=global
-BOOTSTRAP_CRO_EMAIL=cro@example.com
-BOOTSTRAP_CRO_ACCESS_SCOPE=global
-EOF
-
-cat >"$TMP_DIR/backend.env" <<EOF
-DEBUG=false
-MOCK_AUTH_ENABLED=false
-AUTH_MODE=microsoft_sso
-SECRET_KEY=phase500-local-test-key-phase500-local-test
-DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_audit@host.docker.internal:${POSTGRES_PORT}/riskhub
-CORS_ORIGINS=["https://riskhub.example.com"]
-ALLOWED_HOSTS=["riskhub.example.com"]
-REDIS_PASSWORD=riskhub_audit_redis_password
-REDIS_URL=
-ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000
-ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111
-BOOTSTRAP_ADMIN_EMAIL=admin@example.com
-BOOTSTRAP_ADMIN_ROLE=admin
-BOOTSTRAP_ADMIN_ACCESS_SCOPE=global
-BOOTSTRAP_CRO_EMAIL=cro@example.com
-BOOTSTRAP_CRO_ACCESS_SCOPE=global
 EOF
 
 cat >"$TMP_DIR/frontend.env" <<EOF
@@ -227,9 +206,6 @@ FRONTEND_HOST_PORT=${FRONTEND_HOST_PORT}
 FRONTEND_CONTAINER_PORT=abc
 SERVER_NAME=riskhub.example.com
 EOF
-
-cp "$TMP_DIR/backend_valid.env" "$TMP_DIR/setup_backend.env"
-cp "$TMP_DIR/frontend.env" "$TMP_DIR/setup_frontend.env"
 
 mkdir -p "$TMP_DIR/setup_tmp"
 python3 - "$TMP_DIR/setup_tmp" "$TMP_DIR/setup_tmp_dirs_before.json" <<'PY'
@@ -257,7 +233,64 @@ run_cmd "p2_verify_prod_install_scripts" true 3600 "$ROOT_DIR" "make -f scripts/
 run_cmd "p2_security_contract_probe" true 1200 "$ROOT_DIR" "make -f scripts/Makefile security-contract-probe"
 run_cmd "p2_security_gap_round5" true 1800 "$ROOT_DIR" "make -f scripts/Makefile security-gap-round5"
 run_cmd "p2_prod_guard_pytests" true 1200 "$ROOT_DIR" "cd backend && ./venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_security_headers.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py -q"
-run_cmd "p2_setup_dryrun_exit" true 600 "$ROOT_DIR" "TMPDIR='$TMP_DIR/setup_tmp' scripts/prod/setup.sh --yes --dry-run --action exit --backend-env '$TMP_DIR/setup_backend.env' --frontend-env '$TMP_DIR/setup_frontend.env' --public-url https://riskhub.example.com --database-url postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub --entra-tenant-id 00000000-0000-0000-0000-000000000000 --entra-client-id 11111111-1111-1111-1111-111111111111 --bootstrap-admin-email admin@example.com --bootstrap-cro-email cro@example.com --tag audit-dryrun"
+run_cmd "p2_deploy_cli_init" true 600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh init --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --yes"
+
+cat >"$CONFIG_PATH" <<EOF
+PUBLIC_URL=https://riskhub.example.com
+ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000
+ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111
+BOOTSTRAP_ADMIN_EMAIL=admin@example.com
+BOOTSTRAP_CRO_EMAIL=cro@example.com
+API_WORKERS=4
+FRONTEND_BIND_PORT=${FRONTEND_HOST_PORT}
+EOF
+
+chmod 600 "$CONFIG_PATH"
+mkdir -p "$SECRET_DIR_PATH" "$RUNTIME_DIR_PATH"
+chmod 750 "$SECRET_DIR_PATH" "$RUNTIME_DIR_PATH"
+
+cat >"$SECRET_DIR_PATH/database_url" <<EOF
+postgresql+asyncpg://riskhub:riskhub_audit@host.docker.internal:${POSTGRES_PORT}/riskhub
+EOF
+cat >"$SECRET_DIR_PATH/secret_key" <<'EOF'
+phase500-local-test-key-phase500-local-test
+EOF
+cat >"$SECRET_DIR_PATH/entra_client_secret" <<'EOF'
+phase500-test-entra-client-secret
+EOF
+cat >"$SECRET_DIR_PATH/redis_password" <<'EOF'
+riskhub_audit_redis_password
+EOF
+chmod 440 "$SECRET_DIR_PATH/database_url" "$SECRET_DIR_PATH/secret_key" "$SECRET_DIR_PATH/entra_client_secret" "$SECRET_DIR_PATH/redis_password"
+
+cat >"$RUNTIME_DIR_PATH/redis_url" <<'EOF'
+redis://:riskhub_audit_redis_password@redis:6379/0
+EOF
+chmod 440 "$RUNTIME_DIR_PATH/redis_url"
+
+cat >"$TMP_DIR/backend_valid.env" <<EOF
+DEBUG=false
+MOCK_AUTH_ENABLED=false
+AUTH_MODE=microsoft_sso
+SECRET_KEY_FILE=${SECRET_DIR_PATH}/secret_key
+DATABASE_URL_FILE=${SECRET_DIR_PATH}/database_url
+CORS_ORIGINS=["https://riskhub.example.com"]
+ALLOWED_HOSTS=["riskhub.example.com"]
+REDIS_URL_FILE=${RUNTIME_DIR_PATH}/redis_url
+ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000
+ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111
+ENTRA_CLIENT_SECRET_FILE=${SECRET_DIR_PATH}/entra_client_secret
+BOOTSTRAP_ADMIN_EMAIL=admin@example.com
+BOOTSTRAP_ADMIN_ROLE=admin
+BOOTSTRAP_ADMIN_ACCESS_SCOPE=global
+BOOTSTRAP_CRO_EMAIL=cro@example.com
+BOOTSTRAP_CRO_ACCESS_SCOPE=global
+EOF
+
+cp "$TMP_DIR/backend_valid.env" "$TMP_DIR/setup_backend.env"
+cp "$TMP_DIR/frontend.env" "$TMP_DIR/setup_frontend.env"
+
+run_cmd "p2_retired_setup_rejects" false 600 "$ROOT_DIR" "TMPDIR='$TMP_DIR/setup_tmp' scripts/prod/setup.sh --yes --dry-run --action exit --backend-env '$TMP_DIR/setup_backend.env' --frontend-env '$TMP_DIR/setup_frontend.env' --public-url https://riskhub.example.com --database-url postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub --entra-tenant-id 00000000-0000-0000-0000-000000000000 --entra-client-id 11111111-1111-1111-1111-111111111111 --bootstrap-admin-email admin@example.com --bootstrap-cro-email cro@example.com --tag audit-dryrun"
 run_cmd "p2_preflight_invalid_host_range" false 300 "$ROOT_DIR" "scripts/prod/preflight.sh --backend-env '$TMP_DIR/backend_valid.env' --frontend-env '$TMP_DIR/frontend_invalid_host.env' --yes"
 run_cmd "p2_preflight_invalid_container_port" false 300 "$ROOT_DIR" "scripts/prod/preflight.sh --backend-env '$TMP_DIR/backend_valid.env' --frontend-env '$TMP_DIR/frontend_invalid_container.env' --yes"
 
@@ -284,20 +317,29 @@ for cleanup_id in \
   "riskhub-backend" \
   "riskhub-backend-scheduler" \
   "riskhub-redis" \
-  "$POSTGRES_CONTAINER"; do
+  "$POSTGRES_CONTAINER" \
+  "$REGISTRY_CONTAINER"; do
   run_cmd "p3_cleanup_${cleanup_id}" false 120 "$ROOT_DIR" "docker rm -f ${cleanup_id}"
 done
 
 run_cmd "p3_start_postgres" true 300 "$ROOT_DIR" "docker run -d --name $POSTGRES_CONTAINER -e POSTGRES_USER=riskhub -e POSTGRES_PASSWORD=riskhub_audit -e POSTGRES_DB=riskhub -p ${POSTGRES_PORT}:5432 postgres:16"
 run_cmd "p3_wait_postgres" true 120 "$ROOT_DIR" "bash -lc \"for i in {1..60}; do docker exec $POSTGRES_CONTAINER pg_isready -U riskhub >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1\""
-
-run_cmd "p3_preflight_strict" true 600 "$ROOT_DIR" "scripts/prod/preflight.sh --backend-env '$TMP_DIR/backend.env' --frontend-env '$TMP_DIR/frontend.env' --yes"
-run_cmd "p3_deploy" true 3600 "$ROOT_DIR" "scripts/prod/deploy.sh --backend-env '$TMP_DIR/backend.env' --frontend-env '$TMP_DIR/frontend.env' --tag $TAG_DEPLOY --yes"
+run_cmd "p3_start_registry" true 300 "$ROOT_DIR" "docker run -d --name $REGISTRY_CONTAINER -p ${REGISTRY_PORT}:5000 registry:2"
+run_cmd "p3_wait_registry" true 120 "$ROOT_DIR" "bash -lc \"for i in {1..30}; do curl -fsS http://127.0.0.1:${REGISTRY_PORT}/v2/ >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1\""
+run_cmd "p3_build_push_backend_deploy" true 3600 "$ROOT_DIR" "docker build -t '$BACKEND_IMAGE_DEPLOY' backend && docker push '$BACKEND_IMAGE_DEPLOY'"
+run_cmd "p3_build_push_frontend_deploy" true 3600 "$ROOT_DIR" "docker build -t '$FRONTEND_IMAGE_DEPLOY' frontend && docker push '$FRONTEND_IMAGE_DEPLOY'"
+run_cmd "p3_build_push_redis_deploy" true 3600 "$ROOT_DIR" "docker build -t '$REDIS_IMAGE_DEPLOY' -f docker/redis/Dockerfile docker/redis && docker push '$REDIS_IMAGE_DEPLOY'"
+run_cmd "p3_cli_preflight" true 600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh preflight --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --yes"
+run_cmd "p3_cli_deploy" true 3600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh deploy --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --backend-image '$BACKEND_IMAGE_DEPLOY' --frontend-image '$FRONTEND_IMAGE_DEPLOY' --redis-image '$REDIS_IMAGE_DEPLOY' --yes"
+run_cmd "p3_status_after_deploy" true 300 "$ROOT_DIR" "./scripts/deploy.sh status --target docker"
 run_cmd "p3_verify_runtime" true 300 "$ROOT_DIR" "scripts/prod/verify_runtime.sh"
-run_cmd "p3_smoke_after_deploy" true 600 "$ROOT_DIR" "scripts/prod/smoke_test.sh --frontend-env '$TMP_DIR/frontend.env' --backend-env '$TMP_DIR/backend.env'"
-run_cmd "p3_upgrade" true 3600 "$ROOT_DIR" "scripts/prod/upgrade.sh --backend-env '$TMP_DIR/backend.env' --frontend-env '$TMP_DIR/frontend.env' --tag $TAG_UPGRADE --yes"
-run_cmd "p3_rollback" true 1800 "$ROOT_DIR" "scripts/prod/rollback.sh --backend-env '$TMP_DIR/backend.env' --frontend-env '$TMP_DIR/frontend.env' --i-understand-db-wont-downgrade --yes"
-run_cmd "p3_smoke_after_rollback" true 600 "$ROOT_DIR" "scripts/prod/smoke_test.sh --frontend-env '$TMP_DIR/frontend.env' --backend-env '$TMP_DIR/backend.env'"
+run_cmd "p3_cli_smoke_after_deploy" true 600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh smoke --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --yes"
+run_cmd "p3_build_push_backend_upgrade" true 3600 "$ROOT_DIR" "docker build -t '$BACKEND_IMAGE_UPGRADE' backend && docker push '$BACKEND_IMAGE_UPGRADE'"
+run_cmd "p3_build_push_frontend_upgrade" true 3600 "$ROOT_DIR" "docker build -t '$FRONTEND_IMAGE_UPGRADE' frontend && docker push '$FRONTEND_IMAGE_UPGRADE'"
+run_cmd "p3_build_push_redis_upgrade" true 3600 "$ROOT_DIR" "docker build -t '$REDIS_IMAGE_UPGRADE' -f docker/redis/Dockerfile docker/redis && docker push '$REDIS_IMAGE_UPGRADE'"
+run_cmd "p3_cli_upgrade" true 3600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh upgrade --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --backend-image '$BACKEND_IMAGE_UPGRADE' --frontend-image '$FRONTEND_IMAGE_UPGRADE' --redis-image '$REDIS_IMAGE_UPGRADE' --yes"
+run_cmd "p3_cli_rollback" true 1800 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh rollback --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --service all --yes"
+run_cmd "p3_cli_smoke_after_rollback" true 600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh smoke --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --yes"
 run_cmd "p3_backend_docs_code" true 120 "$ROOT_DIR" "docker exec riskhub-backend curl -sS -H 'Host: riskhub.example.com' -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs"
 run_cmd "p3_backend_openapi_code" true 120 "$ROOT_DIR" "docker exec riskhub-backend curl -sS -H 'Host: riskhub.example.com' -o /dev/null -w \"%{http_code}\" http://localhost:8000/openapi.json"
 run_cmd "p3_scheduler_ps" true 120 "$ROOT_DIR" "docker exec riskhub-backend-scheduler sh -lc \"ps -eo pid,comm,args | grep uvicorn | grep -v grep\""
@@ -308,9 +350,9 @@ run_cmd "p3_remove_postgres" false 120 "$ROOT_DIR" "docker rm -f $POSTGRES_CONTA
 run_cmd "p4_bandit_high_gate" true 1200 "$ROOT_DIR" "cd backend && ./venv/bin/bandit --ini .bandit -r app -f txt --severity-level high"
 run_cmd "p4_pip_audit" true 1200 "$ROOT_DIR" "cd backend && ./venv/bin/python -m pip_audit -r requirements.txt"
 run_cmd "p4_npm_audit_high" true 1200 "$ROOT_DIR" "cd frontend && npm audit --audit-level=high"
-run_cmd "p4_trivy_backend" true 1800 "$ROOT_DIR" "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v '$REPORTS_DIR':/out aquasec/trivy:0.57.1 image --severity HIGH,CRITICAL --format json -o /out/trivy-backend.json riskhub-backend:$TAG_UPGRADE"
-run_cmd "p4_trivy_frontend" true 1800 "$ROOT_DIR" "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v '$REPORTS_DIR':/out aquasec/trivy:0.57.1 image --severity HIGH,CRITICAL --format json -o /out/trivy-frontend.json riskhub-frontend:$TAG_UPGRADE"
-run_cmd "p4_syft_backend" true 1800 "$ROOT_DIR" "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v '$REPORTS_DIR':/out anchore/syft:latest riskhub-backend:$TAG_UPGRADE -o json=/out/sbom-backend.json"
+run_cmd "p4_trivy_backend" true 1800 "$ROOT_DIR" "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v '$REPORTS_DIR':/out aquasec/trivy:0.57.1 image --severity HIGH,CRITICAL --format json -o /out/trivy-backend.json '$BACKEND_IMAGE_UPGRADE'"
+run_cmd "p4_trivy_frontend" true 1800 "$ROOT_DIR" "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v '$REPORTS_DIR':/out aquasec/trivy:0.57.1 image --severity HIGH,CRITICAL --format json -o /out/trivy-frontend.json '$FRONTEND_IMAGE_UPGRADE'"
+run_cmd "p4_syft_backend" true 1800 "$ROOT_DIR" "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v '$REPORTS_DIR':/out anchore/syft:latest '$BACKEND_IMAGE_UPGRADE' -o json=/out/sbom-backend.json"
 run_cmd "p4_grype_backend" true 1800 "$ROOT_DIR" "docker run --rm -v '$ROOT_DIR':/repo -w /repo anchore/grype:latest sbom:/repo/tests/results/prod/prod-readiness-audit-$RUN_ID/reports/sbom-backend.json --config /repo/backend/security/grype-ignore.yaml -o json=/repo/tests/results/prod/prod-readiness-audit-$RUN_ID/reports/grype-backend.json"
 run_cmd "p4_gitleaks_parse_gate" true 600 "$ROOT_DIR" "docker run --rm -v '$ROOT_DIR':/repo -w /repo --entrypoint /bin/sh zricethezav/gitleaks:v8.18.2 -lc 'mkdir -p /tmp/gitleaks-empty && gitleaks detect --source /tmp/gitleaks-empty --no-git --config .gitleaks.toml --report-format json --report-path /tmp/gitleaks-parse.json --exit-code 0'"
 run_cmd "p4_gitleaks_scan" true 1200 "$ROOT_DIR" "docker run --rm -v '$ROOT_DIR':/repo -w /repo --entrypoint /bin/sh zricethezav/gitleaks:v8.18.2 -lc 'gitleaks detect --source /repo --config .gitleaks.toml --report-format json --report-path /repo/tests/results/prod/prod-readiness-audit-$RUN_ID/reports/gitleaks-report.json --exit-code 1'"
@@ -319,7 +361,8 @@ for cleanup_id in \
   "riskhub-frontend" \
   "riskhub-backend" \
   "riskhub-backend-scheduler" \
-  "riskhub-redis"; do
+  "riskhub-redis" \
+  "$REGISTRY_CONTAINER"; do
   run_cmd "cleanup_final_${cleanup_id}" false 120 "$ROOT_DIR" "docker rm -f ${cleanup_id}"
 done
 
@@ -443,7 +486,7 @@ setup_tmp_dirs_new = []
 if setup_tmp_dirs_new_path.exists():
     setup_tmp_dirs_new = json.loads(setup_tmp_dirs_new_path.read_text(encoding="utf-8"))
 
-deploy_log_text = read_text(logs_dir / "p3_deploy.log")
+deploy_log_text = read_text(logs_dir / "p3_cli_deploy.log")
 bootstrap_ok = "DB bootstrap: OK" in deploy_log_text
 bootstrap_fail_patterns = [
     "ModuleNotFoundError: No module named 'app'",
@@ -454,7 +497,7 @@ bootstrap_explicit_error = "ModuleNotFoundError: No module named 'app'" in deplo
 
 ph500_001_status = "fixed" if bootstrap_ok and not bootstrap_explicit_error else "reopened"
 ph500_002_status = "fixed" if frontend_uid is not None and frontend_uid != 0 else "reopened"
-ph500_003_status = "fixed" if rc("p2_setup_dryrun_exit") == 0 and not setup_tmp_dirs_new else "reopened"
+ph500_003_status = "fixed" if rc("p2_retired_setup_rejects") != 0 and not setup_tmp_dirs_new else "reopened"
 ph500_004_status = "fixed" if rc("p2_preflight_invalid_host_range") != 0 and rc("p2_preflight_invalid_container_port") != 0 else "reopened"
 
 prior_runtime = [
@@ -462,7 +505,7 @@ prior_runtime = [
         "id": "PH500-DA-001",
         "severity": "P0",
         "status": ph500_001_status,
-        "evidence": [str(logs_dir / "p3_deploy.log")],
+        "evidence": [str(logs_dir / "p3_cli_deploy.log")],
     },
     {
         "id": "PH500-DA-002",
@@ -474,7 +517,7 @@ prior_runtime = [
         "id": "PH500-DA-003",
         "severity": "P1",
         "status": ph500_003_status,
-        "evidence": [str(logs_dir / "p2_setup_dryrun_exit.log"), str(setup_tmp_dirs_new_path)],
+        "evidence": [str(logs_dir / "p2_retired_setup_rejects.log"), str(setup_tmp_dirs_new_path)],
     },
     {
         "id": "PH500-DA-004",
@@ -507,7 +550,13 @@ static_checks = [
         ),
     ),
     ("frontend non-root user", "USER riskhub" in frontend_dockerfile_text),
-    ("setup dry-run temp cleanup", "setup_tmp_dir" in setup_text and "trap cleanup EXIT" in setup_text),
+    (
+        "retired setup stub",
+        "DEPRECATED:" in setup_text
+        and "./scripts/deploy.sh" in setup_text
+        and "mktemp" not in setup_text
+        and "DATABASE_URL=" not in setup_text,
+    ),
     (
         "frontend host/container port validation",
         "FRONTEND_HOST_PORT must be between 1 and 65535" in preflight_lib_text
@@ -531,13 +580,14 @@ prior_static = [
 write_json(reports_dir / "prior-blocker-revalidation-static.json", prior_static)
 
 lifecycle_statuses = {
-    "p3_preflight_strict": rc("p3_preflight_strict"),
-    "p3_deploy": rc("p3_deploy"),
+    "p3_cli_preflight": rc("p3_cli_preflight"),
+    "p3_cli_deploy": rc("p3_cli_deploy"),
+    "p3_status_after_deploy": rc("p3_status_after_deploy"),
     "p3_verify_runtime": rc("p3_verify_runtime"),
-    "p3_smoke_after_deploy": rc("p3_smoke_after_deploy"),
-    "p3_upgrade": rc("p3_upgrade"),
-    "p3_rollback": rc("p3_rollback"),
-    "p3_smoke_after_rollback": rc("p3_smoke_after_rollback"),
+    "p3_cli_smoke_after_deploy": rc("p3_cli_smoke_after_deploy"),
+    "p3_cli_upgrade": rc("p3_cli_upgrade"),
+    "p3_cli_rollback": rc("p3_cli_rollback"),
+    "p3_cli_smoke_after_rollback": rc("p3_cli_smoke_after_rollback"),
 }
 (reports_dir / "lifecycle-rc.txt").write_text(
     "\n".join(f"{k}: {v}" for k, v in lifecycle_statuses.items()) + "\n",
@@ -558,7 +608,7 @@ supply_counts = {
 write_json(reports_dir / "supply-chain-counts.json", supply_counts)
 
 mc_06_pass = rc("p2_preflight_invalid_host_range") != 0 and rc("p2_preflight_invalid_container_port") != 0
-mc_07_pass = rc("p2_setup_dryrun_exit") == 0 and not setup_tmp_dirs_new
+mc_07_pass = rc("p2_retired_setup_rejects") != 0 and not setup_tmp_dirs_new
 mc_08_pass = frontend_uid is not None and frontend_uid != 0
 mc_09_pass = all(value == 0 for value in lifecycle_statuses.values())
 mc_10_pass = docs_code == 404 and openapi_code == 404
@@ -577,9 +627,9 @@ mandatory_controls = [
     {"id": "MC-04", "description": "Protocol parser abuse rejection", "severity": "Medium", "status": "PASS" if rc("p2_security_gap_round5") == 0 else "FAIL", "note": f"gap-round5 rc={rc('p2_security_gap_round5')}", "evidence": [str(logs_dir / "p2_security_gap_round5.log")]},
     {"id": "MC-05", "description": "Outbound SSRF/egress guards", "severity": "High", "status": "PASS" if rc("p2_security_gap_round5") == 0 else "FAIL", "note": f"gap-round5 rc={rc('p2_security_gap_round5')}", "evidence": [str(logs_dir / "p2_security_gap_round5.log")]},
     {"id": "MC-06", "description": "Preflight rejects invalid host/container frontend ports", "severity": "High", "status": "PASS" if mc_06_pass else "FAIL", "note": f"host_rc={rc('p2_preflight_invalid_host_range')} container_rc={rc('p2_preflight_invalid_container_port')}", "evidence": [str(logs_dir / "p2_preflight_invalid_host_range.log"), str(logs_dir / "p2_preflight_invalid_container_port.log")]},
-    {"id": "MC-07", "description": "setup.sh dry-run leaves no temp secret residue", "severity": "High", "status": "PASS" if mc_07_pass else "FAIL", "note": f"new_tmp_dirs={setup_tmp_dirs_new}", "evidence": [str(logs_dir / "p2_setup_dryrun_exit.log"), str(tmp_dir / 'setup_tmp_dirs_new.json')]},
+    {"id": "MC-07", "description": "Retired legacy setup.sh rejects invocation without temp secret residue", "severity": "High", "status": "PASS" if mc_07_pass else "FAIL", "note": f"rc={rc('p2_retired_setup_rejects')} new_tmp_dirs={setup_tmp_dirs_new}", "evidence": [str(logs_dir / "p2_retired_setup_rejects.log"), str(tmp_dir / 'setup_tmp_dirs_new.json')]},
     {"id": "MC-08", "description": "Frontend runtime executes as non-root UID", "severity": "High", "status": "PASS" if mc_08_pass else "FAIL", "note": f"uid={frontend_uid}", "evidence": [str(logs_dir / "p3_frontend_uid.log")]},
-    {"id": "MC-09", "description": "Lifecycle deploy/upgrade/rollback and smoke", "severity": "High", "status": "PASS" if mc_09_pass else "FAIL", "note": str(lifecycle_statuses), "evidence": [str(logs_dir / "p3_preflight_strict.log"), str(logs_dir / "p3_deploy.log"), str(logs_dir / "p3_verify_runtime.log"), str(logs_dir / "p3_smoke_after_deploy.log"), str(logs_dir / "p3_upgrade.log"), str(logs_dir / "p3_rollback.log"), str(logs_dir / "p3_smoke_after_rollback.log")]},
+    {"id": "MC-09", "description": "CLI lifecycle preflight/deploy/status/smoke/upgrade/rollback", "severity": "High", "status": "PASS" if mc_09_pass else "FAIL", "note": str(lifecycle_statuses), "evidence": [str(logs_dir / "p3_cli_preflight.log"), str(logs_dir / "p3_cli_deploy.log"), str(logs_dir / "p3_status_after_deploy.log"), str(logs_dir / "p3_verify_runtime.log"), str(logs_dir / "p3_cli_smoke_after_deploy.log"), str(logs_dir / "p3_cli_upgrade.log"), str(logs_dir / "p3_cli_rollback.log"), str(logs_dir / "p3_cli_smoke_after_rollback.log")]},
     {"id": "MC-10", "description": "Prod runtime disables /docs and /openapi.json", "severity": "Medium", "status": "PASS" if mc_10_pass else "FAIL", "note": f"docs_code={docs_code} openapi_code={openapi_code}", "evidence": [str(logs_dir / "p3_backend_docs_code.log"), str(logs_dir / "p3_backend_openapi_code.log")]},
     {"id": "MC-11", "description": "Protocol contract probe unresolved drift/defect == 0", "severity": "High", "status": "PASS" if mc_11_pass else "FAIL", "note": f"probe_unresolved={probe_unresolved} probe_security_defects={probe_security_defects}", "evidence": [str(logs_dir / "p2_security_contract_probe.log"), str(probe_results_path) if probe_results_path else "not found"]},
     {"id": "MC-12", "description": "Supply-chain gates report zero unresolved High/Critical", "severity": "High", "status": "PASS" if mc_12_pass else "FAIL", "note": json.dumps(supply_counts), "evidence": [str(logs_dir / "p4_bandit_high_gate.log"), str(logs_dir / "p4_pip_audit.log"), str(logs_dir / "p4_npm_audit_high.log"), str(logs_dir / "p4_trivy_backend.log"), str(logs_dir / "p4_trivy_frontend.log"), str(logs_dir / "p4_grype_backend.log"), str(logs_dir / "p4_gitleaks_scan.log"), str(reports_dir / "supply-chain-counts.json")]},
@@ -630,9 +680,9 @@ if ph500_001_status != "fixed":
         "owner_lane": "scripts/prod",
         "risk_statement": "Prior Phase500 blocker PH500-DA-001 remains unresolved",
         "status": "open",
-        "evidence": [str(logs_dir / "p3_deploy.log")],
+        "evidence": [str(logs_dir / "p3_cli_deploy.log")],
         "fix_plan": "Apply blocker-specific patch and rerun lifecycle + runtime checks.",
-        "verification_test": [str(logs_dir / "p3_deploy.log")],
+        "verification_test": [str(logs_dir / "p3_cli_deploy.log")],
         "target_date": "2026-02-29",
     })
 if gitleaks_findings_count > 0:
