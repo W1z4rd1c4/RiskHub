@@ -7,10 +7,11 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import Settings, get_settings
+from app.core.datetime_utils import utc_now
 
 # Initialize structured logging BEFORE app creation
 from app.core.logging import configure_logging, get_logger
-from app.core.scheduler import configure_scheduler, start_scheduler, stop_scheduler
+from app.core.scheduler import configure_scheduler, start_scheduler_async, stop_scheduler_async
 from app.core.schema_guard import enforce_schema_head
 
 configure_logging()
@@ -109,11 +110,11 @@ async def lifespan(app: FastAPI):
     else:
         app.state.account_lockout = AccountLockoutService(InMemoryAccountLockoutBackend())
 
-    start_scheduler()
+    await start_scheduler_async()
     yield
     # Shutdown
     logger.info("shutdown", message="RiskHub application shutting down")
-    stop_scheduler()
+    await stop_scheduler_async()
 
     db_engine = getattr(app.state, "db_engine", None)
     if db_engine is not None:
@@ -217,7 +218,8 @@ def create_app(settings: Settings) -> FastAPI:
     from app.db.session import init_app_db
 
     init_app_db(app, settings)
-    configure_scheduler(app.state.db_sessionmaker)
+    app.state.process_started_at = utc_now()
+    configure_scheduler(app.state.db_sessionmaker, app.state.db_engine)
 
     # CORS middleware
     app.add_middleware(

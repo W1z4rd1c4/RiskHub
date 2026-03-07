@@ -1,6 +1,6 @@
 # Production Quickstart
 
-> **Last Updated**: 2026-03-06
+> **Last Updated**: 2026-03-07
 > **Audience**: Production administrators
 
 ## Choose A Target
@@ -123,6 +123,26 @@ Logs:
 ```bash
 ./scripts/deploy.sh logs --target docker --service all --tail 200
 ./scripts/deploy.sh logs --target linux --service all --tail 200
+```
+
+The smoke step now also validates reliability runtime state:
+
+- `scheduler_job_runs` exists
+- `app_outbox_events` exists
+- exactly one running `__scheduler_runtime__` row is present
+- dead-letter outbox count is `0`
+
+If smoke fails on reliability checks, inspect the scheduler first:
+
+```bash
+./scripts/deploy.sh logs --target docker --service scheduler --tail 200
+./scripts/deploy.sh logs --target linux --service scheduler --tail 200
+```
+
+For Docker maintainer diagnostics, you can also run:
+
+```bash
+scripts/prod/verify_runtime.sh
 ```
 
 ## 6. Upgrade

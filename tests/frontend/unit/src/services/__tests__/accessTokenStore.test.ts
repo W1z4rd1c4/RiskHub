@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { clearAccessToken, getAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, getAccessToken, setAccessToken, subscribeAccessToken } from '@/services/accessTokenStore';
 
 type TokenWindow = Window & {
     __RISKHUB_ACCESS_TOKEN__?: string | null;
@@ -34,5 +34,19 @@ describe('accessTokenStore', () => {
         expect(getAccessToken()).toBeNull();
         expect(hasLegacyWindowToken()).toBe(false);
         expect((window as TokenWindow).__RISKHUB_ACCESS_TOKEN__).toBeUndefined();
+    });
+
+    it('notifies subscribers when the token changes', () => {
+        const seen: Array<string | null> = [];
+        const unsubscribe = subscribeAccessToken((token) => {
+            seen.push(token);
+        });
+
+        setAccessToken('riskhub-jwt');
+        clearAccessToken();
+        unsubscribe();
+        setAccessToken('ignored-after-unsubscribe');
+
+        expect(seen).toEqual(['riskhub-jwt', null]);
     });
 });

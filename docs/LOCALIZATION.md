@@ -1,7 +1,7 @@
 # RiskHub Localization Guide
 
-> **Version**: 1.1
-> **Last Updated**: 2026-02-16
+> **Version**: 1.2
+> **Last Updated**: 2026-03-07
 > **Audience**: Engineering, QA, Documentation Owners
 > **Source of Truth**: `frontend/src/i18n/`, `backend/app/i18n/`, `backend/app/api/v1/endpoints/admin/docs.py`
 
@@ -21,8 +21,14 @@ This guide defines how localization works across UI, backend messages, reports, 
 
 ## Frontend Rules
 
+- App-wide frontend i18n fallback/default behavior remains English (`en`).
 - Add new keys in English first, then mirror in Czech.
 - Keep namespace structure aligned between locales.
+- Production login exception:
+  - The production `/login` screen (`AUTH_MODE=microsoft_sso`) uses a page-local `CZ / EN` switch before authentication.
+  - That login screen defaults to Czech (`cs`).
+  - The pre-auth switch does not read or write the shared `riskhub-language` storage key.
+  - Persistent language preference remains part of the authenticated settings flow after sign-in.
 - Run UI localization checks before merging:
 
 ```bash
@@ -48,7 +54,8 @@ Docs endpoint behavior (`GET /api/v1/admin/docs`) is strict:
 
 2. Locale resolution is per file:
 - If localized file exists, return localized content.
-- If localized file is missing, return English file for that same filename.
+- If localized file is missing, return the English file for that same filename.
+- Fallback uses that selected file end-to-end: content and frontmatter metadata (`version`, `last_updated`, `source_of_truth`, tags-derived fields).
 
 3. The endpoint always returns metadata:
 - `audience`

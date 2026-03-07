@@ -6,10 +6,22 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from starlette.requests import Request
 
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.db.session import get_db
-from app.models import Control, KeyRiskIndicator, RefreshToken, Risk, User
-from app.schemas.admin import ActiveSessionResponse, SystemHealthResponse, SystemStatsResponse, TechnicalLogEntry
+from app.models import Control, KeyRiskIndicator, OutboxEvent, RefreshToken, Risk, User
+from app.models.scheduler_job_run import SchedulerJobRun
+from app.schemas.admin import (
+    ActiveSessionResponse,
+    OutboxEventFailureSummary,
+    OutboxStatusResponse,
+    SchedulerJobRunSummary,
+    SchedulerStatusResponse,
+    SystemHealthResponse,
+    SystemStatsResponse,
+    TechnicalLogEntry,
+)
 
 from ._deps import require_platform_admin
 
@@ -18,6 +30,7 @@ router = APIRouter()
 
 @router.get("/health", response_model=SystemHealthResponse)
 async def get_system_health(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     admin_user: User = Depends(require_platform_admin),
 ) -> SystemHealthResponse:
@@ -43,8 +56,8 @@ async def get_system_health(
     process = psutil.Process()
     memory_mb = process.memory_info().rss / 1024 / 1024
 
-    # Calculate uptime (approximation - time since first user login today)
-    uptime_seconds = int(time.time() % 86400)  # Simplified - seconds since midnight
+    process_started_at = getattr(request.app.state, "process_started_at", datetime.now(UTC))
+    uptime_seconds = max(0, int((datetime.now(UTC) - process_started_at).total_seconds()))
 
     return SystemHealthResponse(
         database_status=db_status,
@@ -52,6 +65,136 @@ async def get_system_health(
         uptime_seconds=uptime_seconds,
         memory_usage_mb=round(memory_mb, 2),
         last_check=datetime.now(UTC).isoformat(),
+    )
+
+
+def _serialize_scheduler_run(job_run: SchedulerJobRun) -> SchedulerJobRunSummary:
+    return SchedulerJobRunSummary(
+        job_name=job_run.job_name,
+        run_id=job_run.run_id,
+        status=job_run.status,
+        trigger_type=job_run.trigger_type,
+        instance_id=job_run.instance_id,
+        scheduled_for=job_run.scheduled_for.isoformat() if job_run.scheduled_for else None,
+        started_at=job_run.started_at.isoformat(),
+        finished_at=job_run.finished_at.isoformat() if job_run.finished_at else None,
+        duration_ms=job_run.duration_ms,
+        result_json=job_run.result_json,
+        error_message=job_run.error_message,
+    )
+
+
+@router.get("/jobs/status", response_model=SchedulerStatusResponse)
+async def get_scheduler_status(
+    db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(require_platform_admin),
+) -> SchedulerStatusResponse:
+    """Get scheduler ownership state and the latest recorded job runs."""
+    from app.core.scheduler import SCHEDULER_RUNTIME_JOB_NAME, get_scheduler_runtime_state
+
+    runtime_state = get_scheduler_runtime_state()
+    recent_runs = (
+        await db.execute(
+            select(SchedulerJobRun).order_by(SchedulerJobRun.started_at.desc()).limit(200)
+        )
+    ).scalars().all()
+
+    latest_by_job: dict[str, SchedulerJobRunSummary] = {}
+    running_jobs: list[SchedulerJobRunSummary] = []
+    current_owner_instance_id: str | None = None
+
+    for job_run in recent_runs:
+        serialized = _serialize_scheduler_run(job_run)
+        if job_run.job_name == SCHEDULER_RUNTIME_JOB_NAME and current_owner_instance_id is None and job_run.status == "running":
+            current_owner_instance_id = job_run.instance_id
+            continue
+        if job_run.job_name == SCHEDULER_RUNTIME_JOB_NAME:
+            continue
+        if job_run.status == "running":
+            running_jobs.append(serialized)
+        if job_run.job_name not in latest_by_job:
+            latest_by_job[job_run.job_name] = serialized
+
+    if runtime_state["lock_acquired"]:
+        current_owner_instance_id = str(runtime_state["instance_id"])
+
+    return SchedulerStatusResponse(
+        process_role=str(runtime_state["process_role"]),
+        instance_id=str(runtime_state["instance_id"]),
+        process_started_at=str(runtime_state["process_started_at"]),
+        scheduler_enabled=bool(runtime_state["scheduler_enabled"]),
+        scheduler_running=bool(runtime_state["scheduler_running"]),
+        lock_provider=(str(runtime_state["lock_provider"]) if runtime_state["lock_provider"] else None),
+        lock_acquired=bool(runtime_state["lock_acquired"]),
+        current_owner_instance_id=current_owner_instance_id,
+        latest_runs=list(latest_by_job.values()),
+        running_jobs=running_jobs,
+    )
+
+
+@router.get("/outbox/status", response_model=OutboxStatusResponse)
+async def get_outbox_status(
+    db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(require_platform_admin),
+) -> OutboxStatusResponse:
+    """Get transactional outbox queue health and recent failure state."""
+    from app.core.scheduler import get_outbox_dispatch_runtime_state
+
+    pending_count = (
+        await db.execute(select(func.count()).select_from(OutboxEvent).where(OutboxEvent.status == "pending"))
+    ).scalar() or 0
+    processing_count = (
+        await db.execute(select(func.count()).select_from(OutboxEvent).where(OutboxEvent.status == "processing"))
+    ).scalar() or 0
+    dead_letter_count = (
+        await db.execute(select(func.count()).select_from(OutboxEvent).where(OutboxEvent.status == "dead_letter"))
+    ).scalar() or 0
+
+    oldest_pending_created_at = (
+        await db.execute(
+            select(func.min(OutboxEvent.created_at)).where(OutboxEvent.status.in_(["pending", "processing"]))
+        )
+    ).scalar_one_or_none()
+    oldest_pending_age_seconds = None
+    if oldest_pending_created_at is not None:
+        oldest_pending_age_seconds = max(
+            0,
+            int((utc_now() - (coerce_utc(oldest_pending_created_at) or oldest_pending_created_at)).total_seconds()),
+        )
+
+    recent_failures = (
+        await db.execute(
+            select(OutboxEvent)
+            .where((OutboxEvent.status == "dead_letter") | OutboxEvent.last_error.isnot(None))
+            .order_by(OutboxEvent.created_at.desc())
+            .limit(5)
+        )
+    ).scalars().all()
+
+    dispatch_state = get_outbox_dispatch_runtime_state()
+    return OutboxStatusResponse(
+        pending_count=pending_count,
+        processing_count=processing_count,
+        dead_letter_count=dead_letter_count,
+        oldest_pending_age_seconds=oldest_pending_age_seconds,
+        last_dispatch_started_at=dispatch_state["last_started_at"],
+        last_dispatch_finished_at=dispatch_state["last_finished_at"],
+        last_dispatch_status=dispatch_state["last_status"],
+        last_dispatch_processed=dispatch_state["last_processed"],
+        last_dispatch_error=dispatch_state["last_error"],
+        recent_failures=[
+            OutboxEventFailureSummary(
+                id=event.id,
+                event_type=event.event_type,
+                status=event.status,
+                attempt_count=event.attempt_count,
+                available_at=event.available_at.isoformat(),
+                created_at=event.created_at.isoformat(),
+                locked_by=event.locked_by,
+                last_error=event.last_error,
+            )
+            for event in recent_failures
+        ],
     )
 
 

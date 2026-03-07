@@ -9,7 +9,7 @@ from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
 from app.core.logging import get_logger
-from app.core.security import verify_password
+from app.core.security import verify_password_or_dummy
 from app.db.session import get_db
 from app.models import RolePermission, User
 from app.schemas.auth import LoginRequest, TokenResponse
@@ -96,13 +96,14 @@ async def login(
         select(User).options(permission_load, selectinload(User.department)).where(User.email == credentials.email)
     )
     user = result.scalar_one_or_none()
+    password_valid = verify_password_or_dummy(credentials.password, user.hashed_password if user else None)
 
-    if not user or not user.hashed_password:
+    if not user or not password_valid:
         # Track failed attempt
         is_now_locked = (
             await _run_lockout_operation(
                 settings=settings,
-                operation_name="record_failed_attempt_missing_user",
+                operation_name="record_failed_attempt_invalid_credentials",
                 operation=lambda: account_lockout.record_failed_attempt(credentials.email),
                 fallback=(False, 0),
             )
@@ -117,32 +118,6 @@ async def login(
             action=ActivityAction.FAILED_LOGIN,
             entity_type=ActivityEntityType.USER,
             entity_id=0,
-            entity_name=credentials.email,
-            description=f"Failed login attempt: invalid credentials{' (account now locked)' if is_now_locked else ''}",
-        )
-        await db.commit()
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    if not verify_password(credentials.password, user.hashed_password):
-        # Track failed attempt
-        is_now_locked = (
-            await _run_lockout_operation(
-                settings=settings,
-                operation_name="record_failed_attempt_bad_password",
-                operation=lambda: account_lockout.record_failed_attempt(credentials.email),
-                fallback=(False, 0),
-            )
-        )[0]
-
-        from app.core.activity_logger import log_activity
-        from app.models.activity_log import ActivityAction, ActivityEntityType
-
-        await log_activity(
-            db=db,
-            actor=None,  # Don't attribute to user to avoid confirming existence
-            action=ActivityAction.FAILED_LOGIN,
-            entity_type=ActivityEntityType.USER,
-            entity_id=0,  # Don't expose real user ID
             entity_name=credentials.email,
             description=f"Failed login attempt: invalid credentials{' (account now locked)' if is_now_locked else ''}",
         )

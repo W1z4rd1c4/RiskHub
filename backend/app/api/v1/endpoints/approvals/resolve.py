@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
@@ -13,9 +13,9 @@ from app.db.session import get_db
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.approval_request import ApprovalRequestListResponse, ApprovalRequestRead, ApprovalRequestResolve
-from app.services.notification_service import NotificationService
+from app.services.outbox_service import OutboxService
 
-from ._shared import _build_approval_read, _get_approval_department_id, _notify_requester_resolved_background, logger
+from ._shared import _build_approval_read, _get_approval_department_id, logger
 
 router = APIRouter()
 
@@ -29,7 +29,6 @@ _APPROVAL_AUTH_NOT_FOUND_RESPONSES = {
 async def approve_request(
     approval_id: int,
     resolve_data: ApprovalRequestResolve,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
@@ -80,6 +79,14 @@ async def approve_request(
         try:
             logger.info("Flushing and committing changes...")
             await db.flush()
+            await OutboxService.enqueue(
+                db,
+                event_type="approval.request_resolved",
+                aggregate_type="approval_request",
+                aggregate_id=approval.id,
+                idempotency_key=f"approval.request_resolved:{approval.id}:{approval.status.value.lower()}",
+                payload={"approval_id": approval.id, "approved": approval.status == ApprovalStatus.APPROVED},
+            )
             await db.commit()
             logger.info("Commit successful")
         except Exception as e:
@@ -107,10 +114,14 @@ async def approve_request(
             description=f"Escalated to privileged approval by {current_user.name}",
         )
 
-        try:
-            await NotificationService.notify_approvers(db, approval)
-        except Exception as e:
-            logger.warning(f"Failed to notify approvers for PENDING_PRIVILEGED approval #{approval.id}: {e}")
+        await OutboxService.enqueue(
+            db,
+            event_type="approval.request_created",
+            aggregate_type="approval_request",
+            aggregate_id=approval.id,
+            idempotency_key=f"approval.request_created:{approval.id}:{approval.status.value.lower()}",
+            payload={"approval_id": approval.id},
+        )
         await db.commit()
 
     # Reload with relationships for response
@@ -121,15 +132,6 @@ async def approve_request(
     )
     approval = result.scalar_one()
 
-    # Notify requester in background (fresh DB session)
-    if approval.status == ApprovalStatus.APPROVED and isinstance(db.bind, AsyncEngine):
-        background_tasks.add_task(
-            _notify_requester_resolved_background,
-            db.bind,
-            approval.id,
-            True,
-        )
-
     return _build_approval_read(approval)
 
 
@@ -137,7 +139,6 @@ async def approve_request(
 async def reject_request(
     approval_id: int,
     resolve_data: ApprovalRequestResolve,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
@@ -182,6 +183,14 @@ async def reject_request(
         department_id=department_id,
         changes={"status": {"old": previous_status.value, "new": approval.status.value}},
     )
+    await OutboxService.enqueue(
+        db,
+        event_type="approval.request_resolved",
+        aggregate_type="approval_request",
+        aggregate_id=approval.id,
+        idempotency_key=f"approval.request_resolved:{approval.id}:{approval.status.value.lower()}",
+        payload={"approval_id": approval.id, "approved": False},
+    )
     await db.commit()
 
     # Reload with relationships
@@ -191,15 +200,6 @@ async def reject_request(
         .where(ApprovalRequest.id == approval.id)
     )
     approval = result.scalar_one()
-
-    # Notify requester in the background (fresh DB session)
-    if isinstance(db.bind, AsyncEngine):
-        background_tasks.add_task(
-            _notify_requester_resolved_background,
-            db.bind,
-            approval.id,
-            False,
-        )
 
     return _build_approval_read(approval)
 
@@ -256,11 +256,13 @@ async def cancel_request(
         description=cancel_description,
     )
 
-    # Notify approvers about cancellation
-    await NotificationService.notify_approvers_cancelled(
-        db=db,
-        approval=approval,
-        cancelled_by_user=current_user,
+    await OutboxService.enqueue(
+        db,
+        event_type="approval.request_cancelled",
+        aggregate_type="approval_request",
+        aggregate_id=approval.id,
+        idempotency_key=f"approval.request_cancelled:{approval.id}",
+        payload={"approval_id": approval.id, "cancelled_by_user_id": current_user.id},
     )
 
     await db.commit()

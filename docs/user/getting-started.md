@@ -1,7 +1,7 @@
 ---
 title: Getting Started with RiskHub
 version: "2.0"
-last_updated: "2026-03-05"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routes"
 summary: "First-day onboarding manual for non-admin users: scope validation, navigation, workflow readiness, and how to avoid the most common early mistakes."
@@ -97,8 +97,10 @@ For day-one success, you don’t need every field. You need the “control point
 ### 1) First login checklist (15 minutes)
 
 1. Sign in and confirm your display name and role label.
+   - In production, the sign-in page has a temporary `CZ / EN` switch before authentication.
+   - That switch changes only the login-page copy and does not save your long-term preference.
 2. Open `/settings`:
-   - set language preference
+   - set your persistent language preference
    - confirm you can access the documentation library
 3. Open `/` and scan whether data looks plausible for your scope.
 4. Open `/notifications` and check unread items.

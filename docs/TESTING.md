@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
 > **Version**: 1.5
-> **Last Updated**: 2026-03-05
+> **Last Updated**: 2026-03-07
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
@@ -13,11 +13,13 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 |---|---|---|
 | Backend RBAC/authz sweep | `cd . && PYTHONPATH=backend pytest tests/backend/pytest/test_activity_log.py tests/backend/pytest/test_orphaned_items_scan_and_stats.py tests/backend/pytest/test_executions.py tests/backend/pytest/api/v1/test_issues_rbac_api.py tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py tests/backend/pytest/api/v1/test_reports_issues.py tests/backend/pytest/test_seed_rbac_parity.py -q` | Focused admin-boundary, RBAC, and seed-contract regression pack |
 | Backend targeted | `cd backend && venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q` | Docs endpoint behavior and locale fallback |
+| Backend reliability targeted | `cd backend && pytest -q ../tests/backend/pytest/test_scheduler_runtime.py ../tests/backend/pytest/test_outbox_approval_flow.py ../tests/backend/pytest/test_aggregate_overviews.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py` | Scheduler ownership, outbox retry path, aggregate overview endpoints, and governance overview |
 | Backend broad | `make -f scripts/Makefile test` | Full backend regression |
 | Backend lint + suppression budget | `make -f scripts/Makefile lint-backend` | Ruff hard gate plus backend/app suppression budget enforcement |
 | Backend Postgres marker | `cd backend && pytest -m postgres -v` | Postgres-sensitive behavior |
 | Backend Redis integration marker | `cd backend && pytest -m redis_integration -q` | Redis fault-injection resilience checks (Docker-backed) |
 | Frontend unit | `cd frontend && npm run test:run` | Component and integration tests |
+| Frontend reliability targeted | `cd frontend && npm run test:run -- src/components/layout/__tests__/SidebarPolling.test.tsx src/components/notifications/__tests__/NotificationBell.test.tsx src/hooks/__tests__/useAdaptivePollingQuery.test.tsx src/pages/__tests__/DashboardPage.overview.test.tsx src/pages/__tests__/GovernancePage.overview.test.tsx src/pages/admin-console/__tests__/AdminConsoleOpsPanels.outbox.test.tsx src/services/__tests__/accessTokenStore.test.ts src/services/__tests__/apiClient.401-recovery.test.ts` | Aggregate polling, admin outbox panel, and auth/bootstrap regression pack |
 | Frontend docs UI | `cd frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx` | Docs cards/filter/audience behavior |
 | Frontend types | `cd frontend && npx tsc --noEmit` | Type safety gate |
 | Frontend quality chain | `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build` | Full frontend production quality gate |
@@ -34,8 +36,22 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - `backend/pytest.ini` defines discovery and default coverage settings.
 - SQLite in-memory is used by default test path unless `TEST_DATABASE_URL` is set.
 - Postgres-specific tests are marked with `@pytest.mark.postgres`.
+- Advisory-lock coverage is only valid in Postgres mode. Do not treat SQLite-only passes as sufficient for scheduler ownership enforcement.
 - Redis integration tests are marked with `@pytest.mark.redis_integration` and require Docker-backed test dependencies.
 - For docs endpoint behavior, keep role-scoped fixtures (`client_platform_admin`, `client_cro`, `client_employee`) green.
+
+## Local Startup Preflight
+
+- `./scripts/dev.sh` now performs a schema-head preflight before it starts the local backend in `full` and `backend` modes.
+- If the connected non-SQLite database revision does not match the app head, startup stops before the frontend is launched.
+- The expected recovery path is:
+
+```bash
+cd backend
+./venv/bin/alembic upgrade head
+```
+
+- After a local backend launch attempt, `scripts/dev.sh` also verifies backend readiness and prints the backend log tail immediately if startup failed during lifespan initialization.
 
 ## Frontend Testing Notes
 

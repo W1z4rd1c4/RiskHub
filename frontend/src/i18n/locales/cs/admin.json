@@ -33,7 +33,41 @@
     "memory": "Paměť",
     "process_memory": "Využití paměti procesu",
     "active_users": "Aktivní uživatelé",
-    "in_last_24h": "Za posledních 24 hodin"
+    "in_last_24h": "Za posledních 24 hodin",
+    "scheduler": {
+      "title": "Běh plánovače",
+      "subtitle": "Vlastnictví, stav zámku a poslední spuštění plánovaných úloh.",
+      "process_role": "Role procesu",
+      "lock_state": "Stav zámku",
+      "lock_held": "Držen",
+      "lock_not_held": "Nedržen",
+      "current_owner": "Aktuální vlastník",
+      "none_reported": "Bez záznamu",
+      "lock_provider": "Poskytovatel zámku",
+      "running_jobs": "Běžící úlohy",
+      "no_running_jobs": "Momentálně neběží žádná úloha.",
+      "latest_runs": "Poslední běhy",
+      "no_runs": "Zatím nejsou zaznamenané žádné běhy plánovače."
+    },
+    "outbox": {
+      "title": "Outbox fronta",
+      "subtitle": "Čekající opakování, dead-letter události a poslední výsledek dispatcheru.",
+      "healthy": "V pořádku",
+      "attention": "Vyžaduje pozornost",
+      "pending": "Čeká",
+      "processing": "Zpracovává se",
+      "dead_letter": "Dead letter",
+      "oldest_pending": "Nejstarší čekající",
+      "none": "Žádné",
+      "last_dispatch": "Poslední dispatch",
+      "status": "Stav",
+      "processed": "Zpracováno",
+      "started": "Začátek",
+      "finished": "Konec",
+      "recent_failures": "Poslední selhání",
+      "attempts": "Pokusy",
+      "no_failures": "Žádná nedávná selhání."
+    }
   },
   "application_logs": {
     "title": "Aplikační logy",

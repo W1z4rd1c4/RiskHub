@@ -1,6 +1,6 @@
 # Production Security Checklist
 
-> **Last Updated**: 2026-03-06
+> **Last Updated**: 2026-03-07
 > **Audience**: DevOps / Security Engineering
 
 ## Config And Startup Guards
@@ -41,12 +41,20 @@ RiskHub production deploys must satisfy these invariants:
 - Run the scheduler exactly once.
 - Docker target: use the dedicated scheduler container.
 - Linux target: use the dedicated `riskhub-scheduler.service`.
+- Confirm scheduler ownership is actually held:
+  - Admin Console `/admin` shows scheduler lock held and a current owner instance.
+  - deploy smoke shows exactly one running `__scheduler_runtime__` row.
 
 ## Runtime Hardening
 
 - Backend and frontend runtime processes must run as non-root.
 - Keep `/docs` and `/openapi.json` disabled in production.
 - Keep Redis enabled because rate limiting and account lockout depend on it.
+- Treat any dead-letter outbox event as an operational incident until triaged.
+- After deploy, verify outbox backlog is healthy:
+  - dead-letter count is `0`
+  - dispatcher status is succeeding
+  - backlog is not growing unexpectedly
 
 ## Secrets Handling
 

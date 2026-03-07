@@ -37,4 +37,17 @@ describe('apiClient 401 recovery', () => {
         expect(silentReauthAndExchange).toHaveBeenCalledTimes(1);
         expect(secondAuthHeader).toBe('Bearer refreshed-token');
     });
+
+    it('does not redirect the browser when silent reauth fails', async () => {
+        vi.mocked(silentReauthAndExchange).mockResolvedValueOnce(null);
+
+        server.use(
+            http.get('*/api/v1/test-401-fail', () => new HttpResponse(null, { status: 401 })),
+        );
+
+        const originalHref = window.location.href;
+
+        await expect(apiClient.get('/test-401-fail')).rejects.toMatchObject({ status: 401 });
+        expect(window.location.href).toBe(originalHref);
+    });
 });

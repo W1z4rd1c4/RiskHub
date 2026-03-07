@@ -79,6 +79,20 @@ export interface IssueSeverityBreakdownResponse {
     items: IssueSeverityBreakdownItem[];
 }
 
+export interface DashboardOverview {
+    summary: DashboardSummary;
+    department_metrics: DepartmentMetrics[];
+    gross_distribution: RiskDistribution;
+    net_distribution: RiskDistribution;
+    control_trends: ControlTrend[];
+    risk_trends: RiskTrendPoint[];
+    kri_breach_trends: KRIBreachTrendPoint[];
+    issue_summary: IssueDashboardSummary | null;
+    issue_aging: IssueAgingResponse | null;
+    issue_severity: IssueSeverityBreakdownResponse | null;
+    generated_at: string;
+}
+
 export type RiskLevel = 'all' | 'critical' | 'high' | 'medium' | 'low';
 
 export interface DashboardFilters {

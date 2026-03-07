@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, it, expect, vi } from 'vitest';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -7,21 +7,37 @@ import userEvent from '@testing-library/user-event';
 
 import { server } from '@test/mocks/server';
 import LoginPage from '@/pages/LoginPage';
+import { clearAuthConfigCache } from '@/services/authConfig';
+import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
 
-function renderWithQuery(ui: React.ReactElement) {
+function renderWithQuery(ui: React.ReactElement, initialEntry = '/login') {
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false } },
     });
     return render(
         <QueryClientProvider client={queryClient}>
-            <MemoryRouter initialEntries={['/login']}>
+            <MemoryRouter initialEntries={[initialEntry]}>
                 {ui}
             </MemoryRouter>
         </QueryClientProvider>
     );
 }
 
+function createAbortablePendingResponse(signal?: AbortSignal): Promise<Response> {
+    return new Promise<Response>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => {
+            reject(new DOMException('The operation was aborted.', 'AbortError'));
+        }, { once: true });
+    });
+}
+
 describe('LoginPage auth modes', () => {
+    afterEach(() => {
+        clearAuthConfigCache();
+        vi.restoreAllMocks();
+        vi.useRealTimers();
+    });
+
     it('renders Microsoft login only in microsoft_sso mode', async () => {
         server.use(
             http.get('*/api/v1/auth/config', () => {
@@ -44,7 +60,7 @@ describe('LoginPage auth modes', () => {
 
         renderWithQuery(<LoginPage />);
 
-        await screen.findByRole('button', { name: /continue with microsoft/i });
+        await screen.findByRole('button', { name: /microsoft/i });
         expect(screen.queryByRole('button', { name: /system admin/i })).not.toBeInTheDocument();
     });
 
@@ -107,5 +123,53 @@ describe('LoginPage auth modes', () => {
         await waitFor(() => {
             expect(capturedBody).toEqual({ email: 'admin@riskhub.local' });
         });
+    });
+
+    it('replaces hanging auth-config loading with an unavailable state', async () => {
+        vi.useFakeTimers();
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+            const url = String(input);
+            if (!url.endsWith('/api/v1/auth/config')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return createAbortablePendingResponse(init?.signal as AbortSignal | undefined);
+        });
+
+        renderWithQuery(<LoginPage />);
+
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(AUTH_REQUEST_TIMEOUT_MS + 1);
+            await Promise.resolve();
+        });
+
+        expect(screen.getByText(/login unavailable/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+        fetchSpy.mockRestore();
+    });
+
+    it('shows a session-recovery failure banner after protected-route redirect', async () => {
+        server.use(
+            http.get('*/api/v1/auth/config', () => {
+                return HttpResponse.json({
+                    auth_mode: 'hybrid_dev',
+                    demo_login_enabled: true,
+                    password_login_enabled: true,
+                    sso: {
+                        enabled: false,
+                        provider: 'entra',
+                        tenant_id: null,
+                        client_id: null,
+                        authority: null,
+                        scopes: ['openid', 'profile', 'email'],
+                    },
+                    sso_error: null,
+                });
+            }),
+        );
+
+        renderWithQuery(<LoginPage />, '/login?authError=service_unavailable&returnTo=%2F');
+
+        expect(await screen.findByText(/authentication service is unavailable/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /system admin/i })).toBeInTheDocument();
     });
 });

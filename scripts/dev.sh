@@ -315,6 +315,149 @@ export_local_dev_env_defaults() {
     fi
 }
 
+print_schema_preflight_failure() {
+    local current_revisions="$1"
+    local expected_heads="$2"
+    local error_message="$3"
+
+    echo ""
+    echo -e "${RED}Database schema preflight failed.${NC}"
+    if [ -n "$current_revisions" ]; then
+        echo "  Current DB revision(s): $current_revisions"
+    fi
+    if [ -n "$expected_heads" ]; then
+        echo "  Expected app head(s):  $expected_heads"
+    fi
+    if [ -n "$error_message" ]; then
+        echo "  Error: $error_message"
+    fi
+    echo "  Fix:   cd backend && ./venv/bin/alembic upgrade head"
+}
+
+run_schema_preflight() {
+    echo -e "${YELLOW}Checking database schema revision...${NC}"
+
+    local backend_python="$PROJECT_ROOT/backend/venv/bin/python"
+    if [ ! -x "$backend_python" ]; then
+        echo -e "${RED}Backend virtualenv is missing or incomplete.${NC}"
+        echo "Run ./scripts/dev.sh again after the backend environment is created."
+        exit 1
+    fi
+
+    local preflight_json
+    if ! preflight_json="$(
+        cd "$PROJECT_ROOT" && "$backend_python" - <<'PY'
+import asyncio
+import json
+import os
+import sys
+
+from sqlalchemy.ext.asyncio import create_async_engine
+
+sys.path.insert(0, os.path.join(os.getcwd(), "backend"))
+
+from app.core.schema_guard import inspect_schema_head  # noqa: E402
+
+
+async def main() -> None:
+    database_url = os.environ["DATABASE_URL"]
+    engine = create_async_engine(database_url, future=True)
+    try:
+        status = await inspect_schema_head(engine=engine, database_url=database_url)
+        print(
+            json.dumps(
+                {
+                    "ok": status.is_ok,
+                    "current_revisions": status.current_revisions,
+                    "expected_heads": status.expected_heads,
+                    "error_message": status.error_message,
+                }
+            )
+        )
+    finally:
+        await engine.dispose()
+
+
+asyncio.run(main())
+PY
+    )"; then
+        echo -e "${RED}Schema preflight could not be executed.${NC}"
+        echo "$preflight_json"
+        exit 1
+    fi
+
+    local preflight_ok
+    preflight_ok="$(printf '%s' "$preflight_json" | python3 -c 'import json, sys; print("true" if json.load(sys.stdin)["ok"] else "false")')"
+    local current_revisions
+    current_revisions="$(printf '%s' "$preflight_json" | python3 -c 'import json, sys; values = json.load(sys.stdin)["current_revisions"]; print(", ".join(values))')"
+    local expected_heads
+    expected_heads="$(printf '%s' "$preflight_json" | python3 -c 'import json, sys; values = json.load(sys.stdin)["expected_heads"]; print(", ".join(values))')"
+    local error_message
+    error_message="$(printf '%s' "$preflight_json" | python3 -c 'import json, sys; value = json.load(sys.stdin)["error_message"]; print("" if value is None else value)')"
+
+    if [ "$preflight_ok" != "true" ]; then
+        print_schema_preflight_failure "$current_revisions" "$expected_heads" "$error_message"
+        exit 1
+    fi
+
+    echo -e "${GREEN}Schema revision matches application head${NC}"
+}
+
+backend_process_alive() {
+    if [ ! -f "$BACKEND_PID_FILE" ]; then
+        return 1
+    fi
+
+    local pid_ref
+    pid_ref="$(cat "$BACKEND_PID_FILE" 2>/dev/null || true)"
+
+    if [[ "$pid_ref" == screen:* ]]; then
+        local session_name="${pid_ref#screen:}"
+        screen -list 2>/dev/null | grep -q "[.]${session_name}[[:space:]]"
+        return $?
+    fi
+
+    if [[ "$pid_ref" =~ ^[0-9]+$ ]]; then
+        kill -0 "$pid_ref" >/dev/null 2>&1
+        return $?
+    fi
+
+    return 1
+}
+
+backend_log_indicates_startup_failure() {
+    tail -n 120 "$BACKEND_LOG_FILE" 2>/dev/null | grep -Eq "Application startup failed\\. Exiting\\.|Schema drift detected:"
+}
+
+wait_for_backend_ready() {
+    local timeout="${1:-90}"
+
+    for ((i=1; i<=timeout; i++)); do
+        if curl -fsS --max-time 1 http://localhost:8000/api/v1/auth/config >/dev/null 2>&1; then
+            echo -e "${GREEN}Backend is ready on port 8000${NC}"
+            return 0
+        fi
+
+        if backend_log_indicates_startup_failure; then
+            echo -e "${RED}Backend failed during startup.${NC}"
+            tail -n 100 "$BACKEND_LOG_FILE" 2>/dev/null || true
+            return 1
+        fi
+
+        if ! backend_process_alive; then
+            echo -e "${RED}Backend process exited before becoming ready.${NC}"
+            tail -n 100 "$BACKEND_LOG_FILE" 2>/dev/null || true
+            return 1
+        fi
+
+        sleep 1
+    done
+
+    echo -e "${RED}Backend did not become ready on port 8000${NC}"
+    tail -n 100 "$BACKEND_LOG_FILE" 2>/dev/null || true
+    return 1
+}
+
 start_backend_local() {
     echo -e "${YELLOW}Starting backend...${NC}"
     : > "$BACKEND_LOG_FILE"
@@ -544,25 +687,23 @@ case $MODE in
         echo "  Database: localhost:5432"
         ;;
     
-	    "full")
-	        export_local_dev_env_defaults
-	        start_database
-	        setup_backend_venv
-	        run_migrations
+		    "full")
+		        export_local_dev_env_defaults
+		        start_database
+		        setup_backend_venv
+		        run_schema_preflight
 
-	        cleanup_local_processes
-	        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|Risk App 2)"
-	        stop_known_dev_listeners_on_port 5173 "Frontend" "(vite|npm run dev|node .*vite)"
-	        start_backend_local
-	        start_frontend_local
-
-	        if ! wait_for_port 8000 "Backend" 90; then
-	            tail -n 100 "$BACKEND_LOG_FILE" 2>/dev/null || true
-            exit 1
-        fi
-        if ! wait_for_port 5173 "Frontend" 90; then
-            tail -n 100 "$FRONTEND_LOG_FILE" 2>/dev/null || true
-            exit 1
+		        cleanup_local_processes
+		        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|Risk App 2)"
+		        stop_known_dev_listeners_on_port 5173 "Frontend" "(vite|npm run dev|node .*vite)"
+		        start_backend_local
+		        if ! wait_for_backend_ready 90; then
+	            exit 1
+	        fi
+		        start_frontend_local
+	        if ! wait_for_port 5173 "Frontend" 90; then
+	            tail -n 100 "$FRONTEND_LOG_FILE" 2>/dev/null || true
+	            exit 1
         fi
 
         print_local_urls
@@ -607,14 +748,14 @@ case $MODE in
         echo "  Database: $LAN_IP:5432"
         ;;
     
-	    "backend")
-	        # Backend only mode
-	        export_local_dev_env_defaults
-	        start_database
-	        setup_backend_venv
-	        run_migrations
-	        cleanup_local_processes
-	        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|Risk App 2)"
+		    "backend")
+		        # Backend only mode
+		        export_local_dev_env_defaults
+		        start_database
+		        setup_backend_venv
+		        run_schema_preflight
+		        cleanup_local_processes
+		        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|Risk App 2)"
 	        
 	        echo ""
 	        echo -e "${YELLOW}Starting backend locally...${NC}"

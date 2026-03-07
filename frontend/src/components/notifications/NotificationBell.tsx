@@ -4,7 +4,7 @@ import { Bell, CheckCircle, AlertCircle, Clock, AlertTriangle, X } from 'lucide-
 import { useFormattedDate, useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
-import { NOTIFICATIONS_DROPDOWN_LIMIT, NOTIFICATIONS_POLL_MS } from '@/config/constants';
+import { NOTIFICATIONS_DROPDOWN_LIMIT } from '@/config/constants';
 
 /**
  * Get icon for notification type.
@@ -101,32 +101,24 @@ function getResourcePath(notification: Notification): string | null {
     }
 }
 
-export function NotificationBell() {
+interface NotificationBellProps {
+    initialUnreadCount?: number;
+}
+
+export function NotificationBell({ initialUnreadCount = 0 }: NotificationBellProps) {
     const navigate = useNavigate();
     const { t: tCommon } = useTranslation('common');
     const { t } = useTranslation('notifications');
     const { formatRelativeDate } = useFormattedDate();
     const [isOpen, setIsOpen] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(0);
+    const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Fetch unread count on mount and every 60 seconds
     useEffect(() => {
-        const fetchCount = async () => {
-            try {
-                const { count } = await notificationsApi.getUnreadCount();
-                setUnreadCount(count);
-            } catch (error) {
-                console.error('Failed to fetch notification count:', error);
-            }
-        };
-
-        fetchCount();
-        const interval = setInterval(fetchCount, NOTIFICATIONS_POLL_MS);
-        return () => clearInterval(interval);
-    }, []);
+        setUnreadCount(initialUnreadCount);
+    }, [initialUnreadCount]);
 
     // Fetch notifications when dropdown opens
     useEffect(() => {

@@ -1,7 +1,7 @@
 ---
 title: Admin Console (/admin)
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-07"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + admin API endpoints"
 summary: "Runbook pro platform adminy: Health check, application/audit logy, export evidence, triage session a bezpečná operativní podpora."
@@ -92,9 +92,14 @@ Postup:
    - database status je OK
    - latency je v očekávaných mezích
    - uptime odpovídá posledním deployům
+   - scheduler lock je držený a owner instance je vyplněná
+   - poslední běhy scheduleru končí úspěšně
+   - outbox dead-letter count je `0` a poslední dispatch je úspěšný
 4. Pokud je health degradovaný:
    - otevřete application logy a hledejte korelaci
    - ověřte DB konektivitu a credy (mimo UI)
+   - pokud scheduler lock není držený, berte to jako singleton/runtime incident
+   - pokud existují dead-letter položky v outboxu, nejdřív si poznamenejte event typy a chyby
 
 ### 2) Application logs: vyšetření runtime chyb
 
@@ -182,6 +187,8 @@ Disciplína změn:
 Po operativní akci v Admin Console ověřte:
 
 - Health je stabilní (nebo jste zachytili degradaci s timestampy).
+- Scheduler runtime stále ukazuje držený lock a aktuálního ownera.
+- Outbox dead-letter count je nulový, nebo jste selhání zachytili a eskalovali.
 - Exporty odpovídají filtrům/oknu a neobsahují zbytečná data.
 - Revokovaná session už není aktivní a uživatel se umí znovu autentizovat.
 - Po změně log konfigurace jsou nové hodnoty vidět po refresh.
@@ -213,6 +220,13 @@ Pokud je to součást support případu, přiložte:
 - Podívejte se do application logů na 401/403/500 patterny.
 - Ověřte auth mode a session chování.
 - Ověřte frontend-backend konektivitu (CORS, base URL, proxy).
+- Zkontrolujte, jestli nechybí scheduler lock nebo nejsou v outboxu dead-letter položky.
+
+### Outbox dead-letter count je větší než nula
+
+- Poznamenejte si event type, počet pokusů a last error z Health tabu.
+- Podívejte se do scheduler/application logů ve stejném čase.
+- Nečistěte dead-letter řádky bez rozmyslu; nejdřív potvrďte, že business změna už proběhla a že replay je bezpečný.
 
 ### Exporty jsou prázdné/nekompletní
 

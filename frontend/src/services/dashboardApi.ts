@@ -10,6 +10,7 @@ import type {
     IssueDashboardSummary,
     IssueAgingResponse,
     IssueSeverityBreakdownResponse,
+    DashboardOverview,
 } from '../types/dashboard';
 import type { RiskSummary } from '@/types/risk';
 
@@ -197,6 +198,14 @@ export const dashboardApi = {
     async fetchIssuesBySeverity(filters?: DashboardFilters): Promise<IssueSeverityBreakdownResponse> {
         const params = buildQueryParams(filters);
         return apiClient.get<IssueSeverityBreakdownResponse>('/dashboard/issues-by-severity', { params });
+    },
+
+    async fetchOverview(
+        filters?: DashboardFilters,
+        options?: { signal?: AbortSignal },
+    ): Promise<DashboardOverview> {
+        const params = buildQueryParams(filters);
+        return apiClient.get<DashboardOverview>('/dashboard/overview', { ...options, params });
     },
 
     async fetchQuarterlyComparison(
