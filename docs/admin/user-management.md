@@ -1,7 +1,7 @@
 ---
 title: User and Access Governance Runbook
 version: "2.0"
-last_updated: "2026-03-05"
+last_updated: "2026-03-07"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
 summary: "Operational runbook for user lifecycle, role/scope governance, auditable access edits, and incident-safe access changes."
@@ -80,6 +80,8 @@ Safety rules:
 3. Follow the flow based on auth mode:
    - `AUTH_MODE=microsoft_sso` or `AUTH_MODE=hybrid_dev`: use **Add from AD** on `/users/new`, import the Entra user, then immediately configure role/department/active status on `/users/{id}` before first login.
    - `AUTH_MODE=password`: fill in full name, email, initial password, role, and department (if needed), then create the user.
+
+If authentication mode/configuration is temporarily unavailable, `/users` still shows the current user list, but **Add user** and **Add from AD** actions remain unavailable until configuration loads again. Treat this as a safe degraded mode, verify the auth service/config is reachable, then refresh and retry.
 
 If Add from AD shows a setup warning in local/dev, configure Entra credentials (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`) or set `AD_EMULATOR_BASE_URL`, then reload and retry.
 
@@ -226,6 +228,16 @@ Actions:
 - confirm you are operating as `admin` (not a privileged non-admin)
 - confirm the mutation is allowed for your role
 - if it should be allowed but is forbidden, escalate as an auth regression
+
+### “I can open `/users`, but Add user / Add from AD is missing or disabled”
+
+This usually means the page could load user data, but auth configuration is temporarily unavailable or failed to load. It is a safe degraded mode, not a data-loss condition and not usually an RBAC bug.
+
+Actions:
+
+- verify the auth service/config endpoint is reachable
+- refresh `/users` after configuration recovers
+- if the problem persists after auth config is reachable again, escalate as a configuration/auth regression
 
 ## Escalation and Handoff
 

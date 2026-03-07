@@ -1,6 +1,6 @@
 import { authApi } from '@/services/authApi';
 import { getAccessToken } from '@/services/accessTokenStore';
-import { withAuthTimeout } from '@/services/authRequest';
+import { isAuthUnavailableError } from '@/services/authRequest';
 import { silentReauthAndExchange } from '@/services/ssoSession';
 
 type CurrentUser = Awaited<ReturnType<typeof authApi.getCurrentUser>>;
@@ -34,7 +34,7 @@ export function clearBootstrapSession(): void {
 
 export async function bootstrapAuthSession(): Promise<{ token: string | null; user: CurrentUser | null }> {
     if (!bootstrapPromise) {
-        bootstrapPromise = withAuthTimeout((async () => {
+        bootstrapPromise = (async () => {
             let token = getAccessToken();
             let usedRefresh = false;
 
@@ -58,7 +58,7 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
                 cacheBootstrapSession(user, token);
                 return { token, user };
             } catch (error) {
-                if (usedRefresh) {
+                if (usedRefresh || isAuthUnavailableError(error)) {
                     clearBootstrapSession();
                     throw error;
                 }
@@ -73,7 +73,7 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
             const user = await authApi.getCurrentUser(refreshedToken);
             cacheBootstrapSession(user, refreshedToken);
             return { token: refreshedToken, user };
-        })(), 'Auth session bootstrap timed out').finally(() => {
+        })().finally(() => {
             bootstrapPromise = null;
         });
     }

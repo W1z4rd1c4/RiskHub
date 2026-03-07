@@ -14,6 +14,7 @@ import { adminApi } from '@/services/adminApi';
 import { userApi } from '@/services/userApi';
 import type { AuthMode } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
+import { isAuthUnavailableError } from '@/services/authRequest';
 import type { AccessUserRead } from '@/types/access';
 import type { DirectoryImportResponse } from '@/types/directory';
 import type { UserLookup } from '@/types/user';
@@ -41,6 +42,8 @@ export function UsersPage() {
     const [isCheckingAllDirectory, setIsCheckingAllDirectory] = useState(false);
     const [checkingDirectoryUserId, setCheckingDirectoryUserId] = useState<number | null>(null);
     const [authMode, setAuthMode] = useState<AuthMode | null>(null);
+    const [authModeStatus, setAuthModeStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+    const [authModeError, setAuthModeError] = useState<string | null>(null);
 
     // Confirm dialog state for user status toggle (only used in access mode)
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -100,8 +103,22 @@ export function UsersPage() {
                 const config = await getAuthConfig();
                 if (cancelled) return;
                 setAuthMode(config.auth_mode);
+                setAuthModeStatus('ready');
+                setAuthModeError(null);
             } catch (error) {
+                if (cancelled) return;
                 console.error('Failed to load auth mode for UsersPage', error);
+                setAuthMode(null);
+                setAuthModeStatus('error');
+                setAuthModeError(
+                    isAuthUnavailableError(error)
+                        ? t('users.auth_mode_service_unavailable', {
+                            defaultValue: 'Authentication mode is temporarily unavailable. User data remains visible, but create and directory actions are disabled until configuration is available again.',
+                        })
+                        : t('users.auth_mode_load_failed', {
+                            defaultValue: 'Unable to load authentication mode. User data remains visible, but create and directory actions are disabled until the page can load configuration.',
+                        }),
+                );
             }
         };
 
@@ -205,7 +222,9 @@ export function UsersPage() {
     const privilegedCount = isAccessMode
         ? users.filter(u => u.access_scope === 'global' && u.role.name !== 'admin').length
         : 0;
-    const isDirectoryFirstMode = authMode !== null && authMode !== 'password';
+    const isAuthModeReady = authModeStatus === 'ready';
+    const isDirectoryFirstMode = isAuthModeReady && authMode !== null && authMode !== 'password';
+    const allowAuthModeActions = canManageUsers && isAuthModeReady;
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -219,7 +238,7 @@ export function UsersPage() {
                         {isAccessMode ? t('access.subtitle') : t('users.subtitle', { defaultValue: 'View platform users and their roles.' })}
                     </p>
                 </div>
-                {canManageUsers && (
+                {allowAuthModeActions && (
                     <div className="flex flex-wrap items-center gap-2">
                         {!isDirectoryFirstMode && (
                             <button
@@ -258,6 +277,12 @@ export function UsersPage() {
                     </div>
                 )}
             </div>
+
+            {authModeStatus === 'error' && authModeError && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                    {authModeError}
+                </div>
+            )}
 
             {directoryMessage && (
                 <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">

@@ -16,6 +16,7 @@ import { departmentApi } from '@/services/departmentApi';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import type { AuthConfigResponse } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
+import { isAuthUnavailableError } from '@/services/authRequest';
 import type { UserCreate, Role } from '@/types/user';
 import type { DirectoryImportResponse } from '@/types/directory';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -67,7 +68,14 @@ export function UserNewPage() {
             } catch (err) {
                 if (cancelled) return;
                 console.error('Failed to load auth mode:', err);
-                setAuthConfigError(err instanceof Error ? err.message : String(err));
+                setAuthConfigError(
+                    isAuthUnavailableError(err)
+                        ? t('user_new.auth_mode_service_unavailable', {
+                            ns: 'admin',
+                            defaultValue: 'Authentication mode is temporarily unavailable. Refresh after the auth service is reachable again.',
+                        })
+                        : (err instanceof Error ? err.message : String(err)),
+                );
             } finally {
                 if (!cancelled) {
                     setIsAuthConfigLoading(false);

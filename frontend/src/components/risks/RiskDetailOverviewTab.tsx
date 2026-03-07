@@ -98,6 +98,8 @@ export function RiskDetailOverviewTab({
     );
     const draftControls = linkedControls.filter(link => link.control?.status === 'draft');
     const archivedControls = linkedControls.filter(link => link.control?.status === 'archived');
+    const linkedKriCount = risk.kris?.length ?? 0;
+    const linkedVendorCount = linkedVendors.length;
 
     return (
         <>
@@ -213,6 +215,35 @@ export function RiskDetailOverviewTab({
                                 <p className="text-sm font-bold text-white leading-snug">{risk.department?.name || t('overview.no_department', { ns: 'risks' })}</p>
                                 <p className="text-xs text-slate-500 font-mono">{risk.department?.code || ''}</p>
                             </div>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Connections */}
+                <motion.div variants={item} className="glass-card flex flex-col gap-6">
+                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                        <LinkIcon className="h-5 w-5 text-indigo-400" />
+                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('overview.connections', { ns: 'risks' })}</h3>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center gap-4">
+                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                                {t('overview.mitigating_controls', { ns: 'risks' })}
+                            </span>
+                            <span className="text-lg text-white font-black">{activeControls.length}</span>
+                        </div>
+                        <div className="flex justify-between items-center gap-4">
+                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                                {t('overview.risk_appetite_indicators', { ns: 'risks' })}
+                            </span>
+                            <span className="text-lg text-white font-black">{linkedKriCount}</span>
+                        </div>
+                        <div className="flex justify-between items-center gap-4">
+                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                                {t('overview.linked_vendors', { ns: 'risks' })}
+                            </span>
+                            <span className="text-lg text-white font-black">{linkedVendorCount}</span>
                         </div>
                     </div>
                 </motion.div>
