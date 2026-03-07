@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CheckCircle, AlertTriangle, XCircle, MinusCircle, Loader2 } from 'lucide-react';
-import { executionApi } from '@/services/executionApi';
+import { AlertTriangle, X, Loader2 } from 'lucide-react';
+import { controlApi } from '@/services/controlApi';
 import { apiClient } from '@/services/apiClient';
-import type { ControlExecutionCreate } from '@/services/executionApi';
 import { useTranslation } from '@/i18n/hooks';
+import type { ControlExecutionCreate } from '@/types/execution';
+import { ExecutionResult } from '@/types/execution';
+import { getExecutionResultMeta } from '@/lib/executionResult';
 
 interface ExecutionLogModalProps {
     isOpen: boolean;
@@ -15,18 +17,18 @@ interface ExecutionLogModalProps {
     onSuccess?: () => void;
 }
 
-const RESULTS = [
-    { value: 'passed' as const, labelKey: 'controls:results.passed', icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
-    { value: 'failed' as const, labelKey: 'controls:results.failed', icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-400/10' },
-    { value: 'warning' as const, labelKey: 'controls:executions.issues_found', icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-400/10' },
-    { value: 'not_applicable' as const, labelKey: 'controls:results.not_applicable', icon: MinusCircle, color: 'text-slate-400', bg: 'bg-slate-400/10' },
+const RESULTS: ExecutionResult[] = [
+    ExecutionResult.PASSED,
+    ExecutionResult.FAILED,
+    ExecutionResult.WARNING,
+    ExecutionResult.NA,
 ];
 
 export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onSuccess }: ExecutionLogModalProps) {
     const { t } = useTranslation(['controls', 'common', 'errorKeys']);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
-    const [formData, setFormData] = useState<Omit<ControlExecutionCreate, 'control_id'>>({
+    const [formData, setFormData] = useState<ControlExecutionCreate>({
         result: 'passed',
         findings: '',
         evidence_reference: '',
@@ -40,9 +42,8 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
         setErrorKey(null);
 
         try {
-            await executionApi.createExecution({
+            await controlApi.logExecution(controlId, {
                 ...formData,
-                control_id: controlId,
                 next_scheduled: formData.next_scheduled || undefined,
             });
             onSuccess?.();
@@ -101,22 +102,28 @@ export function ExecutionLogModal({ isOpen, onClose, controlId, controlName, onS
                             <div className="space-y-3">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">{t('executions.execution_result')}</label>
                                 <div className="grid grid-cols-2 gap-3">
-                                    {RESULTS.map((res) => (
-                                        <button
-                                            key={res.value}
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, result: res.value })}
-                                            className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${formData.result === res.value
-                                                ? `${res.bg} border-${res.color.split('-')[1]}-500/50`
-                                                : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-400'
+                                    {RESULTS.map((res) => {
+                                        const meta = getExecutionResultMeta(res);
+                                        const ResultIcon = meta.icon;
+                                        const isSelected = formData.result === res;
+                                        return (
+                                            <button
+                                                key={res}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, result: res })}
+                                                className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                                                    isSelected
+                                                        ? meta.badgeClassName
+                                                        : 'bg-white/5 border-white/10 hover:bg-white/10 text-slate-400'
                                                 }`}
-                                        >
-                                            <res.icon className={`h-5 w-5 ${formData.result === res.value ? res.color : 'text-slate-500'}`} />
-                                            <span className={`text-sm font-bold ${formData.result === res.value ? 'text-white' : ''}`}>
-                                                {t(res.labelKey)}
-                                            </span>
-                                        </button>
-                                    ))}
+                                            >
+                                                <ResultIcon className={`h-5 w-5 ${isSelected ? meta.iconClassName : 'text-slate-500'}`} />
+                                                <span className={`text-sm font-bold ${isSelected ? 'text-white' : ''}`}>
+                                                    {t(meta.labelKey)}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
 

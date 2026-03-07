@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.schemas.control import ExecutionResultEnum
+from app.schemas.execution import ExecutionResultEnum
 from app.services._monitoring_status import ControlMonitoringReason, ControlMonitoringStatus
 
 if TYPE_CHECKING:

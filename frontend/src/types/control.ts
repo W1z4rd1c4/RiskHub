@@ -1,3 +1,6 @@
+import type { ControlExecution, ControlExecutionCreate, ExecutionResult } from '@/types/execution';
+export { ExecutionResult } from '@/types/execution';
+
 export type ControlForm = 'manual' | 'automatic';
 export const ControlForm = {
     MANUAL: 'manual' as ControlForm,
@@ -22,14 +25,6 @@ export const ControlStatus = {
     ACTIVE: 'active' as ControlStatus,
     INACTIVE: 'inactive' as ControlStatus,
     ARCHIVED: 'archived' as ControlStatus,
-};
-
-export type ExecutionResult = 'passed' | 'failed' | 'warning' | 'not_applicable';
-export const ExecutionResult = {
-    PASSED: 'passed' as ExecutionResult,
-    FAILED: 'failed' as ExecutionResult,
-    WARNING: 'warning' as ExecutionResult,
-    NA: 'not_applicable' as ExecutionResult,
 };
 
 export type ControlMonitoringStatus = 'new' | 'needs_review' | 'failed' | 'passed';
@@ -112,31 +107,6 @@ export interface ControlSummary extends ControlMonitoringFields {
 export type ControlCreate = Omit<Control, 'id' | 'created_at' | 'updated_at' | 'control_owner' | 'department'>;
 
 export type ControlUpdate = Partial<ControlCreate>;
-
-export interface ControlExecution {
-    id: number;
-    control_id: number;
-    executed_by_id: number;
-    executed_at: string;
-    result: ExecutionResult;
-    findings?: string;
-    evidence_reference?: string;
-    notes?: string;
-    next_scheduled?: string;
-    created_at: string;
-    executed_by?: {
-        id: number;
-        name: string;
-        email: string;
-    };
-}
-
-export interface ControlExecutionCreate {
-    result: ExecutionResult;
-    findings?: string;
-    evidence_reference?: string;
-    notes?: string;
-}
 
 export type ControlEffectiveness = 'high' | 'medium' | 'low';
 export const ControlEffectiveness = {

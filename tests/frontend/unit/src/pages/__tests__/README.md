@@ -7,7 +7,9 @@ Folder for `tests/frontend/unit/src/pages/__tests__` implementation assets.
 ## Contents
 
 - `ActivityLogPage.test.tsx`
+- `AuditTrailPage.execution-status.test.tsx`
 - `ApprovalsPage.presentation.test.ts`
+- `ControlDetailPage.execution-status.test.tsx`
 - `ControlDetailPage.issue-entry.test.tsx`
 - `ControlsPage.archived-visibility.test.tsx`
 - `DepartmentDetailPage.kri-monitoring.test.tsx`
@@ -30,6 +32,10 @@ Folder for `tests/frontend/unit/src/pages/__tests__` implementation assets.
 
 Monitoring-status coverage for controls/KRIs page filters and status rendering
 belongs in this folder.
+
+Audit-trail pagination and canonical execution-result rendering regressions also
+belong here because they are page-level consumers of the shared execution
+domain contract.
 
 Department detail KRI filter/count regressions also belong here because the page
 consumes the canonical monitoring-status model and paginated department KRI API.

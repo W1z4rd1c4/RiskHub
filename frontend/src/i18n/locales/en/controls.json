@@ -208,6 +208,7 @@
   },
   "executions": {
     "log_to_start": "Log an execution to get started.",
+    "issues_found": "Issues Found",
     "next": "Next",
     "findings_evidence": "Findings & Evidence",
     "additional_notes": "Additional Notes",
