@@ -1,7 +1,7 @@
 ---
 title: Runbook správy uživatelů a přístupů
 version: "2.0"
-last_updated: "2026-03-05"
+last_updated: "2026-03-07"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
 summary: "Provozní runbook pro user lifecycle, role/scope governance, auditovatelné změny přístupů a incident-safe access zásahy."
@@ -77,13 +77,13 @@ Bezpečnostní pravidla:
 
 1. Otevřete `/users`.
 2. Klikněte **Add user** a otevřete `/users/new`.
-3. Vyplňte:
-   - jméno
-   - email
-   - initial password (podle vaší policy)
-   - roli (začněte nejnižším oprávněním, které dává smysl)
-   - oddělení (pokud má být uživatel scopingem omezen)
-4. Vytvořte uživatele.
+3. Postupujte podle auth mode:
+   - `AUTH_MODE=microsoft_sso` nebo `AUTH_MODE=hybrid_dev`: použijte **Add from AD** na `/users/new`, importujte Entra uživatele a před jeho prvním přihlášením hned nastavte roli, oddělení a active status na `/users/{id}`.
+   - `AUTH_MODE=password`: vyplňte jméno, email, initial password, roli a případně oddělení, pak uživatele vytvořte.
+
+Pokud je auth konfigurace dočasně nedostupná, `/users` stále zobrazí aktuální seznam uživatelů, ale akce **Add user** a **Add from AD** zůstanou vypnuté, dokud se konfigurace znovu nenačte. Berte to jako safe degraded mode, ověřte dostupnost auth service/config a potom stránku obnovte.
+
+Pokud **Add from AD** v local/dev ukazuje setup warning, nastavte Entra credentials (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`) nebo `AD_EMULATOR_BASE_URL`, pak obnovte stránku a zkuste to znovu.
 
 Ověření:
 
@@ -228,6 +228,16 @@ Akce:
 - ověřte, že operujete jako `admin` (ne privileged non-admin)
 - ověřte, že mutace je pro vaši roli povolená
 - pokud by povolená být měla a je forbidden, eskalujte jako auth regres
+
+### “Otevřu `/users`, ale Add user / Add from AD chybí nebo jsou vypnuté”
+
+Typicky to znamená, že stránka načetla user data, ale auth konfigurace je dočasně nedostupná nebo se nepodařilo ji načíst. Jde o safe degraded mode, ne o ztrátu dat a obvykle ani ne o RBAC bug.
+
+Akce:
+
+- ověřte, že je auth service/config endpoint dostupný
+- po obnovení auth konfigurace proveďte refresh `/users`
+- pokud problém trvá i po obnově dostupnosti konfigurace, eskalujte to jako konfiguraci/auth regres
 
 ## Eskalace a předání
 

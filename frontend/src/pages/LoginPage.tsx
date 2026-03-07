@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Shield, Building2, User, ChevronRight, Loader2, ArrowRight } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { setAccessToken } from '@/services/accessTokenStore';
-import type { AuthConfigResponse } from '@/services/authApi';
+import { authApi, type AuthConfigResponse } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import { entraAuth } from '@/services/entraAuth';
@@ -66,6 +66,7 @@ export default function LoginPage() {
     const [authConfig, setAuthConfig] = useState<AuthConfigResponse | null>(null);
     const [authConfigError, setAuthConfigError] = useState<string | null>(null);
     const [isAuthConfigLoading, setIsAuthConfigLoading] = useState(true);
+    const [authActionUnavailableError, setAuthActionUnavailableError] = useState<string | null>(null);
     const [prodLanguage, setProdLanguage] = useState<ProdLanguage>('cs');
     const showBootstrapUnavailableBanner = authErrorParam === 'service_unavailable';
 
@@ -116,29 +117,22 @@ export default function LoginPage() {
 
     const handleDemoLogin = async (email: string) => {
         setErrorKey('');
+        setAuthActionUnavailableError(null);
         setIsLoading(email);
 
         try {
-            const response = await fetch('/api/v1/auth/demo-login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email }),
-            });
-
-            if (!response.ok) {
-                throw new Error('errorKeys.demo_login_failed');
-            }
-
-            const data = await response.json();
+            const data = await authApi.demoLogin(email);
             setAccessToken(data.access_token);
             window.location.assign(returnTo);
         } catch (err) {
+            if (isAuthUnavailableError(err)) {
+                setAuthActionUnavailableError(t('login.unavailable_service_error'));
+                return;
+            }
             if (err instanceof Error && err.message.startsWith('errorKeys.')) {
                 setErrorKey(err.message);
             } else {
-                setErrorKey('errorKeys.login_failed');
+                setErrorKey('errorKeys.demo_login_failed');
             }
         } finally {
             setIsLoading(null);
@@ -147,6 +141,7 @@ export default function LoginPage() {
 
     const handleSsoLogin = async () => {
         setErrorKey('');
+        setAuthActionUnavailableError(null);
         setIsSsoLoading(true);
 
         try {
@@ -236,6 +231,12 @@ export default function LoginPage() {
                 {showBootstrapUnavailableBanner && (
                     <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-300 text-sm font-medium text-center">
                         {t('login.unavailable_bootstrap_error')}
+                    </div>
+                )}
+
+                {authActionUnavailableError && (
+                    <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-300 text-sm font-medium text-center">
+                        {authActionUnavailableError}
                     </div>
                 )}
 
