@@ -19,8 +19,8 @@
 - Frontend build runtime: `node:24-alpine` (`frontend/Dockerfile`)
 - Frontend serving runtime: `nginx:alpine` (`frontend/Dockerfile`, `frontend/nginx.conf`)
 - Local Node parity baseline: Node major `24` via `.nvmrc` and `.node-version` for startup/runtime script parity with CI/Docker
-- Database: PostgreSQL 16 (`docker-compose.yml`)
-- Cache/rate-limit backend: Redis 7 (`docker-compose.yml`, `backend/app/main.py`)
+- Database: PostgreSQL 16 (dev stack via `docker-compose.yml`; production contract requires external PostgreSQL)
+- Cache/rate-limit backend: Redis 7 (dev stack via `docker-compose.yml`; production runtime via supported docker/linux deployment targets and `backend/app/main.py`)
 
 ## Core Frameworks and Libraries
 

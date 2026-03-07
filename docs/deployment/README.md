@@ -27,7 +27,7 @@ Common rules across both targets:
 |---|---|
 | [production.md](./production.md) | Operator quickstart for install, upgrade, smoke, logs, and rollback |
 | [reference.md](./reference.md) | Config keys, derived values, command reference, runtime defaults |
-| [advanced.md](./advanced.md) | Maintainer details, release artifacts, legacy/internal script mapping |
+| [advanced.md](./advanced.md) | Maintainer details, release artifacts, and internal implementation mapping |
 | [migrations.md](./migrations.md) | Migration strategy and rollback posture |
 | [security-checklist.md](./security-checklist.md) | Hardening checklist before and after go-live |
 
@@ -49,30 +49,3 @@ Release inputs:
 - The scheduler must run exactly once:
   - Docker target: dedicated scheduler container
   - Linux target: dedicated `riskhub-scheduler.service`
-
-## Legacy Notes
-
-The public operator surface is `./scripts/deploy.sh`.
-
-Retained internal Docker helper layer:
-
-- `scripts/prod/preflight.sh`
-- `scripts/prod/install_redis.sh`
-- `scripts/prod/run_migrations.sh`
-- `scripts/prod/bootstrap_db.sh`
-- `scripts/prod/install_backend.sh`
-- `scripts/prod/install_frontend.sh`
-- `scripts/prod/smoke_test.sh`
-- `scripts/prod/rollback.sh`
-- `scripts/prod/status.sh`
-- `scripts/prod/logs.sh`
-- `scripts/prod/verify_runtime.sh`
-
-Retired legacy orchestration entrypoints:
-
-- `scripts/prod/setup.sh`
-- `scripts/prod/deploy.sh`
-- `scripts/prod/upgrade.sh`
-- `scripts/prod/stop.sh`
-
-Those retired wrappers are deprecated, unsupported, and kept only as redirect stubs to `./scripts/deploy.sh`.

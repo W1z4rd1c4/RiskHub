@@ -27,8 +27,7 @@ Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-do
 | RBAC and Business Logic Guardrails | `docs/BUSINESS_LOGIC.md`<br>`.planning/codebase/CONCERNS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Frontend Display Guardrails | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Security and Production Guardrails | `docs/deployment/security-checklist.md`<br>`docs/deployment/README.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Quick Commands | `scripts/dev.sh`<br>`scripts/Makefile`<br>`docs/deployment/component-runtime-entrypoints.md` | full | RiskHub Maintainer | 2026-02-22 |
-| Component Runtime Commands | `docs/deployment/component-runtime-entrypoints.md` | full | RiskHub Maintainer | 2026-02-20 |
+| Quick Commands | `scripts/dev.sh`<br>`scripts/Makefile` | full | RiskHub Maintainer | 2026-03-07 |
 | Demo/Dev Auth (local) | `scripts/dev.sh`<br>`.planning/codebase/INTEGRATIONS.md` | full | RiskHub Maintainer | 2026-02-22 |
 | Repo Hygiene | `.planning/codebase/STRUCTURE.md`<br>`docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Prompting and Tooling Best Practices (OpenAI-Aligned) | `docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
@@ -54,7 +53,7 @@ Canonical Source: `.planning/codebase/STRUCTURE.md`, `.planning/codebase/ARCHITE
 
 Root non-dot contract:
 - folders: `backend/`, `frontend/`, `docs/`, `scripts/`, `tests/`
-- files: `AGENTS.md`, `docker-compose.yml`, `docker-compose.prod.yml`
+- files: `AGENTS.md`, `docker-compose.yml`
 
 ## Source-of-Truth Order
 
@@ -219,7 +218,7 @@ Canonical Source: `docs/deployment/security-checklist.md`, `docs/deployment/READ
 
 ## Quick Commands
 
-Canonical Source: `scripts/dev.sh`, `scripts/Makefile`, `docs/deployment/component-runtime-entrypoints.md`
+Canonical Source: `scripts/dev.sh`, `scripts/Makefile`
 
 - Canonical startup (new sessions): `./scripts/dev.sh --daemon`
 - Canonical startup (foreground): `./scripts/dev.sh`
@@ -235,20 +234,6 @@ Canonical Source: `scripts/dev.sh`, `scripts/Makefile`, `docs/deployment/compone
 - Release parity full gate: `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>`
 
 For launch/runbook behavior, treat `scripts/dev.sh` as source of truth.
-
-## Component Runtime Commands
-
-Canonical Source: `docs/deployment/component-runtime-entrypoints.md`
-
-- Frontend dev runtime: `frontend/scripts/runtime/dev.sh`
-- Frontend test runtime profile: `frontend/scripts/runtime/test.sh`
-- Frontend prod component deploy/upgrade: `frontend/scripts/runtime/prod.sh`
-- Backend dev runtime: `backend/scripts/runtime/dev.sh`
-- Backend test runtime profile: `backend/scripts/runtime/test.sh`
-- Backend prod component deploy/upgrade: `backend/scripts/runtime/prod.sh`
-- DB dev runtime (backend-owned): `backend/scripts/runtime/db/dev.sh`
-- DB test runtime reset/start (backend-owned): `backend/scripts/runtime/db/test.sh`
-- DB prod lifecycle update (backend-owned): `backend/scripts/runtime/db/prod.sh`
 
 ## Demo/Dev Auth (local)
 
