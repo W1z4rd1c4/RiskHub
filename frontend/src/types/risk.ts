@@ -1,6 +1,8 @@
 // Risk types matching backend schemas from OS 18 Řízení rizik
 // Now supports arbitrary types configured in Risk Hub (not just S/O)
 
+import type { ControlMonitoringFields } from './control';
+
 export type RiskType = string;
 export const RiskTypeCodes = {
     STRATEGIC: 'strategic',
@@ -118,7 +120,7 @@ export interface RiskControlLink {
     effectiveness: ControlEffectiveness;
     notes?: string;
     created_at: string;
-    control?: {
+    control?: ControlMonitoringFields & {
         id: number;
         name: string;
         frequency: string;

@@ -76,6 +76,7 @@ class DepartmentDetail(DepartmentBase):
     risk_count: int
     control_count: int
     kri_count: int = 0
+    kri_monitoring_counts: dict[str, int] = Field(default_factory=dict)
 
     # Risk metrics
     risk_distribution: RiskDistribution

@@ -12,6 +12,7 @@ Folder for `backend/app/services` implementation assets.
 - `_directory_sync/`
 - `_issue_workflow/`
 - `_kri_history/`
+- `_monitoring_status/`
 - `_orphaned_items/`
 - `_reporting/`
 - `account_lockout_service.py`

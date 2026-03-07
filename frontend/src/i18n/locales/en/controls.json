@@ -43,6 +43,12 @@
     "under_review": "Under Review",
     "deprecated": "Deprecated"
   },
+  "monitoring": {
+    "new": "New",
+    "needs_review": "Needs Review",
+    "failed": "Failed",
+    "passed": "Passed"
+  },
   "tabs": {
     "overview": "Overview",
     "execution": "Execution Log",

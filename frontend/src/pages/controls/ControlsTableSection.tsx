@@ -11,6 +11,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
+import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 import { ControlStatus, type ControlSummary } from '@/types/control';
 
 import {
@@ -117,15 +118,29 @@ export function ControlsTableSection({
                 key: 'status',
                 label: t('columns.status'),
                 sortable: true,
-                render: (control) => (
-                    <span
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getControlStatusColor(
-                            control.status
-                        )}`}
-                    >
-                        {control.status}
-                    </span>
-                ),
+                render: (control) => {
+                    const monitoring = getControlMonitoringMeta(control.monitoring_status);
+                    const MonitoringIcon = monitoring.icon;
+                    return (
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${monitoring.badgeClassName}`}
+                            >
+                                <MonitoringIcon className="h-3 w-3" />
+                                {t(monitoring.labelKey)}
+                            </span>
+                            {control.status === ControlStatus.ARCHIVED && (
+                                <span
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getControlStatusColor(
+                                        control.status
+                                    )}`}
+                                >
+                                    {t('status.archived')}
+                                </span>
+                            )}
+                        </div>
+                    );
+                },
             },
             {
                 key: 'actions',
@@ -306,42 +321,47 @@ export function ControlsTableSection({
                 />
             )}
             renderItem={(control) => (
-                <div
-                    onClick={() => onRowClick(control)}
-                    className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
-                >
-                    <div className="flex-1 min-w-0 mr-4">
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm font-bold text-white">{control.name}</span>
-                            <span
-                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getControlStatusColor(
-                                    control.status
-                                )}`}
-                            >
-                                {control.status}
-                            </span>
-                        </div>
-                        {control.description && (
-                            <p className="text-xs text-slate-500 mt-1 truncate max-w-lg">
-                                {control.description}
-                            </p>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-4 shrink-0">
-                        <div className="flex items-center gap-2 text-xs text-slate-400 capitalize">
-                            <Calendar className="h-3 w-3 text-accent" />
-                            {control.frequency}
-                        </div>
+                (() => {
+                    const monitoring = getControlMonitoringMeta(control.monitoring_status);
+                    const MonitoringIcon = monitoring.icon;
+                    return (
                         <div
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getControlRiskLevelColor(
-                                control.risk_level
-                            )}`}
+                            onClick={() => onRowClick(control)}
+                            className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
                         >
-                            {control.risk_level}/5
+                            <div className="flex-1 min-w-0 mr-4">
+                                <div className="flex items-center gap-4">
+                                    <span className="text-sm font-bold text-white">{control.name}</span>
+                                    <span
+                                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${monitoring.badgeClassName}`}
+                                    >
+                                        <MonitoringIcon className="h-3 w-3" />
+                                        {t(monitoring.labelKey)}
+                                    </span>
+                                </div>
+                                {control.description && (
+                                    <p className="text-xs text-slate-500 mt-1 truncate max-w-lg">
+                                        {control.description}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-4 shrink-0">
+                                <div className="flex items-center gap-2 text-xs text-slate-400 capitalize">
+                                    <Calendar className="h-3 w-3 text-accent" />
+                                    {control.frequency}
+                                </div>
+                                <div
+                                    className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getControlRiskLevelColor(
+                                        control.risk_level
+                                    )}`}
+                                >
+                                    {control.risk_level}/5
+                                </div>
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                            </div>
                         </div>
-                        <ChevronRight className="h-4 w-4 text-slate-500" />
-                    </div>
-                </div>
+                    );
+                })()
             )}
         />
     );

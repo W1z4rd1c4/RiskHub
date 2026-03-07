@@ -66,6 +66,11 @@ The **Connections** card shows:
 - total linked risk appetite indicators (KRIs)
 - total linked vendors
 
+Linked KRI and control cards on the risk detail page now also show canonical monitoring status from backend-derived data:
+
+- controls: `new`, `needs review`, `failed`, `passed`
+- KRIs: `new`, `not submitted`, `breach`, `warning`, `optimal`
+
 If you do not see **Risks** in the sidebar:
 
 - you likely lack `risks:read`

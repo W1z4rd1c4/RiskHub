@@ -2,6 +2,7 @@ import { apiClient } from './apiClient';
 import type {
     Control,
     ControlCreate,
+    ControlMonitoringStatus,
     ControlUpdate,
     ControlExecution,
     ControlExecutionCreate,
@@ -21,6 +22,7 @@ export const controlApi = {
         process?: string;
         category?: string;
         include_archived?: boolean;
+        monitoring_status?: ControlMonitoringStatus;
     }): Promise<ControlListResponse> {
         return apiClient.get<ControlListResponse>('/controls', { params });
     },

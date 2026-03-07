@@ -1,9 +1,27 @@
 export type KRIBreachStatus = 'above' | 'below' | 'within';
+export type KRIMonitoringStatus = 'new' | 'not_submitted' | 'breach' | 'warning' | 'optimal';
+export type KRITimelinessStatus = 'due_soon';
+export type KRIMonitoringReason =
+    | 'no_submission_history_within_window'
+    | 'required_period_missing_submission'
+    | 'latest_measurement_breach'
+    | 'latest_measurement_warning_upper_margin'
+    | 'latest_measurement_optimal';
 
 export const KRIFrequencies = ['daily', 'weekly', 'monthly', 'quarterly', 'annually'] as const;
 export type KRIFrequency = typeof KRIFrequencies[number];
 
-export interface KeyRiskIndicator {
+export interface KRIMonitoringFields {
+    monitoring_status?: KRIMonitoringStatus;
+    monitoring_status_reason?: KRIMonitoringReason;
+    is_submitted_for_required_period?: boolean;
+    required_period_end?: string;
+    required_due_date?: string;
+    days_overdue?: number;
+    warning_upper_margin_ratio?: number;
+}
+
+export interface KeyRiskIndicator extends KRIMonitoringFields {
     id: number;
     risk_id: number;
     is_archived?: boolean;

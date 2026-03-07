@@ -26,6 +26,7 @@ import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
+import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 import { isApprovalCreatedResponse } from '@/types/approval';
 import { apiClient } from '@/services/apiClient';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
@@ -197,6 +198,8 @@ export function ControlDetailPage() {
 
     const activeLinkedRisks = linkedRisks.filter((link) => link.risk?.status !== 'archived');
     const archivedLinkedRisks = linkedRisks.filter((link) => link.risk?.status === 'archived');
+    const monitoring = getControlMonitoringMeta(control.monitoring_status);
+    const MonitoringIcon = monitoring.icon;
 
     return (
         <div className="space-y-8">
@@ -246,6 +249,10 @@ export function ControlDetailPage() {
                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${control.status === ControlStatus.ACTIVE ? 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5' : 'text-slate-500 border-white/10'
                             }`}>
                             {control.status}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${monitoring.badgeClassName}`}>
+                            <MonitoringIcon className="h-3 w-3" />
+                            {t(monitoring.labelKey)}
                         </span>
                     </div>
                     <p className="text-slate-500 font-medium max-w-2xl">{control.description}</p>

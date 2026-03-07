@@ -232,6 +232,7 @@
     "cancel_request": "Cancel Request"
   },
   "filters": {
+    "all": "All",
     "all_departments": "All Departments",
     "all_statuses": "All Statuses",
     "all_forms": "All Forms",

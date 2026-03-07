@@ -7,6 +7,7 @@ import { http, HttpResponse } from 'msw';
 
 import { server } from '@test/mocks/server';
 import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearBootstrapSession } from '@/services/authSessionCoordinator';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { buildAuthz } from '@/authz/policy';
@@ -122,11 +123,13 @@ function renderWithRoute(route: string) {
 
 describe('RBAC UI gating', () => {
     beforeEach(() => {
+        clearBootstrapSession();
         setAccessToken('test-token');
     });
 
     afterEach(() => {
         clearAccessToken();
+        clearBootstrapSession();
     });
 
     it('Authz policy: derives capabilities only from permissions + explicit role gates', () => {
@@ -215,7 +218,7 @@ describe('RBAC UI gating', () => {
         renderWithRoute('/users');
 
         await screen.findByText('Employee One');
-        expect(screen.getByTitle('Edit Access')).toBeInTheDocument();
+        expect(await screen.findByTitle('Edit Access')).toBeInTheDocument();
     });
 
     it('KRI: approvals:write only (not reporting owner) hides "Record Value"', async () => {
@@ -327,7 +330,7 @@ describe('RBAC UI gating', () => {
         renderWithRoute('/kris/1');
 
         await screen.findByRole('heading', { name: 'Mock KRI' });
-        expect(screen.getByRole('button', { name: /record value/i })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /record value/i })).toBeInTheDocument();
     });
 
     it('KRI: reporting owner without kri:submit shows "Record Value"', async () => {
@@ -383,7 +386,7 @@ describe('RBAC UI gating', () => {
         renderWithRoute('/kris/1');
 
         await screen.findByRole('heading', { name: 'Mock KRI' });
-        expect(screen.getByRole('button', { name: /record value/i })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /record value/i })).toBeInTheDocument();
     });
 
     it('KRI: risks:delete shows "Unarchive" for archived KRI', async () => {
@@ -569,7 +572,7 @@ describe('RBAC UI gating', () => {
         await uiUser.click(screen.getByRole('button', { name: /execution history/i }));
 
         expect(await screen.findByText(/execution audit trail/i)).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /log execution/i })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: /log execution/i })).toBeInTheDocument();
     });
 
     it('RisksPage: risks:delete shows "Unarchive" action for archived risk row', async () => {
@@ -609,7 +612,10 @@ describe('RBAC UI gating', () => {
         renderWithRoute('/risks');
 
         await screen.findByText('Archived Risk');
-        expect(screen.getByTestId('risk-unarchive-1')).toBeInTheDocument();
+        const uiUser = userEvent.setup();
+        await uiUser.click(screen.getByTestId('risks-status-filter-trigger'));
+        await uiUser.click(screen.getByTestId('risks-status-filter-option-archived'));
+        expect(await screen.findByTestId('risk-unarchive-1')).toBeInTheDocument();
     });
 
     it('RisksPage: without risks:delete hides "Unarchive" action for archived risk row', async () => {
@@ -649,6 +655,9 @@ describe('RBAC UI gating', () => {
         renderWithRoute('/risks');
 
         await screen.findByText('Archived Risk');
+        const uiUser = userEvent.setup();
+        await uiUser.click(screen.getByTestId('risks-status-filter-trigger'));
+        await uiUser.click(screen.getByTestId('risks-status-filter-option-archived'));
         expect(screen.queryByTestId('risk-unarchive-1')).not.toBeInTheDocument();
     });
 
@@ -683,7 +692,10 @@ describe('RBAC UI gating', () => {
         renderWithRoute('/controls');
 
         await screen.findByText('Archived Control');
-        expect(screen.getByTestId('control-unarchive-1')).toBeInTheDocument();
+        const uiUser = userEvent.setup();
+        await uiUser.click(screen.getByTestId('controls-status-filter-trigger'));
+        await uiUser.click(screen.getByTestId('controls-status-filter-option-archived'));
+        expect(await screen.findByTestId('control-unarchive-1')).toBeInTheDocument();
     });
 
     it('ControlsPage: without controls:delete hides "Unarchive" action for archived control row', async () => {
@@ -717,6 +729,9 @@ describe('RBAC UI gating', () => {
         renderWithRoute('/controls');
 
         await screen.findByText('Archived Control');
+        const uiUser = userEvent.setup();
+        await uiUser.click(screen.getByTestId('controls-status-filter-trigger'));
+        await uiUser.click(screen.getByTestId('controls-status-filter-option-archived'));
         expect(screen.queryByTestId('control-unarchive-1')).not.toBeInTheDocument();
     });
 });

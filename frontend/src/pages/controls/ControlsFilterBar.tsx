@@ -2,15 +2,17 @@ import { RefreshCw, Search } from 'lucide-react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
-import { ControlStatus } from '@/types/control';
+import { CONTROL_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
+
+import type { ControlListStatusFilter } from './controlsPagePresentation';
 
 interface ControlsFilterBarProps {
     isLoading: boolean;
     onRefresh: () => void;
     onSearchChange: (value: string) => void;
-    onStatusChange: (value: ControlStatus | '') => void;
+    onStatusChange: (value: ControlListStatusFilter) => void;
     search: string;
-    statusFilter: ControlStatus | '';
+    statusFilter: ControlListStatusFilter;
 }
 
 export function ControlsFilterBar({
@@ -39,7 +41,7 @@ export function ControlsFilterBar({
             <div className="flex gap-4">
                 <ThemedSelect
                     value={statusFilter}
-                    onValueChange={(value) => onStatusChange(value as ControlStatus | '')}
+                    onValueChange={(value) => onStatusChange(value as ControlListStatusFilter)}
                     placeholder={t('filters.all_statuses')}
                     allowEmpty
                     emptyLabel={t('filters.all_statuses')}
@@ -47,10 +49,11 @@ export function ControlsFilterBar({
                     contentTestId="controls-status-filter-content"
                     optionTestIdPrefix="controls-status-filter-option"
                     options={[
-                        { value: ControlStatus.ACTIVE, label: t('status.active') },
-                        { value: ControlStatus.DRAFT, label: t('status.draft') },
-                        { value: ControlStatus.INACTIVE, label: t('status.inactive') },
-                        { value: ControlStatus.ARCHIVED, label: t('status.archived') },
+                        ...CONTROL_MONITORING_FILTER_VALUES.map((value) => ({
+                            value,
+                            label: t(`monitoring.${value}`),
+                        })),
+                        { value: 'archived', label: t('status.archived') },
                     ]}
                 />
                 <button

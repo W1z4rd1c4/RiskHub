@@ -3,6 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_risk_read
+from app.core.datetime_utils import utc_now
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
@@ -69,5 +71,6 @@ async def restore_risk(
         )
         .where(Risk.id == risk.id)
     )
-    return result.scalar_one()
-
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    return serialize_risk_read(result.scalar_one(), monitoring_context)

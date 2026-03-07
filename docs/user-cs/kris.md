@@ -1,7 +1,7 @@
 ---
 title: KRI (Key Risk Indicators)
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "frontend/src/pages/KRIsPage.tsx + frontend/src/pages/KRIDetailPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "Jak navrhovat a provozovat KRI: thresholdy, breach/overdue logika, zápis hodnot, historie, exporty a monitoring přes notifikace."
@@ -36,7 +36,7 @@ KRI je kvalitní, když má:
 - jasné jméno metriky a jednotku
 - definovaný normální rozsah (limity)
 - konzistentní cadence zapisování
-- breach stav, který spouští akci
+- monitoring stav, který spouští akci
 
 Hlavní route: `/kris`
 
@@ -82,12 +82,31 @@ Scope pravidla platí dál:
 | Unit | %, počet, měna, … | Jednotka musí sedět na hodnotu. |
 | Lower/upper limits | Akceptovatelný rozsah | Limity mají být smysluplné (ne příliš široké/úzké). |
 | Current value | Poslední zapsaná hodnota | Má odpovídat definovanému period end. |
-| Breach status | `within`, `above`, `below` | Breach řídí alerty a prioritu. |
+| Monitoring status | `new`, `not_submitted`, `breach`, `warning`, `optimal` | Kanonický reporting health stav používaný v kartách, seznamech, filtrech i exportech. |
 | Frequency | daily/weekly/monthly/… | Musí odpovídat realitě reportingu. |
 | Reporting owner | Odpovědný za zápis hodnot | Může být jiný než risk owner. |
-| Last period end | Konec posledního období | Používá se pro výpočet due/overdue. |
-| Overdue logika | Due date = period end + 15 dní | Overdue je signál selhání monitoringu. |
+| Last period end | Konec posledního období | Používá se pro required-period submission logiku. |
+| Required due date | Due date pro poslední uzavřené období | Používá se pro `not_submitted` a `days_overdue`. |
 | History entries | Historie hodnot | Evidence pro trend. |
+
+Pravidla monitoring statusu:
+
+- `new`: neexistuje submission history a required period ještě není po due date
+- `not_submitted`: chybí submission za required period po due date
+- `breach`: za required period je submission a hodnota je mimo limity
+- `warning`: za required period je submission, hodnota je v limitech, ale blízko horního limitu
+- `optimal`: za required period je submission, hodnota je v limitech a není v horním warning pásmu
+
+Samostatný timeliness filtr:
+
+- `due_soon`: reporting period se blíží due date, ale ještě nechybí submission
+
+Důležitá pravidla:
+
+- monitoring status KRI vychází z **posledního uzavřeného required reporting period**
+- warning pásmo je řízené konfigurací (`kri_warning_upper_margin_ratio`, default `0.10`)
+- warning pásmo sleduje jen blízkost **horního** limitu
+- `monitoring_status` a `timeliness_status` jsou v seznamech a exportech oddělené filtry; pro v1 se nekombinují
 
 Poznámka k period end:
 
@@ -146,15 +165,16 @@ Když měníte limity, napište „proč“, jinak bude interpretace trendu neja
 
 ### 4) Reakce na breach a overdue
 
-Breach a overdue nejsou totéž:
+Monitoring stavy popisují různé typy problémů:
 
-- **breach**: metrika je mimo limity (tlak na riziko)
-- **overdue**: metrika nebyla zapsána včas (selhání monitoringu)
+- `breach`: metrika je mimo limity (tlak na riziko)
+- `warning`: metrika je stále v limitech, ale blíží se horní hranici
+- `not_submitted`: metrika nebyla včas odevzdaná za required period
 
 Doporučený pattern:
 
 - breach: založte Issue a routujte nápravu, poté prověřte rizika/kontroly
-- overdue: opravte reporting proces (owner, cadence, data source)
+- not submitted: opravte reporting proces (owner, cadence, data source)
 
 ### 5) Archivace a obnovení
 
@@ -187,13 +207,12 @@ Mechaniku front najdete v [Schvalování a notifikace](./notifications.md).
 
 Seznam KRI podporuje:
 
-- within limits
-- breach
-- overdue
+- monitoring status (`new`, `not submitted`, `breach`, `warning`, `optimal`)
+- timeliness status (`due soon`)
 - archived
 - search
 
-„Overdue“ berte jako disciplínu, „Breach“ jako tlak na riziko.
+`Not submitted` berte jako disciplínu, `breach` jako tlak na riziko.
 
 ### Pohledy
 
@@ -207,8 +226,16 @@ KRI lze exportovat ze seznamu.
 Disciplína:
 
 - export s „as of“ datem
-- explicitní filtry (breach vs within)
+- explicitní filtry (monitoring status vs archived)
 - raw export neměnit
+
+Exporty KRI nově obsahují monitoring sloupce:
+
+- monitoring status
+- required due date
+- days overdue
+
+Exporty „due soon“ používají query parametr `timeliness_status=due_soon`.
 
 ## Časté chyby
 

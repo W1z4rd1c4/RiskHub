@@ -1,7 +1,7 @@
 ---
 title: KRIs (Key Risk Indicators)
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "frontend/src/pages/KRIsPage.tsx + frontend/src/pages/KRIDetailPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "How to create and operate KRIs: thresholds, breach/overdue logic, value recording, history review, exports, and notification-driven monitoring."
@@ -36,7 +36,7 @@ A KRI is successful when it provides:
 - a clear metric name and unit
 - a normal range (limits)
 - a consistent recording cadence
-- a breach state that triggers action
+- a monitoring state that triggers action
 
 Primary route: `/kris`
 
@@ -82,12 +82,32 @@ Scope rules still apply:
 | Unit | %, count, currency, etc | Unit must match the value. |
 | Lower/upper limits | Acceptable range | Limits should be meaningful (not too wide, not too narrow). |
 | Current value | Most recent recorded value | Should correspond to a defined period end. |
-| Breach status | `within`, `above`, `below` | Breach drives alerts and prioritization. |
+| Monitoring status | `new`, `not_submitted`, `breach`, `warning`, `optimal` | Canonical reporting health state used in cards, lists, filters, and exports. |
 | Frequency | daily/weekly/monthly/… | Must match how the metric is actually produced. |
 | Reporting owner | Person responsible for submitting values | Separate from risk owner if needed. |
-| Last period end | End date of the last reporting period | Used to compute due/overdue state. |
-| Overdue logic | Due date = period end + 15 days | Overdue is a monitoring failure signal. |
+| Last period end | End date of the last reporting period | Used to compute required-period submission state. |
+| Required due date | Latest closed reporting period due date | Used to compute `not_submitted` and `days_overdue`. |
 | History entries | Recorded values over time | This is your trend evidence. |
+
+Monitoring status rules:
+
+- `new`: no submission history and the required period is not overdue yet
+- `not_submitted`: required-period submission is missing after the due date
+- `breach`: submitted for the required period and the value is outside limits
+- `warning`: submitted for the required period, within limits, and near the upper limit margin
+- `optimal`: submitted for the required period, within limits, and not near the upper warning margin
+
+Important rules:
+
+- KRI monitoring status is based on the **latest closed required reporting period**
+- the warning band is configuration-driven (`kri_warning_upper_margin_ratio`, default `0.10`)
+- the warning band checks proximity to the **upper** limit only
+
+KRI timeliness uses a separate operational filter:
+
+- `due_soon`: the next required reporting period is approaching its due date
+- `timeliness_status` is distinct from `monitoring_status`
+- for v1, list/filter/export flows treat `monitoring_status` and `timeliness_status` as mutually exclusive
 
 ## Core Workflows
 
@@ -141,15 +161,16 @@ When you change limits, document why. Otherwise trend interpretation becomes amb
 
 ### 4) Respond to breach and overdue signals
 
-Breach and overdue are different:
+Monitoring states describe different failures:
 
-- **breach**: the metric is outside limits (risk pressure signal)
-- **overdue**: the metric was not recorded on time (monitoring discipline signal)
+- `breach`: the metric is outside limits (risk pressure signal)
+- `warning`: the metric is still within limits, but approaching the upper bound
+- `not_submitted`: the metric was not submitted for the required period on time
 
 Recommended response pattern:
 
 - breach: create an Issue and route remediation, then review related risks/controls
-- overdue: fix the reporting process (owner, cadence, data source)
+- not submitted: fix the reporting process (owner, cadence, data source)
 
 ### 5) Archive and restore KRIs
 
@@ -182,13 +203,13 @@ Use `./notifications.md` for queue mechanics.
 
 The KRI list supports operational filters:
 
-- within limits
-- breach
-- overdue
+- monitoring status (`new`, `not submitted`, `breach`, `warning`, `optimal`)
+- timeliness status (`due soon`)
 - archived
 - search
 
-Use “overdue” as a discipline view and “breach” as a risk pressure view.
+Use `not submitted` as a discipline view and `breach` as a risk pressure view.
+Use `due soon` as a proactive follow-up view before a submission becomes overdue.
 
 ### Views
 
@@ -204,8 +225,16 @@ KRIs can be exported from the list.
 Export discipline:
 
 - export with a clear as-of date
-- keep filters explicit (breach vs within)
+- keep filters explicit (monitoring status vs archived)
 - keep raw exports unchanged
+
+KRI exports now include monitoring-specific columns:
+
+- monitoring status
+- required due date
+- days overdue
+
+If you export from the due-soon list mode, the export uses `timeliness_status=due_soon` rather than a monitoring-status filter.
 
 ## Common Mistakes
 

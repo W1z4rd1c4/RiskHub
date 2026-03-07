@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Edit2, Trash2, Target, AlertTriangle, CheckCircle, Plus, Clock, History, RotateCcw, FileText } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, Target, Plus, Clock, History, RotateCcw, FileText } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
 import { PermissionGate } from '@/components/PermissionGate';
@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
+import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
 import type { Risk } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
@@ -128,16 +129,13 @@ export function KRIDetailPage() {
         return Math.round(val).toLocaleString('cs-CZ');
     };
 
-    // Calculate due date (period_end + 15 days)
     const calculateDueDate = (): Date | null => {
-        if (!kri?.last_period_end) return null;
-        const periodEnd = new Date(kri.last_period_end);
-        periodEnd.setDate(periodEnd.getDate() + 15);
-        return periodEnd;
+        if (!kri?.required_due_date) return null;
+        return new Date(kri.required_due_date);
     };
 
     const dueDate = calculateDueDate();
-    const isOverdue = dueDate && new Date() > dueDate;
+    const isOverdue = (kri?.days_overdue ?? 0) > 0;
 
     if (isLoading) {
         return (
@@ -161,7 +159,8 @@ export function KRIDetailPage() {
         );
     }
 
-    const isBreaching = kri.breach_status !== 'within';
+    const monitoring = getKriMonitoringMeta(kri.monitoring_status);
+    const MonitoringIcon = monitoring.icon;
 
     return (
         <div className="p-8">
@@ -192,14 +191,13 @@ export function KRIDetailPage() {
                         <div>
                             <h1 className="text-2xl font-black text-white leading-tight">{kri.metric_name}</h1>
                             <div className="flex items-center gap-2 mt-1">
-                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${isBreaching ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                    }`}>
-                                    {isBreaching ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
-                                    {isBreaching ? t('kris:overview.breach') : t('kris:status.within_limits')}
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${monitoring.badgeClassName}`}>
+                                    <MonitoringIcon className="h-3 w-3" />
+                                    {t(monitoring.labelKey)}
                                 </span>
                                 {isOverdue && (
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                        <Clock className="h-3 w-3" /> {t('kris:status.overdue')}
+                                        <Clock className="h-3 w-3" /> {t('kris:overdue.days_overdue', { days: kri.days_overdue ?? 0 })}
                                     </span>
                                 )}
                             </div>
@@ -270,9 +268,7 @@ export function KRIDetailPage() {
                 <KRIDetailOverviewTab
                     kri={kri}
                     linkedRisk={linkedRisk}
-                    isBreaching={isBreaching}
                     dueDate={dueDate}
-                    isOverdue={!!isOverdue}
                     formatNumber={formatNumber}
                     onNavigateToRisk={(riskId) => navigate(`/risks/${riskId}`)}
                 />
