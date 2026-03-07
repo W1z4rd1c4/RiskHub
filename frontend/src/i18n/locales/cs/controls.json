@@ -208,6 +208,7 @@
   },
   "executions": {
     "log_to_start": "Začněte zaznamenáním provedení.",
+    "issues_found": "Zjištěné problémy",
     "next": "Další",
     "findings_evidence": "Zjištění a důkazy",
     "additional_notes": "Doplňující poznámky",

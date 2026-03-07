@@ -56,11 +56,10 @@ export function ControlDetailPage() {
     const [approvalMessage, setApprovalMessage] = useState<{ key: string; approvalId?: number; isError?: boolean } | null>(null);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
-    const fetchData = useCallback(async () => {
+    const fetchControl = useCallback(async () => {
         if (!id) return;
         const ctrlId = parseInt(id);
 
-        // Fetch control data first (critical)
         try {
             setIsLoading(true);
             const ctrlData = await controlApi.getControl(ctrlId);
@@ -74,8 +73,12 @@ export function ControlDetailPage() {
         } finally {
             setIsLoading(false);
         }
+    }, [id]);
 
-        // Fetch linked risks separately (non-critical - page should still render)
+    const fetchLinkedRisks = useCallback(async () => {
+        if (!id) return;
+        const ctrlId = parseInt(id);
+
         try {
             const riskData = await controlApi.getLinkedRisks(ctrlId);
             setLinkedRisks(riskData);
@@ -87,8 +90,9 @@ export function ControlDetailPage() {
     }, [id]);
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        void fetchControl();
+        void fetchLinkedRisks();
+    }, [fetchControl, fetchLinkedRisks]);
 
     const handleArchive = async (reason: string) => {
         if (!control) return;
@@ -119,7 +123,8 @@ export function ControlDetailPage() {
         if (!control) return;
         try {
             await controlApi.restoreControl(control.id);
-            await fetchData();
+            await fetchControl();
+            await fetchLinkedRisks();
             setApprovalMessage({ key: 'controls:detail.control_restored', isError: false });
         } catch (err) {
             console.error('Restore failed:', err);
@@ -378,7 +383,10 @@ export function ControlDetailPage() {
                 onClose={() => setIsLogModalOpen(false)}
                 controlId={control.id}
                 controlName={control.name}
-                onSuccess={() => setHistoryKey(prev => prev + 1)}
+                onSuccess={() => {
+                    setHistoryKey((prev) => prev + 1);
+                    void fetchControl();
+                }}
             />
 
             <ArchiveConfirmDialog

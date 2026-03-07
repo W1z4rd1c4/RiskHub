@@ -3,10 +3,10 @@ Control execution endpoints with RBAC and department scoping.
 """
 
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import desc, or_, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -27,6 +27,7 @@ from app.models.control import Control as ControlModel
 from app.models.control_execution import ControlExecution as ControlExecutionModel
 from app.models.risk import ControlRiskLink
 from app.schemas import execution as schemas
+from app.schemas.execution import ExecutionResultEnum
 
 router = APIRouter()
 
@@ -50,50 +51,29 @@ def _execution_to_schema(
     )
 
 
-@router.get("", response_model=List[schemas.ControlExecution])
-async def read_executions(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("controls", "read")),
-    skip: int = 0,
-    limit: int = 100,
-    control_id: Optional[int] = None,
-    result: Optional[str] = None,
-    from_date: Optional[datetime] = None,
-    to_date: Optional[datetime] = None,
-) -> Any:
-    """
-    Retrieve control executions. Scoped to user's accessible departments.
-    """
-    # Get user's department scope
-    dept_ids = get_user_department_ids(current_user)
-
-    query = select(ControlExecutionModel).options(
-        selectinload(ControlExecutionModel.executed_by),
-        selectinload(ControlExecutionModel.control).options(
-            selectinload(ControlModel.control_owner),
-            selectinload(ControlModel.department),
-            selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk),
-        ),
-    )
-
-    # Apply department scoping via join to Control, with control owner exception
+def _apply_execution_scope_and_filters(
+    query,
+    *,
+    dept_ids: Optional[list[int]],
+    owned_control_ids: list[int],
+    control_id: Optional[int],
+    result: Optional[ExecutionResultEnum],
+    from_date: Optional[datetime],
+    to_date: Optional[datetime],
+):
     if dept_ids is not None:
-        if not dept_ids:
-            # User has no departments - check if they own any controls
-            owned_control_ids = await get_control_ids_where_owner(db, current_user.id)
-            if owned_control_ids:
-                query = query.join(ControlModel).where(ControlModel.id.in_(owned_control_ids))
-            else:
-                return []  # User has no departments and owns no controls
+        if not dept_ids and not owned_control_ids:
+            return None
+
+        query = query.join(ControlModel)
+        if dept_ids and owned_control_ids:
+            query = query.where(
+                or_(ControlModel.department_id.in_(dept_ids), ControlModel.id.in_(owned_control_ids))
+            )
+        elif dept_ids:
+            query = query.where(ControlModel.department_id.in_(dept_ids))
         else:
-            # User has department access - also include controls they own
-            owned_control_ids = await get_control_ids_where_owner(db, current_user.id)
-            if owned_control_ids:
-                query = query.join(ControlModel).where(
-                    or_(ControlModel.department_id.in_(dept_ids), ControlModel.id.in_(owned_control_ids))
-                )
-            else:
-                query = query.join(ControlModel).where(ControlModel.department_id.in_(dept_ids))
+            query = query.where(ControlModel.id.in_(owned_control_ids))
 
     if control_id:
         query = query.where(ControlExecutionModel.control_id == control_id)
@@ -104,9 +84,60 @@ async def read_executions(
     if to_date:
         query = query.where(ControlExecutionModel.executed_at <= to_date)
 
-    query = query.order_by(desc(ControlExecutionModel.executed_at)).offset(skip).limit(limit)
+    return query
 
-    result_set = await db.execute(query)
+
+@router.get("", response_model=schemas.ControlExecutionListResponse)
+async def read_executions(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_permission("controls", "read")),
+    skip: int = 0,
+    limit: int = 100,
+    control_id: Optional[int] = None,
+    result: Optional[ExecutionResultEnum] = None,
+    from_date: Optional[datetime] = None,
+    to_date: Optional[datetime] = None,
+) -> Any:
+    """
+    Retrieve control executions. Scoped to user's accessible departments.
+    """
+    dept_ids = get_user_department_ids(current_user)
+    owned_control_ids = await get_control_ids_where_owner(db, current_user.id) if dept_ids is not None else []
+
+    count_query = _apply_execution_scope_and_filters(
+        select(func.count(func.distinct(ControlExecutionModel.id))),
+        dept_ids=dept_ids,
+        owned_control_ids=owned_control_ids,
+        control_id=control_id,
+        result=result,
+        from_date=from_date,
+        to_date=to_date,
+    )
+    if count_query is None:
+        return schemas.ControlExecutionListResponse(items=[], total=0, skip=skip, limit=limit)
+
+    total = int(await db.scalar(count_query) or 0)
+
+    list_query = _apply_execution_scope_and_filters(
+        select(ControlExecutionModel).options(
+        selectinload(ControlExecutionModel.executed_by),
+        selectinload(ControlExecutionModel.control).options(
+            selectinload(ControlModel.control_owner),
+            selectinload(ControlModel.department),
+            selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk),
+        ),
+    ),
+        dept_ids=dept_ids,
+        owned_control_ids=owned_control_ids,
+        control_id=control_id,
+        result=result,
+        from_date=from_date,
+        to_date=to_date,
+    )
+    assert list_query is not None
+    list_query = list_query.order_by(desc(ControlExecutionModel.executed_at)).offset(skip).limit(limit)
+
+    result_set = await db.execute(list_query)
     executions = result_set.scalars().all()
 
     # Map relation data for the simplified schema
@@ -146,14 +177,14 @@ async def read_executions(
             )
         )
 
-    return items
+    return schemas.ControlExecutionListResponse(items=items, total=total, skip=skip, limit=limit)
 
 
 @router.post("", response_model=schemas.ControlExecution, status_code=status.HTTP_201_CREATED)
 async def create_execution(
     *,
     db: AsyncSession = Depends(get_db),
-    execution_in: schemas.ControlExecutionCreate,
+    execution_in: schemas.ControlExecutionCreateRequest,
     current_user: User = Depends(require_permission("controls", "execute")),
 ) -> Any:
     """
@@ -177,7 +208,7 @@ async def create_execution(
     db_obj = ControlExecutionModel(
         control_id=execution_in.control_id,
         executed_by_id=current_user.id,
-        result=execution_in.result,
+        result=execution_in.result.value,
         findings=execution_in.findings,
         evidence_reference=execution_in.evidence_reference,
         notes=execution_in.notes,

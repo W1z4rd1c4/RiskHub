@@ -28,17 +28,18 @@ describe('executionApi', () => {
     it('fetches executions list', async () => {
         const executions = await executionApi.getExecutions();
 
-        expect(Array.isArray(executions)).toBe(true);
+        expect(Array.isArray(executions.items)).toBe(true);
+        expect(typeof executions.total).toBe('number');
     });
 
     it('creates new execution', async () => {
         const newExecution = await executionApi.createExecution({
             control_id: 1,
-            result: 'pass',
+            result: 'passed',
             findings: 'All checks passed',
         });
 
         expect(newExecution.id).toBeDefined();
-        expect(newExecution.result).toBe('pass');
+        expect(newExecution.result).toBe('passed');
     });
 });

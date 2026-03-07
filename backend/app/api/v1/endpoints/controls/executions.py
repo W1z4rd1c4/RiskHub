@@ -11,10 +11,12 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, User
 from app.schemas.control import (
-    ControlExecutionCreate,
-    ControlExecutionRead,
     ControlFrequencyEnum,
     normalize_control_frequency,
+)
+from app.schemas.execution import (
+    ControlExecutionCreate,
+    ControlExecutionRead,
 )
 
 router = APIRouter()
@@ -66,7 +68,7 @@ async def log_execution(
         check_department_access(control.department_id, current_user)
 
     executed_at = utc_now()
-    next_scheduled = calculate_next_scheduled(control.frequency, executed_at)
+    next_scheduled = execution_data.next_scheduled or calculate_next_scheduled(control.frequency, executed_at)
 
     execution = ControlExecution(
         control_id=control_id,
@@ -128,4 +130,3 @@ async def list_executions(
         .limit(limit)
     )
     return result.scalars().all()
-

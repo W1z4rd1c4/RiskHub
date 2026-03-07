@@ -1,30 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     Calendar,
-    CheckCircle,
-    XCircle,
-    AlertTriangle,
-    MinusCircle,
     User,
     ChevronDown,
     ChevronUp,
     FileText,
     History
 } from 'lucide-react';
-import { executionApi } from '@/services/executionApi';
-import type { ControlExecution } from '@/services/executionApi';
+import { controlApi } from '@/services/controlApi';
+import type { ControlExecution } from '@/types/execution';
 import { useTranslation } from '@/i18n/hooks';
+import { getExecutionResultMeta } from '@/lib/executionResult';
 
 interface ExecutionHistoryProps {
     controlId: number;
 }
-
-const RESULT_CONFIG = {
-    pass: { icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/20', labelKey: 'controls:results.passed' },
-    fail: { icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-400/10', border: 'border-rose-400/20', labelKey: 'controls:results.failed' },
-    issues_found: { icon: AlertTriangle, color: 'text-amber-400', bg: 'bg-amber-400/10', border: 'border-amber-400/20', labelKey: 'executions.issues_found' },
-    not_applicable: { icon: MinusCircle, color: 'text-slate-400', bg: 'bg-slate-400/10', border: 'border-slate-400/20', labelKey: 'controls:results.not_applicable' },
-};
 
 export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
     const { t, i18n } = useTranslation(['controls', 'common']);
@@ -35,7 +25,7 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
     const fetchExecutions = useCallback(async () => {
         try {
             setIsLoading(true);
-            const data = await executionApi.getExecutions({ control_id: controlId });
+            const data = await controlApi.getExecutions(controlId);
             setExecutions(data);
         } catch (err) {
             console.error('Error fetching execution history:', err);
@@ -70,8 +60,9 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
     return (
         <div className="space-y-4">
             {executions.map((exe) => {
-                const config = RESULT_CONFIG[exe.result as keyof typeof RESULT_CONFIG] || RESULT_CONFIG.pass;
+                const config = getExecutionResultMeta(exe.result);
                 const isExpanded = expandedId === exe.id;
+                const ResultIcon = config.icon;
 
                 return (
                     <div
@@ -83,12 +74,12 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
                             onClick={() => setExpandedId(isExpanded ? null : exe.id)}
                         >
                             <div className="flex items-center gap-4">
-                                <div className={`p-2 rounded-lg ${config.bg}`}>
-                                    <config.icon className={`h-5 w-5 ${config.color}`} />
+                                <div className={`p-2 rounded-lg border ${config.badgeClassName}`}>
+                                    <ResultIcon className={`h-5 w-5 ${config.iconClassName}`} />
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2 mb-0.5">
-                                        <span className={`text-xs font-black uppercase tracking-widest ${config.color}`}>
+                                        <span className={`text-xs font-black uppercase tracking-widest ${config.iconClassName}`}>
                                             {t(config.labelKey)}
                                         </span>
                                         <span className="text-slate-600">•</span>

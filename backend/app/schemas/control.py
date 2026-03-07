@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.execution import ExecutionResultEnum
 from app.services._monitoring_status import ControlMonitoringReason, ControlMonitoringStatus
 
 
@@ -57,14 +58,6 @@ class ControlStatusEnum(str, Enum):
     active = "active"
     inactive = "inactive"
     archived = "archived"
-
-
-class ExecutionResultEnum(str, Enum):
-    """Result of a control execution."""
-    passed = "passed"
-    failed = "failed"
-    warning = "warning"
-    not_applicable = "not_applicable"
 
 
 class ControlMonitoringBundle(BaseModel):
@@ -206,30 +199,3 @@ class ControlListResponse(BaseModel):
     total: int
     skip: int
     limit: int
-
-
-# ============== Control Execution Schemas ==============
-
-class ControlExecutionCreate(BaseModel):
-    """Schema for logging a control execution."""
-    result: ExecutionResultEnum = Field(ExecutionResultEnum.passed)
-    findings: Optional[str] = None
-    evidence_reference: Optional[str] = Field(None, max_length=500)
-    notes: Optional[str] = None
-
-
-class ControlExecutionRead(BaseModel):
-    """Schema for reading control execution history."""
-    id: int
-    control_id: int
-    executed_by_id: int
-    executed_by: Optional[UserBriefForControl] = None
-    executed_at: datetime
-    result: ExecutionResultEnum
-    findings: Optional[str] = None
-    evidence_reference: Optional[str] = None
-    notes: Optional[str] = None
-    next_scheduled: Optional[datetime] = None
-    created_at: datetime
-
-    model_config = {"from_attributes": True}

@@ -17,14 +17,19 @@ from app.schemas.approval_request import (
 from app.schemas.control import (
     ControlBase,
     ControlCreate,
-    ControlExecutionCreate,
-    ControlExecutionRead,
     ControlFormEnum,
     ControlFrequencyEnum,
     ControlRead,
     ControlStatusEnum,
     ControlSummary,
     ControlUpdate,
+)
+from app.schemas.execution import (
+    ControlExecution,
+    ControlExecutionCreate,
+    ControlExecutionCreateRequest,
+    ControlExecutionListResponse,
+    ControlExecutionRead,
     ExecutionResultEnum,
 )
 from app.schemas.issue import (
@@ -121,7 +126,8 @@ __all__ = [
     # Control schemas
     "ControlFormEnum", "ControlFrequencyEnum", "ControlStatusEnum", "ExecutionResultEnum",
     "ControlBase", "ControlCreate", "ControlUpdate", "ControlRead", "ControlSummary",
-    "ControlExecutionCreate", "ControlExecutionRead",
+    "ControlExecution", "ControlExecutionCreate", "ControlExecutionCreateRequest",
+    "ControlExecutionListResponse", "ControlExecutionRead",
     # Risk schemas
     "RiskTypeEnum", "RiskStatusEnum", "ControlEffectivenessEnum",
     "RiskBase", "RiskCreate", "RiskUpdate", "RiskRead", "RiskSummary",
