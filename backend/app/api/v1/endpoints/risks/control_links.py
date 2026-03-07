@@ -3,6 +3,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.v1.endpoints._monitoring_response import (
+    load_monitoring_response_context,
+    serialize_control_risk_link,
+)
+from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_risk_id, check_department_access, is_control_owner
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
@@ -33,7 +38,7 @@ async def list_risk_controls(
     result = await db.execute(
         select(ControlRiskLink)
         .options(
-            selectinload(ControlRiskLink.control),
+            selectinload(ControlRiskLink.control).selectinload(Control.executions),
             selectinload(ControlRiskLink.risk),
         )
         .where(ControlRiskLink.risk_id == risk_id)
@@ -45,7 +50,9 @@ async def list_risk_controls(
             continue
         if can_access_department_id(current_user, link.control.department_id) or (link.control.id in owned_control_ids):
             visible_links.append(link)
-    return visible_links
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    return [serialize_control_risk_link(link, monitoring_context) for link in visible_links]
 
 
 @router.post("/{risk_id}/controls", response_model=ControlRiskLinkRead, status_code=status.HTTP_201_CREATED)
@@ -121,12 +128,14 @@ async def link_risk_to_control(
     result = await db.execute(
         select(ControlRiskLink)
         .options(
-            selectinload(ControlRiskLink.control),
+            selectinload(ControlRiskLink.control).selectinload(Control.executions),
             selectinload(ControlRiskLink.risk),
         )
         .where(ControlRiskLink.id == link.id)
     )
-    return result.scalar_one()
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    return serialize_control_risk_link(result.scalar_one(), monitoring_context)
 
 
 @router.delete("/{risk_id}/controls/{control_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -177,4 +186,3 @@ async def unlink_risk_from_control(
 
     await db.delete(link)
     await db.commit()
-

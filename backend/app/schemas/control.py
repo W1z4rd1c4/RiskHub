@@ -4,6 +4,8 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.services._monitoring_status import ControlMonitoringReason, ControlMonitoringStatus
+
 
 class ControlFormEnum(str, Enum):
     """Form of control execution."""
@@ -63,6 +65,17 @@ class ExecutionResultEnum(str, Enum):
     failed = "failed"
     warning = "warning"
     not_applicable = "not_applicable"
+
+
+class ControlMonitoringBundle(BaseModel):
+    """Canonical monitoring status data for controls."""
+
+    monitoring_status: ControlMonitoringStatus
+    monitoring_status_reason: ControlMonitoringReason
+    latest_execution_result: Optional[ExecutionResultEnum] = None
+    latest_executed_at: Optional[datetime] = None
+    days_since_last_execution: Optional[int] = None
+    execution_log_count: int = 0
 
 
 # ============== Control Schemas ==============
@@ -147,7 +160,7 @@ class DepartmentBriefForControl(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class ControlRead(ControlBase):
+class ControlRead(ControlBase, ControlMonitoringBundle):
     """Schema for reading a Control with relationships."""
     id: int
     control_owner: Optional[UserBriefForControl] = None
@@ -160,7 +173,7 @@ class ControlRead(ControlBase):
     model_config = {"from_attributes": True}
 
 
-class ControlSummary(BaseModel):
+class ControlSummary(ControlMonitoringBundle):
     """Minimal schema for control list views."""
     id: int
     name: str

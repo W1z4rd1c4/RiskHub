@@ -7,6 +7,7 @@ import { http, HttpResponse } from 'msw';
 
 import { server } from '@test/mocks/server';
 import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearBootstrapSession } from '@/services/authSessionCoordinator';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { ControlsPage } from '@/pages/ControlsPage';
@@ -46,11 +47,13 @@ function renderWithRoute(route: string) {
 
 describe('ControlsPage archived visibility', () => {
     beforeEach(() => {
+        clearBootstrapSession();
         setAccessToken('test-token');
     });
 
     afterEach(() => {
         clearAccessToken();
+        clearBootstrapSession();
     });
 
     it('hides archived controls by default and shows them when status filter is set to Archived', async () => {
@@ -99,5 +102,53 @@ describe('ControlsPage archived visibility', () => {
         await uiUser.click(screen.getByTestId('controls-status-filter-option-archived'));
 
         await screen.findByText('Archived Control');
+    });
+
+    it('sends monitoring_status when a monitoring filter is selected', async () => {
+        const user = makeUser();
+
+        const passedControl = {
+            id: 11,
+            name: 'Passed Control',
+            department_name: 'Operations',
+            frequency: 'monthly',
+            risk_level: 3,
+            status: 'active',
+            control_form: 'manual',
+            monitoring_status: 'passed',
+        };
+
+        const failedControl = {
+            ...passedControl,
+            id: 12,
+            name: 'Failed Control',
+            monitoring_status: 'failed',
+        };
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/controls', ({ request }) => {
+                const url = new URL(request.url);
+                const monitoringStatus = url.searchParams.get('monitoring_status');
+                const items = monitoringStatus === 'passed' ? [passedControl] : [failedControl];
+                return HttpResponse.json({
+                    items,
+                    total: items.length,
+                    skip: Number(url.searchParams.get('skip') ?? 0),
+                    limit: Number(url.searchParams.get('limit') ?? 20),
+                });
+            })
+        );
+
+        renderWithRoute('/controls');
+
+        await screen.findByText('Failed Control');
+
+        const uiUser = userEvent.setup();
+        await uiUser.click(screen.getByTestId('controls-status-filter-trigger'));
+        await uiUser.click(screen.getByTestId('controls-status-filter-option-passed'));
+
+        await screen.findByText('Passed Control');
+        expect(screen.queryByText('Failed Control')).not.toBeInTheDocument();
     });
 });

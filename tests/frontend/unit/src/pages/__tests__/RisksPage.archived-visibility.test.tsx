@@ -7,6 +7,7 @@ import { http, HttpResponse } from 'msw';
 
 import { server } from '@test/mocks/server';
 import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearBootstrapSession } from '@/services/authSessionCoordinator';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { RisksPage } from '@/pages/RisksPage';
@@ -46,11 +47,13 @@ function renderWithRoute(route: string) {
 
 describe('RisksPage archived visibility', () => {
     beforeEach(() => {
+        clearBootstrapSession();
         setAccessToken('test-token');
     });
 
     afterEach(() => {
         clearAccessToken();
+        clearBootstrapSession();
     });
 
     it('hides archived risks by default and shows them when status filter is set to Archived', async () => {

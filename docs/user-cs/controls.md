@@ -1,7 +1,7 @@
 ---
 title: Správa kontrol
 version: "2.0"
-last_updated: "2026-03-05"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.2, §4, §7 + frontend/src/pages/ControlsPage.tsx"
 summary: "Kompletní manuál pro lifecycle kontrol: návrh, ownership, logování exekuce, linkování na rizika, exporty a schvalování citlivých změn."
@@ -100,6 +100,18 @@ Exekuční log obvykle obsahuje:
 - findings
 - evidence reference
 - notes
+
+Monitoring status se odvozuje z exekuční evidence a je konzistentně použitý v kartách, tabulkách, filtrech i exportech:
+
+- `new`: zatím neexistuje žádný execution log a kontrola je stále v čerstvém okně
+- `needs_review`: kontrola nemá exekuci déle než nakonfigurovaný limit
+- `failed`: poslední execution result je cokoliv jiného než `passed`
+- `passed`: poslední execution result je `passed`
+
+Důležité pravidlo:
+
+- monitoring status kontroly vždy používá jen **poslední execution log**
+- limit stáří je řízen konfigurací (`control_execution_stale_days`, default `365`)
 
 ## Hlavní workflow
 
@@ -215,7 +227,8 @@ Queue manuál je `./notifications.md`.
 Katalog kontrol podporuje:
 
 - search (name/description)
-- status filter (včetně archived)
+- monitoring status filter (`new`, `needs review`, `failed`, `passed`)
+- archived lifecycle filter
 - view mode (all vs grouped)
 
 Grouped view je dobré pro review a koncentraci.
@@ -226,9 +239,16 @@ Kontroly lze exportovat pro audit packy a operativní review.
 
 Disciplína exportu:
 
-- jasné filtry (status, search)
+- jasné filtry (monitoring status, archived, search)
 - kontext „as of“
 - raw export neměnit
+
+Exporty kontrol nově obsahují monitoring sloupce:
+
+- monitoring status
+- latest execution result
+- latest executed at
+- days since last execution
 
 ## Časté chyby
 

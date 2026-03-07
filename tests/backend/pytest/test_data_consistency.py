@@ -7,7 +7,10 @@ Verifies that counts match across different API endpoints:
 - KRI counts: /kris vs department aggregates
 """
 
+import pytest
 from httpx import AsyncClient
+
+pytestmark = pytest.mark.asyncio
 
 
 class TestRiskCountConsistency:
@@ -136,8 +139,8 @@ class TestKRICountConsistency:
             # Get KRIs for this department
             resp = await auth_client.get(f"/api/v1/departments/{dept_id}/kris?limit=100")
             assert resp.status_code == 200
-            kris = resp.json()
-            actual_count = len(kris)
+            data = resp.json()
+            actual_count = data["total"]
 
             assert actual_count == expected_count, (
                 f"Department {dept['name']} (ID: {dept_id}) KRI count mismatch: "
@@ -163,8 +166,8 @@ class TestKRICountConsistency:
             # Get KRIs for this department
             resp = await auth_client.get(f"/api/v1/departments/{dept_id}/kris?limit=100")
             assert resp.status_code == 200
-            kris = resp.json()
-            actual_count = len(kris)
+            data = resp.json()
+            actual_count = data["total"]
 
             assert actual_count == expected_count, (
                 f"Department {dept['name']} (ID: {dept_id}) detail KRI count mismatch: "

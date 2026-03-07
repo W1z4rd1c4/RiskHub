@@ -3,13 +3,12 @@ import { Target, Calendar, User, Shield, ExternalLink } from 'lucide-react';
 import type { KeyRiskIndicator } from '@/types/kri';
 import type { Risk } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
+import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 
 interface KRIDetailOverviewTabProps {
     kri: KeyRiskIndicator;
     linkedRisk: Risk | null;
-    isBreaching: boolean;
     dueDate: Date | null;
-    isOverdue: boolean;
     formatNumber: (val: number) => string;
     onNavigateToRisk: (riskId: number) => void;
 }
@@ -17,13 +16,12 @@ interface KRIDetailOverviewTabProps {
 export function KRIDetailOverviewTab({
     kri,
     linkedRisk,
-    isBreaching,
     dueDate,
-    isOverdue,
     formatNumber,
     onNavigateToRisk,
 }: KRIDetailOverviewTabProps) {
     const { t, i18n } = useTranslation(['kris', 'common', 'risks']);
+    const monitoring = getKriMonitoringMeta(kri.monitoring_status);
 
     return (
         <div className="grid gap-6 lg:grid-cols-3">
@@ -38,7 +36,7 @@ export function KRIDetailOverviewTab({
                     <Target className="h-4 w-4 text-accent" /> {t('fields.current_value', { ns: 'kris' })}
                 </h3>
                 <div className="text-center py-8">
-                    <div className={`text-5xl font-black mb-2 ${isBreaching ? 'text-rose-400' : 'text-emerald-400'}`}>
+                    <div className={`text-5xl font-black mb-2 ${monitoring.textClassName}`}>
                         {formatNumber(kri.current_value)}
                         <span className="text-lg text-slate-400 ml-2 font-bold">{kri.unit}</span>
                     </div>
@@ -59,7 +57,7 @@ export function KRIDetailOverviewTab({
                     <motion.div
                         initial={{ left: 0 }}
                         animate={{ left: `${Math.min(100, Math.max(0, (kri.current_value / kri.upper_limit) * 80))}%` }}
-                        className={`absolute w-4 h-4 rounded-full -top-0 ${isBreaching ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                        className={`absolute w-4 h-4 rounded-full -top-0 ${monitoring.gaugeClassName.split(' ')[0]}`}
                     />
                 </div>
             </motion.div>
@@ -92,7 +90,7 @@ export function KRIDetailOverviewTab({
                     {dueDate && (
                         <div className="flex items-center justify-between py-2">
                             <span className="text-xs text-slate-500">{t('overview.due_date', { ns: 'kris' })}</span>
-                            <span className={`text-sm font-bold ${isOverdue ? 'text-amber-400' : 'text-white'}`}>
+                            <span className={`text-sm font-bold ${kri.monitoring_status === 'not_submitted' ? 'text-amber-400' : 'text-white'}`}>
                                 {dueDate.toLocaleDateString(i18n.language)}
                             </span>
                         </div>
@@ -205,7 +203,7 @@ export function KRIDetailOverviewTab({
                     </div>
                     <div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-widest">{t('common:labels.status')}</span>
-                        <p className="text-sm font-bold text-white">{kri.breach_status === 'within' ? t('columns.ok', { ns: 'kris' }) : t('overview.breach', { ns: 'kris' })}</p>
+                        <p className={`text-sm font-bold ${monitoring.textClassName}`}>{t(monitoring.labelKey)}</p>
                     </div>
                 </div>
             </motion.div>

@@ -8,12 +8,23 @@ import type {
     KRIHistoryListResponse,
     KRIRecordValue,
     KRIHistoryEdit,
+    KRIMonitoringStatus,
+    KRITimelinessStatus,
     OverdueKRI,
     DueSoonKRI,
 } from '../types/kri';
 import type { ApprovalCreatedResponse } from '../types/approval';
 export const kriApi = {
-    async getKRIs(params?: { risk_id?: number; breach_only?: boolean; page?: number; size?: number; include_archived?: boolean; search?: string }): Promise<KRIListResponse> {
+    async getKRIs(params?: {
+        risk_id?: number;
+        breach_only?: boolean;
+        page?: number;
+        size?: number;
+        include_archived?: boolean;
+        search?: string;
+        monitoring_status?: KRIMonitoringStatus;
+        timeliness_status?: KRITimelinessStatus;
+    }): Promise<KRIListResponse> {
         return apiClient.get<KRIListResponse>('/kris', { params });
     },
 

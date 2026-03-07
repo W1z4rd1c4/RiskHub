@@ -7,6 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
+from app.core.datetime_utils import utc_now
 from app.core.permissions import check_department_access
 from app.models import KeyRiskIndicator, Risk, User
 from app.schemas.kri import KRIRecordValue, KRIResponse
@@ -206,4 +208,6 @@ async def _apply_kri_value_directly(
 
         await db.commit()
 
-    return KRIResponse.model_validate(kri)
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    return serialize_kri_response(kri, monitoring_context)

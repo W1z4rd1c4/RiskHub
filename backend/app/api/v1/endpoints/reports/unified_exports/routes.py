@@ -12,7 +12,13 @@ from app.models.issue import IssueSeverity, IssueStatus
 
 from .._scoping import _validate_department_access
 from .._streaming import EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE, resolve_export_format
-from ._shared import ExportFormatQuery, KRIExportStatus
+from ._shared import (
+    ControlMonitoringExportStatus,
+    ExportFormatQuery,
+    KRIMonitoringExportStatus,
+    KRITimelinessExportStatus,
+    KRIExportStatus,
+)
 from .exports import _export_controls, _export_issues, _export_kris, _export_risks, _export_vendors
 
 router = APIRouter()
@@ -53,6 +59,7 @@ async def export_controls(
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
+    monitoring_status_filter: Optional[ControlMonitoringExportStatus] = Query(None, alias="monitoring_status"),
     search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
@@ -68,6 +75,7 @@ async def export_controls(
         as_of_date=as_of,
         department_id=department_id,
         status_filter=status_filter,
+        monitoring_status_filter=monitoring_status_filter,
         search=search,
     )
 
@@ -78,10 +86,18 @@ async def export_kris(
     as_of_date: Optional[date] = Query(None, description="Point-in-time date (YYYY-MM-DD)"),
     department_id: Optional[int] = Query(None),
     status_filter: KRIExportStatus = Query("all", alias="status"),
+    monitoring_status_filter: Optional[KRIMonitoringExportStatus] = Query(None, alias="monitoring_status"),
+    timeliness_status_filter: Optional[KRITimelinessExportStatus] = Query(None, alias="timeliness_status"),
     search: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
+    if monitoring_status_filter is not None and timeliness_status_filter is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="monitoring_status and timeliness_status cannot be used together",
+        )
+
     export_format = resolve_export_format(format, replacement="/api/v1/reports/kris/export?format=csv")
     dept_ids = get_user_department_ids(current_user)
     _validate_department_access(department_id, dept_ids)
@@ -93,6 +109,8 @@ async def export_kris(
         as_of_date=as_of,
         department_id=department_id,
         status_filter=status_filter,
+        monitoring_status_filter=monitoring_status_filter,
+        timeliness_status_filter=timeliness_status_filter,
         search=search,
     )
 

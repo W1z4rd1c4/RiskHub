@@ -43,6 +43,12 @@
     "under_review": "V revizi",
     "deprecated": "Zastaralé"
   },
+  "monitoring": {
+    "new": "Nové",
+    "needs_review": "Vyžaduje revizi",
+    "failed": "Neúspěšné",
+    "passed": "Úspěšné"
+  },
   "tabs": {
     "overview": "Přehled",
     "execution": "Záznam exekuce",

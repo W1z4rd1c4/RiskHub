@@ -3,12 +3,16 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
+from app.core.datetime_utils import utc_now
 from app.core.permissions import get_user_department_ids
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.schemas.kri import KRIResponse
+from app.services._monitoring_status import KRIMonitoringStatus
 
 router = APIRouter()
 
@@ -45,12 +49,17 @@ async def list_breaches(
             return []
         query = query.filter(Risk.department_id == department_id)
 
+    query = query.options(
+        selectinload(KeyRiskIndicator.reporting_owner),
+        selectinload(KeyRiskIndicator.risk).selectinload(Risk.owner),
+        selectinload(KeyRiskIndicator.risk).selectinload(Risk.department),
+    )
     result = await db.execute(query)
     kris = result.scalars().all()
 
-    # Filter to breached only
-    items = [KRIResponse.model_validate(k) for k in kris]
-    breaches = [i for i in items if i.breach_status != "within"]
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    items = [serialize_kri_response(kri, monitoring_context) for kri in kris]
+    breaches = [item for item in items if item.monitoring_status == KRIMonitoringStatus.breach]
 
     return breaches
-

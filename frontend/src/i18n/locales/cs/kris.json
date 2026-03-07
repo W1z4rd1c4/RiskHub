@@ -36,6 +36,13 @@
     "not_reported": "Nenahlášeno",
     "overdue": "Opožděno"
   },
+  "monitoring": {
+    "new": "Nové",
+    "not_submitted": "Nepředloženo",
+    "breach": "Překročení",
+    "warning": "Varování",
+    "optimal": "Optimální"
+  },
   "tabs": {
     "overview": "Přehled",
     "values": "Historie hodnot",
@@ -64,6 +71,7 @@
     "all": "Vše",
     "within": "V limitu",
     "breach": "Překročení",
+    "due_soon": "Brzy splatné",
     "breached_only": "Pouze překročené",
     "overdue": "Opožděné",
     "archived": "Archivované",
@@ -73,6 +81,7 @@
   },
   "empty_state": {
     "no_kris": "Nebyly nalezeny žádné KRI odpovídající kritériím.",
+    "no_due_soon_kris": "Žádné KRI nejsou brzy splatné k nahlášení.",
     "no_values": "Žádná historie hodnot",
     "no_linked_risk": "Žádné propojené riziko",
     "no_group": "Žádné KRI v této skupině."

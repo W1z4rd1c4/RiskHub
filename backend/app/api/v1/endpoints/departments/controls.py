@@ -7,6 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.v1.endpoints._monitoring_response import (
+    build_control_monitoring_fields,
+    load_monitoring_response_context,
+)
+from app.core.datetime_utils import utc_now
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
@@ -50,7 +55,11 @@ async def list_department_controls(
 
     # Eager load relationships for ControlSummary fields
     query = (
-        query.options(selectinload(Control.department), selectinload(Control.control_owner))
+        query.options(
+            selectinload(Control.department),
+            selectinload(Control.control_owner),
+            selectinload(Control.executions),
+        )
         .offset(skip)
         .limit(limit)
         .order_by(Control.name)
@@ -58,6 +67,8 @@ async def list_department_controls(
 
     result = await db.execute(query)
     controls = result.scalars().all()
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
 
     # Map to ControlSummary with populated fields
     return [
@@ -72,7 +83,7 @@ async def list_department_controls(
             status=ControlStatusEnum(c.status),
             control_form=ControlFormEnum(c.control_form),
             control_owner_name=c.control_owner.name if c.control_owner else None,
+            **build_control_monitoring_fields(c, monitoring_context),
         )
         for c in controls
     ]
-

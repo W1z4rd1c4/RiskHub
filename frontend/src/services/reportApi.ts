@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import type { KRIMonitoringStatus, KRITimelinessStatus } from '@/types/kri';
 
 interface ReportFilters {
     departmentId?: number | null;
@@ -15,11 +16,25 @@ interface RiskExportFilters extends ReportFilters {
 
 interface ControlExportFilters extends ReportFilters {
     search?: string | null;
+    monitoringStatus?: string | null;
 }
 
-interface KRIExportFilters extends ReportFilters {
-    search?: string | null;
-}
+type KRIExportFilters =
+    | (ReportFilters & {
+        search?: string | null;
+        monitoringStatus?: KRIMonitoringStatus | null;
+        timelinessStatus?: null | undefined;
+    })
+    | (ReportFilters & {
+        search?: string | null;
+        monitoringStatus?: null | undefined;
+        timelinessStatus?: KRITimelinessStatus | null;
+    })
+    | (ReportFilters & {
+        search?: string | null;
+        monitoringStatus?: null | undefined;
+        timelinessStatus?: null | undefined;
+    });
 
 interface VendorExportFilters extends ReportFilters {
     search?: string | null;
@@ -127,6 +142,12 @@ async function downloadUnifiedExport(
     await downloadFile(`/reports/${entity}/export${queryString}`, `${entity}-${asOfDate}.csv`);
 }
 
+function assertKriExportFilters(filters: KRIExportFilters): void {
+    if (filters.monitoringStatus && filters.timelinessStatus) {
+        throw new Error('monitoring_status and timeliness_status cannot be used together');
+    }
+}
+
 export const reportApi = {
     async downloadSummaryCsv(filters: ReportFilters = {}): Promise<void> {
         const query = buildExportQueryString({
@@ -160,15 +181,19 @@ export const reportApi = {
         await downloadUnifiedExport('controls', format, asOfDate, {
             department_id: filters.departmentId,
             status: filters.status,
+            monitoring_status: filters.monitoringStatus,
             search: filters.search,
         });
     },
 
     async exportKRIs(request: ExportRequest<KRIExportFilters>): Promise<void> {
         const { format, asOfDate, filters = {} } = request;
+        assertKriExportFilters(filters);
         await downloadUnifiedExport('kris', format, asOfDate, {
             department_id: filters.departmentId,
             status: filters.status,
+            monitoring_status: filters.monitoringStatus,
+            timeliness_status: filters.timelinessStatus,
             search: filters.search,
         });
     },

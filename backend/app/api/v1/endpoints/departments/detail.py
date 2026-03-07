@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import case
 
+from app.core.datetime_utils import utc_now
 from app.core.pagination import DEPARTMENT_RECENT_EXECUTIONS_LIMIT
 from app.core.security import require_permission
 from app.db.session import get_db
@@ -13,6 +14,8 @@ from app.models import Control, ControlExecution, KeyRiskIndicator, Risk, User
 from app.models.control import ControlStatus
 from app.models.risk import RiskStatus
 from app.schemas.department import ControlStats, DepartmentDetail, RecentExecution, RiskDistribution
+from app.services._monitoring_status import KRIMonitoringStatus, get_kri_monitoring_config
+from app.services._monitoring_status.queries import apply_kri_monitoring_status_filter
 
 from ._shared import RISK_LEVEL_RANGES, _assert_department_in_scope
 
@@ -56,13 +59,32 @@ async def get_department(
     )
     control_count = control_count_result.scalar() or 0
 
-    # Count KRIs (only from non-archived risks)
-    kri_count_result = await db.execute(
-        select(func.count(KeyRiskIndicator.id))
+    # Count KRIs (only non-archived KRIs from non-archived risks)
+    kri_base_query = (
+        select(KeyRiskIndicator)
         .join(Risk)
-        .where(and_(Risk.department_id == department_id, Risk.status != RiskStatus.archived.value))
+        .where(
+            and_(
+                Risk.department_id == department_id,
+                Risk.status != RiskStatus.archived.value,
+                KeyRiskIndicator.is_archived.is_(False),
+            )
+        )
     )
+    kri_count_result = await db.execute(select(func.count()).select_from(kri_base_query.subquery()))
     kri_count = kri_count_result.scalar() or 0
+    now = utc_now()
+    kri_monitoring_config = await get_kri_monitoring_config(db)
+    kri_monitoring_counts: dict[str, int] = {}
+    for monitoring_status in KRIMonitoringStatus:
+        filtered_kri_query = apply_kri_monitoring_status_filter(
+            kri_base_query,
+            monitoring_status=monitoring_status,
+            today=now.date(),
+            warning_upper_margin_ratio=kri_monitoring_config.warning_upper_margin_ratio,
+        )
+        count_result = await db.execute(select(func.count()).select_from(filtered_kri_query.subquery()))
+        kri_monitoring_counts[monitoring_status.value] = int(count_result.scalar() or 0)
 
     # Risk distribution by level (single query, avoids N+1)
     risk_distribution_columns = []
@@ -181,9 +203,9 @@ async def get_department(
         risk_count=risk_count,
         control_count=control_count,
         kri_count=kri_count,
+        kri_monitoring_counts=kri_monitoring_counts,
         risk_distribution=risk_distribution,
         risk_by_status=risk_by_status,
         control_stats=control_stats,
         recent_executions=recent_executions,
     )
-

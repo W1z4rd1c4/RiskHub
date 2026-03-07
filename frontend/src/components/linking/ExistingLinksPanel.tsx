@@ -18,18 +18,8 @@ export interface ExistingLinkItem {
     control_id?: number;
     effectiveness: string;
     notes?: string;
-    // Accepts partial risk object with at least description for display
-    risk?: {
-        description?: string;
-        // Allow additional properties from RiskControlLink
-        [key: string]: unknown;
-    };
-    // Accepts partial control object with at least name for display
-    control?: {
-        name?: string;
-        // Allow additional properties from ControlRiskLink
-        [key: string]: unknown;
-    };
+    risk?: unknown;
+    control?: unknown;
 }
 
 export interface ExistingLinksPanelProps {
@@ -52,6 +42,22 @@ function getEffectivenessColor(eff: string): string {
     }
 }
 
+function getRiskDescription(risk: unknown): string | null {
+    if (!risk || typeof risk !== 'object' || !('description' in risk)) {
+        return null;
+    }
+    const description = (risk as { description?: unknown }).description;
+    return typeof description === 'string' && description.length > 0 ? description : null;
+}
+
+function getControlName(control: unknown): string | null {
+    if (!control || typeof control !== 'object' || !('name' in control)) {
+        return null;
+    }
+    const name = (control as { name?: unknown }).name;
+    return typeof name === 'string' && name.length > 0 ? name : null;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -69,9 +75,9 @@ export function ExistingLinksPanel({
 
     const getDisplayName = (link: ExistingLinkItem): string => {
         if (mode === 'control-to-risk') {
-            return link.risk?.description || t('common:labels.unknown');
+            return getRiskDescription(link.risk) || t('common:labels.unknown');
         }
-        return link.control?.name || t('common:labels.unknown');
+        return getControlName(link.control) || t('common:labels.unknown');
     };
 
     return (
