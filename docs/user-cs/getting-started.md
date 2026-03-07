@@ -1,7 +1,7 @@
 ---
 title: Začínáme s RiskHub
 version: "2.0"
-last_updated: "2026-03-05"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routy"
 summary: "Onboarding manuál pro non-admin uživatele: ověření scope, navigace, workflow připravenost a nejčastější chyby na začátku."
@@ -109,8 +109,10 @@ Praktická rada:
 ### 1) Checklist prvního přihlášení (15 minut)
 
 1. Přihlaste se a ověřte jméno + roli.
+   - V produkci má přihlašovací stránka před ověřením dočasný přepínač `CZ / EN`.
+   - Tento přepínač mění pouze text na přihlašovací stránce a neukládá dlouhodobou preferenci.
 2. Otevřete `/settings`:
-   - nastavte jazyk
+   - nastavte trvalou jazykovou preferenci
    - ověřte přístup do dokumentace
 3. Otevřete `/` a ověřte, že data dávají smysl pro váš scope.
 4. Otevřete `/notifications` a zkontrolujte unread.

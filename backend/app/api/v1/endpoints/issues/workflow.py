@@ -12,12 +12,12 @@ from app.schemas.issue import (
     IssueStartRemediationRequest,
 )
 from app.services.issue_workflow_service import IssueWorkflowService
+from app.services.outbox_service import OutboxService
 
 from ._shared import (
     _ensure_owner_assignable,
     _get_issue_with_relations,
     _get_writable_issue_or_404,
-    _notify_issue_assigned,
     _serialize_issue_read,
     _validate_user_exists,
 )
@@ -47,7 +47,18 @@ async def assign_issue(
         target_date=payload.target_date,
         actor=current_user,
     )
-    await _notify_issue_assigned(db, issue=issue, owner_user_id=payload.owner_user_id, actor=current_user)
+    await OutboxService.enqueue(
+        db,
+        event_type="issue.assigned",
+        aggregate_type="issue",
+        aggregate_id=issue.id,
+        idempotency_key=f"issue:{issue.id}:assigned:{payload.owner_user_id}:{current_user.id}",
+        payload={
+            "issue_id": issue.id,
+            "owner_user_id": payload.owner_user_id,
+            "actor_user_id": current_user.id,
+        },
+    )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
     return _serialize_issue_read(refreshed)

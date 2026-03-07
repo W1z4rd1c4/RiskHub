@@ -1046,6 +1046,12 @@ Plans:
 - [x] 500-07: Smoke verification automation + regression coverage for install path
 - [x] 500-08: Deployment documentation and operations runbook reconciliation
 
+Follow-up hardening completed on 2026-03-07:
+
+- advisory-lock-enforced scheduler ownership with runtime/job ledgering
+- transactional outbox + dispatcher for request-driven side effects
+- production smoke/runtime checks extended to validate reliability tables, singleton scheduler runtime ownership, and dead-letter-free outbox state
+
 ### Phase 501: Production Readiness Hardening
 
 **Goal**: Remediate deep-scan production readiness issues across compile gates, vulnerability posture, stale code cleanup, JWT/auth internals, and CI enforcement.

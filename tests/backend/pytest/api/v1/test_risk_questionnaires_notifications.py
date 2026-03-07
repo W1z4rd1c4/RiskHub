@@ -8,7 +8,7 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.models import Risk, User
 from app.models.global_config import clear_config_cache
@@ -16,7 +16,13 @@ from app.models.notification import Notification, NotificationType
 from app.models.risk import RiskStatus
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.user import AccessScope
+from app.services.outbox_service import dispatch_pending_outbox_events
 from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
+
+
+async def _dispatch_outbox(async_engine: AsyncEngine) -> int:
+    sessionmaker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    return await dispatch_pending_outbox_events(sessionmaker, lock_owner="test")
 
 
 @pytest.fixture(autouse=True)
@@ -56,12 +62,14 @@ async def risk_owned_by_employee(
 @pytest.mark.asyncio
 async def test_send_creates_questionnaire_sent_notification(
     db_session: AsyncSession,
+    async_engine: AsyncEngine,
     client_cro: AsyncClient,
     test_user_employee: User,
     risk_owned_by_employee: Risk,
 ):
     resp = await client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send")
     assert resp.status_code == 201
+    await _dispatch_outbox(async_engine)
 
     result = await db_session.execute(
         select(Notification).where(
@@ -78,6 +86,7 @@ async def test_send_creates_questionnaire_sent_notification(
 @pytest.mark.asyncio
 async def test_submit_creates_questionnaire_submitted_notification_for_rm_cro(
     db_session: AsyncSession,
+    async_engine: AsyncEngine,
     client_cro: AsyncClient,
     client_employee: AsyncClient,
     test_user_cro: User,
@@ -124,6 +133,7 @@ async def test_submit_creates_questionnaire_submitted_notification_for_rm_cro(
         },
     )
     assert submit_resp.status_code == 200
+    await _dispatch_outbox(async_engine)
 
     for recipient_id in (test_user_cro.id, test_user_risk_manager.id):
         res = await db_session.execute(

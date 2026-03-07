@@ -1,11 +1,12 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.models import Department, Permission, Role, RolePermission, User, Vendor
 from app.models.notification import Notification, NotificationType
 from app.models.user import AccessScope
+from app.services.outbox_service import dispatch_pending_outbox_events
 
 
 async def _grant(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:
@@ -19,9 +20,15 @@ async def _grant(db_session: AsyncSession, role: Role, resource: str, action: st
     db_session.expire(role, ["permissions"])
 
 
+async def _dispatch_outbox(async_engine: AsyncEngine) -> int:
+    sessionmaker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    return await dispatch_pending_outbox_events(sessionmaker, lock_owner="test")
+
+
 @pytest.mark.asyncio
 async def test_vendor_assessment_workflow_transitions_and_notifications(
     db_session: AsyncSession,
+    async_engine: AsyncEngine,
     client_employee: AsyncClient,
     client_risk_manager: AsyncClient,
     client_cro: AsyncClient,
@@ -108,6 +115,7 @@ async def test_vendor_assessment_workflow_transitions_and_notifications(
     resp = await client_employee.post(f"/api/v1/vendor-assessments/{assessment_id}/submit")
     assert resp.status_code == 200
     assert resp.json()["status"] == "submitted"
+    await _dispatch_outbox(async_engine)
 
     # Edits after submit are blocked
     resp = await client_employee.patch(
@@ -133,6 +141,7 @@ async def test_vendor_assessment_workflow_transitions_and_notifications(
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "committee_recommended"
+    await _dispatch_outbox(async_engine)
 
     # Decision requires CRO role
     resp = await client_employee.post(
@@ -147,6 +156,7 @@ async def test_vendor_assessment_workflow_transitions_and_notifications(
     )
     assert resp.status_code == 200
     assert resp.json()["status"] == "approved"
+    await _dispatch_outbox(async_engine)
 
     # Notifications created for workflow milestones
     result = await db_session.execute(select(Notification).order_by(Notification.id))

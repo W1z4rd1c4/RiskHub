@@ -105,39 +105,6 @@ async def delete_control(
         department_id=control.department_id,
     )
 
-    # Needs logic to find primary approver for delete requests as well
-    from app.core.approval_helpers import get_primary_approver_for_control
-
-    primary_approver_id = await get_primary_approver_for_control(db, control.id)
-
-    try:
-        from app.models.notification import NotificationType
-        from app.services.notification_service import NotificationService
-
-        # 1. Notify Primary Approver
-        if primary_approver_id:
-            await NotificationService.create_notification(
-                db=db,
-                user_id=primary_approver_id,
-                notification_type=NotificationType.APPROVAL_PENDING,
-                title="Control Deletion Request",
-                message=f"Request to delete control '{name_snippet}' requires your approval.",
-                resource_type="approval",
-                resource_id=approval.id,
-            )
-
-        # 2. Notify other privileged approvers (CROs, Risk Managers)
-        await NotificationService.notify_approvers(db, approval)
-
-        await db.commit()
-    except Exception as e:
-        await db.rollback()
-        import logging
-
-        logging.getLogger(__name__).warning(
-            f"Failed to notify approvers for control delete approval #{approval.id}: {e}"
-        )
-
     from fastapi.responses import JSONResponse
 
     return JSONResponse(
@@ -148,4 +115,3 @@ async def delete_control(
             "action_type": "delete",
         },
     )
-

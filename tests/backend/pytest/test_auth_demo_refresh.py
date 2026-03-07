@@ -6,12 +6,13 @@ from http.cookies import SimpleCookie
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.db.session import get_db
 from app.main import app
-from app.models import User
+from app.models import RefreshToken, User
 
 
 def _refresh_cookie_headers(token: str) -> dict[str, str]:
@@ -96,3 +97,22 @@ async def test_demo_refresh_replay_allows_single_parallel_winner(
 
         winner_replay = await verifier.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(winner_cookie))
         assert winner_replay.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_demo_login_records_refresh_session_ip_using_trusted_proxy_resolution(
+    demo_auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    response = await demo_auth_client.post(
+        "/api/v1/auth/demo-login",
+        json={"email": test_user.email},
+        headers={"X-Forwarded-For": "198.51.100.42, 10.0.0.5"},
+    )
+    assert response.status_code == 200, response.text
+
+    refresh_row = (
+        await db_session.execute(select(RefreshToken).where(RefreshToken.user_id == test_user.id))
+    ).scalar_one()
+    assert refresh_row.created_ip == "198.51.100.42"

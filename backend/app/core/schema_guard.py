@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
 from sqlalchemy import text
@@ -12,6 +13,18 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 MIGRATION_COMMAND = "./venv/bin/alembic upgrade head"
+
+
+@dataclass(frozen=True)
+class SchemaRevisionStatus:
+    database_url: str
+    current_revisions: list[str]
+    expected_heads: list[str]
+    error_message: str | None
+
+    @property
+    def is_ok(self) -> bool:
+        return self.error_message is None
 
 
 def _is_sqlite_url(database_url: str) -> bool:
@@ -36,31 +49,68 @@ def _normalize_revisions(values: Iterable[str]) -> list[str]:
     return sorted({value for value in values if value})
 
 
-def validate_schema_revisions(*, database_url: str, current_revisions: set[str], expected_heads: set[str]) -> None:
+def inspect_schema_revisions(*, database_url: str, current_revisions: set[str], expected_heads: set[str]) -> SchemaRevisionStatus:
     if _is_sqlite_url(database_url):
-        return
+        return SchemaRevisionStatus(
+            database_url=database_url,
+            current_revisions=_normalize_revisions(current_revisions),
+            expected_heads=_normalize_revisions(expected_heads),
+            error_message=None,
+        )
 
     normalized_current = _normalize_revisions(current_revisions)
     normalized_expected = _normalize_revisions(expected_heads)
 
     if not normalized_expected:
-        raise RuntimeError(
-            "Schema drift check failed: no Alembic heads could be resolved. "
-            f"Run `{MIGRATION_COMMAND}`."
+        return SchemaRevisionStatus(
+            database_url=database_url,
+            current_revisions=normalized_current,
+            expected_heads=normalized_expected,
+            error_message=(
+                "Schema drift check failed: no Alembic heads could be resolved. "
+                f"Run `{MIGRATION_COMMAND}`."
+            ),
         )
 
     if not normalized_current:
-        raise RuntimeError(
-            "Schema drift detected: alembic_version is empty or missing for the connected database. "
-            f"Run `{MIGRATION_COMMAND}`."
+        return SchemaRevisionStatus(
+            database_url=database_url,
+            current_revisions=normalized_current,
+            expected_heads=normalized_expected,
+            error_message=(
+                "Schema drift detected: alembic_version is empty or missing for the connected database. "
+                f"Run `{MIGRATION_COMMAND}`."
+            ),
         )
 
     if normalized_current != normalized_expected:
-        raise RuntimeError(
-            "Schema drift detected: database revision does not match application head. "
-            f"Current={normalized_current}, Expected={normalized_expected}. "
-            f"Run `{MIGRATION_COMMAND}`."
+        return SchemaRevisionStatus(
+            database_url=database_url,
+            current_revisions=normalized_current,
+            expected_heads=normalized_expected,
+            error_message=(
+                "Schema drift detected: database revision does not match application head. "
+                f"Current={normalized_current}, Expected={normalized_expected}. "
+                f"Run `{MIGRATION_COMMAND}`."
+            ),
         )
+
+    return SchemaRevisionStatus(
+        database_url=database_url,
+        current_revisions=normalized_current,
+        expected_heads=normalized_expected,
+        error_message=None,
+    )
+
+
+def validate_schema_revisions(*, database_url: str, current_revisions: set[str], expected_heads: set[str]) -> None:
+    status = inspect_schema_revisions(
+        database_url=database_url,
+        current_revisions=current_revisions,
+        expected_heads=expected_heads,
+    )
+    if status.error_message:
+        raise RuntimeError(status.error_message)
 
 
 async def _get_current_db_revisions(engine: AsyncEngine) -> set[str]:
@@ -69,21 +119,36 @@ async def _get_current_db_revisions(engine: AsyncEngine) -> set[str]:
         return {str(row[0]) for row in result if row[0]}
 
 
-async def enforce_schema_head(*, engine: AsyncEngine, database_url: str) -> None:
+async def inspect_schema_head(*, engine: AsyncEngine, database_url: str) -> SchemaRevisionStatus:
     if _is_sqlite_url(database_url):
-        return
+        return inspect_schema_revisions(
+            database_url=database_url,
+            current_revisions=set(),
+            expected_heads=set(),
+        )
 
     expected_heads = resolve_alembic_heads()
     try:
         current_revisions = await _get_current_db_revisions(engine)
-    except SQLAlchemyError as exc:
-        raise RuntimeError(
-            "Schema drift check failed while reading alembic_version from the connected database. "
-            f"Run `{MIGRATION_COMMAND}`."
-        ) from exc
+    except SQLAlchemyError:
+        return SchemaRevisionStatus(
+            database_url=database_url,
+            current_revisions=[],
+            expected_heads=_normalize_revisions(expected_heads),
+            error_message=(
+                "Schema drift check failed while reading alembic_version from the connected database. "
+                f"Run `{MIGRATION_COMMAND}`."
+            ),
+        )
 
-    validate_schema_revisions(
+    return inspect_schema_revisions(
         database_url=database_url,
         current_revisions=current_revisions,
         expected_heads=expected_heads,
     )
+
+
+async def enforce_schema_head(*, engine: AsyncEngine, database_url: str) -> None:
+    status = await inspect_schema_head(engine=engine, database_url=database_url)
+    if status.error_message:
+        raise RuntimeError(status.error_message)

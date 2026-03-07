@@ -5,6 +5,9 @@ from __future__ import annotations
 import ipaddress
 import logging
 from collections.abc import Iterable
+from functools import lru_cache
+
+from starlette.requests import Request
 
 logger = logging.getLogger("core.client_ip")
 
@@ -105,3 +108,17 @@ class ClientIPResolver:
                 continue
             return hop
         return canonical_peer
+
+
+@lru_cache(maxsize=32)
+def _cached_resolver(trusted_proxies: tuple[str, ...]) -> ClientIPResolver:
+    return ClientIPResolver(trusted_proxies)
+
+
+def resolve_request_client_ip(request: Request, trusted_proxies: Iterable[str] | None = None) -> str:
+    """Resolve request client IP using the trusted-proxy chain model."""
+    proxy_entries = tuple(trusted_proxies) if trusted_proxies is not None else DEFAULT_TRUSTED_PROXIES
+    resolver = _cached_resolver(proxy_entries)
+    peer_ip = request.client.host if request.client else "unknown"
+    forwarded = request.headers.get("X-Forwarded-For")
+    return resolver.resolve(peer_ip=peer_ip, forwarded_for=forwarded)

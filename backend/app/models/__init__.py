@@ -19,11 +19,13 @@ from app.models.issue import (
 from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.notification import Notification, NotificationType
+from app.models.outbox_event import OutboxEvent
 from app.models.orphaned_item import OrphanedItem
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
 from app.models.refresh_token import RefreshToken
 from app.models.risk import ControlEffectiveness, ControlRiskLink, Risk, RiskStatus, RiskType
 from app.models.risk_questionnaire import RiskQuestionnaire, RiskQuestionnaireClarification, RiskQuestionnaireStatus
+from app.models.scheduler_job_run import SchedulerJobRun
 
 # Risk Hub models
 from app.models.risk_type import RiskTypeConfig
@@ -61,6 +63,7 @@ __all__ = [
     "KRIValueHistory",
     "ApprovalRequest", "ApprovalStatus", "ApprovalResourceType", "ApprovalActionType",
     "Notification", "NotificationType",
+    "OutboxEvent",
     "Issue",
     "IssueSeverity",
     "IssueStatus",
@@ -94,4 +97,5 @@ __all__ = [
     "ApprovalScenario",
     "QuarterlyMetricSnapshot", "SnapshotType",
     "RefreshToken",
+    "SchedulerJobRun",
 ]

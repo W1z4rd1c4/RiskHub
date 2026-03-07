@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { motion } from 'framer-motion';
@@ -17,20 +17,11 @@ import {
 } from 'lucide-react';
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { useAuthz } from '@/authz/useAuthz';
+import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { usePermissions } from '@/hooks/usePermissions';
 import { dashboardApi } from '@/services/dashboardApi';
 import { reportApi } from '@/services/reportApi';
-import type {
-    DashboardSummary,
-    DepartmentMetrics,
-    RiskDistribution,
-    ControlTrend,
-    RiskTrendPoint,
-    KRIBreachTrendPoint,
-    IssueDashboardSummary,
-    IssueAgingResponse,
-    IssueSeverityBreakdownResponse,
-} from '@/types/dashboard';
+import type { DashboardOverview } from '@/types/dashboard';
 
 import { FilterBar } from '@/components/dashboard/FilterBar';
 import { RiskDistributionMatrix } from '@/components/dashboard/RiskDistributionMatrix';
@@ -70,19 +61,6 @@ export function DashboardPage() {
     const { hasPermission } = usePermissions();
     const { t } = useTranslation('dashboard');
     const canReadIssues = hasPermission('issues', 'read');
-    const [summary, setSummary] = useState<DashboardSummary | null>(null);
-    const [deptMetrics, setDeptMetrics] = useState<DepartmentMetrics[]>([]);
-    const [grossDistribution, setGrossDistribution] = useState<RiskDistribution | null>(null);
-    const [netDistribution, setNetDistribution] = useState<RiskDistribution | null>(null);
-    const [trends, setTrends] = useState<ControlTrend[]>([]);
-    const [riskTrends, setRiskTrends] = useState<RiskTrendPoint[]>([]);
-    const [breachTrends, setBreachTrends] = useState<KRIBreachTrendPoint[]>([]);
-    const [issueSummary, setIssueSummary] = useState<IssueDashboardSummary | null>(null);
-    const [issueAging, setIssueAging] = useState<IssueAgingResponse | null>(null);
-    const [issueSeverity, setIssueSeverity] = useState<IssueSeverityBreakdownResponse | null>(null);
-
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     // Risk matrix drill-down state
     const [selectedCell, setSelectedCell] = useState<{ probability: number; impact: number; riskType: 'gross' | 'net' } | null>(null);
@@ -91,59 +69,32 @@ export function DashboardPage() {
     const [activeView, setActiveView] = useState<'overview' | 'committee'>('overview');
 
     const canViewCommittee = authz.canViewCommittee;
+    const overviewQuery = useAdaptivePollingQuery<DashboardOverview>({
+        queryKey: [
+            'dashboardOverview',
+            filters.departmentId,
+            filters.riskLevel,
+            filters.controlStatus,
+            filters.controlForm,
+            canReadIssues,
+        ],
+        queryFn: ({ signal }) => dashboardApi.fetchOverview(filters, { signal }),
+        pollMs: DASHBOARD_POLL_MS,
+    });
 
-    const fetchData = useCallback(async () => {
-        try {
-            setError(null);
-            const [
-                summaryData,
-                deptData,
-                grossDistData,
-                netDistData,
-                trendData,
-                riskTrendData,
-                breachTrendData,
-                issueSummaryData,
-                issueAgingData,
-                issueSeverityData,
-            ] = await Promise.all([
-                dashboardApi.fetchDashboardSummary(filters),
-                dashboardApi.fetchDepartmentMetrics(filters),
-                dashboardApi.fetchRiskDistribution(filters, 'gross'),
-                dashboardApi.fetchRiskDistribution(filters, 'net'),
-                dashboardApi.fetchControlTrends(filters),
-                dashboardApi.fetchRiskTrends(filters),
-                dashboardApi.fetchKriBreachTrends(filters),
-                canReadIssues ? dashboardApi.fetchIssuesSummary(filters) : Promise.resolve(null),
-                canReadIssues ? dashboardApi.fetchIssuesAging(filters) : Promise.resolve(null),
-                canReadIssues ? dashboardApi.fetchIssuesBySeverity(filters) : Promise.resolve(null),
-            ]);
+    const summary = overviewQuery.data?.summary ?? null;
+    const deptMetrics = overviewQuery.data?.department_metrics ?? [];
+    const grossDistribution = overviewQuery.data?.gross_distribution ?? null;
+    const netDistribution = overviewQuery.data?.net_distribution ?? null;
+    const trends = overviewQuery.data?.control_trends ?? [];
+    const riskTrends = overviewQuery.data?.risk_trends ?? [];
+    const breachTrends = overviewQuery.data?.kri_breach_trends ?? [];
+    const issueSummary = overviewQuery.data?.issue_summary ?? null;
+    const issueAging = overviewQuery.data?.issue_aging ?? null;
+    const issueSeverity = overviewQuery.data?.issue_severity ?? null;
+    const error = overviewQuery.error ? t('errors.load_failed') : null;
 
-            setSummary(summaryData);
-            setDeptMetrics(deptData);
-            setGrossDistribution(grossDistData);
-            setNetDistribution(netDistData);
-            setTrends(trendData);
-            setRiskTrends(riskTrendData);
-            setBreachTrends(breachTrendData);
-            setIssueSummary(issueSummaryData);
-            setIssueAging(issueAgingData);
-            setIssueSeverity(issueSeverityData);
-        } catch (err) {
-            console.error('Dashboard fetch error:', err);
-            setError(t('errors.load_failed'));
-        } finally {
-            setIsLoading(false);
-        }
-    }, [canReadIssues, filters, t]);
-
-    useEffect(() => {
-        fetchData();
-        const interval = setInterval(fetchData, DASHBOARD_POLL_MS); // Auto-refresh
-        return () => clearInterval(interval);
-    }, [fetchData]);
-
-    if (isLoading && !summary) {
+    if (overviewQuery.isLoading && !summary) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="flex flex-col items-center gap-4">
@@ -162,7 +113,7 @@ export function DashboardPage() {
                     <h3 className="text-xl font-bold text-white mb-2">{t('errors.connection_interrupted')}</h3>
                     <p className="text-slate-500 mb-6">{error}</p>
                     <button
-                        onClick={() => { setIsLoading(true); fetchData(); }}
+                        onClick={() => { void overviewQuery.refresh(); }}
                         className="px-6 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/80 transition-all"
                     >
                         {t('errors.retry')}

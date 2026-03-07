@@ -15,13 +15,12 @@ from app.schemas.issue import (
     IssueExceptionRevokeRequest,
 )
 from app.services.issue_workflow_service import IssueWorkflowService
+from app.services.outbox_service import OutboxService
 
 from ._shared import (
     _active_exception,
     _get_readable_issue_or_404,
     _get_writable_issue_or_404,
-    _notify_exception_approved,
-    _notify_exception_requested,
     _serialize_exception_with_user_names,
 )
 
@@ -44,7 +43,17 @@ async def request_exception(
         reason=payload.reason,
         actor=current_user,
     )
-    await _notify_exception_requested(db, issue=issue, actor=current_user)
+    await OutboxService.enqueue(
+        db,
+        event_type="issue.exception_requested",
+        aggregate_type="issue_exception",
+        aggregate_id=exception.id,
+        idempotency_key=f"issue:{issue.id}:exception-requested:{exception.id}",
+        payload={
+            "issue_id": issue.id,
+            "actor_user_id": current_user.id,
+        },
+    )
     await db.commit()
     await db.refresh(exception)
     return await _serialize_exception_with_user_names(db, exception)
@@ -99,12 +108,18 @@ async def approve_exception(
         expires_at=payload.expires_at,
         actor=current_user,
     )
-    await _notify_exception_approved(
+    await OutboxService.enqueue(
         db,
-        issue=issue,
-        requested_by_id=approved.requested_by_id,
-        owner_user_id=issue.owner_user_id,
-        actor=current_user,
+        event_type="issue.exception_approved",
+        aggregate_type="issue_exception",
+        aggregate_id=approved.id,
+        idempotency_key=f"issue:{issue.id}:exception-approved:{approved.id}",
+        payload={
+            "issue_id": issue.id,
+            "requested_by_id": approved.requested_by_id,
+            "owner_user_id": issue.owner_user_id,
+            "actor_user_id": current_user.id,
+        },
     )
     await db.commit()
     await db.refresh(approved)

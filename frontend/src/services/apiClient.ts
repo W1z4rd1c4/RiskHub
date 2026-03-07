@@ -1,5 +1,6 @@
 import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
 import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
+import { clearBootstrapSession } from '@/services/authSessionCoordinator';
 import { silentReauthAndExchange } from '@/services/ssoSession';
 
 // Use relative URL for nginx proxy (enables LAN access)
@@ -141,7 +142,7 @@ class ApiClient {
                 }
 
                 clearAccessToken();
-                window.location.href = '/login';
+                clearBootstrapSession();
                 throw new ApiClientError({
                     status: 401,
                     code: 'UNAUTHORIZED',
@@ -235,7 +236,7 @@ class ApiClient {
                 }
 
                 clearAccessToken();
-                window.location.href = '/login';
+                clearBootstrapSession();
                 throw new ApiClientError({
                     status: 401,
                     code: 'UNAUTHORIZED',

@@ -31,6 +31,20 @@ def test_validate_schema_revisions_rejects_mismatch() -> None:
         )
 
 
+def test_inspect_schema_revisions_returns_expected_status() -> None:
+    status = schema_guard.inspect_schema_revisions(
+        database_url="postgresql+asyncpg://riskhub:riskhub@localhost:5432/riskhub",
+        current_revisions={"abc123"},
+        expected_heads={"def456"},
+    )
+
+    assert status.is_ok is False
+    assert status.current_revisions == ["abc123"]
+    assert status.expected_heads == ["def456"]
+    assert status.error_message is not None
+    assert "Schema drift detected" in status.error_message
+
+
 @pytest.mark.asyncio
 async def test_enforce_schema_head_wraps_query_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeSqlError(SQLAlchemyError):
@@ -63,3 +77,27 @@ async def test_enforce_schema_head_accepts_matching_revisions(monkeypatch: pytes
         engine=None,  # type: ignore[arg-type]
         database_url="postgresql+asyncpg://riskhub:riskhub@localhost:5432/riskhub",
     )
+
+
+@pytest.mark.asyncio
+async def test_inspect_schema_head_reports_query_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeSqlError(SQLAlchemyError):
+        pass
+
+    monkeypatch.setattr(schema_guard, "resolve_alembic_heads", lambda: {"abc123"})
+
+    async def broken_query(_engine):  # type: ignore[no-untyped-def]
+        raise FakeSqlError("failed")
+
+    monkeypatch.setattr(schema_guard, "_get_current_db_revisions", broken_query)
+
+    status = await schema_guard.inspect_schema_head(
+        engine=None,  # type: ignore[arg-type]
+        database_url="postgresql+asyncpg://riskhub:riskhub@localhost:5432/riskhub",
+    )
+
+    assert status.is_ok is False
+    assert status.expected_heads == ["abc123"]
+    assert status.current_revisions == []
+    assert status.error_message is not None
+    assert "alembic_version" in status.error_message

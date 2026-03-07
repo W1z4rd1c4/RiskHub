@@ -14,7 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
-from app.core.client_ip import DEFAULT_TRUSTED_PROXIES, ClientIPResolver
+from app.core.client_ip import DEFAULT_TRUSTED_PROXIES, ClientIPResolver, resolve_request_client_ip
 from app.core.logging import client_ip_ctx, get_logger, request_id_ctx, user_id_ctx
 
 logger = get_logger("middleware.logging")
@@ -36,9 +36,7 @@ class LoggingContextMiddleware(BaseHTTPMiddleware):
 
     def _get_client_ip(self, request: Request) -> str:
         """Resolve effective client IP using trusted-proxy chain semantics."""
-        peer_ip = request.client.host if request.client else "unknown"
-        forwarded = request.headers.get("X-Forwarded-For")
-        return self._client_ip_resolver.resolve(peer_ip=peer_ip, forwarded_for=forwarded)
+        return resolve_request_client_ip(request, self._client_ip_resolver.trusted_proxies)
 
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint

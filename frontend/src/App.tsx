@@ -54,17 +54,21 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, isPreferencesHydrated } = useAuth();
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading, isPreferencesHydrated, bootstrapStatus } = useAuth();
   const { t } = useTranslation('common');
   const location = useLocation();
   const preferencesReady = isPreferencesHydrated ?? true;
+  const returnTo = `${location.pathname}${location.search}${location.hash}`;
 
   if (isLoading || (isAuthenticated && !preferencesReady)) {
     return <div className="flex items-center justify-center min-h-screen">{t('loading.generic')}</div>;
   }
+  if (!isAuthenticated && bootstrapStatus === 'error') {
+    const qs = new URLSearchParams({ returnTo, authError: 'service_unavailable' }).toString();
+    return <Navigate to={`/login?${qs}`} replace />;
+  }
   if (!isAuthenticated) {
-    const returnTo = `${location.pathname}${location.search}${location.hash}`;
     const qs = new URLSearchParams({ returnTo }).toString();
     return <Navigate to={`/login?${qs}`} replace />;
   }

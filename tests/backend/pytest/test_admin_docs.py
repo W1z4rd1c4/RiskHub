@@ -5,6 +5,26 @@ import pytest
 from httpx import AsyncClient
 
 
+def _read_frontmatter_strings(path: Path) -> dict[str, str]:
+    content = path.read_text(encoding="utf-8")
+    if not content.startswith("---\n"):
+        return {}
+
+    lines = content.splitlines()
+    metadata: dict[str, str] = {}
+    for line in lines[1:]:
+        stripped = line.strip()
+        if stripped == "---":
+            break
+        if not stripped or stripped.startswith("#") or ":" not in stripped:
+            continue
+        key, raw_value = stripped.split(":", 1)
+        value = raw_value.strip().strip('"').strip("'")
+        if value:
+            metadata[key.strip()] = value
+    return metadata
+
+
 @pytest.mark.asyncio
 async def test_admin_docs_endpoint_returns_admin_audience_only_for_platform_admin(
     client_platform_admin: AsyncClient,
@@ -68,6 +88,9 @@ async def test_admin_docs_locale_file_level_fallback_for_missing_user_cs_vendors
     missing_cs_vendors_doc.unlink()
     assert not missing_cs_vendors_doc.exists()
 
+    english_vendors_doc = docs_copy / "user" / "vendors.md"
+    expected_metadata = _read_frontmatter_strings(english_vendors_doc)
+
     monkeypatch.setenv("RISKHUB_DOCS_BASE_DIR", str(docs_copy))
 
     response = await client_employee.get("/api/v1/admin/docs", params={"locale": "cs"})
@@ -78,7 +101,8 @@ async def test_admin_docs_locale_file_level_fallback_for_missing_user_cs_vendors
     assert vendors_doc is not None
     assert vendors_doc["audience"] == "user"
     assert vendors_doc["slug"] == "vendors"
-    assert vendors_doc["version"] == "2.0"
-    assert vendors_doc["source_of_truth"]
+    assert vendors_doc["version"] == expected_metadata["version"]
+    assert vendors_doc["last_updated"] == expected_metadata["last_updated"]
+    assert vendors_doc["source_of_truth"] == expected_metadata["source_of_truth"]
     assert "Managing Vendors" in vendors_doc["content"]
     assert "vendors" in vendors_doc["tags"] or "third-party" in vendors_doc["tags"]

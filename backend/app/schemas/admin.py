@@ -58,6 +58,65 @@ class SystemStatsResponse(BaseModel):
     pending_approvals: int
 
 
+class SchedulerJobRunSummary(BaseModel):
+    """Condensed scheduler job execution entry."""
+
+    job_name: str
+    run_id: str
+    status: str
+    trigger_type: str
+    instance_id: str
+    scheduled_for: str | None = None
+    started_at: str
+    finished_at: str | None = None
+    duration_ms: int | None = None
+    result_json: dict | None = None
+    error_message: str | None = None
+
+
+class SchedulerStatusResponse(BaseModel):
+    """Scheduler runtime ownership and recent execution status."""
+
+    process_role: str
+    instance_id: str
+    process_started_at: str
+    scheduler_enabled: bool
+    scheduler_running: bool
+    lock_provider: str | None = None
+    lock_acquired: bool
+    current_owner_instance_id: str | None = None
+    latest_runs: list[SchedulerJobRunSummary] = Field(default_factory=list)
+    running_jobs: list[SchedulerJobRunSummary] = Field(default_factory=list)
+
+
+class OutboxEventFailureSummary(BaseModel):
+    """Recent failed or dead-lettered outbox event summary."""
+
+    id: str
+    event_type: str
+    status: str
+    attempt_count: int
+    available_at: str
+    created_at: str
+    locked_by: str | None = None
+    last_error: str | None = None
+
+
+class OutboxStatusResponse(BaseModel):
+    """Outbox queue health and recent failure information."""
+
+    pending_count: int
+    processing_count: int
+    dead_letter_count: int
+    oldest_pending_age_seconds: int | None = None
+    last_dispatch_started_at: str | None = None
+    last_dispatch_finished_at: str | None = None
+    last_dispatch_status: str | None = None
+    last_dispatch_processed: int | None = None
+    last_dispatch_error: str | None = None
+    recent_failures: list[OutboxEventFailureSummary] = Field(default_factory=list)
+
+
 # ============================================================================
 # Log and Session Schemas
 # ============================================================================

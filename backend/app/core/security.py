@@ -18,6 +18,7 @@ from app.models import Role, RolePermission, User
 settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 logger = logging.getLogger(__name__)
+DUMMY_PASSWORD_HASH = "$2b$12$PKiOVCVtyq61.6OteU0aAOhNxM5hP3/jHGgVLh0mQYZe0B2YfM7uy"
 
 # Backward-compatible alias used by auth dependencies.
 TokenDecodeError = InvalidTokenError
@@ -26,6 +27,13 @@ TokenDecodeError = InvalidTokenError
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password."""
     return pwd_context.verify(plain_password, hashed_password)
+
+
+def verify_password_or_dummy(plain_password: str, hashed_password: str | None) -> bool:
+    """Verify a password, falling back to a fixed dummy hash for timing normalization."""
+    target_hash = hashed_password or DUMMY_PASSWORD_HASH
+    verified = pwd_context.verify(plain_password, target_hash)
+    return bool(hashed_password) and verified
 
 
 def get_password_hash(password: str) -> str:

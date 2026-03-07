@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Control, Department, OrphanedItem, Risk, Role, User
 from app.models.risk import RiskStatus
+from app.models.scheduler_job_run import SchedulerJobRun
 from app.models.user import AccessScope
 
 
@@ -72,10 +73,63 @@ async def test_orphaned_items_scan_creates_orphans_for_uncategorised(
     assert resp.status_code == 200
     assert resp.json()["flagged"] >= 2
 
+    last_scan = (
+        await db_session.execute(
+            select(SchedulerJobRun)
+            .where(SchedulerJobRun.job_name == "orphan_scan")
+            .order_by(SchedulerJobRun.started_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    assert last_scan is not None
+    assert last_scan.trigger_type == "manual"
+    assert last_scan.status == "succeeded"
+
     count = (
         await db_session.execute(select(func.count(OrphanedItem.id)).where(OrphanedItem.status == "pending"))
     ).scalar() or 0
     assert count >= 2
+
+
+@pytest.mark.asyncio
+async def test_orphaned_items_overview_returns_stats_items_and_scan_status(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    department = Department(name="Uncategorised", code="UNCAT", description="System")
+    db_session.add(department)
+    await db_session.commit()
+    await db_session.refresh(department)
+
+    risk = Risk(
+        risk_id_code="UNCAT-R002",
+        name="Overview Risk",
+        process="Test",
+        description="",
+        category="Test",
+        department_id=department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+
+    scan_resp = await client_cro.post("/api/v1/orphaned-items/scan")
+    assert scan_resp.status_code == 200
+
+    overview_resp = await client_cro.get("/api/v1/orphaned-items/overview")
+    assert overview_resp.status_code == 200
+    data = overview_resp.json()
+    assert data["stats"]["total_count"] >= 1
+    assert data["scan_status"] == "succeeded"
+    assert data["last_scan_at"] is not None
+    assert any(item["item_name"] == "Overview Risk" for item in data["items"])
 
 
 @pytest.mark.asyncio

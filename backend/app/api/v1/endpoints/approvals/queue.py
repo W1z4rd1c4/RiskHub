@@ -4,12 +4,11 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.core.activity_logger import log_activity
+from app.core.approval_helpers import create_approval_request_with_audit
 from app.core.permissions import can_resolve_approvals, check_department_access
 from app.db.session import get_db
 from app.models import (
@@ -21,7 +20,6 @@ from app.models import (
     Risk,
     User,
 )
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.approval_request import (
     ApprovalRequestCreate,
     ApprovalRequestListResponse,
@@ -29,7 +27,6 @@ from app.schemas.approval_request import (
     ApprovalResourceTypeEnum,
     ApprovalStatusEnum,
 )
-from app.services.notification_service import NotificationService
 
 from ._shared import _build_approval_read, logger
 
@@ -105,27 +102,13 @@ async def create_approval_request(
         status=ApprovalStatus.PENDING,
     )
 
-    try:
-        db.add(approval)
-        await db.flush()
-    except IntegrityError as e:
-        await db.rollback()
-        if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT, detail="An approval request is already pending for this action."
-            )
-        raise
-
-    await log_activity(
+    await create_approval_request_with_audit(
         db,
-        entity_type=ActivityEntityType.APPROVAL,
-        entity_id=approval.id,
-        entity_name=approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}",
-        action=ActivityAction.CREATE,
+        approval=approval,
         actor=current_user,
         department_id=department_id,
+        on_duplicate_detail="An approval request is already pending for this action.",
     )
-    await db.commit()
 
     # Reload with relationships
     result = await db.execute(
@@ -134,14 +117,6 @@ async def create_approval_request(
         .where(ApprovalRequest.id == approval.id)
     )
     approval = result.scalar_one()
-
-    # Notify approvers about the new request (within same transaction context)
-    try:
-        await NotificationService.notify_approvers(db, approval)
-        await db.commit()
-    except Exception as e:
-        await db.rollback()
-        logger.warning(f"Failed to notify approvers for approval #{approval.id}: {e}")
 
     return _build_approval_read(approval)
 
@@ -215,4 +190,3 @@ async def list_approval_requests(
             continue
 
     return ApprovalRequestListResponse(items=valid_items, total=total, skip=skip, limit=limit)
-

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import Control, ControlRiskLink, Risk
+from app.services.outbox_service import OutboxService
 
 if TYPE_CHECKING:
     from app.models import ApprovalRequest, User
@@ -186,6 +187,14 @@ async def create_approval_request_with_audit(
             action=ActivityAction.CREATE,
             actor=actor,
             department_id=department_id,
+        )
+        await OutboxService.enqueue(
+            db,
+            event_type="approval.request_created",
+            aggregate_type="approval_request",
+            aggregate_id=approval.id,
+            idempotency_key=f"approval.request_created:{approval.id}:{approval.status.value.lower()}",
+            payload={"approval_id": approval.id},
         )
         await db.commit()
         return approval

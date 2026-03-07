@@ -8,11 +8,17 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.models import Risk, User
 from app.models.notification import Notification, NotificationType
 from app.models.risk import RiskStatus
+from app.services.outbox_service import dispatch_pending_outbox_events
+
+
+async def _dispatch_outbox(async_engine: AsyncEngine) -> int:
+    sessionmaker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    return await dispatch_pending_outbox_events(sessionmaker, lock_owner="test")
 
 
 @pytest_asyncio.fixture
@@ -104,6 +110,7 @@ async def test_get_questionnaire_include_previous_cycle_selection(
 @pytest.mark.asyncio
 async def test_questionnaire_clarification_request_and_single_response(
     db_session: AsyncSession,
+    async_engine: AsyncEngine,
     client_cro: AsyncClient,
     client_employee: AsyncClient,
     risk_owned_by_employee: Risk,
@@ -129,6 +136,7 @@ async def test_questionnaire_clarification_request_and_single_response(
     )
     assert create.status_code == 201
     clarification_id = create.json()["id"]
+    await _dispatch_outbox(async_engine)
 
     # Notification created for Risk Owner
     res = await db_session.execute(
