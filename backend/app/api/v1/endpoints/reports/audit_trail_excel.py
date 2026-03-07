@@ -11,6 +11,7 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, User
 from app.models.risk import ControlRiskLink
+from app.schemas.execution import ExecutionResultEnum
 from app.services.report_service import generate_tabular_csv
 
 from ._scoping import _user_has_no_departments, _validate_department_access
@@ -28,7 +29,7 @@ router = APIRouter()
 def _audit_trail_query(
     dept_ids: Optional[list[int]],
     department_id: Optional[int],
-    result_filter: Optional[str],
+    result_filter: Optional[ExecutionResultEnum],
     control_id: Optional[int],
     from_date: Optional[datetime],
     to_date: Optional[datetime],
@@ -124,7 +125,7 @@ async def download_audit_trail_excel(
 async def download_audit_trail_export(
     format: ExportFormatQuery = Query(..., description="Export format: csv"),
     department_id: Optional[int] = Query(None, description="Filter by department"),
-    result: Optional[str] = Query(None, description="Filter by result (passed/failed/warning)"),
+    result: Optional[ExecutionResultEnum] = Query(None, description="Filter by result"),
     control_id: Optional[int] = Query(None, description="Filter by control"),
     from_date: Optional[datetime] = Query(None, description="Filter from date"),
     to_date: Optional[datetime] = Query(None, description="Filter to date"),

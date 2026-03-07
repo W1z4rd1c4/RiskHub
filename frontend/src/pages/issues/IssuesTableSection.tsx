@@ -2,11 +2,11 @@ import { useCallback, useMemo } from 'react';
 import { AlertCircle, ChevronRight } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 
-import { Pagination, SortableTable, type Column, type SortDirection } from '@/components/tables';
+import { CategoryDrillDown, Pagination, SortableTable, type Column, type SortDirection, type ViewMode } from '@/components/tables';
 import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
 import type { IssueListFilters, IssueStatus, IssueSummary } from '@/types/issue';
 
-import { formatIssueDateTime } from './issuesPagePresentation';
+import { buildIssueGroupedRows, formatIssueDateTime, type IssueGroupedRow } from './issuesPagePresentation';
 
 interface IssuesTableSectionProps {
     currentPage: number;
@@ -26,6 +26,7 @@ interface IssuesTableSectionProps {
     sortField: IssueListFilters['sort_by'] | null;
     totalCount: number;
     totalPages: number;
+    viewMode: ViewMode;
 }
 
 export function IssuesTableSection({
@@ -43,6 +44,7 @@ export function IssuesTableSection({
     sortField,
     totalCount,
     totalPages,
+    viewMode,
 }: IssuesTableSectionProps) {
     const { t, i18n } = useTranslation('issues');
 
@@ -144,6 +146,8 @@ export function IssuesTableSection({
         [i18n.language, severityLabel, sourceLabel, statusLabel, t]
     );
 
+    const groupedRows = useMemo(() => buildIssueGroupedRows(items, viewMode), [items, viewMode]);
+
     if (errorKey) {
         return (
             <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
@@ -214,27 +218,66 @@ export function IssuesTableSection({
         );
     }
 
+    if (viewMode === 'all') {
+        return (
+            <>
+                <SortableTable
+                    data={items}
+                    columns={columns}
+                    keyExtractor={(issue) => issue.id}
+                    onRowClick={onRowClick}
+                    emptyMessage={t('list.empty')}
+                    sortKey={sortField}
+                    sortDirection={sortDirection}
+                    onSort={(key, direction) =>
+                        onSortChange((direction ? key : null) as IssueListFilters['sort_by'] | null, direction)
+                    }
+                />
+                <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    totalItems={totalCount}
+                    itemsPerPage={itemsPerPage}
+                    onPageChange={onPageChange}
+                />
+            </>
+        );
+    }
+
     return (
-        <>
-            <SortableTable
-                data={items}
-                columns={columns}
-                keyExtractor={(issue) => issue.id}
-                onRowClick={onRowClick}
-                emptyMessage={t('list.empty')}
-                sortKey={sortField}
-                sortDirection={sortDirection}
-                onSort={(key, direction) =>
-                    onSortChange((direction ? key : null) as IssueListFilters['sort_by'] | null, direction)
-                }
-            />
-            <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalCount}
-                itemsPerPage={itemsPerPage}
-                onPageChange={onPageChange}
-            />
-        </>
+        <CategoryDrillDown
+            data={groupedRows}
+            groupBy={'groupValue'}
+            keyExtractor={(row) => row.rowId}
+            getStats={(groupItems) => ({ total: groupItems.length })}
+            renderTable={(groupItems: IssueGroupedRow[]) => (
+                <SortableTable
+                    data={groupItems.map((row) => row.issue)}
+                    columns={columns}
+                    keyExtractor={(issue) => issue.id}
+                    onRowClick={onRowClick}
+                    emptyMessage={t('list.empty')}
+                />
+            )}
+            renderItem={(row) => (
+                <div
+                    onClick={() => onRowClick(row.issue)}
+                    className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
+                >
+                    <div className="space-y-1">
+                        <p className="text-sm font-semibold text-white">{row.issue.title}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className={issuePill(issueStatusClass(row.issue.status))}>
+                                {statusLabel(row.issue.status)}
+                            </span>
+                            <span className={issuePill(issueSeverityClass(row.issue.severity))}>
+                                {severityLabel(row.issue.severity)}
+                            </span>
+                        </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-slate-500" />
+                </div>
+            )}
+        />
     );
 }
