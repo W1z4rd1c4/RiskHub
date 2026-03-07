@@ -3,31 +3,11 @@ from __future__ import annotations
 import logging
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ApprovalRequest, ApprovalResourceType, Control, KeyRiskIndicator, Risk
-from app.services.notification_service import NotificationService
 
 logger = logging.getLogger("app.api.v1.endpoints.approvals")
-
-
-async def _notify_requester_resolved_background(
-    engine: AsyncEngine,
-    approval_id: int,
-    approved: bool,
-) -> None:
-    """Background task: notify requester using a fresh DB session."""
-    session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with session_maker() as session:
-        result = await session.execute(select(ApprovalRequest).where(ApprovalRequest.id == approval_id))
-        approval = result.scalar_one_or_none()
-        if not approval:
-            return
-        try:
-            await NotificationService.notify_requester_resolved(session, approval, approved=approved)
-            await session.commit()
-        except Exception:
-            await session.rollback()
 
 
 async def _get_approval_department_id(db: AsyncSession, approval: ApprovalRequest) -> int | None:
@@ -69,4 +49,3 @@ def _build_approval_read(approval: ApprovalRequest) -> dict:
         "resolution_notes": approval.resolution_notes,
         "created_at": approval.created_at,
     }
-

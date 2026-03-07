@@ -13,9 +13,8 @@ from app.db.session import get_db
 from app.i18n import t
 from app.models import RiskQuestionnaire, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.models.notification import NotificationType
 from app.schemas.risk_questionnaire import RiskQuestionnaireListItemRead, RiskQuestionnaireRead
-from app.services.notification_service import NotificationService
+from app.services.outbox_service import OutboxService
 from app.services.risk_questionnaire_service import (
     QUESTIONNAIRE_TEMPLATE_KEY,
     QUESTIONNAIRE_TEMPLATE_VERSION,
@@ -80,26 +79,6 @@ async def send_questionnaire_for_risk(
         due_at=datetime.now(UTC) + timedelta(days=15),
     )
 
-    # Notify assignee (localized)
-    assignee_result = await db.execute(select(User).where(User.id == risk.owner_id))
-    assignee = assignee_result.scalar_one_or_none()
-    if assignee:
-        locale = assignee.preferred_language or "en"
-        await NotificationService.create_notification(
-            db=db,
-            user_id=assignee.id,
-            notification_type=NotificationType.QUESTIONNAIRE_SENT,
-            title=t("notifications.questionnaire_sent_title", locale=locale),
-            message=t(
-                "notifications.questionnaire_sent_message",
-                locale=locale,
-                risk_name=risk.name,
-                due_date=questionnaire.due_at.date().isoformat(),
-            ),
-            resource_type="risk",
-            resource_id=risk.id,
-        )
-
     await log_activity(
         db,
         entity_type=ActivityEntityType.RISK_QUESTIONNAIRE,
@@ -109,6 +88,17 @@ async def send_questionnaire_for_risk(
         actor=current_user,
         department_id=risk.department_id,
         description=f"Sent questionnaire for risk '{risk.name}'",
+    )
+    await OutboxService.enqueue(
+        db,
+        event_type="questionnaire.sent",
+        aggregate_type="risk_questionnaire",
+        aggregate_id=questionnaire.id,
+        idempotency_key=f"questionnaire:{questionnaire.id}:sent",
+        payload={
+            "questionnaire_id": questionnaire.id,
+            "actor_user_id": current_user.id,
+        },
     )
     await db.commit()
     await db.refresh(questionnaire)

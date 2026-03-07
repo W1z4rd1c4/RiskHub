@@ -9,16 +9,14 @@ from sqlalchemy.orm import selectinload
 
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.i18n import t
 from app.models import RiskQuestionnaireClarification, User
-from app.models.notification import NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.schemas.risk_questionnaire import (
     RiskQuestionnaireClarificationCreate,
     RiskQuestionnaireClarificationRead,
     RiskQuestionnaireClarificationRespond,
 )
-from app.services.notification_service import NotificationService
+from app.services.outbox_service import OutboxService
 from app.services.risk_questionnaire_service import can_send_questionnaire
 
 from ._shared import _get_questionnaire_for_read, _serialize_clarification
@@ -49,24 +47,18 @@ async def create_questionnaire_clarification(
     )
     db.add(clarification)
     await db.flush()
-
-    # Notify assignee (Risk Owner)
-    assignee = questionnaire.assigned_to_user
-    if assignee:
-        locale = assignee.preferred_language or "en"
-        await NotificationService.create_notification(
-            db=db,
-            user_id=assignee.id,
-            notification_type=NotificationType.QUESTIONNAIRE_CLARIFICATION_REQUESTED,
-            title=t("notifications.questionnaire_clarification_requested_title", locale=locale),
-            message=t(
-                "notifications.questionnaire_clarification_requested_message",
-                locale=locale,
-                risk_name=questionnaire.risk.name if questionnaire.risk else "Risk",
-            ),
-            resource_type="risk",
-            resource_id=questionnaire.risk_id,
-        )
+    await OutboxService.enqueue(
+        db,
+        event_type="questionnaire.clarification_requested",
+        aggregate_type="risk_questionnaire_clarification",
+        aggregate_id=clarification.id,
+        idempotency_key=f"questionnaire:{questionnaire.id}:clarification:{clarification.id}",
+        payload={
+            "clarification_id": clarification.id,
+            "questionnaire_id": questionnaire.id,
+            "actor_user_id": current_user.id,
+        },
+    )
 
     await db.commit()
 
@@ -150,4 +142,3 @@ async def respond_to_questionnaire_clarification(
     )
     clarification = result.scalar_one()
     return _serialize_clarification(clarification)
-

@@ -3,6 +3,7 @@
  */
 
 import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
+import { AuthRequestError, fetchAuthResponse } from '@/services/authRequest';
 
 const API_URL = '/api/v1/auth';
 
@@ -48,7 +49,7 @@ export interface TokenResponse {
 
 export const authApi = {
     async getAuthConfig(): Promise<AuthConfigResponse> {
-        const response = await fetch(`${API_URL}/config`, {
+        const response = await fetchAuthResponse(`${API_URL}/config`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -56,14 +57,20 @@ export const authApi = {
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error((error as { detail?: string }).detail || 'Failed to get auth config');
+            const detail = (error as { detail?: string }).detail || 'Failed to get auth config';
+            throw new AuthRequestError({
+                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_CONFIG_LOAD_FAILED',
+                message: detail,
+                rawMessage: detail,
+                status: response.status,
+            });
         }
 
         return response.json();
     },
 
     async login(credentials: LoginRequest): Promise<TokenResponse> {
-        const response = await fetch(`${API_URL}/login`, {
+        const response = await fetchAuthResponse(`${API_URL}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(credentials),
@@ -71,15 +78,21 @@ export const authApi = {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Login failed');
+            const error = await response.json().catch(() => ({}));
+            const detail = (error as { detail?: string }).detail || 'Login failed';
+            throw new AuthRequestError({
+                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
+                message: detail,
+                rawMessage: detail,
+                status: response.status,
+            });
         }
 
         return response.json();
     },
 
     async ssoExchange(idToken: string): Promise<TokenResponse> {
-        const response = await fetch(`${API_URL}/sso/exchange`, {
+        const response = await fetchAuthResponse(`${API_URL}/sso/exchange`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id_token: idToken }),
@@ -89,34 +102,50 @@ export const authApi = {
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
             const detail = typeof (error as { detail?: unknown }).detail === 'string' ? String((error as { detail: string }).detail) : 'SSO exchange failed';
-            throw new Error(detail);
+            throw new AuthRequestError({
+                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
+                message: detail,
+                rawMessage: detail,
+                status: response.status,
+            });
         }
 
         return response.json();
     },
 
     async getCurrentUser(token: string): Promise<TokenResponse['user']> {
-        const response = await fetch(`${API_URL}/me`, {
+        const response = await fetchAuthResponse(`${API_URL}/me`, {
             headers: { 'Authorization': `Bearer ${token}` },
             credentials: 'include',
         });
 
         if (!response.ok) {
-            throw new Error('Failed to get current user');
+            throw new AuthRequestError({
+                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
+                message: 'Failed to get current user',
+                rawMessage: 'Failed to get current user',
+                status: response.status,
+            });
         }
 
         return response.json();
     },
 
     async refresh(): Promise<TokenResponse> {
-        const response = await fetch(`${API_URL}/refresh`, {
+        const response = await fetchAuthResponse(`${API_URL}/refresh`, {
             method: 'POST',
             credentials: 'include',
         });
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error((error as { detail?: string }).detail || 'Refresh failed');
+            const detail = (error as { detail?: string }).detail || 'Refresh failed';
+            throw new AuthRequestError({
+                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
+                message: detail,
+                rawMessage: detail,
+                status: response.status,
+            });
         }
 
         return response.json();
@@ -124,7 +153,7 @@ export const authApi = {
 
     async logoutAll(): Promise<void> {
         const accessToken = getAccessToken();
-        const response = await fetch(`${API_URL}/logout-all`, {
+        const response = await fetchAuthResponse(`${API_URL}/logout-all`, {
             method: 'POST',
             headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
             credentials: 'include',
@@ -132,13 +161,19 @@ export const authApi = {
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error((error as { detail?: string }).detail || 'Logout all failed');
+            const detail = (error as { detail?: string }).detail || 'Logout all failed';
+            throw new AuthRequestError({
+                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
+                message: detail,
+                rawMessage: detail,
+                status: response.status,
+            });
         }
         clearAccessToken();
     },
 
     async logout(): Promise<void> {
-        await fetch(`${API_URL}/logout`, {
+        await fetchAuthResponse(`${API_URL}/logout`, {
             method: 'POST',
             credentials: 'include',
         }).catch(() => null);

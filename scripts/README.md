@@ -32,6 +32,14 @@ Folder for `scripts` implementation assets.
 
 Keep this README updated when responsibilities or structure in this folder change.
 
+Local development startup note:
+
+- `./scripts/dev.sh` is the canonical local startup entrypoint.
+- In `full` and `backend` modes it runs a schema-head preflight before launching the backend.
+- If the local database is behind the Alembic head, the script exits early and prints the exact recovery command:
+  `cd backend && ./venv/bin/alembic upgrade head`
+- After backend launch it also performs an explicit readiness check and prints the backend log tail if lifespan startup fails.
+
 Production deployment note:
 
 - `./scripts/deploy.sh` is the only supported production admin CLI.

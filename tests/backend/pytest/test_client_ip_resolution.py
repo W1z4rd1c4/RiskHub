@@ -2,6 +2,7 @@ from unittest.mock import MagicMock
 
 from starlette.requests import Request
 
+from app.core.tokens import get_request_client_ip
 from app.middleware.logging_context import LoggingContextMiddleware
 from app.middleware.security import RateLimitMiddleware
 
@@ -77,3 +78,14 @@ def test_logging_and_rate_limit_share_identical_client_ip_resolution():
     request = _build_request("10.0.0.9", "198.51.100.1, 203.0.113.5, 172.16.8.7")
 
     assert rate_limit._get_client_ip(request) == logging_context._get_client_ip(request)
+
+
+def test_token_helper_shares_identical_client_ip_resolution():
+    trusted = {"10.0.0.0/8", "172.16.0.0/12"}
+    rate_limit, logging_context = _build_middlewares(trusted)
+    request = _build_request("10.0.0.9", "198.51.100.1, 203.0.113.5, 172.16.8.7")
+
+    expected = "203.0.113.5"
+    assert rate_limit._get_client_ip(request) == expected
+    assert logging_context._get_client_ip(request) == expected
+    assert get_request_client_ip(request, trusted) == expected

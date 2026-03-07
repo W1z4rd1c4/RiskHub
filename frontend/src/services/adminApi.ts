@@ -21,6 +21,57 @@ export interface SystemStats {
     pending_approvals: number;
 }
 
+export interface SchedulerJobRunSummary {
+    job_name: string;
+    run_id: string;
+    status: string;
+    trigger_type: string;
+    instance_id: string;
+    scheduled_for: string | null;
+    started_at: string;
+    finished_at: string | null;
+    duration_ms: number | null;
+    result_json: Record<string, unknown> | null;
+    error_message: string | null;
+}
+
+export interface SchedulerStatus {
+    process_role: string;
+    instance_id: string;
+    process_started_at: string;
+    scheduler_enabled: boolean;
+    scheduler_running: boolean;
+    lock_provider: string | null;
+    lock_acquired: boolean;
+    current_owner_instance_id: string | null;
+    latest_runs: SchedulerJobRunSummary[];
+    running_jobs: SchedulerJobRunSummary[];
+}
+
+export interface OutboxFailureSummary {
+    id: string;
+    event_type: string;
+    status: string;
+    attempt_count: number;
+    available_at: string;
+    created_at: string;
+    locked_by: string | null;
+    last_error: string | null;
+}
+
+export interface OutboxStatus {
+    pending_count: number;
+    processing_count: number;
+    dead_letter_count: number;
+    oldest_pending_age_seconds: number | null;
+    last_dispatch_started_at: string | null;
+    last_dispatch_finished_at: string | null;
+    last_dispatch_status: string | null;
+    last_dispatch_processed: number | null;
+    last_dispatch_error: string | null;
+    recent_failures: OutboxFailureSummary[];
+}
+
 export interface TechnicalLogEntry {
     id: number;
     timestamp: string;
@@ -110,12 +161,19 @@ export interface DirectoryCheckAllResponse {
 
 export const adminApi = {
     // System Health
-    getSystemHealth: () =>
-        apiClient.get<SystemHealth>('/admin/health'),
+    getSystemHealth: (options?: { signal?: AbortSignal }) =>
+        apiClient.get<SystemHealth>('/admin/health', options),
 
     // System Stats
     getSystemStats: () =>
         apiClient.get<SystemStats>('/admin/stats'),
+
+    // Scheduler status
+    getSchedulerStatus: (options?: { signal?: AbortSignal }) =>
+        apiClient.get<SchedulerStatus>('/admin/jobs/status', options),
+
+    getOutboxStatus: (options?: { signal?: AbortSignal }) =>
+        apiClient.get<OutboxStatus>('/admin/outbox/status', options),
 
     // Technical Logs (Database-based)
     getTechnicalLogs: (params?: { event_type?: string; limit?: number }) =>

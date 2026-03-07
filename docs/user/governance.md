@@ -1,7 +1,7 @@
 ---
 title: Governance: Orphaned Items and Ownership Hygiene
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "frontend/src/pages/GovernancePage.tsx + frontend/src/components/governance/*"
 summary: "How to use Governance to detect and resolve orphaned Risks, Controls, and KRIs so ownership, scope, and reporting stay correct."
@@ -60,6 +60,8 @@ Governance is designed as a review surface. Treat it as a periodic control:
 - daily for high-change environments
 - weekly at minimum for stable environments
 - before any committee/board pack is finalized
+
+Opening `/governance` does not start a maintenance scan anymore. The page reads the latest overview snapshot and current pending items, then refreshes that read model on its normal polling interval.
 
 ## Roles, Scope, and Visibility
 
@@ -210,7 +212,8 @@ If you need evidence for an audit, the clean approach is:
 ### Governance shows counts but the list is empty
 
 - Refresh the page.
-- The orphan scan can be best-effort; if scanning is blocked, existing items should still be readable.
+- The page shows the latest completed scan snapshot; opening it does not trigger a new scan.
+- The orphan scan can still be best-effort; if scanning is blocked, existing items should still be readable.
 - If it persists, capture the timestamp and ask support to verify orphan stats vs orphan list.
 
 ### I can open Governance but can’t resolve

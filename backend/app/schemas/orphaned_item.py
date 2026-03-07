@@ -59,6 +59,14 @@ class OrphanScanResponse(BaseModel):
     flagged: int
 
 
+class OrphanedItemsOverview(BaseModel):
+    """Combined governance overview payload for polling surfaces."""
+    stats: OrphanedItemStats
+    items: list[OrphanedItemDetail]
+    last_scan_at: Optional[datetime] = None
+    scan_status: Optional[str] = None
+
+
 class OrphanedItemCreateInternal(BaseModel):
     """Internal schema for creating orphaned item records."""
     item_type: Literal["risk", "control"]

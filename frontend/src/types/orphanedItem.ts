@@ -24,3 +24,10 @@ export interface ResolveOrphanRequest {
     department_id?: number;
     target_risk_id?: number;
 }
+
+export interface OrphanedItemsOverview {
+    stats: OrphanStats;
+    items: OrphanedItem[];
+    last_scan_at: string | null;
+    scan_status: string | null;
+}

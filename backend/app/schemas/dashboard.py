@@ -108,3 +108,18 @@ class IssueSeverityBreakdownItem(BaseModel):
 class IssueSeverityBreakdownResponse(BaseModel):
     """Issue severity breakdown payload."""
     items: list[IssueSeverityBreakdownItem] = Field(default_factory=list)
+
+
+class DashboardOverviewResponse(BaseModel):
+    """Aggregate dashboard payload for the main overview screen."""
+    summary: DashboardSummaryResponse
+    department_metrics: list[DepartmentMetrics] = Field(default_factory=list)
+    gross_distribution: RiskDistributionResponse
+    net_distribution: RiskDistributionResponse
+    control_trends: list[ControlFrequencyTrend] = Field(default_factory=list)
+    risk_trends: list[RiskTrendPoint] = Field(default_factory=list)
+    kri_breach_trends: list[KRIBreachTrendPoint] = Field(default_factory=list)
+    issue_summary: IssueDashboardSummaryResponse | None = None
+    issue_aging: IssueAgingResponse | None = None
+    issue_severity: IssueSeverityBreakdownResponse | None = None
+    generated_at: str

@@ -12,6 +12,73 @@ retries=30
 sleep_seconds=2
 host_header=""
 
+reliability_runtime_check_python() {
+  cat <<'PY'
+import asyncio
+import json
+import os
+from pathlib import Path
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
+REQUIRED_TABLES = {"scheduler_job_runs", "app_outbox_events"}
+
+
+async def main() -> None:
+    db_url = Path(os.environ["DATABASE_URL_FILE"]).read_text(encoding="utf-8").strip()
+    engine = create_async_engine(db_url)
+    try:
+        async with engine.connect() as conn:
+            table_names = set(
+                (
+                    await conn.execute(
+                        text(
+                            "SELECT tablename FROM pg_tables "
+                            "WHERE schemaname = 'public' "
+                            "AND tablename IN ('scheduler_job_runs', 'app_outbox_events')"
+                        )
+                    )
+                ).scalars()
+            )
+            missing_tables = sorted(REQUIRED_TABLES - table_names)
+            scheduler_runtime_rows = 0
+            dead_letter_count = 0
+            if not missing_tables:
+                scheduler_runtime_rows = int(
+                    (
+                        await conn.execute(
+                            text(
+                                "SELECT COUNT(*) FROM scheduler_job_runs "
+                                "WHERE job_name = '__scheduler_runtime__' AND status = 'running'"
+                            )
+                        )
+                    ).scalar_one()
+                )
+                dead_letter_count = int(
+                    (
+                        await conn.execute(
+                            text("SELECT COUNT(*) FROM app_outbox_events WHERE status = 'dead_letter'")
+                        )
+                    ).scalar_one()
+                )
+    finally:
+        await engine.dispose()
+
+    payload = {
+        "missing_tables": missing_tables,
+        "scheduler_runtime_rows": scheduler_runtime_rows,
+        "dead_letter_count": dead_letter_count,
+    }
+    if missing_tables or scheduler_runtime_rows != 1 or dead_letter_count != 0:
+        raise SystemExit(json.dumps(payload, sort_keys=True))
+    print(json.dumps(payload, sort_keys=True))
+
+
+asyncio.run(main())
+PY
+}
+
 usage() {
   cat <<EOF
 Usage: scripts/prod/smoke_test.sh --frontend-env PATH [options]
@@ -20,6 +87,7 @@ Validates a Phase 500 deployment:
 - frontend root responds
 - backend health is reachable via frontend /api proxy
 - backend docs are disabled in production (checked inside backend container)
+- reliability runtime checks confirm scheduler ownership, outbox health, and required tables
 
 Options:
   --frontend-env PATH     Path to frontend.env
@@ -140,6 +208,9 @@ if [[ "$DRY_RUN" == "true" ]]; then
   printf '+ curl -f -H "Host: %s" http://localhost:%s/api/v1/health\\n' "$resolved_host" "$host_port"
   printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/docs\\n' "$BACKEND_CONTAINER" "$resolved_host"
   printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/openapi.json\\n' "$BACKEND_CONTAINER" "$resolved_host"
+  printf "+ docker exec -i %s python - <<'PY'\\n" "$BACKEND_CONTAINER"
+  reliability_runtime_check_python
+  printf 'PY\\n'
   exit 0
 fi
 
@@ -204,5 +275,74 @@ if [[ "$openapi_code" != "404" ]]; then
 fi
 
 log "Smoke: backend /docs and /openapi.json disabled (production mode)"
+
+reliability_report="$(
+  docker exec -i "$BACKEND_CONTAINER" python - <<'PY'
+import asyncio
+import json
+import os
+from pathlib import Path
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
+REQUIRED_TABLES = {"scheduler_job_runs", "app_outbox_events"}
+
+
+async def main() -> None:
+    db_url = Path(os.environ["DATABASE_URL_FILE"]).read_text(encoding="utf-8").strip()
+    engine = create_async_engine(db_url)
+    try:
+        async with engine.connect() as conn:
+            table_names = set(
+                (
+                    await conn.execute(
+                        text(
+                            "SELECT tablename FROM pg_tables "
+                            "WHERE schemaname = 'public' "
+                            "AND tablename IN ('scheduler_job_runs', 'app_outbox_events')"
+                        )
+                    )
+                ).scalars()
+            )
+            missing_tables = sorted(REQUIRED_TABLES - table_names)
+            scheduler_runtime_rows = 0
+            dead_letter_count = 0
+            if not missing_tables:
+                scheduler_runtime_rows = int(
+                    (
+                        await conn.execute(
+                            text(
+                                "SELECT COUNT(*) FROM scheduler_job_runs "
+                                "WHERE job_name = '__scheduler_runtime__' AND status = 'running'"
+                            )
+                        )
+                    ).scalar_one()
+                )
+                dead_letter_count = int(
+                    (
+                        await conn.execute(
+                            text("SELECT COUNT(*) FROM app_outbox_events WHERE status = 'dead_letter'")
+                        )
+                    ).scalar_one()
+                )
+    finally:
+        await engine.dispose()
+
+    payload = {
+        "missing_tables": missing_tables,
+        "scheduler_runtime_rows": scheduler_runtime_rows,
+        "dead_letter_count": dead_letter_count,
+    }
+    if missing_tables or scheduler_runtime_rows != 1 or dead_letter_count != 0:
+        raise SystemExit(json.dumps(payload, sort_keys=True))
+    print(json.dumps(payload, sort_keys=True))
+
+
+asyncio.run(main())
+PY
+)" || die "Reliability runtime check failed: ${reliability_report:-no output}"
+
+log "Smoke: reliability runtime OK ${reliability_report}"
 
 log "Smoke test: PASS"

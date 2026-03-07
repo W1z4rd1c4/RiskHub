@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Navigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
@@ -10,8 +10,9 @@ import {
     TrendingUp,
     Building2
 } from 'lucide-react';
+import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
-import type { OrphanStats, OrphanedItem } from '@/types/orphanedItem';
+import type { OrphanedItem } from '@/types/orphanedItem';
 import { OrphanedItemsTable, ResolveOrphanModal, OrphanQuickViewModal } from '@/components/governance';
 import { GOVERNANCE_POLL_MS } from '@/config/constants';
 import { useAuthz } from '@/authz/useAuthz';
@@ -33,45 +34,21 @@ const item = {
 
 function GovernancePageInner() {
     const { t } = useTranslation('admin');
-    const [stats, setStats] = useState<OrphanStats | null>(null);
-    const [orphans, setOrphans] = useState<OrphanedItem[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const hasScannedRef = useRef(false);
     const [selectedOrphan, setSelectedOrphan] = useState<OrphanedItem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewingOrphan, setViewingOrphan] = useState<OrphanedItem | null>(null);
     const [activeTab, setActiveTab] = useState<'risk' | 'control' | 'kri'>('risk');
 
-    const fetchData = useCallback(async () => {
-        try {
-            if (!hasScannedRef.current) {
-                hasScannedRef.current = true;
-                try {
-                    await orphanedItemsApi.scanOrphans();
-                } catch (err) {
-                    // Best-effort: non-admin users may receive 403. Ignore and proceed with reads.
-                    console.debug('Orphan scan skipped/failed:', err);
-                }
-            }
+    const overviewQuery = useAdaptivePollingQuery({
+        queryKey: ['governanceOverview'],
+        queryFn: ({ signal }) => orphanedItemsApi.getOverview({ status: 'pending' }, { signal }),
+        pollMs: GOVERNANCE_POLL_MS,
+    });
 
-            const [statsData, orphansData] = await Promise.all([
-                orphanedItemsApi.getOrphanStats(),
-                orphanedItemsApi.getOrphanedItems({ status: 'pending' })
-            ]);
-            setStats(statsData);
-            setOrphans(orphansData);
-        } catch (err) {
-            console.error('Governance data fetch error:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchData();
-        const interval = setInterval(fetchData, GOVERNANCE_POLL_MS);
-        return () => clearInterval(interval);
-    }, [fetchData]);
+    const stats = overviewQuery.data?.stats ?? null;
+    const orphans = overviewQuery.data?.items ?? [];
+    const lastScanAt = overviewQuery.data?.last_scan_at ?? null;
+    const scanStatus = overviewQuery.data?.scan_status ?? null;
 
     const handleResolve = (orphan: OrphanedItem) => {
         setSelectedOrphan(orphan);
@@ -79,10 +56,10 @@ function GovernancePageInner() {
     };
 
     const handleResolved = () => {
-        fetchData();
+        void overviewQuery.refresh();
     };
 
-    if (isLoading && !stats) {
+    if (overviewQuery.isLoading && !stats) {
         return (
             <div className="flex items-center justify-center min-h-[60vh]">
                 <div className="flex flex-col items-center gap-4">
@@ -148,10 +125,16 @@ function GovernancePageInner() {
                 <div>
                     <h2 className="text-3xl font-black text-white mb-2">{t('governance.title')}</h2>
                     <p className="text-slate-500 font-medium">{t('governance.subtitle')}</p>
+                    {(lastScanAt || scanStatus) && (
+                        <p className="text-xs text-slate-500 mt-2">
+                            {scanStatus ? `${scanStatus}` : ''}
+                            {lastScanAt ? ` • ${new Date(lastScanAt).toLocaleString()}` : ''}
+                        </p>
+                    )}
                 </div>
                 <div className="flex items-center gap-3">
                     <button
-                        onClick={() => fetchData()}
+                        onClick={() => { void overviewQuery.refresh(); }}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
                         title={t('governance.refresh')}
                     >
