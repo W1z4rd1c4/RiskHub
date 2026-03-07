@@ -35,7 +35,7 @@ TAIL_LINES="200"
 
 usage() {
   cat <<EOF
-Usage: scripts/deploy.sh <init|secrets-init|secrets-edit|secrets-check|preflight|deploy|upgrade|status|logs|smoke|rollback> --target docker|linux [options]
+Usage: ./scripts/deploy.sh <init|secrets-init|secrets-edit|secrets-check|preflight|deploy|upgrade|status|logs|smoke|rollback> --target docker|linux [options]
 
 Common options:
   --target docker|linux
@@ -178,6 +178,7 @@ deploy_init() {
   fi
   copy_file "$example" "$config_path" 600
   deploy_secrets_init "$force"
+  ensure_runtime_dir_scaffold
   log "Wrote config template: ${config_path}"
 }
 
@@ -185,9 +186,20 @@ secrets_edit() {
   local editor="${VISUAL:-${EDITOR:-}}"
   [[ -n "$editor" ]] || die "Set \$EDITOR or \$VISUAL before running secrets-edit"
 
-  local tmp_file
-  tmp_file="$(mktemp "${TMPDIR:-/tmp}/riskhub-secrets-edit.XXXXXX")"
-  trap 'rm -f "$tmp_file"; trap - RETURN' RETURN
+  if [[ "$DRY_RUN" == "true" ]]; then
+    local dry_run_file
+    dry_run_file="$(secret_edit_parent_dir)/.riskhub-secrets-edit.XXXXXX/riskhub-secrets-edit.XXXXXX"
+    printf '+ %s %q\n' "$editor" "$dry_run_file"
+    return 0
+  fi
+
+  local edit_workspace=""
+  local tmp_file=""
+  trap 'cleanup_secret_edit_workspace "$edit_workspace"; trap - RETURN' RETURN
+
+  edit_workspace="$(make_secret_edit_workspace)"
+  tmp_file="$(mktemp "${edit_workspace}/riskhub-secrets-edit.XXXXXX")"
+  chmod 600 "$tmp_file"
 
   cat >"$tmp_file" <<EOF
 DATABASE_URL=$(secret_editor_file database_url)
@@ -196,12 +208,7 @@ ENTRA_CLIENT_SECRET=$(secret_editor_file entra_client_secret)
 REDIS_PASSWORD=$(secret_editor_file redis_password)
 EOF
 
-  if [[ "$DRY_RUN" == "true" ]]; then
-    printf '+ %s %q\n' "$editor" "$tmp_file"
-    return 0
-  fi
-
-  bash -lc "$(printf '%q %q' "$editor" "$tmp_file")"
+  bash -lc "$editor \"\$1\"" _ "$tmp_file"
 
   local database_url secret_key entra_client_secret redis_password
   database_url="$(grep -E '^DATABASE_URL=' "$tmp_file" | tail -n 1 | cut -d= -f2- || true)"
@@ -218,8 +225,6 @@ EOF
   write_secret_file secret_key "${secret_key}"$'\n'
   write_secret_file entra_client_secret "${entra_client_secret}"$'\n'
   write_secret_file redis_password "${redis_password}"$'\n'
-  trap - RETURN
-  rm -f "$tmp_file"
   log "Updated secret files under: ${SECRET_DIR}"
 }
 

@@ -7,6 +7,8 @@ REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
 # shellcheck source=scripts/prod/lib/common.sh
 source "${REPO_ROOT}/scripts/prod/lib/common.sh"
 
+DEFAULT_FRONTEND_ENV="${RUNTIME_DIR}/frontend.env"
+
 tag=""
 action="auto" # auto|deploy|upgrade
 
@@ -18,7 +20,7 @@ Component-only frontend production deploy/upgrade wrapper.
 Builds frontend image and installs/upgrades frontend container only.
 
 Options:
-  --frontend-env PATH   Default: /etc/riskhub/frontend.env
+  --frontend-env PATH   Default: ${DEFAULT_FRONTEND_ENV}
   --tag TAG             Image tag (default: git short SHA, else timestamp)
   --action MODE         auto|deploy|upgrade (default: auto)
   --dry-run             Print actions only
@@ -56,7 +58,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "${FRONTEND_ENV}" ]]; then
-  FRONTEND_ENV="/etc/riskhub/frontend.env"
+  FRONTEND_ENV="${DEFAULT_FRONTEND_ENV}"
 fi
 
 action="$(printf '%s' "$action" | tr '[:upper:]' '[:lower:]' | xargs)"

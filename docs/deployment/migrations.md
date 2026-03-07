@@ -22,8 +22,8 @@ This is intentional:
 
 1. Bring up external PostgreSQL.
 2. Run migrations as an explicit deployment step.
-   - Docker target: `scripts/deploy.sh deploy|upgrade --target docker ...` runs migrations before the API/frontend rollout.
-   - Linux target: `scripts/deploy.sh deploy|upgrade --target linux ...` runs migrations from the unpacked release bundle before service restart.
+   - Docker target: `./scripts/deploy.sh deploy|upgrade --target docker ...` runs migrations before the API/frontend rollout.
+   - Linux target: `./scripts/deploy.sh deploy|upgrade --target linux ...` runs migrations from the unpacked release bundle before service restart.
 3. Roll out the backend/API runtime only after migrations succeed.
 
 ## Rollback posture

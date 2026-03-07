@@ -1,23 +1,64 @@
-"""Contract checks for Phase 500 production script behavior."""
+"""Contract checks for retained and retired production script behavior."""
 
+from __future__ import annotations
+
+import os
+import re
+import subprocess
+import tempfile
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROD_SCRIPTS_DIR = REPO_ROOT / "scripts" / "prod"
+BACKEND_RUNTIME_PROD = REPO_ROOT / "backend" / "scripts" / "runtime" / "prod.sh"
+BACKEND_DB_RUNTIME_PROD = REPO_ROOT / "backend" / "scripts" / "runtime" / "db" / "prod.sh"
+FRONTEND_RUNTIME_PROD = REPO_ROOT / "frontend" / "scripts" / "runtime" / "prod.sh"
+ACTIVE_DOCS = [
+    REPO_ROOT / "docs" / "deployment" / "README.md",
+    REPO_ROOT / "docs" / "deployment" / "advanced.md",
+    REPO_ROOT / "docs" / "deployment" / "production.md",
+    REPO_ROOT / "docs" / "deployment" / "reference.md",
+    REPO_ROOT / "docs" / "deployment" / "security-checklist.md",
+    REPO_ROOT / "docs" / "deployment" / "installation-manual.md",
+    REPO_ROOT / "docs" / "deployment" / "external-postgres-install-scripts.md",
+    REPO_ROOT / "scripts" / "README.md",
+    REPO_ROOT / "scripts" / "prod" / "README.md",
+    REPO_ROOT / "scripts" / "prod" / "config" / "README.md",
+    REPO_ROOT / "scripts" / "prod" / "config" / "backend.env.example",
+    REPO_ROOT / "scripts" / "prod" / "config" / "frontend.env.example",
+]
+RETIRED_ENTRYPOINTS = ("setup.sh", "deploy.sh", "upgrade.sh", "stop.sh")
 
 
 def _script_text(name: str) -> str:
     return (PROD_SCRIPTS_DIR / name).read_text(encoding="utf-8")
 
 
-def test_preflight_exposes_allow_frontend_port_in_use_flag():
+def _read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def _run_runtime_help(path: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [str(path), "--help"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+
+def test_preflight_exposes_allow_frontend_port_in_use_flag() -> None:
     text = _script_text("preflight.sh")
     assert "--allow-frontend-port-in-use" in text
     assert "allow_frontend_port_in_use=true" in text
     assert 'preflight_frontend_env "$FRONTEND_ENV" "$allow_frontend_port_in_use"' in text
 
 
-def test_preflight_validates_frontend_port_ranges_and_container_port():
+def test_preflight_validates_frontend_port_ranges_and_container_port() -> None:
     text = _script_text("lib/preflight.sh")
     assert "FRONTEND_HOST_PORT must be between 1 and 65535" in text
     assert "FRONTEND_CONTAINER_PORT must be numeric" in text
@@ -26,45 +67,143 @@ def test_preflight_validates_frontend_port_ranges_and_container_port():
     assert 'envfile_require_nonempty "$backend_env" "DATABASE_URL_FILE"' in text
 
 
-def test_upgrade_preflight_calls_allow_frontend_port_in_use():
-    text = _script_text("upgrade.sh")
-    preflight_calls = [line.strip() for line in text.splitlines() if 'run "${SCRIPT_DIR}/preflight.sh"' in line]
-    assert len(preflight_calls) >= 2
-    assert all("--allow-frontend-port-in-use" in line for line in preflight_calls)
-
-
-def test_setup_resolves_action_before_preflight_and_applies_upgrade_allow_mode():
-    text = _script_text("setup.sh")
-    assert text.index('if [[ "$action" == "auto" ]]') < text.index('log "Running preflight checks"')
-    assert 'preflight_args=(--backend-env "$BACKEND_ENV" --frontend-env "$FRONTEND_ENV")' in text
-    assert 'if [[ "$action" == "upgrade" ]]; then' in text
-    assert 'preflight_args+=(--allow-frontend-port-in-use)' in text
-    assert '"${SCRIPT_DIR}/preflight.sh" "${preflight_args[@]}"' in text
-
-
-def test_setup_cleanup_removes_dry_run_temp_dir():
-    text = _script_text("setup.sh")
-    assert 'setup_tmp_dir=""' in text
-    assert 'if [[ -n "$setup_tmp_dir" && -d "$setup_tmp_dir" ]]; then rm -rf "$setup_tmp_dir" || true; fi' in text
-
-
-def test_setup_requires_entra_client_secret_flag_and_writes_backend_env_value():
-    text = _script_text("setup.sh")
-    assert "--entra-client-secret SECRET" in text
-    assert '--entra-client-secret)' in text
-    assert 'missing_required+=(--entra-client-secret)' in text
-    assert "ENTRA_CLIENT_SECRET=${entra_client_secret}" in text
-
-
-def test_bootstrap_db_uses_module_execution_for_seed_scripts():
+def test_bootstrap_db_uses_module_execution_for_seed_scripts() -> None:
     text = _script_text("bootstrap_db.sh")
     assert "python -m scripts.seed_roles_permissions" in text
     assert "python -m scripts.seed_departments" in text
     assert "python -m scripts.bootstrap_sso_user" in text
 
 
-def test_install_frontend_applies_capability_hardening():
+def test_install_frontend_applies_capability_hardening() -> None:
     text = _script_text("install_frontend.sh")
     assert "--security-opt no-new-privileges" in text
     assert "--cap-drop ALL" in text
     assert "--cap-add NET_BIND_SERVICE" in text
+
+
+def test_install_redis_passes_password_file_override_for_custom_secret_dir() -> None:
+    text = _script_text("install_redis.sh")
+    assert 'RISKHUB_REDIS_PASSWORD_FILE=${SECRET_DIR}/redis_password' in text
+
+
+@pytest.mark.parametrize(
+    ("path", "default_var", "help_var"),
+    [
+        (BACKEND_RUNTIME_PROD, 'DEFAULT_BACKEND_ENV="${RUNTIME_DIR}/backend.env"', "Default: ${DEFAULT_BACKEND_ENV}"),
+        (BACKEND_DB_RUNTIME_PROD, 'DEFAULT_BACKEND_ENV="${RUNTIME_DIR}/backend.env"', "Default: ${DEFAULT_BACKEND_ENV}"),
+        (FRONTEND_RUNTIME_PROD, 'DEFAULT_FRONTEND_ENV="${RUNTIME_DIR}/frontend.env"', "Default: ${DEFAULT_FRONTEND_ENV}"),
+    ],
+)
+def test_component_prod_wrappers_bind_default_env_paths_to_runtime_dir(
+    path: Path,
+    default_var: str,
+    help_var: str,
+) -> None:
+    text = _read(path)
+
+    assert default_var in text
+    assert help_var in text
+    assert "/etc/riskhub/backend.env" not in text
+    assert "/etc/riskhub/frontend.env" not in text
+
+
+@pytest.mark.parametrize(
+    ("path", "expected_default"),
+    [
+        (BACKEND_RUNTIME_PROD, "Default: /etc/riskhub/runtime/backend.env"),
+        (BACKEND_DB_RUNTIME_PROD, "Default: /etc/riskhub/runtime/backend.env"),
+        (FRONTEND_RUNTIME_PROD, "Default: /etc/riskhub/runtime/frontend.env"),
+    ],
+)
+def test_component_prod_wrappers_help_shows_runtime_dir_defaults(path: Path, expected_default: str) -> None:
+    result = _run_runtime_help(path, env=os.environ.copy())
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode == 0, output
+    assert expected_default in output
+
+
+@pytest.mark.parametrize(
+    ("path", "expected_suffix"),
+    [
+        (BACKEND_RUNTIME_PROD, "backend.env"),
+        (BACKEND_DB_RUNTIME_PROD, "backend.env"),
+        (FRONTEND_RUNTIME_PROD, "frontend.env"),
+    ],
+)
+def test_component_prod_wrappers_help_honors_runtime_dir_override(path: Path, expected_suffix: str) -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-runtime-help-") as td:
+        env = os.environ.copy()
+        env["RISKHUB_RUNTIME_DIR"] = td
+
+        result = _run_runtime_help(path, env=env)
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        assert f"Default: {Path(td) / expected_suffix}" in output
+
+
+@pytest.mark.parametrize("name", RETIRED_ENTRYPOINTS)
+def test_retired_legacy_entrypoints_are_deprecation_stubs(name: str) -> None:
+    text = _script_text(name)
+    assert "DEPRECATED:" in text
+    assert "./scripts/deploy.sh" in text
+    assert "retired" in text.lower()
+    assert "unsupported" in text.lower()
+    assert "mktemp" not in text
+    assert "DATABASE_URL=" not in text
+    assert "SECRET_KEY=" not in text
+    assert "ENTRA_CLIENT_SECRET=" not in text
+    assert "REDIS_PASSWORD=" not in text
+
+
+def test_release_parity_audit_uses_deploy_cli_for_prod_runtime_path() -> None:
+    text = _read(REPO_ROOT / "scripts" / "security" / "run_release_parity_audit.py")
+    assert "./scripts/deploy.sh deploy --target docker" in text
+    assert "deploy_cli_prod_docker" in text
+    forbidden = (
+        "./scripts/setup.sh --mode prod",
+        "setup_mode_prod",
+        "path_setup_mode_prod_dryrun",
+    )
+    for token in forbidden:
+        assert token not in text
+
+
+def test_prod_readiness_audit_uses_deploy_cli_for_operator_lifecycle() -> None:
+    text = _read(REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh")
+    required = (
+        "./scripts/deploy.sh init --target docker",
+        "./scripts/deploy.sh preflight --target docker",
+        "./scripts/deploy.sh deploy --target docker",
+        "./scripts/deploy.sh upgrade --target docker",
+        "./scripts/deploy.sh rollback --target docker",
+        "./scripts/deploy.sh smoke --target docker",
+        "./scripts/deploy.sh status --target docker",
+    )
+    for token in required:
+        assert token in text
+
+    forbidden = (
+        "scripts/prod/deploy.sh --backend-env",
+        "scripts/prod/upgrade.sh --backend-env",
+        "scripts/prod/stop.sh",
+        "./scripts/setup.sh --mode prod",
+    )
+    for token in forbidden:
+        assert token not in text
+
+
+def test_active_docs_do_not_present_retired_entrypoints_as_supported_admin_commands() -> None:
+    patterns = [
+        re.compile(r"^\s*`?\./?scripts/prod/setup\.sh\b"),
+        re.compile(r"^\s*`?\./?scripts/prod/deploy\.sh\b"),
+        re.compile(r"^\s*`?\./?scripts/prod/upgrade\.sh\b"),
+        re.compile(r"^\s*`?\./?scripts/prod/stop\.sh\b"),
+        re.compile(r"^\s*`?\./scripts/setup\.sh\s+--mode\s+prod\b"),
+    ]
+
+    for path in ACTIVE_DOCS:
+        for line in _read(path).splitlines():
+            for pattern in patterns:
+                assert not pattern.search(line), f"Unsupported admin command in {path}: {line}"
