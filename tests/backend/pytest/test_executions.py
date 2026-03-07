@@ -33,7 +33,7 @@ async def test_create_execution(auth_client: AsyncClient, test_user: User, test_
         "/api/v1/executions",
         json={
             "control_id": control_id,
-            "result": "pass",
+            "result": "passed",
             "findings": "Control executed successfully with no issues",
             "evidence_reference": "DOC-2025-001",
         },
@@ -42,7 +42,7 @@ async def test_create_execution(auth_client: AsyncClient, test_user: User, test_
     assert response.status_code == 201
     data = response.json()
     assert data["control_id"] == control_id
-    assert data["result"] == "pass"
+    assert data["result"] == "passed"
     assert data["findings"] == "Control executed successfully with no issues"
 
 
@@ -69,7 +69,7 @@ async def test_list_executions(auth_client: AsyncClient, test_user: User, test_d
         "/api/v1/executions",
         json={
             "control_id": control_id,
-            "result": "fail",
+            "result": "failed",
             "findings": "Issues found during execution",
         },
     )
@@ -78,8 +78,9 @@ async def test_list_executions(auth_client: AsyncClient, test_user: User, test_d
 
     assert response.status_code == 200
     data = response.json()
-    assert isinstance(data, list)
-    assert len(data) >= 1
+    assert isinstance(data["items"], list)
+    assert data["total"] >= 1
+    assert data["limit"] == 100
 
 
 @pytest.mark.asyncio
@@ -105,17 +106,17 @@ async def test_filter_executions_by_result(auth_client: AsyncClient, test_user: 
         "/api/v1/executions",
         json={
             "control_id": control_id,
-            "result": "issues_found",
+            "result": "warning",
             "findings": "Minor issues detected",
         },
     )
 
-    response = await auth_client.get("/api/v1/executions?result=issues_found")
+    response = await auth_client.get("/api/v1/executions?result=warning")
 
     assert response.status_code == 200
     data = response.json()
-    for execution in data:
-        assert execution["result"] == "issues_found"
+    for execution in data["items"]:
+        assert execution["result"] == "warning"
 
 
 # =============================================================================
@@ -161,7 +162,7 @@ async def test_employee_cannot_create_execution_for_other_dept(
         "/api/v1/executions",
         json={
             "control_id": second_dept_control.id,
-            "result": "pass",
+            "result": "passed",
             "findings": "Test execution",
         },
     )
@@ -179,7 +180,7 @@ async def test_admin_can_create_execution_for_any_dept(
         "/api/v1/executions",
         json={
             "control_id": second_dept_control.id,
-            "result": "pass",
+            "result": "passed",
             "findings": "Admin test execution",
         },
     )
@@ -214,7 +215,7 @@ async def test_employee_list_executions_scoped_to_department(
 
     # Create execution
     execution = ControlExecution(
-        control_id=control.id, executed_by_id=test_user_employee.id, result="pass", findings="Test"
+        control_id=control.id, executed_by_id=test_user_employee.id, result="passed", findings="Test"
     )
     db_session.add(execution)
     await db_session.commit()
@@ -224,7 +225,7 @@ async def test_employee_list_executions_scoped_to_department(
     assert response.status_code == 200
     data = response.json()
     # Should only contain executions from employee's department
-    assert len(data) >= 1
+    assert data["total"] >= 1
 
 
 # =============================================================================
@@ -299,7 +300,7 @@ async def test_controls_write_without_controls_execute_is_denied(
     response = await client.post(
         "/api/v1/executions",
         headers={"X-Mock-User-Id": str(user.id)},
-        json={"control_id": control.id, "result": "pass", "findings": "Test execution attempt"},
+        json={"control_id": control.id, "result": "passed", "findings": "Test execution attempt"},
     )
 
     assert response.status_code == 403
@@ -361,13 +362,13 @@ async def test_controls_execute_can_log_within_department(
     response = await client.post(
         "/api/v1/executions",
         headers={"X-Mock-User-Id": str(user.id)},
-        json={"control_id": control.id, "result": "pass", "findings": "Test execution logged successfully"},
+        json={"control_id": control.id, "result": "passed", "findings": "Test execution logged successfully"},
     )
 
     assert response.status_code == 201
     data = response.json()
     assert data["control_id"] == control.id
-    assert data["result"] == "pass"
+    assert data["result"] == "passed"
 
 
 @pytest.mark.asyncio
@@ -440,7 +441,7 @@ async def test_controls_execute_cannot_log_across_departments(
     response = await client.post(
         "/api/v1/executions",
         headers={"X-Mock-User-Id": str(user.id)},
-        json={"control_id": control.id, "result": "pass", "findings": "Attempted cross-department execution"},
+        json={"control_id": control.id, "result": "passed", "findings": "Attempted cross-department execution"},
     )
 
     assert response.status_code == 403
