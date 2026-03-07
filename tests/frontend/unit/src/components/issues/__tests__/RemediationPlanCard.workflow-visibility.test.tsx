@@ -35,6 +35,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
         closed_at: null,
         created_at: '2026-02-01T10:00:00Z',
         updated_at: '2026-02-01T10:00:00Z',
+        risk_contexts: [],
         description: 'Desc',
         created_by_id: 2,
         created_by_name: 'Anna Kowalski',

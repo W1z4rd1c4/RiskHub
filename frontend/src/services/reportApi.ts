@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import type { ExecutionResult } from '@/types/execution';
 import type { KRIMonitoringStatus, KRITimelinessStatus } from '@/types/kri';
 
 interface ReportFilters {
@@ -56,7 +57,7 @@ interface ExportRequest<TFilters> {
 }
 
 interface AuditTrailFilters extends ReportFilters {
-    result?: string | null;
+    result?: ExecutionResult | null;
     controlId?: number | null;
     fromDate?: string | null;
     toDate?: string | null;

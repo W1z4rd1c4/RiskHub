@@ -50,6 +50,14 @@ export interface IssueException {
     updated_at: string;
 }
 
+export interface IssueRiskContext {
+    risk_id: number;
+    risk_name: string;
+    risk_category: string | null;
+    risk_process: string | null;
+    risk_type: string | null;
+}
+
 export interface IssueSummary {
     id: number;
     title: string;
@@ -66,6 +74,7 @@ export interface IssueSummary {
     closed_at: string | null;
     created_at: string;
     updated_at: string;
+    risk_contexts: IssueRiskContext[];
 }
 
 export interface Issue extends IssueSummary {

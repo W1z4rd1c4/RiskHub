@@ -49,6 +49,11 @@ describe('IssuesPage layout parity', () => {
 
         expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'New Issue' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'By Category' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'By Department' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'By Process' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'By Risk Type' })).toBeInTheDocument();
 
         const searchInput = screen.getByPlaceholderText('Search by title or description');
         expect(searchInput).toBeInTheDocument();

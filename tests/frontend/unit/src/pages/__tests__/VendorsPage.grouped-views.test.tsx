@@ -1,0 +1,291 @@
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { VendorsPage } from '@/pages/VendorsPage';
+import type { Vendor, VendorListParams } from '@/types/vendor';
+
+const mockGetVendors = vi.fn();
+const mockNavigate = vi.fn();
+let hasRiskRead = true;
+
+const vendors: Vendor[] = [
+    {
+        id: 1,
+        name: 'Claims Cloud Platform',
+        legal_name: null,
+        registration_id: null,
+        country: null,
+        website: null,
+        description: null,
+        process: 'Claims',
+        subprocess: null,
+        department_id: 10,
+        department_name: 'Operations',
+        outsourcing_owner_user_id: 100,
+        outsourcing_owner_name: 'Tomas Novak',
+        linked_risks: [
+            { risk_id: 11, risk_id_code: 'R-001', risk_name: 'Cyber Exposure' },
+            { risk_id: 12, risk_id_code: 'R-002', risk_name: 'Concentration Risk' },
+        ],
+        vendor_type: 'ict',
+        risk_score_1_5: 4,
+        supports_important_core_insurance_function: false,
+        dora_relevant: false,
+        is_significant_vendor: false,
+        materiality_assessed_max_impact_pct_own_funds: null,
+        replaceability: null,
+        has_alternative_providers: false,
+        status: 'active',
+        created_at: '2026-03-01T00:00:00Z',
+        updated_at: '2026-03-01T00:00:00Z',
+        reassessment_cadence_months: 12,
+        next_reassessment_due_at: null,
+        last_assessed_at: null,
+        last_decided_at: null,
+        last_reassessment_reminded_at: null,
+        reassessment_triggered_reason: null,
+        reassessment_triggered_at: null,
+    },
+    {
+        id: 2,
+        name: 'AML Screening Service',
+        legal_name: null,
+        registration_id: null,
+        country: null,
+        website: null,
+        description: null,
+        process: 'Compliance',
+        subprocess: null,
+        department_id: 11,
+        department_name: 'Compliance',
+        outsourcing_owner_user_id: 101,
+        outsourcing_owner_name: 'Petra Svobodova',
+        linked_risks: [{ risk_id: 12, risk_id_code: 'R-002', risk_name: 'Concentration Risk' }],
+        vendor_type: 'outsourcing',
+        risk_score_1_5: 5,
+        supports_important_core_insurance_function: false,
+        dora_relevant: false,
+        is_significant_vendor: false,
+        materiality_assessed_max_impact_pct_own_funds: null,
+        replaceability: null,
+        has_alternative_providers: false,
+        status: 'active',
+        created_at: '2026-03-01T00:00:00Z',
+        updated_at: '2026-03-01T00:00:00Z',
+        reassessment_cadence_months: 12,
+        next_reassessment_due_at: null,
+        last_assessed_at: null,
+        last_decided_at: null,
+        last_reassessment_reminded_at: null,
+        reassessment_triggered_reason: null,
+        reassessment_triggered_at: null,
+    },
+    {
+        id: 3,
+        name: 'Print Partner',
+        legal_name: null,
+        registration_id: null,
+        country: null,
+        website: null,
+        description: null,
+        process: 'Operations',
+        subprocess: null,
+        department_id: 12,
+        department_name: 'IT',
+        outsourcing_owner_user_id: 102,
+        outsourcing_owner_name: 'Martin Prochazka',
+        linked_risks: [],
+        vendor_type: 'partner',
+        risk_score_1_5: 2,
+        supports_important_core_insurance_function: false,
+        dora_relevant: false,
+        is_significant_vendor: false,
+        materiality_assessed_max_impact_pct_own_funds: null,
+        replaceability: null,
+        has_alternative_providers: false,
+        status: 'active',
+        created_at: '2026-03-01T00:00:00Z',
+        updated_at: '2026-03-01T00:00:00Z',
+        reassessment_cadence_months: 12,
+        next_reassessment_due_at: null,
+        last_assessed_at: null,
+        last_decided_at: null,
+        last_reassessment_reminded_at: null,
+        reassessment_triggered_reason: null,
+        reassessment_triggered_at: null,
+    },
+];
+
+function filterVendors(params: VendorListParams = {}) {
+    return vendors.filter((vendor) => {
+        if (params.status && vendor.status !== params.status) {
+            return false;
+        }
+        if (!params.status && !params.include_archived && vendor.status !== 'active') {
+            return false;
+        }
+        if (params.vendor_type && vendor.vendor_type !== params.vendor_type) {
+            return false;
+        }
+        if (params.search) {
+            const search = params.search.toLowerCase();
+            const haystack = [vendor.name, vendor.process, vendor.department_name, vendor.vendor_type]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+            if (!haystack.includes(search)) {
+                return false;
+            }
+        }
+        return true;
+    });
+}
+
+vi.mock('@/hooks/usePermissions', () => ({
+    usePermissions: () => ({
+        hasPermission: (resource: string, action: string) => {
+            if (resource === 'vendors') {
+                return action === 'read' || action === 'write' || action === 'delete';
+            }
+            if (resource === 'risks') {
+                return hasRiskRead && action === 'read';
+            }
+            return false;
+        },
+    }),
+}));
+
+vi.mock('@/components/PermissionGate', () => ({
+    PermissionGate: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock('@/services/vendorApi', () => ({
+    vendorApi: {
+        getVendors: (...args: unknown[]) => mockGetVendors(...args),
+        restoreVendor: vi.fn(),
+    },
+}));
+
+vi.mock('@/services/reportApi', () => ({
+    reportApi: {
+        exportVendors: vi.fn(),
+    },
+}));
+
+vi.mock('react-router-dom', async () => {
+    const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+    return {
+        ...actual,
+        useNavigate: () => mockNavigate,
+    };
+});
+
+describe('VendorsPage grouped views', () => {
+    beforeEach(() => {
+        hasRiskRead = true;
+        vi.clearAllMocks();
+        mockGetVendors.mockImplementation((params: VendorListParams = {}) => {
+            const filtered = filterVendors(params);
+            const skip = params.skip ?? 0;
+            const limit = params.limit ?? 10;
+            return Promise.resolve({
+                items: filtered.slice(skip, skip + limit),
+                total: filtered.length,
+                skip,
+                limit,
+            });
+        });
+    });
+
+    it('shows vendor drill-down tabs and keeps the all view paginated', async () => {
+        const ui = userEvent.setup();
+        render(<VendorsPage />);
+
+        await screen.findByText('Claims Cloud Platform');
+        expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'By Department' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'By Process' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'By Type' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'By Risk' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'By Category' })).not.toBeInTheDocument();
+        expect(document.body).toHaveTextContent(/Showing\s*1\s*to\s*3\s*of\s*3\s*results/i);
+
+        await ui.click(screen.getByRole('button', { name: 'By Type' }));
+
+        expect(await screen.findByRole('button', { name: /ICT/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Outsourcing/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Partner/i })).toBeInTheDocument();
+        expect(document.body).not.toHaveTextContent(/Showing\s*1\s*to/i);
+    });
+
+    it('groups by linked risk with overlapping counts and an unlinked fallback bucket', async () => {
+        const ui = userEvent.setup();
+        render(<VendorsPage />);
+
+        await screen.findByText('Claims Cloud Platform');
+        await ui.click(screen.getByRole('button', { name: 'By Risk' }));
+
+        await waitFor(() => {
+            expect(mockGetVendors).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    skip: 0,
+                    limit: 100,
+                    include_archived: false,
+                    status: 'active',
+                })
+            );
+        });
+
+        await ui.click(await screen.findByRole('button', { name: /R-002: Concentration Risk/i }));
+        expect(await screen.findByText('Claims Cloud Platform')).toBeInTheDocument();
+        expect(screen.getByText('AML Screening Service')).toBeInTheDocument();
+
+        await ui.click(screen.getByRole('button', { name: 'Back' }));
+        await ui.click(screen.getByRole('button', { name: /Unlinked Risk/i }));
+        expect(await screen.findByText('Print Partner')).toBeInTheDocument();
+        expect(screen.queryByText('Claims Cloud Platform')).not.toBeInTheDocument();
+    });
+
+    it('hides the risk tab when the user cannot read risks', async () => {
+        hasRiskRead = false;
+        render(<VendorsPage />);
+
+        await screen.findByText('Claims Cloud Platform');
+        expect(screen.queryByRole('button', { name: 'By Risk' })).not.toBeInTheDocument();
+    });
+
+    it('keeps grouped fetches constrained by the active search filter', async () => {
+        const ui = userEvent.setup();
+        render(<VendorsPage />);
+
+        await screen.findByText('Claims Cloud Platform');
+
+        fireEvent.change(screen.getByTestId('vendors-search-input'), { target: { value: 'AML' } });
+
+        await waitFor(() => {
+            expect(mockGetVendors).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    search: 'AML',
+                    skip: 0,
+                    limit: 10,
+                })
+            );
+        });
+
+        await ui.click(screen.getByRole('button', { name: 'By Department' }));
+
+        await waitFor(() => {
+            expect(mockGetVendors).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    search: 'AML',
+                    skip: 0,
+                    limit: 100,
+                })
+            );
+        });
+
+        expect(await screen.findByRole('button', { name: /Compliance/i })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Operations/i })).not.toBeInTheDocument();
+    });
+});

@@ -9,6 +9,12 @@ export type VendorType =
 
 export type VendorReplaceability = 'easy' | 'medium' | 'hard';
 
+export interface VendorLinkedRiskSummary {
+    risk_id: number;
+    risk_id_code: string;
+    risk_name: string;
+}
+
 export interface Vendor {
     id: number;
 
@@ -26,6 +32,7 @@ export interface Vendor {
 
     outsourcing_owner_user_id: number;
     outsourcing_owner_name?: string | null;
+    linked_risks: VendorLinkedRiskSummary[];
 
     vendor_type: VendorType;
     risk_score_1_5: number;
@@ -73,4 +80,23 @@ export interface VendorListResponse {
     total: number;
     skip: number;
     limit: number;
+}
+
+export interface VendorListParams {
+    skip?: number;
+    limit?: number;
+    search?: string;
+    status?: VendorStatus;
+    include_archived?: boolean;
+    vendor_type?: VendorType;
+    dora_relevant?: boolean;
+    supports_important_core_insurance_function?: boolean;
+    is_significant_vendor?: boolean;
+    outsourcing_owner_user_id?: number;
+    department_id?: number;
+    process?: string;
+    subprocess?: string;
+    risk_score_1_5?: number;
+    sort_by?: 'name' | 'status' | 'vendor_type' | 'risk_score_1_5' | 'process' | 'created_at';
+    sort_order?: 'asc' | 'desc';
 }

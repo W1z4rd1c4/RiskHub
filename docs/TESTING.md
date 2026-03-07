@@ -19,6 +19,8 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Backend Postgres marker | `cd backend && pytest -m postgres -v` | Postgres-sensitive behavior |
 | Backend Redis integration marker | `cd backend && pytest -m redis_integration -q` | Redis fault-injection resilience checks (Docker-backed) |
 | Frontend unit | `cd frontend && npm run test:run` | Component and integration tests |
+| Frontend KRI filter regression | `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx` | Route-backed `/kris` monitoring/timeliness filters, rapid-click loading safety, and grouped-view parity |
+| Frontend vendor grouped-view regression | `cd frontend && npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx` | `/vendors` grouped tabs, `By Risk` permission gating, overlapping risk-group membership, and `Unlinked Risk` fallback |
 | Frontend reliability targeted | `cd frontend && npm run test:run -- src/components/layout/__tests__/SidebarPolling.test.tsx src/components/notifications/__tests__/NotificationBell.test.tsx src/hooks/__tests__/useAdaptivePollingQuery.test.tsx src/pages/__tests__/DashboardPage.overview.test.tsx src/pages/__tests__/GovernancePage.overview.test.tsx src/pages/admin-console/__tests__/AdminConsoleOpsPanels.outbox.test.tsx src/services/__tests__/accessTokenStore.test.ts src/services/__tests__/apiClient.401-recovery.test.ts` | Aggregate polling, admin outbox panel, and auth/bootstrap regression pack |
 | Frontend docs UI | `cd frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx` | Docs cards/filter/audience behavior |
 | Frontend types | `cd frontend && npx tsc --noEmit` | Type safety gate |
@@ -57,6 +59,10 @@ cd backend
 
 - Unit/integration tests run with Vitest.
 - Docs UI behavior is covered in `DocumentationSettings.test.tsx`.
+- `/kris` route regressions must include `src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`.
+- The KRI regression gate must cover URL-sourced monitoring/timeliness filters, mutual exclusion between those filters, rapid filter-click loading recovery, and grouped-view parity.
+- `/vendors` grouped-view regressions must include `src/pages/__tests__/VendorsPage.grouped-views.test.tsx`.
+- The vendor grouped-view regression gate must cover `All` vs grouped tabs, `By Risk` visibility only with readable risks, grouped fetch behavior under active filters, overlapping vendor membership across linked risks, and the `Unlinked Risk` fallback bucket.
 - Playwright runs live browser flows from `tests/frontend/e2e`.
 - Role-sensitive behavior must be verified for admin/non-admin views when docs contracts change.
 
@@ -99,6 +105,16 @@ PYTHONPATH=backend pytest tests/backend/pytest/test_activity_log.py tests/backen
 
 cd frontend
 npm run e2e:business-logic
+```
+
+For vendor grouped-view documentation or permission-gating changes, also add:
+
+```bash
+cd "/Users/stefanlesnak/Antigravity/Risk App 2"
+pytest -q tests/backend/pytest/test_vendors.py
+
+cd frontend
+npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx
 ```
 
 ## Troubleshooting

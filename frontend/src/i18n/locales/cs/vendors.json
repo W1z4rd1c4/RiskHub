@@ -5,6 +5,10 @@
     "loading": "Načítání...",
     "unassigned": "Bez oddělení"
   },
+  "grouping": {
+    "no_process": "Bez procesu",
+    "unlinked_risk": "Bez propojeného rizika"
+  },
   "actions": {
     "new": "Nový dodavatel",
     "edit": "Upravit",

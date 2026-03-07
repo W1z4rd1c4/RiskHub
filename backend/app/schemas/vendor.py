@@ -86,10 +86,17 @@ class VendorUpdate(BaseModel):
     next_reassessment_due_at: datetime | None = None
 
 
+class VendorLinkedRiskSummary(BaseModel):
+    risk_id: int
+    risk_id_code: str
+    risk_name: str
+
+
 class VendorRead(VendorBase):
     id: int
     department_name: str | None = None
     outsourcing_owner_name: str | None = None
+    linked_risks: list[VendorLinkedRiskSummary] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

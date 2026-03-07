@@ -1,7 +1,7 @@
 ---
 title: Uživatelská dokumentace RiskHub
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md"
 summary: "Produkční manuály pro každodenní práci v RiskHubu: navigace, oprávnění, workflow (schvalování), exporty a troubleshooting."
@@ -94,7 +94,7 @@ Tato tabulka mapuje položky v menu na kanonický manuál.
 | Rizika | `/risks` | [Správa rizik](./risks.md) | Hygiena registru, scoring, ownership a vazby | `risks`, `workflow`, `approvals` |
 | Nálezy (pokud jsou zapnuté) | `/issues` | [Správa nálezů](./issues.md) | Remediace, vazby na rizika/kontroly a disciplína uzavírání | `issues`, `workflow`, `exports` |
 | KRI | `/kris` | [Správa KRI](./kris.md) | Limity, zápis hodnot, breach signály | `kri`, `notifications`, `exports` |
-| Dodavatelé (pokud jsou zapnutí) | `/vendors` | [Správa dodavatelů](./vendors.md) | Third-party governance, assessmenty, incidenty, exporty | `vendors`, `approvals`, `exports` |
+| Dodavatelé (pokud jsou zapnutí) | `/vendors` | [Správa dodavatelů](./vendors.md) | Third-party governance, grouped drill-down pohledy, assessmenty, incidenty, exporty | `vendors`, `approvals`, `exports` |
 | Oddělení | `/departments` | [Oddělení](./departments.md) | Expozice podle org jednotek, drill-down a odpovědnosti | `departments`, `workflow`, `exports` |
 | Governance (jen CRO, ne-admin) | `/governance` | [Governance](./governance.md) | Orphans, ownership mezery a jejich řešení | `governance`, `audit`, `troubleshooting` |
 | Activity Log (permission-gated, ne-admin) | `/activity-log` | [Activity Log](./activity-log.md) | „Kdo změnil co“, časová osa, auditní evidence | `activity-log`, `audit`, `exports` |
