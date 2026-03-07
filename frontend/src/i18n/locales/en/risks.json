@@ -284,6 +284,7 @@
     "classification": "Classification",
     "subprocess": "Subprocess",
     "ownership": "Ownership",
+    "connections": "Connections",
     "unassigned": "Unassigned",
     "no_department": "No Dept",
     "risk_appetite_indicators": "Risk Appetite Indicators",

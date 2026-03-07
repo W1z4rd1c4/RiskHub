@@ -14,6 +14,10 @@ export interface LoginRequest {
     password: string;
 }
 
+export interface DemoLoginRequest {
+    email: string;
+}
+
 export interface AuthConfigResponse {
     auth_mode: AuthMode;
     demo_login_enabled: boolean;
@@ -80,6 +84,28 @@ export const authApi = {
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
             const detail = (error as { detail?: string }).detail || 'Login failed';
+            throw new AuthRequestError({
+                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
+                message: detail,
+                rawMessage: detail,
+                status: response.status,
+            });
+        }
+
+        return response.json();
+    },
+
+    async demoLogin(email: string): Promise<TokenResponse> {
+        const response = await fetchAuthResponse(`${API_URL}/demo-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email } satisfies DemoLoginRequest),
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            const detail = (error as { detail?: string }).detail || 'Demo login failed';
             throw new AuthRequestError({
                 code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
                 message: detail,

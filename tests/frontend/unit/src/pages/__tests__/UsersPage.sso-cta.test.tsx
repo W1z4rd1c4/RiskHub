@@ -180,4 +180,20 @@ describe('UsersPage SSO add CTA', () => {
         expect(await screen.findByRole('button', { name: 'Add from AD' })).toBeInTheDocument();
         expect(await screen.findByRole('button', { name: 'access.add_user' })).toBeInTheDocument();
     });
+
+    it('keeps the list visible but disables auth-mode actions when auth config is unavailable', async () => {
+        mockGetAuthConfig.mockRejectedValue(new Error('Auth service unavailable'));
+
+        render(<UsersPage />);
+
+        await waitFor(() => {
+            expect(mockListAccessUsers).toHaveBeenCalled();
+        });
+
+        expect(screen.getByTestId('users-table')).toBeInTheDocument();
+        expect(screen.getByText(/create and directory actions are disabled/i)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Add from AD' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'access.add_user' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Check AD' })).not.toBeInTheDocument();
+    });
 });
