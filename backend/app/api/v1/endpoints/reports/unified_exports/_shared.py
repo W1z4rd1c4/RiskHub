@@ -7,6 +7,9 @@ from app.models import Issue
 ExportFormat = Literal["csv"]
 ExportFormatQuery = Literal["xlsx", "csv"]
 KRIExportStatus = Literal["all", "within", "breach", "overdue", "archived"]
+ControlMonitoringExportStatus = Literal["new", "needs_review", "failed", "passed"]
+KRIMonitoringExportStatus = Literal["new", "not_submitted", "breach", "warning", "optimal"]
+KRITimelinessExportStatus = Literal["due_soon"]
 
 
 def _contains(haystack: Any, needle: str) -> bool:

@@ -1,11 +1,12 @@
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from app.models.control import ControlStatus
 from app.models.risk import RiskStatus
 from app.models.vendor import VendorStatus
+from app.services._kri_history.periods import period_bounds_for_date
 
-from ._shared import KRIExportStatus, _contains
+from ._shared import ControlMonitoringExportStatus, KRIMonitoringExportStatus, KRIExportStatus, _contains
 
 
 def _normalize_kri_status(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -53,6 +54,7 @@ def _filter_rows_by_control_criteria(
     rows: list[dict[str, Any]],
     *,
     status_filter: str | None,
+    monitoring_status_filter: ControlMonitoringExportStatus | None,
     search: str | None,
 ) -> list[dict[str, Any]]:
     filtered = rows
@@ -79,6 +81,9 @@ def _filter_rows_by_control_criteria(
             )
         ]
 
+    if monitoring_status_filter:
+        filtered = [r for r in filtered if str(r.get("monitoring_status")) == monitoring_status_filter]
+
     return sorted(filtered, key=lambda x: str(x.get("name") or ""))
 
 
@@ -86,6 +91,8 @@ def _filter_rows_by_kri_criteria(
     rows: list[dict[str, Any]],
     *,
     status_filter: KRIExportStatus,
+    monitoring_status_filter: KRIMonitoringExportStatus | None,
+    timeliness_status_filter: str | None,
     search: str | None,
     as_of_date: date,
 ) -> list[dict[str, Any]]:
@@ -112,6 +119,25 @@ def _filter_rows_by_kri_criteria(
     if search:
         needle = search.strip().lower()
         filtered = [r for r in filtered if _contains(r.get("metric_name"), needle)]
+
+    if monitoring_status_filter:
+        filtered = [r for r in filtered if str(r.get("monitoring_status")) == monitoring_status_filter]
+
+    if timeliness_status_filter == "due_soon":
+        due_soon_rows: list[dict[str, Any]] = []
+        for row in filtered:
+            frequency = row.get("frequency")
+            if not isinstance(frequency, str):
+                continue
+            _, current_period_end = period_bounds_for_date(as_of_date, frequency)
+            advance_date = current_period_end - timedelta(days=7)
+            last_period_end = row.get("last_period_end")
+            if not (advance_date <= as_of_date < current_period_end):
+                continue
+            if last_period_end is not None and isinstance(last_period_end, date) and last_period_end >= current_period_end:
+                continue
+            due_soon_rows.append(row)
+        filtered = due_soon_rows
 
     return sorted(filtered, key=lambda x: str(x.get("metric_name") or ""))
 
@@ -140,4 +166,3 @@ def _filter_rows_by_vendor_criteria(
         ]
 
     return sorted(filtered, key=lambda x: str(x.get("name") or ""))
-

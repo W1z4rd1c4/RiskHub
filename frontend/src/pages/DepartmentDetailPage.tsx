@@ -14,6 +14,7 @@ import {
     TrendingDown,
 } from 'lucide-react';
 import { SortableTable, Pagination } from '@/components/tables';
+import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
 import {
     useDepartmentDetail,
     DEPARTMENT_PAGE_SIZE,
@@ -27,6 +28,7 @@ import {
     getRiskColumns,
     getUserColumns,
 } from '@/pages/departments/departmentDetailColumns';
+import type { KRIMonitoringStatus } from '@/types/kri';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
@@ -36,12 +38,12 @@ export function DepartmentDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    const { t } = useTranslation(['common', 'dashboard']);
+    const { t } = useTranslation(['common', 'dashboard', 'kris']);
 
     // UI state (kept in page for tab/pagination control)
     const [activeTab, setActiveTab] = useState<TabView>('risks');
     const [riskFilter, setRiskFilter] = useState<'all' | 'high'>('all');
-    const [kriFilter, setKriFilter] = useState<'all' | 'breach'>('all');
+    const [kriFilter, setKriFilter] = useState<'all' | KRIMonitoringStatus>('all');
     const [riskPage, setRiskPage] = useState(1);
     const [controlPage, setControlPage] = useState(1);
     const [kriPage, setKriPage] = useState(1);
@@ -86,6 +88,7 @@ export function DepartmentDetailPage() {
         departmentId,
         activeTab,
         riskFilter,
+        kriFilter,
         riskPage,
         controlPage,
         kriPage,
@@ -103,17 +106,10 @@ export function DepartmentDetailPage() {
         setRiskFilter('all');
     };
 
-    // Compute breach count from kris (or from department if available)
-    const getKriBreachCount = () => {
+    const getKriStatusCount = (status: KRIMonitoringStatus) => {
         if (!department) return 0;
-        // Use kris array if on kris tab, otherwise estimate from department
-        return kris.filter(k => k.breach_status !== 'within').length;
+        return department.kri_monitoring_counts?.[status] ?? 0;
     };
-
-    // Filter KRIs based on kriFilter state
-    const filteredKris = kriFilter === 'breach'
-        ? kris.filter(k => k.breach_status !== 'within')
-        : kris;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Render: Loading State
@@ -200,8 +196,23 @@ export function DepartmentDetailPage() {
 
     const renderKrisTab = () => (
         <div className="space-y-4">
+            <div className="flex gap-2 flex-wrap items-center">
+                {(['all', ...KRI_MONITORING_FILTER_VALUES] as Array<'all' | KRIMonitoringStatus>).map((filter) => (
+                    <button
+                        key={filter}
+                        onClick={() => { setKriFilter(filter); setKriPage(1); }}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${
+                            kriFilter === filter
+                                ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                                : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                        }`}
+                    >
+                        {filter === 'all' ? t('common:filters.all') : t(`kris:monitoring.${filter}`)}
+                    </button>
+                ))}
+            </div>
             <SortableTable
-                data={filteredKris}
+                data={kris}
                 columns={getKriColumns(t)}
                 keyExtractor={(kri) => kri.id}
                 onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
@@ -213,7 +224,7 @@ export function DepartmentDetailPage() {
                 <Pagination
                     currentPage={kriPage}
                     totalPages={kriTotalPages}
-                    totalItems={department.kri_count}
+                    totalItems={kriFilter === 'all' ? department.kri_count : getKriStatusCount(kriFilter)}
                     itemsPerPage={DEPARTMENT_PAGE_SIZE}
                     onPageChange={setKriPage}
                 />
@@ -357,7 +368,7 @@ export function DepartmentDetailPage() {
                         <TrendingDown className="h-5 w-5 text-rose-400 group-hover:scale-110 transition-transform" />
                         <p className="text-xs text-slate-500 uppercase tracking-wider">{t('dashboard:kri_breaches')}</p>
                     </div>
-                    <p className="text-3xl font-black text-rose-400">{getKriBreachCount()}</p>
+                    <p className="text-3xl font-black text-rose-400">{getKriStatusCount('breach')}</p>
                 </div>
                 <div
                     onClick={() => setActiveTab('users')}

@@ -232,6 +232,7 @@
     "cancel_request": "Zrušit požadavek"
   },
   "filters": {
+    "all": "Vše",
     "all_departments": "Všechna oddělení",
     "all_statuses": "Všechny stavy",
     "all_forms": "Všechny formy",

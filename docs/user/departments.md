@@ -1,7 +1,7 @@
 ---
 title: Departments and Organizational Scope
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "frontend/src/pages/DepartmentsPage.tsx + frontend/src/services/departmentApi.ts"
 summary: "How to use Departments to understand scope, exposure, and ownership routing across risks, controls, KRIs, users, and activity."
@@ -94,6 +94,7 @@ The department detail view aggregates data from multiple modules.
 | KRI count | Number of KRIs under risks in this area | KRIs inherit context from risks; treat them as risk sub-entities. |
 | High risk count | Count of critical/high exposure risks | Use as a prioritization signal, not as a performance metric. |
 | Breaching KRI count | How many KRIs are outside limits | A single breaching KRI can be more important than the count suggests. |
+| KRI monitoring counts | Count split by `new`, `not_submitted`, `breach`, `warning`, `optimal` | These are canonical monitoring-status counts used by the department KRI tab and summary cards. |
 | Total net score | Aggregated net exposure | This is a summary; investigate the top drivers before presenting it. |
 
 Department details can also include:
@@ -101,6 +102,7 @@ Department details can also include:
 - risk distribution (low/medium/high/critical)
 - risk by status (active/emerging/etc)
 - control stats (active/inactive and breakdown)
+- KRI monitoring counts (`new`, `not_submitted`, `breach`, `warning`, `optimal`)
 - recent control executions (useful for operational pulse)
 
 ## Core Workflows
@@ -137,6 +139,8 @@ Recommended approach:
 2. Jump to `/risks` and apply filters that match the department scope.
 3. Export with a clear as-of date.
 4. Repeat for `/controls`, `/kris`, and `/issues` if needed.
+
+When you move from the department detail KRI tab into `/kris`, keep the canonical monitoring filter terminology aligned so totals stay comparable.
 
 If your organization expects department-level packs, use a consistent filter set and naming convention for exported files.
 
@@ -187,6 +191,17 @@ For filtering and exports, you generally:
   - KRIs: `/kris`
   - issues: `/issues`
   - vendors: `/vendors` (if you have `vendors:read`)
+
+Department detail now applies server-side KRI filters using canonical monitoring status values:
+
+- `all`
+- `new`
+- `not_submitted`
+- `breach`
+- `warning`
+- `optimal`
+
+The KRI tab pagination uses the filtered server total, not the unfiltered department KRI count.
 
 ## Common Mistakes
 

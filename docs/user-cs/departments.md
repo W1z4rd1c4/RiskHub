@@ -1,7 +1,7 @@
 ---
 title: Oddělení a organizační scope
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "frontend/src/pages/DepartmentsPage.tsx + frontend/src/services/departmentApi.ts"
 summary: "Jak používat Oddělení pro pochopení scope, expozice a routování ownership napříč riziky, kontrolami, KRI, uživateli a aktivitami."
@@ -94,6 +94,7 @@ Detail oddělení agreguje data napříč moduly.
 | KRI count | Počet KRI v této oblasti | KRI jsou sub-entity rizik; kontext dědí z rizika. |
 | High risk count | Počet kritických rizik | Signalizace priorit, ne KPI pro výkon. |
 | Breaching KRI count | Kolik KRI je mimo limity | Jeden breach může být důležitější než samotný počet. |
+| KRI monitoring counts | Rozpad KRI podle `new`, `not_submitted`, `breach`, `warning`, `optimal` | Jsou to kanonické monitoring-status počty použité v KRI tabu i summary kartách. |
 | Total net score | Agregovaná net expozice | Je to summary; před prezentací najděte top drivery. |
 
 Detail může obsahovat i:
@@ -101,6 +102,7 @@ Detail může obsahovat i:
 - distribuci rizik (low/medium/high/critical)
 - rizika podle statusu
 - statistiky kontrol (active/inactive, breakdown)
+- KRI monitoring counts (`new`, `not_submitted`, `breach`, `warning`, `optimal`)
 - poslední exekuce kontrol (operational pulse)
 
 ## Hlavní workflow
@@ -137,6 +139,8 @@ Doporučený postup:
 2. Přejděte do `/risks` a nastavte filtry dle oddělení.
 3. Exportujte s jasným „as of“ datem.
 4. Opakujte pro `/controls`, `/kris` a `/issues` dle potřeby.
+
+Když porovnáváte oddělení detail s hlavní KRI stránkou, držte stejné kanonické názvy filtrů, jinak nebudou sedět totaly.
 
 ### 4) Zarovnání ownership a routingu
 
@@ -185,6 +189,17 @@ Pro filtry a exporty typicky:
   - KRI: `/kris`
   - nálezy: `/issues`
   - dodavatelé: `/vendors` (pokud máte `vendors:read`)
+
+Detail oddělení nyní používá server-side KRI filtry podle kanonického monitoring statusu:
+
+- `all`
+- `new`
+- `not_submitted`
+- `breach`
+- `warning`
+- `optimal`
+
+Stránkování KRI tabu používá filtrovaný server total, ne nefiltrovaný počet KRI v oddělení.
 
 ## Časté chyby
 

@@ -36,6 +36,13 @@
     "not_reported": "Not Reported",
     "overdue": "Overdue"
   },
+  "monitoring": {
+    "new": "New",
+    "not_submitted": "Not Submitted",
+    "breach": "Breach",
+    "warning": "Warning",
+    "optimal": "Optimal"
+  },
   "tabs": {
     "overview": "Overview",
     "values": "Value History",
@@ -64,6 +71,7 @@
     "all": "All",
     "within": "Within",
     "breach": "Breach",
+    "due_soon": "Due Soon",
     "breached_only": "Breached Only",
     "overdue": "Overdue",
     "archived": "Archived",
@@ -73,6 +81,7 @@
   },
   "empty_state": {
     "no_kris": "No KRIs found matching your criteria.",
+    "no_due_soon_kris": "No KRIs are due soon for reporting.",
     "no_values": "No value history",
     "no_linked_risk": "No linked risk",
     "no_group": "No KRIs in this group."

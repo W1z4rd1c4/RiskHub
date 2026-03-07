@@ -4,17 +4,28 @@ API endpoints for Key Risk Indicators.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.v1.endpoints._monitoring_response import (
+    load_monitoring_response_context,
+    serialize_kri_response,
+)
+from app.core.datetime_utils import utc_now
 from app.core.pagination import MAX_KRI_PAGE_SIZE
 from app.core.permissions import get_user_department_ids
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.schemas.kri import KRIListResponse, KRIResponse
+from app.services._monitoring_status import (
+    KRIMonitoringStatus,
+    KRITimelinessStatus,
+    apply_kri_monitoring_status_filter,
+    apply_kri_timeliness_status_filter,
+)
 
 router = APIRouter(prefix="/kris", tags=["Key Risk Indicators"])
 
@@ -29,9 +40,17 @@ async def list_kris(
     include_archived: bool = Query(False, description="Include archived KRIs"),
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=MAX_KRI_PAGE_SIZE),
+    monitoring_status: Optional[KRIMonitoringStatus] = Query(None),
+    timeliness_status: Optional[KRITimelinessStatus] = Query(None),
 ):
     """List all KRIs with optional filters."""
     from app.core.permissions import get_kri_ids_where_reporting_owner
+
+    if monitoring_status is not None and timeliness_status is not None:
+        raise HTTPException(
+            status_code=422,
+            detail="monitoring_status and timeliness_status cannot be used together",
+        )
 
     # Apply department filtering via Risk join
     query = select(KeyRiskIndicator).join(Risk)
@@ -70,37 +89,35 @@ async def list_kris(
             )
         )
 
-    # Count total after all filters are applied
-    count_query = select(func.count()).select_from(query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    # Eagerly load risk, owner and department for grouping metadata
     query = query.options(
+        selectinload(KeyRiskIndicator.reporting_owner),
         selectinload(KeyRiskIndicator.risk).options(selectinload(Risk.owner), selectinload(Risk.department))
     )
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
 
-    # Paginate
-    query = query.offset((page - 1) * size).limit(size)
-    result = await db.execute(query)
+    filtered_query = query
+    if monitoring_status is not None:
+        filtered_query = apply_kri_monitoring_status_filter(
+            filtered_query,
+            monitoring_status=monitoring_status,
+            today=now.date(),
+            warning_upper_margin_ratio=monitoring_context.kri_config.warning_upper_margin_ratio,
+        )
+    elif timeliness_status is not None:
+        filtered_query = apply_kri_timeliness_status_filter(
+            filtered_query,
+            timeliness_status=timeliness_status,
+            today=now.date(),
+        )
+
+    count_query = select(func.count()).select_from(filtered_query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    result = await db.execute(
+        filtered_query.order_by(KeyRiskIndicator.metric_name).offset((page - 1) * size).limit(size)
+    )
     kris = result.scalars().all()
-
-    # Map to response with metadata
-    items = []
-    for k in kris:
-        res = KRIResponse.model_validate(k)
-        if k.risk:
-            res.risk_category = k.risk.category
-            res.risk_process = k.risk.process
-            res.risk_description = k.risk.description
-            res.risk_name = k.risk.name
-            res.risk_type = k.risk.risk_type
-            res.risk_id_code = k.risk.risk_id_code
-            res.risk_owner_name = k.risk.owner.name if k.risk.owner else None
-            res.risk_department_name = k.risk.department.name if k.risk.department else None
-            if k.risk.department:
-                res.department_name = k.risk.department.name
-        items.append(res)
+    items = [serialize_kri_response(kri, monitoring_context) for kri in kris]
 
     return KRIListResponse(items=items, total=total, page=page, size=size)
-

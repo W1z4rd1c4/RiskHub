@@ -1,7 +1,7 @@
 ---
 title: Dashboard a reporting přehled
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "frontend/src/pages/DashboardPage.tsx + dashboard widgety a report exporty"
 summary: "Jak používat Dashboard jako provozní cockpit: filtry, drill-down, committee view, disciplína exportů a správná interpretace trendů."
@@ -49,9 +49,15 @@ Drill-down odkazy typicky vedou do:
 
 - `/risks` (včetně critical filtrů)
 - `/controls`
+- `/kris`
 - `/departments`
 - `/vendors` (pokud máte `vendors:read`)
 - `/issues` (pokud máte `issues:read`)
+
+Widget stavů KRI používá kanonické drill-down routy:
+
+- overdue -> `/kris?monitoring_status=not_submitted`
+- upcoming -> `/kris?timeliness_status=due_soon`
 
 ## Role, scope a viditelnost
 
@@ -133,6 +139,8 @@ Widgety často podporují drill-down:
 
 - heatmap cell → filtrovaný seznam rizik
 - „critical risks“ → `/risks?critical=true`
+- KRI overdue → `/kris?monitoring_status=not_submitted`
+- KRI upcoming → `/kris?timeliness_status=due_soon`
 
 Při sdílení vždy uveďte:
 

@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.control import ExecutionResultEnum
+from app.services._monitoring_status import ControlMonitoringReason, ControlMonitoringStatus
+
 if TYPE_CHECKING:
     from app.schemas.kri import KRIResponse
 else:
@@ -183,6 +186,12 @@ class ControlBriefForLink(BaseModel):
     frequency: str
     risk_level: int
     status: ControlStatusEnum
+    monitoring_status: ControlMonitoringStatus
+    monitoring_status_reason: ControlMonitoringReason
+    latest_execution_result: Optional[ExecutionResultEnum] = None
+    latest_executed_at: Optional[datetime] = None
+    days_since_last_execution: Optional[int] = None
+    execution_log_count: int = 0
 
     model_config = {"from_attributes": True}
 

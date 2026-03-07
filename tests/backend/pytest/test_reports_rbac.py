@@ -4,7 +4,7 @@ Tests department scoping and permission enforcement.
 """
 
 import csv
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from io import StringIO
 
 import pytest
@@ -15,12 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import (
     ActivityLog,
     Control,
+    ControlExecution,
     Department,
     KeyRiskIndicator,
     Risk,
     User,
     Vendor,
 )
+from app.services._kri_history.periods import latest_closed_period_for_date
 
 
 @pytest_asyncio.fixture
@@ -205,6 +207,171 @@ class TestReportExcelEndpoints:
         response = await auth_client.get("/api/v1/reports/controls/excel")
         assert response.status_code == 410
         assert response.json()["detail"]["code"] == "excel_export_removed"
+
+
+class TestReportMonitoringExports:
+    @pytest.mark.asyncio
+    async def test_controls_export_filters_and_includes_monitoring_columns(
+        self,
+        auth_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_department: Department,
+    ):
+        passed_control = Control(
+            name="Passed Export Control",
+            description="Control with passing execution",
+            department_id=test_department.id,
+            control_owner_id=test_user.id,
+            control_form="manual",
+            frequency="monthly",
+            risk_level=3,
+            status="active",
+        )
+        failed_control = Control(
+            name="Failed Export Control",
+            description="Control with failed execution",
+            department_id=test_department.id,
+            control_owner_id=test_user.id,
+            control_form="manual",
+            frequency="monthly",
+            risk_level=3,
+            status="active",
+        )
+        db_session.add_all([passed_control, failed_control])
+        await db_session.flush()
+
+        db_session.add_all(
+            [
+                ControlExecution(
+                    control_id=passed_control.id,
+                    executed_by_id=test_user.id,
+                    result="passed",
+                    executed_at=datetime.now(UTC) - timedelta(days=2),
+                ),
+                ControlExecution(
+                    control_id=failed_control.id,
+                    executed_by_id=test_user.id,
+                    result="failed",
+                    executed_at=datetime.now(UTC) - timedelta(days=1),
+                ),
+            ]
+        )
+        await db_session.commit()
+
+        response = await auth_client.get("/api/v1/reports/controls/export?format=csv&monitoring_status=passed")
+        assert response.status_code == 200
+
+        rows = list(csv.DictReader(StringIO(response.content.decode("utf-8"))))
+        assert rows
+        assert rows[0]["Monitoring Status"] == "passed"
+        assert rows[0]["Latest Execution Result"] == "passed"
+        assert rows[0]["Name"] == "Passed Export Control"
+        exported_names = {row["Name"] for row in rows}
+        assert "Failed Export Control" not in exported_names
+
+    @pytest.mark.asyncio
+    async def test_kris_export_filters_and_includes_monitoring_columns(
+        self,
+        auth_client: AsyncClient,
+        db_session: AsyncSession,
+        test_risk: Risk,
+    ):
+        _, required_period_end = latest_closed_period_for_date(datetime.now(UTC).date(), "quarterly")
+        warning_kri = KeyRiskIndicator(
+            risk_id=test_risk.id,
+            metric_name="Warning Export KRI",
+            description="KRI within upper warning margin",
+            unit="%",
+            current_value=95.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            frequency="quarterly",
+            last_period_end=required_period_end,
+            is_archived=False,
+        )
+        breach_kri = KeyRiskIndicator(
+            risk_id=test_risk.id,
+            metric_name="Breach Export KRI",
+            description="KRI over threshold",
+            unit="%",
+            current_value=120.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            frequency="quarterly",
+            last_period_end=required_period_end,
+            is_archived=False,
+        )
+        db_session.add_all([warning_kri, breach_kri])
+        await db_session.commit()
+
+        response = await auth_client.get("/api/v1/reports/kris/export?format=csv&monitoring_status=warning")
+        assert response.status_code == 200
+
+        rows = list(csv.DictReader(StringIO(response.content.decode("utf-8"))))
+        assert rows
+        assert rows[0]["Metric"] == "Warning Export KRI"
+        assert rows[0]["Monitoring Status"] == "warning"
+        assert rows[0]["Required Due Date"]
+        assert rows[0]["Days Overdue"] == "0"
+        exported_metrics = {row["Metric"] for row in rows}
+        assert "Breach Export KRI" not in exported_metrics
+
+    @pytest.mark.asyncio
+    async def test_kris_export_filters_due_soon_timeliness_status(
+        self,
+        auth_client: AsyncClient,
+        db_session: AsyncSession,
+        test_risk: Risk,
+    ):
+        due_soon_kri = KeyRiskIndicator(
+            risk_id=test_risk.id,
+            metric_name="Due Soon Export KRI",
+            description="KRI due soon",
+            unit="%",
+            current_value=45.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            frequency="quarterly",
+            last_period_end=None,
+            is_archived=False,
+        )
+        reported_kri = KeyRiskIndicator(
+            risk_id=test_risk.id,
+            metric_name="Reported Export KRI",
+            description="Already reported",
+            unit="%",
+            current_value=55.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            frequency="quarterly",
+            last_period_end=date(2026, 3, 31),
+            is_archived=False,
+        )
+        db_session.add_all([due_soon_kri, reported_kri])
+        await db_session.commit()
+
+        response = await auth_client.get(
+            "/api/v1/reports/kris/export?format=csv&timeliness_status=due_soon&as_of_date=2026-03-27"
+        )
+        assert response.status_code == 200
+
+        rows = list(csv.DictReader(StringIO(response.content.decode("utf-8"))))
+        metrics = {row["Metric"] for row in rows}
+        assert "Due Soon Export KRI" in metrics
+        assert "Reported Export KRI" not in metrics
+
+    @pytest.mark.asyncio
+    async def test_kris_export_rejects_monitoring_and_timeliness_filters_together(
+        self,
+        auth_client: AsyncClient,
+    ):
+        response = await auth_client.get(
+            "/api/v1/reports/kris/export?format=csv&monitoring_status=warning&timeliness_status=due_soon"
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"] == "monitoring_status and timeliness_status cannot be used together"
 
     @pytest.mark.asyncio
     async def test_admin_risks_excel_endpoint_returns_gone(

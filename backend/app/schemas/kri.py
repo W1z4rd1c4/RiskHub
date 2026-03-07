@@ -7,6 +7,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, computed_field
 
+from app.services._monitoring_status import KRIMonitoringReason, KRIMonitoringStatus
+
 
 class KRIFrequencyEnum(str, Enum):
     """Frequency of KRI value reporting."""
@@ -46,7 +48,19 @@ class KRIUpdate(BaseModel):
     reporting_owner_id: Optional[int] = None
 
 
-class KRIResponse(KRIBase):
+class KRIMonitoringBundle(BaseModel):
+    """Canonical monitoring status data for KRIs."""
+
+    monitoring_status: KRIMonitoringStatus
+    monitoring_status_reason: KRIMonitoringReason
+    is_submitted_for_required_period: bool
+    required_period_end: date
+    required_due_date: date
+    days_overdue: int
+    warning_upper_margin_ratio: float
+
+
+class KRIResponse(KRIBase, KRIMonitoringBundle):
     """Schema for KRI response with computed breach status."""
     id: int
     risk_id: int

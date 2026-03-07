@@ -1,6 +1,6 @@
 import { apiClient } from './apiClient';
 import type { ControlSummary } from '@/types/control';
-import type { KeyRiskIndicator } from '@/types/kri';
+import type { KRIListResponse, KRIMonitoringStatus } from '@/types/kri';
 import type { RiskSummary } from '@/types/risk';
 
 export interface DepartmentSummary {
@@ -51,6 +51,7 @@ export interface DepartmentDetail {
     risk_count: number;
     control_count: number;
     kri_count: number;
+    kri_monitoring_counts: Record<string, number>;
     risk_distribution: RiskDistribution;
     risk_by_status: Record<string, number>;
     control_stats: ControlStats;
@@ -109,8 +110,9 @@ export const departmentApi = {
         params?: {
             skip?: number;
             limit?: number;
+            monitoring_status?: KRIMonitoringStatus;
         }
-    ): Promise<KeyRiskIndicator[]> => {
-        return apiClient.get<KeyRiskIndicator[]>(`/departments/${id}/kris`, { params });
+    ): Promise<KRIListResponse> => {
+        return apiClient.get<KRIListResponse>(`/departments/${id}/kris`, { params });
     },
 };

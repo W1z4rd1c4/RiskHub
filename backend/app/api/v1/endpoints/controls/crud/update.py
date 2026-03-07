@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
+from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_control_read
+from app.core.datetime_utils import utc_now
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import check_department_access, is_control_owner
 from app.core.security import check_permission
@@ -166,6 +168,7 @@ async def _reload_control_with_relationships(db: AsyncSession, control_id: int) 
         .options(
             selectinload(Control.department),
             selectinload(Control.control_owner),
+            selectinload(Control.executions),
         )
         .where(Control.id == control_id)
     )
@@ -227,4 +230,7 @@ async def update_control(
     )
     await db.commit()
     await db.refresh(control)
-    return await _reload_control_with_relationships(db, control.id)
+    reloaded_control = await _reload_control_with_relationships(db, control.id)
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    return serialize_control_read(reloaded_control, monitoring_context)

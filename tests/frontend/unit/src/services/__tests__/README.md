@@ -8,6 +8,7 @@ Folder for `tests/frontend/unit/src/services/__tests__` implementation assets.
 
 - `api.test.ts`
 - `apiClient.401-recovery.test.ts`
+- `reportApi.test.ts`
 
 ## Notes
 

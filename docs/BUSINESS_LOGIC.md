@@ -1,7 +1,7 @@
 # RiskHub Business Logic Reference
 
 > **Version**: 1.1  
-> **Last Updated**: 2026-03-05  
+> **Last Updated**: 2026-03-07  
 > **Audience**: Product, Engineering, QA, Compliance  
 > **Source of Truth**: Backend RBAC and approval enforcement in `backend/app/`
 
@@ -166,6 +166,17 @@ Rules:
 - Control Owner can edit the control (subject to approval if linked to high-risk)
 - Changing `control_owner_id` is a **sensitive field change**
 
+**Canonical Monitoring Status:**
+- Controls expose a derived `monitoring_status` for detail views, list filters, stats, and exports.
+- Status precedence is: `new` -> `needs_review` -> `failed` -> `passed`.
+- Derivation always uses the **latest execution log only**.
+- `new`: no execution logs and control age in days is within `control_execution_stale_days`.
+- `needs_review`: no execution logs and control age exceeds `control_execution_stale_days`, or latest execution is older than that threshold.
+- `failed`: latest execution exists and result is anything other than `passed`.
+- `passed`: latest execution result is `passed`.
+- Supporting fields include `latest_execution_result`, `latest_executed_at`, `days_since_last_execution`, and `execution_log_count`.
+- Thresholds are configuration-backed in Risk Hub global config, not hardcoded in UI code.
+
 ### 2.3 Key Risk Indicator (KRI)
 
 | Field | Type | Description | Who Can Be Owner |
@@ -182,6 +193,18 @@ Rules:
 - Any user can be assigned as Reporting Owner
 - If no Reporting Owner, the linked Risk's owner is responsible
 - KRIs **inherit department access** from their linked Risk
+
+**Canonical Monitoring Status:**
+- KRIs expose a derived `monitoring_status` for detail views, list filters, stats, and exports.
+- Status precedence is: `new` -> `not_submitted` -> `breach` -> `warning` -> `optimal`.
+- Derivation uses the **latest closed required reporting period**, not any historical submission.
+- `new`: no submission history exists and the required period is not overdue.
+- `not_submitted`: no submission exists for the required period after its due date.
+- `breach`: required-period submission exists and `breach_status != within`.
+- `warning`: required-period submission exists, `breach_status == within`, and the value is inside the upper warning margin.
+- `optimal`: required-period submission exists, `breach_status == within`, and the value is outside the upper warning margin.
+- Supporting fields include `required_due_date`, `days_overdue`, `is_submitted_for_required_period`, and the configured warning margin ratio.
+- The upper warning margin is configuration-backed in Risk Hub global config and defaults to 10% of the configured range.
 
 ### 2.4 Department
 
@@ -650,7 +673,20 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - KRIs: archived items included when status filter is `archived`
 - Vendors: archived semantics use `status = inactive`
 
-### 10.5 Specialized CSV Exports
+### 10.5 Monitoring Status in Exports
+
+- Controls export accepts `monitoring_status` and includes:
+  - `Monitoring Status`
+  - `Latest Execution Result`
+  - `Latest Executed At`
+  - `Days Since Last Execution`
+- KRIs export accepts `monitoring_status` and includes:
+  - `Monitoring Status`
+  - `Required Due Date`
+  - `Days Overdue`
+- Export filtering uses the same canonical backend-derived monitoring status model as list/detail views.
+
+### 10.6 Specialized CSV Exports
 
 Specialized report exports are CSV:
 - `/api/v1/reports/summary/export?format=csv`

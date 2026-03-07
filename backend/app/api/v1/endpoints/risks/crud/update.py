@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
+from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_risk_read
+from app.core.datetime_utils import utc_now
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import check_department_access
 from app.core.security import check_permission
@@ -243,4 +245,7 @@ async def update_risk(
     )
     await db.commit()
     await db.refresh(risk)
-    return await _reload_risk_with_relationships(db, risk.id)
+    reloaded_risk = await _reload_risk_with_relationships(db, risk.id)
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    return serialize_risk_read(reloaded_risk, monitoring_context)
