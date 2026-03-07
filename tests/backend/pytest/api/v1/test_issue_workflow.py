@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.models import (
     Issue,
@@ -18,6 +18,12 @@ from app.models import (
     User,
 )
 from app.models.user import AccessScope
+from app.services.outbox_service import dispatch_pending_outbox_events
+
+
+async def _dispatch_outbox(async_engine: AsyncEngine) -> int:
+    sessionmaker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    return await dispatch_pending_outbox_events(sessionmaker, lock_owner="test")
 
 
 async def _grant(db: AsyncSession, role_id: int, resource: str, action: str) -> None:
@@ -226,6 +232,7 @@ async def test_approve_exception_requires_issues_approve_permission(
 @pytest.mark.asyncio
 async def test_issue_workflow_notifications(
     db_session: AsyncSession,
+    async_engine: AsyncEngine,
     client_cro: AsyncClient,
     test_department,
     test_user_employee: User,
@@ -261,6 +268,7 @@ async def test_issue_workflow_notifications(
         f"/api/v1/issues/{issue_id}/request-exception",
         json={"reason": "Need exception for release"},
     )
+    await _dispatch_outbox(async_engine)
 
     notifications = (
         (
@@ -419,6 +427,7 @@ async def test_revoke_exception_reopens_closed_issue_with_incomplete_remediation
 @pytest.mark.asyncio
 async def test_issue_assigned_notification_skips_unreadable_recipient(
     db_session: AsyncSession,
+    async_engine: AsyncEngine,
     client_cro: AsyncClient,
     test_department,
     test_role_employee: Role,
@@ -451,6 +460,7 @@ async def test_issue_assigned_notification_skips_unreadable_recipient(
         },
     )
     assert assign_resp.status_code == 200
+    await _dispatch_outbox(async_engine)
 
     notification = (
         await db_session.execute(
@@ -468,6 +478,7 @@ async def test_issue_assigned_notification_skips_unreadable_recipient(
 @pytest.mark.asyncio
 async def test_issue_exception_approved_notification_skips_unreadable_recipient(
     db_session: AsyncSession,
+    async_engine: AsyncEngine,
     client_cro: AsyncClient,
     test_department,
     test_role_employee: Role,
@@ -508,6 +519,7 @@ async def test_issue_exception_approved_notification_skips_unreadable_recipient(
         },
     )
     assert approve_resp.status_code == 200
+    await _dispatch_outbox(async_engine)
 
     notification = (
         await db_session.execute(

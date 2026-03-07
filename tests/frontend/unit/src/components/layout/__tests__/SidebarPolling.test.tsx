@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const mockUseAuth = vi.fn();
 vi.mock('@/contexts/AuthContext', () => ({
@@ -27,38 +28,43 @@ vi.mock('@/components/notifications/NotificationBell', () => ({
     NotificationBell: () => null,
 }));
 
-const approvalsGetPendingCount = vi.fn();
-vi.mock('@/services/approvalsApi', () => ({
-    approvalsApi: {
-        getPendingCount: () => approvalsGetPendingCount(),
-    },
-}));
-
-const getOrphanStats = vi.fn();
-vi.mock('@/services/orphanedItemsApi', () => ({
-    orphanedItemsApi: {
-        getOrphanStats: () => getOrphanStats(),
-    },
-}));
-
-const inbox = vi.fn();
-vi.mock('@/services/riskQuestionnairesApi', () => ({
-    riskQuestionnairesApi: {
-        inbox: () => inbox(),
+const getShellSummary = vi.fn();
+vi.mock('@/services/userApi', () => ({
+    userApi: {
+        getShellSummary: () => getShellSummary(),
     },
 }));
 
 import { Sidebar } from '@/components/layout/Sidebar';
 
+function createWrapper() {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: {
+                retry: false,
+            },
+        },
+    });
+
+    return function Wrapper({ children }: { children: React.ReactNode }) {
+        return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    };
+}
+
 describe('Sidebar badge polling', () => {
     beforeEach(() => {
         vi.resetAllMocks();
-        approvalsGetPendingCount.mockResolvedValue({ count: 2 });
-        getOrphanStats.mockResolvedValue({ total_count: 5 });
-        inbox.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+        getShellSummary.mockResolvedValue({
+            unread_notifications_count: 2,
+            pending_approvals_count: 2,
+            questionnaire_inbox_count: 2,
+            orphan_total_count: 5,
+            can_view_governance: true,
+            generated_at: '2026-03-07T10:00:00Z',
+        });
 
         mockUseAuth.mockReturnValue({
-            user: { id: 123, name: 'User', role_display_name: 'Role' },
+            user: { id: 123, name: 'User', role_display_name: 'Role', department_id: 7, access_scope: 'global' },
             logout: vi.fn(),
         });
 
@@ -70,26 +76,21 @@ describe('Sidebar badge polling', () => {
         });
     });
 
-    it('does not call questionnaire inbox without risks:read', async () => {
+    it('polls the aggregate shell summary for business users', async () => {
         mockUsePermissions.mockReturnValue({
             canManageAccess: false,
             canViewActivityLog: false,
-            hasPermission: (resource: string, action: string) => {
-                if (resource === 'risks' && action === 'read') return false;
-                if (resource === 'vendors' && action === 'read') return true;
-                return true;
-            },
+            hasPermission: () => true,
         });
 
         const { unmount } = render(
             <MemoryRouter>
                 <Sidebar />
-            </MemoryRouter>
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
         );
 
-        await waitFor(() => expect(approvalsGetPendingCount).toHaveBeenCalledTimes(1));
-        expect(inbox).not.toHaveBeenCalled();
-        expect(getOrphanStats).not.toHaveBeenCalled();
+        await waitFor(() => expect(getShellSummary).toHaveBeenCalledTimes(1));
 
         unmount();
     });
@@ -111,37 +112,39 @@ describe('Sidebar badge polling', () => {
         const { unmount } = render(
             <MemoryRouter>
                 <Sidebar />
-            </MemoryRouter>
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
         );
 
         // Effects should short-circuit immediately
         await new Promise((r) => setTimeout(r, 0));
-        expect(approvalsGetPendingCount).not.toHaveBeenCalled();
-        expect(getOrphanStats).not.toHaveBeenCalled();
-        expect(inbox).not.toHaveBeenCalled();
+        expect(getShellSummary).not.toHaveBeenCalled();
 
         unmount();
     });
 
-    it('does not call orphan stats when user cannot manage access', async () => {
+    it('still uses the aggregate shell summary when governance access is unavailable', async () => {
         mockUsePermissions.mockReturnValue({
             canManageAccess: false,
             canViewActivityLog: false,
-            hasPermission: (resource: string, action: string) => {
-                if (resource === 'risks' && action === 'read') return true;
-                return true;
-            },
+            hasPermission: () => true,
+        });
+        mockUseAuthz.mockReturnValue({
+            isPlatformAdmin: false,
+            canViewUsersPage: false,
+            canViewRiskHub: false,
+            canViewAdminConsole: false,
+            canViewGovernance: false,
         });
 
         const { unmount } = render(
             <MemoryRouter>
                 <Sidebar />
-            </MemoryRouter>
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
         );
 
-        await waitFor(() => expect(approvalsGetPendingCount).toHaveBeenCalledTimes(1));
-        await waitFor(() => expect(inbox).toHaveBeenCalledTimes(1));
-        expect(getOrphanStats).not.toHaveBeenCalled();
+        await waitFor(() => expect(getShellSummary).toHaveBeenCalledTimes(1));
 
         unmount();
     });

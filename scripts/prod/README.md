@@ -39,3 +39,7 @@ Retained internal helper scripts still commonly support:
 - Rollbacks do not downgrade the database. Use forward-fix migrations plus backups/PITR.
 - Scheduler stays a dedicated backend container with `ENABLE_SCHEDULER=true` and `--workers 1`.
 - Docker containers mount host secret and runtime directories instead of receiving secret values through container environment metadata.
+- `smoke_test.sh` now validates reliability runtime invariants in addition to basic health:
+  - `scheduler_job_runs` and `app_outbox_events` exist
+  - exactly one active scheduler runtime row exists
+  - dead-letter outbox count is zero

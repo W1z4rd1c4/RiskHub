@@ -5,24 +5,20 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.activity_logger import log_activity
 from app.core.permissions import can_read_risk_id
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.i18n import t
-from app.models import Role, RolePermission, User
+from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.models.notification import NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
-from app.models.role import RoleType
 from app.schemas.risk_questionnaire import (
     RiskQuestionnaireDraftUpdate,
     RiskQuestionnaireRead,
     RiskQuestionnaireSubmit,
 )
-from app.services.notification_service import NotificationService
+from app.services.outbox_service import OutboxService
 from app.services.risk_questionnaire_service import (
     can_submit_questionnaire,
     get_previous_submitted_questionnaire,
@@ -131,38 +127,6 @@ async def submit_questionnaire(
     questionnaire.submitted_at = datetime.now(UTC)
     questionnaire.submitted_by_user_id = current_user.id
 
-    # Notify RM/CRO recipients (localized per recipient), filtered by visibility to avoid cross-scope leaks.
-    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-    recipients_stmt = (
-        select(User)
-        .join(Role, User.role_id == Role.id)
-        .where(
-            User.is_active.is_(True),
-            User.id != current_user.id,
-            Role.name.in_([RoleType.RISK_MANAGER, RoleType.CRO]),
-        )
-        .options(permission_load)
-    )
-    recipients = (await db.execute(recipients_stmt)).scalars().all()
-    for recipient in recipients:
-        if not await can_read_risk_id(db, recipient, questionnaire.risk_id):
-            continue
-        locale = recipient.preferred_language or "en"
-        await NotificationService.create_notification(
-            db=db,
-            user_id=recipient.id,
-            notification_type=NotificationType.QUESTIONNAIRE_SUBMITTED,
-            title=t("notifications.questionnaire_submitted_title", locale=locale),
-            message=t(
-                "notifications.questionnaire_submitted_message",
-                locale=locale,
-                actor_name=current_user.name,
-                risk_name=questionnaire.risk.name if questionnaire.risk else "Risk",
-            ),
-            resource_type="risk",
-            resource_id=questionnaire.risk_id,
-        )
-
     await log_activity(
         db,
         entity_type=ActivityEntityType.RISK_QUESTIONNAIRE,
@@ -175,6 +139,17 @@ async def submit_questionnaire(
             "status": {"old": old_status.value if hasattr(old_status, "value") else old_status, "new": "submitted"}
         },
         description=f"Submitted questionnaire for risk '{questionnaire.risk.name if questionnaire.risk else 'Risk'}'",
+    )
+    await OutboxService.enqueue(
+        db,
+        event_type="questionnaire.submitted",
+        aggregate_type="risk_questionnaire",
+        aggregate_id=questionnaire.id,
+        idempotency_key=f"questionnaire:{questionnaire.id}:submitted",
+        payload={
+            "questionnaire_id": questionnaire.id,
+            "actor_user_id": current_user.id,
+        },
     )
     await db.commit()
     await db.refresh(questionnaire)

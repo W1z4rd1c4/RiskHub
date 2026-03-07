@@ -123,25 +123,6 @@ async def _create_kri_submission_approval(
         on_duplicate_detail="A value submission request is already pending for this KRI.",
     )
 
-    if primary_approver_id:
-        async def _notify_primary_approver() -> None:
-            await NotificationService.create_notification(
-                db=db,
-                user_id=primary_approver_id,
-                notification_type=NotificationType.APPROVAL_PENDING,
-                title="KRI Value Submission",
-                message=f"KRI '{kri.metric_name}' value submitted for your approval",
-                resource_type="approval",
-                resource_id=approval.id,
-            )
-            await db.commit()
-
-        await _run_best_effort_notification(
-            warning_message=f"Failed to notify Risk Owner for KRI value submission approval #{approval.id}",
-            operation=_notify_primary_approver,
-            on_error=db.rollback,
-        )
-
     return JSONResponse(
         status_code=202,
         content={

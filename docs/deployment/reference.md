@@ -1,6 +1,6 @@
 # Deployment Reference
 
-> **Last Updated**: 2026-03-06
+> **Last Updated**: 2026-03-07
 > **Audience**: Operators and maintainers
 
 ## Operator Config
@@ -100,6 +100,15 @@ Scheduler:
 - enabled as a separate runtime only
 - worker count forced to `1`
 - linux bind port `8001`
+- advisory lock enforced against Postgres before scheduler start
+
+Reliability runtime:
+
+- `scheduler_job_runs` stores scheduler ownership and scheduled job execution history
+- `app_outbox_events` stores transactional outbox events for request-driven follow-up effects
+- outbox dispatch interval is fixed in code at 5 seconds
+- outbox max attempts is fixed in code at 10
+- aggregate endpoint cache TTL is fixed in code at 15 seconds
 
 Linux target:
 
@@ -121,3 +130,7 @@ Linux target:
 - explicit `DATABASE_URL_FILE`
 - reachable `REDIS_URL_FILE`
 - `/docs` and `/openapi.json` disabled in production
+- smoke checks fail if:
+  - `scheduler_job_runs` or `app_outbox_events` is missing
+  - the scheduler runtime is not represented by exactly one running `__scheduler_runtime__` row
+  - dead-letter outbox rows exist

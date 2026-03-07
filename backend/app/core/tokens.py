@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from collections.abc import Iterable
 from typing import Any
 from uuid import uuid4
 
@@ -9,6 +10,7 @@ from jwt import InvalidTokenError
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.core.client_ip import resolve_request_client_ip
 from app.core.config import Settings
 
 REFRESH_TOKEN_TYPE = "refresh"
@@ -88,14 +90,8 @@ def token_decode_or_none(token: str | None, settings: Settings) -> dict[str, Any
     return payload
 
 
-def get_request_client_ip(request: Request) -> str | None:
-    # Proxy headers are best-effort and non-authoritative.
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip() or None
-    if request.client:
-        return request.client.host
-    return None
+def get_request_client_ip(request: Request, trusted_proxies: Iterable[str] | None = None) -> str | None:
+    return resolve_request_client_ip(request, trusted_proxies)
 
 
 def get_request_user_agent(request: Request) -> str | None:

@@ -14,7 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from app.core.client_ip import DEFAULT_TRUSTED_PROXIES, ClientIPResolver
+from app.core.client_ip import DEFAULT_TRUSTED_PROXIES, ClientIPResolver, resolve_request_client_ip
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.middleware.security_protocol import ProtocolGuardMiddleware
@@ -184,9 +184,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def _get_client_ip(self, request: Request) -> str:
         """Resolve effective client IP using trusted-proxy chain semantics."""
-        peer_ip = request.client.host if request.client else "unknown"
-        forwarded = request.headers.get("X-Forwarded-For")
-        return self._client_ip_resolver.resolve(peer_ip=peer_ip, forwarded_for=forwarded)
+        return resolve_request_client_ip(request, self._client_ip_resolver.trusted_proxies)
 
     def _get_limit_for_path(self, path: str) -> Tuple[int, int]:
         """Get rate limit for a path, falling back to default."""

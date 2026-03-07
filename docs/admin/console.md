@@ -1,7 +1,7 @@
 ---
 title: Admin Console (/admin)
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-07"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + admin API endpoints"
 summary: "Runbook for platform admins to use the Admin Console for health checks, log/audit export, session triage, and safe operational support."
@@ -92,9 +92,14 @@ Procedure:
    - database status is healthy
    - latency is within expected bounds
    - uptime is consistent with recent deploys
+   - scheduler lock is held and the owner instance is populated
+   - recent scheduler runs are succeeding
+   - outbox dead-letter count is `0` and last dispatch is succeeding
 4. If health is degraded:
    - check application logs for correlated errors
    - verify database connectivity and credentials (outside the UI)
+   - if the scheduler lock is not held, treat that as a singleton/runtime incident
+   - if dead-letter outbox items exist, capture the event types and errors before retrying anything manually
 
 ### 2) Application logs tab: investigate runtime failures
 
@@ -182,6 +187,8 @@ Change discipline:
 After using the Admin Console for an operational action, verify:
 
 - Health is stable (or you captured the degraded state with timestamps).
+- Scheduler runtime still shows a held lock and a current owner.
+- Outbox dead-letter count is zero or you captured and escalated the failures.
 - Log exports match the intended filter/window and do not include excess data.
 - Any revoked session is no longer active and the user can re-authenticate.
 - If you changed log configuration, the new values are visible after a refresh.
@@ -213,6 +220,13 @@ If your action was part of a support case, attach:
 - Check application logs for 401/403/500 patterns.
 - Verify auth mode and session behavior.
 - Validate frontend-backend connectivity (CORS, base URL, proxy settings).
+- Check whether the scheduler lock is missing or the outbox shows dead-letter items.
+
+### Outbox dead-letter count is non-zero
+
+- Capture the failing event type, attempts, and last error from the Health tab.
+- Check scheduler/application logs for the same time window.
+- Do not clear dead-letter rows blindly; first confirm whether the business action already committed and whether a safe replay path exists.
 
 ### Exports are empty or incomplete
 

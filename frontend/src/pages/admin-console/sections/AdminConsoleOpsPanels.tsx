@@ -4,16 +4,27 @@ import { useTranslation } from '@/i18n/hooks';
 import { Users, RefreshCw, Database, Clock, MemoryStick, UserX } from 'lucide-react';
 
 import { adminApi, type ActiveSession } from '@/services/adminApi';
+import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 export function HealthPanel() {
     const { t } = useTranslation('admin');
-    const { data: health, isLoading, refetch } = useQuery({
+    const healthQuery = useAdaptivePollingQuery({
         queryKey: ['adminHealth'],
-        queryFn: () => adminApi.getSystemHealth(),
-        refetchInterval: 30000, // Refresh every 30 seconds
+        queryFn: ({ signal }) => adminApi.getSystemHealth({ signal }),
+        pollMs: 30000,
+    });
+    const schedulerQuery = useAdaptivePollingQuery({
+        queryKey: ['adminSchedulerStatus'],
+        queryFn: ({ signal }) => adminApi.getSchedulerStatus({ signal }),
+        pollMs: 30000,
+    });
+    const outboxQuery = useAdaptivePollingQuery({
+        queryKey: ['adminOutboxStatus'],
+        queryFn: ({ signal }) => adminApi.getOutboxStatus({ signal }),
+        pollMs: 30000,
     });
 
     const { data: stats } = useQuery({
@@ -21,7 +32,11 @@ export function HealthPanel() {
         queryFn: () => adminApi.getSystemStats(),
     });
 
-    if (isLoading) {
+    const health = healthQuery.data;
+    const schedulerStatus = schedulerQuery.data;
+    const outboxStatus = outboxQuery.data;
+
+    if (healthQuery.isLoading) {
         return <div className="text-slate-400 text-center py-8">{t('health.loading')}</div>;
     }
 
@@ -30,7 +45,11 @@ export function HealthPanel() {
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">{t('health.title')}</h3>
                 <button
-                    onClick={() => refetch()}
+                    onClick={() => {
+                        void healthQuery.refresh();
+                        void schedulerQuery.refresh();
+                        void outboxQuery.refresh();
+                    }}
                     className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                 >
                     <RefreshCw className="h-4 w-4" />
@@ -95,6 +114,183 @@ export function HealthPanel() {
                     <p className="text-xs text-slate-500 mt-1">
                         {t('health.in_last_24h')}
                     </p>
+                </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <h4 className="text-base font-semibold text-white">{t('health.scheduler.title')}</h4>
+                        <p className="mt-1 text-sm text-slate-400">{t('health.scheduler.subtitle')}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm lg:min-w-[360px]">
+                        <div className="rounded-xl bg-slate-950/50 px-3 py-2">
+                            <p className="text-slate-500">{t('health.scheduler.process_role')}</p>
+                            <p className="mt-1 font-medium text-white">{schedulerStatus?.process_role || 'unknown'}</p>
+                        </div>
+                        <div className="rounded-xl bg-slate-950/50 px-3 py-2">
+                            <p className="text-slate-500">{t('health.scheduler.lock_state')}</p>
+                            <p className={cn(
+                                'mt-1 font-medium',
+                                schedulerStatus?.lock_acquired ? 'text-emerald-400' : 'text-amber-300'
+                            )}>
+                                {schedulerStatus?.lock_acquired ? t('health.scheduler.lock_held') : t('health.scheduler.lock_not_held')}
+                            </p>
+                        </div>
+                        <div className="rounded-xl bg-slate-950/50 px-3 py-2">
+                            <p className="text-slate-500">{t('health.scheduler.current_owner')}</p>
+                            <p className="mt-1 font-medium text-white break-all">
+                                {schedulerStatus?.current_owner_instance_id || t('health.scheduler.none_reported')}
+                            </p>
+                        </div>
+                        <div className="rounded-xl bg-slate-950/50 px-3 py-2">
+                            <p className="text-slate-500">{t('health.scheduler.lock_provider')}</p>
+                            <p className="mt-1 font-medium text-white">{schedulerStatus?.lock_provider || 'n/a'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                    <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                        <div className="flex items-center justify-between">
+                            <h5 className="text-sm font-semibold text-white">{t('health.scheduler.running_jobs')}</h5>
+                            <span className="text-xs text-slate-500">{schedulerStatus?.running_jobs.length || 0}</span>
+                        </div>
+                        {schedulerStatus?.running_jobs.length ? (
+                            <div className="mt-3 space-y-3">
+                                {schedulerStatus.running_jobs.map((job) => (
+                                    <div key={job.run_id} className="rounded-lg bg-white/5 px-3 py-2">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <p className="text-sm font-medium text-white">{job.job_name}</p>
+                                            <span className="text-xs text-sky-300">{job.status}</span>
+                                        </div>
+                                        <p className="mt-1 text-xs text-slate-400">
+                                            {new Date(job.started_at).toLocaleString()}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="mt-3 text-sm text-slate-500">{t('health.scheduler.no_running_jobs')}</p>
+                        )}
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                        <div className="flex items-center justify-between">
+                            <h5 className="text-sm font-semibold text-white">{t('health.scheduler.latest_runs')}</h5>
+                            <span className="text-xs text-slate-500">{schedulerStatus?.latest_runs.length || 0}</span>
+                        </div>
+                        <div className="mt-3 space-y-3">
+                            {schedulerStatus?.latest_runs.length ? schedulerStatus.latest_runs.slice(0, 6).map((job) => (
+                                <div key={job.run_id} className="rounded-lg bg-white/5 px-3 py-2">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <p className="text-sm font-medium text-white">{job.job_name}</p>
+                                        <span className={cn(
+                                            'text-xs',
+                                            job.status === 'succeeded' && 'text-emerald-400',
+                                            job.status === 'failed' && 'text-rose-400',
+                                            job.status !== 'succeeded' && job.status !== 'failed' && 'text-slate-300'
+                                        )}>
+                                            {job.status}
+                                        </span>
+                                    </div>
+                                    <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
+                                        <span>{new Date(job.started_at).toLocaleString()}</span>
+                                        <span>{job.duration_ms ? `${job.duration_ms}ms` : 'n/a'}</span>
+                                    </div>
+                                    {job.error_message && (
+                                        <p className="mt-1 text-xs text-rose-300">{job.error_message}</p>
+                                    )}
+                                </div>
+                            )) : <p className="text-sm text-slate-500">{t('health.scheduler.no_runs')}</p>}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-5 rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h5 className="text-sm font-semibold text-white">{t('health.outbox.title')}</h5>
+                            <p className="mt-1 text-xs text-slate-500">{t('health.outbox.subtitle')}</p>
+                        </div>
+                        <span className={cn(
+                            'text-xs font-medium',
+                            (outboxStatus?.dead_letter_count || 0) > 0 ? 'text-rose-400' : 'text-emerald-400',
+                        )}>
+                            {(outboxStatus?.dead_letter_count || 0) > 0 ? t('health.outbox.attention') : t('health.outbox.healthy')}
+                        </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 lg:grid-cols-4 text-sm">
+                        <div className="rounded-lg bg-white/5 px-3 py-2">
+                            <p className="text-slate-500">{t('health.outbox.pending')}</p>
+                            <p className="mt-1 font-medium text-white">{outboxStatus?.pending_count || 0}</p>
+                        </div>
+                        <div className="rounded-lg bg-white/5 px-3 py-2">
+                            <p className="text-slate-500">{t('health.outbox.processing')}</p>
+                            <p className="mt-1 font-medium text-white">{outboxStatus?.processing_count || 0}</p>
+                        </div>
+                        <div className="rounded-lg bg-white/5 px-3 py-2">
+                            <p className="text-slate-500">{t('health.outbox.dead_letter')}</p>
+                            <p className={cn(
+                                'mt-1 font-medium',
+                                (outboxStatus?.dead_letter_count || 0) > 0 ? 'text-rose-400' : 'text-white',
+                            )}>
+                                {outboxStatus?.dead_letter_count || 0}
+                            </p>
+                        </div>
+                        <div className="rounded-lg bg-white/5 px-3 py-2">
+                            <p className="text-slate-500">{t('health.outbox.oldest_pending')}</p>
+                            <p className="mt-1 font-medium text-white">
+                                {outboxStatus?.oldest_pending_age_seconds != null
+                                    ? `${outboxStatus.oldest_pending_age_seconds}s`
+                                    : t('health.outbox.none')}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                        <div className="rounded-lg bg-white/5 px-3 py-3">
+                            <h6 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                {t('health.outbox.last_dispatch')}
+                            </h6>
+                            <div className="mt-2 space-y-1 text-sm text-slate-300">
+                                <p>{t('health.outbox.status')}: {outboxStatus?.last_dispatch_status || t('health.outbox.none')}</p>
+                                <p>{t('health.outbox.processed')}: {outboxStatus?.last_dispatch_processed ?? 0}</p>
+                                <p>{t('health.outbox.started')}: {outboxStatus?.last_dispatch_started_at ? new Date(outboxStatus.last_dispatch_started_at).toLocaleString() : t('health.outbox.none')}</p>
+                                <p>{t('health.outbox.finished')}: {outboxStatus?.last_dispatch_finished_at ? new Date(outboxStatus.last_dispatch_finished_at).toLocaleString() : t('health.outbox.none')}</p>
+                                {outboxStatus?.last_dispatch_error && (
+                                    <p className="text-rose-300">{outboxStatus.last_dispatch_error}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg bg-white/5 px-3 py-3">
+                            <h6 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                                {t('health.outbox.recent_failures')}
+                            </h6>
+                            {outboxStatus?.recent_failures.length ? (
+                                <div className="mt-2 space-y-2">
+                                    {outboxStatus.recent_failures.map((failure) => (
+                                        <div key={failure.id} className="rounded-lg bg-slate-950/50 px-3 py-2">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <p className="text-sm font-medium text-white">{failure.event_type}</p>
+                                                <span className="text-xs text-rose-300">{failure.status}</span>
+                                            </div>
+                                            <p className="mt-1 text-xs text-slate-400">
+                                                {t('health.outbox.attempts')}: {failure.attempt_count}
+                                            </p>
+                                            {failure.last_error && (
+                                                <p className="mt-1 text-xs text-rose-300">{failure.last_error}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="mt-2 text-sm text-slate-500">{t('health.outbox.no_failures')}</p>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -147,13 +147,6 @@ async def _create_control_edit_approval_if_required(
         department_id=control.department_id,
     )
 
-    await _notify_control_edit_approval(
-        db,
-        approval=approval,
-        primary_approver_id=primary_approver_id,
-        name_snippet=name_snippet,
-    )
-
     return JSONResponse(
         status_code=status.HTTP_202_ACCEPTED,
         content={
@@ -166,38 +159,6 @@ async def _create_control_edit_approval_if_required(
             "requires_privileged_approval": is_priority_linked,
         },
     )
-
-
-async def _notify_control_edit_approval(
-    db: AsyncSession,
-    *,
-    approval,
-    primary_approver_id: int | None,
-    name_snippet: str,
-) -> None:
-    import logging
-
-    from app.models.notification import NotificationType
-    from app.services.notification_service import NotificationService
-
-    try:
-        if primary_approver_id:
-            await NotificationService.create_notification(
-                db=db,
-                user_id=primary_approver_id,
-                notification_type=NotificationType.APPROVAL_PENDING,
-                title="Control Edit Request",
-                message=f"Control '{name_snippet}' has been edited and requires your approval.",
-                resource_type="approval",
-                resource_id=approval.id,
-            )
-
-        await NotificationService.notify_approvers(db, approval)
-        await db.commit()
-    except Exception as e:
-        await db.rollback()
-        logging.getLogger(__name__).warning(f"Failed to notify approvers for control edit approval #{approval.id}: {e}")
-
 
 async def _reload_control_with_relationships(db: AsyncSession, control_id: int) -> Control:
     result = await db.execute(

@@ -101,6 +101,16 @@ class UserLookup(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UserShellSummary(BaseModel):
+    """Aggregated counters for header/sidebar shell surfaces."""
+    unread_notifications_count: int = 0
+    pending_approvals_count: int = 0
+    questionnaire_inbox_count: int = 0
+    orphan_total_count: int = 0
+    can_view_governance: bool = False
+    generated_at: datetime
+
+
 class DepartmentBase(BaseModel):
     """Base schema for Department."""
     name: str

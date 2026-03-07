@@ -79,7 +79,7 @@ async def _issue_refresh_session(
         expires_at=expires_at,
         issued_at=now,
         last_used_at=now,
-        created_ip=get_request_client_ip(request),
+        created_ip=get_request_client_ip(request, settings.trusted_proxies),
         user_agent=get_request_user_agent(request),
     )
     db.add(refresh_row)

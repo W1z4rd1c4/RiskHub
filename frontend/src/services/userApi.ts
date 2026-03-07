@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { UserRead, UserCreate, UserUpdate, Role, UserLookup } from '../types/user';
+import type { UserRead, UserCreate, UserUpdate, Role, UserLookup, UserShellSummary } from '../types/user';
 
 export const userApi = {
     async listUsers(skip = 0, limit = 100, departmentId?: number, roleId?: number) {
@@ -40,5 +40,9 @@ export const userApi = {
 
     async listRoles() {
         return apiClient.get<Role[]>('/users/roles');
+    },
+
+    async getShellSummary(options?: { signal?: AbortSignal }) {
+        return apiClient.get<UserShellSummary>('/users/me/shell-summary', options);
     }
 };

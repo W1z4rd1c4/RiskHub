@@ -3,7 +3,7 @@
 import logging
 from datetime import UTC, datetime
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -69,6 +69,47 @@ class NotificationService:
         db.add(notification)
         await db.flush()  # Get ID without committing
         return notification
+
+    @staticmethod
+    async def create_notification_once(
+        db: AsyncSession,
+        *,
+        user_id: int,
+        notification_type: NotificationType,
+        title: str,
+        message: str,
+        resource_type: str | None = None,
+        resource_id: int | None = None,
+        skip_preference_check: bool = False,
+        created_at: datetime | None = None,
+    ) -> Notification | None:
+        """Create a notification only if an equivalent notification does not already exist."""
+        duplicate = (
+            await db.execute(
+                select(Notification).where(
+                    and_(
+                        Notification.user_id == user_id,
+                        Notification.type == notification_type,
+                        Notification.resource_type == resource_type,
+                        Notification.resource_id == resource_id,
+                    )
+                )
+            )
+        ).scalar_one_or_none()
+        if duplicate is not None:
+            return duplicate
+
+        return await NotificationService.create_notification(
+            db=db,
+            user_id=user_id,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            skip_preference_check=skip_preference_check,
+            created_at=created_at,
+        )
 
     @staticmethod
     async def can_notify_vendor(db: AsyncSession, user: User, vendor_id: int) -> bool:
@@ -165,7 +206,7 @@ class NotificationService:
                 continue
 
             try:
-                notification = await NotificationService.create_notification(
+                notification = await NotificationService.create_notification_once(
                     db=db,
                     user_id=approver.id,
                     notification_type=NotificationType.APPROVAL_PENDING,
@@ -217,7 +258,7 @@ class NotificationService:
             if approval.resolution_notes:
                 message += f" Note: {approval.resolution_notes}"
 
-            notification = await NotificationService.create_notification(
+            notification = await NotificationService.create_notification_once(
                 db=db,
                 user_id=approval.requested_by_id,
                 notification_type=NotificationType.APPROVAL_RESOLVED,
@@ -291,7 +332,7 @@ class NotificationService:
                 continue
 
             try:
-                notification = await NotificationService.create_notification(
+                notification = await NotificationService.create_notification_once(
                     db=db,
                     user_id=approver.id,
                     notification_type=NotificationType.APPROVAL_CANCELLED,

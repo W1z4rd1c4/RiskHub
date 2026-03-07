@@ -33,7 +33,41 @@
     "memory": "Memory",
     "process_memory": "Process memory usage",
     "active_users": "Active Users",
-    "in_last_24h": "In last 24 hours"
+    "in_last_24h": "In last 24 hours",
+    "scheduler": {
+      "title": "Scheduler Runtime",
+      "subtitle": "Ownership, lock state, and the latest scheduled job executions.",
+      "process_role": "Process Role",
+      "lock_state": "Lock State",
+      "lock_held": "Held",
+      "lock_not_held": "Not held",
+      "current_owner": "Current Owner",
+      "none_reported": "None reported",
+      "lock_provider": "Lock Provider",
+      "running_jobs": "Running Jobs",
+      "no_running_jobs": "No jobs are currently running.",
+      "latest_runs": "Latest Runs",
+      "no_runs": "No scheduler runs recorded yet."
+    },
+    "outbox": {
+      "title": "Outbox Queue",
+      "subtitle": "Pending retries, dead letters, and the latest dispatcher result.",
+      "healthy": "Healthy",
+      "attention": "Needs attention",
+      "pending": "Pending",
+      "processing": "Processing",
+      "dead_letter": "Dead letter",
+      "oldest_pending": "Oldest pending",
+      "none": "None",
+      "last_dispatch": "Last dispatch",
+      "status": "Status",
+      "processed": "Processed",
+      "started": "Started",
+      "finished": "Finished",
+      "recent_failures": "Recent failures",
+      "attempts": "Attempts",
+      "no_failures": "No recent failures."
+    }
   },
   "application_logs": {
     "title": "Application Logs",

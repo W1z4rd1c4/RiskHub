@@ -74,6 +74,29 @@
 
 ## Session Context
 
+### Reliability Hardening Follow-Up (2026-03-07)
+
+- ✅ Completed scheduler ownership hardening with Postgres advisory locking, runtime/job ledgering, and admin-visible scheduler status.
+- ✅ Added transactional outbox persistence + dispatcher, then migrated approval, issue, questionnaire, vendor-assessment, and related request-driven notifications off inline best-effort delivery.
+- ✅ Removed governance write-on-read behavior:
+  - orphan scan is scheduler-managed
+  - `/governance` now reads the overview snapshot and pending items instead of triggering scans on page load
+- ✅ Added aggregate/cached read models and frontend polling consolidation:
+  - `/api/v1/users/me/shell-summary`
+  - `/api/v1/dashboard/overview`
+  - `/api/v1/orphaned-items/overview`
+  - shared adaptive polling + smoother auth/bootstrap coordination
+- ✅ Extended Admin Console health with scheduler and outbox status surfaces.
+- ✅ Updated production runtime validation:
+  - smoke checks now verify `scheduler_job_runs`, `app_outbox_events`, one active scheduler runtime row, and zero dead-letter outbox rows
+  - `scripts/prod/verify_runtime.sh` now reports reliability runtime state
+- Verification executed during this follow-up:
+  - `cd backend && pytest -q ../tests/backend/pytest/test_scheduler_runtime.py ../tests/backend/pytest/test_outbox_approval_flow.py ../tests/backend/pytest/test_aggregate_overviews.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py` → passed
+  - `cd frontend && npm run test:run -- src/components/layout/__tests__/SidebarPolling.test.tsx src/components/notifications/__tests__/NotificationBell.test.tsx src/hooks/__tests__/useAdaptivePollingQuery.test.tsx src/pages/__tests__/DashboardPage.overview.test.tsx src/pages/__tests__/GovernancePage.overview.test.tsx src/pages/admin-console/__tests__/AdminConsoleOpsPanels.outbox.test.tsx src/services/__tests__/accessTokenStore.test.ts src/services/__tests__/apiClient.401-recovery.test.ts` → passed
+  - `cd frontend && npx tsc --noEmit` → passed
+  - targeted docs/deployment and admin/user runbooks reconciled
+  - production smoke/verify-runtime scripts updated and syntax-checked
+
 ### Release Parity GO + Documentation Reconciliation (2026-02-22)
 
 - ✅ Completed release-parity fixes and validation loop for startup/runtime/dependency parity.

@@ -1,6 +1,6 @@
 # RiskHub Deployment
 
-> **Last Updated**: 2026-03-06
+> **Last Updated**: 2026-03-07
 > **Audience**: IT / DevOps / Platform Engineering
 
 Back to tree: [`../DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
@@ -19,6 +19,8 @@ Common rules across both targets:
 - The admin entrypoint is `./scripts/deploy.sh`.
 - The frontend serves the SPA and proxies `/api` on the same origin.
 - The scheduler runs as a separate singleton runtime.
+- Scheduler ownership is enforced in-app with a Postgres advisory lock and recorded in `scheduler_job_runs`.
+- Post-commit side effects are dispatched from the transactional outbox table `app_outbox_events`.
 - Production runs with `DEBUG=false`, `MOCK_AUTH_ENABLED=false`, `AUTH_MODE=microsoft_sso`.
 
 ## Read This First
@@ -49,3 +51,4 @@ Release inputs:
 - The scheduler must run exactly once:
   - Docker target: dedicated scheduler container
   - Linux target: dedicated `riskhub-scheduler.service`
+- `./scripts/deploy.sh smoke ...` validates frontend/API readiness, disabled docs endpoints, reliability tables, one active scheduler runtime row, and zero dead-letter outbox rows.

@@ -3,14 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
-const getUnreadCountMock = vi.fn();
 const listMock = vi.fn();
 const markAsReadMock = vi.fn();
 const markAllAsReadMock = vi.fn();
 
 vi.mock('@/services/notificationsApi', () => ({
     notificationsApi: {
-        getUnreadCount: () => getUnreadCountMock(),
         list: (...args: unknown[]) => listMock(...args),
         markAsRead: (...args: unknown[]) => markAsReadMock(...args),
         markAllAsRead: (...args: unknown[]) => markAllAsReadMock(...args),
@@ -30,7 +28,6 @@ describe('NotificationBell', () => {
     beforeEach(() => {
         vi.clearAllMocks();
 
-        getUnreadCountMock.mockResolvedValue({ count: 2 });
         listMock.mockResolvedValue({
             items: [
                 {
@@ -54,10 +51,11 @@ describe('NotificationBell', () => {
     it('renders an opaque dropdown panel when opened', async () => {
         render(
             <MemoryRouter>
-                <NotificationBell />
+                <NotificationBell initialUnreadCount={2} />
             </MemoryRouter>
         );
 
+        expect(screen.getByText('2')).toBeInTheDocument();
         fireEvent.click(screen.getByTestId('notification-bell-button'));
 
         const panel = await screen.findByTestId('notification-dropdown-panel');

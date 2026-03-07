@@ -65,6 +65,10 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "redis_integration: Tests that require Docker-backed Redis fault-injection/integration",
     )
+    config.addinivalue_line(
+        "markers",
+        "postgres: Tests that require PostgreSQL behavior or a Postgres test database",
+    )
 
 
 @pytest.fixture(scope="session")

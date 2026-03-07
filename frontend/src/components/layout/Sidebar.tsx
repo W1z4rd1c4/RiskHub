@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
@@ -25,10 +24,9 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { useAuthz } from '@/authz/useAuthz';
-import { approvalsApi } from '@/services/approvalsApi';
-import { orphanedItemsApi } from '@/services/orphanedItemsApi';
-import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
+import { userApi } from '@/services/userApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { SIDEBAR_POLL_MS } from '@/config/constants';
 
@@ -41,15 +39,22 @@ export function Sidebar() {
     const isAdmin = authz.isPlatformAdmin;
     const { t } = useTranslation('navigation');
     const { t: tCommon } = useTranslation('common');
-    const [workflowCount, setWorkflowCount] = useState(0);
-    const [orphanCount, setOrphanCount] = useState(0);
 
     // Badge polling gates:
     // - Admin console should not poll business data.
-    // - Questionnaire inbox requires risks:read (backend enforces).
-    const canFetchQuestionnaireInbox = !isAdmin && hasPermission('risks', 'read');
-    // - Orphan stats badge is only meaningful if the user can access Governance.
-    const canFetchOrphanStats = !isAdmin && authz.canViewGovernance;
+    const shouldPollShellSummary = !!user?.id && !isAdmin;
+
+    const shellSummaryQuery = useAdaptivePollingQuery({
+        queryKey: ['shellSummary', user?.id, user?.department_id ?? null, user?.access_scope ?? null],
+        queryFn: ({ signal }) => userApi.getShellSummary({ signal }),
+        pollMs: SIDEBAR_POLL_MS,
+        enabled: shouldPollShellSummary,
+    });
+
+    const workflowCount = (shellSummaryQuery.data?.pending_approvals_count ?? 0)
+        + (shellSummaryQuery.data?.questionnaire_inbox_count ?? 0);
+    const orphanCount = authz.canViewGovernance ? (shellSummaryQuery.data?.orphan_total_count ?? 0) : 0;
+    const unreadNotificationCount = shellSummaryQuery.data?.unread_notifications_count ?? 0;
 
     interface SidebarItem {
         name: string;
@@ -70,57 +75,6 @@ export function Sidebar() {
         ...(authz.canViewGovernance ? [{ name: t('sidebar.governance'), href: '/governance', icon: Scale }] : []),
         { name: t('sidebar.settings'), href: '/settings', icon: Settings },
     ];
-
-    useEffect(() => {
-        let cancelled = false;
-
-        const logFetchError = (label: string, error: unknown) => {
-            const message = error instanceof Error ? error.message : String(error);
-            const isPermissionError = /permission denied|forbidden|unauthorized|\\b403\\b/i.test(message);
-            // We gate by permissions, so any remaining permission errors are expected mismatches
-            // (e.g., stale auth state). Avoid spamming console.error in those cases.
-            if (isPermissionError) {
-                console.debug(`[sidebar] badge fetch blocked (${label}):`, message);
-                return;
-            }
-            console.error(`[sidebar] failed to fetch badge data (${label}):`, error);
-        };
-
-        const fetchData = async () => {
-            const requests = await Promise.allSettled([
-                approvalsApi.getPendingCount(),
-                canFetchOrphanStats ? orphanedItemsApi.getOrphanStats() : Promise.resolve({ total_count: 0 }),
-                canFetchQuestionnaireInbox ? riskQuestionnairesApi.inbox() : Promise.resolve([]),
-            ]);
-
-            const [approvalsResult, orphansResult, inboxResult] = requests;
-
-            if (approvalsResult.status === 'rejected') logFetchError('approvals', approvalsResult.reason);
-            if (orphansResult.status === 'rejected') logFetchError('orphans', orphansResult.reason);
-            if (inboxResult.status === 'rejected') logFetchError('questionnaires', inboxResult.reason);
-
-            const approvalsCount = approvalsResult.status === 'fulfilled' ? approvalsResult.value.count : 0;
-            const orphanTotal = orphansResult.status === 'fulfilled' ? orphansResult.value.total_count : 0;
-            const inboxLength = inboxResult.status === 'fulfilled' ? inboxResult.value.length : 0;
-
-            if (cancelled) return;
-            setWorkflowCount(approvalsCount + inboxLength);
-            setOrphanCount(canFetchOrphanStats ? orphanTotal : 0);
-        };
-
-        // Only poll for authenticated, non-admin users. Admin console does not display business badges.
-        if (!user?.id || isAdmin) return () => { cancelled = true; };
-
-        // Fetch immediately on mount
-        fetchData();
-
-        // Then poll every 60 seconds
-        const interval = setInterval(fetchData, SIDEBAR_POLL_MS);
-        return () => {
-            cancelled = true;
-            clearInterval(interval);
-        };
-    }, [canFetchOrphanStats, canFetchQuestionnaireInbox, isAdmin, user?.id]); // Fetch on login/user change + polling
 
     const handleLogout = () => {
         logout();
@@ -223,7 +177,7 @@ export function Sidebar() {
                             )}
                         </span>
                     </div>
-                    <NotificationBell />
+                    <NotificationBell initialUnreadCount={unreadNotificationCount} />
                 </div>
 
                 <nav className="flex-1 space-y-2 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">

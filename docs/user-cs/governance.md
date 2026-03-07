@@ -1,7 +1,7 @@
 ---
 title: Governance: orphaned položky a hygiena ownership
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "frontend/src/pages/GovernancePage.tsx + frontend/src/components/governance/*"
 summary: "Jak používat Governance pro detekci a řešení orphaned Rizik/Kontrol/KRI tak, aby byl správný ownership, scope a reporting."
@@ -60,6 +60,8 @@ Governance berte jako pravidelnou kontrolu:
 - denně v prostředí s častými změnami
 - minimálně týdně ve stabilním prostředí
 - vždy před finalizací komise/board packu
+
+Otevření `/governance` už nespouští maintenance scan. Stránka čte poslední dostupný overview snapshot a aktuální pending položky a tento read model jen průběžně obnovuje.
 
 ## Role, scope a viditelnost
 
@@ -210,6 +212,7 @@ Pokud potřebujete audit evidence, čistý postup je:
 ### Governance ukazuje counts, ale seznam je prázdný
 
 - Proveďte refresh.
+- Stránka zobrazuje poslední dokončený scan snapshot; samotné otevření novou kontrolu nespouští.
 - Orphan scan je best-effort; pokud je scan blokovaný, existující položky by měly být stále čitelné.
 - Pokud to trvá, pošlete timestamp a požádejte podporu o kontrolu stats vs list.
 

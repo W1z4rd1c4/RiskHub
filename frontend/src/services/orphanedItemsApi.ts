@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { OrphanedItem, OrphanStats, ResolveOrphanRequest } from '../types/orphanedItem';
+import type { OrphanedItem, OrphanedItemsOverview, OrphanStats, ResolveOrphanRequest } from '../types/orphanedItem';
 
 export const orphanedItemsApi = {
     getOrphanedItems: (params?: { item_type?: string; status?: string }) =>
@@ -10,6 +10,9 @@ export const orphanedItemsApi = {
 
     getOrphanStats: () =>
         apiClient.get<OrphanStats>('/orphaned-items/stats'),
+
+    getOverview: (params?: { item_type?: string; status?: string }, options?: { signal?: AbortSignal }) =>
+        apiClient.get<OrphanedItemsOverview>('/orphaned-items/overview', { ...options, params }),
 
     getOrphanDetail: (id: number) =>
         apiClient.get<OrphanedItem>(`/orphaned-items/${id}`),

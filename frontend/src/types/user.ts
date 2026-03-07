@@ -60,3 +60,12 @@ export interface UserLookup {
     department_name?: string;
     manager_id?: number;
 }
+
+export interface UserShellSummary {
+    unread_notifications_count: number;
+    pending_approvals_count: number;
+    questionnaire_inbox_count: number;
+    orphan_total_count: number;
+    can_view_governance: boolean;
+    generated_at: string;
+}

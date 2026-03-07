@@ -1,161 +1,187 @@
-import { ArrowRight, BadgeCheck, Building2, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowRight, Shield, Sparkles } from 'lucide-react';
 
-const assurancePoints = [
-  'Microsoft Entra ID single sign-on',
-  'Conditional access and MFA enforced upstream',
-  'Least-privilege role mapping after identity verification',
-];
+type PreviewLanguage = 'cs' | 'en';
 
-const statusItems = [
-  {
-    label: 'Identity source',
-    value: 'Corporate Microsoft tenant',
+type PreviewCopy = {
+  htmlTitle: string;
+  switchLabel: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  detail: string;
+  signInLabel: string;
+  cardTitle: string;
+  cardBody: string;
+  providerLabel: string;
+  securityNote: string;
+  buttonLabel: string;
+  buttonHint: string;
+  previewNote: string;
+};
+
+const copy: Record<PreviewLanguage, PreviewCopy> = {
+  cs: {
+    htmlTitle: 'RiskHub Produkční Přihlášení',
+    switchLabel: 'Jazyk',
+    eyebrow: 'Platforma pro řízení rizik a governance',
+    title: 'RiskHub spojuje rizika, kontroly a schvalování do jednoho pracovního toku.',
+    description:
+      'RiskHub pomáhá týmům řídit rizika, kontroly, schvalování a governance workflow na jednom místě.',
+    detail:
+      'Produkční přístup vede přes firemní Microsoft účet a po ověření identity naváže oprávnění podle role v RiskHubu.',
+    signInLabel: 'Přihlášení',
+    cardTitle: 'Pokračovat přes Microsoft',
+    cardBody:
+      'Bezpečné jednotné přihlášení pro interní uživatele RiskHubu v produkčním prostředí.',
+    providerLabel: 'Microsoft Entra ID',
+    securityNote: 'SSO pro firemní účty s mapováním oprávnění podle role.',
+    buttonLabel: 'Pokračovat s Microsoft',
+    buttonHint: 'Náhled pouze. Spuštění SSO je na této stránce vypnuté.',
+    previewNote: 'Samostatný produkční náhled přihlášení bez aktivní autentizace.',
   },
-  {
-    label: 'Session policy',
-    value: 'Managed by RiskHub and Entra controls',
+  en: {
+    htmlTitle: 'RiskHub Production Sign In',
+    switchLabel: 'Language',
+    eyebrow: 'Risk and governance operating system',
+    title: 'RiskHub brings risks, controls, and approvals into one operating flow.',
+    description:
+      'RiskHub helps teams manage risks, controls, approvals, and governance workflows in one place.',
+    detail:
+      'Production access runs through your corporate Microsoft account and then maps permissions from your RiskHub role.',
+    signInLabel: 'Sign in',
+    cardTitle: 'Continue with Microsoft',
+    cardBody:
+      'Secure single sign-on for internal RiskHub users in the production environment.',
+    providerLabel: 'Microsoft Entra ID',
+    securityNote: 'SSO for corporate accounts with role-based permission mapping.',
+    buttonLabel: 'Continue with Microsoft',
+    buttonHint: 'Preview only. Live SSO is disabled on this page.',
+    previewNote: 'Standalone production login preview with no active authentication.',
   },
-  {
-    label: 'Environment',
-    value: 'Production preview shell',
-  },
-];
+};
+
+const languageLabels: Record<PreviewLanguage, string> = {
+  cs: 'CZ',
+  en: 'EN',
+};
 
 export default function ProdLoginPreviewPage() {
+  const [language, setLanguage] = useState<PreviewLanguage>('cs');
+  const content = copy[language];
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.title = content.htmlTitle;
+  }, [content.htmlTitle, language]);
+
   return (
-    <main className="min-h-screen overflow-hidden bg-[#04131f] text-slate-100">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-      >
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(86,173,255,0.18),_transparent_34%),radial-gradient(circle_at_85%_15%,_rgba(10,214,188,0.16),_transparent_25%),radial-gradient(circle_at_50%_100%,_rgba(244,114,182,0.12),_transparent_28%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.02)_0%,rgba(255,255,255,0)_35%,rgba(255,255,255,0.03)_100%)]" />
-        <div className="absolute left-[8%] top-24 h-72 w-72 rounded-full border border-cyan-300/10 bg-cyan-300/5 blur-3xl" />
-        <div className="absolute bottom-[-8rem] right-[-2rem] h-96 w-96 rounded-full border border-emerald-300/10 bg-emerald-300/10 blur-3xl" />
+    <main className="h-screen overflow-hidden bg-[#07111b] text-slate-100">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_22%,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(14,116,144,0.12),transparent_26%),linear-gradient(180deg,#07111b_0%,#091521_100%)]" />
+        <div className="absolute inset-y-0 left-[16%] w-px bg-gradient-to-b from-transparent via-sky-400/12 to-transparent" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-7xl flex-col justify-center px-6 py-10 lg:px-10">
-        <div className="grid items-center gap-8 lg:grid-cols-[1.2fr_0.9fr] xl:gap-14">
-          <section className="relative">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/6 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-100/85 backdrop-blur">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              RiskHub production sign-in
-            </div>
+      <div className="relative mx-auto flex h-screen w-full max-w-[1320px] flex-col px-6 py-5 sm:px-8 lg:px-12">
+        <header className="flex items-center justify-between py-3">
+          <div className="inline-flex items-center gap-4 text-slate-100">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full border border-sky-400/20 bg-sky-400/10 text-sky-300 shadow-[0_12px_28px_rgba(14,165,233,0.12)]">
+              <Shield className="h-5 w-5" />
+            </span>
+            <span className="text-lg font-semibold tracking-[0.34em] uppercase">
+              Risk<span className="text-sky-300">Hub</span>
+            </span>
+          </div>
 
-            <div className="mt-8 max-w-2xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.32em] text-emerald-200/75">
-                Enterprise risk operations
-              </p>
-              <h1 className="mt-4 max-w-xl text-5xl font-black leading-[0.96] text-white sm:text-6xl xl:text-7xl">
-                One verified identity for every critical decision.
+          <div className="flex items-center gap-3">
+            <span className="hidden text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500 sm:inline">
+              {content.switchLabel}
+            </span>
+            <div className="inline-flex rounded-full border border-white/10 bg-slate-950/60 p-1">
+              {(['cs', 'en'] as const).map((lang) => {
+                const active = lang === language;
+                return (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => setLanguage(lang)}
+                    aria-pressed={active}
+                    className={`min-w-12 rounded-full px-3 py-1.5 text-xs font-semibold tracking-[0.2em] transition-colors ${
+                      active
+                        ? 'bg-slate-100 text-slate-950'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {languageLabels[lang]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </header>
+
+        <section className="flex min-h-0 flex-1 items-center justify-center">
+          <div className="grid w-full max-w-[1180px] gap-12 py-6 lg:grid-cols-[minmax(0,1fr)_500px] lg:gap-20">
+            <div className="flex max-w-2xl flex-col justify-center">
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/8 bg-white/[0.03] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-300/80">
+                <Sparkles className="h-3.5 w-3.5" />
+                {content.eyebrow}
+              </div>
+              <h1 className="mt-6 max-w-2xl text-4xl font-semibold leading-[1.01] text-white sm:text-5xl lg:text-[4.2rem]">
+                {content.title}
               </h1>
-              <p className="mt-6 max-w-xl text-base leading-7 text-slate-300 sm:text-lg">
-                Production access routes through your corporate Microsoft account, then resolves RiskHub
-                permissions from approved role assignments. No shared demo paths, no local shortcuts.
+              <p className="mt-5 max-w-xl text-lg leading-8 text-slate-300">
+                {content.description}
+              </p>
+              <p className="mt-4 max-w-xl text-base leading-7 text-slate-500">
+                {content.detail}
               </p>
             </div>
 
-            <div className="mt-10 grid gap-4 sm:grid-cols-3">
-              {statusItems.map((item) => (
-                <article
-                  key={item.label}
-                  className="rounded-[28px] border border-white/10 bg-white/6 p-4 shadow-[0_18px_60px_rgba(4,19,31,0.35)] backdrop-blur-xl"
-                >
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
-                    {item.label}
-                  </p>
-                  <p className="mt-3 text-sm font-medium leading-6 text-slate-100">
-                    {item.value}
-                  </p>
-                </article>
-              ))}
-            </div>
+            <div className="flex items-center justify-end">
+              <section className="w-full max-w-[500px] rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(13,21,31,0.98),rgba(8,16,26,0.96))] p-8 shadow-[0_36px_120px_rgba(0,0,0,0.42)] backdrop-blur sm:p-10">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">
+                  {content.signInLabel}
+                </p>
 
-            <div className="mt-10 rounded-[32px] border border-white/10 bg-slate-950/40 p-6 shadow-[0_24px_80px_rgba(2,8,14,0.45)] backdrop-blur-xl">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-200">
-                  <LockKeyhole className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.28em] text-slate-400">
-                    Access assurance
-                  </p>
-                  <p className="mt-1 text-lg font-semibold text-white">
-                    Auth flow mirrors the locked-down production entry point.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 space-y-3">
-                {assurancePoints.map((point) => (
-                  <div key={point} className="flex items-start gap-3 rounded-2xl border border-white/6 bg-white/5 px-4 py-3">
-                    <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-                    <p className="text-sm leading-6 text-slate-200">{point}</p>
+                <div className="mt-6 rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,rgba(9,21,34,0.96),rgba(8,17,27,0.98))] p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#185abc] text-xl font-bold shadow-[0_12px_28px_rgba(255,255,255,0.08)]">
+                      M
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-300/70">
+                        {content.providerLabel}
+                      </p>
+                      <h2 className="mt-2 text-[1.45rem] font-semibold text-white">{content.cardTitle}</h2>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </section>
 
-          <section className="relative">
-            <div className="absolute inset-x-10 top-8 h-24 rounded-full bg-cyan-300/15 blur-3xl" aria-hidden="true" />
-            <div className="relative rounded-[36px] border border-white/10 bg-[linear-gradient(180deg,rgba(13,31,45,0.94),rgba(7,18,29,0.92))] p-6 shadow-[0_32px_120px_rgba(0,0,0,0.45)] backdrop-blur-2xl sm:p-8">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-200/85">
-                    Sign in
+                  <p className="mt-5 text-base leading-7 text-slate-300">{content.cardBody}</p>
+                  <div className="mt-5 rounded-2xl border border-white/6 bg-white/[0.025] px-4 py-3 text-sm leading-6 text-slate-400">
+                    {content.securityNote}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-5 py-4 text-base font-semibold text-slate-950 transition-colors hover:bg-white"
+                  >
+                    {content.buttonLabel}
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+
+                  <p className="mt-4 text-center text-sm leading-6 text-slate-500">
+                    {content.buttonHint}
                   </p>
-                  <h2 className="mt-3 text-3xl font-black text-white">
-                    Continue with your organization account
-                  </h2>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/8 p-3 text-cyan-100">
-                  <Building2 className="h-5 w-5" />
-                </div>
-              </div>
-
-              <p className="mt-4 text-sm leading-6 text-slate-300">
-                This preview isolates the production SSO entry UI. Use it to judge spacing, hierarchy,
-                and messaging without needing live auth configuration.
-              </p>
-
-              <div className="mt-8 rounded-[28px] border border-cyan-300/15 bg-cyan-300/8 p-5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#185abc] shadow-[0_10px_30px_rgba(255,255,255,0.12)]">
-                    <span className="text-xl font-black">M</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">Microsoft Entra ID</p>
-                    <p className="text-sm text-cyan-100/80">SSO provider configured for production access</p>
-                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  className="mt-5 flex w-full items-center justify-center gap-3 rounded-2xl bg-white px-5 py-4 text-sm font-bold text-slate-950 transition-transform duration-200 hover:-translate-y-0.5"
-                >
-                  Continue with Microsoft
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              </div>
-
-              <div className="mt-6 grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  <p className="font-semibold text-white">Expected audience</p>
-                  <p className="mt-2 leading-6">Employees with an imported directory identity and an active RiskHub role.</p>
-                </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  <p className="font-semibold text-white">Support path</p>
-                  <p className="mt-2 leading-6">If access fails, contact your RiskHub administrator to confirm tenant assignment and app role mapping.</p>
-                </div>
-              </div>
-
-              <div className="mt-6 rounded-2xl border border-dashed border-white/12 px-4 py-3 text-xs uppercase tracking-[0.26em] text-slate-400">
-                Preview route only. No live auth transaction is started from this page.
-              </div>
+                <p className="mt-5 text-xs uppercase tracking-[0.28em] text-slate-600">
+                  {content.previewNote}
+                </p>
+              </section>
             </div>
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
     </main>
   );
