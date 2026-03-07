@@ -25,4 +25,9 @@ UI components for `dashboard` area.
 
 ## Notes
 
+`KRIStatusWidget.tsx` owns the dashboard KRI drill-down contract:
+
+- overdue -> `/kris?monitoring_status=not_submitted`
+- upcoming -> `/kris?timeliness_status=due_soon`
+
 Keep this README updated when responsibilities or structure in this folder change.

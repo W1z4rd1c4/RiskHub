@@ -1,7 +1,7 @@
 ---
 title: Dashboard and Reporting Overview
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "frontend/src/pages/DashboardPage.tsx + dashboard widgets and report exports"
 summary: "How to use the Dashboard as an operational cockpit: filters, drill-downs, committee view, export discipline, and interpreting trend changes correctly."
@@ -49,6 +49,7 @@ Drill-down links commonly take you to:
 
 - `/risks` (including critical filters)
 - `/controls`
+- `/kris`
 - `/departments`
 - `/vendors` (if you have `vendors:read`)
 - `/issues` (if you have `issues:read`)
@@ -79,6 +80,11 @@ Dashboard widgets are aggregates across core entities.
 | Risk distribution (gross/net) | Heatmap of scoring | Use drill-down to find the top drivers. |
 | KRI breach widgets | Breach / due / overdue signals | Treat as monitoring discipline + risk pressure signals. |
 | Trends | Time series for risks/controls/breaches | Use to detect change points and follow up with evidence. |
+
+KRI status drill-downs use canonical KRI list filters:
+
+- overdue widget drill-down: `/kris?monitoring_status=not_submitted`
+- upcoming widget drill-down: `/kris?timeliness_status=due_soon`
 
 ## Core Workflows
 
@@ -124,6 +130,7 @@ Many widgets support drill-down:
 
 - a heatmap cell can open a risk list filtered to that cell
 - “critical risks” can open `/risks?critical=true`
+- KRI status widget uses canonical KRI filters instead of legacy overdue query flags
 
 When you share a drill-down result, always state:
 

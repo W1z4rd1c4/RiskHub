@@ -1,8 +1,7 @@
 import { motion } from 'framer-motion';
-import { Info, AlertTriangle, ShieldCheck } from 'lucide-react';
 import type { RiskControlLink } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
-import { useStatusTheme } from '@/hooks/useStatusTheme';
+import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 
 interface ControlGaugeCardProps {
     link: RiskControlLink;
@@ -11,9 +10,7 @@ interface ControlGaugeCardProps {
 
 export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
     const { t } = useTranslation(['controls', 'common']);
-    const statusTheme = useStatusTheme();
     const {
-        effectiveness,
         control,
         notes
     } = link;
@@ -22,42 +19,8 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
     const frequency = control?.frequency || '—';
     const riskLevel = control?.risk_level || 0;
     const maxRiskLevel = 5;
-
-    const getStatusColor = () => {
-        switch (effectiveness) {
-            case 'high': return statusTheme.control.highText;
-            case 'medium': return statusTheme.control.mediumText;
-            case 'low': return statusTheme.control.lowText;
-            default: return statusTheme.control.neutralText;
-        }
-    };
-
-    const getBarColor = () => {
-        switch (effectiveness) {
-            case 'high': return statusTheme.control.highGauge;
-            case 'medium': return statusTheme.control.mediumGauge;
-            case 'low': return statusTheme.control.lowGauge;
-            default: return statusTheme.control.neutralGauge;
-        }
-    };
-
-    const getStatusIcon = () => {
-        switch (effectiveness) {
-            case 'high': return <ShieldCheck className="h-4 w-4" />;
-            case 'medium': return <Info className="h-4 w-4" />;
-            case 'low': return <AlertTriangle className="h-4 w-4" />;
-            default: return <Info className="h-4 w-4" />;
-        }
-    };
-
-    const getEffectivenessLabel = () => {
-        switch (effectiveness) {
-            case 'high': return t('detail.effectiveness_optimal', { ns: 'controls' });
-            case 'medium': return t('detail.effectiveness_effective', { ns: 'controls' });
-            case 'low': return t('detail.effectiveness_ineffective', { ns: 'controls' });
-            default: return (effectiveness as string).toUpperCase();
-        }
-    };
+    const monitoring = getControlMonitoringMeta(control?.monitoring_status);
+    const MonitoringIcon = monitoring.icon;
 
     // Calculate percentage for gauge (1-5 scale)
     const calculatePercent = (val: number) => {
@@ -81,9 +44,9 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
                         {t('detail.control_badge', { ns: 'controls' })}
                     </span>
                 </div>
-                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 border border-white/20 font-bold text-[10px] uppercase tracking-wide shrink-0 ${getStatusColor()}`}>
-                    {getStatusIcon()}
-                    {getEffectivenessLabel()}
+                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wide shrink-0 ${monitoring.badgeClassName}`}>
+                    <MonitoringIcon className="h-4 w-4" />
+                    {t(monitoring.labelKey)}
                 </div>
             </div>
 
@@ -97,6 +60,9 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
                         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-1">
                             {t('common:labels.frequency')}: {frequency}
                         </p>
+                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">
+                            {t('form.labels.effectiveness', { ns: 'controls' })}: {t(`form.effectiveness.${link.effectiveness}`, { ns: 'controls' })}
+                        </p>
                     </div>
                 </div>
 
@@ -107,7 +73,7 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
 
                     {/* Progress track (styled like KRI gauge) */}
                     <div
-                        className={`absolute h-2 rounded-full opacity-20 ${getBarColor().split(' ')[0]}`}
+                        className={`absolute h-2 rounded-full opacity-20 ${monitoring.gaugeClassName.split(' ')[0]}`}
                         style={{ left: '0%', width: `${valuePct}%` }}
                     />
 
@@ -116,7 +82,7 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
                         initial={{ left: 0 }}
                         animate={{ left: `${valuePct}%` }}
                         transition={{ type: "spring", stiffness: 100 }}
-                        className={`absolute w-3 h-3 rounded-full border-2 border-slate-900 z-10 -ml-1.5 ${getBarColor()}`}
+                        className={`absolute w-3 h-3 rounded-full border-2 border-slate-900 z-10 -ml-1.5 ${monitoring.gaugeClassName}`}
                     />
                 </div>
 

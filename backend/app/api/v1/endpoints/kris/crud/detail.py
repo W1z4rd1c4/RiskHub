@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
+from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
+from app.core.datetime_utils import utc_now
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
@@ -26,7 +28,11 @@ async def get_kri(
         select(KeyRiskIndicator)
         .join(Risk)
         .where(KeyRiskIndicator.id == kri_id)
-        .options(joinedload(KeyRiskIndicator.risk))
+        .options(
+            joinedload(KeyRiskIndicator.risk).joinedload(Risk.owner),
+            joinedload(KeyRiskIndicator.risk).joinedload(Risk.department),
+            selectinload(KeyRiskIndicator.reporting_owner),
+        )
     )
     kri = result.scalar_one_or_none()
 
@@ -37,11 +43,14 @@ async def get_kri(
     if kri.is_archived and not include_archived:
         raise HTTPException(status_code=404, detail="KRI not found")
 
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+
     # Allow access if user is reporting owner (cross-department)
     if await is_kri_reporting_owner(db, current_user.id, kri_id):
-        return KRIResponse.model_validate(kri)
+        return serialize_kri_response(kri, monitoring_context)
 
     # Otherwise verify department access
     check_department_access(kri.risk.department_id, current_user)
 
-    return KRIResponse.model_validate(kri)
+    return serialize_kri_response(kri, monitoring_context)

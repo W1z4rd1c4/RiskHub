@@ -14,14 +14,33 @@ describe('Controls page presentation helpers', () => {
                 currentPage: 2,
                 limit: 20,
                 search: '  evidence  ',
-                statusFilter: ControlStatus.ARCHIVED,
+                statusFilter: 'archived',
             })
         ).toEqual({
             skip: 20,
             limit: 20,
             search: 'evidence',
             status: 'archived',
+            monitoring_status: undefined,
             include_archived: true,
+        });
+    });
+
+    it('builds monitoring status params without sending lifecycle status', () => {
+        expect(
+            buildControlListParams({
+                currentPage: 1,
+                limit: 20,
+                search: '  passed  ',
+                statusFilter: 'passed',
+            })
+        ).toEqual({
+            skip: 0,
+            limit: 20,
+            search: 'passed',
+            status: undefined,
+            monitoring_status: 'passed',
+            include_archived: false,
         });
     });
 

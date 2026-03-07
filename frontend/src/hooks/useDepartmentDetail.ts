@@ -3,7 +3,7 @@ import { departmentApi, type DepartmentDetail } from '@/services/departmentApi';
 import { userApi } from '@/services/userApi';
 import type { RiskSummary } from '@/types/risk';
 import type { ControlSummary } from '@/types/control';
-import type { KeyRiskIndicator } from '@/types/kri';
+import type { KeyRiskIndicator, KRIMonitoringStatus } from '@/types/kri';
 
 // Pagination constants - must match backend MAX_PAGE_SIZE
 export const DEPARTMENT_PAGE_SIZE = 100;
@@ -25,6 +25,7 @@ interface UseDepartmentDetailParams {
     departmentId: number | undefined;
     activeTab: TabView;
     riskFilter: 'all' | 'high';
+    kriFilter: 'all' | KRIMonitoringStatus;
     riskPage: number;
     controlPage: number;
     kriPage: number;
@@ -65,6 +66,7 @@ export function useDepartmentDetail({
     departmentId,
     activeTab,
     riskFilter,
+    kriFilter,
     riskPage,
     controlPage,
     kriPage,
@@ -80,6 +82,7 @@ export function useDepartmentDetail({
     const [controls, setControls] = useState<ControlSummary[]>([]);
     const [kris, setKris] = useState<KeyRiskIndicator[]>([]);
     const [users, setUsers] = useState<DeptUser[]>([]);
+    const [kriTotalCount, setKriTotalCount] = useState(0);
 
     // Fetch department metadata once on id change
     useEffect(() => {
@@ -121,10 +124,17 @@ export function useDepartmentDetail({
     useEffect(() => {
         if (!departmentId || activeTab !== 'kris') return;
         const skip = (kriPage - 1) * DEPARTMENT_PAGE_SIZE;
-        departmentApi.getDepartmentKRIs(departmentId, { skip, limit: DEPARTMENT_PAGE_SIZE })
-            .then(setKris)
+        departmentApi.getDepartmentKRIs(departmentId, {
+            skip,
+            limit: DEPARTMENT_PAGE_SIZE,
+            monitoring_status: kriFilter === 'all' ? undefined : kriFilter,
+        })
+            .then((response) => {
+                setKris(response.items);
+                setKriTotalCount(response.total);
+            })
             .catch(console.error);
-    }, [departmentId, activeTab, kriPage]);
+    }, [departmentId, activeTab, kriFilter, kriPage]);
 
     // Fetch users when users tab is active or page changes
     useEffect(() => {
@@ -147,7 +157,7 @@ export function useDepartmentDetail({
     // Compute pagination totals from department metadata
     const riskTotalPages = Math.ceil(getRiskCount() / DEPARTMENT_PAGE_SIZE) || 1;
     const controlTotalPages = Math.ceil((department?.control_count || 0) / DEPARTMENT_PAGE_SIZE) || 1;
-    const kriTotalPages = Math.ceil((department?.kri_count || 0) / DEPARTMENT_PAGE_SIZE) || 1;
+    const kriTotalPages = Math.ceil(kriTotalCount / DEPARTMENT_PAGE_SIZE) || 1;
     const userTotalPages = Math.ceil((department?.user_count || 0) / DEPARTMENT_PAGE_SIZE) || 1;
 
     // Refresh handler - re-fetches department metadata

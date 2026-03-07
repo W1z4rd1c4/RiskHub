@@ -5,6 +5,11 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.v1.endpoints._monitoring_response import (
+    build_control_monitoring_fields,
+    load_monitoring_response_context,
+)
+from app.core.datetime_utils import utc_now
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import Control, ControlRiskLink, Risk, User
@@ -15,6 +20,7 @@ from app.schemas.control import (
     ControlSummary,
     normalize_control_frequency,
 )
+from app.services._monitoring_status import ControlMonitoringStatus, apply_control_monitoring_status_filter
 
 from .._helpers import _apply_department_scoping, _apply_process_category_filters
 
@@ -33,6 +39,7 @@ async def list_controls(
     search: Optional[str] = None,
     process: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
+    monitoring_status: Optional[ControlMonitoringStatus] = Query(None),
 ):
     """
     List controls with pagination and filters.
@@ -84,27 +91,34 @@ async def list_controls(
     # Apply optional process/category filters
     base_query = _apply_process_category_filters(base_query, process, category)
 
-    # Get total count before pagination
-    count_query = select(func.count()).select_from(base_query.subquery())
+    query_options = (
+        selectinload(Control.department),
+        selectinload(Control.control_owner),
+        selectinload(Control.executions),
+        selectinload(Control.risk_links)
+        .selectinload(ControlRiskLink.risk)
+        .options(selectinload(Risk.owner), selectinload(Risk.department)),
+    )
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+
+    filtered_query = base_query
+    if monitoring_status is not None:
+        filtered_query = apply_control_monitoring_status_filter(
+            filtered_query,
+            monitoring_status=monitoring_status,
+            today=now.date(),
+            execution_stale_days=monitoring_context.control_config.execution_stale_days,
+        )
+
+    count_query = select(func.count()).select_from(filtered_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    # Apply pagination and ordering with eager loading
-    query = (
-        base_query.options(
-            selectinload(Control.department),
-            selectinload(Control.control_owner),
-            selectinload(Control.risk_links)
-            .selectinload(ControlRiskLink.risk)
-            .options(selectinload(Risk.owner), selectinload(Risk.department)),
-        )
-        .offset(skip)
-        .limit(limit)
-        .order_by(Control.name)
-    )
-
+    query = filtered_query.options(*query_options).order_by(Control.name).offset(skip).limit(limit)
     result = await db.execute(query)
     controls = result.scalars().all()
+    control_monitoring_rows = [(control, build_control_monitoring_fields(control, monitoring_context)) for control in controls]
 
     # Map to summary with department_name and risk info
     from app.core.permissions import (
@@ -121,7 +135,7 @@ async def list_controls(
         cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
 
     items = []
-    for c in controls:
+    for c, monitoring_fields in control_monitoring_rows:
         # Get first linked risk for grouping purposes
         first_risk = c.risk_links[0].risk if c.risk_links else None
 
@@ -151,8 +165,8 @@ async def list_controls(
                 risk_department_name=first_risk.department.name
                 if (first_risk and risk_visible and first_risk.department)
                 else None,
+                **monitoring_fields,
             )
         )
 
     return ControlListResponse(items=items, total=total, skip=skip, limit=limit)
-

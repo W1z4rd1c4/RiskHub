@@ -248,15 +248,17 @@ async def test_list_department_kris_pagination_deterministic_no_overlap(
     response = await auth_client.get(f"/api/v1/departments/{dept.id}/kris?skip=0&limit=2")
     assert response.status_code == 200
     page1 = response.json()
-    assert len(page1) == 2
+    assert page1["total"] == 4
+    assert len(page1["items"]) == 2
 
     response = await auth_client.get(f"/api/v1/departments/{dept.id}/kris?skip=2&limit=2")
     assert response.status_code == 200
     page2 = response.json()
-    assert len(page2) == 2
+    assert page2["total"] == 4
+    assert len(page2["items"]) == 2
 
-    page1_ids = [item["id"] for item in page1]
-    page2_ids = [item["id"] for item in page2]
+    page1_ids = [item["id"] for item in page1["items"]]
+    page2_ids = [item["id"] for item in page2["items"]]
 
     assert set(page1_ids).isdisjoint(set(page2_ids))
     assert page1_ids == sorted(page1_ids)

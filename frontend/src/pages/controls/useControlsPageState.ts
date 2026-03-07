@@ -6,11 +6,12 @@ import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { controlApi } from '@/services/controlApi';
 import { reportApi } from '@/services/reportApi';
-import { ControlStatus, type ControlSummary } from '@/types/control';
+import type { ControlSummary } from '@/types/control';
 
 import {
     buildControlExportFilters,
     buildControlListParams,
+    type ControlListStatusFilter,
     fetchAllControlsForGroupedView,
 } from './controlsPagePresentation';
 
@@ -20,7 +21,7 @@ export function useControlsPageState() {
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<ControlStatus | ''>('');
+    const [statusFilter, setStatusFilter] = useState<ControlListStatusFilter>('');
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [isExporting, setIsExporting] = useState(false);
@@ -121,7 +122,7 @@ export function useControlsPageState() {
         setCurrentPage(1);
     }, []);
 
-    const updateStatusFilter = useCallback((value: ControlStatus | '') => {
+    const updateStatusFilter = useCallback((value: ControlListStatusFilter) => {
         setStatusFilter(value);
         setCurrentPage(1);
     }, []);

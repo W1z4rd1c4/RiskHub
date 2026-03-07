@@ -3,6 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_control_read
+from app.core.datetime_utils import utc_now
 from app.core.activity_logger import log_activity
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
@@ -66,8 +68,10 @@ async def create_control(
         .options(
             selectinload(Control.department),
             selectinload(Control.control_owner),
+            selectinload(Control.executions),
         )
         .where(Control.id == control.id)
     )
-    return result.scalar_one()
-
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    return serialize_control_read(result.scalar_one(), monitoring_context)

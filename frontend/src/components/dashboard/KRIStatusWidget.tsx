@@ -166,7 +166,9 @@ export function KRIStatusWidget() {
             </div>
 
             <button
-                onClick={() => navigate(`/kris?${activeTab === 'overdue' ? 'overdue=true' : ''}`)}
+                onClick={() => navigate(activeTab === 'overdue'
+                    ? '/kris?monitoring_status=not_submitted'
+                    : '/kris?timeliness_status=due_soon')}
                 className="w-full py-3 bg-white/[0.01] hover:bg-white/5 text-[10px] font-black text-slate-500 uppercase tracking-widest border-t border-white/5 transition-all"
             >
                 {activeTab === 'overdue' ? t('kri.view_all_overdue') : t('kri.view_all')}

@@ -1,6 +1,7 @@
 import { AlertCircle, CheckCircle, MinusCircle, XCircle } from 'lucide-react';
 
 import type { Column } from '@/components/tables';
+import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import type { ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator } from '@/types/kri';
 import type { RiskSummary } from '@/types/risk';
@@ -179,25 +180,29 @@ export const getKriColumns = (t: TranslateFn): Column<KeyRiskIndicator>[] => [
         key: 'current_value',
         label: t('common:labels.value'),
         sortable: true,
-        render: (kri) => (
-            <span className={`text-sm font-black ${kri.breach_status !== 'within' ? 'text-rose-400' : 'text-emerald-400'}`}>
-                {kri.current_value.toLocaleString()} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
-            </span>
-        ),
+        render: (kri) => {
+            const monitoring = getKriMonitoringMeta(kri.monitoring_status);
+            return (
+                <span className={`text-sm font-black ${monitoring.textClassName}`}>
+                    {kri.current_value.toLocaleString()} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
+                </span>
+            );
+        },
     },
     {
-        key: 'breach_status',
+        key: 'monitoring_status',
         label: t('common:labels.status'),
         sortable: true,
-        render: (kri) => (
-            <span
-                className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                    kri.breach_status === 'within' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
-                }`}
-            >
-                {kri.breach_status === 'within' ? t('kris:columns.ok') : t('kris:filters.breach')}
-            </span>
-        ),
+        render: (kri) => {
+            const monitoring = getKriMonitoringMeta(kri.monitoring_status);
+            const MonitoringIcon = monitoring.icon;
+            return (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${monitoring.badgeClassName}`}>
+                    <MonitoringIcon className="h-3 w-3" />
+                    {t(monitoring.labelKey)}
+                </span>
+            );
+        },
     },
     {
         key: 'frequency',

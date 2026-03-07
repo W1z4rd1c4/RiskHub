@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
+from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
+from app.core.datetime_utils import utc_now
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
@@ -159,4 +161,18 @@ async def update_kri(
     await db.commit()
     await db.refresh(kri)
 
-    return KRIResponse.model_validate(kri)
+    result = await db.execute(
+        select(KeyRiskIndicator)
+        .join(Risk)
+        .where(KeyRiskIndicator.id == kri.id)
+        .options(
+            joinedload(KeyRiskIndicator.risk).joinedload(Risk.owner),
+            joinedload(KeyRiskIndicator.risk).joinedload(Risk.department),
+            selectinload(KeyRiskIndicator.reporting_owner),
+        )
+    )
+    reloaded_kri = result.scalar_one()
+
+    now = utc_now()
+    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    return serialize_kri_response(reloaded_kri, monitoring_context)

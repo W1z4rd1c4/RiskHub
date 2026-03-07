@@ -1,27 +1,57 @@
 import { useState, useEffect, useCallback, useRef, type MouseEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
-import { Plus, Search, RefreshCw, AlertTriangle, CheckCircle, ChevronRight, User, Shield, Building2, Download } from 'lucide-react';
+import { Plus, Search, RefreshCw, ChevronRight, User, Shield, Building2, Download } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { reportApi } from '@/services/reportApi';
 import { PermissionGate } from '@/components/PermissionGate';
 import { ViewSwitcher, SortableTable, Pagination, CategoryDrillDown } from '@/components/tables';
 import type { Column, ViewMode } from '@/components/tables';
-import type { KeyRiskIndicator } from '@/types/kri';
+import { KRI_MONITORING_FILTER_VALUES, getKriMonitoringMeta } from '@/lib/monitoringStatus';
+import type { KeyRiskIndicator, KRIMonitoringStatus, KRITimelinessStatus } from '@/types/kri';
 import { useAuth } from '@/contexts/AuthContext';
 import { DEFAULT_LIST_PAGE_SIZE, GROUPED_VIEW_FETCH_PAGE_SIZE, LIST_SEARCH_DEBOUNCE_MS } from '@/constants/list';
 import { ExportDialog, type ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 
-type StatusFilter = 'all' | 'within' | 'breach' | 'overdue' | 'archived';
+type StatusFilter = 'all' | 'archived' | KRIMonitoringStatus;
+type TimelinessFilter = KRITimelinessStatus | null;
+
+const TIMELINESS_FILTER_VALUES: KRITimelinessStatus[] = ['due_soon'];
+
+function isMonitoringStatus(value: string | null): value is KRIMonitoringStatus {
+    return value !== null && (KRI_MONITORING_FILTER_VALUES as readonly string[]).includes(value);
+}
+
+function isTimelinessStatus(value: string | null): value is KRITimelinessStatus {
+    return value !== null && TIMELINESS_FILTER_VALUES.includes(value as KRITimelinessStatus);
+}
+
+function readKriRouteFilters(searchParams: URLSearchParams): {
+    statusFilter: StatusFilter;
+    timelinessFilter: TimelinessFilter;
+} {
+    const timeliness = searchParams.get('timeliness_status');
+    if (isTimelinessStatus(timeliness)) {
+        return { statusFilter: 'all', timelinessFilter: timeliness };
+    }
+    const monitoringStatus = searchParams.get('monitoring_status');
+    if (isMonitoringStatus(monitoringStatus)) {
+        return { statusFilter: monitoringStatus, timelinessFilter: null };
+    }
+    return { statusFilter: 'all', timelinessFilter: null };
+}
 
 export function KRIsPage() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [kris, setKris] = useState<KeyRiskIndicator[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+    const initialFilters = readKriRouteFilters(searchParams);
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialFilters.statusFilter);
+    const [timelinessFilter, setTimelinessFilter] = useState<TimelinessFilter>(initialFilters.timelinessFilter);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -44,6 +74,9 @@ export function KRIsPage() {
                     size: limit,
                     include_archived: includeArchived,
                     search: debouncedSearch || undefined,
+                    monitoring_status:
+                        !timelinessFilter && statusFilter !== 'all' && statusFilter !== 'archived' ? statusFilter : undefined,
+                    timeliness_status: timelinessFilter ?? undefined,
                 });
                 if (!isLatestRequest()) return;
                 setKris(data.items || []);
@@ -61,6 +94,9 @@ export function KRIsPage() {
                         size: pageSize,
                         include_archived: includeArchived,
                         search: debouncedSearch || undefined,
+                        monitoring_status:
+                            !timelinessFilter && statusFilter !== 'all' && statusFilter !== 'archived' ? statusFilter : undefined,
+                        timeliness_status: timelinessFilter ?? undefined,
                     });
                     total = data.total || 0;
                     allKRIs = [...allKRIs, ...(data.items || [])];
@@ -79,7 +115,7 @@ export function KRIsPage() {
                 setIsLoading(false);
             }
         }
-    }, [viewMode, currentPage, limit, statusFilter, debouncedSearch]);
+    }, [viewMode, currentPage, limit, statusFilter, timelinessFilter, debouncedSearch]);
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -105,7 +141,9 @@ export function KRIsPage() {
                 format,
                 asOfDate,
                 filters: {
-                    status: statusFilter,
+                    status: statusFilter === 'archived' ? 'archived' : null,
+                    monitoringStatus: !timelinessFilter && statusFilter !== 'all' && statusFilter !== 'archived' ? statusFilter : null,
+                    timelinessStatus: timelinessFilter,
                     search: search.trim() || null,
                 },
             });
@@ -121,6 +159,35 @@ export function KRIsPage() {
         fetchKRIs();
     }, [fetchKRIs]);
 
+    useEffect(() => {
+        const routeFilters = readKriRouteFilters(searchParams);
+        if (routeFilters.statusFilter !== statusFilter) {
+            setStatusFilter(routeFilters.statusFilter);
+            setCurrentPage(1);
+        }
+        if (routeFilters.timelinessFilter !== timelinessFilter) {
+            setTimelinessFilter(routeFilters.timelinessFilter);
+            setCurrentPage(1);
+        }
+    }, [searchParams, statusFilter, timelinessFilter]);
+
+    useEffect(() => {
+        const nextParams = new URLSearchParams(searchParams);
+        if (timelinessFilter) {
+            nextParams.set('timeliness_status', timelinessFilter);
+            nextParams.delete('monitoring_status');
+        } else if (statusFilter !== 'all' && statusFilter !== 'archived') {
+            nextParams.set('monitoring_status', statusFilter);
+            nextParams.delete('timeliness_status');
+        } else {
+            nextParams.delete('monitoring_status');
+            nextParams.delete('timeliness_status');
+        }
+        if (nextParams.toString() !== searchParams.toString()) {
+            setSearchParams(nextParams, { replace: true });
+        }
+    }, [searchParams, setSearchParams, statusFilter, timelinessFilter]);
+
     const formatNumber = (val: number): string => {
         if (val === 0) return '0';
         if (Math.abs(val) < 1) return val.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -132,19 +199,11 @@ export function KRIsPage() {
     const filteredKRIs = kris.filter(kri => {
         const matchesSearch = !search || kri.metric_name.toLowerCase().includes(search.toLowerCase());
 
-        // Calculate overdue status (last_period_end + 15 days < now)
-        const isOverdue = kri.last_period_end
-            ? new Date(kri.last_period_end).getTime() + (15 * 24 * 60 * 60 * 1000) < Date.now()
-            : false;
-
         if (!matchesSearch) return false;
         if (statusFilter === 'archived') return kri.is_archived === true;
         if (kri.is_archived) return false;
-
-        return statusFilter === 'all' ||
-            (statusFilter === 'within' && kri.breach_status === 'within') ||
-            (statusFilter === 'breach' && kri.breach_status !== 'within') ||
-            (statusFilter === 'overdue' && isOverdue);
+        if (timelinessFilter === 'due_soon') return true;
+        return statusFilter === 'all' || kri.monitoring_status === statusFilter;
     });
 
     // Table columns matching Risks page style
@@ -164,9 +223,9 @@ export function KRIsPage() {
             label: t('columns.value'),
             sortable: true,
             render: (kri) => {
-                const isBreaching = kri.breach_status !== 'within';
+                const monitoring = getKriMonitoringMeta(kri.monitoring_status);
                 return (
-                    <span className={`font-black ${isBreaching ? 'text-rose-400' : 'text-white'}`}>
+                    <span className={`font-black ${monitoring.textClassName}`}>
                         {formatNumber(kri.current_value)} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
                     </span>
                 );
@@ -182,18 +241,16 @@ export function KRIsPage() {
             ),
         },
         {
-            key: 'breach_status',
+            key: 'monitoring_status',
             label: t('columns.status'),
             sortable: true,
             render: (kri) => {
-                const isBreaching = kri.breach_status !== 'within';
+                const monitoring = getKriMonitoringMeta(kri.monitoring_status);
+                const MonitoringIcon = monitoring.icon;
                 return (
-                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase w-fit ${isBreaching
-                        ? 'bg-rose-500/10 text-rose-400'
-                        : 'bg-emerald-500/10 text-emerald-400'
-                        }`}>
-                        {isBreaching ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle className="h-3 w-3" />}
-                        {isBreaching ? t('filters.breach') : t('columns.ok')}
+                    <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase w-fit ${monitoring.badgeClassName}`}>
+                        <MonitoringIcon className="h-3 w-3" />
+                        {t(monitoring.labelKey)}
                         {kri.is_archived && (
                             <span className="ml-1 px-1 py-0.5 rounded bg-white/10 text-slate-300 border border-white/10">
                                 {t('labels.archived')}
@@ -315,21 +372,32 @@ export function KRIsPage() {
                 </div>
                 <div className="flex gap-2 flex-wrap items-center">
                     {/* Button-style status filters */}
-                    {(['all', 'within', 'breach', 'overdue', 'archived'] as StatusFilter[]).map((opt) => (
+                    <button
+                        onClick={() => { setTimelinessFilter('due_soon'); setStatusFilter('all'); setCurrentPage(1); }}
+                        data-testid="kris-status-filter-due_soon"
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${timelinessFilter === 'due_soon'
+                            ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                            : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
+                            }`}
+                    >
+                        {t('filters.due_soon')}
+                    </button>
+                    {(['all', ...KRI_MONITORING_FILTER_VALUES, 'archived'] as StatusFilter[]).map((opt) => (
                         <button
                             key={opt}
-                            onClick={() => { setStatusFilter(opt); setCurrentPage(1); }}
+                            onClick={() => { setStatusFilter(opt); setTimelinessFilter(null); setCurrentPage(1); }}
                             data-testid={`kris-status-filter-${opt}`}
                             className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${statusFilter === opt
+                                && !timelinessFilter
                                 ? 'bg-accent text-white shadow-lg shadow-accent/20'
                                 : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                                 }`}
                         >
-                            {t(`filters.${opt}`)}
+                            {opt === 'all' || opt === 'archived' ? t(`filters.${opt}`) : t(`monitoring.${opt}`)}
                         </button>
                     ))}
                     <button
-                        onClick={() => { setSearch(''); setStatusFilter('all'); setCurrentPage(1); }}
+                        onClick={() => { setSearch(''); setStatusFilter('all'); setTimelinessFilter(null); setCurrentPage(1); }}
                         data-testid="kris-clear-filters-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     >
@@ -371,12 +439,12 @@ export function KRIsPage() {
                         columns={columns}
                         keyExtractor={(kri) => kri.id}
                         onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
-                        emptyMessage={t('empty_state.no_kris')}
+                        emptyMessage={timelinessFilter === 'due_soon' ? t('empty_state.no_due_soon_kris') : t('empty_state.no_kris')}
                     />
                     <Pagination
                         currentPage={currentPage}
                         totalPages={totalPages}
-                        totalItems={filteredKRIs.length}
+                        totalItems={viewMode === 'all' ? totalCount : filteredKRIs.length}
                         itemsPerPage={limit}
                         onPageChange={setCurrentPage}
                     />
@@ -413,7 +481,7 @@ export function KRIsPage() {
                     getStats={(items: KeyRiskIndicator[]) => ({
                         total: items.length,
                         activeCount: items.length,
-                        highRiskCount: items.filter(k => k.breach_status !== 'within').length,
+                        highRiskCount: items.filter(k => k.monitoring_status === 'breach').length,
                     })}
                     renderTable={(items: KeyRiskIndicator[]) => (
                         <SortableTable
@@ -425,27 +493,31 @@ export function KRIsPage() {
                         />
                     )}
                     renderItem={(kri: KeyRiskIndicator) => (
-                        <div
-                            key={kri.id}
-                            onClick={() => navigate(`/kris/${kri.id}`)}
-                            className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between border-b border-white/5"
-                        >
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm font-bold text-white">{kri.metric_name}</span>
-                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${kri.breach_status === 'within'
-                                    ? 'bg-emerald-500/10 text-emerald-400'
-                                    : 'bg-rose-500/10 text-rose-400'
-                                    }`}>
-                                    {kri.breach_status === 'within' ? 'OK' : 'Breach'}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-6">
-                                <span className="text-sm font-black text-white">
-                                    {formatNumber(kri.current_value)} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
-                                </span>
-                                <ChevronRight className="h-4 w-4 text-slate-500" />
-                            </div>
-                        </div>
+                        (() => {
+                            const monitoring = getKriMonitoringMeta(kri.monitoring_status);
+                            const MonitoringIcon = monitoring.icon;
+                            return (
+                                <div
+                                    key={kri.id}
+                                    onClick={() => navigate(`/kris/${kri.id}`)}
+                                    className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between border-b border-white/5"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-sm font-bold text-white">{kri.metric_name}</span>
+                                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${monitoring.badgeClassName}`}>
+                                            <MonitoringIcon className="h-3 w-3" />
+                                            {t(monitoring.labelKey)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-6">
+                                        <span className={`text-sm font-black ${monitoring.textClassName}`}>
+                                            {formatNumber(kri.current_value)} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
+                                        </span>
+                                        <ChevronRight className="h-4 w-4 text-slate-500" />
+                                    </div>
+                                </div>
+                            );
+                        })()
                     )}
                 />
             )}

@@ -1,7 +1,7 @@
 ---
 title: Managing Controls
 version: "2.0"
-last_updated: "2026-03-05"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.2, §4, §7 + frontend/src/pages/ControlsPage.tsx"
 summary: "Full manual for control lifecycle management: design, ownership, execution logging, linkage to risks, exports, and approval-aware governance."
@@ -100,6 +100,18 @@ Execution log fields commonly include:
 - findings: what was observed
 - evidence reference: where proof lives
 - notes: context and follow-up
+
+Monitoring status is derived from execution evidence and shown consistently in cards, tables, filters, and exports:
+
+- `new`: no execution logs yet and the control is still within the stale window
+- `needs_review`: no execution for more than the configured stale threshold
+- `failed`: latest execution result is anything other than `passed`
+- `passed`: latest execution result is `passed`
+
+Important rule:
+
+- control monitoring status always uses the **latest execution log only**
+- the stale threshold is configuration-driven (`control_execution_stale_days`, default `365`)
 
 ## Core Workflows
 
@@ -215,7 +227,8 @@ Use `./notifications.md` as the queue manual.
 Controls list supports:
 
 - search (name/description)
-- status filter (including archived)
+- monitoring status filter (`new`, `needs review`, `failed`, `passed`)
+- archived lifecycle filter
 - view mode (all vs grouped)
 
 Use grouped views for review prep and concentration analysis.
@@ -226,9 +239,16 @@ Controls can be exported for audit packs and operational reviews.
 
 Export discipline:
 
-- export with clear filters (status, search)
+- export with clear filters (monitoring status, archived, search)
 - keep “as of” context
 - keep the raw export unchanged
+
+Control exports now include monitoring-specific columns:
+
+- monitoring status
+- latest execution result
+- latest executed at
+- days since last execution
 
 ## Common Mistakes
 

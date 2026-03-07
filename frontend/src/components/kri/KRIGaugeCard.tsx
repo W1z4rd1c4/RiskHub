@@ -1,8 +1,7 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle, Info, Clock } from 'lucide-react';
 import type { KeyRiskIndicator } from '@/types/kri';
 import { useTranslation } from '@/i18n/hooks';
-import { useStatusTheme } from '@/hooks/useStatusTheme';
+import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 
 interface KRIGaugeCardProps {
     kri: KeyRiskIndicator;
@@ -13,40 +12,17 @@ interface KRIGaugeCardProps {
 
 export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeCardProps) {
     const { t } = useTranslation(['kris', 'common']);
-    const statusTheme = useStatusTheme();
     const {
         metric_name,
         current_value,
         lower_limit,
         upper_limit,
         unit,
-        breach_status
     } = kri;
-
-    const isNearLimit = () => {
-        const range = upper_limit - lower_limit;
-        const distToLower = Math.abs(current_value - lower_limit);
-        const distToUpper = Math.abs(current_value - upper_limit);
-        return distToLower < range * 0.1 || distToUpper < range * 0.1;
-    };
-
-    const getStatusColor = () => {
-        if (breach_status !== 'within') return statusTheme.control.lowText;
-        if (isNearLimit()) return statusTheme.control.mediumText;
-        return statusTheme.control.highText;
-    };
-
-    const getBarColor = () => {
-        if (breach_status !== 'within') return statusTheme.kri.breachGauge;
-        if (isNearLimit()) return statusTheme.kri.warningGauge;
-        return statusTheme.kri.withinGauge;
-    };
-
-    const getStatusIcon = () => {
-        if (breach_status !== 'within') return <AlertTriangle className="h-4 w-4" />;
-        if (isNearLimit()) return <Info className="h-4 w-4" />;
-        return <CheckCircle className="h-4 w-4" />;
-    };
+    const monitoring = getKriMonitoringMeta(kri.monitoring_status);
+    const MonitoringIcon = monitoring.icon;
+    const resolvedDaysOverdue = kri.days_overdue ?? daysOverdue ?? 0;
+    const showDaysOverdue = kri.monitoring_status === 'not_submitted' || isOverdue;
 
     // Calculate position on 0-100 scale for visual gauge
     // We add some padding to the range to show context
@@ -95,14 +71,14 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
                         {t('overview.metric_detail', { ns: 'kris' })}
                     </span>
                 </div>
-                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 border border-white/20 font-bold text-[10px] uppercase tracking-wide ${getStatusColor()}`}>
-                    {getStatusIcon()}
-                    {breach_status === 'within' ? t('overview.optimal', { ns: 'kris' }) : breach_status.toUpperCase()}
+                <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wide ${monitoring.badgeClassName}`}>
+                    <MonitoringIcon className="h-4 w-4" />
+                    {t(monitoring.labelKey)}
                 </div>
-                {isOverdue && (
+                {showDaysOverdue && (
                     <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-[10px] uppercase">
-                        <Clock className="h-3 w-3" />
-                        {daysOverdue ? `${daysOverdue}d` : t('status.overdue', { ns: 'kris' })}
+                        <MonitoringIcon className="h-3 w-3" />
+                        {resolvedDaysOverdue > 0 ? `${resolvedDaysOverdue}d` : t('monitoring.not_submitted', { ns: 'kris' })}
                     </div>
                 )}
             </div>
@@ -147,7 +123,7 @@ export function KRIGaugeCard({ kri, onClick, isOverdue, daysOverdue }: KRIGaugeC
                     <motion.div
                         initial={{ left: 0 }}
                         animate={{ left: `${valuePct}%` }}
-                        className={`absolute w-3 h-3 rounded-full border-2 border-slate-900 z-10 -ml-1.5 ${getBarColor()}`}
+                        className={`absolute w-3 h-3 rounded-full border-2 border-slate-900 z-10 -ml-1.5 ${monitoring.gaugeClassName}`}
                     />
                 </div>
 

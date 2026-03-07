@@ -32,7 +32,30 @@ export const ExecutionResult = {
     NA: 'not_applicable' as ExecutionResult,
 };
 
+export type ControlMonitoringStatus = 'new' | 'needs_review' | 'failed' | 'passed';
+export type ControlMonitoringReason =
+    | 'no_execution_logs_recent'
+    | 'no_execution_logs_stale'
+    | 'latest_execution_stale'
+    | 'latest_execution_non_passed'
+    | 'latest_execution_passed';
+
+export interface ControlMonitoringFields {
+    monitoring_status?: ControlMonitoringStatus;
+    monitoring_status_reason?: ControlMonitoringReason;
+    latest_execution_result?: ExecutionResult | null;
+    latest_executed_at?: string | null;
+    days_since_last_execution?: number | null;
+    execution_log_count?: number;
+}
+
 export interface Control {
+    monitoring_status?: ControlMonitoringStatus;
+    monitoring_status_reason?: ControlMonitoringReason;
+    latest_execution_result?: ExecutionResult | null;
+    latest_executed_at?: string | null;
+    days_since_last_execution?: number | null;
+    execution_log_count?: number;
     id: number;
     name: string;
     description: string;
@@ -67,7 +90,7 @@ export interface Control {
     };
 }
 
-export interface ControlSummary {
+export interface ControlSummary extends ControlMonitoringFields {
     id: number;
     name: string;
     description?: string;
@@ -129,9 +152,12 @@ export interface ControlRiskLink {
     effectiveness: ControlEffectiveness;
     notes?: string;
     created_at: string;
-    control?: {
+    control?: ControlMonitoringFields & {
         id: number;
         name: string;
+        frequency?: ControlFrequency | string;
+        risk_level?: number;
+        status?: ControlStatus | string;
     };
     risk?: {
         id: number;

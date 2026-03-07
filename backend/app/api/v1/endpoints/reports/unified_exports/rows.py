@@ -4,6 +4,7 @@ from typing import Any
 from app.core.datetime_utils import coerce_utc
 from app.models import Control, Issue, KeyRiskIndicator, Risk, Vendor
 from app.models.issue import IssueStatus
+from app.services._monitoring_status import build_control_monitoring_facts
 from app.services.issue_visibility_service import issue_has_active_approved_exception
 
 from ._shared import _enum_value, _joined, _latest_exception
@@ -39,6 +40,7 @@ def _risk_to_row(risk: Risk) -> dict[str, Any]:
 
 def _control_to_row(control: Control) -> dict[str, Any]:
     first_risk = control.risk_links[0].risk if control.risk_links else None
+    monitoring_facts = build_control_monitoring_facts(control)
     return {
         "id": control.id,
         "name": control.name,
@@ -56,6 +58,9 @@ def _control_to_row(control: Control) -> dict[str, Any]:
         "risk_owner_name": first_risk.owner.name if first_risk and first_risk.owner else None,
         "risk_department_name": first_risk.department.name if first_risk and first_risk.department else None,
         "linked_risk_count": len(control.risk_links or []),
+        "latest_execution_result": monitoring_facts.latest_execution_result,
+        "latest_executed_at": monitoring_facts.latest_executed_at,
+        "execution_log_count": monitoring_facts.execution_log_count,
         "created_at": control.created_at,
     }
 
@@ -165,4 +170,3 @@ def _issue_to_row(issue: Issue, *, as_of_dt: datetime) -> dict[str, Any]:
         "exception_status": _enum_value(latest_exception.status) if latest_exception else None,
         "exception_expires_at": coerce_utc(latest_exception.expires_at) if latest_exception else None,
     }
-

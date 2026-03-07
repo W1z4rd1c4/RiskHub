@@ -66,6 +66,11 @@ Karta **Vazby** zobrazuje:
 - celkový počet propojených indikátorů rizikového apetitu (KRI)
 - celkový počet propojených dodavatelů
 
+Propojené KRI a karty kontrol na detailu rizika nyní také zobrazují kanonický monitoring status z backendem odvozených dat:
+
+- kontroly: `new`, `needs review`, `failed`, `passed`
+- KRI: `new`, `not submitted`, `breach`, `warning`, `optimal`
+
 Pokud **Rizika** nevidíte v menu:
 
 - pravděpodobně nemáte `risks:read`

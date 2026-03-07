@@ -87,6 +87,7 @@ async def _fetch_controls_for_export(
     query = query.options(
         selectinload(Control.department),
         selectinload(Control.control_owner),
+        selectinload(Control.executions),
         selectinload(Control.risk_links).selectinload(ControlRiskLink.risk).selectinload(Risk.department),
         selectinload(Control.risk_links).selectinload(ControlRiskLink.risk).selectinload(Risk.owner),
     )
@@ -237,4 +238,3 @@ async def _fetch_issues_for_export(
 
     result = await db.execute(query.order_by(Issue.id.asc()))
     return list(result.scalars().all())
-

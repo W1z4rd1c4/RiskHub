@@ -1,18 +1,24 @@
 import type { ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE, GROUPED_VIEW_FETCH_PAGE_SIZE } from '@/constants/list';
 import { controlApi } from '@/services/controlApi';
-import { ControlStatus, type ControlSummary } from '@/types/control';
+import {
+    ControlStatus,
+    type ControlMonitoringStatus,
+    type ControlSummary,
+} from '@/types/control';
+
+export type ControlListStatusFilter = '' | 'archived' | ControlMonitoringStatus;
 
 interface BuildControlListParamsOptions {
     currentPage: number;
     limit?: number;
     search: string;
-    statusFilter: ControlStatus | '';
+    statusFilter: ControlListStatusFilter;
 }
 
 interface BuildControlExportFiltersOptions {
     search: string;
-    statusFilter: ControlStatus | '';
+    statusFilter: ControlListStatusFilter;
 }
 
 export function buildControlListParams({
@@ -25,8 +31,9 @@ export function buildControlListParams({
         skip: (currentPage - 1) * limit,
         limit,
         search: search.trim() || undefined,
-        status: statusFilter || undefined,
-        include_archived: statusFilter === ControlStatus.ARCHIVED,
+        status: statusFilter === 'archived' ? ControlStatus.ARCHIVED : undefined,
+        monitoring_status: statusFilter && statusFilter !== 'archived' ? statusFilter : undefined,
+        include_archived: statusFilter === 'archived',
     };
 }
 
@@ -66,7 +73,8 @@ export function buildControlExportFilters({
     statusFilter,
 }: BuildControlExportFiltersOptions) {
     return {
-        status: statusFilter || null,
+        status: statusFilter === 'archived' ? ControlStatus.ARCHIVED : null,
+        monitoringStatus: statusFilter && statusFilter !== 'archived' ? statusFilter : null,
         search: search.trim() || null,
     };
 }

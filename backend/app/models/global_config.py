@@ -130,6 +130,10 @@ class ConfigDefaults:
     # Breach thresholds
     NEAR_BREACH_THRESHOLD = 0.80  # 80% towards limit = near breach
 
+    # Monitoring status thresholds
+    CONTROL_EXECUTION_STALE_DAYS = 365
+    KRI_WARNING_UPPER_MARGIN_RATIO = 0.10
+
 
 async def get_risk_thresholds(db: "AsyncSession") -> tuple[int, int, int]:
     """
