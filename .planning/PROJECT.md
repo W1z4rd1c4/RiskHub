@@ -27,7 +27,7 @@ How we know this worked:
 - [x] Dashboards show real-time control status across departments
 - [ ] Auditors can verify control execution through the system
 - [x] Control execution is documented and timestamped
-- [ ] System can be deployed on-premise with Docker/Kubernetes
+- [ ] System can be deployed on-premise with the supported `docker` and `linux` deployment targets
 - [ ] Architecture supports future cloud migration to Azure
 
 ## Scope
@@ -110,7 +110,7 @@ How we know this worked:
 
 - **Tech Stack**: Next.js 14+, PostgreSQL, Prisma, Docker — chosen for modern DX and enterprise readiness
 - **Authentication**: Must integrate with Active Directory/Entra ID — no standalone auth
-- **Deployment**: On-premise first (Docker/K8s), cloud-ready architecture
+- **Deployment**: On-premise first (`docker` or `linux` target), cloud-ready architecture
 - **Language**: UI in Czech/Slovak for v1
 - **Compliance**: Must support audit trails and control verification
 
@@ -122,7 +122,7 @@ How we know this worked:
 | Backend | Python FastAPI | Async, fast, great for APIs, strong typing with Pydantic |
 | Database | PostgreSQL + SQLAlchemy | Enterprise-grade, async support, type-safe ORM |
 | Auth | Azure AD via MSAL | Native Entra ID integration, token management |
-| Deployment | Docker + K8s ready | On-premise first, cloud migration path |
+| Deployment | Docker and Linux deploy targets | On-premise first, cloud migration path |
 | UI Framework | Tailwind + shadcn/ui | Modern, accessible, fast development |
 | i18n | react-i18next | English default, Czech language option |
 

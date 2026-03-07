@@ -11,6 +11,12 @@ export default defineConfig({
     },
   },
   build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        prodLoginPreview: path.resolve(__dirname, 'prod-login-preview.html'),
+      },
+    },
     chunkSizeWarningLimit: 1500, // Raise limit to 1500 kB
   },
   server: {

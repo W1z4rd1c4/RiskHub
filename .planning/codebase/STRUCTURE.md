@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-03-05
+**Analysis Date:** 2026-03-07
 
 ## Top-Level Layout
 
@@ -22,14 +22,14 @@
 - `backend/app/api/v1/endpoints/` - 172 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
 - `backend/app/models/` - 35 model modules (measured `*.py` snapshot)
 - `backend/app/schemas/` - 29 schema modules (measured `*.py` snapshot)
-- `backend/app/services/` - 62 Python modules (measured `*.py` snapshot; business services + internal refactor packages; facade modules re-export public symbols)
+- `backend/app/services/` - 65 Python modules (measured `*.py` snapshot; business services + internal refactor packages; facade modules re-export public symbols)
 - `backend/app/core/` - configuration, auth, permissions, logging, scheduler
 - `backend/app/middleware/` - security/logging/language middleware
 - `backend/app/integrations/` - AD emulator and vendor-signal connectors
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 111 tracked test files (108 Python) (measured git-tracked snapshot)
+- `tests/backend/pytest/` - 129 tracked test files (126 Python) (measured git-tracked snapshot)
 
 ## Frontend Tree (`frontend/`)
 
@@ -38,8 +38,8 @@
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 46 tracked files (measured git-tracked snapshot; route-level pages + tests)
-- `frontend/src/components/` - 156 tracked files (measured git-tracked snapshot; components + tests)
+- `frontend/src/pages/` - 77 tracked files (measured git-tracked snapshot; route-level pages + tests)
+- `frontend/src/components/` - 162 tracked files (measured git-tracked snapshot; components + tests)
 - `frontend/src/services/` - API client and domain service wrappers
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -57,15 +57,14 @@
 - `.planning/codebase/` - generated codebase reference docs
 - `docs/BUSINESS_LOGIC.md` - domain source of truth
 - `docs/TESTING.md` - testing guidance and workflows
-- `docs/deployment/` - deployment runbooks (Compose/Kubernetes/migrations)
+- `docs/deployment/` - deployment runbooks for supported docker/linux operations and migration guidance
 
 ## Build/Test/Automation Artifacts
 
 - `.github/workflows/e2e.yml` - CI E2E flow
 - `.github/workflows/security.yml` - security scanning flow
-- `docker-compose.yml` and `docker-compose.prod.yml` - service topology
+- `docker-compose.yml` - development service topology
 - `scripts/Makefile` - local command entrypoints
-- `docs/deployment/component-runtime-entrypoints.md` - component runtime command contract
 
 ## Generated or Heavy Directories (avoid manual edits)
 
@@ -77,4 +76,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-03-05*
+*Structure audit refreshed on 2026-03-07*

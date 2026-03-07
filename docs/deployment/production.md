@@ -16,8 +16,6 @@ Both targets require:
 - access to the release assets for the version you want to deploy
 - an encrypted host disk or encrypted mount for `/etc/riskhub`
 
-Do not use the retired legacy wrappers `scripts/prod/setup.sh`, `scripts/prod/deploy.sh`, `scripts/prod/upgrade.sh`, or `scripts/prod/stop.sh`. They are deprecated redirect stubs only.
-
 ## 1. Prepare The Host
 
 Docker target:

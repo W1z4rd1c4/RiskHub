@@ -14,17 +14,6 @@ Admins should use [`docs/deployment/production.md`](../../docs/deployment/produc
 - Internal runtime contracts consumed by `./scripts/deploy.sh --target docker`.
 - Maintainer diagnostics such as `verify_runtime.sh`.
 
-## Retired Legacy Wrappers
-
-These top-level orchestration wrappers are deprecated, unsupported, and kept only as redirect stubs:
-
-- `scripts/prod/setup.sh`
-- `scripts/prod/deploy.sh`
-- `scripts/prod/upgrade.sh`
-- `scripts/prod/stop.sh`
-
-They must not be used as operator entrypoints or referenced as supported admin flows.
-
 ## Important Contract Change
 
 - These scripts no longer accept raw secret values in `backend.env`.
