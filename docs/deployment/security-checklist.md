@@ -54,6 +54,8 @@ RiskHub production deploys must satisfy these invariants:
 - Keep `/etc/riskhub/riskhub.env` non-secret only.
 - Never commit production secrets.
 - Keep `/etc/riskhub` on an encrypted disk or encrypted mount.
+- `./scripts/deploy.sh secrets-edit ...` keeps its temporary edit workspace on the same host-managed deployment path as `--secret-dir`, not under `/tmp`.
+- Do not bypass the supported deployment flow with retired wrappers such as `scripts/prod/setup.sh`, `scripts/prod/deploy.sh`, `scripts/prod/upgrade.sh`, or `scripts/prod/stop.sh`.
 - Store `SECRET_KEY`, database credentials, Redis password, and `ENTRA_CLIENT_SECRET` in a secret manager when possible.
 - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` are not secret values.
 - Do not print secrets into shell history or CI logs.
