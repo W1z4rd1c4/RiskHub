@@ -140,7 +140,7 @@ test.describe('Vendor SLA CRUD Permissions (Deterministic)', () => {
 
     test('Archived SLA is hidden by default and shown when include archived is enabled', async ({ riskManagerPage }) => {
         const vendorDetail = new VendorDetailPage(riskManagerPage);
-        await vendorDetail.navigate(vendorId, 'sla');
+        await vendorDetail.navigate(vendorId, 'operations', 'sla');
 
         await expect(vendorDetail.slaCard(E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name)).toHaveCount(0);
 
@@ -150,7 +150,7 @@ test.describe('Vendor SLA CRUD Permissions (Deterministic)', () => {
 
     test('Privileged user can restore archived SLA from vendor detail', async ({ riskManagerPage }) => {
         const vendorDetail = new VendorDetailPage(riskManagerPage);
-        await vendorDetail.navigate(vendorId, 'sla');
+        await vendorDetail.navigate(vendorId, 'operations', 'sla');
         await vendorDetail.setIncludeArchivedSla(true);
 
         const targetCard = vendorDetail.slaCard(E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name);
@@ -173,7 +173,7 @@ test.describe('Vendor SLA CRUD Permissions (Deterministic)', () => {
 
     test('Department-scoped user without vendors:delete cannot see SLA restore action', async ({ deptHeadPage }) => {
         const vendorDetail = new VendorDetailPage(deptHeadPage);
-        await vendorDetail.navigate(vendorId, 'sla');
+        await vendorDetail.navigate(vendorId, 'operations', 'sla');
         await vendorDetail.setIncludeArchivedSla(true);
 
         const targetCard = vendorDetail.slaCard(E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name);

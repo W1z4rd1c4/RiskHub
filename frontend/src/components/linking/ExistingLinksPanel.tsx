@@ -13,6 +13,7 @@ import { useTranslation } from '@/i18n/hooks';
 
 /** Existing link item - accepts RiskControlLink or ControlRiskLink shapes */
 export interface ExistingLinkItem {
+    display_name?: string;
     id: number;
     risk_id?: number;
     control_id?: number;
@@ -27,6 +28,7 @@ export interface ExistingLinksPanelProps {
     existingLinks: ExistingLinkItem[];
     onUnlink: (targetId: number) => void;
     isUnlinking: number | null;
+    showMetadataBadge?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -67,6 +69,7 @@ export function ExistingLinksPanel({
     existingLinks,
     onUnlink,
     isUnlinking,
+    showMetadataBadge = true,
 }: ExistingLinksPanelProps) {
     const { t } = useTranslation(['common', 'risks', 'controls']);
     const getTargetId = (link: ExistingLinkItem): number => {
@@ -74,6 +77,9 @@ export function ExistingLinksPanel({
     };
 
     const getDisplayName = (link: ExistingLinkItem): string => {
+        if (link.display_name) {
+            return link.display_name;
+        }
         if (mode === 'control-to-risk') {
             return getRiskDescription(link.risk) || t('common:labels.unknown');
         }
@@ -108,12 +114,14 @@ export function ExistingLinksPanel({
                                         <span className="text-xs font-bold text-white truncate">
                                             {getDisplayName(link)}
                                         </span>
-                                        <span className={cn(
-                                            "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border font-mono",
-                                            getEffectivenessColor(link.effectiveness)
-                                        )}>
-                                            {link.effectiveness}
-                                        </span>
+                                        {showMetadataBadge && (
+                                            <span className={cn(
+                                                "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border font-mono",
+                                                getEffectivenessColor(link.effectiveness)
+                                            )}>
+                                                {link.effectiveness}
+                                            </span>
+                                        )}
                                     </div>
                                     {link.notes && (
                                         <p className="text-[10px] text-slate-400 italic line-clamp-1">"{link.notes}"</p>

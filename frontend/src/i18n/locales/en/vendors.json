@@ -19,6 +19,9 @@
     "refresh": "Refresh",
     "unarchive": "Unarchive"
   },
+  "messages": {
+    "archive_confirm": "Archive vendor {{vendorName}}?"
+  },
   "filters": {
     "search_placeholder": "Search vendors...",
     "all_statuses": "All statuses",
@@ -52,20 +55,53 @@
   "detail": {
     "overview": "Overview",
     "ownership": "Ownership",
-    "classification": "Classification"
+    "classification": "Classification",
+    "monitoring": "Monitoring",
+    "connections": "Connections"
+  },
+  "overview": {
+    "kpis": {
+      "risk_score": "Risk score",
+      "assessment": "Latest assessment",
+      "reassessment_due": "Reassessment due",
+      "linked_exposure": "Linked exposure",
+      "linked_exposure_hint": "{{risks}} risks + {{controls}} controls",
+      "no_assessment": "No assessment yet"
+    },
+    "schedule": {
+      "good": "On track",
+      "warn": "Due soon",
+      "bad": "Overdue",
+      "neutral": "No due date"
+    },
+    "monitoring": {
+      "assessment": "Assessment status",
+      "schedule": "Next reassessment",
+      "sla_breaches": "SLA breaches",
+      "major_incidents": "Major incidents"
+    },
+    "meta": {
+      "created_at": "Created",
+      "updated_at": "Updated",
+      "active_incidents": "Incidents"
+    }
   },
   "tabs": {
+    "overview": "Overview",
     "risk_factors": "Risk Factors",
     "linked_risks": "Linked Risks",
     "linked_controls": "Linked Controls",
     "assessments": "Assessments",
+    "assurance": "Assurance",
     "schedule": "Schedule",
     "contract_controls": "Contract Controls",
     "resilience": "Resilience",
+    "operations": "Operations",
     "dependencies": "Dependencies",
     "incidents": "Incidents",
     "remediation": "Remediation",
     "sla": "SLA",
+    "ecosystem": "Ecosystem",
     "signals": "Signals"
   },
   "signals": {
