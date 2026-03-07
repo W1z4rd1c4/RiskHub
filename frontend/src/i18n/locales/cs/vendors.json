@@ -19,6 +19,9 @@
     "refresh": "Obnovit",
     "unarchive": "Obnovit z archivu"
   },
+  "messages": {
+    "archive_confirm": "Archivovat dodavatele {{vendorName}}?"
+  },
   "filters": {
     "search_placeholder": "Hledat dodavatele...",
     "all_statuses": "Všechny stavy",
@@ -52,20 +55,53 @@
   "detail": {
     "overview": "Přehled",
     "ownership": "Vlastnictví",
-    "classification": "Klasifikace"
+    "classification": "Klasifikace",
+    "monitoring": "Monitoring",
+    "connections": "Vazby"
+  },
+  "overview": {
+    "kpis": {
+      "risk_score": "Skóre rizika",
+      "assessment": "Poslední hodnocení",
+      "reassessment_due": "Termín přehodnocení",
+      "linked_exposure": "Navázaná expozice",
+      "linked_exposure_hint": "{{risks}} rizik + {{controls}} kontrol",
+      "no_assessment": "Zatím bez hodnocení"
+    },
+    "schedule": {
+      "good": "V pořádku",
+      "warn": "Brzy splatné",
+      "bad": "Po termínu",
+      "neutral": "Bez termínu"
+    },
+    "monitoring": {
+      "assessment": "Stav hodnocení",
+      "schedule": "Další přehodnocení",
+      "sla_breaches": "Porušení SLA",
+      "major_incidents": "Závažné incidenty"
+    },
+    "meta": {
+      "created_at": "Vytvořeno",
+      "updated_at": "Aktualizováno",
+      "active_incidents": "Incidenty"
+    }
   },
   "tabs": {
+    "overview": "Přehled",
     "risk_factors": "Rizikové faktory",
     "linked_risks": "Navázaná rizika",
     "linked_controls": "Navázané kontroly",
     "assessments": "Hodnocení",
+    "assurance": "Zajištění",
     "schedule": "Plán",
     "contract_controls": "Smluvní kontroly",
     "resilience": "Odolnost",
+    "operations": "Provoz",
     "dependencies": "Závislosti",
     "incidents": "Incidenty",
     "remediation": "Nápravná opatření",
     "sla": "SLA",
+    "ecosystem": "Ekosystém",
     "signals": "Signály"
   },
   "signals": {

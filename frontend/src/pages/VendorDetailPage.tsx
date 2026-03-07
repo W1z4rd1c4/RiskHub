@@ -1,11 +1,13 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
-import { ArrowLeft, XCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, XCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
+import { vendorApi } from '@/services/vendorApi';
 import { VendorDetailHeader } from './vendors/VendorDetailHeader';
 import { VendorFormView } from './vendors/VendorFormView';
-import { VendorSummaryCards } from './vendors/VendorSummaryCards';
 import { VendorTabPanel } from './vendors/VendorTabPanel';
 import { VendorTabs } from './vendors/VendorTabs';
 import { useVendorDetailState } from './vendors/useVendorDetailState';
@@ -21,7 +23,9 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const { user, hasPermission } = useAuth();
 
     const {
+        activeSection,
         activeTab,
+        canArchive,
         canEdit,
         canEditByOwnership,
         canRestore,
@@ -31,6 +35,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         isLoading,
         openIssueModal,
         restoreVendor,
+        selectSection,
         selectTab,
         vendor,
     } = useVendorDetailState({
@@ -40,6 +45,27 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         canDeleteVendor: hasPermission('vendors', 'delete'),
         notFoundMessage: t('errors.not_found'),
     });
+    const { t: tCommon } = useTranslation('common');
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+    const archiveVendor = async () => {
+        if (!vendor) {
+            return;
+        }
+        try {
+            setIsDeleting(true);
+            await vendorApi.deleteVendor(vendor.id);
+            navigate('/vendors');
+        } catch (error) {
+            console.error('Failed to archive vendor:', error);
+            setActionMessage(t('errors.load_failed'));
+        } finally {
+            setIsDeleting(false);
+            setIsDeleteDialogOpen(false);
+        }
+    };
 
     if (mode === 'new') {
         return (
@@ -95,25 +121,41 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
 
     return (
         <div className="space-y-8">
+            {actionMessage && (
+                <div className="flex items-start gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-rose-300">
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                    <p className="text-sm font-medium">{actionMessage}</p>
+                    <button
+                        type="button"
+                        onClick={() => setActionMessage(null)}
+                        className="ml-auto opacity-60 transition-opacity hover:opacity-100"
+                    >
+                        <XCircle className="h-4 w-4" />
+                    </button>
+                </div>
+            )}
+
             <VendorDetailHeader
                 vendor={vendor}
+                canArchive={canArchive}
                 canEdit={canEdit}
                 canRestore={canRestore}
+                onArchive={() => setIsDeleteDialogOpen(true)}
                 onBack={() => navigate('/vendors')}
                 onOpenIssueModal={openIssueModal}
                 onEdit={() => navigate(`/vendors/${vendor.id}/edit`)}
                 onRestore={() => void restoreVendor()}
             />
 
-            <VendorSummaryCards vendor={vendor} />
-
             <VendorTabs activeTab={activeTab} onSelectTab={selectTab} />
 
             <VendorTabPanel
                 vendor={vendor}
+                activeSection={activeSection}
                 activeTab={activeTab}
                 canEdit={canEdit}
                 canEditContractControls={canEditByOwnership || hasPermission('vendor_contracts', 'write')}
+                onSelectSection={selectSection}
             />
 
             <IssueQuickCreateModal
@@ -123,6 +165,17 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                 contextEntityId={vendor.id}
                 contextEntityLabel={vendor.name}
                 onCreated={(issue) => navigate(`/issues/${issue.id}`)}
+            />
+
+            <ConfirmDialog
+                isOpen={isDeleteDialogOpen}
+                onClose={() => setIsDeleteDialogOpen(false)}
+                onConfirm={archiveVendor}
+                title={tCommon('actions.archive')}
+                message={t('messages.archive_confirm', { vendorName: vendor.name })}
+                confirmLabel={tCommon('actions.archive')}
+                variant="danger"
+                isLoading={isDeleting}
             />
         </div>
     );

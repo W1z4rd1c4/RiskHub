@@ -40,10 +40,10 @@ export function VendorLinkedControlsTab({ vendorId, canEdit, onNavigateToControl
     const existingLinks = useMemo<ExistingLinkItem[]>(
         () =>
             linkedControls.map((c) => ({
+                display_name: c.name,
                 id: c.id,
+                effectiveness: 'linked',
                 control_id: c.id,
-                effectiveness: 'medium',
-                control: { name: c.name },
             })),
         [linkedControls],
     );
@@ -175,6 +175,7 @@ export function VendorLinkedControlsTab({ vendorId, canEdit, onNavigateToControl
                     onUnlink={async (targetId) => handleUnlink(targetId)}
                     isOpen={isDialogOpen}
                     onClose={() => setIsDialogOpen(false)}
+                    showLinkMetadataBadge={false}
                 />
             )}
         </section>

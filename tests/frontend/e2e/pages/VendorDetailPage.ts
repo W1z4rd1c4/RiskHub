@@ -8,8 +8,19 @@ export class VendorDetailPage {
         this.page = page;
     }
 
-    async navigate(vendorId: number, tab?: 'sla' | 'linked_risks' | 'linked_controls'): Promise<void> {
-        const suffix = tab ? `?tab=${tab}` : '';
+    async navigate(
+        vendorId: number,
+        tab?: 'overview' | 'assessments' | 'assurance' | 'operations' | 'ecosystem',
+        section?: 'risk_factors' | 'linked_risks' | 'linked_controls' | 'assessments' | 'schedule' | 'contract_controls' | 'resilience' | 'sla' | 'incidents' | 'remediation' | 'dependencies' | 'signals',
+    ): Promise<void> {
+        const params = new URLSearchParams();
+        if (tab) {
+            params.set('tab', tab);
+        }
+        if (section) {
+            params.set('section', section);
+        }
+        const suffix = params.size > 0 ? `?${params.toString()}` : '';
         await this.page.goto(`/vendors/${vendorId}${suffix}`);
         await waitForDataLoad(this.page);
     }

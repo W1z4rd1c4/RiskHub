@@ -1,6 +1,7 @@
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_VENDORS } from './fixtures/e2e-data';
 import { ensureVendorStatus } from './helpers/api-auth';
+import { waitForDataLoad } from './helpers/wait';
 import { VendorsPage } from './pages/VendorsPage';
 
 function todayLocalIso(): string {
@@ -54,5 +55,28 @@ test.describe('Vendor Management (Deterministic)', () => {
         await vendorsPage.openRowByText(E2E_VENDORS.ACTIVE_PRIMARY.name);
         await expect(riskManagerPage).toHaveURL(/\/vendors\/\d+$/);
         await expect(riskManagerPage.locator('h1').first()).toContainText(E2E_VENDORS.ACTIVE_PRIMARY.name);
+    });
+
+    test('Vendor detail defaults to the merged overview surface', async ({ riskManagerPage }) => {
+        const vendorId = await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
+
+        await riskManagerPage.goto(`/vendors/${vendorId}`);
+        await waitForDataLoad(riskManagerPage);
+
+        await expect(riskManagerPage.getByRole('button', { name: /Overview|Přehled/i })).toBeVisible();
+        await expect(riskManagerPage.getByText(/Risk Factors|Rizikov[ée] faktory/i).first()).toBeVisible();
+        await expect(riskManagerPage.getByText(/Linked Risks|Navázaná rizika/i).first()).toBeVisible();
+        await expect(riskManagerPage.getByText(/Linked Controls|Navázané kontroly/i).first()).toBeVisible();
+    });
+
+    test('Legacy vendor tab links canonicalize into merged tab plus section', async ({ riskManagerPage }) => {
+        const vendorId = await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
+
+        await riskManagerPage.goto(`/vendors/${vendorId}?tab=sla`);
+        await waitForDataLoad(riskManagerPage);
+
+        await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}\\?tab=operations&section=sla$`));
+        await expect(riskManagerPage.getByRole('button', { name: 'Operations' })).toBeVisible();
+        await expect(riskManagerPage.getByText('Track SLA values over time and flag threshold breaches.')).toBeVisible();
     });
 });

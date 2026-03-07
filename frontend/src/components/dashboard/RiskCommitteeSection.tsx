@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Building2, Clock, Star, Activity, Handshake, BellRing } from 'lucide-react';
 import { dashboardApi } from '@/services/dashboardApi';
 import { useTranslation } from '@/i18n/hooks';
+import { buildVendorDetailPath } from '@/pages/vendors/vendorDetailPresentation';
 import { QuarterlyComparisonWidget } from './QuarterlyComparisonWidget';
 
 interface CommitteeSummary {
@@ -249,7 +250,7 @@ export function RiskCommitteeSection() {
                             {summary.critical_vendors.map((v) => (
                                 <button
                                     key={v.id}
-                                    onClick={() => navigate(`/vendors/${v.id}?tab=schedule`)}
+                                    onClick={() => navigate(buildVendorDetailPath(v.id, 'assessments', 'schedule'))}
                                     className="w-full text-left bg-white/5 rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors"
                                 >
                                     <div className="flex items-center justify-between mb-2">
@@ -297,7 +298,7 @@ export function RiskCommitteeSection() {
                                     {summary.vendor_alerts.overdue_reassessments.items.slice(0, 3).map((v) => (
                                         <button
                                             key={v.id}
-                                            onClick={() => navigate(`/vendors/${v.id}?tab=schedule`)}
+                                            onClick={() => navigate(buildVendorDetailPath(v.id, 'assessments', 'schedule'))}
                                             className="w-full text-left flex items-center justify-between text-xs text-slate-200 hover:text-white"
                                         >
                                             <span className="truncate">{v.name}</span>
@@ -324,7 +325,7 @@ export function RiskCommitteeSection() {
                                     {summary.vendor_alerts.sla_breaches.items.slice(0, 3).map((s) => (
                                         <button
                                             key={s.sla_id}
-                                            onClick={() => navigate(`/vendors/${s.vendor_id}?tab=sla`)}
+                                            onClick={() => navigate(buildVendorDetailPath(s.vendor_id, 'operations', 'sla'))}
                                             className="w-full text-left flex items-center justify-between text-xs text-slate-200 hover:text-white"
                                         >
                                             <span className="truncate">{s.vendor_name}: {s.metric_name}</span>
@@ -347,7 +348,7 @@ export function RiskCommitteeSection() {
                                     {summary.vendor_alerts.major_incidents_30d.items.slice(0, 3).map((i) => (
                                         <button
                                             key={i.incident_id}
-                                            onClick={() => navigate(`/vendors/${i.vendor_id}?tab=incidents`)}
+                                            onClick={() => navigate(buildVendorDetailPath(i.vendor_id, 'operations', 'incidents'))}
                                             className="w-full text-left text-xs text-slate-200 hover:text-white"
                                         >
                                             <span className="font-bold">{i.vendor_name}</span>: {i.summary}

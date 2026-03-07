@@ -5,9 +5,11 @@ import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';
 
 import {
+    buildVendorSearchParams,
     canEditVendorByOwnership,
-    parseVendorTab,
+    normalizeVendorLocation,
     type VendorDetailMode,
+    type VendorSectionView,
     type VendorTabView,
 } from './vendorDetailPresentation';
 
@@ -31,19 +33,22 @@ export function useVendorDetailState({
     const [vendor, setVendor] = useState<Vendor | null>(null);
     const [isLoading, setIsLoading] = useState(mode !== 'new');
     const [error, setError] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<VendorTabView>(() => {
-        return parseVendorTab(searchParams.get('tab')) ?? 'risk_factors';
-    });
+    const initialLocation = normalizeVendorLocation(searchParams.get('tab'), searchParams.get('section'));
+    const [activeTab, setActiveTab] = useState<VendorTabView>(initialLocation.tab);
+    const [activeSection, setActiveSection] = useState<VendorSectionView>(initialLocation.section);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
     const vendorId = Number(id);
 
     useEffect(() => {
-        const nextTab = parseVendorTab(searchParams.get('tab'));
-        if (nextTab) {
-            setActiveTab(nextTab);
+        const normalized = normalizeVendorLocation(searchParams.get('tab'), searchParams.get('section'));
+        setActiveTab(normalized.tab);
+        setActiveSection(normalized.section);
+
+        if (normalized.shouldCanonicalize) {
+            setSearchParams(buildVendorSearchParams(normalized.tab, normalized.section), { replace: true });
         }
-    }, [searchParams]);
+    }, [searchParams, setSearchParams]);
 
     const fetchVendor = useCallback(async () => {
         if (!vendorId) {
@@ -76,11 +81,17 @@ export function useVendorDetailState({
     const selectTab = useCallback(
         (tab: VendorTabView) => {
             setActiveTab(tab);
-            const next = new URLSearchParams(searchParams);
-            next.set('tab', tab);
-            setSearchParams(next, { replace: true });
+            setSearchParams(buildVendorSearchParams(tab, null), { replace: true });
         },
-        [searchParams, setSearchParams]
+        [setSearchParams]
+    );
+
+    const selectSection = useCallback(
+        (section: VendorSectionView) => {
+            setActiveSection(section);
+            setSearchParams(buildVendorSearchParams(activeTab, section), { replace: true });
+        },
+        [activeTab, setSearchParams]
     );
 
     const restoreVendor = useCallback(async () => {
@@ -98,10 +109,13 @@ export function useVendorDetailState({
 
     const canEditByOwnership = canEditVendorByOwnership(vendor, currentUserId);
     const canEdit = canWriteVendor || canEditByOwnership;
+    const canArchive = Boolean(vendor?.status === 'active' && canDeleteVendor);
     const canRestore = Boolean(vendor?.status === 'inactive' && canDeleteVendor);
 
     return {
+        activeSection,
         activeTab,
+        canArchive,
         canEdit,
         canEditByOwnership,
         canRestore,
@@ -112,6 +126,7 @@ export function useVendorDetailState({
         openIssueModal: () => setIsIssueModalOpen(true),
         closeIssueModal: () => setIsIssueModalOpen(false),
         restoreVendor,
+        selectSection,
         selectTab,
         vendor,
         vendorId,
