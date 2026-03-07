@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { ComponentProps, HTMLAttributes, ReactNode } from 'react';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
-import type { Risk } from '@/types/risk';
+import type { Risk, RiskControlLink } from '@/types/risk';
+import type { Vendor } from '@/types/vendor';
 
 vi.mock('framer-motion', () => ({
     motion: {
@@ -72,6 +73,102 @@ const riskWithKri: Risk = {
     ],
 };
 
+const linkedControlsFixture: RiskControlLink[] = [
+    {
+        id: 701,
+        control_id: 11,
+        risk_id: 19,
+        effectiveness: 'high',
+        created_at: '2026-01-01T00:00:00Z',
+        control: {
+            id: 11,
+            name: 'Quarterly access review',
+            frequency: 'monthly',
+            risk_level: 2,
+            status: 'active',
+        },
+    },
+    {
+        id: 702,
+        control_id: 12,
+        risk_id: 19,
+        effectiveness: 'medium',
+        created_at: '2026-01-01T00:00:00Z',
+        control: {
+            id: 12,
+            name: 'Draft control',
+            frequency: 'quarterly',
+            risk_level: 2,
+            status: 'draft',
+        },
+    },
+    {
+        id: 703,
+        control_id: 13,
+        risk_id: 19,
+        effectiveness: 'low',
+        created_at: '2026-01-01T00:00:00Z',
+        control: {
+            id: 13,
+            name: 'Archived control',
+            frequency: 'annually',
+            risk_level: 1,
+            status: 'archived',
+        },
+    },
+];
+
+const linkedVendorsFixture: Vendor[] = [
+    {
+        id: 901,
+        name: 'Vendor One',
+        process: 'Compliance',
+        outsourcing_owner_user_id: 11,
+        vendor_type: 'ict',
+        risk_score_1_5: 4,
+        supports_important_core_insurance_function: true,
+        dora_relevant: true,
+        is_significant_vendor: false,
+        has_alternative_providers: true,
+        status: 'active',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-02T00:00:00Z',
+        reassessment_cadence_months: 12,
+    },
+    {
+        id: 902,
+        name: 'Vendor Two',
+        process: 'Compliance',
+        outsourcing_owner_user_id: 12,
+        vendor_type: 'partner',
+        risk_score_1_5: 3,
+        supports_important_core_insurance_function: false,
+        dora_relevant: false,
+        is_significant_vendor: false,
+        has_alternative_providers: true,
+        status: 'active',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-02T00:00:00Z',
+        reassessment_cadence_months: 12,
+    },
+    {
+        id: 903,
+        name: 'Vendor Three',
+        process: 'Compliance',
+        outsourcing_owner_user_id: 13,
+        vendor_type: 'other',
+        risk_score_1_5: 2,
+        supports_important_core_insurance_function: false,
+        dora_relevant: false,
+        is_significant_vendor: false,
+        has_alternative_providers: true,
+        status: 'inactive',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-02T00:00:00Z',
+        reassessment_cadence_months: 12,
+    },
+];
+
 describe('RiskDetailOverviewTab KRI navigation', () => {
     const renderSubject = (overrides?: Partial<ComponentProps<typeof RiskDetailOverviewTab>>) => {
         const onNavigateToNewKri = vi.fn();
@@ -121,5 +218,51 @@ describe('RiskDetailOverviewTab KRI navigation', () => {
 
         expect(onNavigateToKri).toHaveBeenCalledTimes(1);
         expect(onNavigateToKri).toHaveBeenCalledWith(501);
+    });
+
+    it('renders the Connections card with linked item counts', () => {
+        renderSubject({
+            risk: {
+                ...riskWithKri,
+                kris: [
+                    ...riskWithKri.kris!,
+                    {
+                        ...riskWithKri.kris![0],
+                        id: 502,
+                        metric_name: 'Control Exceptions',
+                    },
+                ],
+            },
+            linkedControls: linkedControlsFixture,
+            linkedVendors: linkedVendorsFixture,
+        });
+
+        const card = screen.getByRole('heading', { name: 'Connections' }).closest('.glass-card');
+        expect(card).not.toBeNull();
+
+        const scoped = within(card as HTMLElement);
+        expect(scoped.getByText('Mitigating Controls')).toBeInTheDocument();
+        expect(scoped.getByText('Risk Appetite Indicators')).toBeInTheDocument();
+        expect(scoped.getByText('Linked Vendors')).toBeInTheDocument();
+        expect(scoped.getByText('1')).toBeInTheDocument();
+        expect(scoped.getByText('2')).toBeInTheDocument();
+        expect(scoped.getByText('3')).toBeInTheDocument();
+    });
+
+    it('renders zero counts in the Connections card when no items are linked', () => {
+        renderSubject({
+            risk: {
+                ...riskWithKri,
+                kris: [],
+            },
+            linkedControls: [],
+            linkedVendors: [],
+        });
+
+        const card = screen.getByRole('heading', { name: 'Connections' }).closest('.glass-card');
+        expect(card).not.toBeNull();
+
+        const zeroCounts = within(card as HTMLElement).getAllByText('0');
+        expect(zeroCounts).toHaveLength(3);
     });
 });

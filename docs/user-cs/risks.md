@@ -1,7 +1,7 @@
 ---
 title: Správa rizik
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.1, §6, §7 + frontend/src/pages/RisksPage.tsx"
 summary: "Kompletní manuál pro registr rizik: scoring, ownership, scope pravidla, propojení kontrol, exporty a schvalování citlivých změn."
@@ -54,6 +54,18 @@ Scoring je postavený na pravděpodobnosti a dopadu.
 - detail rizika: klikněte na řádek
 - založení rizika: z `/risks` (vyžaduje `risks:write`)
 
+Na detailu rizika horní řada přehledu shrnuje záznam přes:
+
+- Klasifikaci
+- Vlastnictví
+- Vazby
+
+Karta **Vazby** zobrazuje:
+
+- počet aktivních propojených zmírňujících kontrol
+- celkový počet propojených indikátorů rizikového apetitu (KRI)
+- celkový počet propojených dodavatelů
+
 Pokud **Rizika** nevidíte v menu:
 
 - pravděpodobně nemáte `risks:read`
@@ -90,7 +102,7 @@ Riziko je strukturovaný záznam. Následující pole nejvíc řídí provoz.
 | Name | Krátké pojmenování rizika | Vyhněte se generice; uveďte failure mód. |
 | Process / Subprocess | Klasifikace oblasti | Konzistence je zásadní pro groupování a reporting. |
 | Risk type | Taxonomie label (konfigurovatelné v Risk Hubu) | Nevymýšlejte nové typy ad-hoc; taxonomie má být stabilní. |
-| Category | Sekundární groupování | Držte slovník pod kontrolou, jinak se fragmentuje.
+| Category | Sekundární groupování | Držte slovník pod kontrolou, jinak se fragmentuje. |
 | Description | Co se může stát + dopad + kontext | Pokud to nejde pochopit do 60s, je to vágní. |
 | Status | `active`, `emerging`, `archived` | Ovlivňuje viditelnost a reporting. |
 | Priority | Provozní „must watch“ flag | Používejte střídmě.
@@ -99,7 +111,12 @@ Riziko je strukturovaný záznam. Následující pole nejvíc řídí provoz.
 | Gross prob/impact | Inherentní scoring vstupy | Vyberte konzistentně; používejte popisy, ne „pocit“. |
 | Net prob/impact | Reziduální scoring vstupy | Má reflektovat kontroly, ne optimismus. |
 | Linked controls | Kontroly mitigující riziko | Linky mají být smysluplné a udržované. |
-| KRIs | Indikátory pro monitoring | KRI jsou včasné varování.
+| KRIs | Indikátory pro monitoring | KRI jsou včasné varování. |
+
+Poznámka k detailu:
+
+- Karta **Vazby** používá počet aktivních propojených kontrol, ne koncepty ani archivované kontroly.
+- Počet KRI a dodavatelů odpovídá všem aktuálně propojeným záznamům viditelným na detailu.
 
 Poznámka ke kvalitě scoringu:
 

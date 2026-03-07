@@ -1,7 +1,7 @@
 ---
 title: Managing Risks
 version: "2.0"
-last_updated: "2026-02-16"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.1, §6, §7 + frontend/src/pages/RisksPage.tsx"
 summary: "Full manual for building and operating a high-quality risk register: scoring, ownership, scope rules, control linkage, exports, and approval-aware edits."
@@ -54,6 +54,18 @@ Scoring is expressed through probability and impact, which are then combined int
 - Risk detail: click any row
 - Create risk: from `/risks` (requires `risks:write`)
 
+On the Risk detail page, the top overview row summarizes the record through:
+
+- Classification
+- Ownership
+- Connections
+
+The **Connections** card shows:
+
+- active linked mitigating controls
+- total linked risk appetite indicators (KRIs)
+- total linked vendors
+
 If you do not see **Risks** in the sidebar:
 
 - you likely lack `risks:read`
@@ -100,6 +112,11 @@ RiskHub uses a structured risk record. These fields are the ones that drive oper
 | Net probability/impact | Residual scoring inputs | Should reflect control effectiveness, not optimism. |
 | Linked controls | Controls that mitigate this risk | Links should be meaningful and maintained. |
 | KRIs | Indicators that monitor this risk | KRIs are how you detect drift early. |
+
+Detail view note:
+
+- The **Connections** card uses the active linked controls count, not draft or archived controls.
+- KRI and vendor counts reflect all currently linked records visible on the detail page.
 
 Notes on scoring quality:
 

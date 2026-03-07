@@ -2,7 +2,7 @@ import { authApi } from '@/services/authApi';
 import { setAccessToken } from '@/services/accessTokenStore';
 import { getAuthConfig } from '@/services/authConfig';
 import { entraAuth } from '@/services/entraAuth';
-import { isAuthUnavailableError, withAuthTimeout } from '@/services/authRequest';
+import { isAuthUnavailableError, raceAuthTimeout } from '@/services/authRequest';
 
 let refreshInFlight: Promise<string | null> | null = null;
 let lastRefreshFailureAt = 0;
@@ -37,7 +37,7 @@ export async function silentReauthAndExchange(): Promise<string | null> {
                 return null;
             }
 
-            const idToken = await withAuthTimeout(
+            const idToken = await raceAuthTimeout(
                 entraAuth.acquireIdTokenSilent(),
                 'Silent sign-in timed out',
             ).catch((error) => {

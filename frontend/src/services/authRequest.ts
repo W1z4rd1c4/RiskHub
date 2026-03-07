@@ -79,7 +79,7 @@ export async function fetchAuthResponse(input: RequestInfo | URL, init: RequestI
     }
 }
 
-export async function withAuthTimeout<T>(
+export async function raceAuthTimeout<T>(
     promise: Promise<T>,
     message = 'Auth request timed out',
 ): Promise<T> {

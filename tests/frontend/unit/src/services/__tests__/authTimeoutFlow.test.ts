@@ -78,6 +78,49 @@ describe('auth timeout and retry flow', () => {
         expect(configCalls).toBe(2);
     });
 
+    it('times out demo login requests and allows a fresh retry', async () => {
+        let demoLoginCalls = 0;
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+            const url = String(input);
+            if (!url.endsWith('/api/v1/auth/demo-login')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            demoLoginCalls += 1;
+            if (demoLoginCalls === 1) {
+                return createAbortablePendingResponse(init?.signal as AbortSignal | undefined);
+            }
+            return Promise.resolve(new Response(JSON.stringify({
+                access_token: 'demo-token',
+                token_type: 'bearer',
+                user: {
+                    id: 1,
+                    email: 'admin@riskhub.local',
+                    name: 'System Admin',
+                    role: 'administrator',
+                    role_display_name: 'Administrator',
+                    permissions: [],
+                    effective_permissions: [],
+                    access_scope: 'global',
+                    scope_label: 'Global',
+                },
+            }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+            }));
+        });
+
+        const firstAttempt = authApi.demoLogin('admin@riskhub.local');
+        const firstAttemptExpectation = expect(firstAttempt).rejects.toMatchObject({ code: 'AUTH_REQUEST_TIMEOUT' });
+        await vi.advanceTimersByTimeAsync(AUTH_REQUEST_TIMEOUT_MS);
+        await firstAttemptExpectation;
+
+        await expect(authApi.demoLogin('admin@riskhub.local')).resolves.toMatchObject({
+            access_token: 'demo-token',
+            user: { email: 'admin@riskhub.local' },
+        });
+        expect(demoLoginCalls).toBe(2);
+    });
+
     it('times out bootstrap current-user fetches and allows a fresh bootstrap retry', async () => {
         setAccessToken('stale-token');
 
