@@ -1,6 +1,9 @@
-import type { SortDirection } from '@/components/tables';
+import type { SortDirection, ViewMode } from '@/components/tables';
+import { GROUPED_VIEW_FETCH_PAGE_SIZE } from '@/constants/list';
+import { issuesApi } from '@/services/issuesApi';
 import type {
     IssueListFilters,
+    IssueSummary,
     IssueSeverity,
     IssueSeverityFilter,
     IssueSeverityGroup,
@@ -36,6 +39,12 @@ export interface IssuesPageInitialState {
     statusFilter: IssueStatus | '';
 }
 
+export interface IssueGroupedRow {
+    groupValue: string;
+    issue: IssueSummary;
+    rowId: string;
+}
+
 interface BuildIssueListFiltersOptions {
     currentPage: number;
     debouncedSearch: string;
@@ -63,6 +72,11 @@ interface IssueExportFilters {
     severityGroup: IssueSeverityGroup | null;
     status: IssueStatus | null;
 }
+
+const UNCATEGORIZED_LABEL = 'Uncategorized';
+const NO_PROCESS_LABEL = 'No Process';
+const NO_RISK_TYPE_LABEL = 'No Risk Type';
+const UNKNOWN_DEPARTMENT_LABEL = 'Unknown Department';
 
 function parseBooleanQueryParam(value: string | null): boolean | null {
     if (value === 'true') {
@@ -194,6 +208,84 @@ export function buildIssueExportFilters({
         overdueOnly: overdueOnly ? true : null,
         excludeActiveExceptions: excludeActiveExceptions ? true : null,
     };
+}
+
+export async function fetchAllIssuesForGroupedView(
+    filters: Omit<BuildIssueListFiltersOptions, 'currentPage' | 'limit'>
+): Promise<{
+    items: IssueSummary[];
+    total: number;
+}> {
+    const limit = GROUPED_VIEW_FETCH_PAGE_SIZE;
+    const allItems: IssueSummary[] = [];
+    let skip = 0;
+    let total = 0;
+
+    do {
+        const response = await issuesApi.list({
+            ...buildIssueListFilters({
+                ...filters,
+                currentPage: 1,
+                limit,
+            }),
+            skip,
+            limit,
+        });
+        total = response.total;
+        allItems.push(...response.items);
+        skip += limit;
+    } while (skip < total);
+
+    return { items: allItems, total };
+}
+
+function groupedValuesForIssue(issue: IssueSummary, viewMode: ViewMode): string[] {
+    if (viewMode === 'department') {
+        return [issue.department_name?.trim() || UNKNOWN_DEPARTMENT_LABEL];
+    }
+
+    const values = new Set<string>();
+
+    for (const context of issue.risk_contexts ?? []) {
+        const rawValue =
+            viewMode === 'category'
+                ? context.risk_category
+                : viewMode === 'process'
+                    ? context.risk_process
+                    : viewMode === 'risk_type'
+                        ? context.risk_type
+                        : null;
+
+        if (rawValue && rawValue.trim()) {
+            values.add(rawValue.trim());
+        }
+    }
+
+    if (values.size === 0) {
+        values.add(
+            viewMode === 'category'
+                ? UNCATEGORIZED_LABEL
+                : viewMode === 'process'
+                    ? NO_PROCESS_LABEL
+                    : NO_RISK_TYPE_LABEL
+        );
+    }
+
+    return [...values];
+}
+
+export function buildIssueGroupedRows(items: IssueSummary[], viewMode: ViewMode): IssueGroupedRow[] {
+    if (viewMode === 'all' || viewMode === 'risk') {
+        return [];
+    }
+
+    return items.flatMap((issue) =>
+        groupedValuesForIssue(issue, viewMode).map((groupValue) => ({
+            groupValue,
+            issue,
+            rowId: `${issue.id}:${groupValue}`,
+        }))
+    );
 }
 
 export function formatIssueDateTime(

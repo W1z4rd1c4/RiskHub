@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.permissions import get_issue_scope_clause
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import Issue, IssueLink, User
+from app.models import Control, ControlExecution, ControlRiskLink, Issue, IssueLink, KeyRiskIndicator, User
 from app.models.issue import IssueSeverity, IssueStatus
 from app.schemas.issue import IssueListResponse
 from app.services.issue_visibility_service import unsuppressed_issue_clause
@@ -111,6 +111,14 @@ async def list_issues(
         query.options(
             selectinload(Issue.department),
             selectinload(Issue.owner),
+            selectinload(Issue.links).selectinload(IssueLink.risk),
+            selectinload(Issue.links).selectinload(IssueLink.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
+            selectinload(Issue.links)
+            .selectinload(IssueLink.execution)
+            .selectinload(ControlExecution.control)
+            .selectinload(Control.risk_links)
+            .selectinload(ControlRiskLink.risk),
+            selectinload(Issue.links).selectinload(IssueLink.kri).selectinload(KeyRiskIndicator.risk),
         )
         .offset(skip)
         .limit(limit)

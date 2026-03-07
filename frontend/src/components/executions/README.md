@@ -17,6 +17,8 @@ execution result contract only:
 
 Control detail/history flows must use the control-scoped execution API
 (`/controls/{id}/executions`). The generic `/executions` API is reserved for
-cross-control audit/list surfaces such as `AuditTrailPage.tsx`.
+cross-control audit/list surfaces such as `AuditTrailPage.tsx`, and
+`frontend/src/services/executionApi.ts` should stay read-only for those audit
+flows.
 
 Keep this README updated when responsibilities or structure in this folder change.

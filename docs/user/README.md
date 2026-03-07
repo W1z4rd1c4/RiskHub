@@ -1,7 +1,7 @@
 ---
 title: RiskHub User Documentation
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md"
 summary: "Production-grade manuals for day-to-day RiskHub usage: navigation, permissions, risk/control/KRI workflows, approvals, exports, and troubleshooting."
@@ -94,7 +94,7 @@ This table maps what you see in the sidebar to the canonical manual page.
 | Risks | `/risks` | [Managing Risks](./risks.md) | Risk register hygiene, scoring, ownership, and linkage | `risks`, `workflow`, `approvals` |
 | Issues / Findings (if enabled) | `/issues` | [Managing Issues](./issues.md) | Remediation tracking, linking to risks/controls, and closure discipline | `issues`, `workflow`, `exports` |
 | KRIs | `/kris` | [Managing KRIs](./kris.md) | Thresholds, value recording rules, breach signals | `kri`, `notifications`, `exports` |
-| Vendors (if enabled) | `/vendors` | [Managing Vendors](./vendors.md) | Third-party governance, assessments, incidents, exports | `vendors`, `approvals`, `exports` |
+| Vendors (if enabled) | `/vendors` | [Managing Vendors](./vendors.md) | Third-party governance, grouped drill-down views, assessments, incidents, exports | `vendors`, `approvals`, `exports` |
 | Departments | `/departments` | [Departments](./departments.md) | Exposure by org unit, drill-down, and responsibility patterns | `departments`, `workflow`, `exports` |
 | Governance (CRO-only, non-admin) | `/governance` | [Governance](./governance.md) | Orphans, ownership gaps, and governance resolution patterns | `governance`, `audit`, `troubleshooting` |
 | Activity Log (permission-gated, non-admin) | `/activity-log` | [Activity Log](./activity-log.md) | “Who changed what”, timeline reconstruction, and audit evidence | `activity-log`, `audit`, `exports` |
@@ -217,5 +217,5 @@ If you see a mismatch between a manual and actual behavior, assume the app is co
 - Start with `./getting-started.md`.
 - Continue with `./risks.md`, `./controls.md`, and `./kris.md`.
 - Then read `./notifications.md` and `./dashboard.md`.
-- If you manage third-party exposure, include `./vendors.md`.
+- If you manage third-party exposure, include `./vendors.md` for vendor catalog operations, grouped drill-down views, and assessment workflows.
 - Keep `./faq.md` open as your operational quick-reference.

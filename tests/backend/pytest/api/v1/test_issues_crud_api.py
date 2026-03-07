@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Control, ControlExecution, Department, Issue, Risk, Role, User
+from app.models import Control, ControlExecution, ControlRiskLink, Department, Issue, IssueLink, KeyRiskIndicator, Risk, Role, User
 
 from .issues_api_helpers import _create_department_scoped_user
 
@@ -98,6 +98,7 @@ async def test_issue_crud_list_link_and_source_metadata(
     list_item = next(item for item in list_resp.json()["items"] if item["id"] == issue_id)
     assert list_item["department_name"] == test_department.name
     assert list_item["owner_user_name"] == assignable_owner.name
+    assert list_item["risk_contexts"] == []
 
     read_resp = await auth_client.get(f"/api/v1/issues/{issue_id}")
     assert read_resp.status_code == 200
@@ -121,6 +122,28 @@ async def test_issue_crud_list_link_and_source_metadata(
     assert read_with_link.status_code == 200
     assert read_with_link.json()["links"][0]["linked_entity_type"] == "risk"
     assert read_with_link.json()["links"][0]["linked_entity_name"] == risk.name
+    assert read_with_link.json()["risk_contexts"] == [
+        {
+            "risk_id": risk.id,
+            "risk_name": risk.name,
+            "risk_category": risk.category,
+            "risk_process": risk.process,
+            "risk_type": risk.risk_type,
+        }
+    ]
+
+    list_with_context_resp = await auth_client.get("/api/v1/issues")
+    assert list_with_context_resp.status_code == 200
+    list_with_context_item = next(item for item in list_with_context_resp.json()["items"] if item["id"] == issue_id)
+    assert list_with_context_item["risk_contexts"] == [
+        {
+            "risk_id": risk.id,
+            "risk_name": risk.name,
+            "risk_category": risk.category,
+            "risk_process": risk.process,
+            "risk_type": risk.risk_type,
+        }
+    ]
 
     unlink_resp = await auth_client.delete(f"/api/v1/issues/{issue_id}/links/{link_id}")
     assert unlink_resp.status_code == 204
@@ -242,6 +265,159 @@ async def test_issue_list_supports_search_and_sort(
     assert desc_resp.status_code == 200
     desc_titles = [item["title"] for item in desc_resp.json()["items"]]
     assert desc_titles == sorted(desc_titles, reverse=True)
+
+
+@pytest.mark.asyncio
+async def test_issue_list_resolves_and_deduplicates_risk_contexts_across_links(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_user: User,
+):
+    primary_risk = Risk(
+        risk_id_code="ISS-CTX-001",
+        name="Primary linked risk",
+        process="Finance",
+        description="Primary linked risk",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    secondary_risk = Risk(
+        risk_id_code="ISS-CTX-002",
+        name="Secondary linked risk",
+        process="Claims",
+        description="Secondary linked risk",
+        category="Compliance",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="strategic",
+        gross_probability=4,
+        gross_impact=4,
+        net_probability=3,
+        net_impact=3,
+        status="active",
+    )
+    control = Control(
+        name="Shared issue control",
+        description="Control linked to multiple risks",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        status="active",
+    )
+    db_session.add_all([primary_risk, secondary_risk, control])
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            ControlRiskLink(control_id=control.id, risk_id=primary_risk.id),
+            ControlRiskLink(control_id=control.id, risk_id=secondary_risk.id),
+        ]
+    )
+    await db_session.flush()
+
+    execution = ControlExecution(
+        control_id=control.id,
+        executed_by_id=test_user.id,
+        result="warning",
+        findings="Execution linked to multiple risks",
+    )
+    kri = KeyRiskIndicator(
+        risk_id=primary_risk.id,
+        metric_name="Linked KRI",
+        description="KRI linked to primary risk",
+        current_value=12,
+        lower_limit=0,
+        upper_limit=10,
+        unit="%",
+    )
+    db_session.add_all([execution, kri])
+    await db_session.flush()
+
+    execution_issue = Issue(
+        title="Execution-linked issue",
+        description="Should resolve both linked risks and dedupe direct overlap",
+        severity="high",
+        status="open",
+        source_type="control_execution",
+        source_id=execution.id,
+        department_id=test_department.id,
+        owner_user_id=None,
+        created_by_id=test_user.id,
+        opened_at=datetime.now(UTC),
+    )
+    kri_issue = Issue(
+        title="KRI-linked issue",
+        description="Should resolve KRI parent risk",
+        severity="medium",
+        status="open",
+        source_type="kri_breach",
+        source_id=kri.id,
+        department_id=test_department.id,
+        owner_user_id=None,
+        created_by_id=test_user.id,
+        opened_at=datetime.now(UTC),
+    )
+    manual_issue = Issue(
+        title="Manual unlinked issue",
+        description="Should have no risk contexts",
+        severity="low",
+        status="open",
+        source_type="manual",
+        source_id=None,
+        department_id=test_department.id,
+        owner_user_id=None,
+        created_by_id=test_user.id,
+        opened_at=datetime.now(UTC),
+    )
+    db_session.add_all([execution_issue, kri_issue, manual_issue])
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            IssueLink(issue_id=execution_issue.id, execution_id=execution.id),
+            IssueLink(issue_id=execution_issue.id, risk_id=primary_risk.id),
+            IssueLink(issue_id=kri_issue.id, kri_id=kri.id),
+        ]
+    )
+    await db_session.commit()
+
+    list_resp = await auth_client.get("/api/v1/issues")
+    assert list_resp.status_code == 200
+    items_by_title = {item["title"]: item for item in list_resp.json()["items"]}
+
+    assert items_by_title["Execution-linked issue"]["risk_contexts"] == [
+        {
+            "risk_id": primary_risk.id,
+            "risk_name": primary_risk.name,
+            "risk_category": primary_risk.category,
+            "risk_process": primary_risk.process,
+            "risk_type": primary_risk.risk_type,
+        },
+        {
+            "risk_id": secondary_risk.id,
+            "risk_name": secondary_risk.name,
+            "risk_category": secondary_risk.category,
+            "risk_process": secondary_risk.process,
+            "risk_type": secondary_risk.risk_type,
+        },
+    ]
+    assert items_by_title["KRI-linked issue"]["risk_contexts"] == [
+        {
+            "risk_id": primary_risk.id,
+            "risk_name": primary_risk.name,
+            "risk_category": primary_risk.category,
+            "risk_process": primary_risk.process,
+            "risk_type": primary_risk.risk_type,
+        }
+    ]
+    assert items_by_title["Manual unlinked issue"]["risk_contexts"] == []
 
 
 @pytest.mark.asyncio

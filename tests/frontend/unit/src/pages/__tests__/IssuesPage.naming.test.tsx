@@ -52,6 +52,7 @@ describe('IssuesPage business naming', () => {
                     closed_at: null,
                     created_at: '2026-01-02T09:00:00Z',
                     updated_at: '2026-01-02T09:00:00Z',
+                    risk_contexts: [],
                 },
             ],
             total: 1,

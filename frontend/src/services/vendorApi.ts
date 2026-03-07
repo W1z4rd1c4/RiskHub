@@ -1,25 +1,8 @@
 import { apiClient } from './apiClient';
-import type { Vendor, VendorCreate, VendorListResponse, VendorUpdate } from '@/types/vendor';
+import type { Vendor, VendorCreate, VendorListParams, VendorListResponse, VendorUpdate } from '@/types/vendor';
 
 export const vendorApi = {
-    async getVendors(params: {
-        skip?: number;
-        limit?: number;
-        search?: string;
-        status?: string;
-        include_archived?: boolean;
-        vendor_type?: string;
-        dora_relevant?: boolean;
-        supports_important_core_insurance_function?: boolean;
-        is_significant_vendor?: boolean;
-        outsourcing_owner_user_id?: number;
-        department_id?: number;
-        process?: string;
-        subprocess?: string;
-        risk_score_1_5?: number;
-        sort_by?: string;
-        sort_order?: 'asc' | 'desc';
-    }): Promise<VendorListResponse> {
+    async getVendors(params: VendorListParams): Promise<VendorListResponse> {
         return apiClient.get<VendorListResponse>('/vendors', { params });
     },
 

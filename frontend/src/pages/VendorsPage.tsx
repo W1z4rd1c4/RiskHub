@@ -1,31 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from '@/i18n/hooks';
-import { Plus, Search, RefreshCw, AlertCircle, Building2, User, ChevronRight, Download } from 'lucide-react';
-import { vendorApi } from '@/services/vendorApi';
-import { reportApi } from '@/services/reportApi';
-import { apiClient } from '@/services/apiClient';
-import type { Vendor, VendorStatus, VendorType } from '@/types/vendor';
+import { Download, Plus, RefreshCw, Search } from 'lucide-react';
+
 import { PermissionGate } from '@/components/PermissionGate';
-import { SortableTable, Pagination } from '@/components/tables';
-import type { Column, SortDirection } from '@/components/tables/SortableTable';
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { ExportDialog, type ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
+import { ViewSwitcher, type SortDirection, type ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { useAuth } from '@/contexts/AuthContext';
-import { ExportDialog, type ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
+import { usePermissions } from '@/hooks/usePermissions';
+import { useTranslation } from '@/i18n/hooks';
+import { apiClient } from '@/services/apiClient';
+import { reportApi } from '@/services/reportApi';
+import { vendorApi } from '@/services/vendorApi';
+import type { Vendor, VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
-function scorePill(score: number) {
-    if (score >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
-    if (score >= 4) return 'text-orange-400 bg-orange-400/10 border-orange-400/20';
-    if (score >= 3) return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-    if (score >= 2) return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
-    return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-}
+import { VendorsTableSection } from './vendors/VendorsTableSection';
+import {
+    buildVendorExportFilters,
+    buildVendorListParams,
+    fetchAllVendorsForGroupedView,
+} from './vendors/vendorsPagePresentation';
 
 export function VendorsPage() {
     const navigate = useNavigate();
     const { t } = useTranslation('vendors');
+    const { hasPermission } = usePermissions();
 
     const [vendors, setVendors] = useState<Vendor[]>([]);
     const [totalCount, setTotalCount] = useState(0);
@@ -36,174 +36,150 @@ export function VendorsPage() {
     const [statusFilter, setStatusFilter] = useState<VendorStatus | ''>('active');
     const [typeFilter, setTypeFilter] = useState<VendorType | ''>('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [sortField, setSortField] = useState<string | null>(null);
+    const [sortField, setSortField] = useState<VendorListParams['sort_by'] | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+    const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+
+    const latestRequestIdRef = useRef(0);
     const hasLoadedVendorsRef = useRef(false);
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
+    const debouncedSearch = useDebouncedValue(search, 300);
+    const includeArchived = statusFilter === 'inactive';
+    const canReadRisks = hasPermission('risks', 'read');
+
     const totalPages = Math.max(1, Math.ceil(totalCount / limit));
 
-    const debouncedSearch = useDebouncedValue(search, 300);
-    const { hasPermission } = useAuth();
+    const listParams = useMemo(
+        () =>
+            buildVendorListParams({
+                currentPage,
+                debouncedSearch,
+                includeArchived,
+                limit,
+                sortDirection,
+                sortField,
+                statusFilter,
+                typeFilter,
+            }),
+        [
+            currentPage,
+            debouncedSearch,
+            includeArchived,
+            limit,
+            sortDirection,
+            sortField,
+            statusFilter,
+            typeFilter,
+        ]
+    );
 
     const fetchVendors = useCallback(async () => {
+        const requestId = ++latestRequestIdRef.current;
+
         try {
-            const shouldShowSkeleton = !hasLoadedVendorsRef.current;
-            if (shouldShowSkeleton) setIsLoading(true);
+            setIsLoading(true);
 
-            const skip = (currentPage - 1) * limit;
-            const shouldIncludeArchived = statusFilter === 'inactive';
-            const res = await vendorApi.getVendors({
-                skip,
-                limit,
-                search: debouncedSearch || undefined,
-                status: (statusFilter as VendorStatus) || undefined,
-                include_archived: shouldIncludeArchived,
-                vendor_type: (typeFilter as VendorType) || undefined,
-                sort_by: sortField || undefined,
-                sort_order: (sortDirection as 'asc' | 'desc') || undefined,
-            });
+            const response =
+                viewMode === 'all'
+                    ? await vendorApi.getVendors(listParams)
+                    : await fetchAllVendorsForGroupedView({
+                        debouncedSearch,
+                        includeArchived,
+                        sortDirection,
+                        sortField,
+                        statusFilter,
+                        typeFilter,
+                    });
 
-            setVendors(res.items);
-            setTotalCount(res.total);
+            if (requestId !== latestRequestIdRef.current) {
+                return;
+            }
+
+            setVendors(response.items);
+            setTotalCount(response.total);
             setErrorKey(null);
             hasLoadedVendorsRef.current = true;
         } catch (err) {
+            if (requestId !== latestRequestIdRef.current) {
+                return;
+            }
             console.error('Error fetching vendors:', err);
             setErrorKey(apiClient.toUiMessageKey(err));
+            setVendors([]);
+            setTotalCount(0);
         } finally {
-            setIsLoading(false);
+            if (requestId === latestRequestIdRef.current) {
+                setIsLoading(false);
+            }
         }
-    }, [currentPage, debouncedSearch, limit, sortDirection, sortField, statusFilter, typeFilter]);
+    }, [
+        debouncedSearch,
+        includeArchived,
+        listParams,
+        sortDirection,
+        sortField,
+        statusFilter,
+        typeFilter,
+        viewMode,
+    ]);
 
-    const handleRestoreVendor = useCallback(async (vendorId: number, e: MouseEvent) => {
-        e.stopPropagation();
-        try {
-            await vendorApi.restoreVendor(vendorId);
-            await fetchVendors();
-        } catch (err) {
-            console.error('Error restoring vendor:', err);
-        }
+    const handleRestoreVendor = useCallback(
+        async (vendorId: number) => {
+            try {
+                await vendorApi.restoreVendor(vendorId);
+                await fetchVendors();
+            } catch (err) {
+                console.error('Error restoring vendor:', err);
+            }
+        },
+        [fetchVendors]
+    );
+
+    useEffect(() => {
+        void fetchVendors();
     }, [fetchVendors]);
 
     useEffect(() => {
-        fetchVendors();
-    }, [fetchVendors]);
-
-    const columns: Column<Vendor>[] = useMemo(() => [
-        {
-            key: 'name',
-            label: t('columns.name'),
-            sortable: true,
-            render: (vendor) => (
-                <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-bold text-white">{vendor.name}</span>
-                    <span className="text-[10px] text-slate-500">{vendor.process}</span>
-                </div>
-            ),
-        },
-        {
-            key: 'department_name',
-            label: t('columns.department'),
-            sortable: true,
-            render: (vendor) => (
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                    <Building2 className="h-3 w-3 text-accent" />
-                    <span>{vendor.department_name || t('labels.unassigned')}</span>
-                </div>
-            ),
-        },
-        {
-            key: 'outsourcing_owner_name',
-            label: t('columns.owner'),
-            sortable: false,
-            render: (vendor) => (
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                    <User className="h-3 w-3 text-accent" />
-                    <span>{vendor.outsourcing_owner_name || '—'}</span>
-                </div>
-            ),
-        },
-        {
-            key: 'vendor_type',
-            label: t('columns.type'),
-            sortable: true,
-            render: (vendor) => (
-                <span className="text-xs font-medium text-slate-400">{t(`type.${vendor.vendor_type}`, vendor.vendor_type)}</span>
-            ),
-        },
-        {
-            key: 'risk_score_1_5',
-            label: t('columns.risk_score'),
-            sortable: true,
-            className: 'text-center',
-            render: (vendor) => (
-                <div className="flex justify-center">
-                    <div className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${scorePill(vendor.risk_score_1_5)}`}>
-                        {vendor.risk_score_1_5} / 5
-                    </div>
-                </div>
-            ),
-        },
-        {
-            key: 'status',
-            label: t('columns.status'),
-            sortable: true,
-            render: (vendor) => (
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase text-slate-300 bg-white/5 border border-white/10">
-                    {t(`status.${vendor.status}`, vendor.status)}
-                </span>
-            ),
-        },
-        {
-            key: 'id',
-            label: '',
-            sortable: false,
-            render: (vendor) => (
-                <div className="flex items-center justify-end gap-2">
-                    {vendor.status === 'inactive' && hasPermission('vendors', 'delete') && (
-                        <button
-                            onClick={(e) => handleRestoreVendor(vendor.id, e)}
-                            data-testid={`vendor-unarchive-${vendor.id}`}
-                            className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
-                        >
-                            {t('actions.unarchive')}
-                        </button>
-                    )}
-                    <ChevronRight className="h-4 w-4 text-slate-500 ml-auto" />
-                </div>
-            )
+        if (!canReadRisks && viewMode === 'risk') {
+            setViewMode('all');
         }
-    ], [handleRestoreVendor, hasPermission, t]);
+    }, [canReadRisks, viewMode]);
 
-    const handleSort = (field: string, direction: SortDirection) => {
-        setSortField(direction ? field : null);
-        setSortDirection(direction);
-        setCurrentPage(1);
-        setVendors([]);
-    };
+    const handleSort = useCallback(
+        (field: VendorListParams['sort_by'] | null, direction: SortDirection) => {
+            setSortField(field);
+            setSortDirection(direction);
+            setCurrentPage(1);
+        },
+        []
+    );
 
-    const handleExport = async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
-        setIsExporting(true);
-        try {
-            await reportApi.exportVendors({
-                format,
-                asOfDate,
-                filters: {
-                    status: statusFilter || null,
-                    search: search.trim() || null,
-                    vendorType: typeFilter || null,
-                },
-            });
-            setIsExportDialogOpen(false);
-        } catch (err) {
-            console.error('Export failed:', err);
-        } finally {
-            setIsExporting(false);
-        }
-    };
+    const handleExport = useCallback(
+        async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
+            setIsExporting(true);
+            try {
+                await reportApi.exportVendors({
+                    format,
+                    asOfDate,
+                    filters: buildVendorExportFilters({
+                        statusFilter,
+                        search,
+                        typeFilter,
+                    }),
+                });
+                setIsExportDialogOpen(false);
+            } catch (err) {
+                console.error('Export failed:', err);
+                setErrorKey(apiClient.toUiMessageKey(err));
+            } finally {
+                setIsExporting(false);
+            }
+        },
+        [search, statusFilter, typeFilter]
+    );
 
     return (
         <div className="space-y-8">
@@ -214,6 +190,7 @@ export function VendorsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     <button
+                        type="button"
                         onClick={() => setIsExportDialogOpen(true)}
                         data-testid="vendors-export-button"
                         disabled={isExporting}
@@ -224,6 +201,7 @@ export function VendorsPage() {
                     </button>
                     <PermissionGate resource="vendors" action="write">
                         <button
+                            type="button"
                             onClick={() => navigate('/vendors/new')}
                             data-testid="vendors-create-button"
                             className="px-5 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-all flex items-center gap-2"
@@ -235,6 +213,15 @@ export function VendorsPage() {
                 </div>
             </div>
 
+            <ViewSwitcher
+                value={viewMode}
+                onChange={(mode) => {
+                    setViewMode(mode);
+                    setCurrentPage(1);
+                }}
+                exclude={canReadRisks ? ['category', 'risk_type'] : ['category', 'risk_type', 'risk']}
+            />
+
             <div className="glass-card flex flex-col md:flex-row gap-4">
                 <div className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-3 group focus-within:border-accent/50 transition-all">
                     <Search className="h-4 w-4 text-slate-500 group-focus-within:text-accent transition-colors" />
@@ -243,17 +230,19 @@ export function VendorsPage() {
                         type="text"
                         placeholder={t('filters.search_placeholder')}
                         value={search}
-                        onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); setVendors([]); }}
+                        onChange={(event) => {
+                            setSearch(event.target.value);
+                            setCurrentPage(1);
+                        }}
                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
                     />
                 </div>
                 <div className="flex gap-4">
                     <ThemedSelect
                         value={statusFilter}
-                        onValueChange={(v) => {
-                            setStatusFilter(v as VendorStatus | '');
+                        onValueChange={(value) => {
+                            setStatusFilter(value as VendorStatus | '');
                             setCurrentPage(1);
-                            setVendors([]);
                         }}
                         placeholder={t('filters.all_statuses')}
                         allowEmpty
@@ -268,7 +257,10 @@ export function VendorsPage() {
                     />
                     <ThemedSelect
                         value={typeFilter}
-                        onValueChange={(v) => { setTypeFilter(v as VendorType | ''); setCurrentPage(1); setVendors([]); }}
+                        onValueChange={(value) => {
+                            setTypeFilter(value as VendorType | '');
+                            setCurrentPage(1);
+                        }}
                         placeholder={t('filters.all_types')}
                         allowEmpty
                         emptyLabel={t('filters.all_types')}
@@ -284,7 +276,8 @@ export function VendorsPage() {
                         ]}
                     />
                     <button
-                        onClick={() => { fetchVendors(); setVendors([]); }}
+                        type="button"
+                        onClick={() => void fetchVendors()}
                         data-testid="vendors-refresh-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     >
@@ -293,63 +286,24 @@ export function VendorsPage() {
                 </div>
             </div>
 
-            {errorKey ? (
-                <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
-                    <AlertCircle className="h-12 w-12 text-rose-500" />
-                    <div>
-                        <p className="text-white font-bold text-xl">{t('errors.title')}</p>
-                        <p className="text-slate-500 max-w-sm mx-auto">{t(errorKey, { ns: 'errorKeys' })}</p>
-                    </div>
-                    <button onClick={fetchVendors} className="text-accent font-bold hover:underline">{t('errors.try_again')}</button>
-                </div>
-            ) : isLoading ? (
-                <div className="glass-card !p-0 overflow-hidden">
-                    <table className="w-full">
-                        <thead>
-                            <tr className="border-b border-white/5 bg-white/[0.02]">
-                                {columns.map((col) => (
-                                    <th key={String(col.key)} className="px-6 py-5 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                        {col.label}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {[...Array(limit)].map((_, i) => (
-                                <tr key={`skeleton-${i}`} className="border-b border-white/5 animate-pulse">
-                                    <td className="px-6 py-4"><div className="h-4 w-40 bg-white/5 rounded" /></td>
-                                    <td className="px-6 py-4"><div className="h-4 w-24 bg-white/5 rounded" /></td>
-                                    <td className="px-6 py-4"><div className="h-4 w-24 bg-white/5 rounded" /></td>
-                                    <td className="px-6 py-4"><div className="h-4 w-20 bg-white/5 rounded" /></td>
-                                    <td className="px-6 py-4"><div className="h-6 w-12 bg-white/5 rounded-full mx-auto" /></td>
-                                    <td className="px-6 py-4"><div className="h-6 w-16 bg-white/5 rounded-full" /></td>
-                                    <td className="px-6 py-4"><div className="h-4 w-4 bg-white/5 rounded ml-auto" /></td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            ) : (
-                <>
-                    <SortableTable
-                        data={vendors}
-                        columns={columns}
-                        keyExtractor={(v) => v.id}
-                        onRowClick={(v) => navigate(`/vendors/${v.id}`)}
-                        emptyMessage={t('empty_state.no_vendors')}
-                        onSort={handleSort}
-                        sortKey={sortField}
-                        sortDirection={sortDirection}
-                    />
-                    <Pagination
-                        currentPage={currentPage}
-                        totalPages={totalPages}
-                        totalItems={totalCount}
-                        itemsPerPage={limit}
-                        onPageChange={(p) => { setCurrentPage(p); setVendors([]); }}
-                    />
-                </>
-            )}
+            <VendorsTableSection
+                currentPage={currentPage}
+                errorKey={errorKey}
+                hasLoadedOnce={hasLoadedVendorsRef.current}
+                isLoading={isLoading}
+                items={vendors}
+                itemsPerPage={limit}
+                onPageChange={setCurrentPage}
+                onRestoreVendor={(vendorId) => void handleRestoreVendor(vendorId)}
+                onRetry={() => void fetchVendors()}
+                onRowClick={(vendor) => navigate(`/vendors/${vendor.id}`)}
+                onSortChange={handleSort}
+                sortDirection={sortDirection}
+                sortField={sortField}
+                totalCount={totalCount}
+                totalPages={totalPages}
+                viewMode={viewMode}
+            />
 
             <ExportDialog
                 isOpen={isExportDialogOpen}

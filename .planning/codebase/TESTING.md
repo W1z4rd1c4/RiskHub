@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-02-22
+**Analysis Date:** 2026-03-07
 
 ## Test Stack Overview
 
@@ -58,6 +58,8 @@
 - Backend Postgres-sensitive tests: `cd backend && pytest -m postgres -v`
 - Backend Redis integration marker: `cd backend && pytest -m redis_integration -q`
 - Frontend unit tests: `cd frontend && npm run test:run`
+- Frontend targeted KRI routing regression: `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`
+- Frontend targeted vendor grouped-view regression: `cd frontend && npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx`
 - Frontend type checks: `cd frontend && npx tsc --noEmit`
 - Frontend quality gate chain: `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build`
 - E2E: `make -f scripts/Makefile test-e2e` or `cd frontend && npm run e2e`
@@ -74,9 +76,11 @@
 - SQLite-default tests may not catch all Postgres-specific datetime/enum behavior
 - Authorization changes should be validated in both backend API tests and frontend gating tests
 - Approval-execution changes should include high-confidence regression tests around side effects
+- `/kris` filter changes should be validated with the targeted route-backed regression covering monitoring/timeliness ownership, mutual exclusion, grouped-view parity, and rapid-click loading recovery
+- `/vendors` grouped-view changes should be validated with the targeted regression covering tab parity, `By Risk` permission gating, overlapping linked-risk membership counts, grouped fetch behavior, and the `Unlinked Risk` fallback
 - Route refactors must preserve static-route reachability (guarded by `tests/backend/pytest/test_route_shadowing.py`)
 - Time policy regressions are guarded by `tests/backend/pytest/test_timezone_policy.py` + `tests/backend/pytest/test_no_datetime_utcnow.py`
 
 ---
 
-*Testing audit refreshed on 2026-02-22*
+*Testing audit refreshed on 2026-03-07*

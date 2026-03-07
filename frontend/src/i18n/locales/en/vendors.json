@@ -5,6 +5,10 @@
     "loading": "Loading...",
     "unassigned": "Unassigned"
   },
+  "grouping": {
+    "no_process": "No Process",
+    "unlinked_risk": "Unlinked Risk"
+  },
   "actions": {
     "new": "New Vendor",
     "edit": "Edit",

@@ -1,7 +1,7 @@
 ---
 title: Správa dodavatelů
-version: "2.1"
-last_updated: "2026-03-05"
+version: "2.2"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/* + vendor assessment workflows"
 summary: "Kompletní manuál pro third‑party risk: onboarding dodavatelů, ownership, assessmenty, reassessmenty, incidenty, SLA, exporty a notifikace."
@@ -67,11 +67,13 @@ Přístup řídí:
 - permissions (`vendors:read`, `vendors:write`, `vendors:delete`)
 - scope a oddělení
 - ownership: outsourcing owner často může editovat i bez širokého write
+- viditelnost napojených rizik: risk kontext v seznamech je viditelný jen tehdy, pokud můžete číst i tato rizika
 
 Praktické pravidlo:
 
 - Pokud jste outsourcing owner, budete typicky udržovat záznam.
 - Pokud nejste, berte dodavatele jako governance objekt a vyhněte se „drive‑by editům“.
+- Záznam dodavatele může zůstat viditelný i tehdy, když je jeho risk kontext skrytý; v takovém případě se risk grouping přepne do fallback bucketu místo zobrazení nečitelných názvů rizik.
 
 ## Datový model a klíčová pole
 
@@ -221,6 +223,22 @@ Seznam dodavatelů podporuje:
 - oddělení
 - search
 
+### Pohledy seznamu
+
+Seznam dodavatelů má dva režimy:
+
+- `All`: standardní stránkovaná tabulka
+- grouped drill-down taby: `By Department`, `By Process`, `By Type`, `By Risk`
+
+Grouped pohledy používají stejné aktivní filtry jako seznam a nad výsledkem vytvářejí drill-down karty.
+
+`By Risk` je speciální:
+
+- zobrazí se jen tehdy, když můžete číst rizika
+- jeden dodavatel může být v několika risk skupinách zároveň, pokud je napojený na více čitelných rizik
+- počty na kartách jsou překrývající se membership počty, ne počet unikátních dodavatelů
+- `Unlinked Risk` znamená, že dodavatel nemá žádná čitelná napojená rizika pro váš aktuální přístup
+
 ### Exporty
 
 Dodavatele exportujte pro:
@@ -233,6 +251,7 @@ Disciplína:
 - export s „as of“ datem
 - nejmenší nezbytný scope
 - raw export neměnit
+- export dál vychází z aktivních filtrů seznamu, ne z právě otevřeného grouped bucketu
 
 ## Časté chyby
 
@@ -247,6 +266,11 @@ Disciplína:
 ### Nevidím `/vendors`
 
 - Ověřte `vendors:read`.
+
+### Nevidím tab `By Risk`
+
+- Ověřte, že můžete číst rizika i dodavatele.
+- Pokud vidíte dodavatele, ale ne rizika, vendor zůstane viditelný, ale risk-grouped tab je záměrně skrytý.
 
 ### Vidím dodavatele, ale nejdou editovat
 

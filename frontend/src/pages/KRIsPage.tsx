@@ -12,11 +12,14 @@ import type { KeyRiskIndicator, KRIMonitoringStatus, KRITimelinessStatus } from 
 import { useAuth } from '@/contexts/AuthContext';
 import { DEFAULT_LIST_PAGE_SIZE, GROUPED_VIEW_FETCH_PAGE_SIZE, LIST_SEARCH_DEBOUNCE_MS } from '@/constants/list';
 import { ExportDialog, type ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 type StatusFilter = 'all' | 'archived' | KRIMonitoringStatus;
 type TimelinessFilter = KRITimelinessStatus | null;
 
 const TIMELINESS_FILTER_VALUES: KRITimelinessStatus[] = ['due_soon'];
+const ARCHIVED_ROUTE_VALUE = 'archived';
+const ARCHIVED_STATUS_PARAM = 'status';
 
 function isMonitoringStatus(value: string | null): value is KRIMonitoringStatus {
     return value !== null && (KRI_MONITORING_FILTER_VALUES as readonly string[]).includes(value);
@@ -38,7 +41,48 @@ function readKriRouteFilters(searchParams: URLSearchParams): {
     if (isMonitoringStatus(monitoringStatus)) {
         return { statusFilter: monitoringStatus, timelinessFilter: null };
     }
+    if (searchParams.get(ARCHIVED_STATUS_PARAM) === ARCHIVED_ROUTE_VALUE) {
+        return { statusFilter: 'archived', timelinessFilter: null };
+    }
     return { statusFilter: 'all', timelinessFilter: null };
+}
+
+function buildKriListParams(params: {
+    currentPage: number;
+    limit: number;
+    search: string;
+    statusFilter: StatusFilter;
+    timelinessFilter: TimelinessFilter;
+}) {
+    const trimmedSearch = params.search.trim();
+
+    return {
+        includeArchived: params.statusFilter === 'archived',
+        monitoringStatus:
+            !params.timelinessFilter && params.statusFilter !== 'all' && params.statusFilter !== 'archived'
+                ? params.statusFilter
+                : undefined,
+        search: trimmedSearch || undefined,
+        timelinessStatus: params.timelinessFilter ?? undefined,
+        page: params.currentPage,
+        size: params.limit,
+    };
+}
+
+function buildKriExportFilters(params: {
+    search: string;
+    statusFilter: StatusFilter;
+    timelinessFilter: TimelinessFilter;
+}) {
+    return {
+        status: params.statusFilter === 'archived' ? 'archived' : null,
+        monitoringStatus:
+            !params.timelinessFilter && params.statusFilter !== 'all' && params.statusFilter !== 'archived'
+                ? params.statusFilter
+                : null,
+        search: params.search.trim() || null,
+        timelinessStatus: params.timelinessFilter,
+    };
 }
 
 export function KRIsPage() {
@@ -48,10 +92,6 @@ export function KRIsPage() {
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
-    const initialFilters = readKriRouteFilters(searchParams);
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>(initialFilters.statusFilter);
-    const [timelinessFilter, setTimelinessFilter] = useState<TimelinessFilter>(initialFilters.timelinessFilter);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [currentPage, setCurrentPage] = useState(1);
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -59,70 +99,95 @@ export function KRIsPage() {
     const { t } = useTranslation('kris');
     const { hasPermission } = useAuth();
     const limit = DEFAULT_LIST_PAGE_SIZE;
+    const debouncedSearch = useDebouncedValue(search, LIST_SEARCH_DEBOUNCE_MS);
     const latestRequestIdRef = useRef(0);
+    const { statusFilter, timelinessFilter } = readKriRouteFilters(searchParams);
+    const isArchivedOnly = statusFilter === 'archived';
 
     const fetchKRIs = useCallback(async () => {
         const requestId = ++latestRequestIdRef.current;
-        const isLatestRequest = () => requestId === latestRequestIdRef.current;
         setIsLoading(true);
+
         try {
-            const includeArchived = statusFilter === 'archived';
-            // For 'all' view, use server-side pagination
-            if (viewMode === 'all') {
-                const data = await kriApi.getKRIs({
-                    page: currentPage,
-                    size: limit,
-                    include_archived: includeArchived,
-                    search: debouncedSearch || undefined,
-                    monitoring_status:
-                        !timelinessFilter && statusFilter !== 'all' && statusFilter !== 'archived' ? statusFilter : undefined,
-                    timeliness_status: timelinessFilter ?? undefined,
-                });
-                if (!isLatestRequest()) return;
-                setKris(data.items || []);
-                setTotalCount(data.total || 0);
-            } else {
-                // For grouped views, fetch ALL pages for accurate group counts
-                const pageSize = GROUPED_VIEW_FETCH_PAGE_SIZE;
-                let allKRIs: KeyRiskIndicator[] = [];
+            const isLatestRequest = () => requestId === latestRequestIdRef.current;
+            const listParams = buildKriListParams({
+                currentPage,
+                limit,
+                search: debouncedSearch,
+                statusFilter,
+                timelinessFilter,
+            });
+
+            const fetchAllMatchingKRIs = async () => {
+                const items: KeyRiskIndicator[] = [];
                 let page = 1;
                 let total = 0;
 
                 do {
                     const data = await kriApi.getKRIs({
                         page,
-                        size: pageSize,
-                        include_archived: includeArchived,
-                        search: debouncedSearch || undefined,
-                        monitoring_status:
-                            !timelinessFilter && statusFilter !== 'all' && statusFilter !== 'archived' ? statusFilter : undefined,
-                        timeliness_status: timelinessFilter ?? undefined,
+                        size: GROUPED_VIEW_FETCH_PAGE_SIZE,
+                        include_archived: listParams.includeArchived,
+                        search: listParams.search,
+                        monitoring_status: listParams.monitoringStatus,
+                        timeliness_status: listParams.timelinessStatus,
                     });
-                    total = data.total || 0;
-                    allKRIs = [...allKRIs, ...(data.items || [])];
-                    page++;
-                } while ((page - 1) * pageSize < total);
 
-                if (!isLatestRequest()) return;
-                setKris(allKRIs);
-                setTotalCount(total);
+                    if (!isLatestRequest()) {
+                        return null;
+                    }
+
+                    total = data.total || 0;
+                    items.push(...(data.items || []));
+                    page += 1;
+                } while (items.length < total);
+
+                const filteredItems = isArchivedOnly
+                    ? items.filter((kri) => kri.is_archived === true)
+                    : items;
+
+                return {
+                    items: filteredItems,
+                    total: filteredItems.length,
+                };
+            };
+
+            if (viewMode === 'all' && !isArchivedOnly) {
+                const data = await kriApi.getKRIs({
+                    page: listParams.page,
+                    size: listParams.size,
+                    include_archived: listParams.includeArchived,
+                    search: listParams.search,
+                    monitoring_status: listParams.monitoringStatus,
+                    timeliness_status: listParams.timelinessStatus,
+                });
+
+                if (!isLatestRequest()) {
+                    return;
+                }
+
+                setKris(data.items || []);
+                setTotalCount(data.total || 0);
+            } else {
+                const data = await fetchAllMatchingKRIs();
+                if (!data || !isLatestRequest()) {
+                    return;
+                }
+
+                setKris(data.items);
+                setTotalCount(data.total);
             }
         } catch (err) {
-            if (!isLatestRequest()) return;
+            if (requestId !== latestRequestIdRef.current) {
+                return;
+            }
             console.error('Failed to fetch KRIs:', err);
         } finally {
-            if (isLatestRequest()) {
+            if (requestId === latestRequestIdRef.current) {
                 setIsLoading(false);
             }
         }
     }, [viewMode, currentPage, limit, statusFilter, timelinessFilter, debouncedSearch]);
-
-    useEffect(() => {
-        const timeoutId = window.setTimeout(() => {
-            setDebouncedSearch(search.trim());
-        }, LIST_SEARCH_DEBOUNCE_MS);
-        return () => window.clearTimeout(timeoutId);
-    }, [search]);
 
     const handleRestoreKRI = async (kriId: number, e: MouseEvent) => {
         e.stopPropagation();
@@ -140,12 +205,11 @@ export function KRIsPage() {
             await reportApi.exportKRIs({
                 format,
                 asOfDate,
-                filters: {
-                    status: statusFilter === 'archived' ? 'archived' : null,
-                    monitoringStatus: !timelinessFilter && statusFilter !== 'all' && statusFilter !== 'archived' ? statusFilter : null,
-                    timelinessStatus: timelinessFilter,
-                    search: search.trim() || null,
-                },
+                filters: buildKriExportFilters({
+                    search,
+                    statusFilter,
+                    timelinessFilter,
+                }),
             });
             setIsExportDialogOpen(false);
         } catch (err) {
@@ -156,37 +220,27 @@ export function KRIsPage() {
     };
 
     useEffect(() => {
-        fetchKRIs();
+        void fetchKRIs();
     }, [fetchKRIs]);
 
-    useEffect(() => {
-        const routeFilters = readKriRouteFilters(searchParams);
-        if (routeFilters.statusFilter !== statusFilter) {
-            setStatusFilter(routeFilters.statusFilter);
-            setCurrentPage(1);
-        }
-        if (routeFilters.timelinessFilter !== timelinessFilter) {
-            setTimelinessFilter(routeFilters.timelinessFilter);
-            setCurrentPage(1);
-        }
-    }, [searchParams, statusFilter, timelinessFilter]);
+    const updateRouteFilters = useCallback((nextStatusFilter: StatusFilter, nextTimelinessFilter: TimelinessFilter) => {
+        setCurrentPage(1);
 
-    useEffect(() => {
         const nextParams = new URLSearchParams(searchParams);
-        if (timelinessFilter) {
-            nextParams.set('timeliness_status', timelinessFilter);
-            nextParams.delete('monitoring_status');
-        } else if (statusFilter !== 'all' && statusFilter !== 'archived') {
-            nextParams.set('monitoring_status', statusFilter);
-            nextParams.delete('timeliness_status');
-        } else {
-            nextParams.delete('monitoring_status');
-            nextParams.delete('timeliness_status');
+        nextParams.delete('monitoring_status');
+        nextParams.delete('timeliness_status');
+        nextParams.delete(ARCHIVED_STATUS_PARAM);
+
+        if (nextTimelinessFilter) {
+            nextParams.set('timeliness_status', nextTimelinessFilter);
+        } else if (nextStatusFilter === 'archived') {
+            nextParams.set(ARCHIVED_STATUS_PARAM, ARCHIVED_ROUTE_VALUE);
+        } else if (nextStatusFilter !== 'all') {
+            nextParams.set('monitoring_status', nextStatusFilter);
         }
-        if (nextParams.toString() !== searchParams.toString()) {
-            setSearchParams(nextParams, { replace: true });
-        }
-    }, [searchParams, setSearchParams, statusFilter, timelinessFilter]);
+
+        setSearchParams(nextParams, { replace: true });
+    }, [searchParams, setSearchParams]);
 
     const formatNumber = (val: number): string => {
         if (val === 0) return '0';
@@ -194,17 +248,6 @@ export function KRIsPage() {
         if (Math.abs(val) < 100) return val.toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
         return Math.round(val).toLocaleString('cs-CZ');
     };
-
-    // Filter KRIs
-    const filteredKRIs = kris.filter(kri => {
-        const matchesSearch = !search || kri.metric_name.toLowerCase().includes(search.toLowerCase());
-
-        if (!matchesSearch) return false;
-        if (statusFilter === 'archived') return kri.is_archived === true;
-        if (kri.is_archived) return false;
-        if (timelinessFilter === 'due_soon') return true;
-        return statusFilter === 'all' || kri.monitoring_status === statusFilter;
-    });
 
     // Table columns matching Risks page style
     const columns: Column<KeyRiskIndicator>[] = [
@@ -312,14 +355,10 @@ export function KRIsPage() {
         }
     };
 
-    // Pagination - use server total for 'all' view, filtered length for grouped views
-    const totalPages = viewMode === 'all'
-        ? Math.ceil(totalCount / limit) || 1
-        : Math.ceil(filteredKRIs.length / limit) || 1;
-    // For 'all' view, data is already paginated from server; for grouped, use client-side slice
-    const paginatedKRIs = viewMode === 'all'
-        ? filteredKRIs
-        : filteredKRIs.slice((currentPage - 1) * limit, currentPage * limit);
+    const totalPages = Math.ceil(totalCount / limit) || 1;
+    const paginatedKRIs = viewMode === 'all' && isArchivedOnly
+        ? kris.slice((currentPage - 1) * limit, currentPage * limit)
+        : kris;
 
     return (
         <div className="space-y-8">
@@ -339,7 +378,7 @@ export function KRIsPage() {
                         {t('actions.export')}
                     </button>
                     <button
-                        onClick={fetchKRIs}
+                        onClick={() => void fetchKRIs()}
                         data-testid="kris-refresh-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
                         title={t('common:actions.refresh')}
@@ -355,7 +394,13 @@ export function KRIsPage() {
             </div>
 
             {/* View Switcher - Same as Risks */}
-            <ViewSwitcher value={viewMode} onChange={setViewMode} />
+            <ViewSwitcher
+                value={viewMode}
+                onChange={(nextViewMode) => {
+                    setViewMode(nextViewMode);
+                    setCurrentPage(1);
+                }}
+            />
 
             {/* Filters - Same style as Risks */}
             <div className="glass-card flex flex-col md:flex-row gap-4">
@@ -373,7 +418,7 @@ export function KRIsPage() {
                 <div className="flex gap-2 flex-wrap items-center">
                     {/* Button-style status filters */}
                     <button
-                        onClick={() => { setTimelinessFilter('due_soon'); setStatusFilter('all'); setCurrentPage(1); }}
+                        onClick={() => updateRouteFilters('all', 'due_soon')}
                         data-testid="kris-status-filter-due_soon"
                         className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${timelinessFilter === 'due_soon'
                             ? 'bg-accent text-white shadow-lg shadow-accent/20'
@@ -385,7 +430,7 @@ export function KRIsPage() {
                     {(['all', ...KRI_MONITORING_FILTER_VALUES, 'archived'] as StatusFilter[]).map((opt) => (
                         <button
                             key={opt}
-                            onClick={() => { setStatusFilter(opt); setTimelinessFilter(null); setCurrentPage(1); }}
+                            onClick={() => updateRouteFilters(opt, null)}
                             data-testid={`kris-status-filter-${opt}`}
                             className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${statusFilter === opt
                                 && !timelinessFilter
@@ -397,7 +442,10 @@ export function KRIsPage() {
                         </button>
                     ))}
                     <button
-                        onClick={() => { setSearch(''); setStatusFilter('all'); setTimelinessFilter(null); setCurrentPage(1); }}
+                        onClick={() => {
+                            setSearch('');
+                            updateRouteFilters('all', null);
+                        }}
                         data-testid="kris-clear-filters-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     >
@@ -444,14 +492,15 @@ export function KRIsPage() {
                     <Pagination
                         currentPage={currentPage}
                         totalPages={totalPages}
-                        totalItems={viewMode === 'all' ? totalCount : filteredKRIs.length}
+                        totalItems={totalCount}
                         itemsPerPage={limit}
                         onPageChange={setCurrentPage}
                     />
                 </>
             ) : (
                 <CategoryDrillDown
-                    data={filteredKRIs}
+                    key={`${viewMode}:${statusFilter}:${timelinessFilter ?? ''}:${debouncedSearch}:${isArchivedOnly ? 'archived' : 'active'}`}
+                    data={kris}
                     groupBy={getGroupByField() as keyof KeyRiskIndicator}
                     hideTotal={viewMode === 'risk'}
                     hideHighRisk={viewMode === 'risk'}

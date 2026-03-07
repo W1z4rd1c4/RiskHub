@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { ExportDialog } from '@/components/reports/ExportDialog';
+import { ViewSwitcher } from '@/components/tables';
 import { usePermissions } from '@/hooks/usePermissions';
 import { IssuesFilterBar } from './issues/IssuesFilterBar';
 import { IssuesPageHeader } from './issues/IssuesPageHeader';
@@ -50,6 +51,8 @@ export function IssuesPage() {
         updateSeverityFilter,
         updateSort,
         updateStatusFilter,
+        updateViewMode,
+        viewMode,
     } = useIssuesPageState({
         canRead,
         initialState,
@@ -72,6 +75,8 @@ export function IssuesPage() {
                 onCreateIssue={() => navigate('/issues/new')}
                 onOpenExport={openExportDialog}
             />
+
+            <ViewSwitcher value={viewMode} onChange={updateViewMode} exclude={['risk']} />
 
             <IssuesFilterBar
                 search={search}
@@ -105,6 +110,7 @@ export function IssuesPage() {
                 onRowClick={(issue) => navigate(`/issues/${issue.id}`)}
                 onSortChange={updateSort}
                 onPageChange={setCurrentPage}
+                viewMode={viewMode}
             />
 
             <ExportDialog

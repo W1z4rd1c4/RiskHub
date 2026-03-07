@@ -26,6 +26,7 @@ Folder for `tests/frontend/unit/src/pages/__tests__` implementation assets.
 - `LoginPage.auth-modes.test.tsx`
 - `rbac_gating.test.tsx`
 - `RiskDetailPage.issue-entry.test.tsx`
+- `VendorsPage.grouped-views.test.tsx`
 - `...`
 
 ## Notes
@@ -33,11 +34,24 @@ Folder for `tests/frontend/unit/src/pages/__tests__` implementation assets.
 Monitoring-status coverage for controls/KRIs page filters and status rendering
 belongs in this folder.
 
+`KRIsPage.monitoring-status.test.tsx` is the targeted regression gate for:
+- URL-sourced monitoring/timeliness filter ownership
+- monitoring/timeliness mutual exclusion
+- no stuck loading under rapid filter changes
+- grouped-view parity for route-backed KRI filters
+
 Audit-trail pagination and canonical execution-result rendering regressions also
 belong here because they are page-level consumers of the shared execution
 domain contract.
 
 Department detail KRI filter/count regressions also belong here because the page
 consumes the canonical monitoring-status model and paginated department KRI API.
+
+`VendorsPage.grouped-views.test.tsx` is the targeted regression gate for:
+- grouped vendor tab rendering (`All`, `By Department`, `By Process`, `By Type`, `By Risk`)
+- `By Risk` visibility only when risk-read permission exists
+- vendor duplication across multiple linked-risk groups
+- `Unlinked Risk` bucket behavior when no readable linked risks exist
+- grouped results honoring active search/status/type filters before grouping
 
 Keep this README updated when responsibilities or structure in this folder change.
