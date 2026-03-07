@@ -261,24 +261,6 @@ export function KRIsPage() {
             },
         },
         {
-            key: 'actions',
-            label: '',
-            render: (kri) => (
-                <div className="flex items-center justify-end gap-2">
-                    {kri.is_archived && hasPermission('risks', 'delete') && (
-                        <button
-                            onClick={(e) => handleRestoreKRI(kri.id, e)}
-                            data-testid={`kri-unarchive-${kri.id}`}
-                            className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
-                        >
-                            {t('actions.unarchive')}
-                        </button>
-                    )}
-                    <ChevronRight className="h-4 w-4 text-slate-500" />
-                </div>
-            ),
-        },
-        {
             key: 'risk_process',
             label: t('columns.risk'),
             sortable: true,
@@ -296,6 +278,24 @@ export function KRIsPage() {
                 <span className="text-slate-400 text-xs font-medium block truncate max-w-[200px]" title={kri.risk_description}>
                     {kri.risk_description || t('common:fallbacks.not_available')}
                 </span>
+            ),
+        },
+        {
+            key: 'actions',
+            label: '',
+            render: (kri) => (
+                <div className="flex items-center justify-end gap-2">
+                    {kri.is_archived && hasPermission('risks', 'delete') && (
+                        <button
+                            onClick={(e) => handleRestoreKRI(kri.id, e)}
+                            data-testid={`kri-unarchive-${kri.id}`}
+                            className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[10px] font-black uppercase tracking-wider"
+                        >
+                            {t('actions.unarchive')}
+                        </button>
+                    )}
+                    <ChevronRight className="h-4 w-4 text-slate-500" />
+                </div>
             ),
         },
     ];

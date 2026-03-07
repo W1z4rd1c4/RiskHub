@@ -26,8 +26,8 @@ export const mockDashboard = {
 };
 
 export const mockExecutions = [
-    { id: 1, control_id: 1, result: 'pass', executed_at: '2025-12-25T10:00:00Z', findings: 'No issues found' },
-    { id: 2, control_id: 1, result: 'issues_found', executed_at: '2025-12-24T10:00:00Z', findings: 'Minor documentation gap' },
+    { id: 1, control_id: 1, result: 'passed', executed_at: '2025-12-25T10:00:00Z', findings: 'No issues found' },
+    { id: 2, control_id: 1, result: 'warning', executed_at: '2025-12-24T10:00:00Z', findings: 'Minor documentation gap' },
 ];
 
 export const mockAuthUser = {
@@ -244,12 +244,33 @@ export const handlers = [
 
     // Executions
     http.get('*/api/v1/executions', () => {
-        return HttpResponse.json(mockExecutions);
+        return HttpResponse.json({
+            items: mockExecutions,
+            total: mockExecutions.length,
+            skip: 0,
+            limit: mockExecutions.length,
+        });
     }),
 
     http.post('*/api/v1/executions', async ({ request }) => {
         const body = await request.json() as Record<string, unknown>;
-        return HttpResponse.json({ id: 99, ...body, executed_at: new Date().toISOString() }, { status: 201 });
+        return HttpResponse.json({ id: 99, ...body, executed_at: new Date().toISOString(), created_at: new Date().toISOString() }, { status: 201 });
+    }),
+
+    http.get('*/api/v1/controls/:id/executions', ({ params }) => {
+        const controlId = Number(params.id);
+        return HttpResponse.json(mockExecutions.filter((execution) => execution.control_id === controlId));
+    }),
+
+    http.post('*/api/v1/controls/:id/executions', async ({ request, params }) => {
+        const body = await request.json() as Record<string, unknown>;
+        return HttpResponse.json({
+            id: 100,
+            ...body,
+            control_id: Number(params.id),
+            executed_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+        }, { status: 201 });
     }),
 
     // Risk Hub (used by hooks; keep tests offline)

@@ -107,7 +107,7 @@ async def test_control_owner_can_create_execution_via_main_endpoint(
         "/api/v1/executions",
         json={
             "control_id": cross_dept_control.id,
-            "result": "pass",
+            "result": "passed",
             "findings": "Cross-department execution logged via ownership",
         },
     )
@@ -115,7 +115,7 @@ async def test_control_owner_can_create_execution_via_main_endpoint(
     assert response.status_code == 201
     data = response.json()
     assert data["control_id"] == cross_dept_control.id
-    assert data["result"] == "pass"
+    assert data["result"] == "passed"
 
 
 @pytest.mark.asyncio
@@ -153,7 +153,7 @@ async def test_control_owner_sees_cross_dept_executions_in_list(
     execution = ControlExecution(
         control_id=cross_dept_control.id,
         executed_by_id=test_user.id,
-        result="pass",
+        result="passed",
         findings="Test execution",
     )
     db_session.add(execution)
@@ -164,7 +164,7 @@ async def test_control_owner_sees_cross_dept_executions_in_list(
     response = await auth_client.get("/api/v1/executions")
     assert response.status_code == 200
 
-    executions = response.json()
+    executions = response.json()["items"]
     control_ids = [e["control_id"] for e in executions]
     assert cross_dept_control.id in control_ids
 
@@ -358,7 +358,7 @@ async def test_non_owner_cannot_create_execution_for_other_dept_control(
         "/api/v1/executions",
         json={
             "control_id": cross_dept_control.id,
-            "result": "pass",
+            "result": "passed",
             "findings": "Should fail",
         },
     )

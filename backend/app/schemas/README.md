@@ -25,4 +25,8 @@ API request/response schema definitions.
 
 ## Notes
 
+Execution request/response schema ownership for the execution domain lives in
+`execution.py`, including the canonical `ExecutionResultEnum` and generic
+paginated `/executions` response shapes.
+
 Keep this README updated when responsibilities or structure in this folder change.

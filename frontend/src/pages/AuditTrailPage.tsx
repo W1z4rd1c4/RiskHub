@@ -6,10 +6,6 @@ import {
     Filter,
     ChevronRight,
     User,
-    CheckCircle,
-    XCircle,
-    AlertTriangle,
-    MinusCircle,
     History,
     Sheet,
     Shield,
@@ -17,15 +13,16 @@ import {
 } from 'lucide-react';
 import { executionApi } from '@/services/executionApi';
 import { reportApi } from '@/services/reportApi';
-import type { ControlExecution, ExecutionResult } from '@/services/executionApi';
+import type { ExecutionAuditItem, ExecutionResult } from '@/types/execution';
 import { Pagination } from '@/components/tables';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { getExecutionResultMeta } from '@/lib/executionResult';
 
 export function AuditTrailPage() {
-    const { t } = useTranslation('controls');
+    const { t } = useTranslation(['controls', 'common']);
     const navigate = useNavigate();
 
-    const [executions, setExecutions] = useState<ControlExecution[]>([]);
+    const [executions, setExecutions] = useState<ExecutionAuditItem[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [resultFilter, setResultFilter] = useState<ExecutionResult | ''>('');
@@ -41,11 +38,8 @@ export function AuditTrailPage() {
                 limit,
                 result: resultFilter || undefined
             });
-            // Note: executionApi.getExecutions returns array directly, not paginated response
-            // In a full fix, the backend would return { items, total }
-            setExecutions(data);
-            // Estimate total based on whether we got a full page
-            setTotalCount(data.length < limit ? skip + data.length : skip + limit + 1);
+            setExecutions(data.items);
+            setTotalCount(data.total);
         } catch (err) {
             console.error('Failed to fetch audit trail:', err);
         } finally {
@@ -61,24 +55,6 @@ export function AuditTrailPage() {
     useEffect(() => {
         fetchExecutions();
     }, [fetchExecutions]);
-
-    const getResultIcon = (result: ExecutionResult) => {
-        switch (result) {
-            case 'passed': return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-            case 'failed': return <XCircle className="h-4 w-4 text-rose-400" />;
-            case 'warning': return <AlertTriangle className="h-4 w-4 text-amber-400" />;
-            case 'not_applicable': return <MinusCircle className="h-4 w-4 text-slate-400" />;
-        }
-    };
-
-    const getResultColor = (result: ExecutionResult) => {
-        switch (result) {
-            case 'passed': return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-            case 'failed': return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
-            case 'warning': return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-            case 'not_applicable': return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
-        }
-    };
 
     return (
         <div className="space-y-8">
@@ -123,7 +99,7 @@ export function AuditTrailPage() {
 
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-500 px-4">
                         <ClipboardCheck className="h-4 w-4" />
-                        {t('audit_trail.total_records', { count: executions.length })}
+                        {t('audit_trail.total_records', { count: totalCount })}
                     </div>
                 </div>
             </div>
@@ -170,77 +146,81 @@ export function AuditTrailPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                executions.map((exec) => (
-                                    <tr
-                                        key={exec.id}
-                                        className="border-b border-white/5 hover:bg-white/[0.03] transition-colors group cursor-pointer"
-                                        onClick={() => navigate(`/controls/${exec.control_id}`)}
-                                    >
-                                        <td className="px-6 py-5">
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-bold text-white mb-0.5">
-                                                    {new Date(exec.executed_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                </span>
-                                                <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
-                                                    {new Date(exec.executed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-bold text-white group-hover:text-accent transition-colors truncate max-w-[200px]">
-                                                    {exec.control_name || exec.control?.name || t('common:fallbacks.unknown_control')}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex items-center gap-2">
-                                                <Shield className="h-3 w-3 text-slate-500" />
-                                                <span className="text-xs font-bold text-slate-400">{exec.control_owner_name || t('common:fallbacks.unassigned')}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex flex-col gap-1">
-                                                {exec.linked_risks && exec.linked_risks.length > 0 ? (
-                                                    exec.linked_risks.map((risk, i) => (
-                                                        <div key={i} className="flex items-center gap-1.5">
-                                                            <Target className="h-3 w-3 text-rose-500/70" />
-                                                            <span className="text-xs font-medium text-slate-400">{risk}</span>
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-xs text-slate-600 italic">{t('common:empty.no_linked_risks')}</span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-[10px] font-black text-accent">
-                                                    <User className="h-3 w-3" />
+                                executions.map((exec) => {
+                                    const resultMeta = getExecutionResultMeta(exec.result);
+                                    const ResultIcon = resultMeta.icon;
+                                    return (
+                                        <tr
+                                            key={exec.id}
+                                            className="border-b border-white/5 hover:bg-white/[0.03] transition-colors group cursor-pointer"
+                                            onClick={() => navigate(`/controls/${exec.control_id}`)}
+                                        >
+                                            <td className="px-6 py-5">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-white mb-0.5">
+                                                        {new Date(exec.executed_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    </span>
+                                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+                                                        {new Date(exec.executed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
                                                 </div>
-                                                <span className="text-xs font-bold text-slate-400">{exec.executed_by_name || exec.executed_by?.name || t('common:fallbacks.system')}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex justify-center">
-                                                <div className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${getResultColor(exec.result)}`}>
-                                                    {getResultIcon(exec.result)}
-                                                    {t(`results.${exec.result}`)}
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-bold text-white group-hover:text-accent transition-colors truncate max-w-[200px]">
+                                                        {exec.control_name || exec.control?.name || t('common:fallbacks.unknown_control')}
+                                                    </span>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <p className="text-xs text-slate-400 font-medium line-clamp-1 italic max-w-xs">
-                                                "{exec.findings || t('audit_trail.no_findings')}"
-                                            </p>
-                                        </td>
-                                        <td className="px-6 py-5 text-right">
-                                            <button className="p-2 text-slate-600 group-hover:text-white transition-colors">
-                                                <ChevronRight className="h-4 w-4" />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center gap-2">
+                                                    <Shield className="h-3 w-3 text-slate-500" />
+                                                    <span className="text-xs font-bold text-slate-400">{exec.control_owner_name || t('common:fallbacks.unassigned')}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="flex flex-col gap-1">
+                                                    {exec.linked_risks && exec.linked_risks.length > 0 ? (
+                                                        exec.linked_risks.map((risk, i) => (
+                                                            <div key={i} className="flex items-center gap-1.5">
+                                                                <Target className="h-3 w-3 text-rose-500/70" />
+                                                                <span className="text-xs font-medium text-slate-400">{risk}</span>
+                                                            </div>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-xs text-slate-600 italic">{t('common:empty.no_linked_risks')}</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-[10px] font-black text-accent">
+                                                        <User className="h-3 w-3" />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-slate-400">{exec.executed_by_name || exec.executed_by?.name || t('common:fallbacks.system')}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <div className="flex justify-center">
+                                                    <div className={`px-2.5 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest flex items-center gap-2 ${resultMeta.badgeClassName}`}>
+                                                        <ResultIcon className={`h-4 w-4 ${resultMeta.iconClassName}`} />
+                                                        {t(resultMeta.labelKey)}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-5">
+                                                <p className="text-xs text-slate-400 font-medium line-clamp-1 italic max-w-xs">
+                                                    "{exec.findings || t('audit_trail.no_findings')}"
+                                                </p>
+                                            </td>
+                                            <td className="px-6 py-5 text-right">
+                                                <button className="p-2 text-slate-600 group-hover:text-white transition-colors">
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>

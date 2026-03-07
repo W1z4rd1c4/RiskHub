@@ -4,13 +4,12 @@ import type {
     ControlCreate,
     ControlMonitoringStatus,
     ControlUpdate,
-    ControlExecution,
-    ControlExecutionCreate,
     ControlRiskLink,
     ControlListResponse
 } from '@/types/control';
 import { ControlEffectiveness } from '@/types/risk';
 import type { ApprovalCreatedResponse } from '@/types/approval';
+import type { ControlExecution, ControlExecutionCreate } from '@/types/execution';
 
 export const controlApi = {
     async getControls(params: {
