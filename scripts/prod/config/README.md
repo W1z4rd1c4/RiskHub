@@ -1,6 +1,6 @@
 # Legacy Docker Runtime Env Templates
 
-This directory is maintained only for the internal Docker executor behind `scripts/deploy.sh --target docker`.
+This directory is maintained only for the internal Docker executor behind `./scripts/deploy.sh --target docker`.
 
 - `backend.env.example` documents the rendered backend runtime contract.
 - `frontend.env.example` documents the rendered frontend runtime contract.
@@ -8,9 +8,11 @@ This directory is maintained only for the internal Docker executor behind `scrip
 Public production setup no longer asks operators to edit these files directly. Use:
 
 ```bash
-scripts/deploy.sh init --target docker
-scripts/deploy.sh secrets-edit --target docker
+./scripts/deploy.sh init --target docker
+./scripts/deploy.sh secrets-edit --target docker
 ```
+
+Deprecated legacy wrappers such as `scripts/prod/setup.sh`, `scripts/prod/deploy.sh`, `scripts/prod/upgrade.sh`, and `scripts/prod/stop.sh` must not be used to manage these files.
 
 Key rules for the internal Docker runtime contract:
 

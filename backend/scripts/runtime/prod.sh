@@ -7,6 +7,8 @@ REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
 # shellcheck source=scripts/prod/lib/common.sh
 source "${REPO_ROOT}/scripts/prod/lib/common.sh"
 
+DEFAULT_BACKEND_ENV="${RUNTIME_DIR}/backend.env"
+
 tag=""
 workers="4"
 publish_backend=""
@@ -21,7 +23,7 @@ Builds backend image, runs DB prod lifecycle, ensures redis, and installs/upgrad
 backend API + scheduler containers only.
 
 Options:
-  --backend-env PATH     Default: /etc/riskhub/backend.env
+  --backend-env PATH     Default: ${DEFAULT_BACKEND_ENV}
   --tag TAG              Image tag (default: git short SHA, else timestamp)
   --workers N            Backend API workers (default: 4)
   --publish-backend SPEC Optional publish (API only), e.g. 127.0.0.1:8000:8000
@@ -69,7 +71,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "${BACKEND_ENV}" ]]; then
-  BACKEND_ENV="/etc/riskhub/backend.env"
+  BACKEND_ENV="${DEFAULT_BACKEND_ENV}"
 fi
 
 if ! [[ "$workers" =~ ^[0-9]+$ ]] || (( workers < 1 )); then

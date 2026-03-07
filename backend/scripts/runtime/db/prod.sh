@@ -9,6 +9,8 @@ source "${REPO_ROOT}/scripts/prod/lib/common.sh"
 # shellcheck source=scripts/prod/lib/preflight.sh
 source "${REPO_ROOT}/scripts/prod/lib/preflight.sh"
 
+DEFAULT_BACKEND_ENV="${RUNTIME_DIR}/backend.env"
+
 backend_image=""
 tag=""
 
@@ -22,7 +24,7 @@ Runs production DB lifecycle update (external PostgreSQL):
 - DB bootstrap (RBAC/departments/bootstrap users)
 
 Options:
-  --backend-env PATH   Default: /etc/riskhub/backend.env
+  --backend-env PATH   Default: ${DEFAULT_BACKEND_ENV}
   --backend-image IMG  Existing backend image to use for DB tasks
   --tag TAG            If backend image is omitted, build riskhub-backend:TAG
   --dry-run            Print actions only
@@ -60,7 +62,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$BACKEND_ENV" ]]; then
-  BACKEND_ENV="/etc/riskhub/backend.env"
+  BACKEND_ENV="${DEFAULT_BACKEND_ENV}"
 fi
 
 if [[ -z "$backend_image" && -z "$tag" ]]; then

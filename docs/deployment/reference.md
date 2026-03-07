@@ -60,20 +60,20 @@ Target-specific Redis URLs:
 ## Command Reference
 
 ```bash
-scripts/deploy.sh init --target docker|linux [--config PATH] [--secret-dir PATH] [--force]
-scripts/deploy.sh secrets-init --target docker|linux [--secret-dir PATH] [--force]
-scripts/deploy.sh secrets-edit --target docker|linux [--secret-dir PATH]
-scripts/deploy.sh secrets-check --target docker|linux [--secret-dir PATH]
-scripts/deploy.sh preflight --target docker|linux --config PATH
-scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --version VERSION
-scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --backend-image IMAGE --frontend-image IMAGE --redis-image IMAGE
-scripts/deploy.sh deploy --target linux --config PATH --secret-dir PATH --bundle PATH
-scripts/deploy.sh upgrade --target docker|linux ...
-scripts/deploy.sh status --target docker|linux
-scripts/deploy.sh logs --target docker|linux [--service all|backend|scheduler|frontend|redis] [--tail N] [--follow]
-scripts/deploy.sh smoke --target docker|linux --config PATH --secret-dir PATH
-scripts/deploy.sh rollback --target docker --config PATH --secret-dir PATH [--service all|backend|frontend]
-scripts/deploy.sh rollback --target linux --config PATH --secret-dir PATH
+./scripts/deploy.sh init --target docker|linux [--config PATH] [--secret-dir PATH] [--force]
+./scripts/deploy.sh secrets-init --target docker|linux [--secret-dir PATH] [--force]
+./scripts/deploy.sh secrets-edit --target docker|linux [--secret-dir PATH]
+./scripts/deploy.sh secrets-check --target docker|linux [--secret-dir PATH]
+./scripts/deploy.sh preflight --target docker|linux --config PATH
+./scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --version VERSION
+./scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --backend-image IMAGE --frontend-image IMAGE --redis-image IMAGE
+./scripts/deploy.sh deploy --target linux --config PATH --secret-dir PATH --bundle PATH
+./scripts/deploy.sh upgrade --target docker|linux ...
+./scripts/deploy.sh status --target docker|linux
+./scripts/deploy.sh logs --target docker|linux [--service all|backend|scheduler|frontend|redis] [--tail N] [--follow]
+./scripts/deploy.sh smoke --target docker|linux --config PATH --secret-dir PATH
+./scripts/deploy.sh rollback --target docker --config PATH --secret-dir PATH [--service all|backend|frontend]
+./scripts/deploy.sh rollback --target linux --config PATH --secret-dir PATH
 ```
 
 Common flags:
@@ -82,6 +82,22 @@ Common flags:
 - `--dry-run`
 - `--yes`
 - `--verbose`
+
+Operational notes:
+
+- `./scripts/deploy.sh init ...` scaffolds the non-secret config, the secret-file placeholders, and the persistent runtime directory.
+- `./scripts/deploy.sh secrets-edit ...` keeps its temporary edit workspace under the parent of `--secret-dir` so secret edits stay on the same host-managed mount, not under `/tmp`.
+
+## Retired Legacy Entrypoints
+
+These legacy orchestration wrappers are deprecated and unsupported:
+
+- `scripts/prod/setup.sh`
+- `scripts/prod/deploy.sh`
+- `scripts/prod/upgrade.sh`
+- `scripts/prod/stop.sh`
+
+They remain only as redirect stubs. Use `./scripts/deploy.sh` for all supported production admin actions.
 
 ## Runtime Defaults
 

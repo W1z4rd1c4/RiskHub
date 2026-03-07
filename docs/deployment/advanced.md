@@ -5,7 +5,7 @@
 
 ## Internal Script Mapping
 
-The public production surface is `scripts/deploy.sh`.
+The public production surface is `./scripts/deploy.sh`.
 
 Internal implementation details:
 
@@ -20,6 +20,7 @@ Internal implementation details:
   - `rollback.sh`
   - `status.sh`
   - `logs.sh`
+  - `verify_runtime.sh`
 - Linux executor manages:
   - release unpack under `/opt/riskhub/releases/<version>`
   - virtualenv creation from the bundled wheelhouse
@@ -67,6 +68,15 @@ These are not first-class production paths anymore:
 
 - Docker Compose with dockerized PostgreSQL
 - Kubernetes guidance without repo-managed manifests
-- direct operator use of `scripts/prod/*`
+- direct operator use of retired `scripts/prod/*` orchestration wrappers
+
+Deprecated, unsupported wrappers retained only as redirect stubs:
+
+- `scripts/prod/setup.sh`
+- `scripts/prod/deploy.sh`
+- `scripts/prod/upgrade.sh`
+- `scripts/prod/stop.sh`
+
+Retained internal helpers are still used by the Docker executor and by maintainer-level component runtime wrappers. Do not document the retired wrappers as admin commands.
 
 Keep them only for historical context or maintainer migration work, not as the recommended admin flow.

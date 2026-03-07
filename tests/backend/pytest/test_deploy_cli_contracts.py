@@ -11,7 +11,6 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy.sh"
-BASH_BIN = shutil.which("bash") or "/bin/bash"
 
 
 def _write_config(path: Path, **overrides: str) -> None:
@@ -181,7 +180,7 @@ def _make_linux_bundle(root: Path, version: str) -> Path:
 
 def _run_cli(args: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [BASH_BIN, str(DEPLOY_SCRIPT), *args],
+        [str(DEPLOY_SCRIPT), *args],
         cwd=REPO_ROOT,
         check=False,
         capture_output=True,
@@ -190,12 +189,28 @@ def _run_cli(args: list[str], env: dict[str, str]) -> subprocess.CompletedProces
     )
 
 
+def test_deploy_script_is_executable_entrypoint() -> None:
+    result = subprocess.run(
+        [str(DEPLOY_SCRIPT), "--help"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=os.environ.copy(),
+    )
+
+    assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+    assert "Usage: ./scripts/deploy.sh" in result.stdout
+
+
 def test_init_writes_non_secret_config_and_secret_scaffold() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-init-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
         env = os.environ.copy()
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
         result = _run_cli(
             ["init", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir)],
             env,
@@ -207,11 +222,76 @@ def test_init_writes_non_secret_config_and_secret_scaffold() -> None:
         assert (secret_dir / "secret_key").exists()
         assert (secret_dir / "redis_password").exists()
         assert (secret_dir / "entra_client_secret").exists()
+        assert runtime_dir.exists()
+        assert (runtime_dir.stat().st_mode & 0o777) == 0o750
         text = config_path.read_text(encoding="utf-8")
         assert "PUBLIC_URL=" in text
         assert "DATABASE_URL=" not in text
         assert "SECRET_KEY=" not in text
         assert "BOOTSTRAP_CRO_EMAIL=" in text
+
+
+def test_docker_preflight_succeeds_before_first_deploy_without_persistent_runtime_dir() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-preflight-fresh-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        result = _run_cli(
+            [
+                "preflight",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--yes",
+            ],
+            env,
+        )
+
+        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+        assert not runtime_dir.exists()
+
+
+def test_secrets_edit_uses_secret_mount_workspace_and_cleans_up() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-secrets-edit-") as td:
+        tmp = Path(td)
+        secret_dir = tmp / "secrets"
+        _write_secrets(secret_dir)
+        editor_log = tmp / "editor.log"
+        editor_path = tmp / "record-editor.sh"
+        _write_exec(
+            editor_path,
+            """#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$1" >"$RISKHUB_EDITOR_LOG"
+""",
+        )
+
+        env = os.environ.copy()
+        env["EDITOR"] = str(editor_path)
+        env["RISKHUB_EDITOR_LOG"] = str(editor_log)
+
+        result = _run_cli(
+            ["secrets-edit", "--target", "docker", "--secret-dir", str(secret_dir)],
+            env,
+        )
+
+        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+        buffer_path = Path(editor_log.read_text(encoding="utf-8").strip())
+        assert buffer_path.parent.name.startswith(".riskhub-secrets-edit.")
+        assert buffer_path.parent.parent == secret_dir.parent
+        assert not buffer_path.parent.exists()
 
 
 def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> None:

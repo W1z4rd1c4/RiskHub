@@ -32,6 +32,11 @@ Folder for `scripts` implementation assets.
 
 Keep this README updated when responsibilities or structure in this folder change.
 
+Production deployment note:
+
+- `./scripts/deploy.sh` is the only supported production admin CLI.
+- `scripts/prod/` contains retained internal Docker deploy helpers plus deprecated legacy orchestration stubs kept only as redirects.
+
 ## Security Probe Command
 
 Run deterministic protocol/contract drift triage:

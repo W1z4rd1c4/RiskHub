@@ -1,18 +1,29 @@
-# Production Script Internals (Legacy)
+# Production Script Internals
 
 `scripts/prod/` is now an internal implementation layer for the public deployment CLI:
 
 ```bash
-scripts/deploy.sh <init|preflight|deploy|upgrade|status|logs|smoke|rollback> --target docker|linux
+./scripts/deploy.sh <init|preflight|deploy|upgrade|status|logs|smoke|rollback> --target docker|linux
 ```
 
-Admins should use [`docs/deployment/production.md`](../../docs/deployment/production.md) and `scripts/deploy.sh`.
+Admins should use [`docs/deployment/production.md`](../../docs/deployment/production.md) and `./scripts/deploy.sh`.
 
-## What This Directory Still Does
+## Retained Internal Helpers
 
 - Docker-target component installs for backend, frontend, redis, migrations, and bootstrap flows.
-- Internal runtime contracts consumed by `scripts/deploy.sh --target docker`.
-- Dry-run friendly wrappers used by deployment contract tests and readiness audits.
+- Internal runtime contracts consumed by `./scripts/deploy.sh --target docker`.
+- Maintainer diagnostics such as `verify_runtime.sh`.
+
+## Retired Legacy Wrappers
+
+These top-level orchestration wrappers are deprecated, unsupported, and kept only as redirect stubs:
+
+- `scripts/prod/setup.sh`
+- `scripts/prod/deploy.sh`
+- `scripts/prod/upgrade.sh`
+- `scripts/prod/stop.sh`
+
+They must not be used as operator entrypoints or referenced as supported admin flows.
 
 ## Important Contract Change
 
@@ -22,11 +33,11 @@ Admins should use [`docs/deployment/production.md`](../../docs/deployment/produc
   - `SECRET_KEY_FILE`
   - `ENTRA_CLIENT_SECRET_FILE`
   - `REDIS_URL_FILE`
-- Secret material lives outside this directory under the host-managed secret/runtime paths selected by `scripts/deploy.sh`.
+- Secret material lives outside this directory under the host-managed secret/runtime paths selected by `./scripts/deploy.sh`.
 
 ## Common Flags
 
-Most scripts still support:
+Retained internal helper scripts still commonly support:
 
 - `--backend-env /path/backend.env`
 - `--frontend-env /path/frontend.env`

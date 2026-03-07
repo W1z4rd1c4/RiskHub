@@ -1,16 +1,19 @@
-"""Runtime contracts for Phase 500 production scripts."""
+"""Runtime contracts for retained and retired production scripts."""
 
 from __future__ import annotations
 
 import os
 import subprocess
 import tempfile
+import time
+import uuid
 from pathlib import Path
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROD_SCRIPTS_DIR = REPO_ROOT / "scripts" / "prod"
+RETIRED_LEGACY_SCRIPTS = ("setup.sh", "deploy.sh", "upgrade.sh", "stop.sh")
 
 
 def _docker_available() -> bool:
@@ -85,6 +88,67 @@ def _write_frontend_env(path: Path, *, host_port: str, container_port: str) -> N
     )
 
 
+@pytest.mark.parametrize("script_name", RETIRED_LEGACY_SCRIPTS)
+def test_retired_legacy_scripts_print_deprecation_help(script_name: str) -> None:
+    result = _run_script(script_name, ["--help"])
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode == 0, output
+    assert "DEPRECATED:" in output
+    assert "./scripts/deploy.sh" in output
+
+
+@pytest.mark.parametrize("script_name", RETIRED_LEGACY_SCRIPTS)
+def test_retired_legacy_scripts_reject_normal_invocation(script_name: str) -> None:
+    result = _run_script(script_name, ["--yes"])
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode != 0, output
+    assert "retired" in output.lower()
+    assert "./scripts/deploy.sh" in output
+
+
+def test_retired_setup_rejects_without_creating_temp_secret_residue() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-retired-setup-tmpdir-") as td:
+        env = os.environ.copy()
+        env["TMPDIR"] = td
+
+        result = _run_script(
+            "setup.sh",
+            [
+                "--yes",
+                "--dry-run",
+                "--action",
+                "exit",
+                "--backend-env",
+                "/etc/riskhub/backend.env",
+                "--frontend-env",
+                "/etc/riskhub/frontend.env",
+                "--public-url",
+                "https://riskhub.example.com",
+                "--database-url",
+                "postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub",
+                "--entra-tenant-id",
+                "00000000-0000-0000-0000-000000000000",
+                "--entra-client-id",
+                "11111111-1111-1111-1111-111111111111",
+                "--entra-client-secret",
+                "phase500-test-entra-client-secret",
+                "--bootstrap-admin-email",
+                "admin@example.com",
+                "--bootstrap-cro-email",
+                "cro@example.com",
+            ],
+            env=env,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        remaining_tmp_dirs = sorted(Path(td).glob("riskhub-setup.*"))
+
+        assert result.returncode != 0, output
+        assert not remaining_tmp_dirs, f"Expected no residual riskhub-setup temp dirs, found: {remaining_tmp_dirs}"
+
+
 @pytest.mark.skipif(not _docker_available(), reason="Docker daemon is required for preflight script runtime checks")
 def test_preflight_rejects_invalid_host_port_range() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-preflight-host-range-") as td:
@@ -137,43 +201,57 @@ def test_preflight_rejects_invalid_container_port_format() -> None:
         assert "FRONTEND_CONTAINER_PORT must be numeric" in output
 
 
-@pytest.mark.skipif(not _docker_available(), reason="Docker daemon is required for setup script runtime checks")
-def test_setup_dry_run_cleans_wizard_temp_directory() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-setup-tmpdir-") as td:
-        env = os.environ.copy()
-        env["TMPDIR"] = td
+@pytest.mark.skipif(not _docker_available(), reason="Docker daemon is required for redis wrapper runtime checks")
+def test_redis_wrapper_honors_non_default_secret_dir_override() -> None:
+    image_tag = f"riskhub-redis:runtime-test-{uuid.uuid4().hex[:12]}"
+    container_name = f"riskhub-redis-runtime-test-{uuid.uuid4().hex[:12]}"
+    with tempfile.TemporaryDirectory(prefix="riskhub-redis-runtime-") as td:
+        tmp = Path(td)
+        secret_dir = tmp / "custom-secrets"
+        secret_dir.mkdir(parents=True)
+        (secret_dir / "redis_password").write_text("runtime-test-password\n", encoding="utf-8")
 
-        result = _run_script(
-            "setup.sh",
-            [
-                "--yes",
-                "--dry-run",
-                "--action",
-                "exit",
-                "--backend-env",
-                "/etc/riskhub/backend.env",
-                "--frontend-env",
-                "/etc/riskhub/frontend.env",
-                "--public-url",
-                "https://riskhub.example.com",
-                "--database-url",
-                "postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub",
-                "--entra-tenant-id",
-                "00000000-0000-0000-0000-000000000000",
-                "--entra-client-id",
-                "11111111-1111-1111-1111-111111111111",
-                "--entra-client-secret",
-                "phase500-test-entra-client-secret",
-                "--bootstrap-admin-email",
-                "admin@example.com",
-                "--bootstrap-cro-email",
-                "cro@example.com",
-            ],
-            env=env,
+        build = subprocess.run(
+            ["docker", "build", "-t", image_tag, "-f", str(REPO_ROOT / "docker" / "redis" / "Dockerfile"), str(REPO_ROOT / "docker" / "redis")],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
         )
+        assert build.returncode == 0, f"{build.stdout}\n{build.stderr}"
 
-        output = f"{result.stdout}\n{result.stderr}"
-        remaining_tmp_dirs = sorted(Path(td).glob("riskhub-setup.*"))
+        try:
+            run = subprocess.run(
+                [
+                    "docker",
+                    "run",
+                    "-d",
+                    "--name",
+                    container_name,
+                    "-e",
+                    f"RISKHUB_REDIS_PASSWORD_FILE={secret_dir / 'redis_password'}",
+                    "-v",
+                    f"{secret_dir}:{secret_dir}:ro",
+                    image_tag,
+                ],
+                cwd=REPO_ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            assert run.returncode == 0, f"{run.stdout}\n{run.stderr}"
 
-        assert result.returncode == 0, output
-        assert not remaining_tmp_dirs, f"Expected no residual riskhub-setup temp dirs, found: {remaining_tmp_dirs}"
+            time.sleep(2)
+
+            state = subprocess.run(
+                ["docker", "inspect", "--format", "{{.State.Status}}", container_name],
+                cwd=REPO_ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            assert state.returncode == 0, f"{state.stdout}\n{state.stderr}"
+            assert state.stdout.strip() == "running"
+        finally:
+            subprocess.run(["docker", "rm", "-f", container_name], cwd=REPO_ROOT, check=False, capture_output=True, text=True)
+            subprocess.run(["docker", "image", "rm", "-f", image_tag], cwd=REPO_ROOT, check=False, capture_output=True, text=True)
