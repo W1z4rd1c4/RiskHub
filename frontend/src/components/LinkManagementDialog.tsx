@@ -37,6 +37,7 @@ interface LinkManagementDialogProps {
     onClose: () => void;
     showSearch?: boolean;
     showLinks?: boolean;
+    showLinkMetadataBadge?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -52,7 +53,8 @@ export function LinkManagementDialog({
     isOpen,
     onClose,
     showSearch = true,
-    showLinks = true
+    showLinks = true,
+    showLinkMetadataBadge = true,
 }: LinkManagementDialogProps) {
     const { t } = useTranslation(['common', 'controls', 'risks']);
     // -----------------------------------------------------------------------
@@ -326,6 +328,7 @@ export function LinkManagementDialog({
                                     existingLinks={existingLinks}
                                     onUnlink={handleUnlink}
                                     isUnlinking={isUnlinking}
+                                    showMetadataBadge={showLinkMetadataBadge}
                                 />
                             )}
                         </div>

@@ -40,10 +40,10 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
     const existingLinks = useMemo<ExistingLinkItem[]>(
         () =>
             linkedRisks.map((r) => ({
+                display_name: `${r.risk_id_code}: ${r.name}`,
                 id: r.id,
+                effectiveness: 'linked',
                 risk_id: r.id,
-                effectiveness: 'medium',
-                risk: { description: `${r.risk_id_code}: ${r.name}` },
             })),
         [linkedRisks],
     );
@@ -175,6 +175,7 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
                     onUnlink={async (targetId) => handleUnlink(targetId)}
                     isOpen={isDialogOpen}
                     onClose={() => setIsDialogOpen(false)}
+                    showLinkMetadataBadge={false}
                 />
             )}
         </section>

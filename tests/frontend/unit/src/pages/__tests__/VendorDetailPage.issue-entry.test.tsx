@@ -43,6 +43,7 @@ vi.mock('@/hooks/usePermissions', () => ({
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
+        deleteVendor: vi.fn(),
         getVendor: (...args: unknown[]) => mockGetVendor(...args),
         restoreVendor: vi.fn(),
     },
@@ -60,6 +61,7 @@ vi.mock('@/components/vendors/VendorIncidentsTab', () => ({ VendorIncidentsTab: 
 vi.mock('@/components/vendors/VendorRemediationTab', () => ({ VendorRemediationTab: () => <div>Remediation tab</div> }));
 vi.mock('@/components/vendors/VendorSLATab', () => ({ VendorSLATab: () => <div>SLA tab</div> }));
 vi.mock('@/components/vendors/VendorSignalsTab', () => ({ VendorSignalsTab: () => <div>Signals tab</div> }));
+vi.mock('@/pages/vendors/VendorOverviewTab', () => ({ VendorOverviewTab: () => <div>Overview tab</div> }));
 
 vi.mock('@/components/issues/IssueQuickCreateModal', () => ({
     IssueQuickCreateModal: ({
@@ -101,6 +103,8 @@ describe('VendorDetailPage issue entry', () => {
         render(<VendorDetailPage />);
 
         await screen.findByText('Atlas Cloud Services');
+        expect(screen.getByText('Overview tab')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Archive' })).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'New Issue' }));
 
         expect(screen.getByTestId('issue-modal-context')).toHaveTextContent('Atlas Cloud Services');
@@ -114,5 +118,33 @@ describe('VendorDetailPage issue entry', () => {
         await screen.findByText('Atlas Cloud Services');
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
-});
 
+    it('shows unarchive instead of archive for inactive vendors', async () => {
+        mockGetVendor.mockResolvedValueOnce({
+            id: 31,
+            name: 'Atlas Cloud Services',
+            vendor_type: 'ict',
+            status: 'inactive',
+            legal_name: 'Atlas Cloud Services LLC',
+            registration_id: 'REG-123',
+            country: 'CZ',
+            website: 'https://atlas.example.com',
+            description: 'Cloud hosting partner for platform workloads.',
+            department_name: 'IT',
+            outsourcing_owner_name: 'Anna Kowalski',
+            outsourcing_owner_user_id: 2,
+            process: 'Infrastructure',
+            subprocess: 'Hosting',
+            risk_score_1_5: 3,
+            supports_important_core_insurance_function: true,
+            dora_relevant: true,
+            is_significant_vendor: false,
+        });
+
+        render(<VendorDetailPage />);
+
+        await screen.findByText('Atlas Cloud Services');
+        expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Unarchive' })).toBeInTheDocument();
+    });
+});

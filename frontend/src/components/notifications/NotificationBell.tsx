@@ -5,6 +5,7 @@ import { useFormattedDate, useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
 import { NOTIFICATIONS_DROPDOWN_LIMIT } from '@/config/constants';
+import { buildVendorDetailPath, type VendorSectionView, type VendorTabView } from '@/pages/vendors/vendorDetailPresentation';
 
 /**
  * Get icon for notification type.
@@ -59,8 +60,10 @@ function getNotificationIcon(type: NotificationType) {
 /**
  * Get navigation path for notification resource.
  */
-function vendorTabForNotification(type: NotificationType): string | null {
-    if (type === 'vendor_reassessment_due_soon' || type === 'vendor_reassessment_overdue') return 'schedule';
+function vendorLocationForNotification(type: NotificationType): { tab: VendorTabView; section: VendorSectionView } | null {
+    if (type === 'vendor_reassessment_due_soon' || type === 'vendor_reassessment_overdue') {
+        return { tab: 'assessments', section: 'schedule' };
+    }
     if (
         type === 'vendor_sla_due_soon' ||
         type === 'vendor_sla_due_tomorrow' ||
@@ -68,14 +71,14 @@ function vendorTabForNotification(type: NotificationType): string | null {
         type === 'vendor_sla_near_breach' ||
         type === 'vendor_sla_breach_detected'
     ) {
-        return 'sla';
+        return { tab: 'operations', section: 'sla' };
     }
     if (
         type === 'vendor_assessment_submitted' ||
         type === 'vendor_assessment_committee_recommended' ||
         type === 'vendor_assessment_decided'
     ) {
-        return 'assessments';
+        return { tab: 'assessments', section: 'assessments' };
     }
     return null;
 }
@@ -92,8 +95,10 @@ function getResourcePath(notification: Notification): string | null {
             return `/controls/${resourceId}`;
         case 'kri':
             return `/kris/${resourceId}`;
-        case 'vendor':
-            return `/vendors/${resourceId}${vendorTabForNotification(notification.type) ? `?tab=${vendorTabForNotification(notification.type)}` : ''}`;
+        case 'vendor': {
+            const location = vendorLocationForNotification(notification.type);
+            return buildVendorDetailPath(resourceId, location?.tab, location?.section);
+        }
         case 'approval':
             return '/approvals';
         default:
