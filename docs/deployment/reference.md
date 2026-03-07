@@ -88,17 +88,6 @@ Operational notes:
 - `./scripts/deploy.sh init ...` scaffolds the non-secret config, the secret-file placeholders, and the persistent runtime directory.
 - `./scripts/deploy.sh secrets-edit ...` keeps its temporary edit workspace under the parent of `--secret-dir` so secret edits stay on the same host-managed mount, not under `/tmp`.
 
-## Retired Legacy Entrypoints
-
-These legacy orchestration wrappers are deprecated and unsupported:
-
-- `scripts/prod/setup.sh`
-- `scripts/prod/deploy.sh`
-- `scripts/prod/upgrade.sh`
-- `scripts/prod/stop.sh`
-
-They remain only as redirect stubs. Use `./scripts/deploy.sh` for all supported production admin actions.
-
 ## Runtime Defaults
 
 Backend API:

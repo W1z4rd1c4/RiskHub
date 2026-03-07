@@ -13,7 +13,7 @@
 **Constraints:**
 
 - React + Python FastAPI stack
-- On-premise deployment (Docker/K8s)
+- On-premise deployment (`docker`/`linux`)
 - English default with Czech language option
 
 ## Current Position
@@ -83,7 +83,6 @@
 - ✅ Reconciled canonical and planning docs for parity workflow and release gate requirements:
   - `scripts/security/README.md`
   - `docs/deployment/README.md`
-  - `docs/deployment/component-runtime-entrypoints.md`
   - `docs/TESTING.md`
   - `.planning/codebase/TESTING.md`
   - `AGENTS.md`

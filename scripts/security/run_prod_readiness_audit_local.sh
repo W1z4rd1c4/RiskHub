@@ -207,18 +207,6 @@ FRONTEND_CONTAINER_PORT=abc
 SERVER_NAME=riskhub.example.com
 EOF
 
-mkdir -p "$TMP_DIR/setup_tmp"
-python3 - "$TMP_DIR/setup_tmp" "$TMP_DIR/setup_tmp_dirs_before.json" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-root.mkdir(parents=True, exist_ok=True)
-payload = sorted([p.name for p in root.glob("riskhub-setup.*")])
-Path(sys.argv[2]).write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
-PY
-
 run_cmd "meta_git_head" true 120 "$ROOT_DIR" "git rev-parse HEAD > '$META_DIR/git_head.txt'"
 run_cmd "meta_git_status_short" true 120 "$ROOT_DIR" "git status --short --branch > '$META_DIR/git_status_short.txt'"
 run_cmd "meta_git_status_porcelain" true 120 "$ROOT_DIR" "git status --porcelain=v1 > '$META_DIR/git_status_porcelain.txt'"
@@ -287,30 +275,9 @@ BOOTSTRAP_CRO_EMAIL=cro@example.com
 BOOTSTRAP_CRO_ACCESS_SCOPE=global
 EOF
 
-cp "$TMP_DIR/backend_valid.env" "$TMP_DIR/setup_backend.env"
-cp "$TMP_DIR/frontend.env" "$TMP_DIR/setup_frontend.env"
-
-run_cmd "p2_retired_setup_rejects" false 600 "$ROOT_DIR" "TMPDIR='$TMP_DIR/setup_tmp' scripts/prod/setup.sh --yes --dry-run --action exit --backend-env '$TMP_DIR/setup_backend.env' --frontend-env '$TMP_DIR/setup_frontend.env' --public-url https://riskhub.example.com --database-url postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub --entra-tenant-id 00000000-0000-0000-0000-000000000000 --entra-client-id 11111111-1111-1111-1111-111111111111 --bootstrap-admin-email admin@example.com --bootstrap-cro-email cro@example.com --tag audit-dryrun"
+run_cmd "p2_unsupported_prod_artifacts_absent" false 60 "$ROOT_DIR" "test ! -e 'docs/deployment/docker-compose-prod.md' && test ! -e 'docs/deployment/kubernetes.md' && test ! -e 'docs/deployment/installation-manual.md' && test ! -e 'docs/deployment/external-postgres-install-scripts.md' && test ! -e 'docs/deployment/component-runtime-entrypoints.md' && test ! -e 'scripts/prod/setup.sh' && test ! -e 'scripts/prod/deploy.sh' && test ! -e 'scripts/prod/upgrade.sh' && test ! -e 'scripts/prod/stop.sh' && test ! -e 'docker-compose.prod.yml'"
 run_cmd "p2_preflight_invalid_host_range" false 300 "$ROOT_DIR" "scripts/prod/preflight.sh --backend-env '$TMP_DIR/backend_valid.env' --frontend-env '$TMP_DIR/frontend_invalid_host.env' --yes"
 run_cmd "p2_preflight_invalid_container_port" false 300 "$ROOT_DIR" "scripts/prod/preflight.sh --backend-env '$TMP_DIR/backend_valid.env' --frontend-env '$TMP_DIR/frontend_invalid_container.env' --yes"
-
-python3 - "$TMP_DIR/setup_tmp" "$TMP_DIR/setup_tmp_dirs_after.json" "$TMP_DIR/setup_tmp_dirs_new.json" "$TMP_DIR/setup_tmp_dirs_before.json" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1])
-after_path = Path(sys.argv[2])
-new_path = Path(sys.argv[3])
-before_path = Path(sys.argv[4])
-
-before = json.loads(before_path.read_text(encoding="utf-8"))
-after = sorted([p.name for p in root.glob("riskhub-setup.*")])
-new = sorted(list(set(after) - set(before)))
-
-after_path.write_text(json.dumps(after, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
-new_path.write_text(json.dumps(new, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
-PY
 
 for cleanup_id in \
   "riskhub-frontend" \
@@ -481,11 +448,6 @@ docs_code = parse_first_http_code(logs_dir / "p3_backend_docs_code.log")
 openapi_code = parse_first_http_code(logs_dir / "p3_backend_openapi_code.log")
 frontend_uid = parse_frontend_uid(logs_dir / "p3_frontend_uid.log")
 
-setup_tmp_dirs_new_path = tmp_dir / "setup_tmp_dirs_new.json"
-setup_tmp_dirs_new = []
-if setup_tmp_dirs_new_path.exists():
-    setup_tmp_dirs_new = json.loads(setup_tmp_dirs_new_path.read_text(encoding="utf-8"))
-
 deploy_log_text = read_text(logs_dir / "p3_cli_deploy.log")
 bootstrap_ok = "DB bootstrap: OK" in deploy_log_text
 bootstrap_fail_patterns = [
@@ -497,7 +459,7 @@ bootstrap_explicit_error = "ModuleNotFoundError: No module named 'app'" in deplo
 
 ph500_001_status = "fixed" if bootstrap_ok and not bootstrap_explicit_error else "reopened"
 ph500_002_status = "fixed" if frontend_uid is not None and frontend_uid != 0 else "reopened"
-ph500_003_status = "fixed" if rc("p2_retired_setup_rejects") != 0 and not setup_tmp_dirs_new else "reopened"
+ph500_003_status = "fixed" if rc("p2_unsupported_prod_artifacts_absent") == 0 else "reopened"
 ph500_004_status = "fixed" if rc("p2_preflight_invalid_host_range") != 0 and rc("p2_preflight_invalid_container_port") != 0 else "reopened"
 
 prior_runtime = [
@@ -517,7 +479,7 @@ prior_runtime = [
         "id": "PH500-DA-003",
         "severity": "P1",
         "status": ph500_003_status,
-        "evidence": [str(logs_dir / "p2_retired_setup_rejects.log"), str(setup_tmp_dirs_new_path)],
+        "evidence": [str(logs_dir / "p2_unsupported_prod_artifacts_absent.log")],
     },
     {
         "id": "PH500-DA-004",
@@ -533,9 +495,20 @@ write_json(reports_dir / "prior-blocker-revalidation-runtime.json", prior_runtim
 
 bootstrap_db_text = read_text(root / "scripts/prod/bootstrap_db.sh")
 frontend_dockerfile_text = read_text(root / "frontend/Dockerfile")
-setup_text = read_text(root / "scripts/prod/setup.sh")
 preflight_lib_text = read_text(root / "scripts/prod/lib/preflight.sh")
 main_text = read_text(root / "backend/app/main.py")
+unsupported_artifacts = [
+    root / "docs/deployment/docker-compose-prod.md",
+    root / "docs/deployment/kubernetes.md",
+    root / "docs/deployment/installation-manual.md",
+    root / "docs/deployment/external-postgres-install-scripts.md",
+    root / "docs/deployment/component-runtime-entrypoints.md",
+    root / "scripts/prod/setup.sh",
+    root / "scripts/prod/deploy.sh",
+    root / "scripts/prod/upgrade.sh",
+    root / "scripts/prod/stop.sh",
+    root / "docker-compose.prod.yml",
+]
 
 static_checks = [
     (
@@ -551,11 +524,8 @@ static_checks = [
     ),
     ("frontend non-root user", "USER riskhub" in frontend_dockerfile_text),
     (
-        "retired setup stub",
-        "DEPRECATED:" in setup_text
-        and "./scripts/deploy.sh" in setup_text
-        and "mktemp" not in setup_text
-        and "DATABASE_URL=" not in setup_text,
+        "unsupported production artifacts removed",
+        all(not path.exists() for path in unsupported_artifacts),
     ),
     (
         "frontend host/container port validation",
@@ -574,7 +544,7 @@ anchors_path.write_text("\n".join(anchors_lines) + "\n", encoding="utf-8")
 prior_static = [
     {"id": "PH500-DA-001", "severity": "P0", "status": "fixed" if static_checks[0][1] else "reopened", "evidence": [str(root / "scripts/prod/bootstrap_db.sh")]},
     {"id": "PH500-DA-002", "severity": "P1", "status": "fixed" if static_checks[1][1] else "reopened", "evidence": [str(root / "frontend/Dockerfile")]},
-    {"id": "PH500-DA-003", "severity": "P1", "status": "fixed" if static_checks[2][1] else "reopened", "evidence": [str(root / "scripts/prod/setup.sh")]},
+    {"id": "PH500-DA-003", "severity": "P1", "status": "fixed" if static_checks[2][1] else "reopened", "evidence": [str(path) for path in unsupported_artifacts]},
     {"id": "PH500-DA-004", "severity": "P1", "status": "fixed" if static_checks[3][1] else "reopened", "evidence": [str(root / "scripts/prod/lib/preflight.sh")]},
 ]
 write_json(reports_dir / "prior-blocker-revalidation-static.json", prior_static)
@@ -608,7 +578,7 @@ supply_counts = {
 write_json(reports_dir / "supply-chain-counts.json", supply_counts)
 
 mc_06_pass = rc("p2_preflight_invalid_host_range") != 0 and rc("p2_preflight_invalid_container_port") != 0
-mc_07_pass = rc("p2_retired_setup_rejects") != 0 and not setup_tmp_dirs_new
+mc_07_pass = rc("p2_unsupported_prod_artifacts_absent") == 0
 mc_08_pass = frontend_uid is not None and frontend_uid != 0
 mc_09_pass = all(value == 0 for value in lifecycle_statuses.values())
 mc_10_pass = docs_code == 404 and openapi_code == 404
@@ -627,7 +597,7 @@ mandatory_controls = [
     {"id": "MC-04", "description": "Protocol parser abuse rejection", "severity": "Medium", "status": "PASS" if rc("p2_security_gap_round5") == 0 else "FAIL", "note": f"gap-round5 rc={rc('p2_security_gap_round5')}", "evidence": [str(logs_dir / "p2_security_gap_round5.log")]},
     {"id": "MC-05", "description": "Outbound SSRF/egress guards", "severity": "High", "status": "PASS" if rc("p2_security_gap_round5") == 0 else "FAIL", "note": f"gap-round5 rc={rc('p2_security_gap_round5')}", "evidence": [str(logs_dir / "p2_security_gap_round5.log")]},
     {"id": "MC-06", "description": "Preflight rejects invalid host/container frontend ports", "severity": "High", "status": "PASS" if mc_06_pass else "FAIL", "note": f"host_rc={rc('p2_preflight_invalid_host_range')} container_rc={rc('p2_preflight_invalid_container_port')}", "evidence": [str(logs_dir / "p2_preflight_invalid_host_range.log"), str(logs_dir / "p2_preflight_invalid_container_port.log")]},
-    {"id": "MC-07", "description": "Retired legacy setup.sh rejects invocation without temp secret residue", "severity": "High", "status": "PASS" if mc_07_pass else "FAIL", "note": f"rc={rc('p2_retired_setup_rejects')} new_tmp_dirs={setup_tmp_dirs_new}", "evidence": [str(logs_dir / "p2_retired_setup_rejects.log"), str(tmp_dir / 'setup_tmp_dirs_new.json')]},
+    {"id": "MC-07", "description": "Unsupported production artifacts are absent from the current surface", "severity": "High", "status": "PASS" if mc_07_pass else "FAIL", "note": f"rc={rc('p2_unsupported_prod_artifacts_absent')}", "evidence": [str(logs_dir / "p2_unsupported_prod_artifacts_absent.log")]},
     {"id": "MC-08", "description": "Frontend runtime executes as non-root UID", "severity": "High", "status": "PASS" if mc_08_pass else "FAIL", "note": f"uid={frontend_uid}", "evidence": [str(logs_dir / "p3_frontend_uid.log")]},
     {"id": "MC-09", "description": "CLI lifecycle preflight/deploy/status/smoke/upgrade/rollback", "severity": "High", "status": "PASS" if mc_09_pass else "FAIL", "note": str(lifecycle_statuses), "evidence": [str(logs_dir / "p3_cli_preflight.log"), str(logs_dir / "p3_cli_deploy.log"), str(logs_dir / "p3_status_after_deploy.log"), str(logs_dir / "p3_verify_runtime.log"), str(logs_dir / "p3_cli_smoke_after_deploy.log"), str(logs_dir / "p3_cli_upgrade.log"), str(logs_dir / "p3_cli_rollback.log"), str(logs_dir / "p3_cli_smoke_after_rollback.log")]},
     {"id": "MC-10", "description": "Prod runtime disables /docs and /openapi.json", "severity": "Medium", "status": "PASS" if mc_10_pass else "FAIL", "note": f"docs_code={docs_code} openapi_code={openapi_code}", "evidence": [str(logs_dir / "p3_backend_docs_code.log"), str(logs_dir / "p3_backend_openapi_code.log")]},
@@ -781,7 +751,8 @@ parity_lines = [
     "# Doc/Runtime Parity",
     "",
     f"- Source checklist: {root / 'docs/deployment/security-checklist.md'}",
-    f"- Source install manual: {root / 'docs/deployment/installation-manual.md'}",
+    f"- Source quickstart: {root / 'docs/deployment/production.md'}",
+    f"- Source reference: {root / 'docs/deployment/reference.md'}",
     f"- Source migration runbook: {root / 'docs/deployment/migrations.md'}",
     f"- Source security policy: {root / 'docs/security/SECURITY.md'}",
     "",

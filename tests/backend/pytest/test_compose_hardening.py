@@ -73,10 +73,6 @@ def test_base_compose_backend_publish_is_loopback_bound():
 
     assert "127.0.0.1:8000:8000" in backend_ports
     assert not any(_is_public_publish_for_backend_8000(port) for port in backend_ports)
-
-
-def test_prod_override_does_not_introduce_public_backend_publish():
+def test_prod_compose_artifact_is_absent():
     compose_path = REPO_ROOT / "docker-compose.prod.yml"
-    backend_ports = _extract_ports_for_service(compose_path, "backend")
-
-    assert not any(_is_public_publish_for_backend_8000(port) for port in backend_ports)
+    assert not compose_path.exists()

@@ -12,8 +12,6 @@ Public production setup no longer asks operators to edit these files directly. U
 ./scripts/deploy.sh secrets-edit --target docker
 ```
 
-Deprecated legacy wrappers such as `scripts/prod/setup.sh`, `scripts/prod/deploy.sh`, `scripts/prod/upgrade.sh`, and `scripts/prod/stop.sh` must not be used to manage these files.
-
 Key rules for the internal Docker runtime contract:
 
 - PostgreSQL stays external.
