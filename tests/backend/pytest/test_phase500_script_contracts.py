@@ -16,20 +16,38 @@ BACKEND_RUNTIME_PROD = REPO_ROOT / "backend" / "scripts" / "runtime" / "prod.sh"
 BACKEND_DB_RUNTIME_PROD = REPO_ROOT / "backend" / "scripts" / "runtime" / "db" / "prod.sh"
 FRONTEND_RUNTIME_PROD = REPO_ROOT / "frontend" / "scripts" / "runtime" / "prod.sh"
 ACTIVE_DOCS = [
+    REPO_ROOT / "AGENTS.md",
     REPO_ROOT / "docs" / "deployment" / "README.md",
     REPO_ROOT / "docs" / "deployment" / "advanced.md",
     REPO_ROOT / "docs" / "deployment" / "production.md",
     REPO_ROOT / "docs" / "deployment" / "reference.md",
     REPO_ROOT / "docs" / "deployment" / "security-checklist.md",
-    REPO_ROOT / "docs" / "deployment" / "installation-manual.md",
-    REPO_ROOT / "docs" / "deployment" / "external-postgres-install-scripts.md",
+    REPO_ROOT / "docs" / "agent" / "README.md",
+    REPO_ROOT / "docs" / "agent" / "AGENTS_DOC_COVERAGE.md",
+    REPO_ROOT / ".planning" / "PROJECT.md",
+    REPO_ROOT / ".planning" / "STATE.md",
+    REPO_ROOT / ".planning" / "codebase" / "STRUCTURE.md",
+    REPO_ROOT / ".planning" / "codebase" / "ARCHITECTURE.md",
+    REPO_ROOT / ".planning" / "codebase" / "INTEGRATIONS.md",
+    REPO_ROOT / ".planning" / "codebase" / "STACK.md",
     REPO_ROOT / "scripts" / "README.md",
     REPO_ROOT / "scripts" / "prod" / "README.md",
     REPO_ROOT / "scripts" / "prod" / "config" / "README.md",
     REPO_ROOT / "scripts" / "prod" / "config" / "backend.env.example",
     REPO_ROOT / "scripts" / "prod" / "config" / "frontend.env.example",
 ]
-RETIRED_ENTRYPOINTS = ("setup.sh", "deploy.sh", "upgrade.sh", "stop.sh")
+REMOVED_DEPLOYMENT_ARTIFACTS = [
+    REPO_ROOT / "docs" / "deployment" / "docker-compose-prod.md",
+    REPO_ROOT / "docs" / "deployment" / "kubernetes.md",
+    REPO_ROOT / "docs" / "deployment" / "installation-manual.md",
+    REPO_ROOT / "docs" / "deployment" / "external-postgres-install-scripts.md",
+    REPO_ROOT / "docs" / "deployment" / "component-runtime-entrypoints.md",
+    REPO_ROOT / "scripts" / "prod" / "setup.sh",
+    REPO_ROOT / "scripts" / "prod" / "deploy.sh",
+    REPO_ROOT / "scripts" / "prod" / "upgrade.sh",
+    REPO_ROOT / "scripts" / "prod" / "stop.sh",
+    REPO_ROOT / "docker-compose.prod.yml",
+]
 
 
 def _script_text(name: str) -> str:
@@ -84,6 +102,11 @@ def test_install_frontend_applies_capability_hardening() -> None:
 def test_install_redis_passes_password_file_override_for_custom_secret_dir() -> None:
     text = _script_text("install_redis.sh")
     assert 'RISKHUB_REDIS_PASSWORD_FILE=${SECRET_DIR}/redis_password' in text
+
+
+def test_removed_unsupported_deployment_artifacts_are_absent() -> None:
+    for path in REMOVED_DEPLOYMENT_ARTIFACTS:
+        assert not path.exists(), f"Unsupported deployment artifact should be removed: {path}"
 
 
 @pytest.mark.parametrize(
@@ -143,20 +166,6 @@ def test_component_prod_wrappers_help_honors_runtime_dir_override(path: Path, ex
         assert f"Default: {Path(td) / expected_suffix}" in output
 
 
-@pytest.mark.parametrize("name", RETIRED_ENTRYPOINTS)
-def test_retired_legacy_entrypoints_are_deprecation_stubs(name: str) -> None:
-    text = _script_text(name)
-    assert "DEPRECATED:" in text
-    assert "./scripts/deploy.sh" in text
-    assert "retired" in text.lower()
-    assert "unsupported" in text.lower()
-    assert "mktemp" not in text
-    assert "DATABASE_URL=" not in text
-    assert "SECRET_KEY=" not in text
-    assert "ENTRA_CLIENT_SECRET=" not in text
-    assert "REDIS_PASSWORD=" not in text
-
-
 def test_release_parity_audit_uses_deploy_cli_for_prod_runtime_path() -> None:
     text = _read(REPO_ROOT / "scripts" / "security" / "run_release_parity_audit.py")
     assert "./scripts/deploy.sh deploy --target docker" in text
@@ -185,25 +194,32 @@ def test_prod_readiness_audit_uses_deploy_cli_for_operator_lifecycle() -> None:
         assert token in text
 
     forbidden = (
-        "scripts/prod/deploy.sh --backend-env",
-        "scripts/prod/upgrade.sh --backend-env",
-        "scripts/prod/stop.sh",
+        "scripts/prod/setup.sh --",
+        "scripts/prod/deploy.sh --",
+        "scripts/prod/upgrade.sh --",
+        "scripts/prod/stop.sh --",
         "./scripts/setup.sh --mode prod",
     )
     for token in forbidden:
         assert token not in text
 
 
-def test_active_docs_do_not_present_retired_entrypoints_as_supported_admin_commands() -> None:
-    patterns = [
-        re.compile(r"^\s*`?\./?scripts/prod/setup\.sh\b"),
-        re.compile(r"^\s*`?\./?scripts/prod/deploy\.sh\b"),
-        re.compile(r"^\s*`?\./?scripts/prod/upgrade\.sh\b"),
-        re.compile(r"^\s*`?\./?scripts/prod/stop\.sh\b"),
-        re.compile(r"^\s*`?\./scripts/setup\.sh\s+--mode\s+prod\b"),
-    ]
-
+def test_active_docs_do_not_reference_removed_or_unsupported_deployment_paths() -> None:
+    forbidden_tokens = (
+        "scripts/prod/setup.sh",
+        "scripts/prod/deploy.sh",
+        "scripts/prod/upgrade.sh",
+        "scripts/prod/stop.sh",
+        "component-runtime-entrypoints.md",
+        "docker-compose.prod.yml",
+        "docs/deployment/docker-compose-prod.md",
+        "docs/deployment/kubernetes.md",
+        "docs/deployment/installation-manual.md",
+        "docs/deployment/external-postgres-install-scripts.md",
+        "Docker/K8s",
+        "Docker + K8s",
+    )
     for path in ACTIVE_DOCS:
-        for line in _read(path).splitlines():
-            for pattern in patterns:
-                assert not pattern.search(line), f"Unsupported admin command in {path}: {line}"
+        text = _read(path)
+        for token in forbidden_tokens:
+            assert token not in text, f"Unsupported deployment reference in {path}: {token}"

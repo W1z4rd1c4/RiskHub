@@ -7,7 +7,7 @@
 RiskHub is a containerized full-stack application:
 - Backend: FastAPI monolith with modular domain endpoints (many split into packages with subrouters) (`backend/app/api/v1/endpoints/`)
 - Frontend: React SPA with route-based pages (`frontend/src/App.tsx`, `frontend/src/pages/`)
-- Datastore: PostgreSQL, with Redis for production runtime controls (`docker-compose.yml`, `docker-compose.prod.yml`)
+- Datastore: PostgreSQL, with Redis for production runtime controls (`docker-compose.yml`, `backend/app/main.py`, `scripts/deploy.sh`)
 - Quantitative repository-size metrics are tracked in `.planning/codebase/STRUCTURE.md` as the count source of truth.
 
 ## Backend Layering
@@ -65,8 +65,8 @@ RiskHub is a containerized full-stack application:
 ## Deployment Topology
 
 - Dev/local hybrid flow orchestrated by `scripts/dev.sh` and `scripts/Makefile`
-- Component-scoped runtime entrypoints available under `frontend/scripts/runtime/`, `backend/scripts/runtime/`, and `backend/scripts/runtime/db/`
-- Dockerized production flow in `docker-compose.yml` + `docker-compose.prod.yml`
+- Supported production/admin flow is `./scripts/deploy.sh --target docker|linux`
+- Component-scoped runtime entrypoints under `frontend/scripts/runtime/`, `backend/scripts/runtime/`, and `backend/scripts/runtime/db/` are internal implementation assets rather than supported deployment interfaces
 - Frontend served by nginx, proxying backend API requests (`frontend/nginx.conf`)
 - Deployment runbooks live in `docs/deployment/`
 

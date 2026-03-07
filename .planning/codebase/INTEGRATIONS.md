@@ -5,7 +5,7 @@
 ## Core External Services
 
 ### PostgreSQL
-- Primary relational datastore (`docker-compose.yml`)
+- Primary relational datastore (local dev stack via `docker-compose.yml`; production via external PostgreSQL contract)
 - Async runtime access via SQLAlchemy + `asyncpg` (`backend/app/db/session.py`)
 - Migration path via Alembic (`backend/alembic/`, `backend/alembic/env.py`)
 
@@ -18,7 +18,7 @@
 ### AD Emulator (development/test integration)
 - Outbound client: `ADEmulatorClient` (`backend/app/integrations/ad_emulator_client.py`)
 - Inbound webhooks: `/api/v1/directory/webhook` (`backend/app/api/v1/endpoints/directory.py`)
-- Webhook signature verification via `WEBHOOK_SECRET` (required in production mode) (`backend/app/core/config.py`, `docker-compose.prod.yml`)
+- Webhook signature verification via `WEBHOOK_SECRET` (required in production mode) (`backend/app/core/config.py`)
 
 ### Microsoft Entra ID (SSO)
 - Backend auth modes include Entra SSO-only production mode (`backend/app/core/config.py`, `backend/app/main.py`)
@@ -42,8 +42,8 @@
 
 - Frontend nginx proxies `/api/` to `backend:8000` in container network (`frontend/nginx.conf`)
 - Vite dev server proxies `/api` to local backend (`frontend/vite.config.ts`)
-- Docker Compose defines multi-service topology and healthchecks (`docker-compose.yml`, `docker-compose.prod.yml`)
-- Component runtime wrappers expose FE/BE/DB-scoped orchestration while delegating production installs to `scripts/prod/*` (`frontend/scripts/runtime/prod.sh`, `backend/scripts/runtime/prod.sh`, `backend/scripts/runtime/db/prod.sh`)
+- Development Docker Compose defines local multi-service topology and healthchecks (`docker-compose.yml`)
+- Supported production/admin deployment runs through `./scripts/deploy.sh --target docker|linux`, backed by retained `scripts/prod/*` helper scripts
 
 ## CI/Security Integrations
 
