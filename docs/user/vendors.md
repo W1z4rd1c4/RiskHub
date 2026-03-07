@@ -1,7 +1,7 @@
 ---
 title: Managing Vendors
-version: "2.1"
-last_updated: "2026-03-05"
+version: "2.2"
+last_updated: "2026-03-07"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/* + vendor assessment workflows"
 summary: "Full manual for third-party risk operations: vendor onboarding, ownership, assessments, reassessments, incidents, SLAs, exports, and notifications."
@@ -67,11 +67,13 @@ Access is controlled by:
 - permissions (`vendors:read`, `vendors:write`, `vendors:delete`)
 - scope and department
 - ownership: the outsourcing owner can often edit even without broad write permissions
+- linked risk visibility: risk-linked grouping context is only shown if you can also read those risks
 
 Practical rule:
 
 - If you are the outsourcing owner, you may be allowed to maintain the vendor record.
 - If you are not, treat vendors as governance objects and avoid “drive-by edits”.
+- You can still see a vendor record even when its linked risk context is hidden; in that case risk grouping falls back instead of exposing unreadable risk names.
 
 ## Data Model and Key Fields
 
@@ -221,6 +223,22 @@ The vendor list supports operational filtering:
 - department
 - search
 
+### List views
+
+The vendor list now has two operating modes:
+
+- `All`: the standard paginated table
+- grouped drill-down tabs: `By Department`, `By Process`, `By Type`, `By Risk`
+
+Grouped views reuse the same active list filters, then reorganize the matching vendor set into drill-down cards.
+
+`By Risk` is special:
+
+- it only appears if you can read risks
+- one vendor can appear in more than one risk group when it is linked to multiple readable risks
+- card counts are overlapping membership counts, not unique-vendor totals
+- `Unlinked Risk` means the vendor has no readable linked risks for your current access
+
 ### Exports
 
 Export vendors for:
@@ -233,6 +251,7 @@ Export discipline:
 - export with an as-of date
 - filter to the smallest necessary scope
 - keep raw exports unchanged
+- exports continue to follow the active list filters, not the currently opened grouped bucket
 
 ## Common Mistakes
 
@@ -247,6 +266,11 @@ Export discipline:
 ### I don’t see `/vendors`
 
 - Confirm `vendors:read`.
+
+### I don’t see the `By Risk` tab
+
+- Confirm you can read risks in addition to vendors.
+- If you can open vendors but not risks, the vendor remains visible but the risk-grouped tab is intentionally hidden.
 
 ### I can view vendors but can’t edit
 

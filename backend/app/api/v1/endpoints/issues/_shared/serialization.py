@@ -6,11 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import coerce_utc
-from app.models import Issue, IssueException, IssueLink, IssueRemediationPlan, User
+from app.models import ControlRiskLink, Issue, IssueException, IssueLink, IssueRemediationPlan, Risk, User
 from app.models.issue import IssueExceptionStatus
 from app.schemas.issue import (
     IssueExceptionRead,
     IssueLinkRead,
+    IssueRiskContext,
     IssueRead,
     IssueRemediationPlanRead,
     IssueSummary,
@@ -137,6 +138,56 @@ def _serialize_exception(exception: IssueException) -> IssueExceptionRead:
     )
 
 
+def _serialize_risk_context(risk: Risk) -> IssueRiskContext:
+    return IssueRiskContext.model_validate(
+        {
+            "risk_id": risk.id,
+            "risk_name": _label_or_fallback(getattr(risk, "name", None), UNKNOWN_RISK_LABEL),
+            "risk_category": getattr(risk, "category", None),
+            "risk_process": getattr(risk, "process", None),
+            "risk_type": getattr(risk, "risk_type", None),
+        }
+    )
+
+
+def _link_risks(link: IssueLink) -> list[Risk]:
+    if link.risk is not None:
+        return [link.risk]
+
+    if getattr(link.kri, "risk", None) is not None:
+        return [link.kri.risk]
+
+    if getattr(link.execution, "control", None) is not None:
+        return [
+            risk_link.risk
+            for risk_link in getattr(link.execution.control, "risk_links", [])
+            if isinstance(risk_link, ControlRiskLink) and risk_link.risk is not None
+        ]
+
+    if link.control is not None:
+        return [
+            risk_link.risk
+            for risk_link in getattr(link.control, "risk_links", [])
+            if isinstance(risk_link, ControlRiskLink) and risk_link.risk is not None
+        ]
+
+    return []
+
+
+def _serialize_issue_risk_contexts(issue: Issue) -> list[IssueRiskContext]:
+    seen_risk_ids: set[int] = set()
+    contexts: list[IssueRiskContext] = []
+
+    for link in issue.links:
+        for risk in _link_risks(link):
+            if risk.id in seen_risk_ids:
+                continue
+            seen_risk_ids.add(risk.id)
+            contexts.append(_serialize_risk_context(risk))
+
+    return contexts
+
+
 async def _resolve_user_name(db: AsyncSession, user_id: int | None) -> str | None:
     if user_id is None:
         return None
@@ -194,6 +245,7 @@ def _serialize_issue_summary(issue: Issue) -> IssueSummary:
             "closed_at": issue.closed_at,
             "created_at": issue.created_at,
             "updated_at": issue.updated_at,
+            "risk_contexts": [context.model_dump() for context in _serialize_issue_risk_contexts(issue)],
         }
     )
 

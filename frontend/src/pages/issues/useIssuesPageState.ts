@@ -6,7 +6,7 @@ import { apiClient } from '@/services/apiClient';
 import { issuesApi } from '@/services/issuesApi';
 import { reportApi } from '@/services/reportApi';
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
-import type { SortDirection } from '@/components/tables';
+import type { SortDirection, ViewMode } from '@/components/tables';
 import type {
     IssueListFilters,
     IssueSeverityFilter,
@@ -17,6 +17,7 @@ import type {
 import {
     buildIssueExportFilters,
     buildIssueListFilters,
+    fetchAllIssuesForGroupedView,
     type IssuesPageInitialState,
 } from './issuesPagePresentation';
 
@@ -39,6 +40,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
     );
     const [includeClosed, setIncludeClosed] = useState(initialState.includeClosed);
     const [currentPage, setCurrentPage] = useState(1);
+    const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [sortField, setSortField] = useState<IssueListFilters['sort_by'] | null>(
         initialState.sortField
     );
@@ -91,7 +93,20 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         const requestId = ++latestRequestIdRef.current;
         try {
             setIsLoading(true);
-            const response = await issuesApi.list(listFilters);
+
+            const response =
+                viewMode === 'all'
+                    ? await issuesApi.list(listFilters)
+                    : await fetchAllIssuesForGroupedView({
+                        debouncedSearch,
+                        excludeActiveExceptions,
+                        includeClosed,
+                        overdueOnly,
+                        severityFilter,
+                        sortDirection,
+                        sortField,
+                        statusFilter,
+                    });
             if (requestId !== latestRequestIdRef.current) {
                 return;
             }
@@ -111,7 +126,19 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
                 setIsLoading(false);
             }
         }
-    }, [canRead, listFilters]);
+    }, [
+        canRead,
+        debouncedSearch,
+        excludeActiveExceptions,
+        includeClosed,
+        listFilters,
+        overdueOnly,
+        severityFilter,
+        sortDirection,
+        sortField,
+        statusFilter,
+        viewMode,
+    ]);
 
     useEffect(() => {
         void fetchIssues();
@@ -189,6 +216,11 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         []
     );
 
+    const updateViewMode = useCallback((value: ViewMode) => {
+        setViewMode(value);
+        setCurrentPage(1);
+    }, []);
+
     return {
         currentPage,
         errorKey,
@@ -220,5 +252,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         updateSeverityFilter,
         updateSort,
         updateStatusFilter,
+        updateViewMode,
+        viewMode,
     };
 }

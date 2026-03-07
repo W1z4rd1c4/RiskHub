@@ -109,6 +109,16 @@ class IssueExceptionRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class IssueRiskContext(BaseModel):
+    risk_id: int
+    risk_name: str
+    risk_category: str | None = None
+    risk_process: str | None = None
+    risk_type: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class IssueSummary(BaseModel):
     id: int
     title: str
@@ -125,6 +135,7 @@ class IssueSummary(BaseModel):
     closed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    risk_contexts: list[IssueRiskContext] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 

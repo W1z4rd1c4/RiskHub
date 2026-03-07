@@ -2,7 +2,8 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department, Permission, Role, RolePermission, User, Vendor
+from app.api.v1.endpoints.vendors import crud as vendor_crud
+from app.models import Department, Permission, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
 
 
 async def _grant(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:
@@ -15,6 +16,27 @@ async def _grant(db_session: AsyncSession, role: Role, resource: str, action: st
     await db_session.commit()
     # Ensure subsequent request-scoped loads see updated role->permissions in the same session.
     db_session.expire(role, ["permissions"])
+
+
+def _make_risk(*, name: str, risk_id_code: str, department_id: int | None) -> Risk:
+    return Risk(
+        risk_id_code=risk_id_code,
+        name=name,
+        process="Operations",
+        subprocess=None,
+        category="Third Party",
+        description="Test risk",
+        department_id=department_id,
+        owner_id=None,
+        gross_probability=3,
+        gross_impact=3,
+        gross_score=9,
+        net_probability=2,
+        net_impact=2,
+        net_score=4,
+        status="active",
+        is_priority=False,
+    )
 
 
 @pytest.mark.asyncio
@@ -228,6 +250,196 @@ async def test_vendors_include_archived_toggle(
     assert include_resp.status_code == 200
     include_names = {v["name"] for v in include_resp.json()["items"]}
     assert "Inactive Toggle Vendor" in include_names
+
+
+@pytest.mark.asyncio
+async def test_vendors_list_includes_visible_linked_risks_and_empty_arrays(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "risks", "read")
+
+    vendor_with_links = Vendor(
+        name="Linked Vendor",
+        process="Claims",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=4,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    vendor_without_links = Vendor(
+        name="Unlinked Vendor",
+        process="Finance",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="partner",
+        risk_score_1_5=2,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    risk_one = _make_risk(name="Cyber Exposure", risk_id_code="R-001", department_id=test_department.id)
+    risk_two = _make_risk(name="Concentration Risk", risk_id_code="R-002", department_id=test_department.id)
+    db_session.add_all([vendor_with_links, vendor_without_links, risk_one, risk_two])
+    await db_session.commit()
+    await db_session.refresh(vendor_with_links)
+    await db_session.refresh(risk_one)
+    await db_session.refresh(risk_two)
+
+    db_session.add_all(
+        [
+            VendorRiskLink(vendor_id=vendor_with_links.id, risk_id=risk_one.id),
+            VendorRiskLink(vendor_id=vendor_with_links.id, risk_id=risk_two.id),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client_employee.get("/api/v1/vendors")
+    assert response.status_code == 200
+
+    items = {item["name"]: item for item in response.json()["items"]}
+    assert items["Linked Vendor"]["linked_risks"] == [
+        {
+            "risk_id": risk_one.id,
+            "risk_id_code": "R-001",
+            "risk_name": "Cyber Exposure",
+        },
+        {
+            "risk_id": risk_two.id,
+            "risk_id_code": "R-002",
+            "risk_name": "Concentration Risk",
+        },
+    ]
+    assert items["Unlinked Vendor"]["linked_risks"] == []
+
+
+@pytest.mark.asyncio
+async def test_vendors_list_filters_out_invisible_linked_risks(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "risks", "read")
+
+    other_department = Department(name="Other Department", code="OTHR", description="Other")
+    db_session.add(other_department)
+    await db_session.commit()
+    await db_session.refresh(other_department)
+
+    vendor = Vendor(
+        name="Scoped Vendor",
+        process="Operations",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="outsourcing",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    visible_risk = _make_risk(name="Visible Risk", risk_id_code="R-101", department_id=test_department.id)
+    invisible_risk = _make_risk(name="Hidden Risk", risk_id_code="R-999", department_id=other_department.id)
+    db_session.add_all([vendor, visible_risk, invisible_risk])
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    await db_session.refresh(visible_risk)
+    await db_session.refresh(invisible_risk)
+
+    db_session.add_all(
+        [
+            VendorRiskLink(vendor_id=vendor.id, risk_id=visible_risk.id),
+            VendorRiskLink(vendor_id=vendor.id, risk_id=invisible_risk.id),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client_employee.get("/api/v1/vendors")
+    assert response.status_code == 200
+
+    items = response.json()["items"]
+    assert len(items) == 1
+    assert items[0]["linked_risks"] == [
+        {
+            "risk_id": visible_risk.id,
+            "risk_id_code": "R-101",
+            "risk_name": "Visible Risk",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_vendors_list_hides_linked_risks_without_risks_read(
+    db_session: AsyncSession,
+    client_department_head: AsyncClient,
+    test_department: Department,
+    test_role_department_head: Role,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    await _grant(db_session, test_role_department_head, "vendors", "read")
+
+    original_check_permission = vendor_crud.check_permission
+
+    def deny_risk_read(current_user: User, resource: str, action: str) -> bool:
+        if resource == "risks" and action == "read":
+            return False
+        return original_check_permission(current_user, resource, action)
+
+    monkeypatch.setattr(vendor_crud, "check_permission", deny_risk_read)
+
+    async def no_visible_risks(*args, **kwargs) -> set[int]:
+        return set()
+
+    monkeypatch.setattr(vendor_crud, "_get_visible_risk_ids", no_visible_risks)
+
+    vendor = Vendor(
+        name="No Risk Permission Vendor",
+        process="Operations",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    risk = _make_risk(name="Should Stay Hidden", risk_id_code="R-777", department_id=test_department.id)
+    db_session.add_all([vendor, risk])
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    await db_session.refresh(risk)
+
+    db_session.add(VendorRiskLink(vendor_id=vendor.id, risk_id=risk.id))
+    await db_session.commit()
+
+    response = await client_department_head.get("/api/v1/vendors")
+    assert response.status_code == 200
+
+    items = response.json()["items"]
+    assert len(items) == 1
+    assert items[0]["linked_risks"] == []
 
 
 @pytest.mark.asyncio

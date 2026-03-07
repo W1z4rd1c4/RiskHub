@@ -57,6 +57,15 @@ describe('IssueDetailPage tabs', () => {
             closed_at: null,
             created_at: '2026-02-01T10:00:00Z',
             updated_at: '2026-02-01T10:00:00Z',
+            risk_contexts: [
+                {
+                    risk_id: 90,
+                    risk_name: 'Customer Churn Risk',
+                    risk_category: 'Operational',
+                    risk_process: 'Retention',
+                    risk_type: 'operational',
+                },
+            ],
             description: 'Quarterly evidence was not attached.',
             created_by_id: 8,
             created_by_name: 'Anna Kowalski',
@@ -145,6 +154,7 @@ describe('IssueDetailPage tabs', () => {
             closed_at: null,
             created_at: '2026-02-01T10:00:00Z',
             updated_at: '2026-02-01T10:00:00Z',
+            risk_contexts: [],
             description: 'Quarterly evidence was not attached.',
             created_by_id: 8,
             created_by_name: 'Anna Kowalski',

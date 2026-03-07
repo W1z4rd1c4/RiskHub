@@ -2,7 +2,9 @@
 
 ## Purpose
 
-Page-local modules for `frontend/src/pages/VendorDetailPage.tsx`.
+Page-local modules for vendor routes, covering both
+`frontend/src/pages/VendorDetailPage.tsx`
+and `frontend/src/pages/VendorsPage.tsx`.
 
 ## Contents
 
@@ -11,10 +13,12 @@ Page-local modules for `frontend/src/pages/VendorDetailPage.tsx`.
 - `VendorSummaryCards.tsx`
 - `VendorTabPanel.tsx`
 - `VendorTabs.tsx`
+- `VendorsTableSection.tsx`
 - `useVendorDetailState.ts`
 - `vendorDetailPresentation.ts`
+- `vendorsPagePresentation.ts`
 
 ## Notes
 
-Keep route orchestration in `VendorDetailPage.tsx` and move tab metadata, local
-state, and leaf rendering into this folder.
+Keep route orchestration in the page entrypoints and move local rendering,
+grouping helpers, and tab metadata into this folder.

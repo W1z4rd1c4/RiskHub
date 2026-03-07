@@ -49,6 +49,7 @@ from app.schemas.issue import (
     IssueListResponse,
     IssueOwnerLookup,
     IssueProgressUpdateRequest,
+    IssueRiskContext,
     IssueRead,
     IssueRemediationPlanRead,
     IssueRemediationStatusEnum,
@@ -103,6 +104,7 @@ from app.schemas.user import (
 from app.schemas.vendor import (
     VendorBase,
     VendorCreate,
+    VendorLinkedRiskSummary,
     VendorListResponse,
     VendorRead,
     VendorReplaceabilityEnum,
@@ -151,6 +153,7 @@ __all__ = [
     "IssueLinkRead",
     "IssueRemediationPlanRead",
     "IssueExceptionRead",
+    "IssueRiskContext",
     "IssueSummary",
     "IssueRead",
     "IssueCreate",
@@ -168,7 +171,7 @@ __all__ = [
     "IssueOwnerLookup",
     # Vendor schemas
     "VendorStatusEnum", "VendorTypeEnum", "VendorReplaceabilityEnum",
-    "VendorBase", "VendorCreate", "VendorUpdate", "VendorRead", "VendorListResponse",
+    "VendorBase", "VendorCreate", "VendorUpdate", "VendorLinkedRiskSummary", "VendorRead", "VendorListResponse",
     "VendorRiskCategoryKey",
     "VendorRiskFactorCreate", "VendorRiskFactorUpdate", "VendorRiskFactorRead",
     # Risk questionnaires

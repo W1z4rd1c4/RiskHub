@@ -290,6 +290,9 @@ Rules:
 > [!NOTE]
 > Platform admins are console-only and are explicitly blocked from business Activity Log and Governance surfaces, including direct route/API access.
 
+> [!NOTE]
+> Vendor visibility and vendor-linked risk visibility are related but not identical. A user can have enough access to view a vendor while still lacking permission or scope to read linked risks. In that case the vendor remains visible, but risk-linked summaries and the frontend `By Risk` grouping must only expose readable risks; otherwise the UI must fall back to an unlinked/no-readable-risk bucket rather than leaking risk names.
+
 ### 4.2 Role-Permission Grid
 
 | Role | risks:* | controls:* | kri:* | approvals:write | users:write | Risk Hub |

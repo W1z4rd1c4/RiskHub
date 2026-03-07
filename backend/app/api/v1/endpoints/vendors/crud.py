@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Optional
 
@@ -12,13 +13,20 @@ from app.api import deps
 from app.api.mappers.vendor import vendor_list_response, vendor_to_read
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.datetime_utils import coerce_utc
-from app.core.permissions import can_read_vendor, check_department_access, get_user_department_ids, is_vendor_owner
+from app.core.permissions import (
+    can_read_risk_id,
+    can_read_vendor,
+    check_department_access,
+    get_user_department_ids,
+    is_vendor_owner,
+)
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import User, Vendor
+from app.models import User, Vendor, VendorRiskLink
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.vendor import (
     VendorCreate,
+    VendorLinkedRiskSummary,
     VendorListResponse,
     VendorRead,
     VendorStatusEnum,
@@ -30,6 +38,57 @@ from app.services.vendor_reassessment_service import VendorReassessmentService
 from ._shared import _get_vendor_with_deps
 
 router = APIRouter()
+
+
+async def _get_visible_risk_ids(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    vendors: list[Vendor],
+) -> set[int]:
+    unique_risk_ids = {
+        link.risk_id
+        for vendor in vendors
+        for link in getattr(vendor, "risk_links", []) or []
+        if getattr(link, "risk", None) is not None
+    }
+    if not unique_risk_ids:
+        return set()
+
+    ordered_risk_ids = sorted(unique_risk_ids)
+    visibility_results = await asyncio.gather(
+        *(can_read_risk_id(db, current_user, risk_id) for risk_id in ordered_risk_ids)
+    )
+    return {
+        risk_id
+        for risk_id, can_read in zip(ordered_risk_ids, visibility_results, strict=False)
+        if can_read
+    }
+
+
+def _serialize_vendor_linked_risks(
+    vendors: list[Vendor],
+    *,
+    visible_risk_ids: set[int],
+) -> dict[int, list[VendorLinkedRiskSummary]]:
+    linked_risks_by_vendor_id: dict[int, list[VendorLinkedRiskSummary]] = {}
+
+    for vendor in vendors:
+        summaries: list[VendorLinkedRiskSummary] = []
+        for link in getattr(vendor, "risk_links", []) or []:
+            risk = getattr(link, "risk", None)
+            if not risk or risk.id not in visible_risk_ids:
+                continue
+            summaries.append(
+                VendorLinkedRiskSummary(
+                    risk_id=risk.id,
+                    risk_id_code=risk.risk_id_code,
+                    risk_name=risk.name,
+                )
+            )
+        linked_risks_by_vendor_id[vendor.id] = summaries
+
+    return linked_risks_by_vendor_id
 
 
 @router.get("", response_model=VendorListResponse)
@@ -53,6 +112,7 @@ async def list_vendors(
     sort_by: Optional[str] = None,
     sort_order: Optional[str] = Query("asc"),
 ):
+    can_read_risks = check_permission(current_user, "risks", "read")
     base_query = select(Vendor)
 
     dept_ids = get_user_department_ids(current_user)
@@ -133,6 +193,7 @@ async def list_vendors(
         base_query.options(
             selectinload(Vendor.department),
             selectinload(Vendor.outsourcing_owner),
+            selectinload(Vendor.risk_links).selectinload(VendorRiskLink.risk),
         )
         .offset(skip)
         .limit(limit)
@@ -141,7 +202,20 @@ async def list_vendors(
     result = await db.execute(query)
     vendors = result.scalars().all()
 
-    return vendor_list_response(vendors=vendors, total=total, skip=skip, limit=limit)
+    visible_risk_ids = (
+        await _get_visible_risk_ids(db, current_user=current_user, vendors=vendors)
+        if can_read_risks
+        else set()
+    )
+    linked_risks_by_vendor_id = _serialize_vendor_linked_risks(vendors, visible_risk_ids=visible_risk_ids)
+
+    return vendor_list_response(
+        vendors=vendors,
+        total=total,
+        skip=skip,
+        limit=limit,
+        linked_risks_by_vendor_id=linked_risks_by_vendor_id,
+    )
 
 
 @router.post("", response_model=VendorRead, status_code=status.HTTP_201_CREATED)

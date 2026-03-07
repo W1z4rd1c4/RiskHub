@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.permissions import can_read_issue_id, can_write_issue_id
-from app.models import ControlExecution, Issue, IssueException, IssueLink, IssueRemediationPlan, User
+from app.models import Control, ControlExecution, ControlRiskLink, Issue, IssueException, IssueLink, IssueRemediationPlan, KeyRiskIndicator, User
 
 
 async def _get_issue_with_relations(db: AsyncSession, issue_id: int) -> Issue | None:
@@ -17,9 +17,13 @@ async def _get_issue_with_relations(db: AsyncSession, issue_id: int) -> Issue | 
             selectinload(Issue.owner),
             selectinload(Issue.created_by),
             selectinload(Issue.links).selectinload(IssueLink.risk),
-            selectinload(Issue.links).selectinload(IssueLink.control),
-            selectinload(Issue.links).selectinload(IssueLink.execution).selectinload(ControlExecution.control),
-            selectinload(Issue.links).selectinload(IssueLink.kri),
+            selectinload(Issue.links).selectinload(IssueLink.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
+            selectinload(Issue.links)
+            .selectinload(IssueLink.execution)
+            .selectinload(ControlExecution.control)
+            .selectinload(Control.risk_links)
+            .selectinload(ControlRiskLink.risk),
+            selectinload(Issue.links).selectinload(IssueLink.kri).selectinload(KeyRiskIndicator.risk),
             selectinload(Issue.links).selectinload(IssueLink.vendor),
             selectinload(Issue.remediation_plan).selectinload(IssueRemediationPlan.owner),
             selectinload(Issue.exceptions).selectinload(IssueException.requested_by),
@@ -46,4 +50,3 @@ async def _get_writable_issue_or_404(db: AsyncSession, issue_id: int, current_us
     if not await can_write_issue_id(db, current_user, issue_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
     return issue
-
