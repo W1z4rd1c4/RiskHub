@@ -1,4 +1,4 @@
-import type { ControlExecution, ControlExecutionCreate, ExecutionResult } from '@/types/execution';
+import type { ExecutionResult } from '@/types/execution';
 export { ExecutionResult } from '@/types/execution';
 
 export type ControlForm = 'manual' | 'automatic';

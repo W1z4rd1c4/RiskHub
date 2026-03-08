@@ -3,7 +3,7 @@
  */
 
 import { apiClient } from './apiClient';
-import type { ExecutionAuditItem, ExecutionListResponse, ExecutionResult } from '@/types/execution';
+import type { ExecutionListResponse, ExecutionResult } from '@/types/execution';
 
 export type { ExecutionAuditItem, ExecutionListResponse, ExecutionResult } from '@/types/execution';
 

@@ -74,14 +74,31 @@ function buildKriExportFilters(params: {
     statusFilter: StatusFilter;
     timelinessFilter: TimelinessFilter;
 }) {
+    const search = params.search.trim() || null;
+
+    if (params.timelinessFilter) {
+        return {
+            status: null,
+            monitoringStatus: null,
+            search,
+            timelinessStatus: params.timelinessFilter,
+        };
+    }
+
+    if (params.statusFilter !== 'all' && params.statusFilter !== 'archived') {
+        return {
+            status: null,
+            monitoringStatus: params.statusFilter,
+            search,
+            timelinessStatus: null,
+        };
+    }
+
     return {
         status: params.statusFilter === 'archived' ? 'archived' : null,
-        monitoringStatus:
-            !params.timelinessFilter && params.statusFilter !== 'all' && params.statusFilter !== 'archived'
-                ? params.statusFilter
-                : null,
-        search: params.search.trim() || null,
-        timelinessStatus: params.timelinessFilter,
+        monitoringStatus: null,
+        search,
+        timelinessStatus: null,
     };
 }
 
