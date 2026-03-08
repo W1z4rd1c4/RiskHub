@@ -3,6 +3,13 @@ import { useTranslation } from '@/i18n/hooks';
 import { CheckSquare, ExternalLink, Link2, Loader2, Plus } from 'lucide-react';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import type { ExistingLinkItem } from '@/components/linking/ExistingLinksPanel';
+import {
+    VendorActionButton,
+    VendorEmptyState,
+    VendorInlineMessage,
+    VendorSectionHeader,
+    VendorSurface,
+} from '@/components/vendors/vendorRouteUi';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { LinkedControl } from '@/types/vendorLink';
 
@@ -62,42 +69,28 @@ export function VendorLinkedControlsTab({ vendorId, canEdit, onNavigateToControl
     };
 
     return (
-        <section className="glass-card p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                        <CheckSquare className="h-4 w-4" />
-                        {t('tabs.linked_controls')}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('links.controls.subtitle')}
-                    </p>
-                </div>
-                {canEdit && (
-                    <button
-                        onClick={() => setIsDialogOpen(true)}
-                        className="px-4 py-2 bg-accent/20 text-accent border border-accent/30 rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2"
-                    >
+        <VendorSurface className="space-y-6">
+            <VendorSectionHeader
+                icon={<CheckSquare className="h-4 w-4" />}
+                title={t('tabs.linked_controls')}
+                description={t('links.controls.subtitle')}
+                actions={canEdit ? (
+                    <VendorActionButton variant="primary" onClick={() => setIsDialogOpen(true)}>
                         <Plus className="h-4 w-4" />
                         {t('links.actions.manage')}
-                    </button>
-                )}
-            </div>
+                    </VendorActionButton>
+                ) : null}
+            />
 
             {isLoading ? (
-                <div className="flex items-center gap-3 text-slate-500 font-medium">
+                <div className="flex items-center gap-3 vendor-muted font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t('labels.loading')}
                 </div>
             ) : error ? (
-                <div className="text-rose-400 font-medium">{error}</div>
+                <VendorInlineMessage tone="danger">{error}</VendorInlineMessage>
             ) : linkedControls.length === 0 ? (
-                <div className="py-12 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
-                    <Link2 className="h-8 w-8 text-slate-700 mx-auto mb-2" />
-                    <p className="text-xs text-slate-600 font-medium tracking-tight">
-                        {t('links.controls.empty')}
-                    </p>
-                </div>
+                <VendorEmptyState icon={<Link2 className="h-8 w-8" />} title={t('links.controls.empty')} />
             ) : (
                 <div className="space-y-5">
                     {activeControls.length > 0 && (
@@ -131,7 +124,7 @@ export function VendorLinkedControlsTab({ vendorId, canEdit, onNavigateToControl
                     )}
                     {archivedControls.length > 0 && (
                         <div className="space-y-3">
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                            <h4 className="text-sm font-semibold vendor-text">
                                 {t('links.archived_controls')} ({archivedControls.length})
                             </h4>
                             <div className="space-y-3 opacity-70">
@@ -178,6 +171,6 @@ export function VendorLinkedControlsTab({ vendorId, canEdit, onNavigateToControl
                     showLinkMetadataBadge={false}
                 />
             )}
-        </section>
+        </VendorSurface>
     );
 }

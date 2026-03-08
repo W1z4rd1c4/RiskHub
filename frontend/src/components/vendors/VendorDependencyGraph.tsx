@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Network } from 'lucide-react';
 import type { VendorDependencyGraphNode } from '@/types/vendorDependency';
+import { cn } from '@/lib/utils';
 
 interface NodeProps {
     node: VendorDependencyGraphNode;
@@ -15,26 +16,26 @@ function Node({ node, depth }: NodeProps) {
         <div className="space-y-1">
             <button
                 onClick={() => hasChildren && setOpen((v) => !v)}
-                className={`w-full flex items-center justify-between p-3 rounded-xl border text-left transition-all ${depth === 0
-                    ? 'bg-white/[0.03] border-white/10'
-                    : 'bg-white/[0.02] border-white/10 hover:bg-white/[0.03]'
-                    }`}
+                className={cn(
+                    'vendor-tree-node w-full text-left',
+                    depth === 0 && 'vendor-tree-node--root',
+                )}
                 style={{ marginLeft: depth * 12 }}
             >
                 <div className="flex items-center gap-2">
                     <Network className="h-4 w-4 text-accent" />
                     <div>
-                        <p className="text-sm text-white font-bold">{node.vendor_name}</p>
+                        <p className="vendor-card__title">{node.vendor_name}</p>
                         {node.relationship_type && (
-                            <p className="text-xs text-slate-500 font-medium">{node.relationship_type}</p>
+                            <p className="vendor-card__meta">{node.relationship_type}</p>
                         )}
                     </div>
                 </div>
-                {hasChildren && (
-                    <div className="text-slate-500">
+                {hasChildren ? (
+                    <div className="vendor-muted">
                         {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </div>
-                )}
+                ) : null}
             </button>
 
             {open && hasChildren && (
@@ -55,4 +56,3 @@ export function VendorDependencyGraph({ root }: { root: VendorDependencyGraphNod
         </div>
     );
 }
-

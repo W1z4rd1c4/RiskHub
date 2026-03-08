@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { AlertTriangle, Loader2, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
+import {
+    VendorActionButton,
+    VendorEmptyState,
+    VendorInlineMessage,
+    VendorSectionHeader,
+    VendorSurface,
+} from '@/components/vendors/vendorRouteUi';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { vendorRiskFactorApi } from '@/services/vendorRiskFactorApi';
 import {
@@ -124,33 +131,23 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
     };
 
     return (
-        <section className="glass-card p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4" />
-                        {t('tabs.risk_factors')}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('risk_factors.subtitle')}
-                    </p>
-                </div>
-
-                {canEdit && (
-                    <button
-                        onClick={openCreate}
-                        className="px-4 py-2 bg-accent/20 text-accent border border-accent/30 rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2"
-                    >
+        <VendorSurface className="space-y-6">
+            <VendorSectionHeader
+                icon={<AlertTriangle className="h-4 w-4" />}
+                title={t('tabs.risk_factors')}
+                description={t('risk_factors.subtitle')}
+                actions={canEdit ? (
+                    <VendorActionButton variant="primary" onClick={openCreate}>
                         <Plus className="h-4 w-4" />
                         {t('risk_factors.actions.add')}
-                    </button>
-                )}
-            </div>
+                    </VendorActionButton>
+                ) : null}
+            />
 
             {isFormOpen && canEdit && (
                 <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-4">
                     <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                        <h4 className="text-sm font-semibold vendor-text">
                             {editing ? t('risk_factors.actions.edit') : t('risk_factors.actions.add')}
                         </h4>
                         <button
@@ -188,36 +185,26 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
                     </div>
 
                     <div className="flex justify-end gap-2">
-                        <button
-                            onClick={closeForm}
-                            className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-colors"
-                        >
+                        <VendorActionButton onClick={closeForm}>
                             {t('actions.cancel')}
-                        </button>
-                        <button
-                            onClick={handleSave}
-                            disabled={isSaving || !draftDescription.trim()}
-                            className="px-4 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
+                        </VendorActionButton>
+                        <VendorActionButton onClick={handleSave} disabled={isSaving || !draftDescription.trim()} variant="primary">
                             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                             {t('risk_factors.actions.save')}
-                        </button>
+                        </VendorActionButton>
                     </div>
                 </div>
             )}
 
             {isLoading ? (
-                <div className="flex items-center gap-3 text-slate-500 font-medium">
+                <div className="flex items-center gap-3 vendor-muted font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t('labels.loading')}
                 </div>
             ) : error ? (
-                <div className="text-rose-400 font-medium">{error}</div>
+                <VendorInlineMessage tone="danger">{error}</VendorInlineMessage>
             ) : factors.length === 0 ? (
-                <div className="py-12 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
-                    <AlertTriangle className="h-8 w-8 text-slate-700 mx-auto mb-2" />
-                    <p className="text-xs text-slate-600 font-medium tracking-tight">{t('risk_factors.empty')}</p>
-                </div>
+                <VendorEmptyState icon={<AlertTriangle className="h-8 w-8" />} title={t('risk_factors.empty')} />
             ) : (
                 <div className="space-y-6">
                     {vendorRiskCategoryKeys
@@ -225,10 +212,10 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
                         .map((categoryKey) => (
                             <div key={categoryKey} className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
+                                    <h4 className="text-sm font-semibold vendor-text">
                                         {t(`risk_categories.${categoryKey}`, categoryKey)}
                                     </h4>
-                                    <span className="text-[10px] text-slate-600 font-medium">
+                                    <span className="text-xs vendor-muted font-medium">
                                         {grouped[categoryKey].length}
                                     </span>
                                 </div>
@@ -278,6 +265,6 @@ export function VendorRiskFactorsTab({ vendorId, canEdit }: VendorRiskFactorsTab
                 variant="danger"
                 isLoading={isDeleting !== null}
             />
-        </section>
+        </VendorSurface>
     );
 }
