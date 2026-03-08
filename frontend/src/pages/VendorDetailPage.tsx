@@ -5,6 +5,7 @@ import { AlertCircle, ArrowLeft, XCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
+import { VendorInlineMessage, VendorSurface } from '@/components/vendors/vendorRouteUi';
 import { vendorApi } from '@/services/vendorApi';
 import { VendorDetailHeader } from './vendors/VendorDetailHeader';
 import { VendorFormView } from './vendors/VendorFormView';
@@ -80,29 +81,37 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
 
     if (isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-                <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">{t('labels.loading')}</p>
+            <div className="vendor-route">
+                <div className="vendor-page flex h-[60vh] items-center justify-center">
+                    <VendorSurface tone="emphasis" className="flex min-w-[280px] flex-col items-center gap-4 text-center">
+                        <div className="h-12 w-12 rounded-full border-4 border-accent border-t-transparent animate-spin" />
+                        <p className="text-sm font-semibold vendor-muted">{t('labels.loading')}</p>
+                    </VendorSurface>
+                </div>
             </div>
         );
     }
 
     if (error || !vendor) {
         return (
-            <div className="glass-card flex flex-col items-center justify-center p-20 text-center gap-4">
-                <div className="bg-rose-500/20 p-4 rounded-full">
-                    <XCircle className="h-10 w-10 text-rose-500" />
+            <div className="vendor-route">
+                <div className="vendor-page">
+                    <VendorSurface className="flex flex-col items-center justify-center gap-4 p-16 text-center" tone="emphasis">
+                        <div className="vendor-badge vendor-badge--danger px-4 py-3">
+                            <XCircle className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h3 className="vendor-title text-2xl font-black">{t('errors.vendor_not_found')}</h3>
+                            <p className="mt-2 text-sm vendor-muted">{error || t('errors.not_found')}</p>
+                        </div>
+                        <button
+                            onClick={() => navigate('/vendors')}
+                            className="vendor-button"
+                        >
+                            <ArrowLeft className="h-4 w-4" /> {t('title')}
+                        </button>
+                    </VendorSurface>
                 </div>
-                <div>
-                    <h3 className="text-xl font-bold text-white uppercase tracking-tight">{t('errors.vendor_not_found')}</h3>
-                    <p className="text-slate-500 mt-2 font-medium">{error || t('errors.not_found')}</p>
-                </div>
-                <button
-                    onClick={() => navigate('/vendors')}
-                    className="mt-4 px-6 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-all flex items-center gap-2"
-                >
-                    <ArrowLeft className="h-4 w-4" /> {t('title')}
-                </button>
             </div>
         );
     }
@@ -120,9 +129,10 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     }
 
     return (
-        <div className="space-y-8">
-            {actionMessage && (
-                <div className="flex items-start gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-rose-300">
+        <div className="vendor-route">
+            <div className="vendor-page space-y-8">
+                {actionMessage && (
+                <VendorInlineMessage tone="danger">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{actionMessage}</p>
                     <button
@@ -132,51 +142,52 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     >
                         <XCircle className="h-4 w-4" />
                     </button>
-                </div>
-            )}
+                </VendorInlineMessage>
+                )}
 
-            <VendorDetailHeader
-                vendor={vendor}
-                canArchive={canArchive}
-                canEdit={canEdit}
-                canRestore={canRestore}
-                onArchive={() => setIsDeleteDialogOpen(true)}
-                onBack={() => navigate('/vendors')}
-                onOpenIssueModal={openIssueModal}
-                onEdit={() => navigate(`/vendors/${vendor.id}/edit`)}
-                onRestore={() => void restoreVendor()}
-            />
+                <VendorDetailHeader
+                    vendor={vendor}
+                    canArchive={canArchive}
+                    canEdit={canEdit}
+                    canRestore={canRestore}
+                    onArchive={() => setIsDeleteDialogOpen(true)}
+                    onBack={() => navigate('/vendors')}
+                    onOpenIssueModal={openIssueModal}
+                    onEdit={() => navigate(`/vendors/${vendor.id}/edit`)}
+                    onRestore={() => void restoreVendor()}
+                />
 
-            <VendorTabs activeTab={activeTab} onSelectTab={selectTab} />
+                <VendorTabs activeTab={activeTab} onSelectTab={selectTab} />
 
-            <VendorTabPanel
-                vendor={vendor}
-                activeSection={activeSection}
-                activeTab={activeTab}
-                canEdit={canEdit}
-                canEditContractControls={canEditByOwnership || hasPermission('vendor_contracts', 'write')}
-                onSelectSection={selectSection}
-            />
+                <VendorTabPanel
+                    vendor={vendor}
+                    activeSection={activeSection}
+                    activeTab={activeTab}
+                    canEdit={canEdit}
+                    canEditContractControls={canEditByOwnership || hasPermission('vendor_contracts', 'write')}
+                    onSelectSection={selectSection}
+                />
 
-            <IssueQuickCreateModal
-                isOpen={isIssueModalOpen}
-                onClose={closeIssueModal}
-                contextEntityType="vendor"
-                contextEntityId={vendor.id}
-                contextEntityLabel={vendor.name}
-                onCreated={(issue) => navigate(`/issues/${issue.id}`)}
-            />
+                <IssueQuickCreateModal
+                    isOpen={isIssueModalOpen}
+                    onClose={closeIssueModal}
+                    contextEntityType="vendor"
+                    contextEntityId={vendor.id}
+                    contextEntityLabel={vendor.name}
+                    onCreated={(issue) => navigate(`/issues/${issue.id}`)}
+                />
 
-            <ConfirmDialog
-                isOpen={isDeleteDialogOpen}
-                onClose={() => setIsDeleteDialogOpen(false)}
-                onConfirm={archiveVendor}
-                title={tCommon('actions.archive')}
-                message={t('messages.archive_confirm', { vendorName: vendor.name })}
-                confirmLabel={tCommon('actions.archive')}
-                variant="danger"
-                isLoading={isDeleting}
-            />
+                <ConfirmDialog
+                    isOpen={isDeleteDialogOpen}
+                    onClose={() => setIsDeleteDialogOpen(false)}
+                    onConfirm={archiveVendor}
+                    title={tCommon('actions.archive')}
+                    message={t('messages.archive_confirm', { vendorName: vendor.name })}
+                    confirmLabel={tCommon('actions.archive')}
+                    variant="danger"
+                    isLoading={isDeleting}
+                />
+            </div>
         </div>
     );
 }

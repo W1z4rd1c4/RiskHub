@@ -1,19 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from '@/i18n/hooks';
 import { Loader2, Save, ShieldAlert, ShieldCheck } from 'lucide-react';
+
+import {
+    VendorActionButton,
+    VendorBadge,
+    VendorInlineMessage,
+    VendorSectionHeader,
+    VendorSurface,
+} from '@/components/vendors/vendorRouteUi';
+import { useTranslation } from '@/i18n/hooks';
 import { vendorResilienceApi } from '@/services/vendorResilienceApi';
-import type { VendorResilience, VendorPlanStatus } from '@/types/vendorResilience';
+import type { VendorPlanStatus, VendorResilience } from '@/types/vendorResilience';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 interface VendorResilienceTabProps {
     vendorId: number;
-    canEdit: boolean; // owner or vendors:write
+    canEdit: boolean;
 }
 
-function toDateInput(dt?: string | null): string {
-    if (!dt) return '';
+function toDateInput(dateTime?: string | null): string {
+    if (!dateTime) return '';
     try {
-        return new Date(dt).toISOString().slice(0, 10);
+        return new Date(dateTime).toISOString().slice(0, 10);
     } catch {
         return '';
     }
@@ -24,11 +32,23 @@ function fromDateInput(value: string): string | null {
     return `${value}T00:00:00Z`;
 }
 
+function planStatusTone(status: VendorPlanStatus) {
+    switch (status) {
+        case 'complete':
+            return 'success' as const;
+        case 'in_progress':
+            return 'warn' as const;
+        default:
+            return 'neutral' as const;
+    }
+}
+
 export function VendorResilienceTab({ vendorId, canEdit }: VendorResilienceTabProps) {
     const { t } = useTranslation('vendors');
     const [data, setData] = useState<VendorResilience | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const [exitStatus, setExitStatus] = useState<VendorPlanStatus>('not_started');
     const [exitRef, setExitRef] = useState('');
@@ -41,7 +61,7 @@ export function VendorResilienceTab({ vendorId, canEdit }: VendorResilienceTabPr
     const [contNotes, setContNotes] = useState('');
     const [contReviewed, setContReviewed] = useState('');
     const [contTested, setContTested] = useState('');
-    const [outageHours, setOutageHours] = useState<string>('');
+    const [outageHours, setOutageHours] = useState('');
     const [ciaC, setCiaC] = useState(false);
     const [ciaI, setCiaI] = useState(false);
     const [ciaA, setCiaA] = useState(false);
@@ -50,21 +70,24 @@ export function VendorResilienceTab({ vendorId, canEdit }: VendorResilienceTabPr
     const refresh = useCallback(async () => {
         try {
             setIsLoading(true);
-            const res = await vendorResilienceApi.getResilience(vendorId);
-            setData(res);
+            const resilience = await vendorResilienceApi.getResilience(vendorId);
+            setData(resilience);
+            setError(null);
         } catch (err) {
             console.error('Failed to load vendor resilience:', err);
+            setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
         }
-    }, [vendorId]);
+    }, [t, vendorId]);
 
     useEffect(() => {
-        refresh();
+        void refresh();
     }, [refresh]);
 
     useEffect(() => {
         if (!data) return;
+
         setExitStatus(data.exit_plan?.status ?? 'not_started');
         setExitRef(data.exit_plan?.plan_reference ?? '');
         setExitNotes(data.exit_plan?.notes ?? '');
@@ -90,7 +113,7 @@ export function VendorResilienceTab({ vendorId, canEdit }: VendorResilienceTabPr
     const save = async () => {
         try {
             setIsSaving(true);
-            const payload = {
+            await vendorResilienceApi.updateResilience(vendorId, {
                 exit_plan: {
                     status: exitStatus,
                     plan_reference: exitRef || null,
@@ -110,11 +133,11 @@ export function VendorResilienceTab({ vendorId, canEdit }: VendorResilienceTabPr
                     last_reviewed_at: fromDateInput(contReviewed),
                     last_tested_at: fromDateInput(contTested),
                 },
-            };
-            await vendorResilienceApi.updateResilience(vendorId, payload);
+            });
             await refresh();
         } catch (err) {
             console.error('Failed to save resilience:', err);
+            setError(t('errors.save_failed'));
         } finally {
             setIsSaving(false);
         }
@@ -129,241 +152,244 @@ export function VendorResilienceTab({ vendorId, canEdit }: VendorResilienceTabPr
         [t],
     );
 
-    return (
-        <section className="glass-card p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                        {data?.missing_exit_plan || data?.missing_contingency_plan ? (
-                            <ShieldAlert className="h-4 w-4 text-amber-300" />
-                        ) : (
-                            <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                        )}
-                        {t('tabs.resilience')}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('resilience.subtitle')}
-                    </p>
-                </div>
+    const needsAttention = Boolean(data?.missing_exit_plan || data?.missing_contingency_plan);
 
-                {canEdit && (
-                    <button
-                        onClick={save}
-                        disabled={isSaving}
-                        className="px-4 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/90 transition-colors disabled:opacity-60 flex items-center gap-2"
-                    >
+    return (
+        <VendorSurface className="space-y-6">
+            <VendorSectionHeader
+                icon={
+                    needsAttention ? (
+                        <ShieldAlert className="h-4 w-4 text-amber-300" />
+                    ) : (
+                        <ShieldCheck className="h-4 w-4 text-emerald-300" />
+                    )
+                }
+                title={t('tabs.resilience')}
+                description={t('resilience.subtitle')}
+                actions={canEdit ? (
+                    <VendorActionButton onClick={save} disabled={isSaving} variant="primary">
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                         {t('resilience.actions.save')}
-                    </button>
-                )}
-            </div>
+                    </VendorActionButton>
+                ) : null}
+            />
 
             {isLoading ? (
-                <div className="flex items-center gap-3 text-slate-500 font-medium">
+                <div className="flex items-center gap-3 vendor-muted font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t('labels.loading')}
                 </div>
+            ) : error ? (
+                <VendorInlineMessage tone="danger">{error}</VendorInlineMessage>
             ) : !data ? (
-                <div className="text-slate-500 font-medium">—</div>
+                <VendorInlineMessage>{t('common:fallbacks.not_available')}</VendorInlineMessage>
             ) : (
-                <div className="space-y-6">
-                    {!data.is_required && (
-                        <div className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl text-slate-500 font-medium text-sm">
-                            {t('resilience.not_required')}
+                <div className="vendor-stack vendor-stack--lg">
+                    {!data.is_required ? (
+                        <VendorInlineMessage>{t('resilience.not_required')}</VendorInlineMessage>
+                    ) : null}
+
+                    {needsAttention ? (
+                        <VendorInlineMessage tone="danger">
+                            {t('resilience.subtitle')}
+                        </VendorInlineMessage>
+                    ) : null}
+
+                    {/* Mini Status Summary */}
+                    <div className="vendor-metric-strip" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                        <div className="vendor-metric">
+                            <span className="vendor-metric__label">{t('resilience.exit_plan.title')}</span>
+                            <VendorBadge tone={planStatusTone(exitStatus)}>
+                                {t(`resilience.status.${exitStatus}`)}
+                            </VendorBadge>
                         </div>
-                    )}
-
-                    <div className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-4">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
-                            {t('resilience.exit_plan.title')}
-                        </h4>
-
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    {t('resilience.fields.status')}
-                                </p>
-                                <ThemedSelect
-                                    value={exitStatus}
-                                    onValueChange={(v) => setExitStatus(v as VendorPlanStatus)}
-                                    options={statusOptions}
-                                    placeholder={t('resilience.fields.status')}
-                                    disabled={!canEdit}
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    {t('resilience.fields.reference')}
-                                </p>
-                                <input
-                                    value={exitRef}
-                                    onChange={(e) => setExitRef(e.target.value)}
-                                    disabled={!canEdit}
-                                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium disabled:opacity-60"
-                                    placeholder="https://... or file path"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    {t('resilience.fields.last_reviewed')}
-                                </p>
-                                <input
-                                    type="date"
-                                    value={exitReviewed}
-                                    onChange={(e) => setExitReviewed(e.target.value)}
-                                    disabled={!canEdit}
-                                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white disabled:opacity-60"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    {t('resilience.fields.last_tested')}
-                                </p>
-                                <input
-                                    type="date"
-                                    value={exitTested}
-                                    onChange={(e) => setExitTested(e.target.value)}
-                                    disabled={!canEdit}
-                                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white disabled:opacity-60"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-1">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                {t('resilience.fields.notes')}
-                            </p>
-                            <textarea
-                                value={exitNotes}
-                                onChange={(e) => setExitNotes(e.target.value)}
-                                rows={2}
-                                disabled={!canEdit}
-                                className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium disabled:opacity-60"
-                                placeholder={t('resilience.fields.notes_placeholder')}
-                            />
+                        <div className="vendor-metric">
+                            <span className="vendor-metric__label">{t('resilience.contingency_plan.title')}</span>
+                            <VendorBadge tone={planStatusTone(contStatus)}>
+                                {t(`resilience.status.${contStatus}`)}
+                            </VendorBadge>
                         </div>
                     </div>
 
-                    <div className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-4">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
-                            {t('resilience.contingency_plan.title')}
-                        </h4>
+                    <div className="vendor-summary-grid">
+                        <div className="vendor-card space-y-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 className="vendor-section-title">{t('resilience.exit_plan.title')}</h3>
+                                    <p className="vendor-section-description">{t('resilience.fields.reference')}</p>
+                                </div>
+                                <VendorBadge tone={planStatusTone(exitStatus)}>
+                                    {t(`resilience.status.${exitStatus}`)}
+                                </VendorBadge>
+                            </div>
 
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    {t('resilience.fields.outage_hours')}
-                                </p>
-                                <input
-                                    value={outageHours}
-                                    onChange={(e) => setOutageHours(e.target.value)}
-                                    disabled={!canEdit}
-                                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white disabled:opacity-60"
-                                    placeholder="24"
-                                />
+                            <div className="vendor-field-grid">
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('resilience.fields.status')}</label>
+                                    <ThemedSelect
+                                        value={exitStatus}
+                                        onValueChange={(value) => setExitStatus(value as VendorPlanStatus)}
+                                        options={statusOptions}
+                                        placeholder={t('resilience.fields.status')}
+                                        disabled={!canEdit}
+                                    />
+                                </div>
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('resilience.fields.reference')}</label>
+                                    <input
+                                        value={exitRef}
+                                        onChange={(event) => setExitRef(event.target.value)}
+                                        disabled={!canEdit}
+                                        className="vendor-input"
+                                        placeholder="https://... or file path"
+                                    />
+                                </div>
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    {t('resilience.fields.status')}
-                                </p>
-                                <ThemedSelect
-                                    value={contStatus}
-                                    onValueChange={(v) => setContStatus(v as VendorPlanStatus)}
-                                    options={statusOptions}
-                                    placeholder={t('resilience.fields.status')}
-                                    disabled={!canEdit}
-                                />
-                            </div>
-                        </div>
 
-                        <div className="p-3 bg-white/[0.02] border border-white/10 rounded-xl">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">
-                                {t('resilience.fields.cia')}
-                            </p>
-                            <div className="grid gap-2 md:grid-cols-2">
-                                <label className="flex items-center gap-2 text-sm text-slate-200 font-medium">
-                                    <input type="checkbox" checked={ciaC} onChange={(e) => setCiaC(e.target.checked)} disabled={!canEdit} />
-                                    {t('resilience.cia.confidentiality')}
-                                </label>
-                                <label className="flex items-center gap-2 text-sm text-slate-200 font-medium">
-                                    <input type="checkbox" checked={ciaI} onChange={(e) => setCiaI(e.target.checked)} disabled={!canEdit} />
-                                    {t('resilience.cia.integrity')}
-                                </label>
-                                <label className="flex items-center gap-2 text-sm text-slate-200 font-medium">
-                                    <input type="checkbox" checked={ciaA} onChange={(e) => setCiaA(e.target.checked)} disabled={!canEdit} />
-                                    {t('resilience.cia.authenticity')}
-                                </label>
-                                <label className="flex items-center gap-2 text-sm text-slate-200 font-medium">
-                                    <input type="checkbox" checked={ciaAv} onChange={(e) => setCiaAv(e.target.checked)} disabled={!canEdit} />
-                                    {t('resilience.cia.availability')}
-                                </label>
+                            <div className="vendor-field-grid">
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('resilience.fields.last_reviewed')}</label>
+                                    <input
+                                        type="date"
+                                        value={exitReviewed}
+                                        onChange={(event) => setExitReviewed(event.target.value)}
+                                        disabled={!canEdit}
+                                        className="vendor-input"
+                                    />
+                                </div>
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('resilience.fields.last_tested')}</label>
+                                    <input
+                                        type="date"
+                                        value={exitTested}
+                                        onChange={(event) => setExitTested(event.target.value)}
+                                        disabled={!canEdit}
+                                        className="vendor-input"
+                                    />
+                                </div>
                             </div>
-                            {data.contingency_required && (
-                                <p className="text-xs text-amber-300 font-bold mt-2">
-                                    {t('resilience.contingency_required')}
-                                </p>
-                            )}
-                        </div>
 
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    {t('resilience.fields.reference')}
-                                </p>
-                                <input
-                                    value={contRef}
-                                    onChange={(e) => setContRef(e.target.value)}
+                            <div className="vendor-field">
+                                <label className="vendor-label">{t('resilience.fields.notes')}</label>
+                                <textarea
+                                    value={exitNotes}
+                                    onChange={(event) => setExitNotes(event.target.value)}
+                                    rows={3}
                                     disabled={!canEdit}
-                                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium disabled:opacity-60"
-                                    placeholder="https://... or file path"
-                                />
-                            </div>
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    {t('resilience.fields.notes')}
-                                </p>
-                                <input
-                                    value={contNotes}
-                                    onChange={(e) => setContNotes(e.target.value)}
-                                    disabled={!canEdit}
-                                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium disabled:opacity-60"
+                                    className="vendor-textarea"
                                     placeholder={t('resilience.fields.notes_placeholder')}
                                 />
                             </div>
                         </div>
 
-                        <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    {t('resilience.fields.last_reviewed')}
-                                </p>
-                                <input
-                                    type="date"
-                                    value={contReviewed}
-                                    onChange={(e) => setContReviewed(e.target.value)}
-                                    disabled={!canEdit}
-                                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white disabled:opacity-60"
-                                />
+                        <div className="vendor-card space-y-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 className="vendor-section-title">{t('resilience.contingency_plan.title')}</h3>
+                                    <p className="vendor-section-description">{t('resilience.fields.outage_hours')}</p>
+                                </div>
+                                <VendorBadge tone={planStatusTone(contStatus)}>
+                                    {t(`resilience.status.${contStatus}`)}
+                                </VendorBadge>
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    {t('resilience.fields.last_tested')}
-                                </p>
-                                <input
-                                    type="date"
-                                    value={contTested}
-                                    onChange={(e) => setContTested(e.target.value)}
-                                    disabled={!canEdit}
-                                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white disabled:opacity-60"
-                                />
+
+                            <div className="vendor-field-grid">
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('resilience.fields.outage_hours')}</label>
+                                    <input
+                                        value={outageHours}
+                                        onChange={(event) => setOutageHours(event.target.value)}
+                                        disabled={!canEdit}
+                                        className="vendor-input"
+                                        placeholder="24"
+                                    />
+                                </div>
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('resilience.fields.status')}</label>
+                                    <ThemedSelect
+                                        value={contStatus}
+                                        onValueChange={(value) => setContStatus(value as VendorPlanStatus)}
+                                        options={statusOptions}
+                                        placeholder={t('resilience.fields.status')}
+                                        disabled={!canEdit}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="vendor-card space-y-3">
+                                <div className="vendor-label">{t('resilience.fields.cia')}</div>
+                                <div className="vendor-checkbox-list">
+                                    <label className="vendor-checkbox">
+                                        <input type="checkbox" checked={ciaC} onChange={(event) => setCiaC(event.target.checked)} disabled={!canEdit} />
+                                        <span>{t('resilience.cia.confidentiality')}</span>
+                                    </label>
+                                    <label className="vendor-checkbox">
+                                        <input type="checkbox" checked={ciaI} onChange={(event) => setCiaI(event.target.checked)} disabled={!canEdit} />
+                                        <span>{t('resilience.cia.integrity')}</span>
+                                    </label>
+                                    <label className="vendor-checkbox">
+                                        <input type="checkbox" checked={ciaA} onChange={(event) => setCiaA(event.target.checked)} disabled={!canEdit} />
+                                        <span>{t('resilience.cia.authenticity')}</span>
+                                    </label>
+                                    <label className="vendor-checkbox">
+                                        <input type="checkbox" checked={ciaAv} onChange={(event) => setCiaAv(event.target.checked)} disabled={!canEdit} />
+                                        <span>{t('resilience.cia.availability')}</span>
+                                    </label>
+                                </div>
+                                {data.contingency_required ? (
+                                    <VendorInlineMessage>{t('resilience.contingency_required')}</VendorInlineMessage>
+                                ) : null}
+                            </div>
+
+                            <div className="vendor-field-grid">
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('resilience.fields.reference')}</label>
+                                    <input
+                                        value={contRef}
+                                        onChange={(event) => setContRef(event.target.value)}
+                                        disabled={!canEdit}
+                                        className="vendor-input"
+                                        placeholder="https://... or file path"
+                                    />
+                                </div>
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('resilience.fields.notes')}</label>
+                                    <input
+                                        value={contNotes}
+                                        onChange={(event) => setContNotes(event.target.value)}
+                                        disabled={!canEdit}
+                                        className="vendor-input"
+                                        placeholder={t('resilience.fields.notes_placeholder')}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="vendor-field-grid">
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('resilience.fields.last_reviewed')}</label>
+                                    <input
+                                        type="date"
+                                        value={contReviewed}
+                                        onChange={(event) => setContReviewed(event.target.value)}
+                                        disabled={!canEdit}
+                                        className="vendor-input"
+                                    />
+                                </div>
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('resilience.fields.last_tested')}</label>
+                                    <input
+                                        type="date"
+                                        value={contTested}
+                                        onChange={(event) => setContTested(event.target.value)}
+                                        disabled={!canEdit}
+                                        className="vendor-input"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
-        </section>
+        </VendorSurface>
     );
 }

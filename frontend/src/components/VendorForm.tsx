@@ -1,14 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Save, X } from 'lucide-react';
+
+import { IMPACT_DESCRIPTIONS, formatFinancialRange } from '@/constants/riskScoreDescriptions';
+import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { useTranslation } from '@/i18n/hooks';
-import { Save, X, AlertCircle } from 'lucide-react';
-import { vendorApi } from '@/services/vendorApi';
+import { cn } from '@/lib/utils';
 import { lookupApi } from '@/services/lookupApi';
 import type { UserLookupItem } from '@/services/lookupApi';
-import type { Vendor, VendorCreate, VendorUpdate, VendorType, VendorStatus, VendorReplaceability } from '@/types/vendor';
+import { vendorApi } from '@/services/vendorApi';
+import type {
+    Vendor,
+    VendorCreate,
+    VendorReplaceability,
+    VendorStatus,
+    VendorType,
+    VendorUpdate,
+} from '@/types/vendor';
+import {
+    VendorActionButton,
+    VendorBadge,
+    VendorInlineMessage,
+    VendorSectionHeader,
+    VendorSurface,
+} from '@/components/vendors/vendorRouteUi';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
-import { IMPACT_DESCRIPTIONS, formatFinancialRange } from '@/constants/riskScoreDescriptions';
-import { cn } from '@/lib/utils';
 
 interface DepartmentLookup {
     id: number;
@@ -86,55 +101,64 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
         ...initialData,
     }));
 
-    const ownerOptions = useMemo(() => {
-        return users.map((u) => ({
-            value: String(u.id),
-            label: u.department_name ? `${u.name} — ${u.department_name}` : u.name,
-        }));
-    }, [users]);
+    const ownerOptions = useMemo(
+        () =>
+            users.map((user) => ({
+                value: String(user.id),
+                label: user.department_name ? `${user.name} — ${user.department_name}` : user.name,
+            })),
+        [users],
+    );
 
-    const departmentOptions = useMemo(() => {
-        return departments.map((d) => ({
-            value: String(d.id),
-            label: d.code ? `${d.name} (${d.code})` : d.name,
-        }));
-    }, [departments]);
+    const departmentOptions = useMemo(
+        () =>
+            departments.map((department) => ({
+                value: String(department.id),
+                label: department.code ? `${department.name} (${department.code})` : department.name,
+            })),
+        [departments],
+    );
 
     useEffect(() => {
         const loadLookups = async () => {
             try {
-                const [userData, deptData, vendorData] = await Promise.all([
+                const [userData, departmentData, vendorData] = await Promise.all([
                     lookupApi.getUsers(),
                     lookupApi.getDepartments(),
                     vendorApi.getVendors({ skip: 0, limit: 100 }),
                 ]);
                 setUsers(userData);
-                setDepartments(deptData);
+                setDepartments(departmentData);
 
-                const processes = [...new Set(vendorData.items.map((v) => v.process).filter(Boolean))];
+                const processes = [...new Set(vendorData.items.map((vendor) => vendor.process).filter(Boolean))];
                 setExistingProcesses(processes);
 
                 const subprocMap: Record<string, string[]> = {};
-                vendorData.items.forEach((v) => {
-                    if (v.process && v.subprocess) {
-                        if (!subprocMap[v.process]) subprocMap[v.process] = [];
-                        if (!subprocMap[v.process].includes(v.subprocess)) subprocMap[v.process].push(v.subprocess);
+                vendorData.items.forEach((vendor) => {
+                    if (vendor.process && vendor.subprocess) {
+                        if (!subprocMap[vendor.process]) {
+                            subprocMap[vendor.process] = [];
+                        }
+                        if (!subprocMap[vendor.process].includes(vendor.subprocess)) {
+                            subprocMap[vendor.process].push(vendor.subprocess);
+                        }
                     }
                 });
                 setSubprocessesByProcess(subprocMap);
-            } catch (err) {
-                console.error('Failed to load vendor lookups:', err);
+            } catch (loadError) {
+                console.error('Failed to load vendor lookups:', loadError);
             }
         };
-        loadLookups();
+
+        void loadLookups();
     }, []);
 
     const handleChange = (field: keyof Vendor, value: unknown) => {
-        setFormData((prev) => {
-            const next = { ...prev, [field]: value };
+        setFormData((previous) => {
+            const next = { ...previous, [field]: value };
 
             if (field === 'outsourcing_owner_user_id') {
-                const owner = users.find((u) => u.id === value);
+                const owner = users.find((user) => user.id === value);
                 if (owner?.department_id && !next.department_id) {
                     next.department_id = owner.department_id;
                 }
@@ -168,10 +192,13 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
         return true;
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
         setError(null);
-        if (!validate()) return;
+
+        if (!validate()) {
+            return;
+        }
 
         try {
             setIsSubmitting(true);
@@ -203,8 +230,8 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                 : await vendorApi.createVendor(payloadBase as VendorCreate);
 
             onSaved(saved);
-        } catch (err) {
-            console.error('Failed to save vendor:', err);
+        } catch (saveError) {
+            console.error('Failed to save vendor:', saveError);
             setError(t('errors.save_failed'));
         } finally {
             setIsSubmitting(false);
@@ -215,72 +242,138 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
     const impact = IMPACT_DESCRIPTIONS[score as 1 | 2 | 3 | 4 | 5];
     const financialRange = formatFinancialRange(score, totalAssets, t('form.financial.no_loss'));
 
-    const processSuggestions = existingProcesses.filter((p) => p.toLowerCase().includes((formData.process || '').toLowerCase()));
-    const subprocessSuggestions = (subprocessesByProcess[formData.process || ''] || []).filter((p) =>
-        p.toLowerCase().includes((formData.subprocess || '').toLowerCase())
+    const processSuggestions = existingProcesses.filter((processName) =>
+        processName.toLowerCase().includes((formData.process || '').toLowerCase()),
+    );
+    const subprocessSuggestions = (subprocessesByProcess[formData.process || ''] || []).filter((subprocessName) =>
+        subprocessName.toLowerCase().includes((formData.subprocess || '').toLowerCase()),
+    );
+
+    const renderSuggestions = (
+        items: string[],
+        onSelect: (value: string) => void,
+    ) => {
+        if (items.length === 0) {
+            return null;
+        }
+
+        return (
+            <div className="vendor-suggestion-box">
+                {items.slice(0, 6).map((item) => (
+                    <button
+                        type="button"
+                        key={item}
+                        onClick={() => onSelect(item)}
+                        className="vendor-suggestion-button"
+                    >
+                        {item}
+                    </button>
+                ))}
+            </div>
+        );
+    };
+
+    const renderFlagCheckbox = (key: VendorFlagKey, label: string) => (
+        <label key={key} className="vendor-checkbox">
+            <input
+                type="checkbox"
+                checked={!!formData[key]}
+                onChange={(event) => handleChange(key as keyof Vendor, event.target.checked)}
+                className="accent-accent"
+            />
+            {label}
+        </label>
     );
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-                <div className="p-4 rounded-xl border flex items-start gap-3 bg-rose-500/10 border-rose-500/20 text-rose-400">
-                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+            {error ? (
+                <VendorInlineMessage tone="danger">
+                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                     <p className="text-sm font-medium">{error}</p>
-                </div>
-            )}
+                </VendorInlineMessage>
+            ) : null}
 
-            <section className="glass-card p-6 space-y-5">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('form.sections.identity')}</h3>
+            <VendorSurface tone="emphasis" className="space-y-5">
+                <VendorSectionHeader title={t('form.sections.identity')} />
 
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.name')}</label>
+                <div className="vendor-form-grid">
+                    <div className="vendor-field">
+                        <label className="vendor-label">{t('form.name')}</label>
                         <input
                             value={formData.name || ''}
-                            onChange={(e) => handleChange('name', e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none focus:border-accent/50"
+                            onChange={(event) => handleChange('name', event.target.value)}
+                            className="vendor-input"
                             placeholder={t('form.name_placeholder')}
                         />
                     </div>
 
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.vendor_type.label')}</label>
+                    <div className="vendor-field">
+                        <label className="vendor-label">{t('form.vendor_type.label')}</label>
                         <ThemedSelect
                             value={(formData.vendor_type || 'other') as string}
-                            onValueChange={(v) => handleChange('vendor_type', v)}
-                            options={vendorTypeOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
+                            onValueChange={(value) => handleChange('vendor_type', value)}
+                            options={vendorTypeOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
                         />
                     </div>
 
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.legal_name')}</label>
+                    <div className="vendor-field">
+                        <label className="vendor-label">{t('form.legal_name')}</label>
                         <input
                             value={formData.legal_name || ''}
-                            onChange={(e) => handleChange('legal_name', e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none focus:border-accent/50"
+                            onChange={(event) => handleChange('legal_name', event.target.value)}
+                            className="vendor-input"
                         />
                     </div>
 
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.registration_id')}</label>
+                    <div className="vendor-field">
+                        <label className="vendor-label">{t('form.registration_id')}</label>
                         <input
                             value={formData.registration_id || ''}
-                            onChange={(e) => handleChange('registration_id', e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none focus:border-accent/50"
+                            onChange={(event) => handleChange('registration_id', event.target.value)}
+                            className="vendor-input"
+                        />
+                    </div>
+
+                    <div className="vendor-field">
+                        <label className="vendor-label">{t('form.country')}</label>
+                        <input
+                            value={formData.country || ''}
+                            onChange={(event) => handleChange('country', event.target.value)}
+                            className="vendor-input"
+                        />
+                    </div>
+
+                    <div className="vendor-field">
+                        <label className="vendor-label">{t('form.website')}</label>
+                        <input
+                            value={formData.website || ''}
+                            onChange={(event) => handleChange('website', event.target.value)}
+                            className="vendor-input"
+                        />
+                    </div>
+
+                    <div className="vendor-field md:col-span-2">
+                        <label className="vendor-label">{t('form.description')}</label>
+                        <textarea
+                            value={formData.description || ''}
+                            onChange={(event) => handleChange('description', event.target.value)}
+                            rows={3}
+                            className="vendor-textarea"
                         />
                     </div>
                 </div>
-            </section>
+            </VendorSurface>
 
-            <section className="glass-card p-6 space-y-5">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('form.sections.ownership')}</h3>
+            <VendorSurface className="space-y-5">
+                <VendorSectionHeader title={t('form.sections.ownership')} />
 
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.department')}</label>
+                <div className="vendor-form-grid">
+                    <div className="vendor-field">
+                        <label className="vendor-label">{t('form.department')}</label>
                         <ThemedSelect
                             value={formData.department_id ? String(formData.department_id) : ''}
-                            onValueChange={(v) => handleChange('department_id', v ? Number(v) : null)}
+                            onValueChange={(value) => handleChange('department_id', value ? Number(value) : null)}
                             placeholder={t('form.department_placeholder')}
                             allowEmpty
                             emptyLabel={t('form.department_placeholder')}
@@ -288,11 +381,11 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                         />
                     </div>
 
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.owner')}</label>
+                    <div className="vendor-field">
+                        <label className="vendor-label">{t('form.owner')}</label>
                         <ThemedSelect
                             value={formData.outsourcing_owner_user_id ? String(formData.outsourcing_owner_user_id) : ''}
-                            onValueChange={(v) => handleChange('outsourcing_owner_user_id', v ? Number(v) : 0)}
+                            onValueChange={(value) => handleChange('outsourcing_owner_user_id', value ? Number(value) : 0)}
                             placeholder={t('form.owner_placeholder')}
                             allowEmpty
                             emptyLabel={t('form.owner_placeholder')}
@@ -300,86 +393,120 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                         />
                     </div>
 
-                    <div className="space-y-1.5 relative">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.process')}</label>
+                    <div className="vendor-field relative">
+                        <label className="vendor-label">{t('form.process')}</label>
                         <input
                             value={formData.process || ''}
-                            onChange={(e) => handleChange('process', e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none focus:border-accent/50"
+                            onChange={(event) => handleChange('process', event.target.value)}
+                            className="vendor-input"
                             placeholder={t('form.process_placeholder')}
                         />
-                        {processSuggestions.length > 0 && (formData.process || '').length > 0 && (
-                            <div className="absolute mt-1 w-full z-10 bg-slate-900/95 border border-white/10 rounded-xl overflow-hidden">
-                                {processSuggestions.slice(0, 6).map((p) => (
-                                    <button
-                                        type="button"
-                                        key={p}
-                                        onClick={() => handleChange('process', p)}
-                                        className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/5"
-                                    >
-                                        {p}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        {(formData.process || '').length > 0
+                            ? renderSuggestions(processSuggestions, (value) => handleChange('process', value))
+                            : null}
                     </div>
 
-                    <div className="space-y-1.5 relative">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.subprocess')}</label>
+                    <div className="vendor-field relative">
+                        <label className="vendor-label">{t('form.subprocess')}</label>
                         <input
                             value={formData.subprocess || ''}
-                            onChange={(e) => handleChange('subprocess', e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 outline-none focus:border-accent/50"
+                            onChange={(event) => handleChange('subprocess', event.target.value)}
+                            className="vendor-input"
                             placeholder={t('form.subprocess_placeholder')}
                         />
-                        {subprocessSuggestions.length > 0 && (formData.subprocess || '').length > 0 && (
-                            <div className="absolute mt-1 w-full z-10 bg-slate-900/95 border border-white/10 rounded-xl overflow-hidden">
-                                {subprocessSuggestions.slice(0, 6).map((p) => (
-                                    <button
-                                        type="button"
-                                        key={p}
-                                        onClick={() => handleChange('subprocess', p)}
-                                        className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-white/5"
-                                    >
-                                        {p}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        {(formData.subprocess || '').length > 0
+                            ? renderSuggestions(subprocessSuggestions, (value) => handleChange('subprocess', value))
+                            : null}
                     </div>
                 </div>
-            </section>
+            </VendorSurface>
 
-            <section className="glass-card p-6 space-y-5">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">{t('form.sections.classification')}</h3>
+            <VendorSurface className="space-y-5">
+                <VendorSectionHeader title={t('form.sections.classification')} />
 
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.risk_score')}</label>
+                <div className="space-y-5">
+                    <div className="vendor-field">
+                        <label className="vendor-label">{t('form.risk_score')}</label>
                         <div className="flex items-center gap-3">
                             <input
                                 type="range"
                                 min={1}
                                 max={5}
                                 value={score}
-                                onChange={(e) => handleChange('risk_score_1_5', Number(e.target.value))}
-                                className={cn('w-full', score >= 5 ? 'accent-rose-500' : score >= 4 ? 'accent-orange-500' : score >= 3 ? 'accent-amber-500' : score >= 2 ? 'accent-blue-500' : 'accent-emerald-500')}
+                                onChange={(event) => handleChange('risk_score_1_5', Number(event.target.value))}
+                                className={cn(
+                                    'w-full',
+                                    score >= 5
+                                        ? 'accent-rose-500'
+                                        : score >= 4
+                                            ? 'accent-orange-500'
+                                            : score >= 3
+                                                ? 'accent-amber-500'
+                                                : score >= 2
+                                                    ? 'accent-blue-500'
+                                                    : 'accent-emerald-500',
+                                )}
                             />
                             <div className={cn('px-2.5 py-1 rounded-full text-[10px] font-black border whitespace-nowrap', scoreColor(score))}>
                                 {score} / 5
                             </div>
                         </div>
-                        <p className="text-xs text-slate-400">
-                            <span className="font-semibold text-slate-200">{impact ? t(impact.labelKey, impact.labelKey) : ''}</span>
+                        <p className="text-xs vendor-muted">
+                            <span className="font-semibold vendor-text">
+                                {impact ? t(impact.labelKey, impact.labelKey) : ''}
+                            </span>
                             {financialRange ? ` • ${financialRange}` : null}
                         </p>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.status')}</label>
+                    <div className="vendor-form-grid">
+                        <div className="vendor-field">
+                            <label className="vendor-label">{t('form.flags')}</label>
+                            <div className="flex flex-wrap gap-2">
+                                {formData.supports_important_core_insurance_function ? (
+                                    <VendorBadge tone="success">{t('flags.supports_core_function')}</VendorBadge>
+                                ) : null}
+                                {formData.dora_relevant ? (
+                                    <VendorBadge tone="info">{t('flags.dora_relevant')}</VendorBadge>
+                                ) : null}
+                                {formData.is_significant_vendor ? (
+                                    <VendorBadge tone="warn">{t('flags.significant_vendor')}</VendorBadge>
+                                ) : null}
+                            </div>
+                        </div>
+
+                        <div className="vendor-field md:col-span-2">
+                            <div className="vendor-checkbox-list">
+                                {renderFlagCheckbox('supports_important_core_insurance_function', t('flags.supports_core_function'))}
+                                {renderFlagCheckbox('dora_relevant', t('flags.dora_relevant'))}
+                                {renderFlagCheckbox('is_significant_vendor', t('flags.significant_vendor'))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </VendorSurface>
+
+            <VendorSurface className="space-y-5">
+                <VendorSectionHeader title={t('form.sections.resilience', 'Resilience & Monitoring')} />
+
+                <div className="vendor-form-grid">
+                    <div className="vendor-field">
+                        <label className="vendor-label">{t('form.replaceability.label')}</label>
+                        <ThemedSelect
+                            value={formData.replaceability ? String(formData.replaceability) : ''}
+                            onValueChange={(value) => handleChange('replaceability', value || null)}
+                            placeholder={t('form.replaceability.placeholder')}
+                            allowEmpty
+                            emptyLabel={t('form.replaceability.placeholder')}
+                            options={replaceabilityOptions.map((option) => ({ value: option.value, label: t(option.labelKey) }))}
+                        />
+                    </div>
+
+                    <div className="vendor-field">
+                        <label className="vendor-label">{t('form.status')}</label>
                         <ThemedSelect
                             value={(formData.status || 'active') as string}
-                            onValueChange={(v) => handleChange('status', v)}
+                            onValueChange={(value) => handleChange('status', value)}
                             options={[
                                 { value: 'active', label: t('status.active') },
                                 { value: 'inactive', label: t('status.inactive') },
@@ -387,64 +514,24 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.replaceability.label')}</label>
-                        <ThemedSelect
-                            value={formData.replaceability ? String(formData.replaceability) : ''}
-                            onValueChange={(v) => handleChange('replaceability', v || null)}
-                            placeholder={t('form.replaceability.placeholder')}
-                            allowEmpty
-                            emptyLabel={t('form.replaceability.placeholder')}
-                            options={replaceabilityOptions.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
-                        />
-                    </div>
-
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-500">{t('form.flags')}</label>
-                        <div className="space-y-2">
-                            {[
-                                { key: 'supports_important_core_insurance_function' as const, label: t('flags.supports_core_function') },
-                                { key: 'dora_relevant' as const, label: t('flags.dora_relevant') },
-                                { key: 'is_significant_vendor' as const, label: t('flags.significant_vendor') },
-                                { key: 'has_alternative_providers' as const, label: t('flags.has_alternatives') },
-                            ].map(({ key, label }: { key: VendorFlagKey; label: string }) => (
-                                <label key={key} className="flex items-center gap-2 text-sm text-slate-300">
-                                    <input
-                                        type="checkbox"
-                                        checked={!!formData[key]}
-                                        onChange={(e) => handleChange(key as keyof Vendor, e.target.checked)}
-                                        className="accent-accent"
-                                    />
-                                    {label}
-                                </label>
-                            ))}
-                        </div>
+                    <div className="vendor-field md:col-span-2">
+                        <label className="vendor-label">{t('flags.has_alternatives')}</label>
+                        {renderFlagCheckbox('has_alternative_providers', t('flags.has_alternatives'))}
                     </div>
                 </div>
-            </section>
+            </VendorSurface>
 
             <div className="flex items-center justify-end gap-3">
-                {onCancel && (
-                    <button
-                        type="button"
-                        onClick={onCancel}
-                        className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors flex items-center gap-2"
-                    >
+                {onCancel ? (
+                    <VendorActionButton type="button" onClick={onCancel}>
                         <X className="h-4 w-4" />
                         {t('actions.cancel')}
-                    </button>
-                )}
-                <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className={cn(
-                        "px-4 py-2.5 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-colors flex items-center gap-2",
-                        isSubmitting && "opacity-60 cursor-not-allowed"
-                    )}
-                >
-                    <Save className={cn("h-4 w-4", isSubmitting && "animate-pulse")} />
+                    </VendorActionButton>
+                ) : null}
+                <VendorActionButton type="submit" variant="primary" disabled={isSubmitting}>
+                    <Save className={cn('h-4 w-4', isSubmitting && 'animate-pulse')} />
                     {isEdit ? t('actions.save') : t('actions.create')}
-                </button>
+                </VendorActionButton>
             </div>
         </form>
     );

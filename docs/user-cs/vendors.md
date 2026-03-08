@@ -1,7 +1,7 @@
 ---
 title: Správa dodavatelů
-version: "2.2"
-last_updated: "2026-03-07"
+version: "2.3"
+last_updated: "2026-03-08"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/* + vendor assessment workflows"
 summary: "Kompletní manuál pro third‑party risk: onboarding dodavatelů, ownership, assessmenty, reassessmenty, incidenty, SLA, exporty a notifikace."
@@ -104,6 +104,26 @@ Detail dodavatele používá 5 sloučených tabů:
 - Ecosystem: dependencies a signals
 
 Deep linky se canonicalizují jako `tab + section`. Pokud potřebujete někoho poslat rovnou do konkrétní podsekce, použijte URL ve tvaru `/vendors/<id>?tab=operations&section=sla`.
+
+Vendor route family teď funguje jako jeden konzistentní povrch:
+
+- `/vendors/:id` pro detail
+- `/vendors/:id/edit` pro úpravu
+- `/vendors/new` pro založení
+
+V hlavičce detailu jsou soustředěné hlavní akce:
+
+- založit issue
+- upravit dodavatele
+- archivovat aktivního dodavatele
+- obnovit neaktivního dodavatele
+
+Create i edit používají stejnou strukturu sekcí jako detail:
+
+- Identity
+- Ownership & Scope
+- Classification
+- Resilience & Monitoring
 
 ## Hlavní workflow
 

@@ -2,12 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Activity, Calendar, Plus, Save, Trash2, User as UserIcon, X } from 'lucide-react';
-import { useTranslation } from '@/i18n/hooks';
+
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import {
+    VendorActionButton,
+    VendorInlineMessage,
+} from '@/components/vendors/vendorRouteUi';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from '@/i18n/hooks';
 import { userApi } from '@/services/userApi';
 import { vendorSlaApi } from '@/services/vendorSlaApi';
-import type { VendorSLA, VendorSLACreate, VendorSLAFrequency, VendorSLAUpdate } from '@/types/vendorSla';
+import type {
+    VendorSLA,
+    VendorSLACreate,
+    VendorSLAFrequency,
+    VendorSLAUpdate,
+} from '@/types/vendorSla';
 
 interface VendorSLAModalProps {
     vendorId: number;
@@ -19,17 +29,24 @@ interface VendorSLAModalProps {
     canDelete: boolean;
 }
 
-export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canManage, canDelete }: VendorSLAModalProps) {
+export function VendorSLAModal({
+    vendorId,
+    sla,
+    isOpen,
+    onClose,
+    onSaved,
+    canManage,
+    canDelete,
+}: VendorSLAModalProps) {
     const { t } = useTranslation('vendors');
     const isCreate = !sla;
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [users, setUsers] = useState<{ id: number; name: string; email: string }[]>([]);
-
-    const [recordValue, setRecordValue] = useState<number>(0);
+    const [recordValue, setRecordValue] = useState(0);
     const [isRecording, setIsRecording] = useState(false);
-
+    const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState<Partial<VendorSLACreate & VendorSLAUpdate>>({
         metric_name: '',
         description: '',
@@ -50,11 +67,13 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                 console.error('Error loading users:', err);
             }
         };
-        loadUsers();
+        void loadUsers();
     }, []);
 
     useEffect(() => {
         if (!isOpen) return;
+
+        setError(null);
         if (sla) {
             setFormData({
                 metric_name: sla.metric_name,
@@ -67,23 +86,24 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                 reporting_owner_id: sla.reporting_owner_id ?? undefined,
             });
             setRecordValue(sla.current_value ?? 0);
-        } else {
-            setFormData({
-                metric_name: '',
-                description: '',
-                current_value: 0,
-                lower_limit: 0,
-                upper_limit: 100,
-                unit: '%',
-                frequency: 'monthly',
-                reporting_owner_id: undefined,
-            });
-            setRecordValue(0);
+            return;
         }
-    }, [sla, isOpen]);
+
+        setFormData({
+            metric_name: '',
+            description: '',
+            current_value: 0,
+            lower_limit: 0,
+            upper_limit: 100,
+            unit: '%',
+            frequency: 'monthly',
+            reporting_owner_id: undefined,
+        });
+        setRecordValue(0);
+    }, [isOpen, sla]);
 
     const ownerOptions = useMemo(
-        () => users.map((u) => ({ value: String(u.id), label: `${u.name} (${u.email})` })),
+        () => users.map((user) => ({ value: String(user.id), label: `${user.name} (${user.email})` })),
         [users],
     );
 
@@ -99,10 +119,11 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
     );
 
     const save = async () => {
-        if (!canManage) return;
-        if (!formData.metric_name?.trim()) return;
+        if (!canManage || !formData.metric_name?.trim()) return;
+
         try {
             setIsSaving(true);
+            setError(null);
             if (isCreate) {
                 const payload: VendorSLACreate = {
                     vendor_id: vendorId,
@@ -132,6 +153,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
             onClose();
         } catch (err) {
             console.error('Failed to save vendor SLA:', err);
+            setError(t('errors.save_failed'));
         } finally {
             setIsSaving(false);
         }
@@ -141,11 +163,13 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
         if (!sla || !canDelete) return;
         try {
             setIsDeleting(true);
+            setError(null);
             await vendorSlaApi.archive(sla.id);
             await onSaved();
             onClose();
         } catch (err) {
             console.error('Failed to archive vendor SLA:', err);
+            setError(t('errors.save_failed'));
         } finally {
             setIsDeleting(false);
             setIsDeleteDialogOpen(false);
@@ -156,11 +180,13 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
         if (!sla || !canDelete) return;
         try {
             setIsDeleting(true);
+            setError(null);
             await vendorSlaApi.restore(sla.id);
             await onSaved();
             onClose();
         } catch (err) {
             console.error('Failed to restore vendor SLA:', err);
+            setError(t('errors.save_failed'));
         } finally {
             setIsDeleting(false);
         }
@@ -170,163 +196,173 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
         if (!sla) return;
         try {
             setIsRecording(true);
+            setError(null);
             await vendorSlaApi.recordValue(sla.id, { value: Number(recordValue) });
             await onSaved();
         } catch (err) {
             console.error('Failed to record SLA value:', err);
+            setError(t('errors.save_failed'));
         } finally {
             setIsRecording(false);
         }
     };
 
-    if (!isOpen) return null;
-    if (typeof document === 'undefined') return null;
+    if (!isOpen || typeof document === 'undefined') return null;
 
     return createPortal(
         <AnimatePresence>
-            {isOpen && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            {isOpen ? (
+                <div className="vendor-route fixed inset-0 z-[9999] flex items-center justify-center p-4">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+                        className="vendor-modal-backdrop absolute inset-0"
                     />
 
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        initial={{ opacity: 0, scale: 0.96, y: 18 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="relative w-full max-w-2xl glass-card !p-0 overflow-hidden shadow-2xl"
+                        exit={{ opacity: 0, scale: 0.96, y: 18 }}
+                        className="vendor-modal relative z-10 w-full max-w-3xl"
                     >
-                        <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-accent/10 rounded-lg">
-                                    {isCreate ? <Plus className="h-5 w-5 text-accent" /> : <Activity className="h-5 w-5 text-accent" />}
+                        <div className="vendor-modal__header vendor-divider flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-3">
+                                <div className="vendor-badge vendor-badge--info">
+                                    {isCreate ? <Plus className="h-4 w-4" /> : <Activity className="h-4 w-4" />}
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black text-white">
+                                    <h3 className="vendor-title text-xl font-bold">
                                         {isCreate ? t('sla.modal.create_title') : t('sla.modal.edit_title')}
                                     </h3>
-                                    <p className="text-xs text-slate-500 font-medium">
-                                        {t('sla.modal.subtitle')}
-                                    </p>
+                                    <p className="vendor-section-description">{t('sla.modal.subtitle')}</p>
                                 </div>
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={onClose}
-                                className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                            >
-                                <X className="h-5 w-5 text-slate-300" />
-                            </button>
+                            <VendorActionButton onClick={onClose} variant="ghost" aria-label={t('actions.cancel')}>
+                                <X className="h-4 w-4" />
+                            </VendorActionButton>
                         </div>
 
-                        <div className="p-6 space-y-6">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2 col-span-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                        {t('sla.fields.metric_name')}
-                                    </label>
+                        <div className="vendor-modal__body space-y-6">
+                            {error ? <VendorInlineMessage tone="danger">{error}</VendorInlineMessage> : null}
+
+                            <div className="vendor-form-grid">
+                                <div className="vendor-field md:col-span-2">
+                                    <label className="vendor-label">{t('sla.fields.metric_name')}</label>
                                     <input
                                         type="text"
                                         value={formData.metric_name}
-                                        onChange={(e) => setFormData({ ...formData, metric_name: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
+                                        onChange={(event) =>
+                                            setFormData({ ...formData, metric_name: event.target.value })
+                                        }
+                                        className="vendor-input"
                                         placeholder={t('sla.fields.metric_name_placeholder')}
                                     />
                                 </div>
 
-                                <div className="space-y-2 col-span-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                        {t('sla.fields.description')}
-                                    </label>
+                                <div className="vendor-field md:col-span-2">
+                                    <label className="vendor-label">{t('sla.fields.description')}</label>
                                     <textarea
                                         value={formData.description}
-                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                        rows={2}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
+                                        onChange={(event) =>
+                                            setFormData({ ...formData, description: event.target.value })
+                                        }
+                                        rows={3}
+                                        className="vendor-textarea"
                                         placeholder={t('sla.fields.description_placeholder')}
                                     />
                                 </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
+                                <div className="vendor-field">
+                                    <label className="vendor-label">
                                         {isCreate ? t('sla.fields.current_value') : t('sla.fields.current_value_edit_hint')}
                                     </label>
                                     <input
                                         type="number"
                                         value={formData.current_value}
-                                        onChange={(e) => setFormData({ ...formData, current_value: Number(e.target.value) })}
+                                        onChange={(event) =>
+                                            setFormData({
+                                                ...formData,
+                                                current_value: Number(event.target.value),
+                                            })
+                                        }
                                         disabled={!isCreate}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all font-mono disabled:opacity-60 disabled:cursor-not-allowed"
+                                        className="vendor-input font-mono"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">
-                                        {t('sla.fields.unit')}
-                                    </label>
+
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('sla.fields.unit')}</label>
                                     <input
                                         type="text"
                                         value={formData.unit}
-                                        onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
+                                        onChange={(event) =>
+                                            setFormData({ ...formData, unit: event.target.value })
+                                        }
+                                        className="vendor-input"
                                         placeholder="%"
                                     />
                                 </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-6 pt-2">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">
-                                        {t('sla.fields.lower_limit')}
-                                    </label>
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('sla.fields.lower_limit')}</label>
                                     <input
                                         type="number"
                                         value={formData.lower_limit}
-                                        onChange={(e) => setFormData({ ...formData, lower_limit: Number(e.target.value) })}
-                                        className="w-full bg-rose-500/5 border border-rose-500/20 rounded-xl px-4 py-3 text-white outline-none focus:border-rose-500/50 transition-all font-mono"
+                                        onChange={(event) =>
+                                            setFormData({
+                                                ...formData,
+                                                lower_limit: Number(event.target.value),
+                                            })
+                                        }
+                                        className="vendor-input font-mono"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-rose-500/50 ml-1">
-                                        {t('sla.fields.upper_limit')}
-                                    </label>
+
+                                <div className="vendor-field">
+                                    <label className="vendor-label">{t('sla.fields.upper_limit')}</label>
                                     <input
                                         type="number"
                                         value={formData.upper_limit}
-                                        onChange={(e) => setFormData({ ...formData, upper_limit: Number(e.target.value) })}
-                                        className="w-full bg-rose-500/5 border border-rose-500/20 rounded-xl px-4 py-3 text-white outline-none focus:border-rose-500/50 transition-all font-mono"
+                                        onChange={(event) =>
+                                            setFormData({
+                                                ...formData,
+                                                upper_limit: Number(event.target.value),
+                                            })
+                                        }
+                                        className="vendor-input font-mono"
                                     />
                                 </div>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-6 pt-2 border-t border-white/5">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1">
+                                <div className="vendor-field">
+                                    <label className="vendor-label flex items-center gap-1">
                                         <Calendar className="h-3 w-3" />
                                         {t('sla.fields.frequency')}
                                     </label>
                                     <ThemedSelect
                                         value={formData.frequency || 'monthly'}
-                                        onValueChange={(v) => setFormData({ ...formData, frequency: v as VendorSLAFrequency })}
-                                        className="w-full"
+                                        onValueChange={(value) =>
+                                            setFormData({ ...formData, frequency: value as VendorSLAFrequency })
+                                        }
                                         options={frequencyOptions}
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1">
+
+                                <div className="vendor-field">
+                                    <label className="vendor-label flex items-center gap-1">
                                         <UserIcon className="h-3 w-3" />
                                         {t('sla.fields.reporting_owner')}
                                     </label>
                                     <ThemedSelect
                                         value={formData.reporting_owner_id ? String(formData.reporting_owner_id) : ''}
-                                        onValueChange={(v) => setFormData({ ...formData, reporting_owner_id: v ? Number(v) : undefined })}
-                                        className="w-full"
+                                        onValueChange={(value) =>
+                                            setFormData({
+                                                ...formData,
+                                                reporting_owner_id: value ? Number(value) : undefined,
+                                            })
+                                        }
                                         options={ownerOptions}
                                         allowEmpty
                                         emptyLabel={t('sla.owner.unassigned')}
@@ -334,75 +370,62 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                                 </div>
                             </div>
 
-                            {!isCreate && sla && (
-                                <div className="pt-2 border-t border-white/5 space-y-2">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                        {t('sla.record.title')}
-                                    </p>
-                                    <div className="flex items-center gap-3">
+                            {!isCreate && sla ? (
+                                <div className="vendor-card space-y-4">
+                                    <div>
+                                        <h4 className="vendor-section-title">{t('sla.record.title')}</h4>
+                                        <p className="vendor-section-description">
+                                            {t('sla.fields.current_value_edit_hint')}
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col gap-3 md:flex-row">
                                         <input
                                             type="number"
                                             value={recordValue}
-                                            onChange={(e) => setRecordValue(Number(e.target.value))}
-                                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all font-mono"
+                                            onChange={(event) => setRecordValue(Number(event.target.value))}
+                                            className="vendor-input flex-1 font-mono"
                                         />
-                                        <button
-                                            type="button"
+                                        <VendorActionButton
                                             onClick={record}
-                                            disabled={isRecording || !!sla?.is_archived}
-                                            className="px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60"
+                                            disabled={isRecording || Boolean(sla.is_archived)}
                                         >
                                             {isRecording ? t('sla.record.saving') : t('sla.record.save')}
-                                        </button>
+                                        </VendorActionButton>
                                     </div>
                                 </div>
-                            )}
+                            ) : null}
                         </div>
 
-                        <div className="p-6 border-t border-white/5 flex items-center justify-between bg-white/[0.02]">
+                        <div className="vendor-modal__footer vendor-divider flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div>
-                                {!isCreate && sla && canDelete && (
+                                {!isCreate && sla && canDelete ? (
                                     sla.is_archived ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                void restore();
-                                            }}
-                                            disabled={isDeleting}
-                                            className="px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-bold hover:bg-emerald-500/20 transition-colors flex items-center gap-2 disabled:opacity-60"
-                                        >
+                                        <VendorActionButton onClick={() => void restore()} disabled={isDeleting} variant="success">
                                             {t('actions.unarchive')}
-                                        </button>
+                                        </VendorActionButton>
                                     ) : (
-                                        <button
-                                            type="button"
+                                        <VendorActionButton
                                             onClick={() => setIsDeleteDialogOpen(true)}
                                             disabled={isDeleting}
-                                            className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 font-bold hover:bg-rose-500/20 transition-colors flex items-center gap-2 disabled:opacity-60"
+                                            variant="danger"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                             {t('sla.actions.archive')}
-                                        </button>
+                                        </VendorActionButton>
                                     )
-                                )}
+                                ) : null}
                             </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    type="button"
-                                    onClick={onClose}
-                                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors"
-                                >
-                                    {t('actions.cancel')}
-                                </button>
-                                <button
-                                    type="button"
+
+                            <div className="vendor-toolbar">
+                                <VendorActionButton onClick={onClose}>{t('actions.cancel')}</VendorActionButton>
+                                <VendorActionButton
                                     onClick={save}
-                                    disabled={!canManage || isSaving || !formData.metric_name?.trim() || !!sla?.is_archived}
-                                    className="px-4 py-2 rounded-xl bg-accent text-white font-bold hover:bg-accent/90 transition-colors flex items-center gap-2 disabled:opacity-60"
+                                    disabled={!canManage || isSaving || !formData.metric_name?.trim() || Boolean(sla?.is_archived)}
+                                    variant="primary"
                                 >
                                     <Save className="h-4 w-4" />
                                     {t('actions.save')}
-                                </button>
+                                </VendorActionButton>
                             </div>
                         </div>
                     </motion.div>
@@ -421,7 +444,7 @@ export function VendorSLAModal({ vendorId, sla, isOpen, onClose, onSaved, canMan
                         isLoading={isDeleting}
                     />
                 </div>
-            )}
+            ) : null}
         </AnimatePresence>,
         document.body,
     );

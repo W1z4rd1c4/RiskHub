@@ -3,6 +3,12 @@ import { useTranslation } from '@/i18n/hooks';
 import { CheckCircle2, ClipboardCheck, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { vendorIncidentApi } from '@/services/vendorIncidentApi';
 import type { VendorRemediationAction, VendorRemediationStatus } from '@/types/vendorIncident';
+import {
+    VendorActionButton,
+    VendorEmptyState,
+    VendorSectionHeader,
+    VendorSurface,
+} from '@/components/vendors/vendorRouteUi';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
@@ -79,30 +85,21 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
     };
 
     return (
-        <section className="glass-card p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                        <ClipboardCheck className="h-4 w-4" />
-                        {t('tabs.remediation')}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('remediation.subtitle')}
-                    </p>
-                </div>
-                {canEdit && (
-                    <button
-                        onClick={() => setShowForm((v) => !v)}
-                        className="px-4 py-2 bg-accent/20 border border-accent/30 text-accent rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2"
-                    >
+        <VendorSurface className="space-y-6">
+            <VendorSectionHeader
+                icon={<ClipboardCheck className="h-4 w-4" />}
+                title={t('tabs.remediation')}
+                description={t('remediation.subtitle')}
+                actions={canEdit ? (
+                    <VendorActionButton variant="primary" onClick={() => setShowForm((value) => !value)}>
                         <Plus className="h-4 w-4" />
                         {t('remediation.actions.add')}
-                    </button>
-                )}
-            </div>
+                    </VendorActionButton>
+                ) : null}
+            />
 
             {showForm && canEdit && (
-                <div className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-3">
+                <div className="vendor-card space-y-3">
                     <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
@@ -112,29 +109,25 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
                     />
                     <ThemedSelect value={status} onValueChange={(v) => setStatus(v as VendorRemediationStatus)} options={statusOptions} />
                     <div className="flex justify-end">
-                        <button
-                            onClick={create}
-                            disabled={isSaving || !description.trim()}
-                            className="px-4 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/90 transition-colors disabled:opacity-60 flex items-center gap-2"
-                        >
+                        <VendorActionButton onClick={create} disabled={isSaving || !description.trim()} variant="primary">
                             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                             {t('remediation.actions.save')}
-                        </button>
+                        </VendorActionButton>
                     </div>
                 </div>
             )}
 
             {isLoading ? (
-                <div className="flex items-center gap-3 text-slate-500 font-medium">
+                <div className="flex items-center gap-3 vendor-muted font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t('labels.loading')}
                 </div>
             ) : items.length === 0 ? (
-                <p className="text-sm text-slate-500 font-medium">{t('remediation.empty')}</p>
+                <VendorEmptyState title={t('remediation.empty')} icon={<ClipboardCheck className="h-8 w-8" />} />
             ) : (
                 <div className="space-y-3">
                     {items.map((a) => (
-                        <div key={a.id} className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-2">
+                        <div key={a.id} className="vendor-card space-y-2">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="space-y-1">
                                     <p className="text-sm text-white font-bold">{a.description}</p>
@@ -177,6 +170,6 @@ export function VendorRemediationTab({ vendorId, canEdit }: VendorRemediationTab
                 confirmLabel={t('common:actions.delete')}
                 variant="danger"
             />
-        </section>
+        </VendorSurface>
     );
 }

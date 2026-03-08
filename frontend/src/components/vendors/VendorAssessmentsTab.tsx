@@ -1,35 +1,49 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from '@/i18n/hooks';
 import { CheckCircle2, ClipboardList, Loader2, Plus, Save, Send, ShieldCheck, UserCheck, XCircle } from 'lucide-react';
-import type { Vendor } from '@/types/vendor';
-import type { VendorAssessment, VendorAssessmentStatus, VendorCommitteeRecommendation } from '@/types/vendorAssessment';
-import { vendorAssessmentApi } from '@/services/vendorAssessmentApi';
-import { getVendorAssessmentTemplate, type VendorAssessmentSection } from './vendorAssessmentQuestions';
+
 import { useAuthz } from '@/authz/useAuthz';
+import {
+    VendorActionButton,
+    VendorBadge,
+    VendorEmptyState,
+    VendorInlineMessage,
+    VendorSectionHeader,
+    VendorSurface,
+} from '@/components/vendors/vendorRouteUi';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { useTranslation } from '@/i18n/hooks';
+import { cn } from '@/lib/utils';
+import { vendorAssessmentApi } from '@/services/vendorAssessmentApi';
+import type { Vendor } from '@/types/vendor';
+import type {
+    VendorAssessment,
+    VendorAssessmentStatus,
+    VendorCommitteeRecommendation,
+} from '@/types/vendorAssessment';
+
+import { getVendorAssessmentTemplate, type VendorAssessmentSection } from './vendorAssessmentQuestions';
 
 interface VendorAssessmentsTabProps {
     vendor: Vendor;
-    canEdit: boolean; // owner or vendors:write
+    canEdit: boolean;
 }
 
-function statusPill(status: VendorAssessmentStatus, t: (key: string, fallback?: string) => string) {
-    const base = 'px-2 py-1 rounded-full text-[10px] font-black border';
+function statusBadge(status: VendorAssessmentStatus, t: (key: string, fallback?: string) => string) {
     switch (status) {
         case 'draft':
-            return <span className={`${base} text-slate-300 bg-white/5 border-white/10`}>{t('assessments.status.draft')}</span>;
+            return <VendorBadge tone="neutral">{t('assessments.status.draft')}</VendorBadge>;
         case 'submitted':
-            return <span className={`${base} text-blue-300 bg-blue-400/10 border-blue-400/20`}>{t('assessments.status.submitted')}</span>;
+            return <VendorBadge tone="info">{t('assessments.status.submitted')}</VendorBadge>;
         case 'in_review':
-            return <span className={`${base} text-amber-300 bg-amber-400/10 border-amber-400/20`}>{t('assessments.status.in_review')}</span>;
+            return <VendorBadge tone="warn">{t('assessments.status.in_review')}</VendorBadge>;
         case 'committee_recommended':
-            return <span className={`${base} text-violet-300 bg-violet-400/10 border-violet-400/20`}>{t('assessments.status.committee_recommended')}</span>;
+            return <VendorBadge tone="info">{t('assessments.status.committee_recommended')}</VendorBadge>;
         case 'approved':
-            return <span className={`${base} text-emerald-300 bg-emerald-400/10 border-emerald-400/20`}>{t('assessments.status.approved')}</span>;
+            return <VendorBadge tone="success">{t('assessments.status.approved')}</VendorBadge>;
         case 'rejected':
-            return <span className={`${base} text-rose-300 bg-rose-400/10 border-rose-400/20`}>{t('assessments.status.rejected')}</span>;
+            return <VendorBadge tone="danger">{t('assessments.status.rejected')}</VendorBadge>;
         default:
-            return <span className={`${base} text-slate-300 bg-white/5 border-white/10`}>{status}</span>;
+            return <VendorBadge tone="neutral">{status}</VendorBadge>;
     }
 }
 
@@ -41,37 +55,34 @@ function renderInput(
     disabled: boolean,
     t: (key: string, fallback?: string) => string,
 ) {
-    const q = section.questions.find((qq) => qq.key === key);
-    if (!q) return null;
+    const question = section.questions.find((candidate) => candidate.key === key);
+    if (!question) return null;
 
-    const common =
-        'w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium disabled:opacity-60';
-
-    if (q.type === 'boolean') {
-        const checked = Boolean(value);
+    if (question.type === 'boolean') {
         return (
-            <label className="flex items-center gap-3 text-sm text-slate-200 font-medium">
+            <label className="vendor-checkbox">
                 <input
                     type="checkbox"
-                    checked={checked}
-                    onChange={(e) => onChange(e.target.checked)}
+                    checked={Boolean(value)}
+                    onChange={(event) => onChange(event.target.checked)}
                     disabled={disabled}
-                    className="h-4 w-4 rounded border-white/20 bg-white/5"
                 />
-                {t(q.labelKey, q.labelKey)}
+                <span>{t(question.labelKey, question.labelKey)}</span>
             </label>
         );
     }
 
-    if (q.type === 'single_select') {
-        const v = typeof value === 'string' ? value : '';
+    if (question.type === 'single_select') {
         return (
-            <div className="space-y-1">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t(q.labelKey, q.labelKey)}</p>
+            <div className="vendor-field">
+                <label className="vendor-label">{t(question.labelKey, question.labelKey)}</label>
                 <ThemedSelect
-                    value={v}
-                    onValueChange={(vv) => onChange(vv)}
-                    options={(q.options ?? []).map((o) => ({ value: o.value, label: t(o.labelKey, o.labelKey) }))}
+                    value={typeof value === 'string' ? value : ''}
+                    onValueChange={(nextValue) => onChange(nextValue)}
+                    options={(question.options ?? []).map((option) => ({
+                        value: option.value,
+                        label: t(option.labelKey, option.labelKey),
+                    }))}
                     placeholder={t('common:actions.select')}
                     disabled={disabled}
                 />
@@ -79,31 +90,31 @@ function renderInput(
         );
     }
 
-    if (q.type === 'textarea') {
+    if (question.type === 'textarea') {
         return (
-            <div className="space-y-1">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t(q.labelKey, q.labelKey)}</p>
+            <div className="vendor-field">
+                <label className="vendor-label">{t(question.labelKey, question.labelKey)}</label>
                 <textarea
                     value={typeof value === 'string' ? value : ''}
-                    onChange={(e) => onChange(e.target.value)}
+                    onChange={(event) => onChange(event.target.value)}
                     rows={3}
-                    placeholder={q.placeholderKey ? t(q.placeholderKey, q.placeholderKey) : undefined}
+                    placeholder={question.placeholderKey ? t(question.placeholderKey, question.placeholderKey) : undefined}
                     disabled={disabled}
-                    className={common}
+                    className="vendor-textarea"
                 />
             </div>
         );
     }
 
     return (
-        <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t(q.labelKey, q.labelKey)}</p>
+        <div className="vendor-field">
+            <label className="vendor-label">{t(question.labelKey, question.labelKey)}</label>
             <input
                 value={typeof value === 'string' ? value : ''}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder={q.placeholderKey ? t(q.placeholderKey, q.placeholderKey) : undefined}
+                onChange={(event) => onChange(event.target.value)}
+                placeholder={question.placeholderKey ? t(question.placeholderKey, question.placeholderKey) : undefined}
                 disabled={disabled}
-                className={common}
+                className="vendor-input"
             />
         </div>
     );
@@ -117,10 +128,9 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [selected, setSelected] = useState<VendorAssessment | null>(null);
     const [draftAnswers, setDraftAnswers] = useState<Record<string, unknown>>({});
-    const [draftEvidence, setDraftEvidence] = useState<string>('');
+    const [draftEvidence, setDraftEvidence] = useState('');
     const [committeeRecommendation, setCommitteeRecommendation] = useState<VendorCommitteeRecommendation>('approve');
-    const [committeeConditions, setCommitteeConditions] = useState<string>('');
-
+    const [committeeConditions, setCommitteeConditions] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -139,7 +149,9 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
             const data = await vendorAssessmentApi.getVendorAssessments(vendor.id);
             setItems(data);
             setError(null);
-            if (data.length && !selectedId) setSelectedId(data[0].id);
+            if (data.length && !selectedId) {
+                setSelectedId(data[0].id);
+            }
         } catch (err) {
             console.error('Failed to load vendor assessments:', err);
             setError(t('errors.load_failed'));
@@ -149,7 +161,7 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
     }, [selectedId, t, vendor.id]);
 
     useEffect(() => {
-        refresh();
+        void refresh();
     }, [refresh]);
 
     useEffect(() => {
@@ -157,7 +169,8 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
             setSelected(null);
             return;
         }
-        const found = items.find((i) => i.id === selectedId) ?? null;
+
+        const found = items.find((item) => item.id === selectedId) ?? null;
         setSelected(found);
         const answers = (found?.answers_json ?? {}) as Record<string, unknown>;
         setDraftAnswers(answers);
@@ -253,207 +266,220 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
     };
 
     return (
-        <section className="glass-card p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                        <ClipboardList className="h-4 w-4" />
-                        {t('tabs.assessments')}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('assessments.subtitle')}
-                    </p>
-                </div>
-
-                {canEdit && (
-                    <button
-                        onClick={createDraft}
-                        disabled={isSaving}
-                        className="px-4 py-2 bg-accent/20 border border-accent/30 text-accent rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2 disabled:opacity-60"
-                    >
+        <VendorSurface className="space-y-6">
+            <VendorSectionHeader
+                icon={<ClipboardList className="h-4 w-4" />}
+                title={t('tabs.assessments')}
+                description={t('assessments.subtitle')}
+                actions={canEdit ? (
+                    <VendorActionButton onClick={createDraft} disabled={isSaving} variant="primary">
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                         {t('assessments.actions.start')}
-                    </button>
-                )}
-            </div>
+                    </VendorActionButton>
+                ) : null}
+            />
 
             {isLoading ? (
-                <div className="flex items-center gap-3 text-slate-500 font-medium">
+                <div className="flex items-center gap-3 vendor-muted font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t('labels.loading')}
                 </div>
             ) : error ? (
-                <div className="text-rose-400 font-medium">{error}</div>
+                <VendorInlineMessage tone="danger">{error}</VendorInlineMessage>
             ) : items.length === 0 ? (
-                <div className="py-12 text-center border-2 border-dashed border-white/5 rounded-2xl bg-white/[0.01]">
-                    <ClipboardList className="h-8 w-8 text-slate-700 mx-auto mb-2" />
-                    <p className="text-xs text-slate-600 font-medium tracking-tight">{t('assessments.empty')}</p>
-                </div>
+                <VendorEmptyState
+                    icon={<ClipboardList className="h-8 w-8" />}
+                    title={t('assessments.empty')}
+                    description={t('assessments.subtitle')}
+                />
             ) : (
-                <div className="grid gap-6 lg:grid-cols-3">
-                    <div className="lg:col-span-1 space-y-2">
-                        {items.map((a) => (
+                <div className="vendor-split-layout">
+                    <div className="vendor-stack">
+                        {items.map((assessment) => (
                             <button
-                                key={a.id}
-                                onClick={() => setSelectedId(a.id)}
-                                className={`w-full text-left p-4 rounded-2xl border transition-all ${selectedId === a.id
-                                    ? 'bg-white/[0.04] border-accent/30'
-                                    : 'bg-white/[0.02] border-white/10 hover:bg-white/[0.04]'
-                                    }`}
+                                key={assessment.id}
+                                type="button"
+                                onClick={() => setSelectedId(assessment.id)}
+                                className={cn(
+                                    'vendor-card vendor-card--interactive w-full text-left',
+                                    selectedId === assessment.id && 'vendor-card--active',
+                                )}
                             >
-                                <div className="flex items-center justify-between">
+                                <div className="flex items-start justify-between gap-3">
                                     <div className="space-y-1">
-                                        <p className="text-sm text-white font-bold">
-                                            {t('assessments.item_title', { defaultValue: 'Assessment' })} #{a.id}
+                                        <p className="vendor-card__title">
+                                            {t('assessments.item_title', { defaultValue: 'Assessment' })} #{assessment.id}
                                         </p>
-                                        <p className="text-xs text-slate-500 font-medium">
-                                            {a.scope === 'dora' ? t('assessments.scope.dora') : t('assessments.scope.standard')} · {new Date(a.created_at).toLocaleDateString()}
+                                        <p className="vendor-card__meta">
+                                            {assessment.scope === 'dora'
+                                                ? t('assessments.scope.dora')
+                                                : t('assessments.scope.standard')}{' '}
+                                            · {new Date(assessment.created_at).toLocaleDateString()}
                                         </p>
                                     </div>
-                                    {statusPill(a.status, t)}
+                                    {statusBadge(assessment.status, t)}
                                 </div>
                             </button>
                         ))}
                     </div>
 
-                    <div className="lg:col-span-2 space-y-4">
-                        {selected && (
+                    <div className="vendor-stack vendor-stack--lg">
+                        {selected ? (
                             <>
-                                <div className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            {statusPill(selected.status, t)}
-                                            <span className="text-xs text-slate-500 font-medium">
-                                                {selected.scope === 'dora' ? t('assessments.scope.dora_scope') : t('assessments.scope.standard_scope')}
+                                <div className="vendor-card space-y-4">
+                                    {/* Workflow Stepper */}
+                                    {(() => {
+                                        const steps: { key: VendorAssessmentStatus; label: string }[] = [
+                                            { key: 'draft', label: t('assessments.status.draft') },
+                                            { key: 'submitted', label: t('assessments.status.submitted') },
+                                            { key: 'in_review', label: t('assessments.status.in_review') },
+                                            { key: 'committee_recommended', label: t('assessments.status.committee_recommended') },
+                                        ];
+                                        const finalStep = selected.status === 'rejected'
+                                            ? { key: 'rejected' as VendorAssessmentStatus, label: t('assessments.status.rejected') }
+                                            : { key: 'approved' as VendorAssessmentStatus, label: t('assessments.status.approved') };
+                                        steps.push(finalStep);
+
+                                        const order: VendorAssessmentStatus[] = steps.map((s) => s.key);
+                                        const currentIdx = order.indexOf(selected.status);
+
+                                        return (
+                                            <div className="vendor-stepper">
+                                                {steps.map((step, idx) => {
+                                                    const isDone = idx < currentIdx;
+                                                    const isActive = idx === currentIdx;
+                                                    const cls = isDone ? 'vendor-stepper__step--done' : isActive ? 'vendor-stepper__step--active' : '';
+                                                    return (
+                                                        <div key={step.key} style={{ display: 'contents' }}>
+                                                            {idx > 0 && <div className="vendor-stepper__connector" />}
+                                                            <div className={`vendor-stepper__step ${cls}`}>
+                                                                <div className="vendor-stepper__dot">{isDone ? '✓' : idx + 1}</div>
+                                                                <span className="vendor-stepper__label">{step.label}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
+                                    })()}
+
+                                    <div className="vendor-divider" />
+
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="vendor-toolbar">
+                                            {statusBadge(selected.status, t)}
+                                            <span className="vendor-card__meta">
+                                                {selected.scope === 'dora'
+                                                    ? t('assessments.scope.dora_scope')
+                                                    : t('assessments.scope.standard_scope')}
                                             </span>
                                         </div>
 
-                                        <div className="flex flex-wrap gap-2">
-                                            {canEditDraft && (
+                                        <div className="vendor-toolbar">
+                                            {canEditDraft ? (
                                                 <>
-                                                    <button
-                                                        onClick={saveDraft}
-                                                        disabled={isSaving}
-                                                        className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-colors flex items-center gap-2 disabled:opacity-60"
-                                                    >
+                                                    <VendorActionButton onClick={saveDraft} disabled={isSaving}>
                                                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                                         {t('assessments.actions.save')}
-                                                    </button>
-                                                    <button
-                                                        onClick={submit}
-                                                        disabled={isSaving}
-                                                        className="px-4 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/90 transition-colors flex items-center gap-2 disabled:opacity-60"
-                                                    >
+                                                    </VendorActionButton>
+                                                    <VendorActionButton onClick={submit} disabled={isSaving} variant="primary">
                                                         <Send className="h-4 w-4" />
                                                         {t('assessments.actions.submit')}
-                                                    </button>
+                                                    </VendorActionButton>
                                                 </>
-                                            )}
+                                            ) : null}
 
-                                            {selected.status === 'submitted' && isSecondLine && (
-                                                <button
-                                                    onClick={review}
-                                                    disabled={isSaving}
-                                                    className="px-4 py-2 bg-amber-500/20 border border-amber-500/30 text-amber-200 rounded-xl font-bold hover:bg-amber-500/30 transition-colors flex items-center gap-2 disabled:opacity-60"
-                                                >
+                                            {selected.status === 'submitted' && isSecondLine ? (
+                                                <VendorActionButton onClick={review} disabled={isSaving}>
                                                     <UserCheck className="h-4 w-4" />
                                                     {t('assessments.actions.review')}
-                                                </button>
-                                            )}
+                                                </VendorActionButton>
+                                            ) : null}
 
-                                            {selected.status === 'in_review' && isSecondLine && (
-                                                <button
-                                                    onClick={recommend}
-                                                    disabled={isSaving}
-                                                    className="px-4 py-2 bg-violet-500/20 border border-violet-500/30 text-violet-200 rounded-xl font-bold hover:bg-violet-500/30 transition-colors flex items-center gap-2 disabled:opacity-60"
-                                                >
+                                            {selected.status === 'in_review' && isSecondLine ? (
+                                                <VendorActionButton onClick={recommend} disabled={isSaving}>
                                                     <ShieldCheck className="h-4 w-4" />
                                                     {t('assessments.actions.recommend')}
-                                                </button>
-                                            )}
+                                                </VendorActionButton>
+                                            ) : null}
 
-                                            {selected.status === 'committee_recommended' && isCRO && (
+                                            {selected.status === 'committee_recommended' && isCRO ? (
                                                 <>
-                                                    <button
-                                                        onClick={() => decide('approved')}
-                                                        disabled={isSaving}
-                                                        className="px-4 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-200 rounded-xl font-bold hover:bg-emerald-500/30 transition-colors flex items-center gap-2 disabled:opacity-60"
-                                                    >
+                                                    <VendorActionButton onClick={() => decide('approved')} disabled={isSaving} variant="success">
                                                         <CheckCircle2 className="h-4 w-4" />
                                                         {t('assessments.actions.approve')}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => decide('rejected')}
-                                                        disabled={isSaving}
-                                                        className="px-4 py-2 bg-rose-500/20 border border-rose-500/30 text-rose-200 rounded-xl font-bold hover:bg-rose-500/30 transition-colors flex items-center gap-2 disabled:opacity-60"
-                                                    >
+                                                    </VendorActionButton>
+                                                    <VendorActionButton onClick={() => decide('rejected')} disabled={isSaving} variant="danger">
                                                         <XCircle className="h-4 w-4" />
                                                         {t('assessments.actions.reject')}
-                                                    </button>
+                                                    </VendorActionButton>
                                                 </>
-                                            )}
+                                            ) : null}
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                            {t('assessments.fields.evidence')}
-                                        </p>
+                                    <div className="vendor-field">
+                                        <label className="vendor-label">{t('assessments.fields.evidence')}</label>
                                         <input
                                             value={draftEvidence}
-                                            onChange={(e) => setDraftEvidence(e.target.value)}
+                                            onChange={(event) => setDraftEvidence(event.target.value)}
                                             disabled={!canEditDraft}
-                                            className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium disabled:opacity-60"
+                                            className="vendor-input"
                                             placeholder={t('assessments.fields.evidence_placeholder')}
                                         />
                                     </div>
 
-                                    {selected.status === 'in_review' && isSecondLine && (
-                                        <div className="grid gap-3 md:grid-cols-2">
-                                            <div className="space-y-1">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                    {t('assessments.fields.committee_recommendation')}
-                                                </p>
+                                    {selected.status === 'in_review' && isSecondLine ? (
+                                        <div className="vendor-field-grid">
+                                            <div className="vendor-field">
+                                                <label className="vendor-label">{t('assessments.fields.committee_recommendation')}</label>
                                                 <ThemedSelect
                                                     value={committeeRecommendation}
-                                                    onValueChange={(v) => setCommitteeRecommendation(v as VendorCommitteeRecommendation)}
+                                                    onValueChange={(value) =>
+                                                        setCommitteeRecommendation(value as VendorCommitteeRecommendation)
+                                                    }
                                                     options={[
                                                         { value: 'approve', label: t('assessments.actions.approve') },
-                                                        { value: 'approve_with_conditions', label: t('assessments.actions.approve_with_conditions') },
+                                                        {
+                                                            value: 'approve_with_conditions',
+                                                            label: t('assessments.actions.approve_with_conditions'),
+                                                        },
                                                         { value: 'reject', label: t('assessments.actions.reject') },
                                                     ]}
                                                     placeholder={t('common:actions.select')}
                                                 />
                                             </div>
-                                            <div className="space-y-1">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                                    {t('assessments.fields.conditions')}
-                                                </p>
+                                            <div className="vendor-field">
+                                                <label className="vendor-label">{t('assessments.fields.conditions')}</label>
                                                 <input
                                                     value={committeeConditions}
-                                                    onChange={(e) => setCommitteeConditions(e.target.value)}
-                                                    className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium"
+                                                    onChange={(event) => setCommitteeConditions(event.target.value)}
+                                                    className="vendor-input"
                                                     placeholder={t('assessments.fields.optional')}
                                                 />
                                             </div>
                                         </div>
-                                    )}
+                                    ) : null}
                                 </div>
 
-                                <div className="space-y-4">
+                                <div className="vendor-stack">
                                     {template.map((section) => (
-                                        <div key={section.key} className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-3">
-                                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
-                                                {t(section.titleKey, section.titleKey)}
-                                            </h4>
-                                            <div className="grid gap-3">
-                                                {section.questions.map((q) => (
-                                                    <div key={q.key}>
+                                        <div key={section.key} className="vendor-card space-y-4">
+                                            <div>
+                                                <h3 className="vendor-section-title">{t(section.titleKey, section.titleKey)}</h3>
+                                            </div>
+                                            <div className="vendor-stack">
+                                                {section.questions.map((question) => (
+                                                    <div key={question.key}>
                                                         {renderInput(
                                                             section,
-                                                            q.key,
-                                                            draftAnswers[q.key],
-                                                            (v) => setDraftAnswers((prev) => ({ ...prev, [q.key]: v })),
+                                                            question.key,
+                                                            draftAnswers[question.key],
+                                                            (nextValue) =>
+                                                                setDraftAnswers((previous) => ({
+                                                                    ...previous,
+                                                                    [question.key]: nextValue,
+                                                                })),
                                                             !canEditDraft,
                                                             t,
                                                         )}
@@ -464,10 +490,16 @@ export function VendorAssessmentsTab({ vendor, canEdit }: VendorAssessmentsTabPr
                                     ))}
                                 </div>
                             </>
+                        ) : (
+                            <VendorEmptyState
+                                icon={<ClipboardList className="h-8 w-8" />}
+                                title={t('assessments.empty')}
+                                description={t('assessments.subtitle')}
+                            />
                         )}
                     </div>
                 </div>
             )}
-        </section>
+        </VendorSurface>
     );
 }
