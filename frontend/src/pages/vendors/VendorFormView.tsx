@@ -2,6 +2,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 
 import { VendorForm } from '@/components/VendorForm';
+import { VendorActionButton, VendorSurface } from '@/components/vendors/vendorRouteUi';
 import type { Vendor } from '@/types/vendor';
 
 import type { VendorDetailMode } from './vendorDetailPresentation';
@@ -24,32 +25,31 @@ export function VendorFormView({
     const { t } = useTranslation('vendors');
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={onBack}
-                        className="p-2 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
-                    >
-                        <ArrowLeft className="h-4 w-4 text-slate-300" />
-                    </button>
-                    <div>
-                        <h1 className="text-2xl font-bold text-white">
+        <div className="vendor-route">
+            <div className="vendor-page space-y-8">
+                <VendorSurface tone="emphasis" className="space-y-4">
+                    <div className="flex items-start gap-3">
+                        <VendorActionButton variant="ghost" onClick={onBack} className="shrink-0">
+                            <ArrowLeft className="h-4 w-4" />
+                        </VendorActionButton>
+                        <div className="min-w-0">
+                            <h1 className="vendor-title text-3xl font-black tracking-tight">
                             {mode === 'new' ? t('actions.new') : t('actions.edit')}
-                        </h1>
-                        <p className="text-slate-500 font-medium">
-                            {mode === 'new' ? t('subtitle') : vendor?.name}
-                        </p>
+                            </h1>
+                            <p className="mt-2 text-sm vendor-muted">
+                                {mode === 'new' ? t('subtitle') : vendor?.name}
+                            </p>
+                        </div>
                     </div>
-                </div>
-            </div>
+                </VendorSurface>
 
-            <VendorForm
-                initialData={mode === 'edit' ? vendor : undefined}
-                isEdit={mode === 'edit'}
-                onSaved={onSaved}
-                onCancel={onCancel}
-            />
+                <VendorForm
+                    initialData={mode === 'edit' ? vendor : undefined}
+                    isEdit={mode === 'edit'}
+                    onSaved={onSaved}
+                    onCancel={onCancel}
+                />
+            </div>
         </div>
     );
 }

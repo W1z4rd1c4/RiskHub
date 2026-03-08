@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Activity,
     Building2,
-    Globe,
     Link2,
-    ShieldCheck,
-    ShieldEllipsis,
+    Tag,
     User,
 } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
@@ -21,6 +18,7 @@ import type { VendorIncident, VendorRemediationAction } from '@/types/vendorInci
 import type { VendorSLA } from '@/types/vendorSla';
 import type { VendorRiskFactor } from '@/types/vendorRisk';
 import type { Vendor } from '@/types/vendor';
+import { VendorBadge, VendorSurface } from '@/components/vendors/vendorRouteUi';
 import { VendorLinkedControlsTab } from '@/components/vendors/VendorLinkedControlsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
 import { VendorRiskFactorsTab } from '@/components/vendors/VendorRiskFactorsTab';
@@ -65,10 +63,10 @@ function getScheduleTone(nextDueAt?: string | null): 'good' | 'warn' | 'bad' | '
 }
 
 function toneClasses(tone: 'good' | 'warn' | 'bad' | 'neutral'): string {
-    if (tone === 'good') return 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300';
-    if (tone === 'warn') return 'border-amber-400/20 bg-amber-400/10 text-amber-300';
-    if (tone === 'bad') return 'border-rose-400/20 bg-rose-400/10 text-rose-300';
-    return 'border-white/10 bg-white/5 text-slate-300';
+    if (tone === 'good') return 'success';
+    if (tone === 'warn') return 'warn';
+    if (tone === 'bad') return 'danger';
+    return 'neutral';
 }
 
 function formatDate(value?: string | null): string {
@@ -160,241 +158,174 @@ export function VendorOverviewTab({
 
     return (
         <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <section className="glass-card p-5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        {t('overview.kpis.risk_score')}
-                    </p>
-                    <div className="mt-3 flex items-end justify-between gap-3">
-                        <p className="text-3xl font-black text-white">{vendor.risk_score_1_5}/5</p>
-                        <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-300">
-                            {t('tabs.overview')}
-                        </span>
-                    </div>
-                </section>
-
-                <section className="glass-card p-5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        {t('overview.kpis.assessment')}
-                    </p>
-                    <div className="mt-3 space-y-2">
-                        <p className="text-lg font-black text-white">
-                            {latestAssessment
-                                ? t(`assessments.status.${latestAssessment.status}`, latestAssessment.status)
-                                : t('overview.kpis.no_assessment')}
-                        </p>
-                        <p className="text-xs font-medium text-slate-500">
-                            {latestAssessment ? formatDateTime(latestAssessment.updated_at) : '—'}
-                        </p>
-                    </div>
-                </section>
-
-                <section className="glass-card p-5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        {t('overview.kpis.reassessment_due')}
-                    </p>
-                    <div className="mt-3 space-y-2">
-                        <p className="text-lg font-black text-white">{formatDate(vendor.next_reassessment_due_at)}</p>
-                        <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-widest ${toneClasses(scheduleTone)}`}>
-                            {t(`overview.schedule.${scheduleTone}`)}
-                        </span>
-                    </div>
-                </section>
-
-                <section className="glass-card p-5">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        {t('overview.kpis.linked_exposure')}
-                    </p>
-                    <div className="mt-3 space-y-2">
-                        <p className="text-3xl font-black text-white">{linkedExposureCount}</p>
-                        <p className="text-xs font-medium text-slate-500">
-                            {t('overview.kpis.linked_exposure_hint', {
-                                controls: activeLinkedControls.length,
-                                risks: vendor.linked_risks.length,
-                            })}
-                        </p>
-                    </div>
-                </section>
+            {/* KPI Metric Strip */}
+            <div className="vendor-metric-strip">
+                <div className="vendor-metric">
+                    <span className="vendor-metric__label">{t('overview.kpis.risk_score')}</span>
+                    <span className="vendor-metric__value">{vendor.risk_score_1_5}/5</span>
+                </div>
+                <div className="vendor-metric">
+                    <span className="vendor-metric__label">{t('overview.kpis.assessment')}</span>
+                    <span className="vendor-metric__value">
+                        {latestAssessment
+                            ? t(`assessments.status.${latestAssessment.status}`, latestAssessment.status)
+                            : t('overview.kpis.no_assessment')}
+                    </span>
+                    <span className="vendor-metric__meta">
+                        {latestAssessment ? formatDateTime(latestAssessment.updated_at) : '—'}
+                    </span>
+                </div>
+                <div className="vendor-metric">
+                    <span className="vendor-metric__label">{t('overview.kpis.reassessment_due')}</span>
+                    <span className="vendor-metric__value">{formatDate(vendor.next_reassessment_due_at)}</span>
+                    <VendorBadge tone={toneClasses(scheduleTone) as 'success' | 'warn' | 'danger' | 'neutral'}>
+                        {t(`overview.schedule.${scheduleTone}`)}
+                    </VendorBadge>
+                </div>
+                <div className="vendor-metric">
+                    <span className="vendor-metric__label">{t('overview.kpis.linked_exposure')}</span>
+                    <span className="vendor-metric__value">{linkedExposureCount}</span>
+                    <span className="vendor-metric__meta">
+                        {t('overview.kpis.linked_exposure_hint', {
+                            controls: activeLinkedControls.length,
+                            risks: vendor.linked_risks.length,
+                        })}
+                    </span>
+                </div>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-2">
-                <section className="glass-card p-6 space-y-4">
+            {/* Detail Cards */}
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {/* Classification Card */}
+                <VendorSurface className="flex flex-col gap-4">
                     <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <ShieldCheck className="h-5 w-5 text-amber-300" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-white">
-                            {t('detail.classification')}
-                        </h3>
+                        <Tag className="h-5 w-5 text-purple-400" />
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-white">{t('detail.classification')}</h3>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div className="space-y-1">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('form.legal_name')}</p>
-                            <p className="text-sm text-slate-200">{vendor.legal_name || '—'}</p>
+                    <div className="vendor-stack">
+                        <div className="vendor-info-card">
+                            <div className="vendor-info-card__label">{t('columns.type')}</div>
+                            <div className="vendor-info-card__value">{t(`type.${vendor.vendor_type}`, vendor.vendor_type)}</div>
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('form.registration_id')}</p>
-                            <p className="text-sm text-slate-200">{vendor.registration_id || '—'}</p>
+                        <div className="vendor-info-card">
+                            <div className="vendor-info-card__label">{t('form.country')}</div>
+                            <div className="vendor-info-card__value">{vendor.country || '—'}</div>
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('form.country')}</p>
-                            <p className="text-sm text-slate-200">{vendor.country || '—'}</p>
+                        <div className="vendor-info-card">
+                            <div className="vendor-info-card__label">{t('form.legal_name')}</div>
+                            <div className="vendor-info-card__value">{vendor.legal_name || '—'}</div>
                         </div>
-                        <div className="space-y-1">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('columns.type')}</p>
-                            <p className="text-sm text-slate-200">{t(`type.${vendor.vendor_type}`, vendor.vendor_type)}</p>
+                        <div className="vendor-info-card">
+                            <div className="vendor-info-card__label">{t('form.registration_id')}</div>
+                            <div className="vendor-info-card__value">{vendor.registration_id || '—'}</div>
                         </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-amber-300">
-                            {t('columns.risk_score')}: {vendor.risk_score_1_5}/5
-                        </span>
-                        {vendor.supports_important_core_insurance_function && (
-                            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-emerald-300">
-                                {t('flags.supports_core_function')}
-                            </span>
-                        )}
-                        {vendor.dora_relevant && (
-                            <span className="rounded-full border border-blue-400/20 bg-blue-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-300">
-                                {t('flags.dora_relevant')}
-                            </span>
-                        )}
-                        {vendor.is_significant_vendor && (
-                            <span className="rounded-full border border-orange-400/20 bg-orange-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-orange-300">
-                                {t('flags.significant_vendor')}
-                            </span>
-                        )}
-                    </div>
-                </section>
+                </VendorSurface>
 
-                <section className="glass-card p-6 space-y-4">
+                {/* Ownership Card */}
+                <VendorSurface className="flex flex-col gap-4">
                     <div className="flex items-center gap-3 border-b border-white/5 pb-4">
                         <User className="h-5 w-5 text-accent" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-white">
-                            {t('detail.ownership')}
-                        </h3>
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-white">{t('detail.ownership')}</h3>
                     </div>
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <Building2 className="mt-0.5 h-4 w-4 text-accent" />
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('columns.department')}</p>
-                                <p className="text-sm font-bold text-white">{vendor.department_name || t('labels.unassigned')}</p>
+                    <div className="vendor-stack">
+                        <div className="vendor-info-card">
+                            <div className="vendor-info-card__label">{t('columns.owner')}</div>
+                            <div className="vendor-info-card__value">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-[10px] font-bold shrink-0">
+                                        {(vendor.outsourcing_owner_name || 'U')[0]}
+                                    </div>
+                                    {vendor.outsourcing_owner_name || t('labels.unassigned')}
+                                </div>
                             </div>
                         </div>
-                        <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <User className="mt-0.5 h-4 w-4 text-accent" />
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('columns.owner')}</p>
-                                <p className="text-sm font-bold text-white">{vendor.outsourcing_owner_name || '—'}</p>
+                        <div className="vendor-info-card">
+                            <div className="vendor-info-card__label">{t('columns.department')}</div>
+                            <div className="vendor-info-card__value">
+                                <div className="flex items-center gap-2">
+                                    <Building2 className="h-4 w-4 shrink-0 vendor-muted" />
+                                    {vendor.department_name || t('labels.unassigned')}
+                                </div>
                             </div>
                         </div>
-                        <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <ShieldEllipsis className="mt-0.5 h-4 w-4 text-accent" />
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('form.process')}</p>
-                                <p className="text-sm font-bold text-white">
-                                    {vendor.process}
-                                    {vendor.subprocess ? ` / ${vendor.subprocess}` : ''}
-                                </p>
+                        <div className="vendor-info-card">
+                            <div className="vendor-info-card__label">{t('form.process')}</div>
+                            <div className="vendor-info-card__value">
+                                {vendor.process}{vendor.subprocess ? ` / ${vendor.subprocess}` : ''}
                             </div>
                         </div>
-                        <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <Globe className="mt-0.5 h-4 w-4 text-accent" />
-                            <div className="min-w-0">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('form.website')}</p>
+                        <div className="vendor-info-card">
+                            <div className="vendor-info-card__label">{t('form.website')}</div>
+                            <div className="vendor-info-card__value">
                                 {vendor.website ? (
-                                    <a
-                                        href={vendor.website}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="truncate text-sm font-bold text-accent hover:text-white"
-                                    >
+                                    <a href={vendor.website} target="_blank" rel="noreferrer" className="hover:text-accent transition-colors">
                                         {vendor.website}
                                     </a>
-                                ) : (
-                                    <p className="text-sm font-bold text-white">—</p>
-                                )}
+                                ) : '—'}
                             </div>
                         </div>
                     </div>
-                    {vendor.description && (
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('form.description')}</p>
-                            <p className="mt-2 whitespace-pre-wrap text-sm text-slate-200">{vendor.description}</p>
-                        </div>
-                    )}
-                </section>
+                </VendorSurface>
 
-                <section className="glass-card p-6 space-y-4">
+                {/* Connections Card */}
+                <VendorSurface className="flex flex-col gap-4">
                     <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <Activity className="h-5 w-5 text-emerald-300" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-white">
-                            {t('detail.monitoring')}
-                        </h3>
+                        <Link2 className="h-5 w-5 text-indigo-400" />
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-white">{t('detail.connections')}</h3>
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('overview.monitoring.assessment')}</p>
-                            <p className="mt-2 text-sm font-bold text-white">
-                                {latestAssessment
-                                    ? t(`assessments.status.${latestAssessment.status}`, latestAssessment.status)
-                                    : t('overview.kpis.no_assessment')}
-                            </p>
+                    <div className="vendor-stack">
+                        <div className="vendor-info-card">
+                            <div className="flex items-center justify-between">
+                                <span className="vendor-info-card__label">{t('tabs.linked_risks')}</span>
+                                <span className="vendor-info-card__value">{vendor.linked_risks.length}</span>
+                            </div>
                         </div>
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('overview.monitoring.schedule')}</p>
-                            <p className="mt-2 text-sm font-bold text-white">{formatDate(vendor.next_reassessment_due_at)}</p>
+                        <div className="vendor-info-card">
+                            <div className="flex items-center justify-between">
+                                <span className="vendor-info-card__label">{t('tabs.linked_controls')}</span>
+                                <span className="vendor-info-card__value">{activeLinkedControls.length}</span>
+                            </div>
                         </div>
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('overview.monitoring.sla_breaches')}</p>
-                            <p className="mt-2 text-sm font-bold text-white">{slaBreachCount}</p>
+                        <div className="vendor-info-card">
+                            <div className="flex items-center justify-between">
+                                <span className="vendor-info-card__label">{t('tabs.risk_factors')}</span>
+                                <span className="vendor-info-card__value">{isLoadingSummary ? '—' : summary.riskFactors.length}</span>
+                            </div>
                         </div>
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('overview.monitoring.major_incidents')}</p>
-                            <p className="mt-2 text-sm font-bold text-white">{majorIncidentCount}</p>
+                        <div className="vendor-info-card">
+                            <div className="flex items-center justify-between">
+                                <span className="vendor-info-card__label">{t('overview.monitoring.sla_breaches')}</span>
+                                <span className={`vendor-info-card__value ${!isLoadingSummary && slaBreachCount > 0 ? 'text-rose-400' : ''}`}>
+                                    {isLoadingSummary ? '—' : slaBreachCount}
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                </section>
-
-                <section className="glass-card p-6 space-y-4">
-                    <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-                        <Link2 className="h-5 w-5 text-indigo-300" />
-                        <h3 className="text-xs font-black uppercase tracking-widest text-white">
-                            {t('detail.connections')}
-                        </h3>
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('tabs.linked_risks')}</p>
-                            <p className="mt-2 text-sm font-bold text-white">{vendor.linked_risks.length}</p>
+                        <div className="vendor-info-card">
+                            <div className="flex items-center justify-between">
+                                <span className="vendor-info-card__label">{t('overview.monitoring.major_incidents')}</span>
+                                <span className={`vendor-info-card__value ${!isLoadingSummary && majorIncidentCount > 0 ? 'text-rose-400' : ''}`}>
+                                    {isLoadingSummary ? '—' : majorIncidentCount}
+                                </span>
+                            </div>
                         </div>
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('tabs.linked_controls')}</p>
-                            <p className="mt-2 text-sm font-bold text-white">{activeLinkedControls.length}</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('tabs.risk_factors')}</p>
-                            <p className="mt-2 text-sm font-bold text-white">{summary.riskFactors.length}</p>
-                        </div>
-                        <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-4">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t('tabs.remediation')}</p>
-                            <p className="mt-2 text-sm font-bold text-white">{openRemediationCount}</p>
+                        <div className="vendor-info-card">
+                            <div className="flex items-center justify-between">
+                                <span className="vendor-info-card__label">{t('tabs.remediation')}</span>
+                                <span className={`vendor-info-card__value ${!isLoadingSummary && openRemediationCount > 0 ? 'text-amber-400' : ''}`}>
+                                    {isLoadingSummary ? '—' : openRemediationCount}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                </section>
+                </VendorSurface>
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-6 text-[10px] font-medium text-slate-600">
-                <span>
-                    {t('overview.meta.created_at')}: {formatDateTime(vendor.created_at)}
-                </span>
-                <span>
-                    {t('overview.meta.updated_at')}: {formatDateTime(vendor.updated_at)}
-                </span>
-                {!isLoadingSummary && (
-                    <span>
-                        {t('overview.meta.active_incidents')}: {activeIncidentCount}
-                    </span>
-                )}
+            {/* Metadata Footer */}
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs vendor-muted">
+                <span>{t('overview.meta.created_at')}: {formatDateTime(vendor.created_at)}</span>
+                <span>{t('overview.meta.updated_at')}: {formatDateTime(vendor.updated_at)}</span>
+                {!isLoadingSummary ? <span>{t('overview.meta.active_incidents')}: {activeIncidentCount}</span> : null}
             </div>
 
             <VendorSectionStack

@@ -17,7 +17,8 @@
     "cancel": "Cancel",
     "export": "Export",
     "refresh": "Refresh",
-    "unarchive": "Unarchive"
+    "unarchive": "Unarchive",
+    "back_to_register": "Back to Register"
   },
   "messages": {
     "archive_confirm": "Archive vendor {{vendorName}}?"
@@ -433,6 +434,11 @@
       "score": "Score",
       "no_flags": "No flags."
     },
+    "metrics": {
+      "third_party": "3rd Party Connections",
+      "fourth_party": "4th Party Connections",
+      "downstream_services": "Downstream Services"
+    },
     "relationships": {
       "title": "Relationships",
       "empty": "No relationships yet.",
@@ -512,7 +518,8 @@
     "sections": {
       "identity": "Identity",
       "ownership": "Ownership & Scope",
-      "classification": "Classification"
+      "classification": "Classification",
+      "resilience": "Resilience & Monitoring"
     },
     "name": "Vendor Name",
     "name_placeholder": "Acme Cloud Ltd.",

@@ -21,6 +21,8 @@ UI components for `vendors` area.
 - `VendorSignalsTab.tsx`
 - `VendorSLAModal.tsx`
 - `VendorSLATab.tsx`
+- `vendorRoute.css`
+- `vendorRouteUi.tsx`
 
 ## Notes
 
@@ -34,3 +36,12 @@ overview surface.
 Vendor link management intentionally hides effectiveness badges in existing-link
 lists because vendor-risk and vendor-control links do not carry effectiveness
 metadata.
+
+`vendorRoute.css` and `vendorRouteUi.tsx` are the vendor-route-family surface
+system. They provide the shared glass-stack primitives used by detail tabs,
+the new/edit form, and the SLA portal modal without changing vendor business
+logic.
+
+Portal surfaces such as `VendorSLAModal.tsx` must opt into the `vendor-route`
+scope explicitly so the same theme variables apply outside the normal route
+DOM subtree.
