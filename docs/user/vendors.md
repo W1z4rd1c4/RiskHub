@@ -95,16 +95,15 @@ Vendor records include both identity and governance metadata.
 | Reassessment cadence / next due | Scheduling metadata | Drives notifications and overdue pressure. |
 | Status | `active` / `inactive` | Inactive behaves like archived; restore is permission-gated. |
 
-Vendor detail tabs (high-level):
+Vendor detail uses 5 merged tabs:
 
-- Risk factors: drivers behind the score
-- Linked risks / controls: how vendor posture connects to operational risk
-- Assessments: structured review workflow (draft → submitted → review → decision)
-- Schedule: cadence and due dates
-- Contract controls / resilience / dependencies: governance depth
-- Incidents / remediation / SLA / signals: monitoring and response
+- Overview: hero metrics, summary cards, risk factors, linked risks, linked controls
+- Assessments: assessments and reassessment schedule
+- Assurance: contract controls and resilience
+- Operations: SLA, incidents, remediation
+- Ecosystem: dependencies and signals
 
-The active detail tab is linkable. If you need to route someone directly to a section, use a URL like `/vendors/<id>?tab=sla`.
+Deep links are canonicalized as `tab + section`. If you need to route someone directly to a subsection, use a URL like `/vendors/<id>?tab=operations&section=sla`.
 
 ## Core Workflows
 

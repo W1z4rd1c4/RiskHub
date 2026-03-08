@@ -12,7 +12,6 @@ and `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/pages/VendorsPage.t
 - `VendorFormView.tsx`
 - `VendorOverviewTab.tsx`
 - `VendorSectionStack.tsx`
-- `VendorSummaryCards.tsx`
 - `VendorTabPanel.tsx`
 - `VendorTabs.tsx`
 - `VendorsTableSection.tsx`

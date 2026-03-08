@@ -64,9 +64,30 @@ async function ensureVendorSlaArchived(
     }
 
     const items = await listResponse.json() as Array<{ id: number; metric_name: string; is_archived: boolean }>;
-    const sla = items.find((item) => item.metric_name === metricName);
+    let sla = items.find((item) => item.metric_name === metricName);
     if (!sla) {
-        throw new Error(`SLA '${metricName}' not found for vendor ${vendorRegistrationId}`);
+        const createResponse = await fetch(`${API_BASE}/api/v1/vendor-slas`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                vendor_id: vendorId,
+                metric_name: metricName,
+                description: `Project-scoped archived SLA fixture for ${metricName}`,
+                current_value: 5.0,
+                lower_limit: 0.0,
+                upper_limit: 4.0,
+                unit: 'hours',
+                frequency: 'monthly',
+            }),
+        });
+        if (!createResponse.ok) {
+            throw new Error(`Failed to create SLA '${metricName}' for vendor ${vendorRegistrationId}: ${createResponse.status}`);
+        }
+        const created = await createResponse.json() as { id: number; metric_name: string; is_archived: boolean };
+        sla = created;
     }
 
     if (sla.is_archived !== archived) {
@@ -124,15 +145,22 @@ async function getVendorSlaArchivedState(
     return sla.is_archived;
 }
 
+function projectScopedArchivedMetricName(projectName: string): string {
+    const suffix = projectName.replace(/[^a-z0-9]+/gi, '-').toUpperCase();
+    return `${E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name} ${suffix}`;
+}
+
 test.describe('Vendor SLA CRUD Permissions (Deterministic)', () => {
     test.describe.configure({ mode: 'serial' });
 
     let vendorId: number;
+    let archivedMetricName: string;
 
-    test.beforeEach(async () => {
+    test.beforeEach(async ({}, testInfo) => {
+        archivedMetricName = projectScopedArchivedMetricName(testInfo.project.name);
         const state = await ensureVendorSlaArchived(
             E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id,
-            E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name,
+            archivedMetricName,
             true,
         );
         vendorId = state.vendorId;
@@ -142,10 +170,10 @@ test.describe('Vendor SLA CRUD Permissions (Deterministic)', () => {
         const vendorDetail = new VendorDetailPage(riskManagerPage);
         await vendorDetail.navigate(vendorId, 'operations', 'sla');
 
-        await expect(vendorDetail.slaCard(E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name)).toHaveCount(0);
+        await expect(vendorDetail.slaCard(archivedMetricName)).toHaveCount(0);
 
         await vendorDetail.setIncludeArchivedSla(true);
-        await expect(vendorDetail.slaCard(E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name)).toBeVisible();
+        await expect(vendorDetail.slaCard(archivedMetricName)).toBeVisible();
     });
 
     test('Privileged user can restore archived SLA from vendor detail', async ({ riskManagerPage }) => {
@@ -153,20 +181,20 @@ test.describe('Vendor SLA CRUD Permissions (Deterministic)', () => {
         await vendorDetail.navigate(vendorId, 'operations', 'sla');
         await vendorDetail.setIncludeArchivedSla(true);
 
-        const targetCard = vendorDetail.slaCard(E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name);
+        const targetCard = vendorDetail.slaCard(archivedMetricName);
         await expect(targetCard).toBeVisible();
         await expect(targetCard.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first()).toBeVisible();
 
-        await vendorDetail.clickSlaUnarchive(E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name);
+        await vendorDetail.clickSlaUnarchive(archivedMetricName);
         const isArchivedAfterRestore = await getVendorSlaArchivedState(
             E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id,
-            E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name,
+            archivedMetricName,
         );
         expect(isArchivedAfterRestore).toBe(false);
 
         await ensureVendorSlaArchived(
             E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id,
-            E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name,
+            archivedMetricName,
             true,
         );
     });
@@ -176,7 +204,7 @@ test.describe('Vendor SLA CRUD Permissions (Deterministic)', () => {
         await vendorDetail.navigate(vendorId, 'operations', 'sla');
         await vendorDetail.setIncludeArchivedSla(true);
 
-        const targetCard = vendorDetail.slaCard(E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name);
+        const targetCard = vendorDetail.slaCard(archivedMetricName);
         await expect(targetCard).toBeVisible();
         await expect(targetCard.locator('button:has-text("Unarchive"), button:has-text("Obnov")').first()).toHaveCount(0);
     });
