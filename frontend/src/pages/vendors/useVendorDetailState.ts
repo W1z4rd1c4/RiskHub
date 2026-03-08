@@ -30,6 +30,7 @@ export function useVendorDetailState({
 }: UseVendorDetailStateOptions) {
     const { id } = useParams<{ id: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
+    const searchKey = searchParams.toString();
     const [vendor, setVendor] = useState<Vendor | null>(null);
     const [isLoading, setIsLoading] = useState(mode !== 'new');
     const [error, setError] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export function useVendorDetailState({
         if (normalized.shouldCanonicalize) {
             setSearchParams(buildVendorSearchParams(normalized.tab, normalized.section), { replace: true });
         }
-    }, [searchParams, setSearchParams]);
+    }, [searchKey, searchParams, setSearchParams]);
 
     const fetchVendor = useCallback(async () => {
         if (!vendorId) {

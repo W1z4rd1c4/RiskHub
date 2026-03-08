@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { CalendarClock, Loader2, Play, Zap } from 'lucide-react';
+import {
+    VendorActionButton,
+    VendorInlineMessage,
+    VendorSectionHeader,
+    VendorSurface,
+} from '@/components/vendors/vendorRouteUi';
 import { vendorApi } from '@/services/vendorApi';
 import { vendorAssessmentApi } from '@/services/vendorAssessmentApi';
 import type { Vendor } from '@/types/vendor';
@@ -87,49 +93,34 @@ export function VendorScheduleTab({ vendorId, canEdit }: VendorScheduleTabProps)
     };
 
     return (
-        <section className="glass-card p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                        <CalendarClock className="h-4 w-4" />
-                        {t('tabs.schedule')}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('schedule.subtitle')}
-                    </p>
-                </div>
-
-                {canEdit && (
-                    <div className="flex gap-2">
-                        <button
-                            onClick={startReassessment}
-                            disabled={isSaving}
-                            className="px-4 py-2 bg-accent/20 border border-accent/30 text-accent rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2 disabled:opacity-60"
-                        >
+        <VendorSurface className="space-y-6">
+            <VendorSectionHeader
+                icon={<CalendarClock className="h-4 w-4" />}
+                title={t('tabs.schedule')}
+                description={t('schedule.subtitle')}
+                actions={canEdit ? (
+                    <>
+                        <VendorActionButton onClick={startReassessment} disabled={isSaving} variant="primary">
                             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                             {t('schedule.actions.start_reassessment')}
-                        </button>
-                        <button
-                            onClick={() => setIsTriggerDialogOpen(true)}
-                            disabled={isSaving}
-                            className="px-4 py-2 bg-amber-500/20 border border-amber-500/30 text-amber-200 rounded-xl font-bold hover:bg-amber-500/30 transition-colors flex items-center gap-2 disabled:opacity-60"
-                        >
+                        </VendorActionButton>
+                        <VendorActionButton onClick={() => setIsTriggerDialogOpen(true)} disabled={isSaving}>
                             <Zap className="h-4 w-4" />
                             {t('schedule.actions.trigger')}
-                        </button>
-                    </div>
-                )}
-            </div>
+                        </VendorActionButton>
+                    </>
+                ) : null}
+            />
 
             {isLoading ? (
-                <div className="flex items-center gap-3 text-slate-500 font-medium">
+                <div className="flex items-center gap-3 vendor-muted font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t('labels.loading')}
                 </div>
             ) : error ? (
-                <div className="text-rose-400 font-medium">{error}</div>
+                <VendorInlineMessage tone="danger">{error}</VendorInlineMessage>
             ) : !vendor ? (
-                <div className="text-slate-500 font-medium">{t('common:fallbacks.not_available')}</div>
+                <VendorInlineMessage>{t('common:fallbacks.not_available')}</VendorInlineMessage>
             ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-2">
@@ -172,6 +163,6 @@ export function VendorScheduleTab({ vendorId, canEdit }: VendorScheduleTabProps)
                 inputPlaceholder={t('schedule.trigger_dialog.reason_placeholder')}
                 inputRequired
             />
-        </section>
+        </VendorSurface>
     );
 }

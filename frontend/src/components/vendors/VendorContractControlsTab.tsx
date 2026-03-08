@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { CheckSquare, Loader2, Save } from 'lucide-react';
+import {
+    VendorActionButton,
+    VendorInlineMessage,
+    VendorSectionHeader,
+    VendorSurface,
+} from '@/components/vendors/vendorRouteUi';
 import { vendorContractApi } from '@/services/vendorContractApi';
 import type { VendorContractControlsResponse, VendorContractControlStatus, VendorContractControlUpdate } from '@/types/vendorContract';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -64,37 +70,26 @@ export function VendorContractControlsTab({ vendorId, canEdit }: VendorContractC
     };
 
     return (
-        <section className="glass-card p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                        <CheckSquare className="h-4 w-4" />
-                        {t('tabs.contract_controls')}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium mt-1">
-                        {t('contract_controls.subtitle')}
-                    </p>
-                </div>
-
-                {canEdit && (
-                    <button
-                        onClick={save}
-                        disabled={!hasChanges || isSaving}
-                        className="px-4 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
+        <VendorSurface className="space-y-6">
+            <VendorSectionHeader
+                icon={<CheckSquare className="h-4 w-4" />}
+                title={t('tabs.contract_controls')}
+                description={t('contract_controls.subtitle')}
+                actions={canEdit ? (
+                    <VendorActionButton onClick={save} disabled={!hasChanges || isSaving} variant="primary">
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                         {t('contract_controls.actions.save')}
-                    </button>
-                )}
-            </div>
+                    </VendorActionButton>
+                ) : null}
+            />
 
             {isLoading ? (
-                <div className="flex items-center gap-3 text-slate-500 font-medium">
+                <div className="flex items-center gap-3 vendor-muted font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t('labels.loading')}
                 </div>
             ) : !data ? (
-                <div className="text-slate-500 font-medium">—</div>
+                <VendorInlineMessage>—</VendorInlineMessage>
             ) : (
                 <div className="space-y-6">
                     {data.templates.map((template) => (
@@ -215,6 +210,6 @@ export function VendorContractControlsTab({ vendorId, canEdit }: VendorContractC
                     ))}
                 </div>
             )}
-        </section>
+        </VendorSurface>
     );
 }

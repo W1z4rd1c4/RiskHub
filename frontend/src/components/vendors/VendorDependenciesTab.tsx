@@ -1,17 +1,30 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Loader2, Network, Plus, Save, Trash2 } from 'lucide-react';
+
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import {
+    VendorActionButton,
+    VendorBadge,
+    VendorEmptyState,
+    VendorInlineMessage,
+    VendorSectionHeader,
+    VendorSurface,
+} from '@/components/vendors/vendorRouteUi';
+import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
-import { AlertTriangle, Loader2, Plus, Save, Trash2 } from 'lucide-react';
-import type { Vendor } from '@/types/vendor';
-import type { VendorDependenciesResponse, VendorRelationshipType } from '@/types/vendorDependency';
 import { vendorDependencyApi } from '@/services/vendorDependencyApi';
 import { vendorApi } from '@/services/vendorApi';
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import type { Vendor } from '@/types/vendor';
+import type {
+    VendorDependenciesResponse,
+    VendorRelationshipType,
+} from '@/types/vendorDependency';
+
 import { VendorDependencyGraph } from './VendorDependencyGraph';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
 
 interface VendorDependenciesTabProps {
     vendor: Vendor;
-    canEdit: boolean; // owner or vendors:write
+    canEdit: boolean;
 }
 
 export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTabProps) {
@@ -19,40 +32,45 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
     const [data, setData] = useState<VendorDependenciesResponse | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const [allVendors, setAllVendors] = useState<Vendor[]>([]);
-    const [newRelatedId, setNewRelatedId] = useState<string>('');
+    const [newRelatedId, setNewRelatedId] = useState('');
     const [newRelType, setNewRelType] = useState<VendorRelationshipType>('subcontractor');
-
     const [newServiceName, setNewServiceName] = useState('');
     const [addDependencyServiceId, setAddDependencyServiceId] = useState<number | null>(null);
-    const [pendingDelete, setPendingDelete] = useState<{ kind: 'relationship' | 'service' | 'dependency'; id: number } | null>(null);
+    const [pendingDelete, setPendingDelete] = useState<{
+        kind: 'relationship' | 'service' | 'dependency';
+        id: number;
+    } | null>(null);
 
     const refresh = useCallback(async () => {
         try {
             setIsLoading(true);
-            const [deps, vendorList] = await Promise.all([
+            const [dependencies, vendorList] = await Promise.all([
                 vendorDependencyApi.getVendorDependencies(vendor.id),
                 vendorApi.getVendors({ skip: 0, limit: 100 }),
             ]);
-            setData(deps);
+            setData(dependencies);
             setAllVendors(vendorList.items);
+            setError(null);
         } catch (err) {
             console.error('Failed to load vendor dependencies:', err);
+            setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
         }
-    }, [vendor.id]);
+    }, [t, vendor.id]);
 
     useEffect(() => {
-        refresh();
+        void refresh();
     }, [refresh]);
 
     const vendorOptions = useMemo(
         () =>
             allVendors
-                .filter((v) => v.id !== vendor.id)
-                .map((v) => ({ value: String(v.id), label: v.name })),
+                .filter((item) => item.id !== vendor.id)
+                .map((item) => ({ value: String(item.id), label: item.name })),
         [allVendors, vendor.id],
     );
 
@@ -68,6 +86,7 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
             await refresh();
         } catch (err) {
             console.error('Failed to create relationship:', err);
+            setError(t('errors.save_failed'));
         } finally {
             setIsSaving(false);
         }
@@ -82,6 +101,7 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
             await refresh();
         } catch (err) {
             console.error('Failed to create service:', err);
+            setError(t('errors.save_failed'));
         } finally {
             setIsSaving(false);
         }
@@ -89,14 +109,18 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
 
     const addDependency = async (supportedFunctionName?: string) => {
         if (addDependencyServiceId === null) return;
-        const fn = supportedFunctionName?.trim();
-        if (!fn) return;
+        const functionName = supportedFunctionName?.trim();
+        if (!functionName) return;
+
         try {
             setIsSaving(true);
-            await vendorDependencyApi.createDependency(addDependencyServiceId, { supported_function_name: fn });
+            await vendorDependencyApi.createDependency(addDependencyServiceId, {
+                supported_function_name: functionName,
+            });
             await refresh();
         } catch (err) {
             console.error('Failed to create dependency:', err);
+            setError(t('errors.save_failed'));
         } finally {
             setIsSaving(false);
             setAddDependencyServiceId(null);
@@ -117,6 +141,7 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
             await refresh();
         } catch (err) {
             console.error('Failed to delete vendor dependency item:', err);
+            setError(t('errors.save_failed'));
         } finally {
             setIsSaving(false);
             setPendingDelete(null);
@@ -124,195 +149,265 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
     };
 
     return (
-        <section className="glass-card p-6 space-y-6">
-            <div>
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    {t('tabs.dependencies')}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium mt-1">
-                    {t('dependencies.subtitle')}
-                </p>
-            </div>
+        <VendorSurface className="space-y-6">
+            <VendorSectionHeader
+                icon={<AlertTriangle className="h-4 w-4" />}
+                title={t('tabs.dependencies')}
+                description={t('dependencies.subtitle')}
+            />
 
             {isLoading ? (
-                <div className="flex items-center gap-3 text-slate-500 font-medium">
+                <div className="flex items-center gap-3 vendor-muted font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t('labels.loading')}
                 </div>
+            ) : error ? (
+                <VendorInlineMessage tone="danger">{error}</VendorInlineMessage>
             ) : !data ? (
-                <div className="text-slate-500 font-medium">{t('common:fallbacks.not_available')}</div>
+                <VendorInlineMessage>{t('common:fallbacks.not_available')}</VendorInlineMessage>
             ) : (
-                <div className="space-y-6">
-                    <div className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-2">
-                        <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                            {t('dependencies.concentration.title')}
-                        </p>
-                        <p className="text-lg text-white font-bold">
-                            {t('dependencies.concentration.score')}: {data.concentration.score}/10
-                        </p>
-                        <div className="space-y-1">
+                <div className="vendor-stack vendor-stack--lg">
+                    <div className="vendor-card space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <h3 className="vendor-section-title">{t('dependencies.concentration.title')}</h3>
+                                <p className="vendor-section-description">{t('dependencies.subtitle')}</p>
+                            </div>
+                            <VendorBadge tone={data.concentration.score >= 7 ? 'danger' : data.concentration.score >= 4 ? 'warn' : 'success'}>
+                                {t('dependencies.concentration.score')}: {data.concentration.score}/10
+                            </VendorBadge>
+                        </div>
+                        <div className="vendor-stack">
                             {data.concentration.flags.length === 0 ? (
-                                <p className="text-xs text-slate-500 font-medium">
-                                    {t('dependencies.concentration.no_flags')}
-                                </p>
+                                <p className="vendor-card__meta">{t('dependencies.concentration.no_flags')}</p>
                             ) : (
-                                data.concentration.flags.map((f) => (
-                                    <p key={f.key} className="text-xs text-slate-300 font-medium">
-                                        • {f.reason}
-                                    </p>
+                                data.concentration.flags.map((flag) => (
+                                    <div key={flag.key} className="vendor-card">
+                                        <p className="vendor-card__meta">{flag.reason}</p>
+                                    </div>
                                 ))
                             )}
                         </div>
                     </div>
 
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <div className="space-y-3">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
-                                {t('dependencies.relationships.title')}
-                            </h4>
+                    <div className="vendor-metric-strip" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                        <div className="vendor-metric">
+                            <span className="vendor-metric__label">{t('dependencies.metrics.third_party')}</span>
+                            <span className="vendor-metric__value">{data.relationship_tree?.children?.length || 0}</span>
+                        </div>
+                        <div className="vendor-metric">
+                            <span className="vendor-metric__label">{t('dependencies.metrics.fourth_party')}</span>
+                            <span className="vendor-metric__value">
+                                {data.relationship_tree?.children?.reduce((acc, child) => acc + (child.children?.length || 0), 0) || 0}
+                            </span>
+                        </div>
+                        <div className="vendor-metric">
+                            <span className="vendor-metric__label">{t('dependencies.metrics.downstream_services')}</span>
+                            <span className="vendor-metric__value">{data.services.length}</span>
+                        </div>
+                    </div>
 
-                            {canEdit && (
-                                <div className="p-3 bg-white/[0.02] border border-white/10 rounded-2xl flex flex-col gap-3">
-                                    <div className="grid gap-3 md:grid-cols-2">
-                                        <ThemedSelect
-                                            value={newRelatedId}
-                                            onValueChange={setNewRelatedId}
-                                            options={vendorOptions}
-                                            placeholder={t('dependencies.relationships.select_vendor')}
-                                        />
-                                        <ThemedSelect
-                                            value={newRelType}
-                                            onValueChange={(v) => setNewRelType(v as VendorRelationshipType)}
-                                            options={[
-                                                { value: 'subcontractor', label: t('dependencies.relationships.type.subcontractor') },
-                                                { value: 'reseller', label: t('dependencies.relationships.type.reseller') },
-                                                { value: 'parent_company', label: t('dependencies.relationships.type.parent_company') },
-                                                { value: 'other', label: t('dependencies.relationships.type.other') },
-                                            ]}
-                                            placeholder={t('common:labels.type')}
-                                        />
+                    <div className="vendor-summary-grid">
+                        <div className="vendor-stack vendor-stack--lg">
+                            <div className="vendor-card space-y-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 className="vendor-section-title">{t('dependencies.relationships.title')}</h3>
+                                        <p className="vendor-section-description">{t('dependencies.subtitle')}</p>
                                     </div>
-                                    <button
-                                        onClick={addRelationship}
-                                        disabled={!newRelatedId || isSaving}
-                                        className="px-4 py-2 bg-accent text-white rounded-xl font-bold hover:bg-accent/90 transition-colors disabled:opacity-60 flex items-center gap-2 justify-center"
-                                    >
-                                        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                                        {t('dependencies.relationships.actions.add')}
-                                    </button>
+                                    <Network className="h-4 w-4 vendor-muted" />
                                 </div>
-                            )}
 
-                            {data.relationships.length === 0 ? (
-                                <p className="text-sm text-slate-500 font-medium">
-                                    {t('dependencies.relationships.empty')}
-                                </p>
-                            ) : (
-                                <div className="space-y-2">
-                                    {data.relationships.map((r) => (
-                                        <div key={r.id} className="p-3 bg-white/[0.02] border border-white/10 rounded-2xl flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm text-white font-bold">{r.related_vendor_name ?? t('common:fallbacks.unknown_vendor')}</p>
-                                                <p className="text-xs text-slate-500 font-medium">{r.relationship_type}</p>
+                                {canEdit ? (
+                                    <div className="vendor-card space-y-3">
+                                        <div className="vendor-field-grid">
+                                            <div className="vendor-field">
+                                                <label className="vendor-label">{t('dependencies.relationships.select_vendor')}</label>
+                                                <ThemedSelect
+                                                    value={newRelatedId}
+                                                    onValueChange={setNewRelatedId}
+                                                    options={vendorOptions}
+                                                    placeholder={t('dependencies.relationships.select_vendor')}
+                                                />
                                             </div>
-                                            {canEdit && (
-                                                <button
-                                                    onClick={() => setPendingDelete({ kind: 'relationship', id: r.id })}
-                                                    className="p-2 text-rose-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
-                                            )}
+                                            <div className="vendor-field">
+                                                <label className="vendor-label">{t('common:labels.type')}</label>
+                                                <ThemedSelect
+                                                    value={newRelType}
+                                                    onValueChange={(value) => setNewRelType(value as VendorRelationshipType)}
+                                                    options={[
+                                                        {
+                                                            value: 'subcontractor',
+                                                            label: t('dependencies.relationships.type.subcontractor'),
+                                                        },
+                                                        {
+                                                            value: 'reseller',
+                                                            label: t('dependencies.relationships.type.reseller'),
+                                                        },
+                                                        {
+                                                            value: 'parent_company',
+                                                            label: t('dependencies.relationships.type.parent_company'),
+                                                        },
+                                                        { value: 'other', label: t('dependencies.relationships.type.other') },
+                                                    ]}
+                                                    placeholder={t('common:labels.type')}
+                                                />
+                                            </div>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                        <VendorActionButton
+                                            onClick={addRelationship}
+                                            disabled={!newRelatedId || isSaving}
+                                            variant="primary"
+                                        >
+                                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                            {t('dependencies.relationships.actions.add')}
+                                        </VendorActionButton>
+                                    </div>
+                                ) : null}
 
-                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 pt-2">
-                                {t('dependencies.graph.title')}
-                            </h4>
-                            <VendorDependencyGraph root={data.relationship_tree} />
+                                {data.relationships.length === 0 ? (
+                                    <VendorEmptyState
+                                        icon={<Network className="h-8 w-8" />}
+                                        title={t('dependencies.relationships.empty')}
+                                    />
+                                ) : (
+                                    <div className="vendor-stack">
+                                        {data.relationships.map((relationship) => (
+                                            <div key={relationship.id} className="vendor-card">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p className="vendor-card__title">
+                                                            {relationship.related_vendor_name ?? t('common:fallbacks.unknown_vendor')}
+                                                        </p>
+                                                        <p className="vendor-card__meta">{relationship.relationship_type}</p>
+                                                    </div>
+                                                    {canEdit ? (
+                                                        <VendorActionButton
+                                                            onClick={() =>
+                                                                setPendingDelete({
+                                                                    kind: 'relationship',
+                                                                    id: relationship.id,
+                                                                })
+                                                            }
+                                                            variant="ghost"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </VendorActionButton>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="vendor-card space-y-4">
+                                <div>
+                                    <h3 className="vendor-section-title">{t('dependencies.graph.title')}</h3>
+                                    <p className="vendor-section-description">{t('dependencies.relationships.title')}</p>
+                                </div>
+                                <VendorDependencyGraph root={data.relationship_tree} />
+                            </div>
                         </div>
 
-                        <div className="space-y-3">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-500">
-                                {t('dependencies.services.title')}
-                            </h4>
+                        <div className="vendor-card space-y-4">
+                            <div>
+                                <h3 className="vendor-section-title">{t('dependencies.services.title')}</h3>
+                                <p className="vendor-section-description">{t('dependencies.subtitle')}</p>
+                            </div>
 
-                            {canEdit && (
-                                <div className="p-3 bg-white/[0.02] border border-white/10 rounded-2xl space-y-3">
-                                    <input
-                                        value={newServiceName}
-                                        onChange={(e) => setNewServiceName(e.target.value)}
-                                        className="w-full bg-slate-900/50 border border-white/10 rounded-xl p-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium"
-                                        placeholder={t('dependencies.services.service_placeholder')}
-                                    />
-                                    <button
+                            {canEdit ? (
+                                <div className="vendor-card space-y-3">
+                                    <div className="vendor-field">
+                                        <label className="vendor-label">{t('dependencies.services.service_placeholder')}</label>
+                                        <input
+                                            value={newServiceName}
+                                            onChange={(event) => setNewServiceName(event.target.value)}
+                                            className="vendor-input"
+                                            placeholder={t('dependencies.services.service_placeholder')}
+                                        />
+                                    </div>
+                                    <VendorActionButton
                                         onClick={addService}
                                         disabled={!newServiceName.trim() || isSaving}
-                                        className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white font-bold hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center gap-2 justify-center"
                                     >
                                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                                         {t('dependencies.services.actions.add_service')}
-                                    </button>
+                                    </VendorActionButton>
                                 </div>
-                            )}
+                            ) : null}
 
                             {data.services.length === 0 ? (
-                                <p className="text-sm text-slate-500 font-medium">
-                                    {t('dependencies.services.empty')}
-                                </p>
+                                <VendorEmptyState
+                                    icon={<Network className="h-8 w-8" />}
+                                    title={t('dependencies.services.empty')}
+                                />
                             ) : (
-                                <div className="space-y-3">
-                                    {data.services.map((s) => (
-                                        <div key={s.id} className="p-4 bg-white/[0.02] border border-white/10 rounded-2xl space-y-3">
-                                            <div className="flex items-center justify-between gap-3">
+                                <div className="vendor-stack">
+                                    {data.services.map((service) => (
+                                        <div key={service.id} className="vendor-card space-y-3">
+                                            <div className="flex items-start justify-between gap-3">
                                                 <div>
-                                                    <p className="text-sm text-white font-bold">{s.service_name}</p>
-                                                    {s.notes && <p className="text-xs text-slate-500 font-medium">{s.notes}</p>}
+                                                    <p className="vendor-card__title">{service.service_name}</p>
+                                                    {service.notes ? (
+                                                        <p className="vendor-card__meta">{service.notes}</p>
+                                                    ) : null}
                                                 </div>
-                                                {canEdit && (
-                                                    <div className="flex gap-2">
-                                                        <button
-                                                            onClick={() => setAddDependencyServiceId(s.id)}
-                                                            className="px-3 py-2 bg-accent/20 border border-accent/30 text-accent rounded-xl font-bold hover:bg-accent/30 transition-colors flex items-center gap-2"
+                                                {canEdit ? (
+                                                    <div className="vendor-toolbar">
+                                                        <VendorActionButton
+                                                            onClick={() => setAddDependencyServiceId(service.id)}
+                                                            variant="primary"
                                                         >
                                                             <Plus className="h-4 w-4" />
                                                             {t('dependencies.services.actions.add_dependency')}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setPendingDelete({ kind: 'service', id: s.id })}
-                                                            className="p-2 text-rose-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+                                                        </VendorActionButton>
+                                                        <VendorActionButton
+                                                            onClick={() =>
+                                                                setPendingDelete({ kind: 'service', id: service.id })
+                                                            }
+                                                            variant="ghost"
                                                         >
                                                             <Trash2 className="h-4 w-4" />
-                                                        </button>
+                                                        </VendorActionButton>
                                                     </div>
-                                                )}
+                                                ) : null}
                                             </div>
 
-                                            {s.dependencies.length === 0 ? (
-                                                <p className="text-xs text-slate-500 font-medium">
+                                            {service.dependencies.length === 0 ? (
+                                                <p className="vendor-card__meta">
                                                     {t('dependencies.services.no_dependencies')}
                                                 </p>
                                             ) : (
-                                                <div className="space-y-2">
-                                                    {s.dependencies.map((d) => (
-                                                        <div key={d.id} className="p-3 bg-white/[0.02] border border-white/10 rounded-xl flex items-center justify-between">
-                                                            <div>
-                                                                <p className="text-sm text-slate-200 font-bold">{d.supported_function_name || t('common:fallbacks.not_available')}</p>
-                                                                <p className="text-xs text-slate-500 font-medium">
-                                                                    {d.department_name || t('common:fallbacks.not_available')} {d.risk_name ? `· ${d.risk_name}` : ''}
-                                                                </p>
+                                                <div className="vendor-stack">
+                                                    {service.dependencies.map((dependency) => (
+                                                        <div key={dependency.id} className="vendor-card">
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div>
+                                                                    <p className="vendor-card__title">
+                                                                        {dependency.supported_function_name ??
+                                                                            t('common:fallbacks.not_available')}
+                                                                    </p>
+                                                                    <p className="vendor-card__meta">
+                                                                        {dependency.department_name ??
+                                                                            t('common:fallbacks.not_available')}
+                                                                        {dependency.risk_name ? ` · ${dependency.risk_name}` : ''}
+                                                                    </p>
+                                                                </div>
+                                                                {canEdit ? (
+                                                                    <VendorActionButton
+                                                                        onClick={() =>
+                                                                            setPendingDelete({
+                                                                                kind: 'dependency',
+                                                                                id: dependency.id,
+                                                                            })
+                                                                        }
+                                                                        variant="ghost"
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </VendorActionButton>
+                                                                ) : null}
                                                             </div>
-                                                            {canEdit && (
-                                                                <button
-                                                                    onClick={() => setPendingDelete({ kind: 'dependency', id: d.id })}
-                                                                    className="p-2 text-rose-300 hover:text-white transition-colors rounded-lg hover:bg-white/5"
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </button>
-                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -325,6 +420,7 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
                     </div>
                 </div>
             )}
+
             <ConfirmDialog
                 isOpen={addDependencyServiceId !== null}
                 onClose={() => setAddDependencyServiceId(null)}
@@ -349,6 +445,6 @@ export function VendorDependenciesTab({ vendor, canEdit }: VendorDependenciesTab
                 variant="danger"
                 isLoading={isSaving}
             />
-        </section>
+        </VendorSurface>
     );
 }

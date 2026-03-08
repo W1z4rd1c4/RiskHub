@@ -1,7 +1,7 @@
 ---
 title: Managing Vendors
-version: "2.2"
-last_updated: "2026-03-07"
+version: "2.3"
+last_updated: "2026-03-08"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/* + vendor assessment workflows"
 summary: "Full manual for third-party risk operations: vendor onboarding, ownership, assessments, reassessments, incidents, SLAs, exports, and notifications."
@@ -104,6 +104,26 @@ Vendor detail uses 5 merged tabs:
 - Ecosystem: dependencies and signals
 
 Deep links are canonicalized as `tab + section`. If you need to route someone directly to a subsection, use a URL like `/vendors/<id>?tab=operations&section=sla`.
+
+The vendor route family now behaves as one coherent surface:
+
+- `/vendors/:id` for view
+- `/vendors/:id/edit` for edit
+- `/vendors/new` for create
+
+The detail header centralizes the main actions:
+
+- create issue
+- edit vendor
+- archive active vendor
+- restore inactive vendor
+
+Create and edit use the same section structure as the detail page:
+
+- Identity
+- Ownership & Scope
+- Classification
+- Resilience & Monitoring
 
 ## Core Workflows
 

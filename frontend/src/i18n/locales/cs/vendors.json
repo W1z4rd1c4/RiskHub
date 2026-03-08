@@ -17,7 +17,8 @@
     "cancel": "Zrušit",
     "export": "Export",
     "refresh": "Obnovit",
-    "unarchive": "Obnovit z archivu"
+    "unarchive": "Obnovit z archivu",
+    "back_to_register": "Zpět do registru"
   },
   "messages": {
     "archive_confirm": "Archivovat dodavatele {{vendorName}}?"
@@ -512,7 +513,8 @@
     "sections": {
       "identity": "Identita",
       "ownership": "Vlastnictví a rozsah",
-      "classification": "Klasifikace"
+      "classification": "Klasifikace",
+      "resilience": "Odolnost a monitoring"
     },
     "name": "Název dodavatele",
     "name_placeholder": "Acme Cloud Ltd.",

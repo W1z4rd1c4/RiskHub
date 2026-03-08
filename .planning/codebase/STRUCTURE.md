@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-03-07
+**Analysis Date:** 2026-03-08
 
 ## Top-Level Layout
 
@@ -38,7 +38,7 @@
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 82 tracked files (measured git-tracked snapshot; route-level pages + tests)
+- `frontend/src/pages/` - 81 tracked files (measured git-tracked snapshot; route-level pages + tests)
 - `frontend/src/components/` - 162 tracked files (measured git-tracked snapshot; components + tests)
 - `frontend/src/services/` - API client and domain service wrappers
 - `frontend/src/contexts/` - auth/theme/filter context providers
@@ -76,4 +76,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-03-07*
+*Structure audit refreshed on 2026-03-08*
