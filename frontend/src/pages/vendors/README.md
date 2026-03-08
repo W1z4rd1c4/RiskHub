@@ -12,7 +12,6 @@ and `frontend/src/pages/VendorsPage.tsx`.
 - `VendorFormView.tsx`
 - `VendorOverviewTab.tsx`
 - `VendorSectionStack.tsx`
-- `VendorSummaryCards.tsx`
 - `VendorTabPanel.tsx`
 - `VendorTabs.tsx`
 - `VendorsTableSection.tsx`

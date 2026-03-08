@@ -95,16 +95,15 @@ Záznam dodavatele obsahuje identitu i governance metadata.
 | Reassessment cadence / next due | Scheduling | Spouští remindery a overdue tlak. |
 | Status | `active` / `inactive` | Inactive funguje jako archiv; restore je permission-gated. |
 
-Taby na detailu (high-level):
+Detail dodavatele používá 5 sloučených tabů:
 
-- Risk factors: drivery skóre
-- Linked risks / controls: napojení na enterprise posture
-- Assessments: strukturovaný workflow (draft → submitted → review → decision)
-- Schedule: cadence a due dates
-- Contract controls / resilience / dependencies: governance hloubka
-- Incidents / remediation / SLA / signals: monitoring a reakce
+- Overview: hero metriky, summary cards, risk factors, linked risks, linked controls
+- Assessments: assessmenty a reassessment schedule
+- Assurance: contract controls a resilience
+- Operations: SLA, incidenty, remediation
+- Ecosystem: dependencies a signals
 
-Aktivní tab na detailu je možné linkovat. Pokud potřebujete někoho poslat rovnou do konkrétní sekce, použijte URL ve tvaru `/vendors/<id>?tab=sla`.
+Deep linky se canonicalizují jako `tab + section`. Pokud potřebujete někoho poslat rovnou do konkrétní podsekce, použijte URL ve tvaru `/vendors/<id>?tab=operations&section=sla`.
 
 ## Hlavní workflow
 
