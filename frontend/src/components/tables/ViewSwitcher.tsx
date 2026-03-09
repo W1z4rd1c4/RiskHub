@@ -4,7 +4,16 @@
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
 
-export type ViewMode = 'all' | 'category' | 'department' | 'process' | 'type' | 'risk_type' | 'risk';
+export type ViewMode =
+    | 'all'
+    | 'category'
+    | 'department'
+    | 'process'
+    | 'type'
+    | 'risk_type'
+    | 'risk'
+    | 'vendor'
+    | 'flag';
 
 interface ViewSwitcherProps {
     value: ViewMode;
@@ -24,6 +33,8 @@ export function ViewSwitcher({ value, onChange, className, exclude = [] }: ViewS
         { value: 'type' as ViewMode, label: t('views.by_type') },
         { value: 'risk_type' as ViewMode, label: t('views.by_risk_type') },
         { value: 'risk' as ViewMode, label: t('views.by_risk') },
+        { value: 'vendor' as ViewMode, label: t('views.by_vendor') },
+        { value: 'flag' as ViewMode, label: t('views.by_flag') },
     ];
 
     const options = VIEW_OPTIONS.filter(opt => !exclude.includes(opt.value));

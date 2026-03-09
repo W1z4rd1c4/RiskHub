@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_CONTROLS } from './fixtures/e2e-data';
+import { ensureControlStatus, ensureVendorStatus, getControlByName, linkVendorToControl } from './helpers/api-auth';
 import { ControlsPage } from './pages/ControlsPage';
 import { waitForDataLoad, waitForTableRowByText } from './helpers/wait';
 
@@ -75,5 +76,24 @@ test.describe('Control Management (Deterministic)', () => {
         const row = controlsPage.rowByText(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
         await expect(row).toBeVisible({ timeout: 15000 });
         await expect(row.locator('[data-testid^="control-unarchive-"]').first()).toBeVisible();
+    });
+
+    test('Control register groups linked controls by vendor', async ({ riskManagerPage }) => {
+        const vendorId = await ensureVendorStatus('E2E-VREG-001', 'active');
+        await ensureControlStatus(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name, 'active');
+        const control = await getControlByName(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name);
+        expect(control).not.toBeNull();
+        await linkVendorToControl(vendorId, control!.id);
+
+        const controlsPage = new ControlsPage(riskManagerPage);
+        await controlsPage.navigate();
+        await controlsPage.search(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name);
+
+        await riskManagerPage.getByRole('button', { name: /By Vendor|Podle dodavatele/i }).click();
+        await riskManagerPage.getByRole('button', { name: /E2E-VENDOR-001 Claims Cloud Platform/i }).click();
+
+        await expect(riskManagerPage.getByText(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name).first()).toBeVisible({
+            timeout: 15000,
+        });
     });
 });

@@ -3,6 +3,12 @@ import type {
     ControlMonitoringFields,
     ControlStatus,
 } from '@/types/control';
+import type { KRIFrequency, KRIMonitoringFields } from '@/types/kri';
+
+export interface LinkedVendorSummary {
+    id: number;
+    name: string;
+}
 
 export interface LinkedRisk {
     id: number;
@@ -27,4 +33,20 @@ export interface LinkedControl extends ControlMonitoringFields {
     department_id?: number | null;
     department_name?: string | null;
     status?: ControlStatus | string | null;
+}
+
+export interface LinkedKRI extends KRIMonitoringFields {
+    id: number;
+    risk_id: number;
+    metric_name: string;
+    description: string;
+    current_value: number;
+    lower_limit: number;
+    upper_limit: number;
+    unit: string;
+    frequency: KRIFrequency | string;
+    risk_name?: string | null;
+    risk_process?: string | null;
+    risk_department_name?: string | null;
+    is_archived?: boolean;
 }

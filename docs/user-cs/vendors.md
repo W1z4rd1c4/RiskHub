@@ -4,7 +4,7 @@ version: "2.4"
 last_updated: "2026-03-09"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/*"
-summary: "Uživatelský manuál pro základní registr dodavatelů: ownership, klasifikace, sekce navázaných rizik a kontrol ve stylu detailu rizika, routed create-from-vendor workflow, exporty a issue kontext."
+summary: "Uživatelský manuál pro základní registr dodavatelů: ownership, klasifikace, vendor flagy, sekce navázaných rizik, kontrol a KRI ve stylu detailu rizika, routed create-from-vendor workflow, exporty a issue kontext."
 tags:
   - vendors
   - workflow
@@ -23,7 +23,7 @@ Sekce Dodavatelé je nyní základní registr třetích stran. Slouží k tomu, 
 - kdo vlastní vztah s dodavatelem
 - jaký proces a oddělení dodavatel podporuje
 - jaká je klasifikace a risk score dodavatele
-- která enterprise rizika a kontroly jsou na dodavatele navázaná
+- která enterprise rizika, kontroly a KRI jsou na dodavatele navázaná
 
 Hlavní route: `/vendors`
 
@@ -47,13 +47,14 @@ Základní vendor data zahrnují:
 - ownership: oddělení, outsourcing owner, proces, podproces
 - klasifikaci: typ dodavatele, risk score, DORA relevance, významnost, nahraditelnost
 - lifecycle: aktivní/neaktivní stav, archivace/obnova
-- vazby: navázaná rizika a navázané kontroly
+- vazby: navázaná rizika, navázané kontroly a navázaná KRI
 
 Detail dodavatele je jeden základní pohled. Obsahuje:
 
 - header a lifecycle akce
 - summary surface pro risk score, status, exposure a vendor flags
 - summary karty pro klasifikaci, ownership a vazby
+- vloženou sekci navázaných KRI se stejným card-grid a archived grouping přístupem jako u navázaných rizik a kontrol
 - vloženou sekci navázaných rizik se stejným section chrome a card-grid interakčním modelem jako detail rizika
 - vloženou sekci navázaných kontrol se stejným action barem, gauge kartami a archived grouping pattern jako detail rizika
 - kontextové založení Issue přímo z detailu dodavatele
@@ -67,13 +68,15 @@ Detail dodavatele je jednodušší než Rizika nebo Nálezy, ale stále respektu
 - ownership pravidla mohou některé mutační akce povolit i bez širšího vendor-admin oprávnění
 - navázaná rizika jsou dál scope-filtrovaná samostatně, takže uživatel může vidět dodavatele i tehdy, když část navázaných rizik na stránce chybí
 - navázané kontroly se také filtrují podle běžných pravidel viditelnosti kontrol ještě před vykreslením card gridu
+- navázaná KRI se filtrují podle stejného read scope a ownership pravidel jako registr KRI, takže nečitelná KRI na detailu a v grupovaných pohledech chybí
 
 Na stránce se to projevuje takto:
 
 - `Link Existing` a `Manage Existing Links` se zobrazí jen tehdy, když uživatel může měnit vendor vazby
 - `Add Risk` se zobrazí jen tehdy, když uživatel umí upravit vendor kontext a zároveň zakládat rizika
 - `Add Control` se zobrazí jen tehdy, když uživatel umí upravit vendor kontext a zároveň zakládat kontroly
-- detail dodavatele nikdy nesmí prozradit názvy nečitelných rizik nebo kontrol jen kvůli countům nebo layoutu
+- `Link Existing` pro KRI se zobrazí jen tehdy, když uživatel může měnit vendor vazby a může číst cílová KRI
+- detail dodavatele nikdy nesmí prozradit názvy nečitelných rizik, kontrol nebo KRI jen kvůli countům nebo layoutu
 
 ## Datový model a klíčová pole
 
@@ -83,12 +86,13 @@ Vendor záznam je nyní základní registr, ne workflow kontejner. Udržujte spr
 - ownership: outsourcing owner, oddělení, proces, podproces
 - klasifikace: typ dodavatele, risk score, DORA relevance, flag významného dodavatele, nahraditelnost, flag alternativních providerů
 - lifecycle: aktivní/neaktivní stav a akce archivace nebo obnovy
-- vazby: enterprise rizika navázaná na dodavatele a kontroly mitigující vendor expozici
+- vazby: enterprise rizika, mitigující kontroly a monitorovací KRI navázané na dodavatele
 
 Navázané sekce teď používají bohatší summary data:
 
 - karty navázaných rizik ukazují risk code, risk type, gross score, net score, proces, oddělení a priority marker
 - karty navázaných kontrol používají stejný gauge-style summary jako detail rizika včetně monitoring status, frequency a risk level
+- karty navázaných KRI ukazují monitoring status, due-date kontext, hodnotu a metadata souvisejícího rizika používaná v registru KRI a na detailu dodavatele
 - archivované vazby zůstávají viditelné v oddělených sekundárních skupinách, aby se neztratil historický kontext
 
 ## Hlavní workflow
@@ -104,12 +108,37 @@ Create/edit použijte pro údržbu vendor master dat:
 
 ### 2. Navázání expozice
 
-Pomocí navázaných rizik a kontrol propojte dodavatele s enterprise risk posture:
+Pomocí navázaných rizik, kontrol a KRI propojte dodavatele s enterprise risk posture:
 
-- použijte **Link Existing** pro navázání existujících rizik nebo kontrol
+- použijte **Link Existing** pro navázání existujících rizik, kontrol nebo KRI
 - použijte **Add Risk** nebo **Add Control** pro založení nového záznamu přímo z detailu dodavatele
 - aktivní a archivované vazby uvidíte v oddělených vizuálních skupinách
 - přes **Manage Existing Links** odstraňujte zastaralé vazby, když už neplatí
+
+### 2a. Grupování dodavatelů podle flagů
+
+Registr dodavatelů nyní podporuje i grupovaný pohled **By Flag**:
+
+- `DORA relevant`
+- `Supports core function`
+- `Significant vendor`
+- `Insignificant vendors` pro dodavatele bez těchto tří flagů
+
+Jde o multi-membership grupování:
+
+- jeden dodavatel může být ve více skupinách současně
+- dodavatel bez aktivních flagů se zobrazí jen v `Insignificant vendors`
+
+### 2b. Grupované pohledy podle dodavatele v dalších modulech
+
+Rizika, Kontroly, Issues a KRI nyní podporují grupovaný pohled **By Vendor**.
+
+Použijte ho, když chcete rychle zjistit:
+
+- která rizika se koncentrují kolem jednoho dodavatele
+- které kontroly mitigují expozici pro konkrétního dodavatele
+- které issues jsou otevřené v kontextu konkrétního dodavatele
+- která KRI monitorují vendor-related expozici
 
 ### 3. Vytvoření nového rizika nebo kontroly z detailu dodavatele
 
@@ -149,7 +178,7 @@ Samotná vendor stránka už neprovozuje samostatný schvalovací workflow. Je t
 - create/edit dodavatele používá standardní vendor permission model
 - create-from-vendor pro rizika a kontroly používá běžné routed formuláře pro rizika a kontroly
 - pokud nově založené riziko nebo kontrola v dané doméně podléhá schválení, platí to dál v té doméně
-- detail dodavatele řeší jen návrat po create, pokus o auto-link a následný confirmation nebo warning banner
+- detail dodavatele řeší jen návrat po create, pokus o auto-link, confirmation nebo warning banner a správu existujících vazeb na rizika, kontroly a KRI
 
 Prakticky to znamená:
 
@@ -166,6 +195,7 @@ Registr dodavatelů podporuje:
 - filtrování podle stavu
 - filtrování podle typu dodavatele
 - groupované pohledy respektující viditelnost navázaných rizik
+- grupovaný pohled `By Flag` pro DORA, core-function, significant a insignificant bucket
 - export z registru dodavatelů
 
 Exporty nyní obsahují pouze zachovaná základní vendor pole.

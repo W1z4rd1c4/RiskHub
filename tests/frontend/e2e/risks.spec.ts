@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_RISKS } from './fixtures/e2e-data';
+import { ensureRiskStatus, ensureVendorStatus, getRiskByCode, linkVendorToRisk } from './helpers/api-auth';
 import { RisksPage } from './pages/RisksPage';
 import { waitForDataLoad, waitForTableRowByText } from './helpers/wait';
 
@@ -90,5 +91,24 @@ test.describe('Risk Management (Deterministic)', () => {
         const url = new URL(riskManagerPage.url());
         expect(url.searchParams.get('risk_id')).toBe(riskId);
         await waitForDataLoad(riskManagerPage);
+    });
+
+    test('Risk register groups linked risks by vendor', async ({ riskManagerPage }) => {
+        const vendorId = await ensureVendorStatus('E2E-VREG-001', 'active');
+        await ensureRiskStatus(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.code, 'active');
+        const risk = await getRiskByCode(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.code);
+        expect(risk).not.toBeNull();
+        await linkVendorToRisk(vendorId, risk!.id);
+
+        const risksPage = new RisksPage(riskManagerPage);
+        await risksPage.navigate();
+        await risksPage.search(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name);
+
+        await riskManagerPage.getByRole('button', { name: /By Vendor|Podle dodavatele/i }).click();
+        await riskManagerPage.getByRole('button', { name: /E2E-VENDOR-001 Claims Cloud Platform/i }).click();
+
+        await expect(riskManagerPage.getByText(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name).first()).toBeVisible({
+            timeout: 15000,
+        });
     });
 });

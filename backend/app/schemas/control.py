@@ -5,6 +5,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.execution import ExecutionResultEnum
+from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import ControlMonitoringReason, ControlMonitoringStatus
 
 
@@ -184,6 +185,7 @@ class ControlSummary(ControlMonitoringBundle):
     risk_name: Optional[str] = None
     risk_owner_name: Optional[str] = None
     risk_department_name: Optional[str] = None
+    linked_vendors: list[LinkedVendorRead] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 

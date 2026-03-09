@@ -219,7 +219,7 @@ export function VendorsPage() {
                     setViewMode(mode);
                     setCurrentPage(1);
                 }}
-                exclude={canReadRisks ? ['category', 'risk_type'] : ['category', 'risk_type', 'risk']}
+                exclude={canReadRisks ? ['category', 'risk_type', 'vendor'] : ['category', 'risk_type', 'risk', 'vendor']}
             />
 
             <div className="glass-card flex flex-col md:flex-row gap-4">

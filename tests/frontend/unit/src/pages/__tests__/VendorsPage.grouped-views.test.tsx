@@ -30,8 +30,8 @@ const vendors: Vendor[] = [
         ],
         vendor_type: 'ict',
         risk_score_1_5: 4,
-        supports_important_core_insurance_function: false,
-        dora_relevant: false,
+        supports_important_core_insurance_function: true,
+        dora_relevant: true,
         is_significant_vendor: false,
         materiality_assessed_max_impact_pct_own_funds: null,
         replaceability: null,
@@ -59,7 +59,7 @@ const vendors: Vendor[] = [
         risk_score_1_5: 5,
         supports_important_core_insurance_function: false,
         dora_relevant: false,
-        is_significant_vendor: false,
+        is_significant_vendor: true,
         materiality_assessed_max_impact_pct_own_funds: null,
         replaceability: null,
         has_alternative_providers: false,
@@ -187,7 +187,9 @@ describe('VendorsPage grouped views', () => {
         expect(screen.getByRole('button', { name: 'By Process' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'By Type' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'By Risk' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'By Flag' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'By Category' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'By Vendor' })).not.toBeInTheDocument();
         expect(document.body).toHaveTextContent(/Showing\s*1\s*to\s*3\s*of\s*3\s*results/i);
 
         await ui.click(screen.getByRole('button', { name: 'By Type' }));
@@ -266,5 +268,27 @@ describe('VendorsPage grouped views', () => {
 
         expect(await screen.findByRole('button', { name: /Compliance/i })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Operations/i })).not.toBeInTheDocument();
+    });
+
+    it('groups by flags with multi-membership and an insignificant fallback bucket', async () => {
+        const ui = userEvent.setup();
+        render(<VendorsPage />);
+
+        await screen.findByText('Claims Cloud Platform');
+        await ui.click(screen.getByRole('button', { name: 'By Flag' }));
+
+        expect(await screen.findByRole('button', { name: /^DORA relevant/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Supports core function/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Significant vendor 1 Items$/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Insignificant vendors 1 Items$/i })).toBeInTheDocument();
+
+        await ui.click(screen.getByRole('button', { name: /^DORA relevant/i }));
+        expect(await screen.findByText('Claims Cloud Platform')).toBeInTheDocument();
+        expect(screen.queryByText('AML Screening Service')).not.toBeInTheDocument();
+
+        await ui.click(screen.getByRole('button', { name: 'Back' }));
+        await ui.click(screen.getByRole('button', { name: /^Insignificant vendors 1 Items$/i }));
+        expect(await screen.findByText('Print Partner')).toBeInTheDocument();
+        expect(screen.queryByText('Claims Cloud Platform')).not.toBeInTheDocument();
     });
 });

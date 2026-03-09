@@ -178,6 +178,9 @@
     "critical_only_clear": "Pouze kritické (kliknutím zrušíte)",
     "breached_only_clear": "Pouze překročené (kliknutím zrušíte)"
   },
+  "grouping": {
+    "unlinked_vendor": "Bez propojeného dodavatele"
+  },
   "empty_state": {
     "no_risks": "Nebyla nalezena žádná rizika odpovídající kritériím.",
     "no_linked_controls": "Žádné propojené kontroly",

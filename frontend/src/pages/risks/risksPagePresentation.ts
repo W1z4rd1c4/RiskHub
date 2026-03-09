@@ -4,6 +4,13 @@ import { riskApi } from '@/services/riskApi';
 import type { RiskStatus, RiskSummary } from '@/types/risk';
 
 export const CRITICAL_RISK_MIN_NET_SCORE = 15;
+export const UNLINKED_VENDOR_LABEL = 'Unlinked Vendor';
+
+export interface RiskGroupedRow {
+    groupValue: string;
+    risk: RiskSummary;
+    rowId: string;
+}
 
 export interface RisksPageInitialState {
     criticalFilter: boolean;
@@ -43,6 +50,7 @@ export function normalizeRiskSummary(risk: RiskSummary): RiskSummary {
         kri_count: risk.kri_count ?? 0,
         has_breach: risk.has_breach ?? false,
         control_count: risk.control_count ?? 0,
+        linked_vendors: risk.linked_vendors ?? [],
     };
 }
 
@@ -147,4 +155,33 @@ export function getRiskGroupByField(viewMode: ViewMode): keyof RiskSummary | nul
         default:
             return null;
     }
+}
+
+export function buildRiskGroupedRows(
+    items: RiskSummary[],
+    viewMode: ViewMode,
+    labels: { unlinkedVendor: string }
+): RiskGroupedRow[] {
+    if (viewMode !== 'vendor') {
+        return [];
+    }
+
+    return items.flatMap((risk) => {
+        const vendors = risk.linked_vendors ?? [];
+        if (vendors.length === 0) {
+            return [
+                {
+                    groupValue: labels.unlinkedVendor,
+                    risk,
+                    rowId: `${risk.id}:unlinked-vendor`,
+                },
+            ];
+        }
+
+        return vendors.map((vendor) => ({
+            groupValue: vendor.name,
+            risk,
+            rowId: `${risk.id}:${vendor.id}`,
+        }));
+    });
 }

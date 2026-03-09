@@ -14,6 +14,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Link as LinkIcon } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
+import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
 import { lookupApi } from '@/services/lookupApi';
 import { ControlEffectiveness } from '@/types/risk';
@@ -28,7 +29,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 // ---------------------------------------------------------------------------
 
 interface LinkManagementDialogProps {
-    mode: 'control-to-risk' | 'risk-to-control';
+    mode: 'control-to-risk' | 'risk-to-control' | 'vendor-to-kri';
     title?: string;
     existingLinks: ExistingLinkItem[];
     onLink: (targetId: number, effectiveness: ControlEffectiveness, notes?: string) => Promise<void>;
@@ -56,7 +57,7 @@ export function LinkManagementDialog({
     showLinks = true,
     showLinkMetadataBadge = true,
 }: LinkManagementDialogProps) {
-    const { t } = useTranslation(['common', 'controls', 'risks']);
+    const { t } = useTranslation(['common', 'controls', 'kris', 'risks']);
     // -----------------------------------------------------------------------
     // Search state
     // -----------------------------------------------------------------------
@@ -94,7 +95,7 @@ export function LinkManagementDialog({
     // -----------------------------------------------------------------------
     const linkedTargetIdSet = useMemo(() => {
         const ids = existingLinks.map((link) =>
-            mode === 'control-to-risk' ? link.risk_id : link.control_id
+            mode === 'control-to-risk' ? link.risk_id : mode === 'risk-to-control' ? link.control_id : link.kri_id
         );
         return new Set(ids);
     }, [existingLinks, mode]);
@@ -157,16 +158,43 @@ export function LinkManagementDialog({
             if (mode === 'control-to-risk') {
                 const results = await riskApi.getRisks(params);
                 setSearchResults(results.items.filter(r => !linkedTargetIdSet.has(r.id)));
-            } else {
+            } else if (mode === 'risk-to-control') {
                 const results = await controlApi.getControls(params);
                 setSearchResults(results.items.filter(c => !linkedTargetIdSet.has(c.id)));
+            } else {
+                const results = await kriApi.getKRIs({
+                    page: 1,
+                    size: 100,
+                    include_archived: includeArchived,
+                    search: searchQuery || undefined,
+                });
+                const filtered = results.items.filter((kri) => {
+                    if (linkedTargetIdSet.has(kri.id)) return false;
+                    if (selectedDeptId && !departments.some((department) => department.id === selectedDeptId && department.name === kri.risk_department_name)) {
+                        return false;
+                    }
+                    if (selectedProcess && kri.risk_process !== selectedProcess) return false;
+                    if (selectedCategory && kri.risk_category !== selectedCategory) return false;
+                    return true;
+                });
+                setSearchResults(
+                    filtered.map((kri) => ({
+                        id: kri.id,
+                        name: kri.metric_name,
+                        description: kri.description,
+                        status: kri.is_archived ? 'archived' : String(kri.monitoring_status ?? ''),
+                        department_name: kri.risk_department_name,
+                        process: kri.risk_process,
+                        category: kri.risk_category,
+                    }))
+                );
             }
         } catch (err) {
             console.error('Search failed:', err);
         } finally {
             setIsSearching(false);
         }
-    }, [includeArchived, isOpen, linkedTargetIdSet, mode, searchQuery, selectedCategory, selectedDeptId, selectedProcess, showSearch]);
+    }, [departments, includeArchived, isOpen, linkedTargetIdSet, mode, searchQuery, selectedCategory, selectedDeptId, selectedProcess, showSearch]);
 
     const wasOpenRef = useRef(false);
 
@@ -234,8 +262,10 @@ export function LinkManagementDialog({
         try {
             if (mode === 'control-to-risk') {
                 await riskApi.restoreRisk(targetId);
-            } else {
+            } else if (mode === 'risk-to-control') {
                 await controlApi.restoreControl(targetId);
+            } else {
+                await kriApi.restoreKRI(targetId);
             }
             await handleSearch();
         } catch (err) {
@@ -279,7 +309,14 @@ export function LinkManagementDialog({
                                     <LinkIcon className="h-5 w-5 text-accent" />
                                 </div>
                                 <h2 className="text-xl font-black text-white uppercase tracking-tight">
-                                    {title ?? (!showSearch ? t('common:empty.no_connections') : (mode === 'control-to-risk' ? t('controls:actions.link_risk') : t('risks:actions.link_control')))}
+                                    {title
+                                        ?? (!showSearch
+                                            ? t('common:empty.no_connections')
+                                            : mode === 'control-to-risk'
+                                                ? t('controls:actions.link_risk')
+                                                : mode === 'risk-to-control'
+                                                    ? t('risks:actions.link_control')
+                                                    : t('vendors:links.actions.link_existing'))}
                                 </h2>
                             </div>
                             <button
@@ -316,7 +353,13 @@ export function LinkManagementDialog({
                                     onSelectTarget={setSelectedTargetId}
                                     onLink={handleLink}
                                     isLinking={isLinking}
-                                    canUnarchive={mode === 'control-to-risk' ? hasPermission('risks', 'delete') : hasPermission('controls', 'delete')}
+                                    canUnarchive={
+                                        mode === 'control-to-risk'
+                                            ? hasPermission('risks', 'delete')
+                                            : mode === 'risk-to-control'
+                                                ? hasPermission('controls', 'delete')
+                                                : hasPermission('risks', 'delete')
+                                    }
                                     onUnarchive={handleUnarchiveSearchResult}
                                 />
                             )}

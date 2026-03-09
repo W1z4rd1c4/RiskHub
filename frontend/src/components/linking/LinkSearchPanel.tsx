@@ -32,6 +32,7 @@ export interface SearchResultItem {
     name?: string;
     description?: string;
     process?: string;
+    category?: string;
     status?: string;
     risk_level?: number;
     frequency?: string;
@@ -41,7 +42,7 @@ export interface SearchResultItem {
 }
 
 export interface LinkSearchPanelProps {
-    mode: 'control-to-risk' | 'risk-to-control';
+    mode: 'control-to-risk' | 'risk-to-control' | 'vendor-to-kri';
 
     // Search state (owned by parent)
     searchQuery: string;
@@ -99,7 +100,7 @@ export function LinkSearchPanel({
     canUnarchive,
     onUnarchive,
 }: LinkSearchPanelProps) {
-    const { t } = useTranslation('common');
+    const { t } = useTranslation(['common', 'controls', 'kris', 'risks']);
     const hasActiveFilters = selectedDeptId || selectedProcess || selectedCategory || includeArchived;
 
     const clearAllFilters = () => {
@@ -119,7 +120,11 @@ export function LinkSearchPanel({
         <section className="space-y-4">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <Plus className="h-3 w-3" />
-                {t('common:actions.create')} {mode === 'control-to-risk' ? t('controls:actions.link_risk') : t('risks:actions.link_control')}
+                {mode === 'control-to-risk'
+                    ? `${t('common:actions.create')} ${t('controls:actions.link_risk')}`
+                    : mode === 'risk-to-control'
+                        ? `${t('common:actions.create')} ${t('risks:actions.link_control')}`
+                        : t('vendors:links.actions.link_existing')}
             </h3>
 
             <div className="space-y-4">
@@ -128,7 +133,13 @@ export function LinkSearchPanel({
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                     <input
                         type="text"
-                        placeholder={mode === 'control-to-risk' ? t('filters.search_risks') : t('filters.search_controls')}
+                        placeholder={
+                            mode === 'control-to-risk'
+                                ? t('filters.search_risks')
+                                : mode === 'risk-to-control'
+                                    ? t('filters.search_controls')
+                                    : t('filters.search_kris')
+                        }
                         value={searchQuery}
                         onChange={(e) => onSearchQueryChange(e.target.value)}
                         className="w-full bg-slate-900/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50 transition-all font-medium"
@@ -225,7 +236,17 @@ export function LinkSearchPanel({
                                             )}
                                         </span>
                                         <span className="text-[10px] text-slate-500 mt-0.5">
-                                            {mode === 'control-to-risk' ? result.process : (
+                                            {mode === 'control-to-risk' ? result.process : mode === 'vendor-to-kri' ? (
+                                                <span className="flex items-center gap-1">
+                                                    {result.process || t('common:fallbacks.not_available')}
+                                                    {result.department_name && (
+                                                        <>
+                                                            <span className="text-slate-700 mx-1">/</span>
+                                                            <span className="text-slate-400 font-medium italic">{result.department_name}</span>
+                                                        </>
+                                                    )}
+                                                </span>
+                                            ) : (
                                                 <span className="flex items-center gap-1">
                                                     {result.department?.name}
                                                     {result.control_owner_name && (
@@ -287,7 +308,11 @@ export function LinkSearchPanel({
                                 <Search className="h-6 w-6 text-slate-600" />
                             </div>
                             <p className="text-sm font-bold text-slate-400">
-                                {mode === 'control-to-risk' ? t('common:empty.no_risks_found') : t('common:empty.no_controls_found')}
+                                {mode === 'control-to-risk'
+                                    ? t('common:empty.no_risks_found')
+                                    : mode === 'risk-to-control'
+                                        ? t('common:empty.no_controls_found')
+                                        : t('common:empty.no_kris_found')}
                             </p>
                             <p className="text-xs text-slate-600 mt-1">{t('common:linking.try_adjust_filters')}</p>
                         </div>
@@ -332,6 +357,21 @@ export function LinkSearchPanel({
                                                     </span>
                                                     <span className="text-[10px] text-slate-500">
                                                         {selectedResult.department_name}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {mode === 'vendor-to-kri' && (
+                                            <div className="bg-slate-900/50 border border-white/5 rounded-xl p-3">
+                                                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                                                    {t('kris:fields.linked_risk')}
+                                                </p>
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs font-bold text-white">
+                                                        {selectedResult.process || t('common:fallbacks.not_available')}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-500">
+                                                        {selectedResult.department_name || t('common:fallbacks.unassigned')}
                                                     </span>
                                                 </div>
                                             </div>

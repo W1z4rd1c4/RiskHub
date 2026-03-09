@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    buildControlGroupedRows,
     buildControlListParams,
     getControlGroupByField,
     getControlStatusColor,
@@ -48,5 +49,47 @@ describe('Controls page presentation helpers', () => {
         expect(getControlGroupByField('risk')).toBe('risk_name');
         expect(getControlGroupByField('all')).toBeNull();
         expect(getControlStatusColor(ControlStatus.ARCHIVED)).toContain('text-yellow-400');
+    });
+
+    it('duplicates controls into vendor groups and falls back to unlinked vendor', () => {
+        const rows = buildControlGroupedRows(
+            [
+                {
+                    id: 1,
+                    name: 'Vendor control',
+                    description: 'Desc',
+                    department_id: 2,
+                    department_name: 'IT',
+                    frequency: 'monthly',
+                    risk_level: 3,
+                    status: ControlStatus.ACTIVE,
+                    control_form: 'manual',
+                    linked_vendors: [
+                        { id: 4, name: 'Acme Cloud' },
+                        { id: 5, name: 'Shared Vendor' },
+                    ],
+                },
+                {
+                    id: 2,
+                    name: 'Standalone control',
+                    description: 'Desc',
+                    department_id: 3,
+                    department_name: 'Finance',
+                    frequency: 'quarterly',
+                    risk_level: 2,
+                    status: ControlStatus.ACTIVE,
+                    control_form: 'manual',
+                    linked_vendors: [],
+                },
+            ],
+            'vendor',
+            { unlinkedVendor: 'Unlinked Vendor' },
+        );
+
+        expect(rows.map((row) => row.groupValue)).toEqual([
+            'Acme Cloud',
+            'Shared Vendor',
+            'Unlinked Vendor',
+        ]);
     });
 });

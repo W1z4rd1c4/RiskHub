@@ -7,6 +7,7 @@ UI components for `vendors` area.
 ## Contents
 
 - `VendorLinkedControlCard.tsx`
+- `VendorLinkedKRIsTab.tsx`
 - `VendorLinkedRiskCard.tsx`
 - `VendorLinkedControlsTab.tsx`
 - `VendorLinkedRisksTab.tsx`
@@ -17,8 +18,8 @@ UI components for `vendors` area.
 
 Keep this README updated when responsibilities or structure in this folder change.
 
-Vendor detail now uses a single core page that embeds `VendorLinkedRisksTab`
-and `VendorLinkedControlsTab` directly on the main view. Those sections are
+Vendor detail now uses a single core page that embeds `VendorLinkedRisksTab`,
+`VendorLinkedControlsTab`, and `VendorLinkedKRIsTab` directly on the main view. Those sections are
 deliberately aligned with the individual risk page:
 
 - split action bars for `Link Existing` plus `Add Risk` / `Add Control`
@@ -30,6 +31,10 @@ deliberately aligned with the individual risk page:
 linked-risks grid. `VendorLinkedControlCard.tsx` mirrors the control gauge card
 visual treatment used on the risk detail page so vendor-linked controls do not
 degrade into a separate list-only UI.
+
+`VendorLinkedKRIsTab.tsx` provides the vendor-side KRI grid. It consumes the
+same backend-derived monitoring fields used by the KRI register/detail views so
+vendor-linked KRIs stay visually and semantically consistent with KRI pages.
 
 Vendor link management intentionally hides effectiveness badges in existing-link
 lists because vendor-risk and vendor-control links do not carry effectiveness

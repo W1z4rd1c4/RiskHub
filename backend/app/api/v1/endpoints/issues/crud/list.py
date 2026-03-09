@@ -119,6 +119,7 @@ async def list_issues(
             .selectinload(Control.risk_links)
             .selectinload(ControlRiskLink.risk),
             selectinload(Issue.links).selectinload(IssueLink.kri).selectinload(KeyRiskIndicator.risk),
+            selectinload(Issue.links).selectinload(IssueLink.vendor),
         )
         .offset(skip)
         .limit(limit)
@@ -126,7 +127,7 @@ async def list_issues(
     issues = result.scalars().all()
 
     return IssueListResponse(
-        items=[_serialize_issue_summary(issue) for issue in issues],
+        items=[_serialize_issue_summary(issue, current_user=current_user) for issue in issues],
         total=total,
         skip=skip,
         limit=limit,

@@ -11,6 +11,8 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.risk import Risk
     from app.models.vendor import Vendor
+
+
 class VendorRiskLink(Base):
     __tablename__ = "vendor_risk_links"
 
@@ -21,7 +23,7 @@ class VendorRiskLink(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="risk_links")
-    risk: Mapped["Risk"] = relationship("Risk")
+    risk: Mapped["Risk"] = relationship("Risk", back_populates="vendor_links")
 
     __table_args__ = (
         UniqueConstraint("vendor_id", "risk_id", name="uq_vendor_risk_link"),

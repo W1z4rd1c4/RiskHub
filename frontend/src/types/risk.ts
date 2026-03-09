@@ -2,6 +2,7 @@
 // Now supports arbitrary types configured in Risk Hub (not just S/O)
 
 import type { ControlMonitoringFields } from './control';
+import type { LinkedVendorSummary } from './vendorLink';
 
 export type RiskType = string;
 export const RiskTypeCodes = {
@@ -91,6 +92,7 @@ export interface RiskSummary {
     kri_count?: number;
     has_breach?: boolean;
     control_count?: number;
+    linked_vendors?: LinkedVendorSummary[];
 }
 
 export interface RiskCreate {

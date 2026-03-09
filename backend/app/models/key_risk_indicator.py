@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from app.models.kri_history import KRIValueHistory
     from app.models.risk import Risk
     from app.models.user import User
+    from app.models.vendor_kri_link import VendorKRILink
 
 
 class KRIFrequency(str, PyEnum):
@@ -90,6 +91,7 @@ class KeyRiskIndicator(Base):
         cascade="all, delete-orphan",
         order_by="desc(KRIValueHistory.recorded_at)",
     )
+    vendor_links: Mapped[list["VendorKRILink"]] = relationship("VendorKRILink", back_populates="kri")
 
     @property
     def breach_status(self) -> str:

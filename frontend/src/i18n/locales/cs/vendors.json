@@ -7,7 +7,8 @@
   },
   "grouping": {
     "no_process": "Bez procesu",
-    "unlinked_risk": "Bez propojeného rizika"
+    "unlinked_risk": "Bez propojeného rizika",
+    "insignificant_vendor": "Nevýznamní dodavatelé"
   },
   "actions": {
     "new": "Nový dodavatel",
@@ -64,7 +65,7 @@
       "risk_score": "Skóre rizika",
       "risk_score_hint": "Inherentní expozice dodavatele na škále registru 1-5.",
       "linked_exposure": "Navázaná expozice",
-      "linked_exposure_hint": "{{risks}} rizik + {{controls}} kontrol",
+      "linked_exposure_hint": "{{risks}} rizik + {{controls}} kontrol + {{kris}} KRI",
       "flags": "Profilové příznaky",
       "no_flags": "Bez zvláštních příznaků",
       "type_hint": "Typ: {{type}}",
@@ -78,7 +79,8 @@
   "tabs": {
     "overview": "Přehled",
     "linked_risks": "Navázaná rizika",
-    "linked_controls": "Navázané kontroly"
+    "linked_controls": "Navázané kontroly",
+    "linked_kris": "Navázaná KRI"
   },
   "links": {
     "actions": {
@@ -93,9 +95,11 @@
     },
     "archived_risks": "Archivovaná rizika ({{count}})",
     "archived_controls": "Archivované kontroly ({{count}})",
+    "archived_kris": "Archivovaná KRI ({{count}})",
     "dialogs": {
       "link_risks_title": "Navázat rizika na dodavatele",
-      "link_controls_title": "Navázat kontroly na dodavatele"
+      "link_controls_title": "Navázat kontroly na dodavatele",
+      "link_kris_title": "Navázat KRI na dodavatele"
     },
     "risks": {
       "subtitle": "Propojte dodavatele s riziky v Registru rizik.",
@@ -108,6 +112,10 @@
       "empty": "Zatím nejsou navázané kontroly.",
       "created_and_linked": "Kontrola byla vytvořena a navázána na dodavatele.",
       "created_but_not_linked": "Kontrola byla vytvořena, ale navázání na dodavatele selhalo. Zkontrolujte novou kontrolu a propojte ji ručně."
+    },
+    "kris": {
+      "subtitle": "Připojte KRI, která monitorují expozici a výkonnost dodavatele.",
+      "empty": "Zatím nejsou navázaná KRI."
     }
   },
   "form": {

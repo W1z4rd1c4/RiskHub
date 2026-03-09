@@ -18,7 +18,7 @@ const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
     role: 'employee',
     role_display_name: 'Employee',
     permissions: [],
-    effective_permissions: ['risks:read'],
+    effective_permissions: ['risks:read', 'vendors:read'],
     access_scope: 'department',
     scope_label: 'dept',
     ...overrides,
@@ -50,10 +50,14 @@ const makeKri = (
     risk_owner_name: 'Test Owner',
     risk_department_name: 'Finance',
     department_name: 'Finance',
+    linked_vendors: [{ id: 400, name: 'Primary Vendor' }],
     ...overrides,
 });
 
 const allKri = makeKri(20, 'All KRI');
+const unlinkedVendorKri = makeKri(27, 'Unlinked Vendor KRI', {
+    linked_vendors: [],
+});
 const warningKri = makeKri(21, 'Warning KRI', {
     monitoring_status: 'warning',
     current_value: 95,
@@ -124,7 +128,7 @@ function installKriHandlers(requestQueries: string[]) {
             const includeArchived = url.searchParams.get('include_archived') === 'true';
             requestQueries.push(url.searchParams.toString());
 
-            let items = [allKri];
+            let items = [allKri, unlinkedVendorKri];
             let delayMs = 5;
 
             if (includeArchived) {
@@ -250,5 +254,25 @@ describe('KRIsPage monitoring status filters', () => {
         expect(screen.getByTestId('kri-route-search')).toHaveTextContent('?monitoring_status=warning');
         expect(screen.queryByText('All KRI')).not.toBeInTheDocument();
         expect(requestQueries.some((query) => query.includes('monitoring_status=warning'))).toBe(true);
+    });
+
+    it('groups KRIs by vendor and keeps an unlinked vendor fallback bucket', async () => {
+        const requestQueries: string[] = [];
+        installKriHandlers(requestQueries);
+
+        await renderKriPage('/kris');
+
+        await screen.findByText('All KRI');
+
+        const uiUser = userEvent.setup();
+        await uiUser.click(screen.getByRole('button', { name: 'By Vendor' }));
+
+        await screen.findByRole('button', { name: /Primary Vendor/i });
+        await screen.findByRole('button', { name: /Unlinked Vendor/i });
+
+        await uiUser.click(screen.getByRole('button', { name: /Primary Vendor/i }));
+        await screen.findByText('All KRI');
+
+        expect(requestQueries.some((query) => query.includes('size=100'))).toBe(true);
     });
 });

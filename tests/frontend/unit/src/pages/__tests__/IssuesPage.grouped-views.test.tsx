@@ -75,6 +75,12 @@ const issues = [
                 risk_type: 'operational',
             },
         ],
+        vendor_contexts: [
+            {
+                vendor_id: 91,
+                vendor_name: 'Claims Cloud Platform',
+            },
+        ],
     },
     {
         id: 102,
@@ -93,6 +99,7 @@ const issues = [
         created_at: '2026-01-03T09:00:00Z',
         updated_at: '2026-01-03T09:00:00Z',
         risk_contexts: [],
+        vendor_contexts: [],
     },
 ];
 
