@@ -1,320 +1,205 @@
 ---
 title: Správa dodavatelů
-version: "2.3"
-last_updated: "2026-03-08"
+version: "2.4"
+last_updated: "2026-03-09"
 audience: user
-source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/* + vendor assessment workflows"
-summary: "Kompletní manuál pro third‑party risk: onboarding dodavatelů, ownership, assessmenty, reassessmenty, incidenty, SLA, exporty a notifikace."
+source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/*"
+summary: "Uživatelský manuál pro základní registr dodavatelů: ownership, klasifikace, sekce navázaných rizik a kontrol ve stylu detailu rizika, routed create-from-vendor workflow, exporty a issue kontext."
 tags:
   - vendors
   - workflow
-  - approvals
-  - notifications
   - exports
   - troubleshooting
+  - controls
+  - issues
 ---
 
 # Správa dodavatelů
 
-**Na této stránce**
-- [Přehled](#prehled)
-- [Kde to najdete](#kde-to-najdete)
-- [Role, scope a viditelnost](#role-scope-a-viditelnost)
-- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
-- [Hlavní workflow](#hlavni-workflow)
-- [Schvalování a notifikace](#schvalovani-a-notifikace)
-- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
-- [Časté chyby](#caste-chyby)
-- [Troubleshooting](#troubleshooting)
-- [Související dokumentace](#souvisejici-dokumentace)
-
 ## Přehled
 
-Správa dodavatelů v RiskHubu je navržená pro third‑party risk governance. Cíl je mít jasno:
+Sekce Dodavatelé je nyní základní registr třetích stran. Slouží k tomu, abyste věděli:
 
-- Kteří dodavatelé jsou důležití a proč?
-- Kdo vlastní vztah i riziko (outsourcing owner)?
-- Jaká je aktuální risk posture?
-- Kdy je další reassessment?
-- Jaké incidenty, závislosti a SLA mohou posture změnit?
+- kdo vlastní vztah s dodavatelem
+- jaký proces a oddělení dodavatel podporuje
+- jaká je klasifikace a risk score dodavatele
+- která enterprise rizika a kontroly jsou na dodavatele navázaná
 
 Hlavní route: `/vendors`
 
-Dodavatel je hub, který propojuje:
-
-- business kontext (process/subprocess, oddělení)
-- ownership vztahu
-- risk scoring a materialitu
-- assessmenty a rozhodnutí
-- průběžný monitoring (signály, SLA, incidenty)
-
 ## Kde to najdete
 
-- seznam dodavatelů: `/vendors` (vyžaduje `vendors:read`)
-- detail: klik na dodavatele
-- založení: `/vendors/new` (vyžaduje `vendors:write`)
+- seznam dodavatelů: `/vendors`
+- detail: otevřete řádek dodavatele v registru
+- založení: `/vendors/new`
 
-Pokud **Dodavatele** nevidíte:
+Potřebná oprávnění:
 
-- pravděpodobně nemáte `vendors:read`
+- `vendors:read` pro zobrazení registru a detailu
+- `vendors:write` pro vytvoření nebo úpravu záznamu
+- `vendors:delete` pro archivaci nebo obnovu, pokud ownership pravidla nepovolí akci i bez něj
+
+### Co obsahuje záznam dodavatele
+
+Základní vendor data zahrnují:
+
+- identitu: název, právní název, registraci, zemi, web
+- ownership: oddělení, outsourcing owner, proces, podproces
+- klasifikaci: typ dodavatele, risk score, DORA relevance, významnost, nahraditelnost
+- lifecycle: aktivní/neaktivní stav, archivace/obnova
+- vazby: navázaná rizika a navázané kontroly
+
+Detail dodavatele je jeden základní pohled. Obsahuje:
+
+- header a lifecycle akce
+- summary surface pro risk score, status, exposure a vendor flags
+- summary karty pro klasifikaci, ownership a vazby
+- vloženou sekci navázaných rizik se stejným section chrome a card-grid interakčním modelem jako detail rizika
+- vloženou sekci navázaných kontrol se stejným action barem, gauge kartami a archived grouping pattern jako detail rizika
+- kontextové založení Issue přímo z detailu dodavatele
 
 ## Role, scope a viditelnost
 
-Vendor data bývá citlivější než rizika/kontroly (komerční informace, due diligence).
+Detail dodavatele je jednodušší než Rizika nebo Nálezy, ale stále respektuje backend RBAC a scope pravidla.
 
-Přístup řídí:
+- `vendors:read` je nutné pro otevření registru i detailu dodavatele
+- `vendors:write` dovoluje plnou editaci vendor záznamu a vendor vazeb
+- ownership pravidla mohou některé mutační akce povolit i bez širšího vendor-admin oprávnění
+- navázaná rizika jsou dál scope-filtrovaná samostatně, takže uživatel může vidět dodavatele i tehdy, když část navázaných rizik na stránce chybí
+- navázané kontroly se také filtrují podle běžných pravidel viditelnosti kontrol ještě před vykreslením card gridu
 
-- permissions (`vendors:read`, `vendors:write`, `vendors:delete`)
-- scope a oddělení
-- ownership: outsourcing owner často může editovat i bez širokého write
-- viditelnost napojených rizik: risk kontext v seznamech je viditelný jen tehdy, pokud můžete číst i tato rizika
+Na stránce se to projevuje takto:
 
-Praktické pravidlo:
-
-- Pokud jste outsourcing owner, budete typicky udržovat záznam.
-- Pokud nejste, berte dodavatele jako governance objekt a vyhněte se „drive‑by editům“.
-- Záznam dodavatele může zůstat viditelný i tehdy, když je jeho risk kontext skrytý; v takovém případě se risk grouping přepne do fallback bucketu místo zobrazení nečitelných názvů rizik.
+- `Link Existing` a `Manage Existing Links` se zobrazí jen tehdy, když uživatel může měnit vendor vazby
+- `Add Risk` se zobrazí jen tehdy, když uživatel umí upravit vendor kontext a zároveň zakládat rizika
+- `Add Control` se zobrazí jen tehdy, když uživatel umí upravit vendor kontext a zároveň zakládat kontroly
+- detail dodavatele nikdy nesmí prozradit názvy nečitelných rizik nebo kontrol jen kvůli countům nebo layoutu
 
 ## Datový model a klíčová pole
 
-Záznam dodavatele obsahuje identitu i governance metadata.
+Vendor záznam je nyní základní registr, ne workflow kontejner. Udržujte správně zejména tato pole:
 
-| Pole | Význam | Poznámky |
-|---|---|---|
-| Name / legal name | Identita dodavatele | Legal name pro smlouvy, name pro provoz. |
-| Registration / country / website | Základní due diligence | Chybějící základy jsou audit pain. |
-| Process / subprocess | Business kontext | Konzistence pomáhá reportingu. |
-| Department | Routing/reporting kontext | Alignujte s místem, kde se vztah řídí. |
-| Outsourcing owner | Odpovědný owner vztahu | Nejklíčovější routing pole. |
-| Vendor type | ICT / outsourcing / partner / other | Typ ovlivňuje očekávané assessmenty. |
-| Risk score (1–5) | Rychlý posture signál | Skóre musí být vysvětlitelné, ne „pocit“. |
-| Important function | Governance klasifikace | Neměňte lehce; řídí review očekávání. |
-| DORA relevant | Regul. relevance | Pokud používáte DORA workflow, držte přesné. |
-| Significant vendor | Materialita | Řídí cadence a governance. |
-| Replaceability / alternatives | Resilience signál | Buďte upřímní; „easy“ když není je riziko. |
-| Reassessment cadence / next due | Scheduling | Spouští remindery a overdue tlak. |
-| Status | `active` / `inactive` | Inactive funguje jako archiv; restore je permission-gated. |
+- identita: název dodavatele, právní název, registrace, země, web
+- ownership: outsourcing owner, oddělení, proces, podproces
+- klasifikace: typ dodavatele, risk score, DORA relevance, flag významného dodavatele, nahraditelnost, flag alternativních providerů
+- lifecycle: aktivní/neaktivní stav a akce archivace nebo obnovy
+- vazby: enterprise rizika navázaná na dodavatele a kontroly mitigující vendor expozici
 
-Detail dodavatele používá 5 sloučených tabů:
+Navázané sekce teď používají bohatší summary data:
 
-- Overview: hero metriky, summary cards, risk factors, linked risks, linked controls
-- Assessments: assessmenty a reassessment schedule
-- Assurance: contract controls a resilience
-- Operations: SLA, incidenty, remediation
-- Ecosystem: dependencies a signals
-
-Deep linky se canonicalizují jako `tab + section`. Pokud potřebujete někoho poslat rovnou do konkrétní podsekce, použijte URL ve tvaru `/vendors/<id>?tab=operations&section=sla`.
-
-Vendor route family teď funguje jako jeden konzistentní povrch:
-
-- `/vendors/:id` pro detail
-- `/vendors/:id/edit` pro úpravu
-- `/vendors/new` pro založení
-
-V hlavičce detailu jsou soustředěné hlavní akce:
-
-- založit issue
-- upravit dodavatele
-- archivovat aktivního dodavatele
-- obnovit neaktivního dodavatele
-
-Create i edit používají stejnou strukturu sekcí jako detail:
-
-- Identity
-- Ownership & Scope
-- Classification
-- Resilience & Monitoring
+- karty navázaných rizik ukazují risk code, risk type, gross score, net score, proces, oddělení a priority marker
+- karty navázaných kontrol používají stejný gauge-style summary jako detail rizika včetně monitoring status, frequency a risk level
+- archivované vazby zůstávají viditelné v oddělených sekundárních skupinách, aby se neztratil historický kontext
 
 ## Hlavní workflow
 
-### 1) Onboarding dodavatele (čistý baseline)
+### 1. Vytvoření nebo úprava dodavatele
 
-1. Založte dodavatele (nebo otevřete existujícího).
-2. Doplňte identitu (name, legal info, website).
-3. Nastavte business kontext:
-   - process/subprocess
-   - oddělení
-4. Nastavte outsourcing ownera.
-5. Nastavte governance flagy:
-   - vendor type
-   - significant / important function / DORA relevance
-6. Nastavte počáteční risk score + odůvodnění (v poznámkách/assessmentu).
-7. Uložte.
+Create/edit použijte pro údržbu vendor master dat:
 
-Dodavatel bez outsourcing ownera je orphan, který se časem rozpadne.
+- nastavte správné oddělení a outsourcing ownera
+- zadejte vendor type a risk score
+- označte DORA relevanci a významnost, pokud je to potřeba
+- udržujte proces a podproces aktuální
 
-### 2) Assessment (decision‑ready posture)
+### 2. Navázání expozice
 
-Assessmenty jsou strukturované, aby bylo rozhodnutí auditovatelné.
+Pomocí navázaných rizik a kontrol propojte dodavatele s enterprise risk posture:
 
-Typický postup:
+- použijte **Link Existing** pro navázání existujících rizik nebo kontrol
+- použijte **Add Risk** nebo **Add Control** pro založení nového záznamu přímo z detailu dodavatele
+- aktivní a archivované vazby uvidíte v oddělených vizuálních skupinách
+- přes **Manage Existing Links** odstraňujte zastaralé vazby, když už neplatí
 
-1. Detail dodavatele → **Assessments**.
-2. Start nový assessment.
-3. Vyplňte sekce s evidencí.
-4. Ukládejte jako draft, dokud sbíráte vstupy.
-5. Submit, až je to kompletní.
-6. Review + decision dle vašeho governance modelu.
+### 3. Vytvoření nového rizika nebo kontroly z detailu dodavatele
 
-Status berte vážně:
+Detail dodavatele nyní podporuje routed create-from-vendor flow:
 
-- draft: nekompletní
-- submitted: připravené na review
-- in review / committee recommended: pod governance review
-- approved/rejected: rozhodnutí zapsané
+- **Add Risk** otevírá plný formulář pro riziko na `/risks/new?vendor_id=:id&return_to=/vendors/:id`
+- **Add Control** otevírá plný formulář pro kontrolu na `/controls/new?vendor_id=:id&return_to=/vendors/:id`
+- po uložení aplikace nový záznam automaticky naváže zpět na dodavatele
+- po vytvoření se vrátíte na detail dodavatele s potvrzovacím bannerem a přímým odkazem na nový záznam
+- pokud se záznam vytvoří, ale navázání selže, vrátíte se na detail dodavatele s varovným bannerem a odkazem na nový záznam pro ruční dořešení
 
-### 3) Linkování na rizika a kontroly
+Create tlačítka respektují běžná oprávnění:
 
-Linkování propojuje third‑party posture s enterprise posture.
+- musíte mít možnost upravit vazby dodavatele
+- a zároveň potřebujete `risks:write` nebo `controls:write` pro odpovídající create akci
 
-Použijte, když:
+### 4. Založení issue z kontextu dodavatele
 
-- dodavatel je dependency pro kritický proces
-- incident dodavatele může změnit net scoring rizika
-- existuje kontrola cíleně na vendor risk
+Tlačítko **New Issue** na detailu dodavatele použijte tehdy, když vendor problém potřebuje formální tracking.
 
-Linkujte smysluplně: „všechno na všechno“ zabije signal.
+Issue zůstává součástí domény Issues. Kontext dodavatele slouží jen pro předvyplnění vazby a navigace.
 
-### 4) Schedule a reassessment disciplína
+### 5. Archivace a obnova
 
-Dodavatelé mají reassessment cadence. Berte to jako kontrolu:
+Archivujte dodavatele, kteří už nemají být v aktivních provozních pohledech, ale mají zůstat historicky dohledatelní.
 
-- cadence podle significance a risk score
-- sledujte next due
-- reagujte na remindery včas
-
-Pokud je vše permanentně overdue, governance je podkapacitovaná (řešte kapacitu, ne remindery).
-
-### 5) Incidenty, SLA a signály
-
-Monitoring povrchy existují proto, abyste reagovali dřív, než posture spadne.
-
-Pattern:
-
-- incidenty: zapište, posuďte dopad, začněte remediaci, napojte na Issues
-- SLA: breach berte jako posture změnu
-- signály: použijte jako early warning (ale validujte)
-
-Pokud je incident materiální:
-
-- založte Issue (`/issues`) a routujte nápravu
-- zvažte dopad na linknutá enterprise rizika
-
-### 6) Archivace/obnovení
-
-Dodavatel může být označen jako inactive (archiv‑like).
-
-Archivujte, když:
+Typické důvody:
 
 - vztah skončil
-- dodavatel už není používaný
-
-Obnovte, když:
-
-- vztah pokračuje
-- archivace byla omylem
+- dodavatel už není v scope
+- záznam byl nahrazen jiným aktivním vendor záznamem
 
 ## Schvalování a notifikace
 
-Vendor práce generuje notifikace v několika kategoriích:
+Samotná vendor stránka už neprovozuje samostatný schvalovací workflow. Je to záměrná produktová hranice.
 
-- assessment submitted / committee recommended / decided
-- reassessment due soon / overdue
-- SLA due / overdue / breach detected
+- create/edit dodavatele používá standardní vendor permission model
+- create-from-vendor pro rizika a kontroly používá běžné routed formuláře pro rizika a kontroly
+- pokud nově založené riziko nebo kontrola v dané doméně podléhá schválení, platí to dál v té doméně
+- detail dodavatele řeší jen návrat po create, pokus o auto-link a následný confirmation nebo warning banner
 
-Dle policy mohou být některé editace nebo rozhodnutí schvalované.
+Prakticky to znamená:
 
-Praktické kontroly:
-
-- pokud se akce neaplikuje, zkontrolujte `/approvals`
-- pokud jsou remindery divné, zkontrolujte cadence a due dates
-
-Queue disciplína je v `./notifications.md`.
+- schvalování patří do Rizik, Kontrol, Nálezů nebo Governance, pokud ho daná doména vyžaduje
+- detail dodavatele zůstává čistou provozní plochou pro ownership, klasifikaci a vazby na expozici
+- vendor problémy, které potřebují formální remediation, mají být založené jako Issues, ne jako vendor-only workflow záznamy
+- aktuální core vendor model neposílá vendor-specifické workflow notifikace; pro follow-up kontext používejte Issues, navázaná rizika a navázané kontroly
 
 ## Filtry, pohledy a exporty
 
-### Filtry
+Registr dodavatelů podporuje:
 
-Seznam dodavatelů podporuje:
+- vyhledávání
+- filtrování podle stavu
+- filtrování podle typu dodavatele
+- groupované pohledy respektující viditelnost navázaných rizik
+- export z registru dodavatelů
 
-- status (active vs inactive)
-- vendor type
-- oddělení
-- search
-
-### Pohledy seznamu
-
-Seznam dodavatelů má dva režimy:
-
-- `All`: standardní stránkovaná tabulka
-- grouped drill-down taby: `By Department`, `By Process`, `By Type`, `By Risk`
-
-Grouped pohledy používají stejné aktivní filtry jako seznam a nad výsledkem vytvářejí drill-down karty.
-
-`By Risk` je speciální:
-
-- zobrazí se jen tehdy, když můžete číst rizika
-- jeden dodavatel může být v několika risk skupinách zároveň, pokud je napojený na více čitelných rizik
-- počty na kartách jsou překrývající se membership počty, ne počet unikátních dodavatelů
-- `Unlinked Risk` znamená, že dodavatel nemá žádná čitelná napojená rizika pro váš aktuální přístup
-
-### Exporty
-
-Dodavatele exportujte pro:
-
-- periodické oversight packy
-- audit evidence
-
-Disciplína:
-
-- export s „as of“ datem
-- nejmenší nezbytný scope
-- raw export neměnit
-- export dál vychází z aktivních filtrů seznamu, ne z právě otevřeného grouped bucketu
+Exporty nyní obsahují pouze zachovaná základní vendor pole.
 
 ## Časté chyby
 
-- Chybí outsourcing owner.
-- Risk score bez odůvodnění a evidence.
-- Nekonzistentní používání „significant vendor“.
-- Reassessment je stále overdue.
-- Incidenty/SLA se nepromítají do enterprise risk posture.
+- Používat vendor záznam jako workflow engine místo čistého registru.
+- Nechat prázdného ownera, oddělení nebo proces.
+- Zapomenout, že **Add Risk** a **Add Control** vás po vytvoření vrátí zpět na detail dodavatele.
+- Nechat zastaralé risk/control vazby po změně vztahu.
+- Zakládat duplicity místo úpravy existujícího záznamu.
 
 ## Troubleshooting
 
-### Nevidím `/vendors`
+### Nemohu dodavatele upravit
 
-- Ověřte `vendors:read`.
+Zkontrolujte:
 
-### Nevidím tab `By Risk`
+- máte `vendors:write`?
+- jste outsourcing owner?
+- není záznam v oddělení mimo váš scope?
 
-- Ověřte, že můžete číst rizika i dodavatele.
-- Pokud vidíte dodavatele, ale ne rizika, vendor zůstane viditelný, ale risk-grouped tab je záměrně skrytý.
+### Nevidím navázaná rizika
 
-### Vidím dodavatele, ale nejdou editovat
+Dodavatel může zůstat viditelný i tehdy, když navázaná rizika vidět nejsou. Obvykle to znamená, že můžete číst dodavatele, ale ne tato rizika v daném scope.
 
-- Nemusíte mít `vendors:write` a nejste outsourcing owner.
+### Potřebuji remediation tracking pro vendor problém
 
-### Assessmenty se neposouvají
-
-- Ověřte, že assessment je „submitted“ (drafty nespouští review).
-- Ověřte, že review owner ví o pending práci.
-
-### Reassessment remindery nesedí
-
-- Zkontrolujte cadence a next due.
-- Ověřte, zda nebyl dodavatel nedávno assessed/decided.
-
-### Export selhal
-
-- Zkuste s menším počtem filtrů.
-- Pokud to trvá, uložte chybovou hlášku.
+Založte Issue z kontextu dodavatele. Nečekejte samostatný remediation workflow přímo v detailu dodavatele.
 
 ## Související dokumentace
 
-- `./issues.md`
-- `./notifications.md`
-- `./risks.md`
-- `./controls.md`
-- `./departments.md`
-- `./activity-log.md`
+- [Začínáme](./getting-started.md)
+- [Workflow, schvalování, notifikace](./notifications.md)
+- [Správa rizik](./risks.md)
+- [Správa kontrol](./controls.md)
+- [Správa nálezů](./issues.md)

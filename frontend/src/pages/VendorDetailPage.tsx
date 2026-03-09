@@ -1,18 +1,21 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
-import { AlertCircle, ArrowLeft, XCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowUpRight, TriangleAlert, XCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { VendorInlineMessage, VendorSurface } from '@/components/vendors/vendorRouteUi';
 import { vendorApi } from '@/services/vendorApi';
+import { VendorOverviewTab } from './vendors/VendorOverviewTab';
 import { VendorDetailHeader } from './vendors/VendorDetailHeader';
 import { VendorFormView } from './vendors/VendorFormView';
-import { VendorTabPanel } from './vendors/VendorTabPanel';
-import { VendorTabs } from './vendors/VendorTabs';
 import { useVendorDetailState } from './vendors/useVendorDetailState';
-import type { VendorDetailMode } from './vendors/vendorDetailPresentation';
+import {
+    buildVendorDetailPath,
+    type VendorDetailFlash,
+    type VendorDetailMode,
+} from './vendors/vendorDetailPresentation';
 
 interface VendorDetailPageProps {
     mode?: VendorDetailMode;
@@ -20,12 +23,13 @@ interface VendorDetailPageProps {
 
 export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const navigate = useNavigate();
+    const location = useLocation();
     const { t } = useTranslation('vendors');
     const { user, hasPermission } = useAuth();
+    const canCreateRisk = hasPermission('risks', 'write');
+    const canCreateControl = hasPermission('controls', 'write');
 
     const {
-        activeSection,
-        activeTab,
         canArchive,
         canEdit,
         canEditByOwnership,
@@ -36,8 +40,6 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         isLoading,
         openIssueModal,
         restoreVendor,
-        selectSection,
-        selectTab,
         vendor,
     } = useVendorDetailState({
         mode,
@@ -49,7 +51,26 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const { t: tCommon } = useTranslation('common');
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [actionMessage, setActionMessage] = useState<string | null>(null);
+    const [actionMessage, setActionMessage] = useState<VendorDetailFlash | null>(
+        (location.state as { vendorFlash?: VendorDetailFlash } | null)?.vendorFlash ?? null,
+    );
+
+    useEffect(() => {
+        if ((location.state as { vendorFlash?: VendorDetailFlash } | null)?.vendorFlash) {
+            navigate(location.pathname, { replace: true });
+        }
+    }, [location.pathname, location.state, navigate]);
+
+    useEffect(() => {
+        if (!location.search) {
+            return;
+        }
+
+        const params = new URLSearchParams(location.search);
+        if (params.has('tab') || params.has('section')) {
+            navigate(location.pathname, { replace: true });
+        }
+    }, [location.pathname, location.search, navigate]);
 
     const archiveVendor = async () => {
         if (!vendor) {
@@ -61,7 +82,10 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
             navigate('/vendors');
         } catch (error) {
             console.error('Failed to archive vendor:', error);
-            setActionMessage(t('errors.load_failed'));
+            setActionMessage({
+                tone: 'danger',
+                message: t('errors.load_failed'),
+            });
         } finally {
             setIsDeleting(false);
             setIsDeleteDialogOpen(false);
@@ -132,16 +156,36 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         <div className="vendor-route">
             <div className="vendor-page space-y-8">
                 {actionMessage && (
-                <VendorInlineMessage tone="danger">
-                    <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-                    <p className="text-sm font-medium">{actionMessage}</p>
-                    <button
-                        type="button"
-                        onClick={() => setActionMessage(null)}
-                        className="ml-auto opacity-60 transition-opacity hover:opacity-100"
-                    >
-                        <XCircle className="h-4 w-4" />
-                    </button>
+                <VendorInlineMessage tone={actionMessage.tone}>
+                    {actionMessage.tone === 'warn' ? (
+                        <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" />
+                    ) : (
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                    )}
+                    <div className="flex min-w-0 flex-1 items-start justify-between gap-4">
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium">{actionMessage.message}</p>
+                            {actionMessage.ctaHref && actionMessage.ctaLabel ? (
+                                <Link
+                                    to={actionMessage.ctaHref}
+                                    className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-widest hover:opacity-80 transition-opacity"
+                                >
+                                    {actionMessage.ctaLabel}
+                                    <ArrowUpRight className="h-3.5 w-3.5" />
+                                </Link>
+                            ) : null}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setActionMessage(null);
+                                navigate(location.pathname, { replace: true });
+                            }}
+                            className="opacity-60 transition-opacity hover:opacity-100"
+                        >
+                            <XCircle className="h-4 w-4" />
+                        </button>
+                    </div>
                 </VendorInlineMessage>
                 )}
 
@@ -157,15 +201,15 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     onRestore={() => void restoreVendor()}
                 />
 
-                <VendorTabs activeTab={activeTab} onSelectTab={selectTab} />
-
-                <VendorTabPanel
+                <VendorOverviewTab
                     vendor={vendor}
-                    activeSection={activeSection}
-                    activeTab={activeTab}
                     canEdit={canEdit}
-                    canEditContractControls={canEditByOwnership || hasPermission('vendor_contracts', 'write')}
-                    onSelectSection={selectSection}
+                    canCreateControl={canEdit && canCreateControl}
+                    canCreateRisk={canEdit && canCreateRisk}
+                    onAddControl={() => navigate(`/controls/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
+                    onAddRisk={() => navigate(`/risks/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
+                    onNavigateToControl={(controlId) => navigate(`/controls/${controlId}`)}
+                    onNavigateToRisk={(riskId) => navigate(`/risks/${riskId}`)}
                 />
 
                 <IssueQuickCreateModal

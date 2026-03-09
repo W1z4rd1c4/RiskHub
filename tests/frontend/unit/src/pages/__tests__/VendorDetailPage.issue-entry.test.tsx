@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
 
 const mockNavigate = vi.fn();
-const mockSetSearchParams = vi.fn();
 const mockGetVendor = vi.fn();
 let canIssueWrite = true;
 
@@ -13,7 +12,7 @@ vi.mock('react-router-dom', async () => {
         ...actual,
         useParams: () => ({ id: '31' }),
         useNavigate: () => mockNavigate,
-        useSearchParams: () => [new URLSearchParams(), mockSetSearchParams],
+        useLocation: () => ({ pathname: '/vendors/31', state: null }),
     };
 });
 
@@ -49,18 +48,8 @@ vi.mock('@/services/vendorApi', () => ({
     },
 }));
 
-vi.mock('@/components/vendors/VendorRiskFactorsTab', () => ({ VendorRiskFactorsTab: () => <div>Risk factors tab</div> }));
 vi.mock('@/components/vendors/VendorLinkedRisksTab', () => ({ VendorLinkedRisksTab: () => <div>Linked risks tab</div> }));
 vi.mock('@/components/vendors/VendorLinkedControlsTab', () => ({ VendorLinkedControlsTab: () => <div>Linked controls tab</div> }));
-vi.mock('@/components/vendors/VendorAssessmentsTab', () => ({ VendorAssessmentsTab: () => <div>Assessments tab</div> }));
-vi.mock('@/components/vendors/VendorScheduleTab', () => ({ VendorScheduleTab: () => <div>Schedule tab</div> }));
-vi.mock('@/components/vendors/VendorContractControlsTab', () => ({ VendorContractControlsTab: () => <div>Contract controls tab</div> }));
-vi.mock('@/components/vendors/VendorResilienceTab', () => ({ VendorResilienceTab: () => <div>Resilience tab</div> }));
-vi.mock('@/components/vendors/VendorDependenciesTab', () => ({ VendorDependenciesTab: () => <div>Dependencies tab</div> }));
-vi.mock('@/components/vendors/VendorIncidentsTab', () => ({ VendorIncidentsTab: () => <div>Incidents tab</div> }));
-vi.mock('@/components/vendors/VendorRemediationTab', () => ({ VendorRemediationTab: () => <div>Remediation tab</div> }));
-vi.mock('@/components/vendors/VendorSLATab', () => ({ VendorSLATab: () => <div>SLA tab</div> }));
-vi.mock('@/components/vendors/VendorSignalsTab', () => ({ VendorSignalsTab: () => <div>Signals tab</div> }));
 vi.mock('@/pages/vendors/VendorOverviewTab', () => ({ VendorOverviewTab: () => <div>Overview tab</div> }));
 
 vi.mock('@/components/issues/IssueQuickCreateModal', () => ({

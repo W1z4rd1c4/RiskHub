@@ -113,7 +113,6 @@ Notifikace jsou typované eventy. Hlavní kategorie:
 - approvals: `approval_pending`, `approval_resolved`, `approval_cancelled`
 - KRI: due/overdue a breach detekce
 - questionnaires: sent/due/overdue/submitted/clarification
-- vendors: assessment decisions, reassessment reminder, SLA breach alert
 
 Každá notifikace obsahuje:
 

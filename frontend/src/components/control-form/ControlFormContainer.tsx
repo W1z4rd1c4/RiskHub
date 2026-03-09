@@ -32,11 +32,18 @@ import { useControlFormLookups } from './useControlFormLookups';
 interface ControlFormProps {
     initialData?: Control;
     isEdit?: boolean;
-    onSuccess?: (controlId: number) => void;
+    onSuccess?: (controlId: number) => void | Promise<void>;
     onCancel?: () => void;
+    firstStepBackLabel?: string;
 }
 
-export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }: ControlFormProps) {
+export function ControlForm({
+    initialData,
+    isEdit = false,
+    onSuccess,
+    onCancel,
+    firstStepBackLabel,
+}: ControlFormProps) {
     const navigate = useNavigate();
     const { t } = useTranslation(['controls', 'common', 'errorKeys']);
     const steps = [
@@ -177,7 +184,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
             }
 
             if (onSuccess && controlId) {
-                onSuccess(controlId);
+                await onSuccess(controlId);
             } else if (controlId) {
                 navigate(`/controls/${controlId}`);
             } else {
@@ -467,7 +474,7 @@ export function ControlForm({ initialData, isEdit = false, onSuccess, onCancel }
                         className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-white transition-colors uppercase tracking-widest"
                     >
                         {currentStep === 0 ? <X className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-                        {currentStep === 0 ? t('common:actions.cancel') : t('common:actions.back')}
+                        {currentStep === 0 ? (firstStepBackLabel || t('common:actions.cancel')) : t('common:actions.back')}
                     </button>
 
                     {currentStep < steps.length - 1 ? (

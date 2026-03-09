@@ -13,7 +13,6 @@ from .committee_helpers import (
     _fetch_committee_core,
     _fetch_vendor_sections,
     _risk_payload,
-    _vendor_alert_payload,
     _vendor_payload,
 )
 
@@ -49,12 +48,4 @@ async def get_committee_summary(
         "recent_activity": [_activity_payload(item) for item in recent_activity],
         "department_exposure": [_department_exposure_payload(row) for row in dept_exposure],
         "critical_vendors": [_vendor_payload(vendor) for vendor in vendor_sections["critical_vendors"]],
-        "vendor_alerts": _vendor_alert_payload(
-            overdue_total=vendor_sections["overdue_total"],
-            overdue_vendors=vendor_sections["overdue_vendors"],
-            sla_breach_total=vendor_sections["sla_breach_total"],
-            breached_slas=vendor_sections["breached_slas"],
-            incident_total=vendor_sections["incident_total"],
-            major_incidents=vendor_sections["major_incidents"],
-        ),
     }

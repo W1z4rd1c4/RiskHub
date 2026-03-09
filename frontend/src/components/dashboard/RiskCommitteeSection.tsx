@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Building2, Clock, Star, Activity, Handshake, BellRing } from 'lucide-react';
+import { AlertTriangle, Building2, Clock, Star, Handshake } from 'lucide-react';
 import { dashboardApi } from '@/services/dashboardApi';
 import { useTranslation } from '@/i18n/hooks';
 import { buildVendorDetailPath } from '@/pages/vendors/vendorDetailPresentation';
@@ -42,45 +42,9 @@ interface CommitteeSummary {
         supports_important_core_insurance_function: boolean;
         dora_relevant: boolean;
         is_significant_vendor: boolean;
-        next_reassessment_due_at?: string | null;
         outsourcing_owner_name: string;
         department_name: string;
     }>;
-    vendor_alerts: {
-        overdue_reassessments: {
-            count: number;
-            items: Array<{
-                id: number;
-                name: string;
-                next_reassessment_due_at?: string | null;
-                department_name: string;
-            }>;
-        };
-        sla_breaches: {
-            count: number;
-            items: Array<{
-                vendor_id: number;
-                vendor_name: string;
-                sla_id: number;
-                metric_name: string;
-                breach_status: string;
-                last_reported_at?: string | null;
-                department_name: string;
-            }>;
-        };
-        major_incidents_30d: {
-            count: number;
-            items: Array<{
-                vendor_id: number;
-                vendor_name: string;
-                incident_id: number;
-                incident_type: string;
-                summary: string;
-                occurred_at?: string | null;
-                department_name: string;
-            }>;
-        };
-    };
 }
 
 const ACTION_COLORS: Record<string, string> = {
@@ -174,7 +138,7 @@ export function RiskCommitteeSection() {
             {/* Quarterly Comparison */}
             <QuarterlyComparisonWidget />
 
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="grid gap-6 lg:grid-cols-2">
                 {/* Critical Risks */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -253,111 +217,19 @@ export function RiskCommitteeSection() {
                                     onClick={() => navigate(buildVendorDetailPath(v.id, 'assessments', 'schedule'))}
                                     className="w-full text-left bg-white/5 rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors"
                                 >
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="text-sm font-bold text-white truncate">{v.name}</p>
-                                        <span className={`text-sm font-black ${getVendorRiskColor(v.risk_score_1_5)}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <p className="text-sm font-bold text-white truncate">{v.name}</p>
+                                    <span className={`text-sm font-black ${getVendorRiskColor(v.risk_score_1_5)}`}>
                                             {v.risk_score_1_5}/5
                                         </span>
                                     </div>
                                     <p className="text-[10px] text-slate-500 uppercase tracking-widest">
                                         {v.department_name} · {v.process}{v.subprocess ? ` / ${v.subprocess}` : ''}
                                     </p>
-                                    {v.next_reassessment_due_at && (
-                                        <p className="text-xs text-slate-500 mt-2">
-                                            {t('risk_committee.next_reassessment')} {new Date(v.next_reassessment_due_at).toLocaleDateString()}
-                                        </p>
-                                    )}
                                 </button>
                             ))}
                         </div>
                     )}
-                </motion.div>
-
-                {/* Vendor Alerts */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="glass-card"
-                >
-                    <div className="flex items-center gap-2 mb-6">
-                        <BellRing className="h-5 w-5 text-amber-400" />
-                        <h3 className="text-lg font-bold text-white">{t('risk_committee.vendor_alerts')}</h3>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-bold text-white">{t('risk_committee.overdue_reassessments')}</p>
-                                <span className="text-sm font-black text-rose-400">{summary.vendor_alerts.overdue_reassessments.count}</span>
-                            </div>
-                            {summary.vendor_alerts.overdue_reassessments.items.length === 0 ? (
-                                <p className="text-xs text-slate-500">{t('risk_committee.none')}</p>
-                            ) : (
-                                <div className="space-y-2">
-                                    {summary.vendor_alerts.overdue_reassessments.items.slice(0, 3).map((v) => (
-                                        <button
-                                            key={v.id}
-                                            onClick={() => navigate(buildVendorDetailPath(v.id, 'assessments', 'schedule'))}
-                                            className="w-full text-left flex items-center justify-between text-xs text-slate-200 hover:text-white"
-                                        >
-                                            <span className="truncate">{v.name}</span>
-                                            {v.next_reassessment_due_at && (
-                                                <span className="text-slate-500 font-mono">
-                                                    {new Date(v.next_reassessment_due_at).toLocaleDateString()}
-                                                </span>
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-bold text-white">{t('risk_committee.sla_breaches')}</p>
-                                <span className="text-sm font-black text-rose-400">{summary.vendor_alerts.sla_breaches.count}</span>
-                            </div>
-                            {summary.vendor_alerts.sla_breaches.items.length === 0 ? (
-                                <p className="text-xs text-slate-500">{t('risk_committee.none')}</p>
-                            ) : (
-                                <div className="space-y-2">
-                                    {summary.vendor_alerts.sla_breaches.items.slice(0, 3).map((s) => (
-                                        <button
-                                            key={s.sla_id}
-                                            onClick={() => navigate(buildVendorDetailPath(s.vendor_id, 'operations', 'sla'))}
-                                            className="w-full text-left flex items-center justify-between text-xs text-slate-200 hover:text-white"
-                                        >
-                                            <span className="truncate">{s.vendor_name}: {s.metric_name}</span>
-                                            <span className="text-rose-300 font-black">{s.breach_status}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="bg-white/5 rounded-xl p-4 border border-white/5">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-bold text-white">{t('risk_committee.major_incidents_30d')}</p>
-                                <span className="text-sm font-black text-rose-400">{summary.vendor_alerts.major_incidents_30d.count}</span>
-                            </div>
-                            {summary.vendor_alerts.major_incidents_30d.items.length === 0 ? (
-                                <p className="text-xs text-slate-500">{t('risk_committee.none')}</p>
-                            ) : (
-                                <div className="space-y-2">
-                                    {summary.vendor_alerts.major_incidents_30d.items.slice(0, 3).map((i) => (
-                                        <button
-                                            key={i.incident_id}
-                                            onClick={() => navigate(buildVendorDetailPath(i.vendor_id, 'operations', 'incidents'))}
-                                            className="w-full text-left text-xs text-slate-200 hover:text-white"
-                                        >
-                                            <span className="font-bold">{i.vendor_name}</span>: {i.summary}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
                 </motion.div>
             </div>
 

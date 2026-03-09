@@ -680,6 +680,12 @@
   color: var(--vendor-success);
 }
 
+.vendor-inline-message--warn {
+  background: var(--vendor-warn-bg);
+  border-color: color-mix(in srgb, var(--vendor-warn) 28%, transparent);
+  color: var(--vendor-warn);
+}
+
 .vendor-form-grid {
   display: grid;
   gap: 16px;

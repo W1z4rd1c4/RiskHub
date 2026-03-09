@@ -81,10 +81,6 @@ class VendorUpdate(BaseModel):
 
     status: VendorStatusEnum | None = None
 
-    # Reassessment scheduling (privileged updates only; enforced in endpoint)
-    reassessment_cadence_months: int | None = Field(None, ge=1, le=120)
-    next_reassessment_due_at: datetime | None = None
-
 
 class VendorLinkedRiskSummary(BaseModel):
     risk_id: int
@@ -99,14 +95,6 @@ class VendorRead(VendorBase):
     linked_risks: list[VendorLinkedRiskSummary] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
-
-    reassessment_cadence_months: int
-    next_reassessment_due_at: datetime | None = None
-    last_assessed_at: datetime | None = None
-    last_decided_at: datetime | None = None
-    last_reassessment_reminded_at: datetime | None = None
-    reassessment_triggered_reason: str | None = None
-    reassessment_triggered_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

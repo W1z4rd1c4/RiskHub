@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+from datetime import UTC
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
+from app.api.v1.endpoints._monitoring_response import (
+    load_monitoring_response_context,
+    serialize_control_brief_for_link,
+)
 from app.core.permissions import can_read_control_id, can_read_risk_id, can_read_vendor, is_vendor_owner
 from app.core.security import check_permission
+from app.core.datetime_utils import utc_now
 from app.db.session import get_db
 from app.models import (
     Control,
@@ -67,7 +74,11 @@ async def list_vendor_linked_risks(
                     risk_id_code=risk.risk_id_code,
                     name=risk.name,
                     process=risk.process,
+                    risk_type=risk.risk_type,
                     category=risk.category,
+                    gross_score=risk.gross_score,
+                    net_score=risk.net_score,
+                    is_priority=risk.is_priority,
                     department_id=risk.department_id,
                     department_name=risk.department.name if getattr(risk, "department", None) else None,
                     status=getattr(risk, "status", None),
@@ -168,22 +179,40 @@ async def list_vendor_linked_controls(
 
     result = await db.execute(
         select(VendorControlLink)
-        .options(selectinload(VendorControlLink.control).selectinload(Control.department))
+        .options(
+            selectinload(VendorControlLink.control).selectinload(Control.department),
+            selectinload(VendorControlLink.control).selectinload(Control.executions),
+        )
         .where(VendorControlLink.vendor_id == vendor_id)
     )
     links = result.scalars().all()
+    now = utc_now()
+    context = await load_monitoring_response_context(
+        db,
+        now=now,
+        today=now.astimezone(UTC).date(),
+    )
 
     visible: list[LinkedControlRead] = []
     for link in links:
         if link.control and await _can_read_control(db, current_user, link.control):
             ctrl = link.control
+            control_brief = serialize_control_brief_for_link(ctrl, context)
             visible.append(
                 LinkedControlRead(
-                    id=ctrl.id,
-                    name=ctrl.name,
+                    id=control_brief.id,
+                    name=control_brief.name,
+                    frequency=control_brief.frequency,
+                    risk_level=control_brief.risk_level,
                     department_id=ctrl.department_id,
                     department_name=ctrl.department.name if getattr(ctrl, "department", None) else None,
-                    status=getattr(ctrl, "status", None),
+                    status=control_brief.status,
+                    monitoring_status=control_brief.monitoring_status,
+                    monitoring_status_reason=control_brief.monitoring_status_reason,
+                    latest_execution_result=control_brief.latest_execution_result,
+                    latest_executed_at=control_brief.latest_executed_at,
+                    days_since_last_execution=control_brief.days_since_last_execution,
+                    execution_log_count=control_brief.execution_log_count,
                 )
             )
     return visible

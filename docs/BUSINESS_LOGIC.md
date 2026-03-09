@@ -293,6 +293,9 @@ Rules:
 > [!NOTE]
 > Vendor visibility and vendor-linked risk visibility are related but not identical. A user can have enough access to view a vendor while still lacking permission or scope to read linked risks. In that case the vendor remains visible, but risk-linked summaries and the frontend `By Risk` grouping must only expose readable risks; otherwise the UI must fall back to an unlinked/no-readable-risk bucket rather than leaking risk names.
 
+> [!NOTE]
+> Vendor detail now mirrors the individual risk page interaction model for linked entities. `Link Existing` remains governed by vendor edit access (`vendors:write` or vendor ownership rules), while `Add Risk` and `Add Control` require that same vendor edit access plus the corresponding domain write permission (`risks:write` or `controls:write`). Create-from-vendor uses routed forms and auto-links the new entity back to the originating vendor after save.
+
 ### 4.2 Role-Permission Grid
 
 | Role | risks:* | controls:* | kri:* | approvals:write | users:write | Risk Hub |
@@ -587,11 +590,6 @@ Notification types are stable string keys shared across backend model, backend A
 - KRI deadlines/breaches: `kri_due_soon`, `kri_due_tomorrow`, `kri_overdue`, `kri_near_breach`, `kri_breach_detected`
 - Questionnaires: `questionnaire_sent`, `questionnaire_due_soon`, `questionnaire_overdue`, `questionnaire_submitted`, `questionnaire_clarification_requested`
 
-**Vendor Risk Management (Phase 18):**
-- Assessments: `vendor_assessment_submitted`, `vendor_assessment_committee_recommended`, `vendor_assessment_decided`
-- Reassessments: `vendor_reassessment_due_soon`, `vendor_reassessment_overdue`
-- SLA monitoring: `vendor_sla_due_soon`, `vendor_sla_due_tomorrow`, `vendor_sla_overdue`, `vendor_sla_near_breach`, `vendor_sla_breach_detected`
-
 ---
 
 ## 9. Activity Logging & Audit Trail
@@ -783,6 +781,14 @@ UI entry points:
 - Vendor detail (`/vendors/:id`)
 
 Entry-point actions are permission-gated by `issues:write` and use business labels only (no raw numeric IDs in UI copy).
+
+Vendor detail-specific behavior:
+- linked risks and linked controls render as risk-detail-style card grids with separate archived groups
+- `Link Existing` and `Manage Existing Links` mutate vendor links only when vendor edit access is allowed
+- `Add Risk` navigates to `/risks/new?vendor_id=:id&return_to=/vendors/:id`
+- `Add Control` navigates to `/controls/new?vendor_id=:id&return_to=/vendors/:id`
+- successful create returns to vendor detail with a confirmation banner and deep link to the created entity
+- create-success + link-failure returns to vendor detail with a warning banner and deep link for manual follow-up
 
 ### 11.6 Simplified Workflow UX (Frontend)
 

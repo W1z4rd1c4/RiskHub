@@ -49,10 +49,8 @@ const METRIC_COLORS: Record<string, { positive: string; negative: string }> = {
     overdue_kris: { positive: 'text-rose-400', negative: 'text-emerald-400' },
     activity_volume: { positive: 'text-slate-400', negative: 'text-slate-400' },
     risks_without_kri: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    // Row 4: Vendor Governance
+    // Row 4: Vendor Register
     active_vendors: { positive: 'text-slate-400', negative: 'text-slate-400' },
-    overdue_vendor_reassessments: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    vendor_sla_breaches: { positive: 'text-rose-400', negative: 'text-emerald-400' },
 };
 
 function getChangeColor(key: string, direction: string): string {
@@ -117,8 +115,6 @@ export function QuarterlyComparisonWidget() {
         activity_volume: t('quarterly.activity_volume'),
         risks_without_kri: t('quarterly.risks_without_kri'),
         active_vendors: t('quarterly.active_vendors'),
-        overdue_vendor_reassessments: t('quarterly.overdue_vendor_reassessments'),
-        vendor_sla_breaches: t('quarterly.vendor_sla_breaches'),
     }), [t]);
 
     // Build quarter label for API, or undefined if using defaults

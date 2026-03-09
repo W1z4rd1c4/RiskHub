@@ -24,16 +24,8 @@ from app.api.v1.endpoints import (
     riskhub_questionnaires,
     risks,
     users,
-    vendor_assessments,
-    vendor_contract_controls,
-    vendor_dependencies,
-    vendor_incidents,
     vendor_links,
     vendor_reports,
-    vendor_resilience,
-    vendor_risk_factors,
-    vendor_signals,
-    vendor_slas,
     vendors,
 )
 
@@ -47,16 +39,8 @@ api_router.include_router(controls.router, prefix="/controls", tags=["controls"]
 api_router.include_router(risks.router, prefix="/risks", tags=["risks"])
 api_router.include_router(issues.router, tags=["issues"])
 api_router.include_router(vendors.router, prefix="/vendors", tags=["vendors"])
-api_router.include_router(vendor_risk_factors.router, tags=["vendor-risk-factors"])
 api_router.include_router(vendor_links.router, tags=["vendor-links"])
-api_router.include_router(vendor_assessments.router, tags=["vendor-assessments"])
-api_router.include_router(vendor_contract_controls.router, tags=["vendor-contract-controls"])
-api_router.include_router(vendor_resilience.router, tags=["vendor-resilience"])
-api_router.include_router(vendor_dependencies.router, tags=["vendor-dependencies"])
-api_router.include_router(vendor_incidents.router, tags=["vendor-incidents"])
-api_router.include_router(vendor_slas.router, tags=["vendor-slas"])
 api_router.include_router(vendor_reports.router, tags=["vendor-reports"])
-api_router.include_router(vendor_signals.router, tags=["vendor-signals"])
 api_router.include_router(risk_questionnaires.risk_router, tags=["questionnaires"])
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(departments.router, prefix="/departments", tags=["departments"])

@@ -10,7 +10,6 @@ Folder for `backend/app/api/mappers` implementation assets.
 - `__pycache__/`
 - `risk.py`
 - `vendor.py`
-- `vendor_sla.py`
 
 ## Notes
 

@@ -1,30 +1,37 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from '@/i18n/hooks';
-import { ExternalLink, Link2, Loader2, Plus } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { AlertCircle, Link as LinkIcon, Loader2, Plus } from 'lucide-react';
+
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import type { ExistingLinkItem } from '@/components/linking/ExistingLinksPanel';
-import {
-    VendorActionButton,
-    VendorEmptyState,
-    VendorInlineMessage,
-    VendorSectionHeader,
-    VendorSurface,
-} from '@/components/vendors/vendorRouteUi';
+import { VendorLinkedRiskCard } from '@/components/vendors/VendorLinkedRiskCard';
+import { useTranslation } from '@/i18n/hooks';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { LinkedRisk } from '@/types/vendorLink';
 
 interface VendorLinkedRisksTabProps {
     vendorId: number;
+    canCreateRisk: boolean;
     canEdit: boolean;
+    onAddRisk: () => void;
     onNavigateToRisk: (riskId: number) => void;
 }
 
-export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: VendorLinkedRisksTabProps) {
-    const { t } = useTranslation('vendors');
+type DialogMode = 'links-only' | 'search-only';
+
+export function VendorLinkedRisksTab({
+    vendorId,
+    canCreateRisk,
+    canEdit,
+    onAddRisk,
+    onNavigateToRisk,
+}: VendorLinkedRisksTabProps) {
+    const { t } = useTranslation(['vendors', 'common']);
     const [linkedRisks, setLinkedRisks] = useState<LinkedRisk[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [dialogMode, setDialogMode] = useState<DialogMode>('search-only');
 
     const refresh = useCallback(async () => {
         try {
@@ -41,16 +48,16 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
     }, [t, vendorId]);
 
     useEffect(() => {
-        refresh();
+        void refresh();
     }, [refresh]);
 
     const existingLinks = useMemo<ExistingLinkItem[]>(
         () =>
-            linkedRisks.map((r) => ({
-                display_name: `${r.risk_id_code}: ${r.name}`,
-                id: r.id,
+            linkedRisks.map((risk) => ({
+                display_name: `${risk.risk_id_code}: ${risk.name}`,
+                id: risk.id,
                 effectiveness: 'linked',
-                risk_id: r.id,
+                risk_id: risk.id,
             })),
         [linkedRisks],
     );
@@ -69,108 +76,126 @@ export function VendorLinkedRisksTab({ vendorId, canEdit, onNavigateToRisk }: Ve
     };
 
     return (
-        <VendorSurface className="space-y-6">
-            <VendorSectionHeader
-                icon={<Link2 className="h-4 w-4" />}
-                title={t('tabs.linked_risks')}
-                description={t('links.risks.subtitle')}
-                actions={canEdit ? (
-                    <VendorActionButton variant="primary" onClick={() => setIsDialogOpen(true)}>
-                        <Plus className="h-4 w-4" />
-                        {t('links.actions.manage')}
-                    </VendorActionButton>
+        <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="glass-card"
+        >
+            <div className="flex items-center justify-between border-b border-white/5 pb-4 mb-6 gap-4">
+                <div className="flex items-center gap-3">
+                    <LinkIcon className="h-5 w-5 text-indigo-400" />
+                    <div>
+                        <h3 className="font-bold text-white uppercase tracking-widest text-xs">
+                            {t('tabs.linked_risks')}
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                            {t('links.risks.subtitle')}
+                        </p>
+                    </div>
+                </div>
+                {canEdit ? (
+                    <div className="flex items-stretch bg-accent/10 border border-accent/20 rounded-lg overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setDialogMode('search-only');
+                                setIsDialogOpen(true);
+                            }}
+                            className="flex items-center gap-2 px-4 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all border-r border-accent/20"
+                        >
+                            <LinkIcon className="h-3 w-3" />
+                            {t('links.actions.link_existing')}
+                        </button>
+                        {canCreateRisk ? (
+                            <button
+                                type="button"
+                                onClick={onAddRisk}
+                                className="flex items-center gap-2 px-3 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all"
+                                title={t('links.actions.add_risk')}
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                <span>{t('links.actions.add_risk')}</span>
+                            </button>
+                        ) : null}
+                    </div>
                 ) : null}
-            />
+            </div>
 
             {isLoading ? (
-                <div className="flex items-center gap-3 vendor-muted font-medium">
+                <div className="flex items-center gap-3 text-slate-400 font-medium">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t('labels.loading')}
                 </div>
             ) : error ? (
-                <VendorInlineMessage tone="danger">{error}</VendorInlineMessage>
+                <div className="mb-2 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-3 text-rose-400 text-sm font-medium">
+                    <AlertCircle className="h-5 w-5" />
+                    {error}
+                </div>
             ) : linkedRisks.length === 0 ? (
-                <VendorEmptyState icon={<Link2 className="h-8 w-8" />} title={t('links.risks.empty')} />
+                <div className="py-10 text-center border-2 border-dashed border-white/5 rounded-2xl">
+                    <p className="text-xs text-slate-600 font-medium">{t('links.risks.empty')}</p>
+                </div>
             ) : (
-                <div className="space-y-5">
-                    {activeRisks.length > 0 && (
-                        <div className="space-y-3">
+                <>
+                    {activeRisks.length > 0 ? (
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                             {activeRisks.map((risk) => (
-                                <button
+                                <VendorLinkedRiskCard
                                     key={risk.id}
+                                    risk={risk}
                                     onClick={() => onNavigateToRisk(risk.id)}
-                                    className="w-full p-4 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center justify-between hover:bg-white/[0.05] transition-all text-left group"
-                                >
-                                    <div className="min-w-0 pr-4">
-                                        <div className="text-sm font-bold text-white truncate group-hover:text-accent transition-colors">
-                                            {risk.risk_id_code}: {risk.name}
-                                        </div>
-                                        <div className="text-[10px] text-slate-500 mt-1 font-medium">
-                                            {risk.process}
-                                            {risk.department_name ? (
-                                                <>
-                                                    <span className="text-slate-700 mx-2">/</span>
-                                                    {risk.department_name}
-                                                </>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                    <div className="p-2 rounded-lg bg-white/5 group-hover:bg-accent/20 transition-colors">
-                                        <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-accent" />
-                                    </div>
-                                </button>
+                                />
                             ))}
                         </div>
-                    )}
-                    {archivedRisks.length > 0 && (
-                        <div className="space-y-3">
-                            <h4 className="text-sm font-semibold vendor-text">
-                                {t('links.archived_risks')} ({archivedRisks.length})
+                    ) : null}
+
+                    {archivedRisks.length > 0 ? (
+                        <div className="mt-8">
+                            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-slate-600" />
+                                {t('links.archived_risks', { count: archivedRisks.length })}
                             </h4>
-                            <div className="space-y-3 opacity-70">
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 opacity-50 hover:opacity-100 transition-opacity">
                                 {archivedRisks.map((risk) => (
-                                    <button
+                                    <VendorLinkedRiskCard
                                         key={risk.id}
+                                        risk={risk}
                                         onClick={() => onNavigateToRisk(risk.id)}
-                                        className="w-full p-4 bg-white/[0.03] border border-white/5 rounded-2xl flex items-center justify-between hover:bg-white/[0.05] transition-all text-left group"
-                                    >
-                                        <div className="min-w-0 pr-4">
-                                            <div className="text-sm font-bold text-white truncate group-hover:text-accent transition-colors">
-                                                {risk.risk_id_code}: {risk.name}
-                                            </div>
-                                            <div className="text-[10px] text-slate-500 mt-1 font-medium">
-                                                {risk.process}
-                                                {risk.department_name ? (
-                                                    <>
-                                                        <span className="text-slate-700 mx-2">/</span>
-                                                        {risk.department_name}
-                                                    </>
-                                                ) : null}
-                                            </div>
-                                        </div>
-                                        <div className="p-2 rounded-lg bg-white/5 group-hover:bg-accent/20 transition-colors">
-                                            <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-accent" />
-                                        </div>
-                                    </button>
+                                    />
                                 ))}
                             </div>
                         </div>
-                    )}
-                </div>
+                    ) : null}
+                </>
             )}
 
-            {canEdit && (
+            {canEdit ? (
+                <button
+                    type="button"
+                    onClick={() => {
+                        setDialogMode('links-only');
+                        setIsDialogOpen(true);
+                    }}
+                    className="w-full mt-6 py-3 border border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-all"
+                >
+                    {t('links.actions.manage_existing')}
+                </button>
+            ) : null}
+
+            {canEdit ? (
                 <LinkManagementDialog
                     mode="control-to-risk"
                     title={t('links.dialogs.link_risks_title')}
                     existingLinks={existingLinks}
-                    onLink={async (targetId, _effectiveness, _notes) => handleLink(targetId)}
+                    onLink={async (targetId) => handleLink(targetId)}
                     onUnlink={async (targetId) => handleUnlink(targetId)}
                     isOpen={isDialogOpen}
                     onClose={() => setIsDialogOpen(false)}
+                    showSearch={dialogMode !== 'links-only'}
+                    showLinks={dialogMode !== 'search-only'}
                     showLinkMetadataBadge={false}
                 />
-            )}
-        </VendorSurface>
+            ) : null}
+        </motion.div>
     );
 }

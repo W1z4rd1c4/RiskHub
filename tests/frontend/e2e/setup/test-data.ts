@@ -213,7 +213,6 @@ interface DeterministicPreflightResult {
         controls: number;
         kris: number;
         vendors: number;
-        vendor_slas: number;
         approvals_pending: number;
         approvals_my_requests: number;
     };
@@ -229,12 +228,11 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
     const riskManagerHeaders = { Authorization: `Bearer ${riskManagerToken}` };
     const employeeHeaders = { Authorization: `Bearer ${employeeToken}` };
 
-    const [risksRes, controlsRes, krisRes, vendorsRes, slasRes, approvalsPendingRes, approvalsMineRes] = await Promise.all([
+    const [risksRes, controlsRes, krisRes, vendorsRes, approvalsPendingRes, approvalsMineRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/risks?include_archived=true&limit=100&search=E2E-`, { headers: riskManagerHeaders }),
         fetch(`${API_BASE}/api/v1/controls?include_archived=true&limit=100&search=E2E-`, { headers: riskManagerHeaders }),
         fetch(`${API_BASE}/api/v1/kris?include_archived=true&page=1&size=200&search=E2E-`, { headers: riskManagerHeaders }),
         fetch(`${API_BASE}/api/v1/vendors?include_archived=true&limit=100&search=E2E-VREG`, { headers: riskManagerHeaders }),
-        fetch(`${API_BASE}/api/v1/vendor-slas?include_archived=true`, { headers: riskManagerHeaders }),
         fetch(`${API_BASE}/api/v1/approvals?status=pending&limit=100`, { headers: riskManagerHeaders }),
         fetch(`${API_BASE}/api/v1/approvals?status=pending&limit=100&my_requests=true`, { headers: employeeHeaders }),
     ]);
@@ -244,7 +242,6 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
     if (!controlsRes.ok) failures.push(`Failed to fetch controls: HTTP ${controlsRes.status}`);
     if (!krisRes.ok) failures.push(`Failed to fetch KRIs: HTTP ${krisRes.status}`);
     if (!vendorsRes.ok) failures.push(`Failed to fetch vendors: HTTP ${vendorsRes.status}`);
-    if (!slasRes.ok) failures.push(`Failed to fetch vendor SLAs: HTTP ${slasRes.status}`);
     if (!approvalsPendingRes.ok) failures.push(`Failed to fetch pending approvals queue: HTTP ${approvalsPendingRes.status}`);
     if (!approvalsMineRes.ok) failures.push(`Failed to fetch employee pending approvals: HTTP ${approvalsMineRes.status}`);
 
@@ -252,7 +249,7 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
         return {
             ok: false,
             missing: failures,
-            counts: { risks: 0, controls: 0, kris: 0, vendors: 0, vendor_slas: 0, approvals_pending: 0, approvals_my_requests: 0 },
+            counts: { risks: 0, controls: 0, kris: 0, vendors: 0, approvals_pending: 0, approvals_my_requests: 0 },
         };
     }
 
@@ -260,7 +257,6 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
     const controlsBody = await controlsRes.json() as { items: Array<{ name?: string }> };
     const krisBody = await krisRes.json() as { items: Array<{ metric_name?: string }> };
     const vendorsBody = await vendorsRes.json() as { items: Array<{ registration_id?: string }> };
-    const slasBody = await slasRes.json() as Array<{ metric_name?: string }>;
     const approvalsPendingBody = await approvalsPendingRes.json() as { items: Array<{ reason?: string; status?: string }> };
     const approvalsMineBody = await approvalsMineRes.json() as { items: Array<{ reason?: string; status?: string }> };
 
@@ -268,7 +264,6 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
     const controlNames = new Set(controlsBody.items.map((item) => item.name).filter(Boolean));
     const kriNames = new Set(krisBody.items.map((item) => item.metric_name).filter(Boolean));
     const vendorRegistrations = new Set(vendorsBody.items.map((item) => item.registration_id).filter(Boolean));
-    const slaNames = new Set(slasBody.map((item) => item.metric_name).filter(Boolean));
     const queueApprovals = approvalsPendingBody.items;
     const myApprovals = approvalsMineBody.items;
 
@@ -284,9 +279,6 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
     }
     for (const registration of E2E_REQUIRED_FIXTURES.vendors) {
         if (!vendorRegistrations.has(registration)) missing.push(`vendor:${registration}`);
-    }
-    for (const name of E2E_REQUIRED_FIXTURES.vendor_slas) {
-        if (!slaNames.has(name)) missing.push(`vendor_sla:${name}`);
     }
 
     const expectedQueueApprovals = [
@@ -324,7 +316,6 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
             controls: controlsBody.items.length,
             kris: krisBody.items.length,
             vendors: vendorsBody.items.length,
-            vendor_slas: slasBody.length,
             approvals_pending: queueApprovals.length,
             approvals_my_requests: myApprovals.length,
         },

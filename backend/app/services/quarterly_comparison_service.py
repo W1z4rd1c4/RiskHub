@@ -219,7 +219,7 @@ def calculate_changes(
         "priority_risks", "kri_breaches", "pending_approvals",
         "control_coverage", "orphaned_items", "kri_health",
         "overdue_kris", "risks_without_kri", "active_risks",
-        "active_vendors", "overdue_vendor_reassessments", "vendor_sla_breaches",
+        "active_vendors",
     }
 
     changes = {}

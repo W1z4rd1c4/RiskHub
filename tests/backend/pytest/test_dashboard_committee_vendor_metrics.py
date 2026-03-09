@@ -1,13 +1,9 @@
-from datetime import UTC, datetime, timedelta
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department, Permission, Role, RolePermission, User, Vendor
-from app.models.vendor_incident import VendorIncident, VendorIncidentSeverity, VendorIncidentType
-from app.models.vendor_sla import VendorSLA
 
 
 @pytest.mark.asyncio
@@ -19,7 +15,6 @@ async def test_dashboard_summary_vendor_metrics_scoped_by_department(
     test_user_department_head: User,
     test_user_cro: User,
 ):
-    # Vendor metrics are only computed for users with vendors:read.
     role = (await db_session.execute(select(Role).where(Role.id == test_user_department_head.role_id))).scalar_one()
     perm = Permission(resource="vendors", action="read", description="Read vendors")
     db_session.add(perm)
@@ -34,8 +29,6 @@ async def test_dashboard_summary_vendor_metrics_scoped_by_department(
     await db_session.commit()
     await db_session.refresh(dept2)
 
-    now = datetime.now(UTC)
-
     vendor1 = Vendor(
         name="Vendor Dept 1",
         process="IT",
@@ -49,8 +42,6 @@ async def test_dashboard_summary_vendor_metrics_scoped_by_department(
         is_significant_vendor=False,
         has_alternative_providers=False,
         status="active",
-        next_reassessment_due_at=now - timedelta(days=1),
-        reassessment_cadence_months=12,
     )
     vendor2 = Vendor(
         name="Vendor Dept 2",
@@ -65,78 +56,25 @@ async def test_dashboard_summary_vendor_metrics_scoped_by_department(
         is_significant_vendor=False,
         has_alternative_providers=False,
         status="active",
-        next_reassessment_due_at=now - timedelta(days=1),
-        reassessment_cadence_months=12,
     )
     db_session.add_all([vendor1, vendor2])
     await db_session.commit()
-    await db_session.refresh(vendor1)
-    await db_session.refresh(vendor2)
 
-    db_session.add_all(
-        [
-            VendorSLA(
-                vendor_id=vendor1.id,
-                metric_name="Uptime",
-                description="",
-                current_value=90,
-                lower_limit=95,
-                upper_limit=100,
-                unit="%",
-                frequency="monthly",
-                last_reported_at=now,
-                last_period_end=now.date(),
-                is_archived=False,
-            ),
-            VendorSLA(
-                vendor_id=vendor2.id,
-                metric_name="Uptime",
-                description="",
-                current_value=90,
-                lower_limit=95,
-                upper_limit=100,
-                unit="%",
-                frequency="monthly",
-                last_reported_at=now,
-                last_period_end=now.date(),
-                is_archived=False,
-            ),
-        ]
-    )
-    db_session.add(
-        VendorIncident(
-            vendor_id=vendor1.id,
-            incident_type=VendorIncidentType.security,
-            severity=VendorIncidentSeverity.high,
-            is_major=True,
-            occurred_at=now,
-            summary="Major security incident",
-            details=None,
-        )
-    )
-    await db_session.commit()
-
-    # Department head sees only their department vendors
     resp = await client_department_head.get("/api/v1/dashboard/summary")
     assert resp.status_code == 200
     data = resp.json()
     assert data["total_vendors"] == 1
     assert data["high_risk_vendors_count"] == 1
-    assert data["overdue_vendor_reassessments_count"] == 1
-    assert data["breached_vendor_slas_count"] == 1
 
-    # CRO sees both vendors
     resp = await client_cro.get("/api/v1/dashboard/summary")
     assert resp.status_code == 200
     data = resp.json()
     assert data["total_vendors"] == 2
     assert data["high_risk_vendors_count"] == 2
-    assert data["overdue_vendor_reassessments_count"] == 2
-    assert data["breached_vendor_slas_count"] == 2
 
 
 @pytest.mark.asyncio
-async def test_committee_summary_includes_vendor_sections_and_scopes(
+async def test_committee_summary_includes_critical_vendors_section(
     client_department_head: AsyncClient,
 ):
     resp = await client_department_head.get("/api/v1/dashboard/committee-summary")
@@ -144,10 +82,6 @@ async def test_committee_summary_includes_vendor_sections_and_scopes(
     data = resp.json()
 
     assert "critical_vendors" in data
-    assert "vendor_alerts" in data
-    assert "overdue_reassessments" in data["vendor_alerts"]
-    assert "sla_breaches" in data["vendor_alerts"]
-    assert "major_incidents_30d" in data["vendor_alerts"]
 
 
 @pytest.mark.asyncio
@@ -157,8 +91,6 @@ async def test_dashboard_summary_hides_vendor_metrics_without_vendors_read(
     test_department: Department,
     test_user_department_head: User,
 ):
-    now = datetime.now(UTC)
-
     vendor = Vendor(
         name="Vendor Dept 1",
         process="IT",
@@ -172,8 +104,6 @@ async def test_dashboard_summary_hides_vendor_metrics_without_vendors_read(
         is_significant_vendor=False,
         has_alternative_providers=False,
         status="active",
-        next_reassessment_due_at=now - timedelta(days=1),
-        reassessment_cadence_months=12,
     )
     db_session.add(vendor)
     await db_session.commit()
@@ -183,5 +113,3 @@ async def test_dashboard_summary_hides_vendor_metrics_without_vendors_read(
     data = resp.json()
     assert data["total_vendors"] == 0
     assert data["high_risk_vendors_count"] == 0
-    assert data["overdue_vendor_reassessments_count"] == 0
-    assert data["breached_vendor_slas_count"] == 0
