@@ -1,7 +1,7 @@
 ---
 title: Správa rizik
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.1"
+last_updated: "2026-03-09"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.1, §6, §7 + frontend/src/pages/RisksPage.tsx"
 summary: "Kompletní manuál pro registr rizik: scoring, ownership, scope pravidla, propojení kontrol, exporty a schvalování citlivých změn."
@@ -117,6 +117,7 @@ Riziko je strukturovaný záznam. Následující pole nejvíc řídí provoz.
 | Net prob/impact | Reziduální scoring vstupy | Má reflektovat kontroly, ne optimismus. |
 | Linked controls | Kontroly mitigující riziko | Linky mají být smysluplné a udržované. |
 | KRIs | Indikátory pro monitoring | KRI jsou včasné varování. |
+| Linked vendors | Navázaní dodavatelé | Slouží pro third-party koncentraci a grouped `By Vendor` review. |
 
 Poznámka k detailu:
 
@@ -257,6 +258,16 @@ RiskHub podporuje view módy, které mění interpretaci seznamu:
 
 - all risks (paged)
 - grouped views (pro přesné počty musí dotáhnout více dat)
+
+Grouped pohledy nyní zahrnují i **By Vendor**.
+
+`By Vendor` je multi-membership:
+
+- jedno riziko se zobrazí ve všech čitelných bucketech navázaných dodavatelů
+- nečitelní dodavatelé se do grupování nezapočítají
+- rizika bez čitelných navázaných dodavatelů spadnou do fallback bucketu pro nepropojené záznamy
+
+Použijte ho pro kontrolu third-party koncentrace nebo otevřených rizik kolem konkrétního dodavatele.
 
 Groupované view použijte pro:
 

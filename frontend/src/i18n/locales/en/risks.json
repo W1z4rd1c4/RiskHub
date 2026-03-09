@@ -178,6 +178,9 @@
     "critical_only_clear": "Critical Only (click to clear)",
     "breached_only_clear": "Breached Only (click to clear)"
   },
+  "grouping": {
+    "unlinked_vendor": "Unlinked Vendor"
+  },
   "empty_state": {
     "no_risks": "No risks found matching your criteria.",
     "no_linked_controls": "No linked controls",

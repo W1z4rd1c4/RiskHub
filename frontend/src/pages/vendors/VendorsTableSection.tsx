@@ -174,6 +174,10 @@ export function VendorsTableSection({
                 typeLabel: (value) => t(`type.${value}`, value),
                 unassigned: t('labels.unassigned'),
                 unlinkedRisk: t('grouping.unlinked_risk'),
+                doraRelevant: t('flags.dora_relevant'),
+                supportsCoreFunction: t('flags.supports_core_function'),
+                significantVendor: t('flags.significant_vendor'),
+                insignificantVendor: t('grouping.insignificant_vendor'),
             }),
         [items, t, viewMode]
     );

@@ -11,6 +11,7 @@ from sqlalchemy.orm.attributes import NO_VALUE
 from app.schemas.control import ControlRead
 from app.schemas.kri import KRIResponse
 from app.schemas.risk import ControlBriefForLink, ControlRiskLinkRead, RiskBriefForLink, RiskRead
+from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import (
     build_control_monitoring_facts,
     build_kri_monitoring_facts,
@@ -188,11 +189,21 @@ def serialize_control_risk_link(link, context: MonitoringResponseContext) -> Con
     )
 
 
-def serialize_kri_response(kri, context: MonitoringResponseContext) -> KRIResponse:
+def serialize_kri_response(
+    kri,
+    context: MonitoringResponseContext,
+    *,
+    linked_vendors: list[LinkedVendorRead] | None = None,
+) -> KRIResponse:
     risk = _loaded_attr(kri, "risk")
     risk_owner = _loaded_attr(risk, "owner") if risk is not None else None
     risk_department = _loaded_attr(risk, "department") if risk is not None else None
     reporting_owner = _loaded_attr(kri, "reporting_owner")
+    resolved_linked_vendors = linked_vendors if linked_vendors is not None else [
+        LinkedVendorRead(id=vendor.id, name=vendor.name)
+        for link in (_loaded_attr(kri, "vendor_links", []) or [])
+        if (vendor := _loaded_attr(link, "vendor")) is not None
+    ]
     return KRIResponse.model_validate(
         {
             **_serialize_kri_base(kri),
@@ -211,6 +222,7 @@ def serialize_kri_response(kri, context: MonitoringResponseContext) -> KRIRespon
             "risk_department_name": getattr(risk_department, "name", None),
             "department_name": getattr(risk_department, "name", None),
             "reporting_owner_name": getattr(reporting_owner, "name", None),
+            "linked_vendors": resolved_linked_vendors,
             "last_period_end": kri.last_period_end,
             "last_reported_at": kri.last_reported_at,
             "last_updated": kri.last_updated,

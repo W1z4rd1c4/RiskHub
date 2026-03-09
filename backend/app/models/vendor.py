@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from app.models.department import Department
     from app.models.user import User
     from app.models.vendor_control_link import VendorControlLink
+    from app.models.vendor_kri_link import VendorKRILink
     from app.models.vendor_risk_link import VendorRiskLink
 
 
@@ -92,6 +93,11 @@ class Vendor(Base):
     )
     control_links: Mapped[list["VendorControlLink"]] = relationship(
         "VendorControlLink",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    kri_links: Mapped[list["VendorKRILink"]] = relationship(
+        "VendorKRILink",
         back_populates="vendor",
         cascade="all, delete-orphan",
     )

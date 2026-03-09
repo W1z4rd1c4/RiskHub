@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type MouseEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type MouseEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { Plus, Search, RefreshCw, ChevronRight, User, Shield, Building2, Download } from 'lucide-react';
@@ -16,6 +16,11 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 type StatusFilter = 'all' | 'archived' | KRIMonitoringStatus;
 type TimelinessFilter = KRITimelinessStatus | null;
+interface KriGroupedRow {
+    groupValue: string;
+    kri: KeyRiskIndicator;
+    rowId: string;
+}
 
 const TIMELINESS_FILTER_VALUES: KRITimelinessStatus[] = ['due_soon'];
 const ARCHIVED_ROUTE_VALUE = 'archived';
@@ -102,6 +107,30 @@ function buildKriExportFilters(params: {
     };
 }
 
+function buildKriVendorGroupedRows(
+    items: KeyRiskIndicator[],
+    labels: { unlinkedVendor: string },
+): KriGroupedRow[] {
+    return items.flatMap((kri) => {
+        const vendors = kri.linked_vendors ?? [];
+        if (vendors.length === 0) {
+            return [
+                {
+                    groupValue: labels.unlinkedVendor,
+                    kri,
+                    rowId: `${labels.unlinkedVendor}:${kri.id}`,
+                },
+            ];
+        }
+
+        return vendors.map((vendor) => ({
+            groupValue: vendor.name,
+            kri,
+            rowId: `${vendor.id}:${kri.id}`,
+        }));
+    });
+}
+
 export function KRIsPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -120,6 +149,10 @@ export function KRIsPage() {
     const latestRequestIdRef = useRef(0);
     const { statusFilter, timelinessFilter } = readKriRouteFilters(searchParams);
     const isArchivedOnly = statusFilter === 'archived';
+    const groupedVendorRows = useMemo(
+        () => buildKriVendorGroupedRows(kris, { unlinkedVendor: t('grouping.unlinked_vendor') }),
+        [kris, t],
+    );
 
     const fetchKRIs = useCallback(async () => {
         const requestId = ++latestRequestIdRef.current;
@@ -417,6 +450,10 @@ export function KRIsPage() {
                     setViewMode(nextViewMode);
                     setCurrentPage(1);
                 }}
+                exclude={[
+                    'flag',
+                    ...(hasPermission('vendors', 'read') ? [] : ['vendor' as const]),
+                ]}
             />
 
             {/* Filters - Same style as Risks */}
@@ -514,6 +551,56 @@ export function KRIsPage() {
                         onPageChange={setCurrentPage}
                     />
                 </>
+            ) : viewMode === 'vendor' ? (
+                <CategoryDrillDown
+                    data={groupedVendorRows}
+                    groupBy={'groupValue'}
+                    keyExtractor={(row) => row.rowId}
+                    getStats={(items: KriGroupedRow[]) => ({
+                        total: items.length,
+                        activeCount: items.length,
+                        highRiskCount: items.filter((row) => row.kri.monitoring_status === 'breach').length,
+                    })}
+                    renderTable={(items: KriGroupedRow[]) => (
+                        <SortableTable
+                            data={items.map((row) => row.kri)}
+                            columns={columns}
+                            keyExtractor={(kri) => kri.id}
+                            onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
+                            emptyMessage={t('empty_state.no_group')}
+                        />
+                    )}
+                    renderItem={(row: KriGroupedRow) => {
+                        const monitoring = getKriMonitoringMeta(row.kri.monitoring_status);
+                        const MonitoringIcon = monitoring.icon;
+                        return (
+                            <div
+                                key={row.rowId}
+                                onClick={() => navigate(`/kris/${row.kri.id}`)}
+                                className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between border-b border-white/5"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="flex flex-col gap-0.5">
+                                        <span className="text-sm font-bold text-white">{row.kri.metric_name}</span>
+                                        <span className="text-[10px] text-slate-500">
+                                            {row.kri.risk_process || t('common:fallbacks.not_available')}
+                                        </span>
+                                    </div>
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${monitoring.badgeClassName}`}>
+                                        <MonitoringIcon className="h-3 w-3" />
+                                        {t(monitoring.labelKey)}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-6">
+                                    <span className={`text-sm font-black ${monitoring.textClassName}`}>
+                                        {formatNumber(row.kri.current_value)} <span className="text-slate-500 font-normal text-xs">{row.kri.unit}</span>
+                                    </span>
+                                    <ChevronRight className="h-4 w-4 text-slate-500" />
+                                </div>
+                            </div>
+                        );
+                    }}
+                />
             ) : (
                 <CategoryDrillDown
                     key={`${viewMode}:${statusFilter}:${timelinessFilter ?? ''}:${debouncedSearch}:${isArchivedOnly ? 'archived' : 'active'}`}

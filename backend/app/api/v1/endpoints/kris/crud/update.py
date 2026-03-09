@@ -6,12 +6,13 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
 from app.core.activity_logger import build_change_set, log_activity
-from app.core.permissions import check_department_access
-from app.core.security import require_permission
+from app.core.permissions import can_read_vendor, check_department_access
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import KeyRiskIndicator, Risk, User
+from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.kri import KRIResponse, KRIUpdate
+from app.schemas.vendor_shared import LinkedVendorRead
 
 router = APIRouter()
 
@@ -169,10 +170,21 @@ async def update_kri(
             joinedload(KeyRiskIndicator.risk).joinedload(Risk.owner),
             joinedload(KeyRiskIndicator.risk).joinedload(Risk.department),
             selectinload(KeyRiskIndicator.reporting_owner),
+            selectinload(KeyRiskIndicator.vendor_links).selectinload(VendorKRILink.vendor),
         )
     )
     reloaded_kri = result.scalar_one()
 
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
-    return serialize_kri_response(reloaded_kri, monitoring_context)
+    return serialize_kri_response(
+        reloaded_kri,
+        monitoring_context,
+        linked_vendors=[
+            LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
+            for link in getattr(reloaded_kri, "vendor_links", []) or []
+            if getattr(link, "vendor", None) is not None
+            and check_permission(current_user, "vendors", "read")
+            and can_read_vendor(link.vendor, current_user)
+        ],
+    )

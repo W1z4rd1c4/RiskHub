@@ -1,7 +1,7 @@
 ---
 title: Správa nálezů (Issues)
-version: "2.1"
-last_updated: "2026-03-05"
+version: "2.2"
+last_updated: "2026-03-09"
 audience: user
 source_of_truth: "frontend/src/pages/IssuesPage.tsx + frontend/src/pages/issues/* + issue workflows in backend"
 summary: "Jak zakládat, třídit, řešit a uzavírat nálezy (Issues) s jasným ownership, termíny, výjimkami a exporty připravenými pro audit."
@@ -193,6 +193,14 @@ Nejpoužívanější filtry:
 - **Overdue**: rychle najdete porušené závazky
 - **Exclude active exceptions**: soustřeďte se na nálezy, které stále vyžadují akci (ne dočasně waived)
 - **Search**: používejte stabilní klíčová slova (systém/proces/dodavatel)
+
+Grupované pohledy nyní obsahují i **By Vendor**.
+
+`By Vendor` je multi-membership:
+
+- nález se zobrazí pod každým čitelným vendor kontextem, na který je navázaný
+- contextual issues založené z detailu dodavatele se grupují přímo pod daného dodavatele
+- issues bez čitelného vendor kontextu spadnou do fallback bucketu pro nepropojené záznamy
 
 Linky z dashboardu a dalších modulů mohou otevřít `/issues` s už přednastavenými filtry. Berte query parametry jako vstupní pohled pro triage, ne jako živě ukládaný view, který se během práce sám přepisuje.
 

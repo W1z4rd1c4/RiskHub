@@ -32,6 +32,11 @@ export interface ControlLookup {
     status: string;
 }
 
+export interface KRILookup {
+    id: number;
+    is_archived?: boolean;
+}
+
 export function getApiBaseUrl(): string {
     return process.env.BACKEND_URL || DEFAULT_API_BASE_URL;
 }
@@ -271,4 +276,108 @@ export async function ensureControlStatus(name: string, status: 'active' | 'arch
     }
 
     return control.id;
+}
+
+export async function getKRIByMetricName(metricName: string): Promise<KRILookup | null> {
+    const apiBase = getApiBaseUrl();
+    const token = await getDemoToken({ email: 'risk.manager@riskhub.local', fallbackUserIds: [3] });
+    const params = new URLSearchParams({
+        search: metricName,
+        include_archived: 'true',
+        size: '50',
+    });
+    const response = await fetch(`${apiBase}/api/v1/kris?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to load KRIs for ${metricName}: ${response.status}`);
+    }
+    const body = await response.json() as { items: Array<{ id: number; metric_name: string; is_archived?: boolean }> };
+    const kri = body.items.find((item) => item.metric_name === metricName);
+    return kri ? { id: kri.id, is_archived: kri.is_archived } : null;
+}
+
+export async function linkVendorToRisk(vendorId: number, riskId: number): Promise<void> {
+    const apiBase = getApiBaseUrl();
+    const token = await getDemoToken({ email: 'risk.manager@riskhub.local', fallbackUserIds: [3] });
+    const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}/linked-risks`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ risk_id: riskId }),
+    });
+    if (!response.ok && response.status !== 400) {
+        throw new Error(`Failed to link vendor ${vendorId} to risk ${riskId}: ${response.status}`);
+    }
+}
+
+export async function linkVendorToControl(vendorId: number, controlId: number): Promise<void> {
+    const apiBase = getApiBaseUrl();
+    const token = await getDemoToken({ email: 'risk.manager@riskhub.local', fallbackUserIds: [3] });
+    const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}/linked-controls`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ control_id: controlId }),
+    });
+    if (!response.ok && response.status !== 400) {
+        throw new Error(`Failed to link vendor ${vendorId} to control ${controlId}: ${response.status}`);
+    }
+}
+
+export async function linkVendorToKRI(vendorId: number, kriId: number): Promise<void> {
+    const apiBase = getApiBaseUrl();
+    const token = await getDemoToken({ email: 'risk.manager@riskhub.local', fallbackUserIds: [3] });
+    const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}/linked-kris`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ kri_id: kriId }),
+    });
+    if (!response.ok && response.status !== 400) {
+        throw new Error(`Failed to link vendor ${vendorId} to KRI ${kriId}: ${response.status}`);
+    }
+}
+
+export async function unlinkVendorFromKRI(vendorId: number, kriId: number): Promise<void> {
+    const apiBase = getApiBaseUrl();
+    const token = await getDemoToken({ email: 'risk.manager@riskhub.local', fallbackUserIds: [3] });
+    const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}/linked-kris/${kriId}`, {
+        method: 'DELETE',
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    });
+    if (!response.ok && response.status !== 404) {
+        throw new Error(`Failed to unlink vendor ${vendorId} from KRI ${kriId}: ${response.status}`);
+    }
+}
+
+export async function setVendorFlags(
+    vendorId: number,
+    flags: {
+        dora_relevant: boolean;
+        supports_important_core_insurance_function: boolean;
+        is_significant_vendor: boolean;
+    },
+): Promise<void> {
+    const apiBase = getApiBaseUrl();
+    const token = await getDemoToken({ email: 'risk.manager@riskhub.local', fallbackUserIds: [3] });
+    const response = await fetch(`${apiBase}/api/v1/vendors/${vendorId}`, {
+        method: 'PATCH',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(flags),
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to update vendor flags for ${vendorId}: ${response.status}`);
+    }
 }

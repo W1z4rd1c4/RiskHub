@@ -1,7 +1,7 @@
 ---
 title: KRI (Key Risk Indicators)
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.1"
+last_updated: "2026-03-09"
 audience: user
 source_of_truth: "frontend/src/pages/KRIsPage.tsx + frontend/src/pages/KRIDetailPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "Jak navrhovat a provozovat KRI: thresholdy, breach/overdue logika, zápis hodnot, historie, exporty a monitoring přes notifikace."
@@ -44,6 +44,7 @@ V RiskHubu jsou KRI brány jako sub-entity rizik:
 
 - jsou linknuté na riziko
 - dědí kontext (oddělení, proces, category)
+- mohou být také navázané na dodavatele pro third-party monitoring kontext
 - napájí dashboard widgety a notifikace
 
 ## Kde to najdete
@@ -51,6 +52,7 @@ V RiskHubu jsou KRI brány jako sub-entity rizik:
 - seznam KRI: `/kris`
 - detail KRI: klik na řádek
 - KRI u rizika: otevřete detail rizika (`/risks/<id>`) a projděte KRI sekce
+- KRI u dodavatele: otevřete detail dodavatele (`/vendors/<id>`) a projděte sekci navázaných KRI
 
 Pokud **KRI** nevidíte v menu:
 
@@ -218,6 +220,16 @@ Seznam KRI podporuje:
 
 - paged list (all)
 - grouped views (review pack, koncentrace)
+
+Grouped pohledy nyní zahrnují i **By Vendor**.
+
+`By Vendor` je multi-membership:
+
+- jedno KRI se zobrazí ve všech čitelných bucketech navázaných dodavatelů
+- nečitelní dodavatelé jsou z grupování vynechaní
+- KRI bez čitelných navázaných dodavatelů spadnou do fallback bucketu pro nepropojené záznamy
+
+Použijte ho pro přehled, které vendor vztahy jsou monitorované přes KRI a kde se vendor-linked signály koncentrují.
 
 ### Exporty
 

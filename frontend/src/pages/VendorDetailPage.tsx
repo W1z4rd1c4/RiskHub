@@ -209,6 +209,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     onAddControl={() => navigate(`/controls/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
                     onAddRisk={() => navigate(`/risks/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
                     onNavigateToControl={(controlId) => navigate(`/controls/${controlId}`)}
+                    onNavigateToKri={(kriId) => navigate(`/kris/${kriId}`)}
                     onNavigateToRisk={(riskId) => navigate(`/risks/${riskId}`)}
                 />
 

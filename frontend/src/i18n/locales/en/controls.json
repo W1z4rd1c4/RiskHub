@@ -80,6 +80,9 @@
     "overdue_only": "Overdue Only",
     "search_placeholder": "Search by name, description, risk or department..."
   },
+  "grouping": {
+    "unlinked_vendor": "Unlinked Vendor"
+  },
   "empty_state": {
     "no_controls": "No controls found matching your criteria.",
     "no_executions": "No execution history",

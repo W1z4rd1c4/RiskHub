@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_KRIS } from './fixtures/e2e-data';
+import { ensureVendorStatus, getKRIByMetricName, linkVendorToKRI } from './helpers/api-auth';
 import { KRIsPage } from './pages/KRIsPage';
 import { waitForTableRowByText } from './helpers/wait';
 
@@ -64,5 +65,23 @@ test.describe('KRI Management (Deterministic)', () => {
         const row = krisPage.rowByText(E2E_KRIS.ARCHIVE_RESTORE_TARGET.metric_name);
         await expect(row).toBeVisible();
         await expect(row.locator('[data-testid^="kri-unarchive-"]').first()).toBeVisible();
+    });
+
+    test('KRI register groups linked KRIs by vendor', async ({ riskManagerPage }) => {
+        const vendorId = await ensureVendorStatus('E2E-VREG-001', 'active');
+        const kri = await getKRIByMetricName(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
+        expect(kri).not.toBeNull();
+        await linkVendorToKRI(vendorId, kri!.id);
+
+        const krisPage = new KRIsPage(riskManagerPage);
+        await krisPage.navigate();
+        await krisPage.search(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
+
+        await riskManagerPage.getByRole('button', { name: /By Vendor|Podle dodavatele/i }).click();
+        await riskManagerPage.getByRole('button', { name: /E2E-VENDOR-001 Claims Cloud Platform/i }).click();
+
+        await expect(riskManagerPage.getByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name).first()).toBeVisible({
+            timeout: 15000,
+        });
     });
 });

@@ -11,20 +11,31 @@ from app.api import deps
 from app.api.v1.endpoints._monitoring_response import (
     load_monitoring_response_context,
     serialize_control_brief_for_link,
+    serialize_kri_response,
 )
 from app.core.permissions import can_read_control_id, can_read_risk_id, can_read_vendor, is_vendor_owner
+from app.core.permissions import can_read_kri_id
 from app.core.security import check_permission
 from app.core.datetime_utils import utc_now
 from app.db.session import get_db
 from app.models import (
     Control,
     Risk,
+    KeyRiskIndicator,
     User,
     Vendor,
     VendorControlLink,
+    VendorKRILink,
     VendorRiskLink,
 )
-from app.schemas.vendor_links import LinkedControlRead, LinkedRiskRead, VendorControlLinkCreate, VendorRiskLinkCreate
+from app.schemas.vendor_links import (
+    LinkedControlRead,
+    LinkedKRIRead,
+    LinkedRiskRead,
+    VendorControlLinkCreate,
+    VendorKRILinkCreate,
+    VendorRiskLinkCreate,
+)
 
 router = APIRouter()
 
@@ -40,6 +51,10 @@ async def _can_read_risk(db: AsyncSession, current_user: User, risk_id: int) -> 
 
 async def _can_read_control(db: AsyncSession, current_user: User, control: Control) -> bool:
     return await can_read_control_id(db, current_user, control.id)
+
+
+async def _can_read_kri(db: AsyncSession, current_user: User, kri_id: int) -> bool:
+    return await can_read_kri_id(db, current_user, kri_id)
 
 
 @router.get("/vendors/{vendor_id}/linked-risks", response_model=list[LinkedRiskRead])
@@ -293,6 +308,149 @@ async def unlink_vendor_from_control(
         select(VendorControlLink)
         .where(VendorControlLink.vendor_id == vendor_id, VendorControlLink.control_id == control_id)
     )
+    link = result.scalar_one_or_none()
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    await db.delete(link)
+    await db.commit()
+    return None
+
+
+@router.get("/vendors/{vendor_id}/linked-kris", response_model=list[LinkedKRIRead])
+async def list_vendor_linked_kris(
+    vendor_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    if not check_permission(current_user, "vendors", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+    if not check_permission(current_user, "risks", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
+
+    vendor = await _get_vendor(db, vendor_id)
+    if not vendor or not can_read_vendor(vendor, current_user):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+    result = await db.execute(
+        select(VendorKRILink)
+        .options(
+            selectinload(VendorKRILink.kri).selectinload(KeyRiskIndicator.risk).selectinload(Risk.department),
+            selectinload(VendorKRILink.kri).selectinload(KeyRiskIndicator.reporting_owner),
+        )
+        .where(VendorKRILink.vendor_id == vendor_id)
+    )
+    links = result.scalars().all()
+    now = utc_now()
+    context = await load_monitoring_response_context(db, now=now, today=now.astimezone(UTC).date())
+
+    visible: list[LinkedKRIRead] = []
+    for link in links:
+        kri = link.kri
+        if kri is None or not await _can_read_kri(db, current_user, kri.id):
+            continue
+        brief = serialize_kri_response(kri, context)
+        visible.append(
+            LinkedKRIRead(
+                id=brief.id,
+                risk_id=brief.risk_id,
+                metric_name=brief.metric_name,
+                description=brief.description,
+                current_value=brief.current_value,
+                lower_limit=brief.lower_limit,
+                upper_limit=brief.upper_limit,
+                unit=brief.unit,
+                frequency=brief.frequency.value if hasattr(brief.frequency, "value") else str(brief.frequency),
+                monitoring_status=(
+                    brief.monitoring_status.value
+                    if hasattr(brief.monitoring_status, "value")
+                    else (str(brief.monitoring_status) if brief.monitoring_status is not None else None)
+                ),
+                monitoring_status_reason=(
+                    brief.monitoring_status_reason.value
+                    if hasattr(brief.monitoring_status_reason, "value")
+                    else (
+                        str(brief.monitoring_status_reason)
+                        if brief.monitoring_status_reason is not None
+                        else None
+                    )
+                ),
+                is_submitted_for_required_period=brief.is_submitted_for_required_period,
+                required_period_end=brief.required_period_end,
+                required_due_date=brief.required_due_date,
+                days_overdue=brief.days_overdue,
+                warning_upper_margin_ratio=brief.warning_upper_margin_ratio,
+                risk_name=brief.risk_name,
+                risk_process=brief.risk_process,
+                risk_department_name=brief.risk_department_name,
+                is_archived=brief.is_archived,
+            )
+        )
+    return visible
+
+
+@router.post("/vendors/{vendor_id}/linked-kris", status_code=status.HTTP_201_CREATED)
+async def link_vendor_to_kri(
+    vendor_id: int,
+    payload: VendorKRILinkCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    if not check_permission(current_user, "vendors", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+    if not check_permission(current_user, "risks", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
+
+    vendor = await _get_vendor(db, vendor_id)
+    if not vendor or not can_read_vendor(vendor, current_user):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+    can_modify_vendor = check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
+    if not can_modify_vendor:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
+
+    result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == payload.kri_id))
+    kri = result.scalar_one_or_none()
+    if not kri or not await _can_read_kri(db, current_user, payload.kri_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KRI not found")
+
+    existing = await db.execute(
+        select(VendorKRILink).where(VendorKRILink.vendor_id == vendor_id, VendorKRILink.kri_id == payload.kri_id)
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Link already exists")
+
+    db.add(VendorKRILink(vendor_id=vendor_id, kri_id=payload.kri_id))
+    await db.commit()
+    return {"status": "linked"}
+
+
+@router.delete("/vendors/{vendor_id}/linked-kris/{kri_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def unlink_vendor_from_kri(
+    vendor_id: int,
+    kri_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(deps.get_current_user),
+):
+    if not check_permission(current_user, "vendors", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+    if not check_permission(current_user, "risks", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
+
+    vendor = await _get_vendor(db, vendor_id)
+    if not vendor or not can_read_vendor(vendor, current_user):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+    can_modify_vendor = check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
+    if not can_modify_vendor:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
+
+    result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == kri_id))
+    kri = result.scalar_one_or_none()
+    if not kri or not await _can_read_kri(db, current_user, kri_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KRI not found")
+
+    result = await db.execute(select(VendorKRILink).where(VendorKRILink.vendor_id == vendor_id, VendorKRILink.kri_id == kri_id))
     link = result.scalar_one_or_none()
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
