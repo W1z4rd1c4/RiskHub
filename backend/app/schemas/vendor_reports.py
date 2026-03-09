@@ -24,23 +24,13 @@ class VendorAnnualReportVendorRow(BaseModel):
     is_significant_vendor: bool = False
     risk_score_1_5: int = 3
 
-    last_decided_at: Optional[datetime] = None
-    next_reassessment_due_at: Optional[datetime] = None
-    reassessment_cadence_months: int = 36
-
-    major_breaches_count: int = 0
-    major_incidents_count: int = 0
-    major_items_preview: list[str] = Field(default_factory=list)
-
 
 class VendorAnnualReportProcessEvaluation(BaseModel):
     year: int
     total_active_vendors: int
-    overdue_reassessments_count: int
-    missing_exit_plans_count: int
-    missing_contingency_plans_count: int
-    major_breaches_count: int
-    major_incidents_count: int
+    high_risk_vendors_count: int
+    dora_relevant_count: int
+    significant_vendors_count: int
 
 
 class VendorAnnualReportData(BaseModel):
@@ -69,10 +59,5 @@ class VendorDoraRegisterRow(BaseModel):
     process: str
     subprocess: Optional[str] = None
 
-    last_decided_at: Optional[datetime] = None
-    next_reassessment_due_at: Optional[datetime] = None
-    reassessment_cadence_months: int = 36
-
     replaceability: Optional[str] = None
     has_alternative_providers: bool = False
-

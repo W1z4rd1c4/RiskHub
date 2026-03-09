@@ -123,24 +123,6 @@ export const E2E_VENDORS = {
     },
 } as const;
 
-export const E2E_VENDOR_SLAS = {
-    ACTIVE_PRIMARY: {
-        metric_name: 'E2E-SLA-001 Claims API Availability',
-        vendor_registration_id: 'E2E-VREG-001',
-        status: 'active',
-    },
-    ACTIVE_SECONDARY: {
-        metric_name: 'E2E-SLA-002 AML Screening Turnaround',
-        vendor_registration_id: 'E2E-VREG-002',
-        status: 'active',
-    },
-    ARCHIVED_RESTORE_TARGET: {
-        metric_name: 'E2E-SLA-004 Incident Response Time',
-        vendor_registration_id: 'E2E-VREG-004',
-        status: 'archived',
-    },
-} as const;
-
 export const E2E_APPROVALS = {
     PENDING_RISK_DELETE: {
         reason: 'E2E test: Standard risk deletion by employee - awaiting primary approval',
@@ -184,9 +166,5 @@ export const E2E_REQUIRED_FIXTURES = {
     vendors: [
         E2E_VENDORS.ACTIVE_PRIMARY.registration_id,
         E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id,
-    ],
-    vendor_slas: [
-        E2E_VENDOR_SLAS.ACTIVE_PRIMARY.metric_name,
-        E2E_VENDOR_SLAS.ARCHIVED_RESTORE_TARGET.metric_name,
     ],
 } as const;

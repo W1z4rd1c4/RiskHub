@@ -113,7 +113,6 @@ Notifications are typed events. Common categories:
 - approvals: `approval_pending`, `approval_resolved`, `approval_cancelled`
 - KRIs: due/overdue and breach detection
 - questionnaires: sent/due/overdue/submitted/clarification
-- vendors: assessment decisions, reassessment reminders, SLA breach alerts
 
 Each notification includes:
 

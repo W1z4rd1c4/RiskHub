@@ -1,41 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-    buildVendorSearchParams,
+    buildVendorDetailPath,
     canEditVendorByOwnership,
-    normalizeVendorLocation,
-    parseVendorTab,
+    coerceVendorContext,
 } from '@/pages/vendors/vendorDetailPresentation';
 
 describe('Vendor detail presentation helpers', () => {
-    it('accepts only supported canonical vendor detail tabs', () => {
-        expect(parseVendorTab('overview')).toBe('overview');
-        expect(parseVendorTab('operations')).toBe('operations');
-        expect(parseVendorTab('not-a-real-tab')).toBeNull();
-        expect(parseVendorTab(null)).toBeNull();
-    });
-
-    it('normalizes legacy vendor tabs into canonical tab and section pairs', () => {
-        expect(normalizeVendorLocation('sla', null)).toEqual({
-            tab: 'operations',
-            section: 'sla',
-            shouldCanonicalize: true,
-        });
-        expect(normalizeVendorLocation('assessments', 'schedule')).toEqual({
-            tab: 'assessments',
-            section: 'schedule',
-            shouldCanonicalize: false,
-        });
-        expect(normalizeVendorLocation('overview', 'schedule')).toEqual({
-            tab: 'overview',
-            section: 'risk_factors',
-            shouldCanonicalize: true,
-        });
-    });
-
-    it('builds canonical vendor query params', () => {
-        expect(buildVendorSearchParams('operations', 'sla').toString()).toBe('tab=operations&section=sla');
-        expect(buildVendorSearchParams('overview', null).toString()).toBe('tab=overview');
+    it('builds the canonical vendor detail path without tab parameters', () => {
+        expect(buildVendorDetailPath(42)).toBe('/vendors/42');
+        expect(buildVendorDetailPath(42, 'operations', 'sla')).toBe('/vendors/42');
     });
 
     it('grants ownership edit access only to the outsourcing owner', () => {
@@ -46,5 +20,20 @@ describe('Vendor detail presentation helpers', () => {
         expect(canEditVendorByOwnership(vendor, 7)).toBe(true);
         expect(canEditVendorByOwnership(vendor, 3)).toBe(false);
         expect(canEditVendorByOwnership(null, 7)).toBe(false);
+    });
+
+    it('sanitizes vendor-context query params for routed create flows', () => {
+        expect(coerceVendorContext('42', '/vendors/42')).toEqual({
+            vendorId: 42,
+            returnTo: '/vendors/42',
+        });
+        expect(coerceVendorContext('42', '/risks/99')).toEqual({
+            vendorId: 42,
+            returnTo: '/vendors/42',
+        });
+        expect(coerceVendorContext('oops', '/vendors/42')).toEqual({
+            vendorId: null,
+            returnTo: null,
+        });
     });
 });

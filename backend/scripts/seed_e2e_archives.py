@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from app.core.config import get_settings
 from app.core.datetime_utils import utc_now
 from app.db.session import session_context
-from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk, Vendor, VendorSLA
+from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk, Vendor
 from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
 
 RISK_MATRIX = [
@@ -101,20 +101,6 @@ VENDOR_STATUS_MATRIX = [
     {"registration_id": "E2E-VREG-001", "status": "active"},
     {"registration_id": "E2E-VREG-004", "status": "inactive"},
 ]
-
-VENDOR_SLA_ARCHIVE_MATRIX = [
-    {
-        "vendor_registration_id": "E2E-VREG-001",
-        "metric_name": "E2E-SLA-001 Claims API Availability",
-        "is_archived": False,
-    },
-    {
-        "vendor_registration_id": "E2E-VREG-004",
-        "metric_name": "E2E-SLA-004 Incident Response Time",
-        "is_archived": True,
-    },
-]
-
 
 async def _ensure_risk_matrix(db, users, departments):
     created = 0
@@ -273,49 +259,6 @@ async def _ensure_vendor_matrix(db):
     return updated
 
 
-async def _ensure_vendor_sla_matrix(db, users):
-    updated = 0
-    now = datetime.now(UTC)
-    archive_actor_id = require_user_id(users, "risk.manager@riskhub.local")
-
-    for entry in VENDOR_SLA_ARCHIVE_MATRIX:
-        vendor = (
-            await db.execute(select(Vendor).where(Vendor.registration_id == entry["vendor_registration_id"]))
-        ).scalar_one_or_none()
-        if vendor is None:
-            raise RuntimeError(
-                f"Archive matrix requires seeded vendor '{entry['vendor_registration_id']}' for SLA matrix."
-            )
-
-        sla = (
-            await db.execute(
-                select(VendorSLA).where(
-                    VendorSLA.vendor_id == vendor.id,
-                    VendorSLA.metric_name == entry["metric_name"],
-                )
-            )
-        ).scalar_one_or_none()
-        if sla is None:
-            raise RuntimeError(
-                f"Archive matrix requires seeded SLA '{entry['metric_name']}' for vendor "
-                f"'{entry['vendor_registration_id']}'. Run seed_e2e_vendor_slas first."
-            )
-
-        if entry["is_archived"]:
-            sla.is_archived = True
-            if sla.archived_at is None:
-                sla.archived_at = now
-            if sla.archived_by_id is None:
-                sla.archived_by_id = archive_actor_id
-        else:
-            sla.is_archived = False
-            sla.archived_at = None
-            sla.archived_by_id = None
-        updated += 1
-
-    return updated
-
-
 async def seed_archives():
     """Seed deterministic archive matrix across all supported entity families."""
     print("=" * 60)
@@ -329,8 +272,6 @@ async def seed_archives():
         control_created, control_updated, control_links_created = await _ensure_control_matrix(db, users, departments)
         kri_created, kri_updated = await _ensure_kri_matrix(db, users)
         vendors_updated = await _ensure_vendor_matrix(db)
-        vendor_slas_updated = await _ensure_vendor_sla_matrix(db, users)
-
         await db.commit()
 
         risks_active = (
@@ -397,29 +338,11 @@ async def seed_archives():
                 )
             )
         ).scalar_one()
-        slas_active = (
-            await db.execute(
-                select(func.count(VendorSLA.id)).where(
-                    VendorSLA.metric_name.in_([item["metric_name"] for item in VENDOR_SLA_ARCHIVE_MATRIX]),
-                    VendorSLA.is_archived.is_(False),
-                )
-            )
-        ).scalar_one()
-        slas_archived = (
-            await db.execute(
-                select(func.count(VendorSLA.id)).where(
-                    VendorSLA.metric_name.in_([item["metric_name"] for item in VENDOR_SLA_ARCHIVE_MATRIX]),
-                    VendorSLA.is_archived.is_(True),
-                )
-            )
-        ).scalar_one()
-
         print("\n✅ Archive matrix ready")
         print(f"   Risks active/archived: {risks_active}/{risks_archived}")
         print(f"   Controls active/archived: {controls_active}/{controls_archived}")
         print(f"   KRIs active/archived: {kris_active}/{kris_archived}")
         print(f"   Vendors active/inactive: {vendors_active}/{vendors_archived}")
-        print(f"   Vendor SLAs active/archived: {slas_active}/{slas_archived}")
 
         return {
             "risk_created": risk_created,
@@ -430,7 +353,6 @@ async def seed_archives():
             "kri_created": kri_created,
             "kri_updated": kri_updated,
             "vendors_updated": vendors_updated,
-            "vendor_slas_updated": vendor_slas_updated,
             "matrix": {
                 "risks_active": risks_active,
                 "risks_archived": risks_archived,
@@ -440,8 +362,6 @@ async def seed_archives():
                 "kris_archived": kris_archived,
                 "vendors_active": vendors_active,
                 "vendors_archived": vendors_archived,
-                "slas_active": slas_active,
-                "slas_archived": slas_archived,
             },
         }
 

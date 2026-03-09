@@ -29,9 +29,18 @@ import { RiskFormScoringStep } from './RiskFormScoringStep';
 interface RiskFormProps {
     initialData?: Risk;
     isEdit?: boolean;
+    onSuccess?: (riskId: number) => void | Promise<void>;
+    onCancel?: () => void;
+    firstStepBackLabel?: string;
 }
 
-export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
+export function RiskForm({
+    initialData,
+    isEdit = false,
+    onSuccess,
+    onCancel,
+    firstStepBackLabel,
+}: RiskFormProps) {
     const navigate = useNavigate();
     const { t } = useTranslation(['risks', 'common', 'errorKeys', 'approvals']);
     const steps = [
@@ -264,7 +273,11 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                 }
             } else {
                 const newRisk = await riskApi.createRisk(formData as RiskCreate);
-                navigate(`/risks/${newRisk.id}`);
+                if (onSuccess) {
+                    await onSuccess(newRisk.id);
+                } else {
+                    navigate(`/risks/${newRisk.id}`);
+                }
                 return;
             }
 
@@ -397,11 +410,21 @@ export function RiskForm({ initialData, isEdit = false }: RiskFormProps) {
                 <div className="mt-12 flex justify-between items-center pt-8 border-t border-white/5">
                     <button
                         type="button"
-                        onClick={() => currentStep === 0 ? navigate('/risks') : prevStep()}
+                        onClick={() => {
+                            if (currentStep === 0) {
+                                if (onCancel) {
+                                    onCancel();
+                                } else {
+                                    navigate('/risks');
+                                }
+                                return;
+                            }
+                            prevStep();
+                        }}
                         className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest"
                     >
                         {currentStep === 0 ? <X className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-                        {currentStep === 0 ? t('common:actions.cancel') : t('common:actions.back')}
+                        {currentStep === 0 ? (firstStepBackLabel || t('common:actions.cancel')) : t('common:actions.back')}
                     </button>
 
                     {currentStep < steps.length - 1 ? (

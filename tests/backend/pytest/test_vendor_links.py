@@ -72,65 +72,6 @@ def _make_control(*, name: str, department_id: int | None) -> Control:
 
 
 @pytest.mark.asyncio
-async def test_vendor_risk_factors_crud(
-    db_session: AsyncSession,
-    client_employee: AsyncClient,
-    test_department: Department,
-    test_role_employee: Role,
-    test_user_employee: User,
-):
-    await _grant(db_session, test_role_employee, "vendors", "read")
-
-    vendor = Vendor(
-        name="Owned Vendor",
-        process="IT",
-        subprocess=None,
-        department_id=test_department.id,
-        outsourcing_owner_user_id=test_user_employee.id,
-        vendor_type="ict",
-        risk_score_1_5=3,
-        supports_important_core_insurance_function=False,
-        dora_relevant=False,
-        is_significant_vendor=False,
-        has_alternative_providers=False,
-        status="active",
-    )
-    db_session.add(vendor)
-    await db_session.commit()
-    await db_session.refresh(vendor)
-
-    resp = await client_employee.get(f"/api/v1/vendors/{vendor.id}/risk-factors")
-    assert resp.status_code == 200
-    assert resp.json() == []
-
-    resp = await client_employee.post(
-        f"/api/v1/vendors/{vendor.id}/risk-factors",
-        json={"category_key": "cyber_supply_chain", "description": "SOC2 coverage"},
-    )
-    assert resp.status_code == 201
-    data = resp.json()
-    assert data["vendor_id"] == vendor.id
-    assert data["category_key"] == "cyber_supply_chain"
-    assert data["description"] == "SOC2 coverage"
-
-    factor_id = data["id"]
-    resp = await client_employee.patch(
-        f"/api/v1/vendor-risk-factors/{factor_id}",
-        json={"category_key": "info_security_data", "description": "Updated"},
-    )
-    assert resp.status_code == 200
-    assert resp.json()["category_key"] == "info_security_data"
-    assert resp.json()["description"] == "Updated"
-
-    resp = await client_employee.delete(f"/api/v1/vendor-risk-factors/{factor_id}")
-    assert resp.status_code == 204
-
-    resp = await client_employee.get(f"/api/v1/vendors/{vendor.id}/risk-factors")
-    assert resp.status_code == 200
-    assert resp.json() == []
-
-
-@pytest.mark.asyncio
 async def test_vendor_links_require_vendor_write_or_owner(
     db_session: AsyncSession,
     client_employee: AsyncClient,
@@ -266,11 +207,22 @@ async def test_vendor_linked_entities_filter_invisible_and_prevent_unlink(
 
     resp = await client_employee.get(f"/api/v1/vendors/{vendor_id}/linked-risks")
     assert resp.status_code == 200
-    assert [r["risk_id_code"] for r in resp.json()] == ["IT-R001"]
+    linked_risks = resp.json()
+    assert [r["risk_id_code"] for r in linked_risks] == ["IT-R001"]
+    assert linked_risks[0]["gross_score"] == 9
+    assert linked_risks[0]["net_score"] == 4
+    assert linked_risks[0]["is_priority"] is False
+    assert "risk_type" in linked_risks[0]
 
     resp = await client_employee.get(f"/api/v1/vendors/{vendor_id}/linked-controls")
     assert resp.status_code == 200
-    assert [c["name"] for c in resp.json()] == ["Visible Control"]
+    linked_controls = resp.json()
+    assert [c["name"] for c in linked_controls] == ["Visible Control"]
+    assert linked_controls[0]["frequency"] == "monthly"
+    assert linked_controls[0]["risk_level"] == 3
+    assert linked_controls[0]["status"] == "draft"
+    assert "monitoring_status" in linked_controls[0]
+    assert "execution_log_count" in linked_controls[0]
 
     resp = await client_employee.delete(f"/api/v1/vendors/{vendor_id}/linked-risks/{risk_hidden_id}")
     assert resp.status_code == 404

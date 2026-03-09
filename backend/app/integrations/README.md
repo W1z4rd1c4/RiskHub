@@ -8,7 +8,6 @@ Folder for `backend/app/integrations` implementation assets.
 
 - `__init__.py`
 - `__pycache__/`
-- `vendor_signals/`
 
 ## Notes
 

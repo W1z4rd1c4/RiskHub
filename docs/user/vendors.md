@@ -1,320 +1,205 @@
 ---
 title: Managing Vendors
-version: "2.3"
-last_updated: "2026-03-08"
+version: "2.4"
+last_updated: "2026-03-09"
 audience: user
-source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/* + vendor assessment workflows"
-summary: "Full manual for third-party risk operations: vendor onboarding, ownership, assessments, reassessments, incidents, SLAs, exports, and notifications."
+source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/*"
+summary: "User guide for the core vendor register: ownership, classification, risk-detail-style linked sections, routed create-from-vendor flows, exports, and issue context."
 tags:
   - vendors
   - workflow
-  - approvals
-  - notifications
   - exports
   - troubleshooting
+  - controls
+  - issues
 ---
 
 # Managing Vendors
 
-**On this page**
-- [Overview](#overview)
-- [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
-- [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
-
 ## Overview
 
-Vendor management in RiskHub is designed for third-party risk governance. The goal is to answer:
+The Vendors area is now a core third-party register. Use it to answer:
 
-- Which vendors matter, and why?
-- Who owns the relationship and the risk?
-- What is the current risk posture?
-- When is the next reassessment due?
-- What incidents, dependencies, and SLAs exist that could change posture?
+- Who owns the vendor relationship?
+- Which process and department does the vendor support?
+- What is the current vendor classification and risk score?
+- Which enterprise risks and controls are linked to the vendor?
 
 Primary route: `/vendors`
 
-A vendor record becomes a hub that connects:
-
-- business context (process/subprocess, department)
-- relationship ownership
-- risk scoring and materiality signals
-- assessments and decisions
-- ongoing monitoring (signals, SLAs, incidents)
-
 ## Where To Find It
 
-- Vendor list: `/vendors` (requires `vendors:read`)
-- Vendor detail: click a vendor row
-- Create vendor: `/vendors/new` (requires `vendors:write`)
+- Vendor list: `/vendors`
+- Vendor detail: open a vendor row from the register
+- Create vendor: `/vendors/new`
 
-If you do not see **Vendors** in the sidebar:
+Required permissions:
 
-- you likely lack `vendors:read`
+- `vendors:read` to open the register and detail pages
+- `vendors:write` to create or edit vendor records
+- `vendors:delete` to archive or restore vendor records unless ownership rules grant access
+
+### What A Vendor Record Contains
+
+Core vendor data includes:
+
+- identity: name, legal name, registration ID, country, website
+- ownership: department, outsourcing owner, process, subprocess
+- classification: vendor type, risk score, DORA relevance, significance, replaceability
+- lifecycle: active/inactive status, archive/restore
+- links: linked risks and linked controls
+
+The vendor detail page is a single core view. It keeps:
+
+- header and lifecycle actions
+- a summary surface for risk score, status, exposure, and vendor flags
+- summary cards for classification, ownership, and connections
+- embedded linked risks section using the same section chrome and card-grid interaction model as the individual risk page
+- embedded linked controls section using the same action bar, gauge-card style, and archived grouping pattern as the individual risk page
+- contextual issue creation from the vendor page
 
 ## Roles, Scope, and Visibility
 
-Vendor visibility is usually stricter than risks/controls because vendor data often contains sensitive commercial details.
+Vendor detail is intentionally simpler than Risks or Issues, but visibility still follows backend RBAC and scope rules.
 
-Access is controlled by:
+- `vendors:read` is required to open the vendor register and the individual vendor page
+- `vendors:write` allows full edit behavior for vendor records and vendor links
+- vendor ownership rules can allow certain mutation actions even without broad vendor-admin privileges
+- linked risks remain separately scope-filtered, so a user can still see the vendor even if some linked risks are omitted from the page
+- linked controls are also filtered by normal control visibility rules before card grids are rendered
 
-- permissions (`vendors:read`, `vendors:write`, `vendors:delete`)
-- scope and department
-- ownership: the outsourcing owner can often edit even without broad write permissions
-- linked risk visibility: risk-linked grouping context is only shown if you can also read those risks
+This matters on the page because:
 
-Practical rule:
-
-- If you are the outsourcing owner, you may be allowed to maintain the vendor record.
-- If you are not, treat vendors as governance objects and avoid “drive-by edits”.
-- You can still see a vendor record even when its linked risk context is hidden; in that case risk grouping falls back instead of exposing unreadable risk names.
+- `Link Existing` and `Manage Existing Links` only appear when the user can mutate vendor links
+- `Add Risk` appears only when the user can both edit the vendor context and create risks
+- `Add Control` appears only when the user can both edit the vendor context and create controls
+- the vendor page never leaks unreadable risk or control names just to preserve counts or layout symmetry
 
 ## Data Model and Key Fields
 
-Vendor records include both identity and governance metadata.
+The vendor record is now a core register entry, not a workflow container. Keep the following fields accurate:
 
-| Field | Meaning | Pitfalls / notes |
-|---|---|---|
-| Name / legal name | Primary identity | Keep legal name for contracts; keep name for operational use. |
-| Registration / country / website | Basic due diligence fields | Missing basics make audits painful. |
-| Process / subprocess | Business context | Use consistent vocabulary to enable reporting. |
-| Department | Routing/reporting context | Align with where the relationship is managed. |
-| Outsourcing owner | Accountable relationship owner | This is the key routing field. |
-| Vendor type | ICT / outsourcing / partner / other | Type influences what assessments are expected. |
-| Risk score (1–5) | Quick risk posture signal | Score should be explainable; don’t treat as a “feeling”. |
-| Supports important function | Governance classification | Don’t change casually; it drives review expectations. |
-| DORA relevant | Regulatory relevance flag | If your org uses DORA workflows, keep this accurate. |
-| Significant vendor | Materiality classification | Use consistently; it drives cadence and governance. |
-| Replaceability / alternatives | Resilience signal | Keep it honest; “easy” when it’s not is a risk. |
-| Reassessment cadence / next due | Scheduling metadata | Drives notifications and overdue pressure. |
-| Status | `active` / `inactive` | Inactive behaves like archived; restore is permission-gated. |
+- identity: vendor name, legal name, registration ID, country, website
+- ownership: outsourcing owner, department, process, subprocess
+- classification: vendor type, risk score, DORA relevance, significant-vendor flag, replaceability, alternative-provider flag
+- lifecycle: active/inactive status with archive or restore actions
+- links: enterprise risks connected to the vendor and controls that mitigate vendor exposure
 
-Vendor detail uses 5 merged tabs:
+The linked sections now use richer summary data:
 
-- Overview: hero metrics, summary cards, risk factors, linked risks, linked controls
-- Assessments: assessments and reassessment schedule
-- Assurance: contract controls and resilience
-- Operations: SLA, incidents, remediation
-- Ecosystem: dependencies and signals
-
-Deep links are canonicalized as `tab + section`. If you need to route someone directly to a subsection, use a URL like `/vendors/<id>?tab=operations&section=sla`.
-
-The vendor route family now behaves as one coherent surface:
-
-- `/vendors/:id` for view
-- `/vendors/:id/edit` for edit
-- `/vendors/new` for create
-
-The detail header centralizes the main actions:
-
-- create issue
-- edit vendor
-- archive active vendor
-- restore inactive vendor
-
-Create and edit use the same section structure as the detail page:
-
-- Identity
-- Ownership & Scope
-- Classification
-- Resilience & Monitoring
+- linked risk cards show the risk code, risk type, gross score, net score, process, department, and priority marker
+- linked control cards show the same gauge-style summary used on the individual risk page, including monitoring status, frequency, and risk level
+- archived linked items remain visible in separate secondary groups so historical context is not lost
 
 ## Core Workflows
 
-### 1) Onboard a vendor (clean baseline)
+### 1. Create or update a vendor
 
-1. Create vendor (or open existing).
-2. Fill identity fields (name, legal info, website).
-3. Set business context:
-   - process/subprocess
-   - department
-4. Assign outsourcing owner.
-5. Set governance flags:
-   - vendor type
-   - significant / important function / DORA relevance
-6. Set initial risk score and rationale (in notes/assessment).
-7. Save.
+Use create/edit when you need to maintain vendor master data:
 
-A vendor without an outsourcing owner is an orphan waiting to happen.
+- assign the correct department and outsourcing owner
+- set the vendor type and risk score
+- mark DORA relevance and significance where applicable
+- keep process and subprocess current
 
-### 2) Run an assessment (decision-ready posture)
+### 2. Link vendor exposure
 
-Vendor assessments are structured so your decision is auditable.
+Use linked risks and linked controls to connect the vendor to enterprise risk posture:
 
-Typical workflow:
+- use **Link Existing** to attach existing risks or controls
+- use **Add Risk** or **Add Control** to create a brand-new item from the vendor page
+- review active and archived linked items in separate visual groups
+- use **Manage Existing Links** to remove stale relationships when they are no longer valid
 
-1. Open vendor detail → **Assessments**.
-2. Start a new assessment.
-3. Complete sections with evidence.
-4. Save as draft while gathering inputs.
-5. Submit when complete.
-6. Review and record a decision (depending on your governance model).
+### 3. Create a new risk or control from vendor detail
 
-Treat assessment status as real:
+The vendor page now supports routed create-from-vendor flows:
 
-- draft: incomplete, not decisionable
-- submitted: ready for review
-- in review / committee recommended: under governance review
-- approved/rejected: decision recorded
+- **Add Risk** opens the full risk create form at `/risks/new?vendor_id=:id&return_to=/vendors/:id`
+- **Add Control** opens the full control create form at `/controls/new?vendor_id=:id&return_to=/vendors/:id`
+- after save, the app auto-links the new item back to the vendor
+- after create, you are returned to the vendor detail page with a confirmation banner and a direct link to the created item
+- if the item is created but linking fails, you still return to vendor detail with a warning banner and a link to the created item for manual follow-up
 
-### 3) Link vendors to risks and controls
+Create buttons follow normal permissions:
 
-Linking is how you connect third-party posture to enterprise posture.
+- you must be able to edit the vendor link context
+- and you must also have `risks:write` or `controls:write` for the corresponding create action
 
-Use linking when:
+### 4. Raise an issue from vendor context
 
-- a vendor is a dependency for a critical process
-- a vendor incident could move risk net scoring
-- a control is specifically designed to manage vendor risk
+Use **New Issue** on the vendor detail page when a vendor-related problem needs formal tracking.
 
-Keep linkage meaningful: linking everything to everything destroys signal.
+The issue remains part of the Issues domain. Vendor context is only used to prefill linkage and navigation.
 
-### 4) Maintain schedule and reassessment discipline
+### 5. Archive or restore vendors
 
-Vendors have reassessment cadence. Use it like a control:
+Archive vendors that should leave active operating views but must remain historically visible.
 
-- set cadence based on significance and risk score
-- track next due
-- respond to reminders early
+Typical reasons:
 
-If reassessments are always overdue, your governance model is under-resourced (fix capacity, not the reminders).
-
-### 5) Respond to incidents, SLAs, and signals
-
-Vendor monitoring surfaces exist so you can respond before posture collapses.
-
-Operational pattern:
-
-- incidents: log, assess impact, start remediation, and connect to Issues
-- SLAs: treat breaches as posture changes, not just vendor management noise
-- signals: use as early warnings (but validate before escalating)
-
-When an incident is material:
-
-- create an Issue (`/issues`) and route remediation
-- consider whether linked enterprise risks need score/status changes
-
-### 6) Archive/restore vendors
-
-Vendors can be marked inactive (archived-like).
-
-Archive when:
-
-- relationship ended
-- vendor is no longer used
-
-Restore only when:
-
-- relationship resumes
-- vendor was archived incorrectly
+- the relationship ended
+- the vendor is no longer in scope
+- the record was replaced by another active vendor entry
 
 ## Approvals and Notifications Behavior
 
-Vendor work generates notifications in multiple categories:
+The vendor page itself does not run a separate approval workflow anymore. That is an intentional product boundary.
 
-- assessment submitted / committee recommended / decided
-- reassessment due soon / overdue
-- SLA due / overdue / breach detected
+- vendor create/edit follows the standard vendor permission model
+- create-from-vendor for risks and controls uses the normal routed risk/control forms
+- if a newly created risk or control would normally trigger approval behavior in its own domain, that behavior still applies there
+- vendor detail only handles the post-create return path, auto-link attempt, and confirmation or warning banner
 
-Depending on policy, some vendor edits or decisions can be approval-gated.
+In practice this means:
 
-Practical checks:
-
-- if a decision/action didn’t apply, check `/approvals`
-- if reminders are unexpected, check cadence and due dates
-
-Use `./notifications.md` for queue discipline.
+- approvals belong to Risks, Controls, Issues, or Governance where those domains require them
+- vendor detail remains a clean operating surface for ownership, classification, and exposure linkage
+- vendor problems that need formal remediation should become Issues, not ad hoc vendor-only workflow records
+- there are no vendor-specific workflow notifications in the core vendor model; use Issues, linked risks, and linked controls for follow-up context
 
 ## Filters, Views, and Exports
 
-### List filters
+The vendor register supports:
 
-The vendor list supports operational filtering:
-
-- status (active vs inactive)
-- vendor type
-- department
 - search
+- status filtering
+- vendor type filtering
+- grouped views that respect linked-risk visibility
+- export from the vendor register
 
-### List views
-
-The vendor list now has two operating modes:
-
-- `All`: the standard paginated table
-- grouped drill-down tabs: `By Department`, `By Process`, `By Type`, `By Risk`
-
-Grouped views reuse the same active list filters, then reorganize the matching vendor set into drill-down cards.
-
-`By Risk` is special:
-
-- it only appears if you can read risks
-- one vendor can appear in more than one risk group when it is linked to multiple readable risks
-- card counts are overlapping membership counts, not unique-vendor totals
-- `Unlinked Risk` means the vendor has no readable linked risks for your current access
-
-### Exports
-
-Export vendors for:
-
-- periodic oversight packs
-- audit evidence
-
-Export discipline:
-
-- export with an as-of date
-- filter to the smallest necessary scope
-- keep raw exports unchanged
-- exports continue to follow the active list filters, not the currently opened grouped bucket
+Exports now reflect only retained core vendor fields.
 
 ## Common Mistakes
 
-- Missing outsourcing owner assignment.
-- Risk score without rationale or evidence.
-- Marking vendors “significant” inconsistently across the organization.
-- Letting reassessment drift into constant overdue.
-- Treating SLAs and incidents as separate from enterprise risk posture.
+- Treating the vendor record as a workflow engine instead of a clean register entry.
+- Leaving owner, department, or process blank.
+- Forgetting that **Add Risk** and **Add Control** return to the vendor page after create.
+- Keeping stale risk/control links after relationship changes.
+- Creating duplicate vendor records instead of updating the existing one.
 
 ## Troubleshooting
 
-### I don’t see `/vendors`
+### I cannot edit a vendor
 
-- Confirm `vendors:read`.
+Check:
 
-### I don’t see the `By Risk` tab
+- do you have `vendors:write`?
+- are you the outsourcing owner?
+- is the record in a department outside your scope?
 
-- Confirm you can read risks in addition to vendors.
-- If you can open vendors but not risks, the vendor remains visible but the risk-grouped tab is intentionally hidden.
+### I cannot see linked risks
 
-### I can view vendors but can’t edit
+The vendor can remain visible even when linked risks are not. This usually means you can read vendors but not the linked risks in that scope.
 
-- You may not have `vendors:write` and you may not be the outsourcing owner.
+### I need remediation tracking for a vendor problem
 
-### Assessments don’t progress
-
-- Ensure the assessment is submitted (drafts do not trigger review).
-- Confirm reviewers are aware of the pending work.
-
-### Reassessment reminders feel wrong
-
-- Validate reassessment cadence and next due.
-- Confirm whether the vendor was recently assessed/decided.
-
-### Export failed
-
-- Retry with fewer filters.
-- Capture the error message if it persists.
+Create an Issue from vendor context. Do not expect vendor detail to hold a separate remediation workflow.
 
 ## Related Documentation
 
-- `./issues.md`
-- `./notifications.md`
-- `./risks.md`
-- `./controls.md`
-- `./departments.md`
-- `./activity-log.md`
+- [Getting Started](./getting-started.md)
+- [Workflow, Approvals, Notifications](./notifications.md)
+- [Managing Risks](./risks.md)
+- [Managing Controls](./controls.md)
+- [Managing Issues](./issues.md)

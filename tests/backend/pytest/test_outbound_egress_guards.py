@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 
-from app.core.config import Settings, get_settings
+from app.core.config import Settings
 from app.core.outbound_guard import OutboundRequestError, guard_outbound_url
-from app.integrations.vendor_signals.public_registry import PublicRegistryConnector
 from app.services.sso_token_service import EntraTokenVerifier, SsoProviderUnavailableError
 
 
@@ -27,19 +24,6 @@ def test_outbound_guard_enforces_allowlist_when_configured():
     guard_outbound_url(url="https://graph.microsoft.com/v1.0/users", settings=settings)
     with pytest.raises(OutboundRequestError, match="Outbound host is not allowlisted"):
         guard_outbound_url(url="https://example.com/api", settings=settings)
-
-
-@pytest.mark.asyncio
-async def test_public_registry_connector_blocks_local_ssrf_target(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("VENDOR_SIGNALS_PUBLIC_REGISTRY_BASE_URL", "http://127.0.0.1:8999")
-    get_settings.cache_clear()
-    try:
-        connector = PublicRegistryConnector()
-        vendor = SimpleNamespace(registration_id="REG-123")
-        with pytest.raises(RuntimeError, match="Private/local outbound destination is blocked"):
-            await connector.fetch(vendor)
-    finally:
-        get_settings.cache_clear()
 
 
 @pytest.mark.asyncio

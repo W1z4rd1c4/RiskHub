@@ -7,21 +7,17 @@ from uuid import uuid4
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.logging import get_logger
 from app.models.scheduler_job_run import SchedulerJobRun
-from app.models.vendor import Vendor
 from app.services.issue_deadline_service import IssueDeadlineService
 from app.services.kri_deadline_service import KRIDeadlineService
 from app.services.orphaned_item_service import OrphanedItemService
 from app.services.outbox_service import OUTBOX_DISPATCH_INTERVAL_SECONDS, dispatch_pending_outbox_events
 from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
-from app.services.vendor_reassessment_service import VendorReassessmentService
-from app.services.vendor_signal_service import VendorSignalService
-from app.services.vendor_sla_deadline_service import VendorSLADeadlineService
 
 logger = get_logger("scheduler")
 
@@ -45,9 +41,6 @@ SCHEDULER_RUNTIME_JOB_NAME = "__scheduler_runtime__"
 SCHEDULER_JOB_IDS = (
     "kri_deadline_check",
     "questionnaire_deadline_check",
-    "vendor_reassessment_check",
-    "vendor_sla_check",
-    "vendor_signal_refresh",
     "issue_deadline_check",
     "ad_deprovision_check",
     "orphan_scan",
@@ -325,56 +318,6 @@ async def run_questionnaire_check():
     return await execute_tracked_job("questionnaire_deadline_check", _questionnaire_check_job)
 
 
-async def _vendor_reassessment_check_job() -> object:
-    async with get_db_context() as db:
-        return await VendorReassessmentService.check_vendor_reassessments(db)
-
-
-async def run_vendor_reassessment_check():
-    """Background job: Check vendor reassessment deadlines and generate notifications."""
-    return await execute_tracked_job("vendor_reassessment_check", _vendor_reassessment_check_job)
-
-
-async def _vendor_sla_check_job() -> object:
-    async with get_db_context() as db:
-        return await VendorSLADeadlineService.check_vendor_sla_deadlines(db)
-
-
-async def run_vendor_sla_check():
-    """Background job: Check vendor SLA deadlines/breaches and generate notifications."""
-    return await execute_tracked_job("vendor_sla_check", _vendor_sla_check_job)
-
-
-async def _vendor_signal_refresh_job() -> object:
-    from app.core.config import get_settings
-
-    settings = get_settings()
-    if not getattr(settings, "vendor_signals_public_registry_base_url", None):
-        logger.info("scheduler_job_skipped", job_name="vendor_signal_refresh", reason="no_registry_base_url")
-        return {"status": "skipped", "reason": "no_registry_base_url"}
-
-    async with get_db_context() as db:
-        vendors = (
-            await db.execute(
-                select(Vendor)
-                .where(Vendor.status == "active")
-                .where(Vendor.registration_id.isnot(None))
-                .limit(200)
-            )
-        ).scalars().all()
-
-        refreshed = 0
-        for vendor in vendors:
-            await VendorSignalService.refresh_vendor_signals(db, vendor=vendor, force=False)
-            refreshed += 1
-        return {"refreshed": refreshed}
-
-
-async def run_vendor_signal_refresh():
-    """Background job: Refresh optional external vendor signals."""
-    return await execute_tracked_job("vendor_signal_refresh", _vendor_signal_refresh_job)
-
-
 async def _issue_deadline_check_job() -> object:
     async with get_db_context() as db:
         return await IssueDeadlineService.check_issue_deadlines(db)
@@ -535,34 +478,10 @@ def setup_scheduler():
         name="Daily Questionnaire Deadline Check",
         replace_existing=True,
     )
-    # Daily vendor reassessment check at 8:10 AM
-    scheduler.add_job(
-        run_vendor_reassessment_check,
-        CronTrigger(hour=8, minute=10),
-        id="vendor_reassessment_check",
-        name="Daily Vendor Reassessment Check",
-        replace_existing=True,
-    )
-    # Daily vendor SLA check at 8:15 AM
-    scheduler.add_job(
-        run_vendor_sla_check,
-        CronTrigger(hour=8, minute=15),
-        id="vendor_sla_check",
-        name="Daily Vendor SLA Check",
-        replace_existing=True,
-    )
-    # Daily vendor signals refresh at 8:20 AM (optional connectors)
-    scheduler.add_job(
-        run_vendor_signal_refresh,
-        CronTrigger(hour=8, minute=20),
-        id="vendor_signal_refresh",
-        name="Daily Vendor External Signal Refresh",
-        replace_existing=True,
-    )
-    # Daily issue deadline check at 8:25 AM
+    # Daily issue deadline check at 8:10 AM
     scheduler.add_job(
         run_issue_deadline_check,
-        CronTrigger(hour=8, minute=25),
+        CronTrigger(hour=8, minute=10),
         id="issue_deadline_check",
         name="Daily Issue Deadline Check",
         replace_existing=True,
@@ -577,7 +496,7 @@ def setup_scheduler():
     )
     scheduler.add_job(
         run_orphan_scan,
-        CronTrigger(hour=8, minute=30),
+        CronTrigger(hour=8, minute=15),
         id="orphan_scan",
         name="Daily Orphan Governance Scan",
         replace_existing=True,
@@ -592,7 +511,7 @@ def setup_scheduler():
         max_instances=1,
     )
     logger.info(
-        "Scheduler configured: KRI/questionnaire/vendor/issue/AD-deprovision/orphan checks scheduled daily"
+        "Scheduler configured: KRI/questionnaire/issue/AD-deprovision/orphan checks scheduled daily"
     )
 
 

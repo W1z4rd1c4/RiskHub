@@ -25,8 +25,4 @@ export const vendorApi = {
     async restoreVendor(id: number): Promise<Vendor> {
         return apiClient.post<Vendor>(`/vendors/${id}/restore`, {});
     },
-
-    async triggerReassessment(id: number, reason: string): Promise<Vendor> {
-        return apiClient.post<Vendor>(`/vendors/${id}/trigger-reassessment`, { reason });
-    },
 };
