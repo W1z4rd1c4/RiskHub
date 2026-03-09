@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.department import Department
     from app.models.risk import ControlRiskLink
     from app.models.user import User
+    from app.models.vendor_control_link import VendorControlLink
 
 
 class ControlForm(str, PyEnum):
@@ -121,3 +122,4 @@ class Control(Base):
     # Relationships
     executions: Mapped[list["ControlExecution"]] = relationship("ControlExecution", back_populates="control")
     risk_links: Mapped[list["ControlRiskLink"]] = relationship("ControlRiskLink", back_populates="control")
+    vendor_links: Mapped[list["VendorControlLink"]] = relationship("VendorControlLink", back_populates="control")

@@ -33,6 +33,7 @@ from app.models.role import Permission, Role, RolePermission, RoleType
 from app.models.user import User
 from app.models.vendor import Vendor, VendorReplaceability, VendorStatus, VendorType
 from app.models.vendor_control_link import VendorControlLink
+from app.models.vendor_kri_link import VendorKRILink
 from app.models.vendor_risk_link import VendorRiskLink
 
 __all__ = [
@@ -60,6 +61,7 @@ __all__ = [
     "Vendor", "VendorStatus", "VendorType", "VendorReplaceability",
     "VendorRiskLink",
     "VendorControlLink",
+    "VendorKRILink",
     "OrphanedItem",
     "ActivityLog", "ActivityAction", "ActivityEntityType",
     # Risk Hub models

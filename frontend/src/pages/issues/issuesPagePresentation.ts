@@ -239,9 +239,26 @@ export async function fetchAllIssuesForGroupedView(
     return { items: allItems, total };
 }
 
-function groupedValuesForIssue(issue: IssueSummary, viewMode: ViewMode): string[] {
+function groupedValuesForIssue(
+    issue: IssueSummary,
+    viewMode: ViewMode,
+    labels: { unlinkedVendor: string }
+): string[] {
     if (viewMode === 'department') {
         return [issue.department_name?.trim() || UNKNOWN_DEPARTMENT_LABEL];
+    }
+
+    if (viewMode === 'vendor') {
+        const values = new Set<string>();
+        for (const context of issue.vendor_contexts ?? []) {
+            if (context.vendor_name?.trim()) {
+                values.add(context.vendor_name.trim());
+            }
+        }
+        if (values.size === 0) {
+            values.add(labels.unlinkedVendor);
+        }
+        return [...values];
     }
 
     const values = new Set<string>();
@@ -274,13 +291,17 @@ function groupedValuesForIssue(issue: IssueSummary, viewMode: ViewMode): string[
     return [...values];
 }
 
-export function buildIssueGroupedRows(items: IssueSummary[], viewMode: ViewMode): IssueGroupedRow[] {
+export function buildIssueGroupedRows(
+    items: IssueSummary[],
+    viewMode: ViewMode,
+    labels: { unlinkedVendor: string }
+): IssueGroupedRow[] {
     if (viewMode === 'all' || viewMode === 'risk') {
         return [];
     }
 
     return items.flatMap((issue) =>
-        groupedValuesForIssue(issue, viewMode).map((groupValue) => ({
+        groupedValuesForIssue(issue, viewMode, labels).map((groupValue) => ({
             groupValue,
             issue,
             rowId: `${issue.id}:${groupValue}`,

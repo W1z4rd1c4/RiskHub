@@ -11,13 +11,15 @@ import {
 
 import { useTranslation } from '@/i18n/hooks';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
-import type { LinkedControl } from '@/types/vendorLink';
+import type { LinkedControl, LinkedKRI } from '@/types/vendorLink';
 import type { Vendor } from '@/types/vendor';
 import { VendorLinkedControlsTab } from '@/components/vendors/VendorLinkedControlsTab';
+import { VendorLinkedKRIsTab } from '@/components/vendors/VendorLinkedKRIsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
 
 interface VendorOverviewSummary {
     linkedControls: LinkedControl[];
+    linkedKRIs: LinkedKRI[];
 }
 
 interface VendorOverviewTabProps {
@@ -27,6 +29,7 @@ interface VendorOverviewTabProps {
     onAddControl: () => void;
     onAddRisk: () => void;
     onNavigateToControl: (controlId: number) => void;
+    onNavigateToKri: (kriId: number) => void;
     onNavigateToRisk: (riskId: number) => void;
     vendor: Vendor;
 }
@@ -58,18 +61,24 @@ export function VendorOverviewTab({
     onAddControl,
     onAddRisk,
     onNavigateToControl,
+    onNavigateToKri,
     onNavigateToRisk,
     vendor,
 }: VendorOverviewTabProps) {
     const { t, i18n } = useTranslation(['vendors', 'common']);
     const [summary, setSummary] = useState<VendorOverviewSummary>({
         linkedControls: [],
+        linkedKRIs: [],
     });
 
     const refreshSummary = useCallback(async () => {
-        const linkedControlsResult = await vendorLinkApi.getLinkedControls(vendor.id);
+        const [linkedControlsResult, linkedKRIsResult] = await Promise.all([
+            vendorLinkApi.getLinkedControls(vendor.id),
+            vendorLinkApi.getLinkedKRIs(vendor.id),
+        ]);
         setSummary({
             linkedControls: linkedControlsResult,
+            linkedKRIs: linkedKRIsResult,
         });
     }, [vendor.id]);
 
@@ -81,7 +90,11 @@ export function VendorOverviewTab({
         () => summary.linkedControls.filter((control) => control.status !== 'archived'),
         [summary.linkedControls],
     );
-    const linkedExposureCount = vendor.linked_risks.length + activeLinkedControls.length;
+    const activeLinkedKRIs = useMemo(
+        () => summary.linkedKRIs.filter((kri) => !kri.is_archived),
+        [summary.linkedKRIs],
+    );
+    const linkedExposureCount = vendor.linked_risks.length + activeLinkedControls.length + activeLinkedKRIs.length;
     const vendorFlags = [
         vendor.supports_important_core_insurance_function
             ? t('flags.supports_core_function')
@@ -128,6 +141,7 @@ export function VendorOverviewTab({
                         <p className="mt-2 text-xs text-slate-500">
                             {t('overview.summary.linked_exposure_hint', {
                                 controls: activeLinkedControls.length,
+                                kris: activeLinkedKRIs.length,
                                 risks: vendor.linked_risks.length,
                             })}
                         </p>
@@ -242,6 +256,10 @@ export function VendorOverviewTab({
                             <span className="text-lg text-white font-black">{activeLinkedControls.length}</span>
                         </div>
                         <div className="flex justify-between items-center gap-4">
+                            <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_kris')}</span>
+                            <span className="text-lg text-white font-black">{activeLinkedKRIs.length}</span>
+                        </div>
+                        <div className="flex justify-between items-center gap-4">
                             <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('overview.summary.linked_exposure')}</span>
                             <span className="text-lg text-white font-black">{linkedExposureCount}</span>
                         </div>
@@ -269,6 +287,12 @@ export function VendorOverviewTab({
                 canEdit={canEdit}
                 onAddControl={onAddControl}
                 onNavigateToControl={onNavigateToControl}
+            />
+
+            <VendorLinkedKRIsTab
+                vendorId={vendor.id}
+                canEdit={canEdit}
+                onNavigateToKri={onNavigateToKri}
             />
 
             <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">

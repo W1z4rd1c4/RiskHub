@@ -86,6 +86,9 @@
     "no_linked_risk": "Žádné propojené riziko",
     "no_group": "Žádné KRI v této skupině."
   },
+  "grouping": {
+    "unlinked_vendor": "Bez propojeného dodavatele"
+  },
   "columns": {
     "metric": "Metrika",
     "value": "Hodnota",

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
+import { useAuth } from '@/contexts/AuthContext';
 import { ControlsFilterBar } from './controls/ControlsFilterBar';
 import { ControlsPageHeader } from './controls/ControlsPageHeader';
 import { ControlsTableSection } from './controls/ControlsTableSection';
@@ -8,6 +9,7 @@ import { useControlsPageState } from './controls/useControlsPageState';
 
 export function ControlsPage() {
     const navigate = useNavigate();
+    const { hasPermission } = useAuth();
     const {
         currentPage,
         errorKey,
@@ -41,7 +43,11 @@ export function ControlsPage() {
                 onOpenExport={openExportDialog}
             />
 
-            <ViewSwitcher value={viewMode} onChange={updateViewMode} />
+            <ViewSwitcher
+                value={viewMode}
+                onChange={updateViewMode}
+                exclude={hasPermission('vendors', 'read') ? ['flag'] : ['flag', 'vendor']}
+            />
 
             <ControlsFilterBar
                 search={search}

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from app.models import Risk
 from app.schemas.risk import RiskSummary
+from app.schemas.vendor_shared import LinkedVendorRead
 
 
-def risk_to_summary(risk: Risk) -> RiskSummary:
+def risk_to_summary(risk: Risk, *, linked_vendors: list[LinkedVendorRead] | None = None) -> RiskSummary:
     """
     Map a Risk ORM object to the RiskSummary schema.
 
@@ -34,5 +35,5 @@ def risk_to_summary(risk: Risk) -> RiskSummary:
         kri_count=len(kris),
         control_count=len(control_links),
         has_breach=any(k.current_value < k.lower_limit or k.current_value > k.upper_limit for k in kris),
+        linked_vendors=linked_vendors or [],
     )
-

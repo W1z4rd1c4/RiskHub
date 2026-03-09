@@ -1,7 +1,7 @@
 ---
 title: Managing Controls
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.1"
+last_updated: "2026-03-09"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.2, §4, §7 + frontend/src/pages/ControlsPage.tsx"
 summary: "Full manual for control lifecycle management: design, ownership, execution logging, linkage to risks, exports, and approval-aware governance."
@@ -232,6 +232,16 @@ Controls list supports:
 - view mode (all vs grouped)
 
 Use grouped views for review prep and concentration analysis.
+
+Grouped views now include **By Vendor**.
+
+`By Vendor` is multi-membership:
+
+- a control appears in every readable linked vendor bucket
+- unreadable vendors are omitted from grouping
+- controls with no readable linked vendors fall into the unlinked fallback bucket
+
+Use it to review which controls mitigate exposure for one vendor or one third-party cluster.
 
 ### Exports
 

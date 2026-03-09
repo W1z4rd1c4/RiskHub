@@ -17,3 +17,7 @@ Risk register page support modules extracted for maintainability.
 
 Keep `RisksPage.tsx` as the route container and use this folder for page-local
 state, filter/query helpers, and reusable table-column definitions.
+
+`risksPagePresentation.ts` now also owns grouped `By Vendor` behavior. The
+grouped register is multi-membership: one risk can render in multiple vendor
+groups when it is linked to multiple readable vendors.

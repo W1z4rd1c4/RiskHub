@@ -7,6 +7,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, computed_field
 
+from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import KRIMonitoringReason, KRIMonitoringStatus
 
 
@@ -83,6 +84,7 @@ class KRIResponse(KRIBase, KRIMonitoringBundle):
 
     # Reporting ownership display
     reporting_owner_name: Optional[str] = None
+    linked_vendors: list[LinkedVendorRead] = Field(default_factory=list)
 
     # Period tracking
     last_period_end: Optional[date] = None

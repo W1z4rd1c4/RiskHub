@@ -4,7 +4,7 @@ version: "2.4"
 last_updated: "2026-03-09"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/*"
-summary: "User guide for the core vendor register: ownership, classification, risk-detail-style linked sections, routed create-from-vendor flows, exports, and issue context."
+summary: "User guide for the core vendor register: ownership, classification, vendor flags, risk-detail-style linked sections, linked KRIs, routed create-from-vendor flows, exports, and issue context."
 tags:
   - vendors
   - workflow
@@ -23,7 +23,7 @@ The Vendors area is now a core third-party register. Use it to answer:
 - Who owns the vendor relationship?
 - Which process and department does the vendor support?
 - What is the current vendor classification and risk score?
-- Which enterprise risks and controls are linked to the vendor?
+- Which enterprise risks, controls, and KRIs are linked to the vendor?
 
 Primary route: `/vendors`
 
@@ -47,13 +47,14 @@ Core vendor data includes:
 - ownership: department, outsourcing owner, process, subprocess
 - classification: vendor type, risk score, DORA relevance, significance, replaceability
 - lifecycle: active/inactive status, archive/restore
-- links: linked risks and linked controls
+- links: linked risks, linked controls, and linked KRIs
 
 The vendor detail page is a single core view. It keeps:
 
 - header and lifecycle actions
 - a summary surface for risk score, status, exposure, and vendor flags
 - summary cards for classification, ownership, and connections
+- a linked KRIs section using the same card-grid and archived-group treatment as the linked risks and controls sections
 - embedded linked risks section using the same section chrome and card-grid interaction model as the individual risk page
 - embedded linked controls section using the same action bar, gauge-card style, and archived grouping pattern as the individual risk page
 - contextual issue creation from the vendor page
@@ -67,13 +68,15 @@ Vendor detail is intentionally simpler than Risks or Issues, but visibility stil
 - vendor ownership rules can allow certain mutation actions even without broad vendor-admin privileges
 - linked risks remain separately scope-filtered, so a user can still see the vendor even if some linked risks are omitted from the page
 - linked controls are also filtered by normal control visibility rules before card grids are rendered
+- linked KRIs follow the same read-scope and ownership rules as the KRI register, so unreadable KRIs are omitted from vendor detail and grouped views
 
 This matters on the page because:
 
 - `Link Existing` and `Manage Existing Links` only appear when the user can mutate vendor links
 - `Add Risk` appears only when the user can both edit the vendor context and create risks
 - `Add Control` appears only when the user can both edit the vendor context and create controls
-- the vendor page never leaks unreadable risk or control names just to preserve counts or layout symmetry
+- `Link Existing` for KRIs appears only when the user can mutate vendor links and can read the target KRIs
+- the vendor page never leaks unreadable risk, control, or KRI names just to preserve counts or layout symmetry
 
 ## Data Model and Key Fields
 
@@ -83,12 +86,13 @@ The vendor record is now a core register entry, not a workflow container. Keep t
 - ownership: outsourcing owner, department, process, subprocess
 - classification: vendor type, risk score, DORA relevance, significant-vendor flag, replaceability, alternative-provider flag
 - lifecycle: active/inactive status with archive or restore actions
-- links: enterprise risks connected to the vendor and controls that mitigate vendor exposure
+- links: enterprise risks, mitigating controls, and monitoring KRIs connected to the vendor
 
 The linked sections now use richer summary data:
 
 - linked risk cards show the risk code, risk type, gross score, net score, process, department, and priority marker
 - linked control cards show the same gauge-style summary used on the individual risk page, including monitoring status, frequency, and risk level
+- linked KRI cards show the monitoring status, latest due-date context, value, and related risk metadata used by the KRI register and vendor detail page
 - archived linked items remain visible in separate secondary groups so historical context is not lost
 
 ## Core Workflows
@@ -104,12 +108,37 @@ Use create/edit when you need to maintain vendor master data:
 
 ### 2. Link vendor exposure
 
-Use linked risks and linked controls to connect the vendor to enterprise risk posture:
+Use linked risks, linked controls, and linked KRIs to connect the vendor to enterprise risk posture:
 
-- use **Link Existing** to attach existing risks or controls
+- use **Link Existing** to attach existing risks, controls, or KRIs
 - use **Add Risk** or **Add Control** to create a brand-new item from the vendor page
 - review active and archived linked items in separate visual groups
 - use **Manage Existing Links** to remove stale relationships when they are no longer valid
+
+### 2a. Group vendors by flag
+
+The vendor register also supports a grouped **By Flag** view for concentration review:
+
+- `DORA relevant`
+- `Supports core function`
+- `Significant vendor`
+- `Insignificant vendors` for vendors that have none of the three flags
+
+This grouping is multi-membership:
+
+- a vendor can appear in more than one flag bucket
+- a vendor with no active flags appears only in `Insignificant vendors`
+
+### 2b. Use grouped vendor views from other modules
+
+Risks, Controls, Issues, and KRIs now support a grouped **By Vendor** view.
+
+Use it when you want to answer questions like:
+
+- which risks are concentrated around one vendor
+- which controls mitigate exposure for a specific vendor
+- which issues are currently open against one vendor context
+- which KRIs monitor vendor-related exposure
 
 ### 3. Create a new risk or control from vendor detail
 
@@ -149,7 +178,7 @@ The vendor page itself does not run a separate approval workflow anymore. That i
 - vendor create/edit follows the standard vendor permission model
 - create-from-vendor for risks and controls uses the normal routed risk/control forms
 - if a newly created risk or control would normally trigger approval behavior in its own domain, that behavior still applies there
-- vendor detail only handles the post-create return path, auto-link attempt, and confirmation or warning banner
+- vendor detail only handles the post-create return path, auto-link attempt, confirmation or warning banner, and link management for existing risks, controls, and KRIs
 
 In practice this means:
 
@@ -166,6 +195,7 @@ The vendor register supports:
 - status filtering
 - vendor type filtering
 - grouped views that respect linked-risk visibility
+- grouped `By Flag` review for DORA, core-function, significant, and insignificant vendor buckets
 - export from the vendor register
 
 Exports now reflect only retained core vendor fields.

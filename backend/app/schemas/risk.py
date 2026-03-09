@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.execution import ExecutionResultEnum
+from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import ControlMonitoringReason, ControlMonitoringStatus
 
 if TYPE_CHECKING:
@@ -151,6 +152,7 @@ class RiskSummary(BaseModel):
     kri_count: int = 0
     control_count: int = 0
     has_breach: bool = False
+    linked_vendors: list[LinkedVendorRead] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 

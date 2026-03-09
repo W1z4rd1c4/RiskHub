@@ -7,6 +7,12 @@ import {
     type ControlSummary,
 } from '@/types/control';
 
+export interface ControlGroupedRow {
+    groupValue: string;
+    control: ControlSummary;
+    rowId: string;
+}
+
 export type ControlListStatusFilter = '' | 'archived' | ControlMonitoringStatus;
 
 interface BuildControlListParamsOptions {
@@ -117,4 +123,33 @@ export function getControlGroupByField(viewMode: ViewMode): keyof ControlSummary
         default:
             return null;
     }
+}
+
+export function buildControlGroupedRows(
+    items: ControlSummary[],
+    viewMode: ViewMode,
+    labels: { unlinkedVendor: string }
+): ControlGroupedRow[] {
+    if (viewMode !== 'vendor') {
+        return [];
+    }
+
+    return items.flatMap((control) => {
+        const vendors = control.linked_vendors ?? [];
+        if (vendors.length === 0) {
+            return [
+                {
+                    groupValue: labels.unlinkedVendor,
+                    control,
+                    rowId: `${control.id}:unlinked-vendor`,
+                },
+            ];
+        }
+
+        return vendors.map((vendor) => ({
+            groupValue: vendor.name,
+            control,
+            rowId: `${control.id}:${vendor.id}`,
+        }));
+    });
 }

@@ -58,6 +58,11 @@ export interface IssueRiskContext {
     risk_type: string | null;
 }
 
+export interface IssueVendorContext {
+    vendor_id: number;
+    vendor_name: string;
+}
+
 export interface IssueSummary {
     id: number;
     title: string;
@@ -75,6 +80,7 @@ export interface IssueSummary {
     created_at: string;
     updated_at: string;
     risk_contexts: IssueRiskContext[];
+    vendor_contexts: IssueVendorContext[];
 }
 
 export interface Issue extends IssueSummary {

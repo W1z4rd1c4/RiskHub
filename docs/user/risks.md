@@ -1,7 +1,7 @@
 ---
 title: Managing Risks
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.1"
+last_updated: "2026-03-09"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.1, §6, §7 + frontend/src/pages/RisksPage.tsx"
 summary: "Full manual for building and operating a high-quality risk register: scoring, ownership, scope rules, control linkage, exports, and approval-aware edits."
@@ -117,6 +117,7 @@ RiskHub uses a structured risk record. These fields are the ones that drive oper
 | Net probability/impact | Residual scoring inputs | Should reflect control effectiveness, not optimism. |
 | Linked controls | Controls that mitigate this risk | Links should be meaningful and maintained. |
 | KRIs | Indicators that monitor this risk | KRIs are how you detect drift early. |
+| Linked vendors | Vendors connected to this risk | Used for concentration review and grouped `By Vendor` browsing. |
 
 Detail view note:
 
@@ -257,6 +258,16 @@ RiskHub supports view modes that change how you interpret the list:
 
 - all risks (paged)
 - grouped views (requires fetching more data for accurate counts)
+
+Grouped modes now include **By Vendor**.
+
+`By Vendor` is multi-membership:
+
+- a risk appears in every readable linked vendor bucket
+- unreadable vendors are omitted
+- risks with no readable linked vendors fall into the unlinked fallback bucket
+
+Use `By Vendor` to review third-party concentration and open risks around a single vendor relationship.
 
 Use grouped views for:
 

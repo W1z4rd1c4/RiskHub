@@ -6,11 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.mappers.risk import risk_to_summary
-from app.core.permissions import get_user_department_ids
-from app.core.security import require_permission
+from app.core.permissions import can_read_vendor, get_user_department_ids
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import ControlRiskLink, KeyRiskIndicator, Risk, User
+from app.models import ControlRiskLink, KeyRiskIndicator, Risk, User, VendorRiskLink
 from app.schemas.risk import RiskListResponse, RiskStatusEnum
+from app.schemas.vendor_shared import LinkedVendorRead
 
 router = APIRouter()
 
@@ -173,7 +174,12 @@ async def list_risks(
 
     # Apply pagination
     query = (
-        base_query.options(selectinload(Risk.department), selectinload(Risk.kris), selectinload(Risk.control_links))
+        base_query.options(
+            selectinload(Risk.department),
+            selectinload(Risk.kris),
+            selectinload(Risk.control_links),
+            selectinload(Risk.vendor_links).selectinload(VendorRiskLink.vendor),
+        )
         .offset(skip)
         .limit(limit)
     )
@@ -181,4 +187,17 @@ async def list_risks(
     result = await db.execute(query)
     risks = result.scalars().all()
 
-    return RiskListResponse(items=[risk_to_summary(r) for r in risks], total=total, skip=skip, limit=limit)
+    can_read_vendors = check_permission(current_user, "vendors", "read")
+
+    items = []
+    for risk in risks:
+        linked_vendors: list[LinkedVendorRead] = []
+        if can_read_vendors:
+            for link in getattr(risk, "vendor_links", []) or []:
+                vendor = getattr(link, "vendor", None)
+                if vendor is None or not can_read_vendor(vendor, current_user):
+                    continue
+                linked_vendors.append(LinkedVendorRead(id=vendor.id, name=vendor.name))
+        items.append(risk_to_summary(risk, linked_vendors=linked_vendors))
+
+    return RiskListResponse(items=items, total=total, skip=skip, limit=limit)

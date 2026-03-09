@@ -153,7 +153,9 @@
     "by_process": "By Process",
     "by_type": "By Type",
     "by_risk_type": "By Risk Type",
-    "by_risk": "By Risk"
+    "by_risk": "By Risk",
+    "by_vendor": "By Vendor",
+    "by_flag": "By Flag"
   },
   "hero": {
     "tagline": "The next generation Enterprise Risk Management platform.",
@@ -208,6 +210,7 @@
     "no_sync_runs": "No sync runs recorded yet.",
     "no_risks_found": "No risks found",
     "no_controls_found": "No controls found",
+    "no_kris_found": "No KRIs found",
     "no_controls_department": "No controls found for this department.",
     "no_kris_department": "No KRIs found for this department.",
     "no_users_department": "No users found for this department.",
@@ -247,6 +250,7 @@
     "search_items": "Search items...",
     "search_risks": "Search risks...",
     "search_controls": "Search controls...",
+    "search_kris": "Search KRIs...",
     "include_archived": "Include archived"
   },
   "form": {

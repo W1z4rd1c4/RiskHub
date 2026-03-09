@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
+import { useAuth } from '@/contexts/AuthContext';
 import { RisksFilterBar } from './risks/RisksFilterBar';
 import { RisksPageHeader } from './risks/RisksPageHeader';
 import { RisksTableSection } from './risks/RisksTableSection';
@@ -10,6 +11,7 @@ import { useRisksPageState } from './risks/useRisksPageState';
 
 export function RisksPage() {
     const navigate = useNavigate();
+    const { hasPermission } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const [initialState] = useState(() => parseRisksPageQueryParams(searchParams));
     const {
@@ -71,7 +73,11 @@ export function RisksPage() {
                 onOpenExport={openExportDialog}
             />
 
-            <ViewSwitcher value={viewMode} onChange={updateViewMode} exclude={['risk']} />
+            <ViewSwitcher
+                value={viewMode}
+                onChange={updateViewMode}
+                exclude={hasPermission('vendors', 'read') ? ['risk', 'flag'] : ['risk', 'flag', 'vendor']}
+            />
 
             <RisksFilterBar
                 criticalFilter={criticalFilter}

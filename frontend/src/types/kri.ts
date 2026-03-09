@@ -1,3 +1,5 @@
+import type { LinkedVendorSummary } from '@/types/vendorLink';
+
 export type KRIBreachStatus = 'above' | 'below' | 'within';
 export type KRIMonitoringStatus = 'new' | 'not_submitted' | 'breach' | 'warning' | 'optimal';
 export type KRITimelinessStatus = 'due_soon';
@@ -52,6 +54,7 @@ export interface KeyRiskIndicator extends KRIMonitoringFields {
     risk_owner_name?: string;
     risk_department_name?: string;
     department_name?: string;
+    linked_vendors?: LinkedVendorSummary[];
 }
 
 export interface KRICreate {

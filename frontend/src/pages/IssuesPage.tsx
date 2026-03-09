@@ -18,6 +18,7 @@ export function IssuesPage() {
     const { t } = useTranslation('issues');
     const canRead = hasPermission('issues', 'read');
     const canWrite = hasPermission('issues', 'write');
+    const canReadVendors = hasPermission('vendors', 'read');
 
     const [initialState] = useState(() => parseIssuesPageQueryParams(searchParams));
     const {
@@ -76,7 +77,11 @@ export function IssuesPage() {
                 onOpenExport={openExportDialog}
             />
 
-            <ViewSwitcher value={viewMode} onChange={updateViewMode} exclude={['risk']} />
+            <ViewSwitcher
+                value={viewMode}
+                onChange={updateViewMode}
+                exclude={canReadVendors ? ['risk', 'flag'] : ['risk', 'flag', 'vendor']}
+            />
 
             <IssuesFilterBar
                 search={search}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    buildRiskGroupedRows,
     buildRiskListParams,
     normalizeRiskSummary,
     parseRisksPageQueryParams,
@@ -66,6 +67,56 @@ describe('Risks page presentation helpers', () => {
             kri_count: 0,
             has_breach: false,
             control_count: 0,
+            linked_vendors: [],
         });
+    });
+
+    it('duplicates risks into vendor groups and falls back to unlinked vendor', () => {
+        const rows = buildRiskGroupedRows(
+            [
+                normalizeRiskSummary({
+                    id: 1,
+                    risk_id_code: 'R-001',
+                    name: 'Vendor risk',
+                    process: 'Operations',
+                    risk_type: 'operational',
+                    category: 'Process',
+                    description: 'Desc',
+                    gross_score: 9,
+                    gross_probability: 3,
+                    gross_impact: 3,
+                    net_score: 4,
+                    status: 'active',
+                    is_priority: false,
+                    linked_vendors: [
+                        { id: 11, name: 'Acme Cloud' },
+                        { id: 12, name: 'Shared Vendor' },
+                    ],
+                }),
+                normalizeRiskSummary({
+                    id: 2,
+                    risk_id_code: 'R-002',
+                    name: 'Standalone risk',
+                    process: 'Finance',
+                    risk_type: 'financial',
+                    category: 'Capital',
+                    description: 'Desc',
+                    gross_score: 12,
+                    gross_probability: 4,
+                    gross_impact: 3,
+                    net_score: 8,
+                    status: 'active',
+                    is_priority: false,
+                }),
+            ],
+            'vendor',
+            { unlinkedVendor: 'Unlinked Vendor' },
+        );
+
+        expect(rows.map((row) => row.groupValue)).toEqual([
+            'Acme Cloud',
+            'Shared Vendor',
+            'Unlinked Vendor',
+        ]);
     });
 });

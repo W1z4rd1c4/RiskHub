@@ -15,9 +15,11 @@ import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 import { ControlStatus, type ControlSummary } from '@/types/control';
 
 import {
+    buildControlGroupedRows,
     getControlGroupByField,
     getControlRiskLevelColor,
     getControlStatusColor,
+    type ControlGroupedRow,
 } from './controlsPagePresentation';
 
 interface ControlsTableSectionProps {
@@ -168,6 +170,10 @@ export function ControlsTableSection({
         ],
         [hasPermission, onRestoreControl, pendingApprovalIds, t]
     );
+    const groupedRows = useMemo(
+        () => buildControlGroupedRows(items, viewMode, { unlinkedVendor: t('grouping.unlinked_vendor') }),
+        [items, t, viewMode]
+    );
 
     if (errorKey) {
         return (
@@ -250,6 +256,50 @@ export function ControlsTableSection({
                     onPageChange={onPageChange}
                 />
             </>
+        );
+    }
+
+    if (viewMode === 'vendor') {
+        return (
+            <CategoryDrillDown
+                data={groupedRows}
+                groupBy={'groupValue'}
+                keyExtractor={(row) => row.rowId}
+                getStats={(groupItems) => ({
+                    total: groupItems.length,
+                    activeCount: groupItems.filter((row) => row.control.status === ControlStatus.ACTIVE).length,
+                    highRiskCount: groupItems.filter((row) => row.control.risk_level >= 4).length,
+                })}
+                renderTable={(groupItems: ControlGroupedRow[]) => (
+                    <SortableTable
+                        data={groupItems.map((row) => row.control)}
+                        columns={columns}
+                        keyExtractor={(control) => control.id}
+                        onRowClick={onRowClick}
+                        emptyMessage={t('empty_state.no_controls')}
+                    />
+                )}
+                renderItem={(row) => (
+                    <div
+                        onClick={() => onRowClick(row.control)}
+                        className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
+                    >
+                        <div className="flex items-center gap-4">
+                            <span className="text-sm font-bold text-white">{row.control.name}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getControlRiskLevelColor(
+                                    row.control.risk_level
+                                )}`}
+                            >
+                                {row.control.risk_level} / 5
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-slate-500" />
+                        </div>
+                    </div>
+                )}
+            />
         );
     }
 

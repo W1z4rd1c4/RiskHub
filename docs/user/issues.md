@@ -1,7 +1,7 @@
 ---
 title: Managing Issues and Findings
-version: "2.1"
-last_updated: "2026-03-05"
+version: "2.2"
+last_updated: "2026-03-09"
 audience: user
 source_of_truth: "frontend/src/pages/IssuesPage.tsx + frontend/src/pages/issues/* + issue workflows in backend"
 summary: "How to log, triage, remediate, and close Issues (findings) with clear ownership, due dates, exceptions, and audit-ready exports."
@@ -193,6 +193,14 @@ Common filters and what they are for:
 - **Overdue**: find broken commitments quickly
 - **Exclude active exceptions**: focus on issues that still require action (not temporarily waived)
 - **Search**: use stable keywords (system name, process name, vendor name)
+
+Grouped views now also include **By Vendor**.
+
+`By Vendor` is multi-membership:
+
+- an issue appears under every readable linked vendor context
+- vendor-linked contextual issues are grouped directly under that vendor
+- issues with no readable vendor context fall into the unlinked fallback bucket
 
 Links from dashboards and other modules can open `/issues` with filters already applied. Treat those URL parameters as the starting view for triage, not as a live saved view that rewrites itself while you work.
 

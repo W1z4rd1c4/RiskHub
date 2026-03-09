@@ -1,7 +1,7 @@
 ---
 title: KRIs (Key Risk Indicators)
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.1"
+last_updated: "2026-03-09"
 audience: user
 source_of_truth: "frontend/src/pages/KRIsPage.tsx + frontend/src/pages/KRIDetailPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "How to create and operate KRIs: thresholds, breach/overdue logic, value recording, history review, exports, and notification-driven monitoring."
@@ -44,6 +44,7 @@ In RiskHub, KRIs are treated as risk sub-entities:
 
 - they are linked to a risk
 - they inherit context (department, process, category)
+- they can also be linked to vendors for third-party monitoring context
 - they drive dashboard widgets and notifications
 
 ## Where To Find It
@@ -51,6 +52,7 @@ In RiskHub, KRIs are treated as risk sub-entities:
 - KRI list: `/kris`
 - KRI detail: click a row
 - KRIs on a risk: open a risk detail page (`/risks/<id>`) and review KRI-related sections
+- KRIs on a vendor: open a vendor detail page (`/vendors/<id>`) and review the linked KRIs section
 
 If you do not see **KRIs** in the sidebar:
 
@@ -217,6 +219,16 @@ KRIs can be viewed in:
 
 - paged list (all)
 - grouped views (for review packs and concentration)
+
+Grouped views now include **By Vendor**.
+
+`By Vendor` is multi-membership:
+
+- a KRI appears in every readable linked vendor bucket
+- unreadable vendors are omitted from grouping
+- KRIs with no readable linked vendors fall into the unlinked fallback bucket
+
+Use it to review which vendor relationships are being monitored through KRIs and where vendor-linked signals are concentrated.
 
 ### Exports
 
