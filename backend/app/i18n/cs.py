@@ -72,28 +72,6 @@ MESSAGES = {
             "Byla požádána o upřesnění k vašemu dotazníku hodnocení rizika "
             "'{risk_name}'."
         ),
-        "vendor_assessment_submitted_title": "Hodnocení dodavatele odesláno",
-        "vendor_assessment_submitted_message": "{actor_name} odeslal(a) hodnocení dodavatele '{vendor_name}'.",
-        "vendor_assessment_committee_recommended_title": "Doporučení k hodnocení dodavatele",
-        "vendor_assessment_committee_recommended_message": (
-            "Bylo zaznamenáno doporučení komise pro dodavatele '{vendor_name}'."
-        ),
-        "vendor_assessment_decided_title": "Rozhodnutí k hodnocení dodavatele",
-        "vendor_assessment_decided_message": "Bylo zaznamenáno rozhodnutí '{decision}' pro dodavatele '{vendor_name}'.",
-        "vendor_reassessment_due_soon_title": "Brzký termín přehodnocení dodavatele",
-        "vendor_reassessment_due_soon_message": "Dodavatel '{vendor_name}' by měl být přehodnocen do {due_date}.",
-        "vendor_reassessment_overdue_title": "Přehodnocení dodavatele po termínu",
-        "vendor_reassessment_overdue_message": "Přehodnocení dodavatele '{vendor_name}' je po termínu od {due_date}.",
-        "vendor_sla_due_soon_title": "Blížící se termín SLA dodavatele",
-        "vendor_sla_due_soon_message": "SLA '{sla_name}' pro dodavatele '{vendor_name}' má termín {due_date}.",
-        "vendor_sla_due_tomorrow_title": "SLA dodavatele má termín zítra",
-        "vendor_sla_due_tomorrow_message": "SLA '{sla_name}' pro dodavatele '{vendor_name}' má termín {due_date}.",
-        "vendor_sla_overdue_title": "SLA dodavatele po termínu",
-        "vendor_sla_overdue_message": "SLA '{sla_name}' pro dodavatele '{vendor_name}' je po termínu od {due_date}.",
-        "vendor_sla_near_breach_title": "SLA dodavatele blízko limitu",
-        "vendor_sla_near_breach_message": "SLA '{sla_name}' pro dodavatele '{vendor_name}' se blíží limitu.",
-        "vendor_sla_breach_detected_title": "SLA dodavatele překročilo limit",
-        "vendor_sla_breach_detected_message": "SLA '{sla_name}' pro dodavatele '{vendor_name}' překročilo limit.",
     },
     # Activity log action descriptions
     "activity": {

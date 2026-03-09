@@ -81,7 +81,7 @@ Při troubleshootingu mají největší hodnotu tyto fieldy:
 | Kontrola | status, owner, oddělení, frekvence | Proč se objevuje v reportingu a exekuci. |
 | KRI | breach status, last period end, reporting owner | Proč chodí breach/overdue remindery. |
 | Issue | status, severity, owner, due date | Overdue tlak a review workload. |
-| Dodavatel | outsourcing owner, status, cadence | Edit práva a remindery. |
+| Dodavatel | outsourcing owner, status, vendor type | Edit práva a ownership kontext. |
 
 Slovník statusů, který se vyplatí znát:
 
@@ -160,7 +160,6 @@ Remindery jsou policy signály:
 
 - overdue KRI: monitoring se nevykonává
 - overdue dotazník: risk assessment je zablokovaný
-- vendor SLA breach: posture dodavatele se změnila
 
 Nemuteujte remindery jako první krok. Opravte podkladový proces.
 
@@ -256,11 +255,6 @@ Checks:
 - je nastavený reporting owner?
 - je frekvence realistická?
 - aktualizuje se period end?
-
-### Vendor reassessment remindery jsou hlučné
-
-- ověřte cadence vs significance
-- ověřte, zda vendor nebyl nedávno assessed/decided
 
 ## Související dokumentace
 

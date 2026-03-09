@@ -32,25 +32,8 @@ from app.models.risk_type import RiskTypeConfig
 from app.models.role import Permission, Role, RolePermission, RoleType
 from app.models.user import User
 from app.models.vendor import Vendor, VendorReplaceability, VendorStatus, VendorType
-from app.models.vendor_assessment import (
-    VendorAssessment,
-    VendorAssessmentScope,
-    VendorAssessmentStatus,
-    VendorCommitteeRecommendation,
-)
-from app.models.vendor_contingency_plan import VendorContingencyPlan
-from app.models.vendor_contract_control import VendorContractControl, VendorContractControlStatus
 from app.models.vendor_control_link import VendorControlLink
-from app.models.vendor_exit_plan import VendorExitPlan, VendorPlanStatus
-from app.models.vendor_external_signal import VendorExternalSignal, VendorExternalSignalStatus
-from app.models.vendor_incident import VendorIncident, VendorIncidentSeverity, VendorIncidentType
-from app.models.vendor_relationship import VendorRelationship, VendorRelationshipType
-from app.models.vendor_remediation import VendorRemediationAction, VendorRemediationStatus
-from app.models.vendor_risk_factor import VendorRiskFactor
 from app.models.vendor_risk_link import VendorRiskLink
-from app.models.vendor_service import VendorDependency, VendorService
-from app.models.vendor_sla import VendorSLA, VendorSLAFrequency
-from app.models.vendor_sla_history import VendorSLAValueHistory
 
 __all__ = [
     "Role", "Permission", "RolePermission", "RoleType",
@@ -75,20 +58,8 @@ __all__ = [
     "IssueExceptionStatus",
     "RiskQuestionnaire", "RiskQuestionnaireStatus", "RiskQuestionnaireClarification",
     "Vendor", "VendorStatus", "VendorType", "VendorReplaceability",
-    "VendorRiskFactor",
     "VendorRiskLink",
     "VendorControlLink",
-    "VendorAssessment", "VendorAssessmentStatus", "VendorAssessmentScope", "VendorCommitteeRecommendation",
-    "VendorContractControl", "VendorContractControlStatus",
-    "VendorExitPlan", "VendorPlanStatus",
-    "VendorContingencyPlan",
-    "VendorRelationship", "VendorRelationshipType",
-    "VendorService", "VendorDependency",
-    "VendorIncident", "VendorIncidentType", "VendorIncidentSeverity",
-    "VendorRemediationAction", "VendorRemediationStatus",
-    "VendorSLA", "VendorSLAFrequency",
-    "VendorSLAValueHistory",
-    "VendorExternalSignal", "VendorExternalSignalStatus",
     "OrphanedItem",
     "ActivityLog", "ActivityAction", "ActivityEntityType",
     # Risk Hub models

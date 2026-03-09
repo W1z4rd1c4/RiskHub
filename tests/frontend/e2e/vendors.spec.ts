@@ -63,20 +63,21 @@ test.describe('Vendor Management (Deterministic)', () => {
         await riskManagerPage.goto(`/vendors/${vendorId}`);
         await waitForDataLoad(riskManagerPage);
 
-        await expect(riskManagerPage.getByRole('button', { name: /Overview|Přehled/i })).toBeVisible();
-        await expect(riskManagerPage.getByText(/Risk Factors|Rizikov[ée] faktory/i).first()).toBeVisible();
+        await expect(riskManagerPage.getByText(/Classification|Klasifikace/i).first()).toBeVisible();
         await expect(riskManagerPage.getByText(/Linked Risks|Navázaná rizika/i).first()).toBeVisible();
         await expect(riskManagerPage.getByText(/Linked Controls|Navázané kontroly/i).first()).toBeVisible();
+        await expect(riskManagerPage.getByRole('button', { name: /Link Existing|Propojit existující/i }).first()).toBeVisible();
+        await expect(riskManagerPage.getByRole('button', { name: /Add Risk|Přidat riziko/i })).toBeVisible();
+        await expect(riskManagerPage.getByRole('button', { name: /Add Control|Přidat kontrolu/i })).toBeVisible();
     });
 
-    test('Legacy vendor tab links canonicalize into merged tab plus section', async ({ riskManagerPage }) => {
+    test('Legacy vendor tab links resolve to the canonical vendor detail URL', async ({ riskManagerPage }) => {
         const vendorId = await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
 
         await riskManagerPage.goto(`/vendors/${vendorId}?tab=sla`);
         await waitForDataLoad(riskManagerPage);
 
-        await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}\\?tab=operations&section=sla$`));
-        await expect(riskManagerPage.getByRole('button', { name: 'Operations' })).toBeVisible();
-        await expect(riskManagerPage.getByText('Track SLA values over time and flag threshold breaches.')).toBeVisible();
+        await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}$`));
+        await expect(riskManagerPage.getByText(/Linked Controls|Navázané kontroly/i).first()).toBeVisible();
     });
 });

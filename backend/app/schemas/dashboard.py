@@ -16,11 +16,8 @@ class DashboardSummaryResponse(BaseModel):
     critical_risks_count: int = 0  # net_score >= 15
     average_net_risk_score: float = 0.0
 
-    # Vendor metrics (Phase 18-11) - additive fields
     total_vendors: int = 0
     high_risk_vendors_count: int = 0  # vendor.risk_score_1_5 >= 4
-    overdue_vendor_reassessments_count: int = 0  # vendor.next_reassessment_due_at < now
-    breached_vendor_slas_count: int = 0  # vendor SLA current_value outside limits
 
     model_config = {"from_attributes": True}
 

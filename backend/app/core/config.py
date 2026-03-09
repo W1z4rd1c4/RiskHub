@@ -139,10 +139,6 @@ class Settings(BaseSettings):
     refresh_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     refresh_cookie_domain: str | None = None
 
-    # Optional vendor external signals (Phase 18-10)
-    vendor_signals_public_registry_base_url: str | None = None  # e.g., https://registry.example.com/api
-    vendor_signals_min_interval_hours: int = 24
-
     # AD deprovision scheduler
     ad_deprovision_check_hour: int = 2
     ad_deprovision_check_minute: int = 0
