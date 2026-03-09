@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -12,7 +11,6 @@ from sqlalchemy.orm import selectinload
 from app.api import deps
 from app.api.mappers.vendor import vendor_list_response, vendor_to_read
 from app.core.activity_logger import build_change_set, log_activity
-from app.core.datetime_utils import coerce_utc
 from app.core.permissions import (
     can_read_risk_id,
     can_read_vendor,
@@ -33,7 +31,6 @@ from app.schemas.vendor import (
     VendorTypeEnum,
     VendorUpdate,
 )
-from app.services.vendor_reassessment_service import VendorReassessmentService
 
 from ._shared import _get_vendor_with_deps
 
@@ -227,12 +224,6 @@ async def create_vendor(
     check_department_access(payload.department_id, current_user)
 
     vendor = Vendor(**payload.model_dump())
-    cadence = 12 if vendor.supports_important_core_insurance_function else 36
-    vendor.reassessment_cadence_months = cadence
-    vendor.next_reassessment_due_at = VendorReassessmentService.compute_next_due(
-        base=datetime.now(UTC),
-        cadence_months=cadence,
-    )
     db.add(vendor)
     await db.commit()
     await db.refresh(vendor)
@@ -298,15 +289,6 @@ async def update_vendor(
         return vendor_to_read(vendor)
 
     restricted_fields = {"department_id", "outsourcing_owner_user_id", "status"}
-    restricted_fields |= {
-        "reassessment_cadence_months",
-        "next_reassessment_due_at",
-        "last_assessed_at",
-        "last_decided_at",
-        "last_reassessment_reminded_at",
-        "reassessment_triggered_reason",
-        "reassessment_triggered_at",
-    }
     if not can_write and (restricted_fields & set(updates.keys())):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to change governance fields"
@@ -320,17 +302,6 @@ async def update_vendor(
         if hasattr(value, "value"):
             value = value.value
         setattr(vendor, field, value)
-
-    if can_write and "supports_important_core_insurance_function" in updates:
-        if "reassessment_cadence_months" not in updates:
-            vendor.reassessment_cadence_months = 12 if vendor.supports_important_core_insurance_function else 36
-        if "next_reassessment_due_at" not in updates:
-            base = vendor.last_decided_at or vendor.created_at or datetime.now(UTC)
-            base = coerce_utc(base) or base
-            vendor.next_reassessment_due_at = VendorReassessmentService.compute_next_due(
-                base=base,
-                cadence_months=vendor.reassessment_cadence_months,
-            )
 
     await db.commit()
     await db.refresh(vendor)

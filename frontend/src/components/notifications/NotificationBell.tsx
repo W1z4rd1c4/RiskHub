@@ -5,7 +5,7 @@ import { useFormattedDate, useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
 import { NOTIFICATIONS_DROPDOWN_LIMIT } from '@/config/constants';
-import { buildVendorDetailPath, type VendorSectionView, type VendorTabView } from '@/pages/vendors/vendorDetailPresentation';
+import { buildVendorDetailPath } from '@/pages/vendors/vendorDetailPresentation';
 
 /**
  * Get icon for notification type.
@@ -36,51 +36,9 @@ function getNotificationIcon(type: NotificationType) {
             return <CheckCircle className="h-4 w-4 text-emerald-400" />;
         case 'questionnaire_clarification_requested':
             return <AlertTriangle className="h-4 w-4 text-orange-400" />;
-        case 'vendor_assessment_submitted':
-        case 'vendor_assessment_decided':
-            return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-        case 'vendor_assessment_committee_recommended':
-            return <AlertTriangle className="h-4 w-4 text-orange-400" />;
-        case 'vendor_reassessment_due_soon':
-        case 'vendor_sla_due_soon':
-        case 'vendor_sla_due_tomorrow':
-            return <Clock className="h-4 w-4 text-amber-400" />;
-        case 'vendor_reassessment_overdue':
-        case 'vendor_sla_overdue':
-            return <AlertCircle className="h-4 w-4 text-rose-400" />;
-        case 'vendor_sla_near_breach':
-            return <AlertTriangle className="h-4 w-4 text-orange-400" />;
-        case 'vendor_sla_breach_detected':
-            return <AlertCircle className="h-4 w-4 text-rose-500" />;
         default:
             return <Bell className="h-4 w-4 text-slate-400" />;
     }
-}
-
-/**
- * Get navigation path for notification resource.
- */
-function vendorLocationForNotification(type: NotificationType): { tab: VendorTabView; section: VendorSectionView } | null {
-    if (type === 'vendor_reassessment_due_soon' || type === 'vendor_reassessment_overdue') {
-        return { tab: 'assessments', section: 'schedule' };
-    }
-    if (
-        type === 'vendor_sla_due_soon' ||
-        type === 'vendor_sla_due_tomorrow' ||
-        type === 'vendor_sla_overdue' ||
-        type === 'vendor_sla_near_breach' ||
-        type === 'vendor_sla_breach_detected'
-    ) {
-        return { tab: 'operations', section: 'sla' };
-    }
-    if (
-        type === 'vendor_assessment_submitted' ||
-        type === 'vendor_assessment_committee_recommended' ||
-        type === 'vendor_assessment_decided'
-    ) {
-        return { tab: 'assessments', section: 'assessments' };
-    }
-    return null;
 }
 
 function getResourcePath(notification: Notification): string | null {
@@ -96,8 +54,7 @@ function getResourcePath(notification: Notification): string | null {
         case 'kri':
             return `/kris/${resourceId}`;
         case 'vendor': {
-            const location = vendorLocationForNotification(notification.type);
-            return buildVendorDetailPath(resourceId, location?.tab, location?.section);
+            return buildVendorDetailPath(resourceId);
         }
         case 'approval':
             return '/approvals';

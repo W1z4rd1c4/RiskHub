@@ -47,14 +47,6 @@ export interface Vendor {
 
     created_at: string;
     updated_at: string;
-
-    reassessment_cadence_months: number;
-    next_reassessment_due_at?: string | null;
-    last_assessed_at?: string | null;
-    last_decided_at?: string | null;
-    last_reassessment_reminded_at?: string | null;
-    reassessment_triggered_reason?: string | null;
-    reassessment_triggered_at?: string | null;
 }
 
 export type VendorCreate = Omit<
@@ -64,13 +56,6 @@ export type VendorCreate = Omit<
     | 'outsourcing_owner_name'
     | 'created_at'
     | 'updated_at'
-    | 'reassessment_cadence_months'
-    | 'next_reassessment_due_at'
-    | 'last_assessed_at'
-    | 'last_decided_at'
-    | 'last_reassessment_reminded_at'
-    | 'reassessment_triggered_reason'
-    | 'reassessment_triggered_at'
 >;
 
 export type VendorUpdate = Partial<VendorCreate>;

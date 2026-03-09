@@ -22,8 +22,6 @@ Folder for `backend/app/services` implementation assets.
 - `export_snapshot_service.py`
 - `graph_directory_service.py`
 - `issue_deadline_service.py`
-- `vendor_sla_deadline_service.py`
-- `vendor_sla_deadline_support.py`
 - `...`
 
 ## Notes

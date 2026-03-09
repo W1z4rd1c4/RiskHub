@@ -4,11 +4,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.datetime_utils import utc_now
 from app.core.permissions import get_user_department_ids, has_permission
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import Control, Risk, User, Vendor, VendorSLA
+from app.models import Control, Risk, User, Vendor
 from app.models.control import ControlForm, ControlFrequency, ControlStatus
 from app.models.global_config import ConfigDefaults
 from app.models.risk import RiskStatus
@@ -138,9 +137,6 @@ async def get_dashboard_summary(
     # Vendor metrics (Phase 18-11)
     total_vendors = 0
     high_risk_vendors_count = 0
-    overdue_vendor_reassessments_count = 0
-    breached_vendor_slas_count = 0
-
     vendor_conditions = [Vendor.status == "active"]
     vendor_scope_filter = None
     if dept_ids is not None:
@@ -165,32 +161,6 @@ async def get_dashboard_summary(
             )
         ).scalar() or 0
 
-        now = utc_now()
-        overdue_vendor_reassessments_count = (
-            await db.execute(
-                select(func.count(Vendor.id)).where(
-                    and_(
-                        *(
-                            vendor_conditions
-                            + [Vendor.next_reassessment_due_at.isnot(None), Vendor.next_reassessment_due_at < now]
-                        )
-                    )
-                )
-            )
-        ).scalar() or 0
-
-        sla_conditions = [
-            VendorSLA.is_archived.is_(False),
-            or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit),
-            Vendor.status == "active",
-        ]
-        sla_query = (
-            select(func.count(VendorSLA.id)).join(Vendor, VendorSLA.vendor_id == Vendor.id).where(and_(*sla_conditions))
-        )
-        if vendor_scope_filter is not None:
-            sla_query = sla_query.where(vendor_scope_filter)
-        breached_vendor_slas_count = (await db.execute(sla_query)).scalar() or 0
-
     return DashboardSummaryResponse(
         total_controls=total_controls,
         controls_by_status=controls_by_status,
@@ -202,6 +172,4 @@ async def get_dashboard_summary(
         average_net_risk_score=round(average_net_risk_score, 2),
         total_vendors=total_vendors,
         high_risk_vendors_count=high_risk_vendors_count,
-        overdue_vendor_reassessments_count=overdue_vendor_reassessments_count,
-        breached_vendor_slas_count=breached_vendor_slas_count,
     )

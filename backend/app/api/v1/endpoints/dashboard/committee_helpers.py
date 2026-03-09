@@ -7,19 +7,14 @@ from sqlalchemy.orm import joinedload
 from app.core.datetime_utils import utc_now
 from app.core.limits import (
     DASHBOARD_RECENT_ACTIVITY,
-    DASHBOARD_TOP_BREACHED_SLAS,
     DASHBOARD_TOP_CRITICAL_RISKS,
     DASHBOARD_TOP_CRITICAL_VENDORS,
     DASHBOARD_TOP_DEPARTMENT_EXPOSURE,
-    DASHBOARD_TOP_MAJOR_INCIDENTS,
-    DASHBOARD_TOP_OVERDUE_VENDORS,
 )
 from app.models import Department, Risk
 from app.models.activity_log import ActivityLog
 from app.models.risk import RiskStatus
 from app.models.vendor import Vendor
-from app.models.vendor_incident import VendorIncident
-from app.models.vendor_sla import VendorSLA
 
 
 def _empty_committee_core() -> dict:
@@ -70,76 +65,8 @@ def _vendor_payload(vendor: Vendor) -> dict:
         "supports_important_core_insurance_function": bool(vendor.supports_important_core_insurance_function),
         "dora_relevant": bool(vendor.dora_relevant),
         "is_significant_vendor": bool(vendor.is_significant_vendor),
-        "next_reassessment_due_at": (
-            vendor.next_reassessment_due_at.isoformat() if vendor.next_reassessment_due_at else None
-        ),
         "outsourcing_owner_name": vendor.outsourcing_owner.name if vendor.outsourcing_owner else "Unassigned",
         "department_name": vendor.department.name if vendor.department else "Unassigned",
-    }
-
-
-def _vendor_alert_payload(
-    *,
-    overdue_total: int,
-    overdue_vendors: list[Vendor],
-    sla_breach_total: int,
-    breached_slas: list[VendorSLA],
-    incident_total: int,
-    major_incidents: list[VendorIncident],
-) -> dict:
-    return {
-        "overdue_reassessments": {
-            "count": overdue_total,
-            "items": [
-                {
-                    "id": vendor.id,
-                    "name": vendor.name,
-                    "next_reassessment_due_at": vendor.next_reassessment_due_at.isoformat()
-                    if vendor.next_reassessment_due_at
-                    else None,
-                    "department_name": vendor.department.name if vendor.department else "Unassigned",
-                }
-                for vendor in overdue_vendors
-            ],
-        },
-        "sla_breaches": {
-            "count": sla_breach_total,
-            "items": [
-                {
-                    "vendor_id": sla.vendor_id,
-                    "vendor_name": sla.vendor.name if sla.vendor else "",
-                    "sla_id": sla.id,
-                    "metric_name": sla.metric_name,
-                    "breach_status": sla.breach_status,
-                    "last_reported_at": sla.last_reported_at.isoformat() if sla.last_reported_at else None,
-                    "department_name": (
-                        sla.vendor.department.name if sla.vendor and sla.vendor.department else "Unassigned"
-                    ),
-                }
-                for sla in breached_slas
-            ],
-        },
-        "major_incidents_30d": {
-            "count": incident_total,
-            "items": [
-                {
-                    "vendor_id": incident.vendor_id,
-                    "vendor_name": incident.vendor.name if incident.vendor else "",
-                    "incident_id": incident.id,
-                    "incident_type": incident.incident_type.value
-                    if hasattr(incident.incident_type, "value")
-                    else str(incident.incident_type),
-                    "summary": incident.summary,
-                    "occurred_at": (incident.occurred_at or incident.created_at).isoformat()
-                    if (incident.occurred_at or incident.created_at)
-                    else None,
-                    "department_name": incident.vendor.department.name
-                    if incident.vendor and incident.vendor.department
-                    else "Unassigned",
-                }
-                for incident in major_incidents
-            ],
-        },
     }
 
 
@@ -183,103 +110,6 @@ async def _fetch_critical_vendors(db: AsyncSession, *, vendor_scope_filter):
         .scalars()
         .all()
     )
-
-
-async def _fetch_overdue_vendors(db: AsyncSession, *, now, vendor_scope_filter):
-    query = (
-        select(Vendor)
-        .options(joinedload(Vendor.outsourcing_owner), joinedload(Vendor.department))
-        .where(
-            Vendor.status == "active",
-            Vendor.next_reassessment_due_at.isnot(None),
-            Vendor.next_reassessment_due_at < now,
-        )
-    )
-    query = _apply_vendor_scope(query, vendor_scope_filter)
-    return (
-        (await db.execute(query.order_by(Vendor.next_reassessment_due_at.asc()).limit(DASHBOARD_TOP_OVERDUE_VENDORS)))
-        .scalars()
-        .all()
-    )
-
-
-async def _count_overdue_vendors(db: AsyncSession, *, now, vendor_scope_filter) -> int:
-    query = select(func.count(Vendor.id)).where(
-        Vendor.status == "active",
-        Vendor.next_reassessment_due_at.isnot(None),
-        Vendor.next_reassessment_due_at < now,
-    )
-    query = _apply_vendor_scope(query, vendor_scope_filter)
-    return (await db.execute(query)).scalar() or 0
-
-
-async def _fetch_breached_slas(db: AsyncSession, *, vendor_scope_filter):
-    query = (
-        select(VendorSLA)
-        .options(
-            joinedload(VendorSLA.vendor).joinedload(Vendor.department),
-            joinedload(VendorSLA.vendor).joinedload(Vendor.outsourcing_owner),
-        )
-        .where(VendorSLA.is_archived.is_(False))
-        .where(or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit))
-        .join(Vendor, VendorSLA.vendor_id == Vendor.id)
-        .where(Vendor.status == "active")
-    )
-    query = _apply_vendor_scope(query, vendor_scope_filter)
-    result = await db.execute(query.order_by(VendorSLA.last_reported_at.desc()).limit(DASHBOARD_TOP_BREACHED_SLAS))
-    return result.scalars().all()
-
-
-async def _count_breached_slas(db: AsyncSession, *, vendor_scope_filter) -> int:
-    query = (
-        select(func.count(VendorSLA.id))
-        .join(Vendor, VendorSLA.vendor_id == Vendor.id)
-        .where(VendorSLA.is_archived.is_(False))
-        .where(or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit))
-        .where(Vendor.status == "active")
-    )
-    query = _apply_vendor_scope(query, vendor_scope_filter)
-    return (await db.execute(query)).scalar() or 0
-
-
-async def _fetch_major_incidents(db: AsyncSession, *, thirty_days_ago, vendor_scope_filter):
-    query = (
-        select(VendorIncident)
-        .options(
-            joinedload(VendorIncident.vendor).joinedload(Vendor.department),
-            joinedload(VendorIncident.vendor).joinedload(Vendor.outsourcing_owner),
-        )
-        .where(VendorIncident.is_major.is_(True))
-        .where(
-            or_(
-                VendorIncident.occurred_at >= thirty_days_ago,
-                and_(VendorIncident.occurred_at.is_(None), VendorIncident.created_at >= thirty_days_ago),
-            )
-        )
-        .join(Vendor, VendorIncident.vendor_id == Vendor.id)
-        .where(Vendor.status == "active")
-        .order_by(desc(VendorIncident.occurred_at), desc(VendorIncident.created_at))
-        .limit(DASHBOARD_TOP_MAJOR_INCIDENTS)
-    )
-    query = _apply_vendor_scope(query, vendor_scope_filter)
-    return (await db.execute(query)).scalars().all()
-
-
-async def _count_major_incidents(db: AsyncSession, *, thirty_days_ago, vendor_scope_filter) -> int:
-    query = (
-        select(func.count(VendorIncident.id))
-        .join(Vendor, VendorIncident.vendor_id == Vendor.id)
-        .where(VendorIncident.is_major.is_(True))
-        .where(
-            or_(
-                VendorIncident.occurred_at >= thirty_days_ago,
-                and_(VendorIncident.occurred_at.is_(None), VendorIncident.created_at >= thirty_days_ago),
-            )
-        )
-        .where(Vendor.status == "active")
-    )
-    query = _apply_vendor_scope(query, vendor_scope_filter)
-    return (await db.execute(query)).scalar() or 0
 
 
 async def _fetch_committee_core(
@@ -342,52 +172,16 @@ async def _fetch_vendor_sections(
     can_read_vendors: bool,
     dept_ids: list[int] | None,
 ):
-    now = utc_now()
-    thirty_days_ago = now - timedelta(days=30)
     vendor_scope_filter = Vendor.department_id.in_(dept_ids) if dept_ids is not None else None
 
     sections = {
         "critical_vendors": [],
-        "overdue_vendors": [],
-        "overdue_total": 0,
-        "breached_slas": [],
-        "sla_breach_total": 0,
-        "major_incidents": [],
-        "incident_total": 0,
     }
     if not can_read_vendors:
         return sections
 
     sections["critical_vendors"] = await _fetch_critical_vendors(
         db,
-        vendor_scope_filter=vendor_scope_filter,
-    )
-    sections["overdue_vendors"] = await _fetch_overdue_vendors(
-        db,
-        now=now,
-        vendor_scope_filter=vendor_scope_filter,
-    )
-    sections["overdue_total"] = await _count_overdue_vendors(
-        db,
-        now=now,
-        vendor_scope_filter=vendor_scope_filter,
-    )
-    sections["breached_slas"] = await _fetch_breached_slas(
-        db,
-        vendor_scope_filter=vendor_scope_filter,
-    )
-    sections["sla_breach_total"] = await _count_breached_slas(
-        db,
-        vendor_scope_filter=vendor_scope_filter,
-    )
-    sections["major_incidents"] = await _fetch_major_incidents(
-        db,
-        thirty_days_ago=thirty_days_ago,
-        vendor_scope_filter=vendor_scope_filter,
-    )
-    sections["incident_total"] = await _count_major_incidents(
-        db,
-        thirty_days_ago=thirty_days_ago,
         vendor_scope_filter=vendor_scope_filter,
     )
     return sections

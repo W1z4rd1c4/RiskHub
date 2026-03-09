@@ -11,7 +11,6 @@ API endpoint package for `vendors` domain.
 - `_shared.py`
 - `crud.py`
 - `lifecycle.py`
-- `reassessment.py`
 
 ## Notes
 

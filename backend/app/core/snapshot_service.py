@@ -18,7 +18,6 @@ from app.models.orphaned_item import OrphanedItem
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
 from app.models.risk import ControlRiskLink, Risk, RiskStatus
 from app.models.vendor import Vendor
-from app.models.vendor_sla import VendorSLA
 
 
 def get_quarter_label(dt: datetime) -> str:
@@ -205,25 +204,6 @@ async def capture_snapshot_metrics(
         vendor_conditions.append(Vendor.department_id.in_(department_ids))
     active_vendors = await db.scalar(select(func.count(Vendor.id)).where(*vendor_conditions))
 
-    overdue_vendor_reassessments = await db.scalar(
-        select(func.count(Vendor.id)).where(
-            *vendor_conditions,
-            Vendor.next_reassessment_due_at.isnot(None),
-            Vendor.next_reassessment_due_at < func.now(),
-        )
-    )
-
-    vendor_sla_breaches_query = select(func.count(VendorSLA.id)).where(
-        VendorSLA.is_archived.is_(False),
-        or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit),
-    )
-    if department_ids is not None:
-        vendor_sla_breaches_query = vendor_sla_breaches_query.join(Vendor, VendorSLA.vendor_id == Vendor.id).where(
-            Vendor.department_id.in_(department_ids),
-            Vendor.status == "active",
-        )
-    vendor_sla_breaches = await db.scalar(vendor_sla_breaches_query)
-
     return {
         "priority_risks": priority_count or 0,
         "kri_breaches": kri_breaches or 0,
@@ -235,8 +215,6 @@ async def capture_snapshot_metrics(
         "risks_without_kri": risks_without_kri or 0,
         "active_risks": active_risks or 0,
         "active_vendors": active_vendors or 0,
-        "overdue_vendor_reassessments": overdue_vendor_reassessments or 0,
-        "vendor_sla_breaches": vendor_sla_breaches or 0,
     }
 
 

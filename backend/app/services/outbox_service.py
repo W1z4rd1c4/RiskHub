@@ -23,7 +23,6 @@ from app.models import (
     Role,
     RolePermission,
     User,
-    VendorAssessment,
 )
 from app.models.role import RoleType
 from app.models.user import AccessScope
@@ -183,15 +182,6 @@ async def _load_clarification(db: AsyncSession, clarification_id: int) -> RiskQu
             selectinload(RiskQuestionnaireClarification.requested_by_user),
         )
         .where(RiskQuestionnaireClarification.id == clarification_id)
-    )
-    return result.scalar_one_or_none()
-
-
-async def _load_vendor_assessment(db: AsyncSession, assessment_id: int) -> VendorAssessment | None:
-    result = await db.execute(
-        select(VendorAssessment)
-        .options(selectinload(VendorAssessment.vendor))
-        .where(VendorAssessment.id == assessment_id)
     )
     return result.scalar_one_or_none()
 
@@ -436,109 +426,6 @@ async def _handle_questionnaire_clarification_requested(db: AsyncSession, payloa
     )
 
 
-async def _vendor_users_by_roles(db: AsyncSession, *, roles: set[RoleType]) -> list[User]:
-    role_names = [role.value for role in roles]
-    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-    stmt = (
-        select(User)
-        .join(Role, User.role_id == Role.id)
-        .options(permission_load)
-        .where(User.is_active.is_(True))
-        .where(Role.name.in_(role_names))
-    )
-    return (await db.execute(stmt)).scalars().all()
-
-
-async def _handle_vendor_assessment_submitted(db: AsyncSession, payload: dict) -> None:
-    assessment = await _load_vendor_assessment(db, int(payload["assessment_id"]))
-    actor = await db.get(User, int(payload["actor_user_id"]))
-    if assessment is None or actor is None:
-        return
-
-    recipients = await _vendor_users_by_roles(
-        db,
-        roles={RoleType.RISK_MANAGER, RoleType.COMPLIANCE, RoleType.CRO},
-    )
-    vendor = assessment.vendor
-    for user in recipients:
-        if user.id == actor.id:
-            continue
-        locale = getattr(user, "preferred_language", None) or "en"
-        await NotificationService.create_vendor_notification_if_visible(
-            db=db,
-            user=user,
-            vendor_id=vendor.id,
-            notification_type=NotificationType.VENDOR_ASSESSMENT_SUBMITTED,
-            title=t("notifications.vendor_assessment_submitted_title", locale=locale),
-            message=t(
-                "notifications.vendor_assessment_submitted_message",
-                locale=locale,
-                vendor_name=vendor.name,
-                actor_name=actor.name,
-            ),
-        )
-
-
-async def _handle_vendor_assessment_committee_recommended(db: AsyncSession, payload: dict) -> None:
-    assessment = await _load_vendor_assessment(db, int(payload["assessment_id"]))
-    actor = await db.get(User, int(payload["actor_user_id"]))
-    if assessment is None or actor is None:
-        return
-
-    recipients = await _vendor_users_by_roles(db, roles={RoleType.CRO})
-    vendor = assessment.vendor
-    for user in recipients:
-        if user.id == actor.id:
-            continue
-        locale = getattr(user, "preferred_language", None) or "en"
-        await NotificationService.create_vendor_notification_if_visible(
-            db=db,
-            user=user,
-            vendor_id=vendor.id,
-            notification_type=NotificationType.VENDOR_ASSESSMENT_COMMITTEE_RECOMMENDED,
-            title=t("notifications.vendor_assessment_committee_recommended_title", locale=locale),
-            message=t(
-                "notifications.vendor_assessment_committee_recommended_message",
-                locale=locale,
-                vendor_name=vendor.name,
-            ),
-        )
-
-
-async def _handle_vendor_assessment_decided(db: AsyncSession, payload: dict) -> None:
-    assessment = await _load_vendor_assessment(db, int(payload["assessment_id"]))
-    actor = await db.get(User, int(payload["actor_user_id"]))
-    if assessment is None or actor is None:
-        return
-
-    vendor = assessment.vendor
-    owner_id = vendor.outsourcing_owner_user_id
-    if not owner_id or owner_id == actor.id:
-        return
-
-    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-    owner = (
-        await db.execute(select(User).options(permission_load).where(User.id == owner_id))
-    ).scalar_one_or_none()
-    if owner is None:
-        return
-
-    locale = getattr(owner, "preferred_language", None) or "en"
-    await NotificationService.create_vendor_notification_if_visible(
-        db=db,
-        user=owner,
-        vendor_id=vendor.id,
-        notification_type=NotificationType.VENDOR_ASSESSMENT_DECIDED,
-        title=t("notifications.vendor_assessment_decided_title", locale=locale),
-        message=t(
-            "notifications.vendor_assessment_decided_message",
-            locale=locale,
-            vendor_name=vendor.name,
-            decision=assessment.status.value,
-        ),
-    )
-
-
 OUTBOX_EVENT_HANDLERS = {
     "approval.request_created": _handle_approval_request_created,
     "approval.request_resolved": _handle_approval_request_resolved,
@@ -549,9 +436,6 @@ OUTBOX_EVENT_HANDLERS = {
     "questionnaire.sent": _handle_questionnaire_sent,
     "questionnaire.submitted": _handle_questionnaire_submitted,
     "questionnaire.clarification_requested": _handle_questionnaire_clarification_requested,
-    "vendor_assessment.submitted": _handle_vendor_assessment_submitted,
-    "vendor_assessment.committee_recommended": _handle_vendor_assessment_committee_recommended,
-    "vendor_assessment.decided": _handle_vendor_assessment_decided,
 }
 
 

@@ -4,7 +4,6 @@ Seeds deterministic E2E vendors with active/inactive states.
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 
@@ -33,7 +32,6 @@ E2E_VENDORS = [
         "replaceability": "hard",
         "has_alternative_providers": False,
         "status": VendorStatus.active.value,
-        "reassessment_cadence_months": 12,
     },
     {
         "registration_id": "E2E-VREG-002",
@@ -54,7 +52,6 @@ E2E_VENDORS = [
         "replaceability": "medium",
         "has_alternative_providers": True,
         "status": VendorStatus.active.value,
-        "reassessment_cadence_months": 12,
     },
     {
         "registration_id": "E2E-VREG-003",
@@ -75,7 +72,6 @@ E2E_VENDORS = [
         "replaceability": "easy",
         "has_alternative_providers": True,
         "status": VendorStatus.active.value,
-        "reassessment_cadence_months": 24,
     },
     {
         "registration_id": "E2E-VREG-004",
@@ -96,7 +92,6 @@ E2E_VENDORS = [
         "replaceability": "medium",
         "has_alternative_providers": True,
         "status": VendorStatus.inactive.value,
-        "reassessment_cadence_months": 36,
     },
     {
         "registration_id": "E2E-VREG-005",
@@ -117,7 +112,6 @@ E2E_VENDORS = [
         "replaceability": "hard",
         "has_alternative_providers": False,
         "status": VendorStatus.inactive.value,
-        "reassessment_cadence_months": 12,
     },
     {
         "registration_id": "E2E-VREG-006",
@@ -138,7 +132,6 @@ E2E_VENDORS = [
         "replaceability": "easy",
         "has_alternative_providers": True,
         "status": VendorStatus.active.value,
-        "reassessment_cadence_months": 36,
     },
 ]
 
@@ -154,8 +147,6 @@ async def seed_vendors():
 
         created = 0
         updated = 0
-        now = datetime.now(UTC)
-
         for entry in E2E_VENDORS:
             owner_id = require_user_id(users, entry["owner"])
             department_id = require_department_id(departments, entry["dept"])
@@ -179,8 +170,6 @@ async def seed_vendors():
                 "replaceability": entry["replaceability"],
                 "has_alternative_providers": entry["has_alternative_providers"],
                 "status": entry["status"],
-                "reassessment_cadence_months": entry["reassessment_cadence_months"],
-                "next_reassessment_due_at": now + timedelta(days=90),
             }
 
             result = await db.execute(select(Vendor).where(Vendor.registration_id == entry["registration_id"]))

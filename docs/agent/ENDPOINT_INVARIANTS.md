@@ -4,7 +4,7 @@ Canonical maintainability invariants for endpoint packaging and related schema c
 
 ## Endpoint Package Splits (Maintainability)
 
-- These endpoints are packages (not single files): `controls/`, `risks/`, `kris/`, `dashboard/`, `issues/`, `reports/`, `riskhub/`, `approvals/`, `departments/`, `users/`, `vendors/`, `vendor_incidents/`, `vendor_dependencies/`, `vendor_slas/`, `admin/`, `risk_questionnaires/`.
+- These endpoints are packages (not single files): `controls/`, `risks/`, `kris/`, `dashboard/`, `issues/`, `reports/`, `riskhub/`, `approvals/`, `departments/`, `users/`, `vendors/`, `admin/`, `risk_questionnaires/`.
 - Invariant: `app.api.v1.endpoints.<name>.router` must remain the exported router object (see `backend/app/api/v1/endpoints/<name>/__init__.py`).
 - FastAPI gotcha: if a subrouter defines routes at path `""` (for example `@router.get("")`), that router must be the exported base router (do not include it under an extra wrapper `APIRouter()`).
 

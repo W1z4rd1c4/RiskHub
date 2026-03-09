@@ -78,45 +78,9 @@ export interface DashboardCommitteeSummary {
         supports_important_core_insurance_function: boolean;
         dora_relevant: boolean;
         is_significant_vendor: boolean;
-        next_reassessment_due_at?: string | null;
         outsourcing_owner_name: string;
         department_name: string;
     }>;
-    vendor_alerts: {
-        overdue_reassessments: {
-            count: number;
-            items: Array<{
-                id: number;
-                name: string;
-                next_reassessment_due_at?: string | null;
-                department_name: string;
-            }>;
-        };
-        sla_breaches: {
-            count: number;
-            items: Array<{
-                vendor_id: number;
-                vendor_name: string;
-                sla_id: number;
-                metric_name: string;
-                breach_status: string;
-                last_reported_at?: string | null;
-                department_name: string;
-            }>;
-        };
-        major_incidents_30d: {
-            count: number;
-            items: Array<{
-                vendor_id: number;
-                vendor_name: string;
-                incident_id: number;
-                incident_type: string;
-                summary: string;
-                occurred_at?: string | null;
-                department_name: string;
-            }>;
-        };
-    };
 }
 
 function buildQueryParams(filters?: DashboardFilters): DashboardQueryParams {

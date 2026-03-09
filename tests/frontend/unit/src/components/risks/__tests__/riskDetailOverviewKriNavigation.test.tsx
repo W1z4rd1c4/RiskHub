@@ -133,7 +133,6 @@ const linkedVendorsFixture: Vendor[] = [
         status: 'active',
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-02T00:00:00Z',
-        reassessment_cadence_months: 12,
     },
     {
         id: 902,
@@ -149,7 +148,6 @@ const linkedVendorsFixture: Vendor[] = [
         status: 'active',
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-02T00:00:00Z',
-        reassessment_cadence_months: 12,
     },
     {
         id: 903,
@@ -165,7 +163,6 @@ const linkedVendorsFixture: Vendor[] = [
         status: 'inactive',
         created_at: '2026-01-01T00:00:00Z',
         updated_at: '2026-01-02T00:00:00Z',
-        reassessment_cadence_months: 12,
     },
 ];
 

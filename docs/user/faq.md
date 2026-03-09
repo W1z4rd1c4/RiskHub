@@ -81,7 +81,7 @@ When troubleshooting, these fields are the highest leverage:
 | Control | status, owner, department, frequency | Explains why it appears in reporting and execution views. |
 | KRI | breach status, last period end, reporting owner | Explains breach/overdue reminders. |
 | Issue | status, severity, owner, due date | Explains overdue and review workload. |
-| Vendor | outsourcing owner, status, reassessment cadence | Explains edit rights and reminders. |
+| Vendor | outsourcing owner, status, vendor type | Explains edit rights and ownership context. |
 
 Status vocabulary to keep straight:
 
@@ -162,7 +162,6 @@ Reminders are policy signals:
 
 - overdue KRI: monitoring is not being executed
 - overdue questionnaire: risk assessment process is blocked
-- vendor SLA breach: vendor posture changed
 
 Don’t mute reminders as a first response. Fix the underlying workflow.
 
@@ -268,13 +267,6 @@ Checks:
 - is the reporting owner set?
 - is the frequency realistic?
 - is the period end being updated?
-
-### Vendor reassessment reminders are noisy
-
-Checks:
-
-- reassessment cadence vs significance
-- whether the vendor was recently assessed/decided
 
 ## Related Documentation
 

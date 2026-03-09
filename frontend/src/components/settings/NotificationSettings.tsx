@@ -144,19 +144,6 @@ export function NotificationSettings() {
         { key: 'questionnaire_clarification_requested', labelKey: 'notifications.questionnaire_clarification_requested', descKey: 'notifications.questionnaire_clarification_requested_desc' },
     ];
 
-    const vendorSettings: { key: keyof NotificationPreferences; labelKey: string; descKey: string }[] = [
-        { key: 'vendor_assessment_submitted', labelKey: 'notifications.vendor_assessment_submitted', descKey: 'notifications.vendor_assessment_submitted_desc' },
-        { key: 'vendor_assessment_committee_recommended', labelKey: 'notifications.vendor_assessment_committee_recommended', descKey: 'notifications.vendor_assessment_committee_recommended_desc' },
-        { key: 'vendor_assessment_decided', labelKey: 'notifications.vendor_assessment_decided', descKey: 'notifications.vendor_assessment_decided_desc' },
-        { key: 'vendor_reassessment_due_soon', labelKey: 'notifications.vendor_reassessment_due_soon', descKey: 'notifications.vendor_reassessment_due_soon_desc' },
-        { key: 'vendor_reassessment_overdue', labelKey: 'notifications.vendor_reassessment_overdue', descKey: 'notifications.vendor_reassessment_overdue_desc' },
-        { key: 'vendor_sla_due_soon', labelKey: 'notifications.vendor_sla_due_soon', descKey: 'notifications.vendor_sla_due_soon_desc' },
-        { key: 'vendor_sla_due_tomorrow', labelKey: 'notifications.vendor_sla_due_tomorrow', descKey: 'notifications.vendor_sla_due_tomorrow_desc' },
-        { key: 'vendor_sla_overdue', labelKey: 'notifications.vendor_sla_overdue', descKey: 'notifications.vendor_sla_overdue_desc' },
-        { key: 'vendor_sla_near_breach', labelKey: 'notifications.vendor_sla_near_breach', descKey: 'notifications.vendor_sla_near_breach_desc' },
-        { key: 'vendor_sla_breach_detected', labelKey: 'notifications.vendor_sla_breach_detected', descKey: 'notifications.vendor_sla_breach_detected_desc' },
-    ];
-
     return (
         <div className="space-y-8">
             <div>
@@ -226,30 +213,6 @@ export function NotificationSettings() {
                 </div>
                 <div className="space-y-1">
                     {questionnaireSettings.map(({ key, labelKey, descKey }) => (
-                        <ToggleItem
-                            key={key}
-                            label={t(labelKey, key)}
-                            description={t(descKey, '')}
-                            checked={preferences[key]}
-                            onChange={(value) => handleToggle(key, value)}
-                            loading={updating === key}
-                        />
-                    ))}
-                </div>
-            </section>
-
-            {/* Vendor Notifications Section */}
-            <section className="bg-white/5 rounded-xl p-6">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                        <Bell className="h-4 w-4 text-blue-400" />
-                    </div>
-                    <h4 className="text-md font-semibold text-slate-200">
-                        {t('notifications.section_vendors')}
-                    </h4>
-                </div>
-                <div className="space-y-1">
-                    {vendorSettings.map(({ key, labelKey, descKey }) => (
                         <ToggleItem
                             key={key}
                             label={t(labelKey, key)}

@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 
 from app.core.config import get_settings
 from app.db.session import session_context
-from app.models import ApprovalRequest, Control, KeyRiskIndicator, Risk, Vendor, VendorSLA
+from app.models import ApprovalRequest, Control, KeyRiskIndicator, Risk, Vendor
 from scripts.seed_e2e_activity_logs import seed_activity_logs
 from scripts.seed_e2e_approvals import seed_approvals
 from scripts.seed_e2e_archives import seed_archives
@@ -27,7 +27,6 @@ from scripts.seed_e2e_permission_actions import seed_permission_actions
 from scripts.seed_e2e_resolved_approvals import seed_resolved_approvals
 from scripts.seed_e2e_risks import seed_risks
 from scripts.seed_e2e_sensitive_approvals import seed_sensitive_approvals
-from scripts.seed_e2e_vendor_slas import seed_vendor_slas
 from scripts.seed_e2e_vendors import seed_vendors
 
 
@@ -107,23 +106,6 @@ async def _collect_summary_counts():
             )
         ).scalar_one()
 
-        slas_active = (
-            await db.execute(
-                select(func.count(VendorSLA.id)).where(
-                    VendorSLA.metric_name.like("E2E-SLA-%"),
-                    VendorSLA.is_archived.is_(False),
-                )
-            )
-        ).scalar_one()
-        slas_archived = (
-            await db.execute(
-                select(func.count(VendorSLA.id)).where(
-                    VendorSLA.metric_name.like("E2E-SLA-%"),
-                    VendorSLA.is_archived.is_(True),
-                )
-            )
-        ).scalar_one()
-
         approvals_total = (
             await db.execute(select(func.count(ApprovalRequest.id)).where(ApprovalRequest.reason.like("E2E-%")))
         ).scalar_one()
@@ -137,8 +119,6 @@ async def _collect_summary_counts():
             "kris_archived": kris_archived,
             "vendors_active": vendors_active,
             "vendors_inactive": vendors_inactive,
-            "slas_active": slas_active,
-            "slas_archived": slas_archived,
             "approvals_total": approvals_total,
         }
 
@@ -167,8 +147,7 @@ async def seed_e2e_all():
         await _run_step(9, "Seeding Permission-Gated Actions", seed_permission_actions)
         await _run_step(10, "Seeding Cross-Department Scenarios", seed_cross_dept_scenarios)
         await _run_step(11, "Seeding Vendors", seed_vendors)
-        await _run_step(12, "Seeding Vendor SLAs", seed_vendor_slas)
-        await _run_step(13, "Seeding Archive Matrix", seed_archives)
+        await _run_step(12, "Seeding Archive Matrix", seed_archives)
     except Exception as exc:
         print(f"\n❌ E2E seeding failed: {exc}")
         return 1
@@ -183,7 +162,6 @@ async def seed_e2e_all():
     print(f"   • Controls active/archived: {summary['controls_active']}/{summary['controls_archived']}")
     print(f"   • KRIs active/archived: {summary['kris_active']}/{summary['kris_archived']}")
     print(f"   • Vendors active/inactive: {summary['vendors_active']}/{summary['vendors_inactive']}")
-    print(f"   • Vendor SLAs active/archived: {summary['slas_active']}/{summary['slas_archived']}")
     print(f"   • Approval requests with E2E marker: {summary['approvals_total']}")
     print("\n💡 All entities prefixed with 'E2E-' for isolation")
     return 0

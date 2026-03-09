@@ -11,9 +11,6 @@ and `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/pages/VendorsPage.t
 - `VendorDetailHeader.tsx`
 - `VendorFormView.tsx`
 - `VendorOverviewTab.tsx`
-- `VendorSectionStack.tsx`
-- `VendorTabPanel.tsx`
-- `VendorTabs.tsx`
 - `VendorsTableSection.tsx`
 - `useVendorDetailState.ts`
 - `vendorDetailPresentation.ts`
@@ -22,23 +19,21 @@ and `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/pages/VendorsPage.t
 ## Notes
 
 Keep route orchestration in the page entrypoints and move local rendering,
-grouping helpers, and tab metadata into this folder.
+grouping helpers, and vendor-detail presentation logic into this folder.
 
-Vendor detail now uses a canonical 5-tab IA:
+Vendor detail now uses a single canonical core view at `/vendors/:id`.
+Legacy vendor detail URLs with old tab or section query params are normalized
+back to the base vendor detail URL.
 
-- `overview`
-- `assessments`
-- `assurance`
-- `operations`
-- `ecosystem`
+`VendorOverviewTab.tsx` owns the core vendor surface. It now mirrors the
+individual risk page interaction language:
 
-Legacy vendor detail deep links are still accepted and canonicalized into
-`tab + section` pairs so older URLs, alerts, and dashboard links continue to
-land on the correct merged surface.
-
-`VendorOverviewTab.tsx` owns the new overview surface: KPI strip, summary
-cards, timestamps, and the embedded `Risk Factors` / `Linked Risks` /
-`Linked Controls` sections.
+- top summary surface for risk score, status, exposure, and vendor flags
+- 3-card classification / ownership / connections grid
+- embedded `Linked Risks` section with split actions (`Link Existing`, `Add Risk`)
+- embedded `Linked Controls` section with split actions (`Link Existing`, `Add Control`)
+- archived linked-item groups and full-width `Manage Existing Links` affordances
+- footer timestamps aligned with the risk detail page layout
 
 Vendor detail also owns lifecycle parity at the route shell level: active
 vendors can be archived from the hero, while inactive vendors expose restore
@@ -56,3 +51,13 @@ Create and edit flows are intentionally aligned with detail-page structure:
 - consistent back/header/action framing
 - sectioned form layout
 - theme-safe presentation in `light`, `dark`, and `riskhub`
+
+Routed create-from-vendor flow is shared with risk/control forms via query params:
+
+- `/risks/new?vendor_id=:id&return_to=/vendors/:id`
+- `/controls/new?vendor_id=:id&return_to=/vendors/:id`
+
+After successful create, the originating form auto-links the new entity back to
+the vendor and returns to vendor detail with a flash banner. If linking fails
+after create, vendor detail still receives a warning banner plus a deep link to
+the created entity for manual follow-up.

@@ -8,7 +8,7 @@ type VendorSurfaceElement = 'article' | 'div' | 'section';
 type VendorSurfaceTone = 'default' | 'emphasis' | 'muted';
 type VendorButtonVariant = 'danger' | 'ghost' | 'primary' | 'secondary' | 'success';
 type VendorBadgeTone = 'danger' | 'info' | 'neutral' | 'success' | 'warn';
-type VendorMessageTone = 'danger' | 'success' | 'neutral';
+type VendorMessageTone = 'danger' | 'success' | 'neutral' | 'warn';
 
 interface VendorSurfaceProps extends HTMLAttributes<HTMLElement> {
     as?: VendorSurfaceElement;
@@ -160,6 +160,7 @@ export function VendorInlineMessage({
                 'vendor-inline-message',
                 tone === 'danger' && 'vendor-inline-message--danger',
                 tone === 'success' && 'vendor-inline-message--success',
+                tone === 'warn' && 'vendor-inline-message--warn',
                 className,
             )}
             {...props}

@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
 > **Version**: 1.5
-> **Last Updated**: 2026-03-07
+> **Last Updated**: 2026-03-09
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
@@ -63,9 +63,10 @@ cd backend
 - The KRI regression gate must cover URL-sourced monitoring/timeliness filters, mutual exclusion between those filters, rapid filter-click loading recovery, and grouped-view parity.
 - `/vendors` grouped-view regressions must include `src/pages/__tests__/VendorsPage.grouped-views.test.tsx`.
 - The vendor grouped-view regression gate must cover `All` vs grouped tabs, `By Risk` visibility only with readable risks, grouped fetch behavior under active filters, overlapping vendor membership across linked risks, and the `Unlinked Risk` fallback bucket.
-- Vendor detail merged-IA regressions should run:
-  - `cd frontend && npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/VendorDetailPage.presentation.test.ts src/pages/__tests__/VendorDetailPage.issue-entry.test.tsx`
-  - `cd frontend && npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-contextual-create.spec.ts ../tests/frontend/e2e/permissions/vendor-slas-crud.spec.ts`
+- Vendor detail parity regressions should run:
+  - `cd frontend && npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/VendorDetailPage.presentation.test.ts src/pages/__tests__/VendorDetailPage.issue-entry.test.tsx src/pages/__tests__/RiskForms.vendor-context.test.tsx src/pages/__tests__/ControlForms.vendor-context.test.tsx`
+  - `cd frontend && npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-contextual-create.spec.ts`
+- The vendor detail regression gate must cover risk-detail-style linked sections, split action bars (`Link Existing` + `Add Risk` / `Add Control`), archived linked-item group rendering, and vendor-context routed create flows that auto-link back to the vendor.
 - Playwright runs live browser flows from `tests/frontend/e2e`.
 - Role-sensitive behavior must be verified for admin/non-admin views when docs contracts change.
 
@@ -114,12 +115,13 @@ For vendor grouped-view/detail documentation or permission-gating changes, also 
 
 ```bash
 cd "/Users/stefanlesnak/Antigravity/Risk App 2"
-PYTHONPATH=backend pytest tests/backend/pytest/test_vendors.py tests/backend/pytest/test_vendor_slas.py -q
+PYTHONPATH=backend pytest tests/backend/pytest/test_vendors.py tests/backend/pytest/test_vendor_links.py -q
 
 cd frontend
 npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx
 npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/VendorDetailPage.presentation.test.ts src/pages/__tests__/VendorDetailPage.issue-entry.test.tsx
-npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-contextual-create.spec.ts ../tests/frontend/e2e/permissions/vendor-slas-crud.spec.ts
+npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/RiskForms.vendor-context.test.tsx src/pages/__tests__/ControlForms.vendor-context.test.tsx
+npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-contextual-create.spec.ts
 ```
 
 ## Troubleshooting
