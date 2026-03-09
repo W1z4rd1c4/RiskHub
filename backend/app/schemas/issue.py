@@ -119,6 +119,13 @@ class IssueRiskContext(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class IssueVendorContext(BaseModel):
+    vendor_id: int
+    vendor_name: str
+
+    model_config = {"from_attributes": True}
+
+
 class IssueSummary(BaseModel):
     id: int
     title: str
@@ -136,6 +143,7 @@ class IssueSummary(BaseModel):
     created_at: datetime
     updated_at: datetime
     risk_contexts: list[IssueRiskContext] = Field(default_factory=list)
+    vendor_contexts: list[IssueVendorContext] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 

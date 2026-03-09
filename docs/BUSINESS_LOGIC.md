@@ -1,7 +1,7 @@
 # RiskHub Business Logic Reference
 
 > **Version**: 1.1  
-> **Last Updated**: 2026-03-07  
+> **Last Updated**: 2026-03-09  
 > **Audience**: Product, Engineering, QA, Compliance  
 > **Source of Truth**: Backend RBAC and approval enforcement in `backend/app/`
 
@@ -295,6 +295,9 @@ Rules:
 
 > [!NOTE]
 > Vendor detail now mirrors the individual risk page interaction model for linked entities. `Link Existing` remains governed by vendor edit access (`vendors:write` or vendor ownership rules), while `Add Risk` and `Add Control` require that same vendor edit access plus the corresponding domain write permission (`risks:write` or `controls:write`). Create-from-vendor uses routed forms and auto-links the new entity back to the originating vendor after save.
+
+> [!NOTE]
+> Grouped register views are multi-membership, not exclusive partitions. `By Vendor` on Risks, Controls, Issues, and KRIs must place one record into every readable linked-vendor bucket, while `By Flag` on Vendors must place one vendor into every applicable flag bucket (`DORA relevant`, `Supports core function`, `Significant vendor`). Vendors with none of those flags fall into `Insignificant vendors`.
 
 ### 4.2 Role-Permission Grid
 
@@ -783,12 +786,18 @@ UI entry points:
 Entry-point actions are permission-gated by `issues:write` and use business labels only (no raw numeric IDs in UI copy).
 
 Vendor detail-specific behavior:
-- linked risks and linked controls render as risk-detail-style card grids with separate archived groups
+- linked risks, linked controls, and linked KRIs render as risk-detail-style card grids with separate archived groups
 - `Link Existing` and `Manage Existing Links` mutate vendor links only when vendor edit access is allowed
 - `Add Risk` navigates to `/risks/new?vendor_id=:id&return_to=/vendors/:id`
 - `Add Control` navigates to `/controls/new?vendor_id=:id&return_to=/vendors/:id`
 - successful create returns to vendor detail with a confirmation banner and deep link to the created entity
 - create-success + link-failure returns to vendor detail with a warning banner and deep link for manual follow-up
+- vendor-linked KRIs are link-existing only in this phase; there is no create-KRI-from-vendor flow
+
+Register grouped-view behavior:
+- Risks, Controls, Issues, and KRIs expose `By Vendor` using readable linked-vendor summaries from backend list payloads.
+- Vendors expose `By Flag` using multi-membership buckets derived from `dora_relevant`, `supports_important_core_insurance_function`, and `is_significant_vendor`.
+- Unreadable linked vendors must be omitted from grouped views; items with no readable linked vendors fall back to the unlinked bucket.
 
 ### 11.6 Simplified Workflow UX (Frontend)
 

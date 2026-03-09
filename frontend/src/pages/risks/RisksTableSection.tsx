@@ -16,7 +16,7 @@ import { useRiskThresholds, useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { buildRiskColumns, getRiskStatusColor } from '@/pages/risks/riskColumns';
 import type { RiskSummary } from '@/types/risk';
 
-import { getRiskGroupByField } from './risksPagePresentation';
+import { buildRiskGroupedRows, getRiskGroupByField, type RiskGroupedRow } from './risksPagePresentation';
 
 interface RisksTableSectionProps {
     currentPage: number;
@@ -86,6 +86,10 @@ export function RisksTableSection({
             pendingApprovalIds,
             t,
         ]
+    );
+    const groupedRows = useMemo(
+        () => buildRiskGroupedRows(items, viewMode, { unlinkedVendor: t('grouping.unlinked_vendor') }),
+        [items, t, viewMode]
     );
 
     if (errorKey) {
@@ -175,6 +179,73 @@ export function RisksTableSection({
                     onPageChange={onPageChange}
                 />
             </>
+        );
+    }
+
+    if (viewMode === 'vendor') {
+        return (
+            <CategoryDrillDown
+                data={groupedRows}
+                groupBy={'groupValue'}
+                keyExtractor={(row) => row.rowId}
+                getStats={(groupItems) => ({
+                    total: groupItems.length,
+                    activeCount: groupItems.filter((row) => row.risk.status === 'active').length,
+                    highRiskCount: groupItems.filter((row) => row.risk.net_score >= 16).length,
+                })}
+                renderTable={(groupItems: RiskGroupedRow[]) => (
+                    <SortableTable
+                        data={groupItems.map((row) => row.risk)}
+                        columns={columns}
+                        keyExtractor={(risk) => risk.id}
+                        onRowClick={onRowClick}
+                        emptyMessage={t('empty_state.no_risks')}
+                    />
+                )}
+                renderGroupExtra={(groupItems: RiskGroupedRow[]) => <MiniHeatmap risks={groupItems.map((row) => row.risk)} />}
+                renderItem={(row) => (
+                    <div
+                        onClick={() => onRowClick(row.risk)}
+                        className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-white">{row.risk.name}</span>
+                                    {row.risk.is_priority && (
+                                        <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                                    )}
+                                </div>
+                                <span className="text-[10px] text-slate-500">{row.risk.process}</span>
+                            </div>
+                            <span
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getRiskStatusColor(
+                                    row.risk.status
+                                )}`}
+                            >
+                                {row.risk.status}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(
+                                    row.risk.gross_score
+                                )}`}
+                            >
+                                G: {row.risk.gross_score}
+                            </div>
+                            <div
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(
+                                    row.risk.net_score
+                                )}`}
+                            >
+                                N: {row.risk.net_score}
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-slate-500" />
+                        </div>
+                    </div>
+                )}
+            />
         );
     }
 

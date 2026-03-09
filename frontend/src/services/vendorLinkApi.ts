@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { LinkedControl, LinkedRisk } from '@/types/vendorLink';
+import type { LinkedControl, LinkedKRI, LinkedRisk } from '@/types/vendorLink';
 
 export const vendorLinkApi = {
     async getLinkedRisks(vendorId: number): Promise<LinkedRisk[]> {
@@ -25,5 +25,16 @@ export const vendorLinkApi = {
     async unlinkControl(vendorId: number, controlId: number): Promise<void> {
         await apiClient.delete(`/vendors/${vendorId}/linked-controls/${controlId}`);
     },
-};
 
+    async getLinkedKRIs(vendorId: number): Promise<LinkedKRI[]> {
+        return apiClient.get<LinkedKRI[]>(`/vendors/${vendorId}/linked-kris`);
+    },
+
+    async linkKRI(vendorId: number, kriId: number): Promise<void> {
+        await apiClient.post(`/vendors/${vendorId}/linked-kris`, { kri_id: kriId });
+    },
+
+    async unlinkKRI(vendorId: number, kriId: number): Promise<void> {
+        await apiClient.delete(`/vendors/${vendorId}/linked-kris/${kriId}`);
+    },
+};

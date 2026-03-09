@@ -10,9 +10,10 @@ from app.api.v1.endpoints._monitoring_response import (
     load_monitoring_response_context,
 )
 from app.core.datetime_utils import utc_now
+from app.core.permissions import can_read_vendor
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import Control, ControlRiskLink, Risk, User
+from app.models import Control, ControlRiskLink, Risk, User, VendorControlLink
 from app.schemas.control import (
     ControlFormEnum,
     ControlListResponse,
@@ -20,6 +21,7 @@ from app.schemas.control import (
     ControlSummary,
     normalize_control_frequency,
 )
+from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import ControlMonitoringStatus, apply_control_monitoring_status_filter
 
 from .._helpers import _apply_department_scoping, _apply_process_category_filters
@@ -98,6 +100,7 @@ async def list_controls(
         selectinload(Control.risk_links)
         .selectinload(ControlRiskLink.risk)
         .options(selectinload(Risk.owner), selectinload(Risk.department)),
+        selectinload(Control.vendor_links).selectinload(VendorControlLink.vendor),
     )
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
@@ -133,6 +136,7 @@ async def list_controls(
         reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, current_user.id)
         control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
         cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
+    can_read_vendors = check_permission(current_user, "vendors", "read")
 
     items = []
     for c, monitoring_fields in control_monitoring_rows:
@@ -165,6 +169,11 @@ async def list_controls(
                 risk_department_name=first_risk.department.name
                 if (first_risk and risk_visible and first_risk.department)
                 else None,
+                linked_vendors=[
+                    LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
+                    for link in getattr(c, "vendor_links", []) or []
+                    if getattr(link, "vendor", None) is not None and can_read_vendors and can_read_vendor(link.vendor, current_user)
+                ],
                 **monitoring_fields,
             )
         )

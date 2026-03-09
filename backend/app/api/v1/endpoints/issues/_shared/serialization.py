@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.permissions import can_read_vendor
+from app.core.security import check_permission
 from app.core.datetime_utils import coerce_utc
 from app.models import ControlRiskLink, Issue, IssueException, IssueLink, IssueRemediationPlan, Risk, User
 from app.models.issue import IssueExceptionStatus
@@ -15,6 +17,7 @@ from app.schemas.issue import (
     IssueRead,
     IssueRemediationPlanRead,
     IssueSummary,
+    IssueVendorContext,
 )
 
 from .constants import (
@@ -188,6 +191,30 @@ def _serialize_issue_risk_contexts(issue: Issue) -> list[IssueRiskContext]:
     return contexts
 
 
+def _serialize_issue_vendor_contexts(issue: Issue, current_user: User | None) -> list[IssueVendorContext]:
+    if current_user is None or not check_permission(current_user, "vendors", "read"):
+        return []
+
+    seen_vendor_ids: set[int] = set()
+    contexts: list[IssueVendorContext] = []
+
+    for link in issue.links:
+        vendor = getattr(link, "vendor", None)
+        if vendor is None or vendor.id in seen_vendor_ids or not can_read_vendor(vendor, current_user):
+            continue
+        seen_vendor_ids.add(vendor.id)
+        contexts.append(
+            IssueVendorContext.model_validate(
+                {
+                    "vendor_id": vendor.id,
+                    "vendor_name": _label_or_fallback(getattr(vendor, "name", None), UNKNOWN_VENDOR_LABEL),
+                }
+            )
+        )
+
+    return contexts
+
+
 async def _resolve_user_name(db: AsyncSession, user_id: int | None) -> str | None:
     if user_id is None:
         return None
@@ -224,7 +251,7 @@ async def _serialize_exception_with_user_names(db: AsyncSession, exception: Issu
     )
 
 
-def _serialize_issue_summary(issue: Issue) -> IssueSummary:
+def _serialize_issue_summary(issue: Issue, current_user: User | None = None) -> IssueSummary:
     owner_user_name: str | None = None
     if issue.owner_user_id is not None:
         owner_user_name = _label_or_fallback(getattr(issue.owner, "name", None), UNKNOWN_USER_LABEL)
@@ -246,6 +273,7 @@ def _serialize_issue_summary(issue: Issue) -> IssueSummary:
             "created_at": issue.created_at,
             "updated_at": issue.updated_at,
             "risk_contexts": [context.model_dump() for context in _serialize_issue_risk_contexts(issue)],
+            "vendor_contexts": [context.model_dump() for context in _serialize_issue_vendor_contexts(issue, current_user)],
         }
     )
 

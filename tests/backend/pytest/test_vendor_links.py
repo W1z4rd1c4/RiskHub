@@ -5,6 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import (
     Control,
     Department,
+    KeyRiskIndicator,
+    KRIFrequency,
     Permission,
     Risk,
     Role,
@@ -12,6 +14,7 @@ from app.models import (
     User,
     Vendor,
     VendorControlLink,
+    VendorKRILink,
     VendorRiskLink,
 )
 from app.models.user import AccessScope
@@ -68,6 +71,20 @@ def _make_control(*, name: str, department_id: int | None) -> Control:
         status="draft",
         created_by_id=None,
         updated_by_id=None,
+    )
+
+
+def _make_kri(*, risk_id: int, metric_name: str, reporting_owner_id: int | None = None) -> KeyRiskIndicator:
+    return KeyRiskIndicator(
+        risk_id=risk_id,
+        metric_name=metric_name,
+        description=f"{metric_name} description",
+        current_value=50,
+        lower_limit=10,
+        upper_limit=90,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+        reporting_owner_id=reporting_owner_id,
     )
 
 
@@ -481,3 +498,159 @@ async def test_vendor_linked_entities_include_archive_status_metadata(
     control_status_map = {item["name"]: item.get("status") for item in controls_resp.json()}
     assert control_status_map["Metadata Active Control"] == "active"
     assert control_status_map["Metadata Archived Control"] == "archived"
+
+
+@pytest.mark.asyncio
+async def test_vendor_linked_kris_filter_invisible_and_support_unlink(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+
+    other_dept = Department(name="Hidden KRI Department", code="HKRI", description="Other")
+    db_session.add(other_dept)
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+
+    vendor = Vendor(
+        name="KRI Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    visible_risk = _make_risk(risk_id_code="KRI-R001", department_id=test_department.id)
+    hidden_risk = _make_risk(risk_id_code="KRI-R002", department_id=other_dept.id)
+    db_session.add_all([vendor, visible_risk, hidden_risk])
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    await db_session.refresh(visible_risk)
+    await db_session.refresh(hidden_risk)
+
+    visible_kri = _make_kri(risk_id=visible_risk.id, metric_name="Visible Vendor KRI", reporting_owner_id=test_user_employee.id)
+    hidden_kri = _make_kri(risk_id=hidden_risk.id, metric_name="Hidden Vendor KRI")
+    hidden_kri.is_archived = True
+    db_session.add_all([visible_kri, hidden_kri])
+    await db_session.commit()
+    await db_session.refresh(visible_kri)
+    await db_session.refresh(hidden_kri)
+
+    db_session.add_all(
+        [
+            VendorKRILink(vendor_id=vendor.id, kri_id=visible_kri.id),
+            VendorKRILink(vendor_id=vendor.id, kri_id=hidden_kri.id),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client_employee.get(f"/api/v1/vendors/{vendor.id}/linked-kris")
+    assert response.status_code == 200
+    payload = response.json()
+    assert [item["metric_name"] for item in payload] == ["Visible Vendor KRI"]
+    assert payload[0]["risk_process"] == "IT"
+    assert payload[0]["risk_department_name"] == test_department.name
+    assert payload[0]["is_archived"] is False
+
+    response = await client_employee.delete(f"/api/v1/vendors/{vendor.id}/linked-kris/{hidden_kri.id}")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_kri_list_linked_vendors_filter_invisible_vendors(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+
+    other_dept = Department(name="Hidden Vendor Department", code="HVND", description="Other")
+    db_session.add(other_dept)
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+
+    risk = _make_risk(risk_id_code="LIST-KRI-001", department_id=test_department.id)
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    kri = _make_kri(risk_id=risk.id, metric_name="Vendor-linked KRI", reporting_owner_id=test_user_employee.id)
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    visible_vendor = Vendor(
+        name="Visible Linked Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=99999,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    hidden_vendor = Vendor(
+        name="Hidden Linked Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=other_dept.id,
+        outsourcing_owner_user_id=99999,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    cross_dept_owned_vendor = Vendor(
+        name="Cross Dept Owned Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=other_dept.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add_all([visible_vendor, hidden_vendor, cross_dept_owned_vendor])
+    await db_session.commit()
+    await db_session.refresh(visible_vendor)
+    await db_session.refresh(hidden_vendor)
+    await db_session.refresh(cross_dept_owned_vendor)
+
+    db_session.add_all(
+        [
+            VendorKRILink(vendor_id=visible_vendor.id, kri_id=kri.id),
+            VendorKRILink(vendor_id=hidden_vendor.id, kri_id=kri.id),
+            VendorKRILink(vendor_id=cross_dept_owned_vendor.id, kri_id=kri.id),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client_employee.get("/api/v1/kris")
+    assert response.status_code == 200
+    item = next(row for row in response.json()["items"] if row["id"] == kri.id)
+    vendor_names = {vendor["name"] for vendor in item["linked_vendors"]}
+    assert "Visible Linked Vendor" in vendor_names
+    assert "Cross Dept Owned Vendor" in vendor_names
+    assert "Hidden Linked Vendor" not in vendor_names

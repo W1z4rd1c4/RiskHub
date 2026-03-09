@@ -62,11 +62,16 @@ cd backend
 - `/kris` route regressions must include `src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`.
 - The KRI regression gate must cover URL-sourced monitoring/timeliness filters, mutual exclusion between those filters, rapid filter-click loading recovery, and grouped-view parity.
 - `/vendors` grouped-view regressions must include `src/pages/__tests__/VendorsPage.grouped-views.test.tsx`.
-- The vendor grouped-view regression gate must cover `All` vs grouped tabs, `By Risk` visibility only with readable risks, grouped fetch behavior under active filters, overlapping vendor membership across linked risks, and the `Unlinked Risk` fallback bucket.
+- The vendor grouped-view regression gate must cover `All` vs grouped tabs, `By Risk` visibility only with readable risks, grouped fetch behavior under active filters, overlapping vendor membership across linked risks, the `Unlinked Risk` fallback bucket, and `By Flag` multi-membership with the `Insignificant vendors` fallback.
 - Vendor detail parity regressions should run:
   - `cd frontend && npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/VendorDetailPage.presentation.test.ts src/pages/__tests__/VendorDetailPage.issue-entry.test.tsx src/pages/__tests__/RiskForms.vendor-context.test.tsx src/pages/__tests__/ControlForms.vendor-context.test.tsx`
   - `cd frontend && npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-contextual-create.spec.ts`
-- The vendor detail regression gate must cover risk-detail-style linked sections, split action bars (`Link Existing` + `Add Risk` / `Add Control`), archived linked-item group rendering, and vendor-context routed create flows that auto-link back to the vendor.
+- The vendor detail regression gate must cover risk-detail-style linked sections, split action bars (`Link Existing` + `Add Risk` / `Add Control`), archived linked-item group rendering, vendor-linked KRIs, and vendor-context routed create flows that auto-link back to the vendor.
+- Vendor-centric grouped-view regressions should run:
+  - `cd frontend && npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/RisksPage.presentation.test.ts src/pages/__tests__/ControlsPage.presentation.test.ts src/pages/__tests__/IssuesPage.grouped-views.test.tsx src/pages/__tests__/KRIsPage.monitoring-status.test.tsx src/pages/__tests__/VendorsPage.grouped-views.test.tsx`
+  - `cd frontend && npx playwright test -c ../tests/frontend/e2e/playwright.config.ts --project=chromium ../tests/frontend/e2e/risks.spec.ts ../tests/frontend/e2e/controls.spec.ts ../tests/frontend/e2e/kris.spec.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-workflow.spec.ts --grep "groups linked risks by vendor|groups linked controls by vendor|groups linked KRIs by vendor|groups vendors by flag|links an existing KRI|groups vendor-context issues by vendor"`
+- Backend vendor-link regressions must cover linked KRI list/link/unlink behavior and vendor summaries on risk/control/issue/KRI list payloads:
+  - `cd  && PYTHONPATH=backend pytest tests/backend/pytest/test_vendor_links.py -q`
 - Playwright runs live browser flows from `tests/frontend/e2e`.
 - Role-sensitive behavior must be verified for admin/non-admin views when docs contracts change.
 
@@ -122,6 +127,17 @@ npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx
 npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/VendorDetailPage.presentation.test.ts src/pages/__tests__/VendorDetailPage.issue-entry.test.tsx
 npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/RiskForms.vendor-context.test.tsx src/pages/__tests__/ControlForms.vendor-context.test.tsx
 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-contextual-create.spec.ts
+```
+
+For vendor-centric grouped views and vendor-linked KRI changes, also add:
+
+```bash
+cd "."
+PYTHONPATH=backend pytest tests/backend/pytest/test_vendor_links.py -q
+
+cd frontend
+npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/RisksPage.presentation.test.ts src/pages/__tests__/ControlsPage.presentation.test.ts src/pages/__tests__/IssuesPage.grouped-views.test.tsx src/pages/__tests__/KRIsPage.monitoring-status.test.tsx src/pages/__tests__/VendorsPage.grouped-views.test.tsx
+npx playwright test -c ../tests/frontend/e2e/playwright.config.ts --project=chromium ../tests/frontend/e2e/risks.spec.ts ../tests/frontend/e2e/controls.spec.ts ../tests/frontend/e2e/kris.spec.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-workflow.spec.ts --grep "groups linked risks by vendor|groups linked controls by vendor|groups linked KRIs by vendor|groups vendors by flag|links an existing KRI|groups vendor-context issues by vendor"
 ```
 
 ## Troubleshooting

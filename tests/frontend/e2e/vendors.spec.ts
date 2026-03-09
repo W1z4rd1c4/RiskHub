@@ -1,6 +1,10 @@
 import { test, expect } from './fixtures/auth.fixture';
-import { E2E_VENDORS } from './fixtures/e2e-data';
-import { ensureVendorStatus } from './helpers/api-auth';
+import { E2E_KRIS, E2E_VENDORS } from './fixtures/e2e-data';
+import {
+    ensureVendorStatus,
+    getKRIByMetricName,
+    unlinkVendorFromKRI,
+} from './helpers/api-auth';
 import { waitForDataLoad } from './helpers/wait';
 import { VendorsPage } from './pages/VendorsPage';
 
@@ -79,5 +83,61 @@ test.describe('Vendor Management (Deterministic)', () => {
 
         await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}$`));
         await expect(riskManagerPage.getByText(/Linked Controls|Navázané kontroly/i).first()).toBeVisible();
+    });
+
+    test('Vendor register groups vendors by flag with insignificant fallback', async ({ riskManagerPage }) => {
+        await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
+        await ensureVendorStatus(E2E_VENDORS.ACTIVE_SECONDARY.registration_id, 'active');
+        await ensureVendorStatus(E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id, 'active');
+
+        const vendorsPage = new VendorsPage(riskManagerPage);
+        await vendorsPage.navigate();
+
+        await riskManagerPage.getByRole('button', { name: /By Flag|Podle příznaku/i }).click();
+        await expect(riskManagerPage.getByRole('button', { name: /^DORA relevant/i })).toBeVisible();
+        await expect(riskManagerPage.getByRole('button', { name: /^Supports core function/i })).toBeVisible();
+        await expect(riskManagerPage.getByRole('button', { name: /^Significant vendor/i })).toBeVisible();
+        await expect(riskManagerPage.getByRole('button', { name: /^Insignificant vendors/i })).toBeVisible();
+
+        await riskManagerPage.getByRole('button', { name: /^Insignificant vendors/i }).click();
+        await expect(riskManagerPage.getByText(E2E_VENDORS.INACTIVE_RESTORE_TARGET.name).first()).toBeVisible({
+            timeout: 15000,
+        });
+    });
+
+    test('Vendor detail links an existing KRI and KRI register reflects the vendor grouping', async ({ riskManagerPage }) => {
+        const vendorId = await ensureVendorStatus(E2E_VENDORS.ACTIVE_SECONDARY.registration_id, 'active');
+        const kri = await getKRIByMetricName(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
+        expect(kri).not.toBeNull();
+
+        await unlinkVendorFromKRI(vendorId, kri!.id);
+
+        await riskManagerPage.goto(`/vendors/${vendorId}`);
+        await waitForDataLoad(riskManagerPage);
+
+        const linkedKriSection = riskManagerPage.getByTestId('vendor-linked-kris-section');
+        await expect(linkedKriSection).toBeVisible({ timeout: 15000 });
+        await linkedKriSection.getByTestId('vendor-linked-kris-link-existing').click();
+
+        const dialog = riskManagerPage.getByTestId('link-management-dialog');
+        await expect(dialog).toBeVisible({ timeout: 15000 });
+        await dialog.getByPlaceholder(/Search KRIs|Hledat KRI/i).fill(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
+        await dialog.getByRole('button', { name: new RegExp(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name, 'i') }).click();
+        await dialog.getByRole('button', { name: /Create Link|Vytvořit propojení/i }).click();
+        await expect(dialog).not.toBeVisible({ timeout: 15000 });
+
+        await expect(linkedKriSection.getByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name).first()).toBeVisible({
+            timeout: 15000,
+        });
+
+        await riskManagerPage.goto('/kris');
+        await waitForDataLoad(riskManagerPage);
+        await riskManagerPage.getByTestId('kris-search-input').fill(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
+        await riskManagerPage.getByRole('button', { name: /By Vendor|Podle dodavatele/i }).click();
+        await riskManagerPage.getByRole('button', { name: /E2E-VENDOR-002 AML Screening Service/i }).click();
+
+        await expect(riskManagerPage.getByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name).first()).toBeVisible({
+            timeout: 15000,
+        });
     });
 });

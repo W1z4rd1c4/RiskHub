@@ -7,11 +7,12 @@ from sqlalchemy.orm import selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
-from app.core.permissions import get_user_department_ids
-from app.core.security import require_permission
+from app.core.permissions import can_read_vendor, get_user_department_ids
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import KeyRiskIndicator, Risk, User
+from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRIResponse
+from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import KRIMonitoringStatus
 
 router = APIRouter()
@@ -53,13 +54,26 @@ async def list_breaches(
         selectinload(KeyRiskIndicator.reporting_owner),
         selectinload(KeyRiskIndicator.risk).selectinload(Risk.owner),
         selectinload(KeyRiskIndicator.risk).selectinload(Risk.department),
+        selectinload(KeyRiskIndicator.vendor_links).selectinload(VendorKRILink.vendor),
     )
     result = await db.execute(query)
     kris = result.scalars().all()
 
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
-    items = [serialize_kri_response(kri, monitoring_context) for kri in kris]
+    can_read_vendors = check_permission(current_user, "vendors", "read")
+    items = [
+        serialize_kri_response(
+            kri,
+            monitoring_context,
+            linked_vendors=[
+                LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
+                for link in getattr(kri, "vendor_links", []) or []
+                if getattr(link, "vendor", None) is not None and can_read_vendors and can_read_vendor(link.vendor, current_user)
+            ],
+        )
+        for kri in kris
+    ]
     breaches = [item for item in items if item.monitoring_status == KRIMonitoringStatus.breach]
 
     return breaches

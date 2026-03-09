@@ -146,7 +146,10 @@ export function IssuesTableSection({
         [i18n.language, severityLabel, sourceLabel, statusLabel, t]
     );
 
-    const groupedRows = useMemo(() => buildIssueGroupedRows(items, viewMode), [items, viewMode]);
+    const groupedRows = useMemo(
+        () => buildIssueGroupedRows(items, viewMode, { unlinkedVendor: t('fallbacks.unlinked_vendor') }),
+        [items, t, viewMode]
+    );
 
     if (errorKey) {
         return (

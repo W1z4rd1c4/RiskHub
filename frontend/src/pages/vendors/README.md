@@ -32,8 +32,17 @@ individual risk page interaction language:
 - 3-card classification / ownership / connections grid
 - embedded `Linked Risks` section with split actions (`Link Existing`, `Add Risk`)
 - embedded `Linked Controls` section with split actions (`Link Existing`, `Add Control`)
+- embedded `Linked KRIs` section with `Link Existing` plus `Manage Existing Links`
 - archived linked-item groups and full-width `Manage Existing Links` affordances
 - footer timestamps aligned with the risk detail page layout
+
+`VendorsPage.tsx` and `vendorsPagePresentation.ts` also support grouped
+`By Flag` review. Vendors are multi-member records in that mode:
+
+- `DORA relevant`
+- `Supports core function`
+- `Significant vendor`
+- `Insignificant vendors` when none of those flags are set
 
 Vendor detail also owns lifecycle parity at the route shell level: active
 vendors can be archived from the hero, while inactive vendors expose restore

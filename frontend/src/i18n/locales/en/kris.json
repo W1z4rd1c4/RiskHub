@@ -86,6 +86,9 @@
     "no_linked_risk": "No linked risk",
     "no_group": "No KRIs in this group."
   },
+  "grouping": {
+    "unlinked_vendor": "Unlinked Vendor"
+  },
   "columns": {
     "metric": "Metric",
     "value": "Value",

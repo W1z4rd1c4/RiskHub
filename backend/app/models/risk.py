@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from app.models.department import Department
     from app.models.key_risk_indicator import KeyRiskIndicator
     from app.models.user import User
+    from app.models.vendor_risk_link import VendorRiskLink
 
 
 class RiskType(str, PyEnum):
@@ -115,6 +116,7 @@ class Risk(Base):
     # Relationships
     control_links: Mapped[list["ControlRiskLink"]] = relationship("ControlRiskLink", back_populates="risk")
     kris: Mapped[list["KeyRiskIndicator"]] = relationship("KeyRiskIndicator", back_populates="risk")
+    vendor_links: Mapped[list["VendorRiskLink"]] = relationship("VendorRiskLink", back_populates="risk")
 
 
 class ControlRiskLink(Base):

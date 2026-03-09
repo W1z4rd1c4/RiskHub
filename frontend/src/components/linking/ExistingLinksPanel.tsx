@@ -17,6 +17,7 @@ export interface ExistingLinkItem {
     id: number;
     risk_id?: number;
     control_id?: number;
+    kri_id?: number;
     effectiveness: string;
     notes?: string;
     risk?: unknown;
@@ -24,7 +25,7 @@ export interface ExistingLinkItem {
 }
 
 export interface ExistingLinksPanelProps {
-    mode: 'control-to-risk' | 'risk-to-control';
+    mode: 'control-to-risk' | 'risk-to-control' | 'vendor-to-kri';
     existingLinks: ExistingLinkItem[];
     onUnlink: (targetId: number) => void;
     isUnlinking: number | null;
@@ -71,9 +72,9 @@ export function ExistingLinksPanel({
     isUnlinking,
     showMetadataBadge = true,
 }: ExistingLinksPanelProps) {
-    const { t } = useTranslation(['common', 'risks', 'controls']);
+    const { t } = useTranslation(['common', 'controls', 'kris', 'risks']);
     const getTargetId = (link: ExistingLinkItem): number => {
-        return Number(mode === 'control-to-risk' ? link.risk_id : link.control_id);
+        return Number(mode === 'control-to-risk' ? link.risk_id : mode === 'risk-to-control' ? link.control_id : link.kri_id);
     };
 
     const getDisplayName = (link: ExistingLinkItem): string => {
@@ -82,6 +83,9 @@ export function ExistingLinksPanel({
         }
         if (mode === 'control-to-risk') {
             return getRiskDescription(link.risk) || t('common:labels.unknown');
+        }
+        if (mode === 'vendor-to-kri') {
+            return link.display_name || t('common:labels.unknown');
         }
         return getControlName(link.control) || t('common:labels.unknown');
     };

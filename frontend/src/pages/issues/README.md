@@ -16,3 +16,7 @@ Page-local modules for `frontend/src/pages/IssuesPage.tsx`.
 
 Keep route orchestration in `IssuesPage.tsx` and move query parsing, local
 state, and leaf rendering into this folder.
+
+`issuesPagePresentation.ts` now supports grouped `By Vendor` review. Issues can
+appear in multiple vendor groups when they have multiple readable vendor
+contexts, including contextual issues created directly from vendor detail.

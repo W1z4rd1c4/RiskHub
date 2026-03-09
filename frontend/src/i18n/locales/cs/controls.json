@@ -80,6 +80,9 @@
     "overdue_only": "Pouze opožděné",
     "search_placeholder": "Hledat podle názvu, popisu, rizika nebo oddělení..."
   },
+  "grouping": {
+    "unlinked_vendor": "Bez propojeného dodavatele"
+  },
   "empty_state": {
     "no_controls": "Nebyly nalezeny žádné kontroly odpovídající kritériím.",
     "no_executions": "Žádná historie exekuce",

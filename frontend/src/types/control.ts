@@ -1,4 +1,5 @@
 import type { ExecutionResult } from '@/types/execution';
+import type { LinkedVendorSummary } from '@/types/vendorLink';
 export { ExecutionResult } from '@/types/execution';
 
 export type ControlForm = 'manual' | 'automatic';
@@ -102,6 +103,7 @@ export interface ControlSummary extends ControlMonitoringFields {
     risk_description?: string;
     risk_owner_name?: string;
     risk_department_name?: string;
+    linked_vendors?: LinkedVendorSummary[];
 }
 
 export type ControlCreate = Omit<Control, 'id' | 'created_at' | 'updated_at' | 'control_owner' | 'department'>;

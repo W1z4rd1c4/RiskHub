@@ -5,11 +5,12 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
-from app.core.permissions import check_department_access
-from app.core.security import require_permission
+from app.core.permissions import can_read_vendor, check_department_access
+from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import KeyRiskIndicator, Risk, User
+from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRIResponse
+from app.schemas.vendor_shared import LinkedVendorRead
 
 router = APIRouter()
 
@@ -32,6 +33,7 @@ async def get_kri(
             joinedload(KeyRiskIndicator.risk).joinedload(Risk.owner),
             joinedload(KeyRiskIndicator.risk).joinedload(Risk.department),
             selectinload(KeyRiskIndicator.reporting_owner),
+            selectinload(KeyRiskIndicator.vendor_links).selectinload(VendorKRILink.vendor),
         )
     )
     kri = result.scalar_one_or_none()
@@ -45,12 +47,19 @@ async def get_kri(
 
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    linked_vendors = [
+        LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
+        for link in getattr(kri, "vendor_links", []) or []
+        if getattr(link, "vendor", None) is not None
+        and check_permission(current_user, "vendors", "read")
+        and can_read_vendor(link.vendor, current_user)
+    ]
 
     # Allow access if user is reporting owner (cross-department)
     if await is_kri_reporting_owner(db, current_user.id, kri_id):
-        return serialize_kri_response(kri, monitoring_context)
+        return serialize_kri_response(kri, monitoring_context, linked_vendors=linked_vendors)
 
     # Otherwise verify department access
     check_department_access(kri.risk.department_id, current_user)
 
-    return serialize_kri_response(kri, monitoring_context)
+    return serialize_kri_response(kri, monitoring_context, linked_vendors=linked_vendors)

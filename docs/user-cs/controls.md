@@ -1,7 +1,7 @@
 ---
 title: Správa kontrol
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.1"
+last_updated: "2026-03-09"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.2, §4, §7 + frontend/src/pages/ControlsPage.tsx"
 summary: "Kompletní manuál pro lifecycle kontrol: návrh, ownership, logování exekuce, linkování na rizika, exporty a schvalování citlivých změn."
@@ -232,6 +232,16 @@ Katalog kontrol podporuje:
 - view mode (all vs grouped)
 
 Grouped view je dobré pro review a koncentraci.
+
+Grouped pohledy nyní obsahují i **By Vendor**.
+
+`By Vendor` je multi-membership:
+
+- jedna kontrola se zobrazí ve všech čitelných bucketech navázaných dodavatelů
+- nečitelní dodavatelé jsou z grupování vynechaní
+- kontroly bez čitelných navázaných dodavatelů spadnou do fallback bucketu pro nepropojené záznamy
+
+Použijte ho pro přehled, které kontroly mitigují expozici konkrétního dodavatele nebo skupiny third-party vztahů.
 
 ### Exporty
 

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { getDemoTokenByAccountName } from './helpers/api-auth';
+import { getDemoTokenByAccountName, getVendorByRegistration } from './helpers/api-auth';
+import { E2E_VENDORS } from './fixtures/e2e-data';
 import { DEMO_ACCOUNTS, loginAsDemoUser } from './helpers/login';
 
 test.describe('issues workflow', () => {
@@ -99,5 +100,45 @@ test.describe('issues workflow', () => {
 
         await page.goto('/');
         await expect(page.getByRole('heading', { name: /Open Issues by Severity|Otevřené nálezy podle závažnosti/i })).toBeVisible({ timeout: 15000 });
+    });
+
+    test('issues register groups vendor-context issues by vendor', async ({ page, request }) => {
+        await loginAsDemoUser(page, DEMO_ACCOUNTS.RISK_MANAGER);
+
+        const token = await getDemoTokenByAccountName(DEMO_ACCOUNTS.RISK_MANAGER);
+        const headers = {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        };
+
+        const meResponse = await request.get('/api/v1/auth/me', { headers });
+        expect(meResponse.ok()).toBeTruthy();
+        const me = (await meResponse.json()) as { id: number };
+
+        const vendor = await getVendorByRegistration(E2E_VENDORS.ACTIVE_PRIMARY.registration_id);
+        expect(vendor).not.toBeNull();
+
+        const issueTitle = `E2E vendor-context issue ${Date.now()}`;
+        const createResponse = await request.post('/api/v1/issues/contextual', {
+            headers,
+            data: {
+                entity_type: 'vendor',
+                entity_id: vendor!.id,
+                title: issueTitle,
+                description: 'Created by Playwright vendor-group issue flow',
+                severity: 'medium',
+                owner_user_id: me.id,
+                due_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+            },
+        });
+        expect(createResponse.ok(), await createResponse.text()).toBeTruthy();
+
+        await page.goto('/issues');
+        await expect(page.getByRole('heading', { name: /Issues|Nálezy/i })).toBeVisible({ timeout: 15000 });
+
+        await page.getByRole('button', { name: /By Vendor|Podle dodavatele/i }).click();
+        await page.getByRole('button', { name: /E2E-VENDOR-001 Claims Cloud Platform/i }).click();
+
+        await expect(page.locator('tr').filter({ hasText: issueTitle }).first()).toBeVisible({ timeout: 15000 });
     });
 });

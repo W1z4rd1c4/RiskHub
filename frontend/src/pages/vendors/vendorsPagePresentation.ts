@@ -122,6 +122,45 @@ function linkedRiskLabel(vendor: Vendor): Array<{ groupValue: string; rowId: str
     return rows;
 }
 
+function vendorFlagLabels(vendor: Vendor, labels: {
+    doraRelevant: string;
+    supportsCoreFunction: string;
+    significantVendor: string;
+    insignificantVendor: string;
+}): Array<{ groupValue: string; rowId: string }> {
+    const rows: Array<{ groupValue: string; rowId: string }> = [];
+
+    if (vendor.dora_relevant) {
+        rows.push({
+            groupValue: labels.doraRelevant,
+            rowId: `${vendor.id}:flag:dora`,
+        });
+    }
+
+    if (vendor.supports_important_core_insurance_function) {
+        rows.push({
+            groupValue: labels.supportsCoreFunction,
+            rowId: `${vendor.id}:flag:core`,
+        });
+    }
+
+    if (vendor.is_significant_vendor) {
+        rows.push({
+            groupValue: labels.significantVendor,
+            rowId: `${vendor.id}:flag:significant`,
+        });
+    }
+
+    if (rows.length === 0) {
+        rows.push({
+            groupValue: labels.insignificantVendor,
+            rowId: `${vendor.id}:flag:insignificant`,
+        });
+    }
+
+    return rows;
+}
+
 export function buildVendorGroupedRows(
     items: Vendor[],
     viewMode: ViewMode,
@@ -130,9 +169,13 @@ export function buildVendorGroupedRows(
         typeLabel: (value: VendorType) => string;
         unassigned: string;
         unlinkedRisk: string;
+        doraRelevant: string;
+        supportsCoreFunction: string;
+        significantVendor: string;
+        insignificantVendor: string;
     }
 ): VendorGroupedRow[] {
-    if (viewMode === 'all' || viewMode === 'category' || viewMode === 'risk_type') {
+    if (viewMode === 'all' || viewMode === 'category' || viewMode === 'risk_type' || viewMode === 'vendor') {
         return [];
     }
 
@@ -165,6 +208,14 @@ export function buildVendorGroupedRows(
                     vendor,
                 },
             ];
+        }
+
+        if (viewMode === 'flag') {
+            return vendorFlagLabels(vendor, labels).map((flag) => ({
+                groupValue: flag.groupValue,
+                rowId: flag.rowId,
+                vendor,
+            }));
         }
 
         const linkedRisks = linkedRiskLabel(vendor);

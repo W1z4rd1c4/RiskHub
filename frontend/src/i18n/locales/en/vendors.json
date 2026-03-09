@@ -7,7 +7,8 @@
   },
   "grouping": {
     "no_process": "No Process",
-    "unlinked_risk": "Unlinked Risk"
+    "unlinked_risk": "Unlinked Risk",
+    "insignificant_vendor": "Insignificant vendors"
   },
   "actions": {
     "new": "New Vendor",
@@ -64,7 +65,7 @@
       "risk_score": "Risk score",
       "risk_score_hint": "Inherent vendor exposure on the 1-5 register scale.",
       "linked_exposure": "Linked exposure",
-      "linked_exposure_hint": "{{risks}} risks + {{controls}} controls",
+      "linked_exposure_hint": "{{risks}} risks + {{controls}} controls + {{kris}} KRIs",
       "flags": "Profile flags",
       "no_flags": "No special flags",
       "type_hint": "Type: {{type}}",
@@ -78,7 +79,8 @@
   "tabs": {
     "overview": "Overview",
     "linked_risks": "Linked Risks",
-    "linked_controls": "Linked Controls"
+    "linked_controls": "Linked Controls",
+    "linked_kris": "Linked KRIs"
   },
   "links": {
     "actions": {
@@ -93,9 +95,11 @@
     },
     "archived_risks": "Archived risks ({{count}})",
     "archived_controls": "Archived controls ({{count}})",
+    "archived_kris": "Archived KRIs ({{count}})",
     "dialogs": {
       "link_risks_title": "Link Risks to Vendor",
-      "link_controls_title": "Link Controls to Vendor"
+      "link_controls_title": "Link Controls to Vendor",
+      "link_kris_title": "Link KRIs to Vendor"
     },
     "risks": {
       "subtitle": "Connect the vendor to enterprise risks in the Risk Register.",
@@ -108,6 +112,10 @@
       "empty": "No linked controls yet.",
       "created_and_linked": "Control created and linked to the vendor.",
       "created_but_not_linked": "Control created, but the vendor link failed. Review the new control and link it manually."
+    },
+    "kris": {
+      "subtitle": "Attach KRIs that monitor vendor-related exposure and performance.",
+      "empty": "No linked KRIs yet."
     }
   },
   "form": {

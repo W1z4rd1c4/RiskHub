@@ -153,7 +153,9 @@
     "by_process": "Dle procesu",
     "by_type": "Dle typu",
     "by_risk_type": "Dle typu rizika",
-    "by_risk": "Dle rizika"
+    "by_risk": "Dle rizika",
+    "by_vendor": "Dle dodavatele",
+    "by_flag": "Dle příznaku"
   },
   "hero": {
     "tagline": "Platforma pro řízení podnikových rizik nové generace.",
@@ -208,6 +210,7 @@
     "no_sync_runs": "Zatím nebyly zaznamenány žádné synchronizace.",
     "no_risks_found": "Nebyly nalezeny žádné rizika",
     "no_controls_found": "Nebyly nalezeny žádné kontroly",
+    "no_kris_found": "Nebyla nalezena žádná KRI",
     "no_controls_department": "Pro toto oddělení nebyly nalezeny žádné kontroly.",
     "no_kris_department": "Pro toto oddělení nebyly nalezeny žádné KRI.",
     "no_users_department": "Pro toto oddělení nebyli nalezeni žádní uživatelé.",
@@ -247,6 +250,7 @@
     "search_items": "Hledat položky...",
     "search_risks": "Hledat rizika...",
     "search_controls": "Hledat kontroly...",
+    "search_kris": "Hledat KRI...",
     "include_archived": "Zobrazit archivované"
   },
   "form": {

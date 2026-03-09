@@ -11,6 +11,8 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.control import Control
     from app.models.vendor import Vendor
+
+
 class VendorControlLink(Base):
     __tablename__ = "vendor_control_links"
 
@@ -21,7 +23,7 @@ class VendorControlLink(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="control_links")
-    control: Mapped["Control"] = relationship("Control")
+    control: Mapped["Control"] = relationship("Control", back_populates="vendor_links")
 
     __table_args__ = (
         UniqueConstraint("vendor_id", "control_id", name="uq_vendor_control_link"),

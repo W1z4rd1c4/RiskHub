@@ -1,7 +1,7 @@
 ---
 title: RiskHub User Documentation
-version: "2.1"
-last_updated: "2026-03-07"
+version: "2.2"
+last_updated: "2026-03-09"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md"
 summary: "Production-grade manuals for day-to-day RiskHub usage: navigation, permissions, risk/control/KRI workflows, approvals, exports, and troubleshooting."
@@ -90,11 +90,11 @@ This table maps what you see in the sidebar to the canonical manual page.
 |---|---:|---|---|---|
 | Dashboard | `/` | [Dashboard](./dashboard.md) | Trends, pressure signals, and export-friendly views | `overview`, `exports`, `audit` |
 | Approvals + Notifications | `/approvals`, `/notifications` | [Workflow, Approvals, Notifications](./notifications.md) | Approval lifecycle, “pending change” behavior, and how to stay unblocked | `workflow`, `approvals`, `notifications` |
-| Controls | `/controls` | [Managing Controls](./controls.md) | Control design, ownership, execution logging, and evidence | `controls`, `workflow`, `exports` |
-| Risks | `/risks` | [Managing Risks](./risks.md) | Risk register hygiene, scoring, ownership, and linkage | `risks`, `workflow`, `approvals` |
-| Issues / Findings (if enabled) | `/issues` | [Managing Issues](./issues.md) | Remediation tracking, linking to risks/controls, and closure discipline | `issues`, `workflow`, `exports` |
-| KRIs | `/kris` | [Managing KRIs](./kris.md) | Thresholds, value recording rules, breach signals | `kri`, `notifications`, `exports` |
-| Vendors (if enabled) | `/vendors` | [Managing Vendors](./vendors.md) | Core third-party register, risk-detail-style linked sections, create-from-vendor risk/control flows, exports | `vendors`, `workflow`, `exports` |
+| Controls | `/controls` | [Managing Controls](./controls.md) | Control design, ownership, execution logging, evidence, and grouped `By Vendor` review | `controls`, `workflow`, `exports` |
+| Risks | `/risks` | [Managing Risks](./risks.md) | Risk register hygiene, scoring, ownership, linkage, and grouped `By Vendor` review | `risks`, `workflow`, `approvals` |
+| Issues / Findings (if enabled) | `/issues` | [Managing Issues](./issues.md) | Remediation tracking, linking to risks/controls/vendors, closure discipline, and grouped `By Vendor` review | `issues`, `workflow`, `exports` |
+| KRIs | `/kris` | [Managing KRIs](./kris.md) | Thresholds, value recording rules, breach signals, vendor linkage, and grouped `By Vendor` review | `kri`, `notifications`, `exports` |
+| Vendors (if enabled) | `/vendors` | [Managing Vendors](./vendors.md) | Core third-party register, `By Flag` grouping, linked risks/controls/KRIs, create-from-vendor risk/control flows, exports | `vendors`, `workflow`, `exports` |
 | Departments | `/departments` | [Departments](./departments.md) | Exposure by org unit, drill-down, and responsibility patterns | `departments`, `workflow`, `exports` |
 | Governance (CRO-only, non-admin) | `/governance` | [Governance](./governance.md) | Orphans, ownership gaps, and governance resolution patterns | `governance`, `audit`, `troubleshooting` |
 | Activity Log (permission-gated, non-admin) | `/activity-log` | [Activity Log](./activity-log.md) | “Who changed what”, timeline reconstruction, and audit evidence | `activity-log`, `audit`, `exports` |
@@ -217,5 +217,5 @@ If you see a mismatch between a manual and actual behavior, assume the app is co
 - Start with `./getting-started.md`.
 - Continue with `./risks.md`, `./controls.md`, and `./kris.md`.
 - Then read `./notifications.md` and `./dashboard.md`.
-- If you manage third-party exposure, include `./vendors.md` for vendor catalog operations, grouped drill-down views, and vendor-context risk/control creation and linking workflows.
+- If you manage third-party exposure, include `./vendors.md` for vendor catalog operations, `By Flag` grouping, linked KRI review, and vendor-context risk/control creation and linking workflows.
 - Keep `./faq.md` open as your operational quick-reference.
