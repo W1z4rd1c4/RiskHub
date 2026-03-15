@@ -1,176 +1,196 @@
 ---
 title: RiskHub Platform Administration Documentation
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-15"
 audience: admin
-source_of_truth: "docs/BUSINESS_LOGIC.md §1.5 and admin endpoints"
-summary: "Production runbook library for platform administrators: access governance, safe changes, observability, evidence exports, and operational support procedures."
+source_of_truth: "docs/BUSINESS_LOGIC.md §1.5 + admin routes + admin docs endpoint"
+summary: "Incident-first documentation library for platform admins covering health triage, access operations, evidence capture, and escalation-safe support."
 tags:
   - overview
+  - troubleshooting
   - onboarding
   - access
   - audit
   - exports
-  - troubleshooting
-  - settings
 ---
 
 # RiskHub Platform Administration Documentation
 
-Back to tree: <a href="../DOCUMENTATION_TREE.md">docs/DOCUMENTATION_TREE.md</a>
+> **Start here when something is failing:** [Admin Incident Quick Reference](./incident-quick-reference.md)
 
-This library is the canonical runbook set for platform operators. It is written for the `admin` role and focuses on platform integrity, access governance, and operational support.
-
-It is intentionally **not** a business-user manual. When a request turns into a policy decision (“should we accept this risk?”, “what should this threshold be?”), the correct outcome is a clean handoff to the business owner, not an admin override.
-
-**On this page**
-- [Overview](#overview)
-- [Audience and Boundary](#audience-and-boundary)
-- [Quick Start (First Hour)](#quick-start-first-hour)
-- [Library Map (By Operator Task)](#library-map-by-operator-task)
-- [Access and Safety Principles](#access-and-safety-principles)
-- [Operational Support Triage](#operational-support-triage)
-- [Observability and Evidence](#observability-and-evidence)
-- [Change Management Expectations](#change-management-expectations)
-- [Escalation and Handoff](#escalation-and-handoff)
-- [Related Documentation](#related-documentation)
+This library is the canonical runbook set for first-line platform admins. Use it to restore safe operations, verify platform health, manage access, capture evidence, and hand incidents to engineering or business owners without improvising risky workarounds.
 
 ## Overview
 
-Platform administration in RiskHub has a narrow purpose:
+RiskHub platform admins own the operating surface around the application, not the business decisions inside the application. This documentation library exists to make that boundary obvious and repeatable. The goal is not to turn admins into engineers. The goal is to help admins answer four questions quickly and safely:
 
-- keep authentication and authorization reliable
-- keep auditability intact (admins must be traceable)
-- keep users unblocked (access, sessions, and support surfaces)
-- provide evidence exports for incidents and audits
+- what does this symptom usually mean
+- what is the first safe check
+- what counts as healthy versus degraded
+- when should I stop and escalate
 
-This library is organized as production runbooks. Each runbook includes preconditions, a step-by-step procedure, verification checks, and rollback guidance.
+The runbooks are written for real incidents, not ideal demos. They assume an admin may arrive with only a screenshot, a confused end-user report, or a route that suddenly stopped working. Every runbook therefore prioritizes exact routes, pass/fail checks, evidence capture, and minimal safe actions.
+
+Read the core runbooks in this order:
+
+1. Live incident or confusing user report: [Admin Incident Quick Reference](./incident-quick-reference.md)
+2. New operator or post-change baseline check: [Admin Onboarding](./getting-started.md)
+3. Health, logs, audit, sessions, and exports: [Admin Console](./console.md)
+4. Add, update, deactivate, or re-scope a user: [User and Access Governance](./user-management.md)
 
 ## Audience and Boundary
 
-This library is for `admin` role users who manage platform-level surfaces:
+This library is for platform admins who can access `/admin`, `/admin/docs`, and `/users`. It is not a business-configuration manual and it is not an engineering deployment guide.
 
-- `/users` (Access Management)
-- `/admin` (Admin Console: health/logs/audit/sessions)
-- `/admin/docs` (Documentation library)
-- `/settings` (local admin preferences only)
+Admins are expected to own:
 
-Boundary rules:
+- access and session support
+- platform health verification
+- audit and log evidence capture
+- low-risk, reversible admin actions
+- escalation handoff quality
 
-- Admins enable access and stability. They do not own business semantics.
-- Admins may mention business roles only for **handoff context** (who to talk to), not as “instructions for business users”.
-- If a workflow is blocked because a business owner must approve something, the admin role is to prove what is blocked and why, not to bypass the workflow.
-- Admins are blocked from business `/governance` and business `/activity-log`. Use `/admin` audit/log surfaces and evidence exports instead.
+Admins are not expected to decide:
+
+- policy ownership
+- risk thresholds
+- business approval outcomes
+- platform architecture or deployment repair
+
+When a request crosses from operations into business judgment or engineering repair, the correct action is to capture evidence and hand it off with enough precision that the next team can act immediately.
 
 ## Quick Start (First Hour)
 
-Use this checklist when you first become an operator for an environment.
+Use this sequence when you first receive access to an environment or when you are returning after a long gap:
 
-1. Confirm your account is actually the `admin` role.
-2. Open `/admin` and validate:
-   - Health panel loads and looks plausible
-   - Logs and Audit feeds load
-   - Sessions panel loads
-3. Open `/admin/docs` and confirm:
-   - Audience label indicates admin manuals
-   - Links inside docs open correctly (doc links stay in reader)
-4. Open `/users` and confirm you can:
-   - list users in access mode (if allowed by scope)
-   - open the access edit modal for a user (admin-only mutations)
-5. Do one safe, reversible operation as a confidence test:
-   - update a non-sensitive log view filter
-   - export a small audit log sample to confirm evidence flow works
+1. Open [Admin Incident Quick Reference](./incident-quick-reference.md) and scan the symptom cards so you know where to start during an interruption.
+2. Open `/admin` and classify the environment as **Healthy**, **Degraded but operable**, or **Stop and escalate** using [Admin Console](./console.md).
+3. Open `/admin/docs` and confirm the reader is showing admin manuals, not user manuals.
+4. Open `/users` and confirm the admin access surface loads, including role, department, manager, and scope information.
+5. Export one small audit sample so you know evidence capture works before a real incident depends on it.
+6. Read the escalation rules in [User and Access Governance](./user-management.md) and [Admin Console](./console.md) so you know which actions are reversible and which are not.
 
-If any of these fail, stop. Fix baseline reliability before executing changes that affect production users.
+At the end of the first hour, you should be able to say:
+
+- where to start when something breaks
+- what a healthy admin surface looks like
+- what evidence to capture before escalating
+- which admin changes are safe versus irreversible
 
 ## Library Map (By Operator Task)
 
-| Operator task | Where in app | Canonical runbook |
+| Operator task | Primary route | Canonical runbook |
 |---|---|---|
-| Establish an admin baseline (day-one checks) | `/admin`, `/admin/docs` | [Admin Onboarding](./getting-started.md) |
-| Add/modify/deactivate users safely | `/users` | [User and Access Management](./user-management.md) |
-| Triage workflow/approval incidents (stuck requests, odd states) | support + logs | [Approvals Support](./approvals.md) |
-| Export evidence for audit/incident response | `/admin` + exports | [Reports and Evidence Exports](./reports.md) |
-| Resolve department scoping and structure issues (admin side) | `/users` + handoff | [Departments: Admin Support](./departments.md) |
-| Support Risk Hub configuration boundaries (technical vs policy) | `/risk-hub` (business-owned) | [Risk Hub Config Boundaries](./riskhub-config.md) |
-| Operate the Admin Console | `/admin` | [Admin Console](./console.md) |
+| Triage a live auth, access, or health incident | `/admin`, `/users`, affected route | [Admin Incident Quick Reference](./incident-quick-reference.md) |
+| Prove the environment is ready for safe admin work | `/admin`, `/admin/docs`, `/users` | [Admin Onboarding](./getting-started.md) |
+| Inspect Health, logs, sessions, and exports | `/admin` | [Admin Console](./console.md) |
+| Add a user or change role, scope, department, or manager | `/users` | [User and Access Governance](./user-management.md) |
+| Support workflow and approval questions from an operator angle | support path plus logs | [Approvals Support](./approvals.md) |
+| Export evidence for incident response or audit | `/admin` | [Reports and Evidence Exports](./reports.md) |
+| Troubleshoot department-scoping questions | `/users` plus handoff evidence | [Departments: Admin Support](./departments.md) |
+| Keep Risk Hub configuration issues inside the right ownership boundary | `/risk-hub` for reference only | [Risk Hub Config Boundaries](./riskhub-config.md) |
+
+Use the map as a routing table. Do not read everything before acting. Pick the task, open the runbook, and follow the smallest safe path.
 
 ## Access and Safety Principles
 
-Admin work is high blast-radius work. Treat it as safety-critical.
+These principles apply across every admin runbook:
 
-Principles:
+- use the smallest possible change
+- prefer one change at a time
+- stay read-only when Health is degraded unless a runbook explicitly says otherwise
+- never widen access temporarily just to “see if it works”
+- do not improvise alternate admin paths when the intended UI action is disabled
+- record the before-state before changing anything material
+- treat request IDs, emails, exported rows, and session details as sensitive evidence
 
-- **Least privilege**: grant the minimum that makes a user productive; avoid “temporary global scope” as a shortcut.
-- **Two-step thinking**: separate “what you observed” from “what you conclude”.
-- **Reversibility**: prefer changes you can revert quickly (especially access and session operations).
-- **Evidence first**: before changing anything, capture:
-  - who is affected (user id/email)
-  - what is affected (route/entity)
-  - when it started
-  - whether it is reproducible
-- **Single change per action**: do not mix unrelated fixes in one pass. It destroys traceability.
+If you cannot explain the intended outcome and rollback in one sentence before acting, you do not yet have a safe admin action. Stop, capture evidence, and escalate.
 
 ## Operational Support Triage
 
-Most admin incidents fall into one of three buckets:
+All first-line admin support should follow the same pattern:
 
-1. **Access incident**: user can’t see a module, can’t edit, or gets forbidden.
-2. **Workflow incident**: approvals/notifications are stuck or confusing.
-3. **Platform incident**: health degradation, elevated errors, or session/auth instability.
+1. Capture the exact symptom text, route, affected user, and timestamp.
+2. Open `/admin` and classify the environment.
+3. Determine whether the issue is local to one user, one route, or multiple users and routes.
+4. Take the smallest safe admin action only if the relevant runbook allows it.
+5. Re-check the outcome and record what changed.
 
-Triage order:
+Use these state definitions consistently:
 
-1. Confirm the user identity and effective role/scope.
-2. Reproduce with the same route and a known entity id where possible.
-3. Check Admin Console logs/audit for correlated errors and request IDs.
-4. Decide: technical defect vs expected policy behavior.
-5. Execute the smallest safe fix and verify the outcome.
+- **Healthy**: Health loads, database is connected, scheduler lock is held, outbox dead-letter count is `0`, and logs, audit, sessions, and exports are available.
+- **Degraded but operable**: `/admin` loads, but one dependency or subsystem is degraded while observability still works.
+- **Stop and escalate**: `/admin` fails, database is disconnected, observability tabs fail, exports fail, or the admin and user documentation boundary is wrong.
+
+Do not continue with access changes during a `Stop and escalate` state. If the state is `Degraded but operable`, favor read-only investigation and only the lowest-risk recovery steps described in the relevant runbook.
 
 ## Observability and Evidence
 
-Admin conclusions must be reproducible. “I think it’s fine” is not a valid closure.
+Evidence quality determines whether an escalation is useful. Good evidence is precise, minimal, and time-bound. It should help the next team reproduce or diagnose the problem without asking the admin to restate the issue.
 
-Evidence package checklist:
+For most cases, a solid evidence package includes:
 
-- exact route(s) and time window
-- affected user(s) and role/scope
-- relevant audit events (what changed, by whom)
-- relevant application log snippets (errors, request IDs)
-- export files (CSV/JSON) if used
+- affected user or affected population
+- exact route and action
+- time window plus environment
+- Health classification at the same time
+- repeated request IDs when present
+- one export or screenshot that proves the symptom
+- note of any admin action already taken
 
-Risk management note: avoid exporting more data than you need. Evidence exports should be scoped to the minimum required for the incident/audit question.
+Admins should rely on `/admin` as the evidence source of record for platform-state questions. If observability itself is failing, that failure becomes part of the incident. Capture the tab that failed, the filters used, and the time window, then escalate instead of working around the gap.
 
 ## Change Management Expectations
 
-When you change access or operational settings:
+RiskHub admin work is safe only when it remains controlled and auditable. Treat every access or session action as something that may later need to be explained to engineering, compliance, security, or management.
 
-- communicate intent before execution (what will change, who is affected)
-- verify after execution (what is now true)
-- record the result (what you observed, and any remaining risk)
+Before a change:
 
-If you can’t explain what you changed in three sentences, you likely changed too much at once.
+- confirm the identity and route involved
+- confirm the expected outcome
+- record the current state
+
+During a change:
+
+- change one variable at a time
+- avoid combining access edits with session revocation unless the case truly requires both
+- do not treat degraded UI states as permission to try manual alternatives
+
+After a change:
+
+- verify the new state after refresh
+- verify the user outcome where appropriate
+- confirm the audit trail or evidence exists
+- document the rollback path if the issue remains open
+
+This library intentionally stays inside the admin operating boundary. Engineering repair steps belong in engineering runbooks, not in admin manuals.
 
 ## Escalation and Handoff
 
-Escalate when:
+Escalate when any of the following is true:
 
-- the issue is a **business policy** dispute (ownership, thresholds, acceptance)
-- the issue requires a **data decision** (what department should own this record)
-- the issue is a **product defect** that needs engineering work
+- Health is in `Stop and escalate`
+- the same symptom affects multiple users or routes unexpectedly
+- the last known good access state cannot be determined
+- a save appears to succeed but behavior does not change after re-authentication
+- audit, log, or export evidence is missing when it should exist
+- the issue requires a business decision rather than an operating action
 
-Handoff format (keep it short, but complete):
+Minimum handoff packet:
 
-- what the user reported
-- what you verified (steps + outcomes)
-- what logs/audit show
-- what you changed (if anything)
-- what decision is required and who owns it
+- summary of the symptom in one sentence
+- exact route and time window
+- affected user or affected population
+- Health classification
+- relevant request IDs
+- evidence captured
+- actions already taken
+- clear statement of what remains unknown or blocked
 
 ## Related Documentation
 
-- Admin baseline and confidence checks: [Admin Onboarding](./getting-started.md)
-- User access operations: [User and Access Management](./user-management.md)
-- Console operations: [Admin Console](./console.md)
-- Workflow support: [Approvals Support](./approvals.md)
-- Evidence exports: [Reports and Evidence Exports](./reports.md)
+- [Admin Incident Quick Reference](./incident-quick-reference.md)
+- [Admin Onboarding](./getting-started.md)
+- [Admin Console](./console.md)
+- [User and Access Governance](./user-management.md)
+- [Reports and Evidence Exports](./reports.md)

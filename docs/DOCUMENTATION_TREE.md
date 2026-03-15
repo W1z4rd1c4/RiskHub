@@ -15,6 +15,7 @@ AGENTS.md
 ├── docs/README.md
 │   ├── docs/DOCUMENTATION_TREE.md (this file)
 │   ├── docs/agent/README.md
+│   ├── docs/development/README.md
 │   ├── docs/security/README.md
 │   ├── docs/deployment/README.md
 │   ├── docs/reference/README.md
@@ -41,6 +42,8 @@ AGENTS.md
 - Security posture and audits:
   - [`docs/security/README.md`](./security/README.md)
   - [`docs/security/SECURITY.md`](./security/SECURITY.md)
+- Development startup and local workflows:
+  - [`docs/development/README.md`](./development/README.md)
 - Deployment and operations:
   - [`docs/deployment/README.md`](./deployment/README.md)
 - Agent governance and execution:

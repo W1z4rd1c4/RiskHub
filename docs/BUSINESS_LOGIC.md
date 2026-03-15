@@ -193,6 +193,12 @@ Rules:
 - Any user can be assigned as Reporting Owner
 - If no Reporting Owner, the linked Risk's owner is responsible
 - KRIs **inherit department access** from their linked Risk
+- KRIs can also be linked to one or more vendors as secondary monitoring context
+- Vendor linkage does **not** replace the required `risk_id`; every KRI must still belong to exactly one parent risk
+- Vendor-context KRI create uses the same vendor-link authorization boundary as other vendor link mutations: vendor read + KRI/risk read for visibility, vendor write/owner rules for link changes
+- KRI create/update accepts the full desired vendor set via `linked_vendor_ids`; client-side follow-up reconciliation is not authoritative
+- Vendor-context KRI create may also request `ensure_parent_risk_vendor_ids` to create missing vendor-risk links in the same transaction before the KRI is saved
+- Vendor assignment failures roll back the whole KRI create/update request; there is no partial “created but not linked” KRI state
 
 **Canonical Monitoring Status:**
 - KRIs expose a derived `monitoring_status` for detail views, list filters, stats, and exports.
@@ -375,6 +381,11 @@ Rules:
 | **Edit KRI** | Risk Owner of linked risk | Required if linked risk is high-risk |
 | **KRI History Correction** | Risk Owner | CRO approval required |
 
+KRI edit notes:
+
+- non-privileged KRI edits create approval requests instead of mutating immediately
+- vendor-link changes (`linked_vendor_ids`) are stored in the same approval payload and are only applied when that approval is approved
+
 ### 5.4 Self-Approval Prevention
 
 - Users **cannot approve their own requests**
@@ -402,7 +413,7 @@ Rules:
 |--------|------------------|------------------|
 | **Risk** | `owner_id`, `department_id`, `category`, `is_priority` | Any change requires approval |
 | **Control** | `control_owner_id`, `department_id` | Any change requires approval |
-| **KRI** | (none - inherits from linked Risk) | Value changes may require approval |
+| **KRI** | (none - inherits from linked Risk) | Value changes may require approval; vendor-link changes are included in the KRI edit approval payload for non-privileged users |
 
 ### 6.2 Priority Risk Edit Rule
 
@@ -790,9 +801,10 @@ Vendor detail-specific behavior:
 - `Link Existing` and `Manage Existing Links` mutate vendor links only when vendor edit access is allowed
 - `Add Risk` navigates to `/risks/new?vendor_id=:id&return_to=/vendors/:id`
 - `Add Control` navigates to `/controls/new?vendor_id=:id&return_to=/vendors/:id`
+- `Add KRI` navigates to `/kris/new?vendor_id=:id&return_to=/vendors/:id`
 - successful create returns to vendor detail with a confirmation banner and deep link to the created entity
-- create-success + link-failure returns to vendor detail with a warning banner and deep link for manual follow-up
-- vendor-linked KRIs are link-existing only in this phase; there is no create-KRI-from-vendor flow
+- vendor-context KRI create is transactional: requested vendor assignment and optional parent vendor-risk linking succeed or fail as one save
+- KRI edit requests from detail preserve the current KRI state until approval resolves when the user is not allowed to mutate immediately
 
 Register grouped-view behavior:
 - Risks, Controls, Issues, and KRIs expose `By Vendor` using readable linked-vendor summaries from backend list payloads.

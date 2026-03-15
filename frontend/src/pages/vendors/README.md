@@ -32,7 +32,7 @@ individual risk page interaction language:
 - 3-card classification / ownership / connections grid
 - embedded `Linked Risks` section with split actions (`Link Existing`, `Add Risk`)
 - embedded `Linked Controls` section with split actions (`Link Existing`, `Add Control`)
-- embedded `Linked KRIs` section with `Link Existing` plus `Manage Existing Links`
+- embedded `Linked KRIs` section with split actions (`Link Existing`, `Add KRI`)
 - archived linked-item groups and full-width `Manage Existing Links` affordances
 - footer timestamps aligned with the risk detail page layout
 
@@ -65,8 +65,10 @@ Routed create-from-vendor flow is shared with risk/control forms via query param
 
 - `/risks/new?vendor_id=:id&return_to=/vendors/:id`
 - `/controls/new?vendor_id=:id&return_to=/vendors/:id`
+- `/kris/new?vendor_id=:id&return_to=/vendors/:id`
 
-After successful create, the originating form auto-links the new entity back to
-the vendor and returns to vendor detail with a flash banner. If linking fails
-after create, vendor detail still receives a warning banner plus a deep link to
-the created entity for manual follow-up.
+After successful create, the originating form returns to vendor detail with the
+new entity already linked to the vendor and a flash banner. For KRI create,
+vendor assignment and optional parent vendor-risk linking are transactional; on
+failure the form stays open and vendor detail does not receive a partial-success
+warning state.

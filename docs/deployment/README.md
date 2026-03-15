@@ -1,9 +1,11 @@
 # RiskHub Deployment
 
-> **Last Updated**: 2026-03-07
+> **Last Updated**: 2026-03-15
 > **Audience**: IT / DevOps / Platform Engineering
 
 Back to tree: [`../DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
+
+Development Docker startup is documented separately in [`docs/development/README.md`](../development/README.md). This document remains production-only.
 
 ## Production Model
 

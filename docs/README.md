@@ -1,7 +1,7 @@
 # RiskHub Documentation Index
 
-> **Version**: 1.2
-> **Last Updated**: 2026-03-05
+> **Version**: 1.3
+> **Last Updated**: 2026-03-15
 > **Audience**: Product, Engineering, QA, Operations
 
 This file is the primary documentation index for `docs/`.
@@ -17,6 +17,7 @@ This file is the primary documentation index for `docs/`.
 | Domain | Purpose | Entry |
 |---|---|---|
 | Agent | Execution rules and AGENTS mappings | [`docs/agent/README.md`](./agent/README.md) |
+| Development | Local startup and Docker development workflows | [`docs/development/README.md`](./development/README.md) |
 | Security | Security policy, reports, and closure records | [`docs/security/README.md`](./security/README.md) |
 | Deployment | Runtime and production deployment guidance | [`docs/deployment/README.md`](./deployment/README.md) |
 | Reference | Reference inventories and legacy path maps | [`docs/reference/README.md`](./reference/README.md) |
@@ -29,6 +30,7 @@ This file is the primary documentation index for `docs/`.
 ## Core Root Docs
 
 - [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
+- [`docs/development/README.md`](./development/README.md)
 - [`docs/TESTING.md`](./TESTING.md)
 - [`docs/E2E_TESTING.md`](./E2E_TESTING.md)
 - [`docs/LOCALIZATION.md`](./LOCALIZATION.md)

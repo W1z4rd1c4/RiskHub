@@ -1,184 +1,196 @@
 ---
 title: Dokumentace správy platformy RiskHub
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-15"
 audience: admin
-source_of_truth: "docs/BUSINESS_LOGIC.md §1.5 a admin endpointy"
-summary: "Produkční runbook knihovna pro platformní administrátory: správa přístupů, bezpečné změny, observabilita, exporty evidence a provozní podpora."
+source_of_truth: "docs/BUSINESS_LOGIC.md §1.5 + admin routes + admin docs endpoint"
+summary: "Incident-first knihovna dokumentace pro platformní adminy: health triage, access operace, evidence capture a bezpečná eskalace."
 tags:
   - overview
+  - troubleshooting
   - onboarding
   - access
   - audit
   - exports
-  - troubleshooting
-  - settings
 ---
 
 # Dokumentace správy platformy RiskHub
 
-Zpět na strom dokumentace: <a href="../DOCUMENTATION_TREE.md">docs/DOCUMENTATION_TREE.md</a>
+> **Když něco failuje, začněte tady:** [Rychlá reference admin incidentů](./incident-quick-reference.md)
 
-Tato knihovna je kanonická sada runbooků pro provozní správu platformy. Je napsaná pro roli `admin` a soustředí se na stabilitu, přístupy a podpůrné provozní plochy.
-
-Záměrně to není business manuál. Pokud se ticket změní na policy rozhodnutí („máme akceptovat toto riziko?“, „jaký má být limit?“), správný výsledek je strukturované předání vlastníkovi domény, ne admin override.
-
-**Na této stránce**
-- [Přehled](#prehled)
-- [Cílová skupina a hranice](#cilova-skupina-a-hranice)
-- [Rychlý start (první hodina)](#rychly-start-prvni-hodina)
-- [Mapa knihovny (podle úkolu operátora)](#mapa-knihovny-podle-ukolu-operatora)
-- [Principy přístupů a bezpečnosti](#principy-pristupu-a-bezpecnosti)
-- [Triage provozní podpory](#triage-provozni-podpory)
-- [Observabilita a evidence](#observabilita-a-evidence)
-- [Očekávání pro change management](#ocekavani-pro-change-management)
-- [Eskalace a předání](#eskalace-a-predani)
-- [Související dokumentace](#souvisejici-dokumentace)
+Tato knihovna je kanonická sada runbooků pro first-line platform adminy. Používejte ji pro obnovu bezpečného provozu, ověření health stavu, správu přístupů, zachycení evidence a čisté předání incidentu dál.
 
 ## Přehled
 
-Platformní admin v RiskHubu má úzký účel:
+RiskHub platform admin vlastní operační plochu kolem aplikace, ne business rozhodnutí uvnitř aplikace. Tato dokumentace existuje proto, aby byla tato hranice zřejmá a opakovatelná. Cílem není dělat z admina inženýra. Cílem je pomoci adminovi rychle odpovědět na čtyři otázky:
 
-- udržet authentication a authorization spolehlivé
-- udržet auditovatelnost (admin akce musí být dohledatelné)
-- držet uživatele neblokované (přístupy, sessions, podpůrné plochy)
-- umět vyexportovat evidenci pro incidenty a audity
+- co tento symptom obvykle znamená
+- jaký je první bezpečný check
+- co je healthy a co je degraded
+- kdy se mám zastavit a eskalovat
 
-Knihovna je strukturovaná jako produkční runbooky. Každý runbook obsahuje předpoklady, postup krok za krokem, ověření po změně a rollback strategii.
+Runbooky jsou psané pro reálné incidenty, ne pro ideální demo. Počítají s tím, že admin dostane jen screenshot, zmatený user report nebo route, která náhle přestala fungovat. Proto kladou důraz na přesné route, pass/fail kritéria, evidence capture a nejmenší bezpečné akce.
+
+Čtěte základní runbooky v tomto pořadí:
+
+1. Live incident nebo matoucí user report: [Rychlá reference admin incidentů](./incident-quick-reference.md)
+2. Nový operátor nebo post-change baseline check: [Admin onboarding](./getting-started.md)
+3. Health, logy, audit, sessions a exporty: [Admin Console](./console.md)
+4. Přidání uživatele, změna role, scope, oddělení nebo deaktivace: [Správa uživatelů a přístupů](./user-management.md)
 
 ## Cílová skupina a hranice
 
-Tato knihovna je pro roli `admin`, která obsluhuje platformní plochy:
+Tato knihovna je pro platform adminy, kteří mají přístup do `/admin`, `/admin/docs` a `/users`. Není to business-konfigurační příručka a není to engineering deployment guide.
 
-- `/users` (Access Management)
-- `/admin` (Admin Console: health/logs/audit/sessions)
-- `/admin/docs` (knihovna dokumentace)
-- `/settings` (lokální preference admina)
+Admin vlastní:
 
-Hranice odpovědnosti:
+- podporu přístupů a sessions
+- ověření platform health
+- audit a log evidence capture
+- low-risk a reverzibilní admin akce
+- kvalitu eskalačního handoffu
 
-- Admin zajišťuje přístup a stabilitu. Neřeší business semantiku.
-- Business role se mohou objevit pouze jako **handoff kontext** (koho kontaktovat), ne jako „návod pro business uživatele“.
-- Pokud je workflow blokované schvalováním, role admina je doložit, co je blokované a proč, ne schvalování obcházet.
-- Admin má blokovaný business `/governance` i business `/activity-log`. Pro evidenci a observabilitu používá plochy pod `/admin`.
+Admin nerozhoduje:
+
+- policy ownership
+- risk limity
+- business approval outcome
+- architekturu platformy nebo repair deploymentu
+
+Jakmile se požadavek překlopí z operations do business judgment nebo engineering opravy, správná akce je zachytit evidenci a předat ji tak, aby další tým mohl hned jednat.
 
 ## Rychlý start (první hodina)
 
-Použijte tento checklist, když přebíráte prostředí jako operátor:
+Použijte tuto sekvenci, když dostanete přístup do prostředí poprvé nebo se vracíte po delší době:
 
-1. Ověřte, že váš účet je opravdu role `admin`.
-2. Otevřete `/admin` a ověřte:
-   - Health panel se načte a dává smysl
-   - Logs a Audit feed se načtou
-   - Sessions panel se načte
-3. Otevřete `/admin/docs` a ověřte:
-   - Audience label odpovídá admin knihovně
-   - Odkazy v dokumentaci fungují správně (doc odkazy zůstávají ve čtečce)
-4. Otevřete `/users` a ověřte, že můžete:
-   - zobrazit seznam uživatelů v access režimu (pokud to scope dovoluje)
-   - otevřít access edit modal pro uživatele (mutace jsou admin-only)
-5. Proveďte jednu bezpečnou, reverzibilní operaci pro ověření “end-to-end”:
-   - vyexportujte krátký vzorek audit logů (CSV/JSON)
-   - ověřte, že evidence tok funguje
+1. Otevřete [Rychlou referenci admin incidentů](./incident-quick-reference.md) a rychle si projeďte symptom cards.
+2. Otevřete `/admin` a podle [Admin Console](./console.md) zařaďte prostředí jako **Healthy**, **Degraded but operable** nebo **Stop and escalate**.
+3. Otevřete `/admin/docs` a potvrďte, že čtečka ukazuje admin manuály, ne user manuály.
+4. Otevřete `/users` a potvrďte, že se načítá admin access surface včetně role, department, manager a scope.
+5. Vyexportujte malý audit vzorek, abyste věděli, že evidence capture funguje dřív, než ji budete opravdu potřebovat.
+6. Přečtěte si eskalační pravidla v [Správě uživatelů a přístupů](./user-management.md) a v [Admin Console](./console.md), abyste věděli, které akce jsou reverzibilní a které ne.
 
-Pokud něco selže, zastavte se. Nejprve opravte baseline spolehlivost, až potom dělejte změny s dopadem na produkční uživatele.
+Na konci první hodiny byste měli být schopní bez váhání říct:
+
+- kde začít, když se něco rozbije
+- jak vypadá healthy admin surface
+- jakou evidenci zachytit před eskalací
+- které admin akce jsou bezpečné a které nevratné
 
 ## Mapa knihovny (podle úkolu operátora)
 
-| Úkol operátora | Kde v aplikaci | Kanonický runbook |
+| Úkol operátora | Primární route | Kanonický runbook |
 |---|---|---|
-| Admin baseline (day-one checks) | `/admin`, `/admin/docs` | [Admin onboarding](./getting-started.md) |
-| Přidat/upravit/deaktivovat uživatele bezpečně | `/users` | [Správa uživatelů a přístupů](./user-management.md) |
-| Triage workflow incidentů (stuck requesty, podivné stavy) | podpora + logy | [Podpora schvalování](./approvals.md) |
-| Vyexportovat evidenci pro audit/incident | `/admin` + exporty | [Reporty a evidence exporty](./reports.md) |
-| Řešit department scoping/strukturu z admin pohledu | `/users` + handoff | [Oddělení: admin podpora](./departments.md) |
-| Podpora hranic konfigurace Risk Hub (technické vs policy) | `/risk-hub` (business-owned) | [Hranice konfigurace Risk Hub](./riskhub-config.md) |
-| Provoz Admin Console | `/admin` | [Admin Console](./console.md) |
+| Triagovat live auth, access nebo health incident | `/admin`, `/users`, dotčená route | [Rychlá reference admin incidentů](./incident-quick-reference.md) |
+| Prokázat, že prostředí je připravené na bezpečnou admin práci | `/admin`, `/admin/docs`, `/users` | [Admin onboarding](./getting-started.md) |
+| Zkontrolovat Health, logy, sessions a exporty | `/admin` | [Admin Console](./console.md) |
+| Přidat uživatele nebo změnit roli, scope, oddělení či managera | `/users` | [Správa uživatelů a přístupů](./user-management.md) |
+| Podpořit workflow a approval dotazy z operator pohledu | support path plus logy | [Podpora schvalování](./approvals.md) |
+| Vyexportovat evidenci pro incident response nebo audit | `/admin` | [Reporty a evidence exporty](./reports.md) |
+| Řešit department-scoping otázky | `/users` plus handoff evidence | [Oddělení: admin podpora](./departments.md) |
+| Udržet Risk Hub config otázky ve správné ownership hranici | `/risk-hub` jen pro orientaci | [Hranice konfigurace Risk Hub](./riskhub-config.md) |
+
+Berete to jako routing tabulku. Nečtěte všechno před akcí. Vyberte úkol, otevřete runbook a držte se nejmenší bezpečné cesty.
 
 ## Principy přístupů a bezpečnosti
 
-Admin práce má vysoký “blast radius”. Berte ji jako safety-critical.
+Tyto principy platí napříč všemi admin runbooky:
 
-Nepoužívejte sdílené účty. Každý zásah musí mít jednoznačného aktéra, aby byla auditní stopa věrohodná.
+- používejte nejmenší možnou změnu
+- měňte jednu věc po druhé
+- při degraded Health zůstávejte read-only, pokud runbook výslovně neříká jinak
+- nikdy nerozšiřujte přístup dočasně jen proto, abyste „zkusili, jestli to funguje“
+- když je UI akce vypnutá, neimprovizujte alternativní admin cestu
+- před významnou změnou si zapište before-state
+- request IDs, emaily, exportované řádky a session detaily berte jako citlivou evidenci
 
-Principy:
-
-- **Least privilege**: dejte jen minimum, které uživatele odblokuje; neřešte to „dočasně global scope“.
-- **Dvou-krokové myšlení**: oddělte „co jsem pozoroval“ od „co z toho vyvozuji“.
-- **Reverzibilita**: preferujte změny, které můžete rychle vrátit (přístupy, sessions).
-- **Evidence-first**: před změnou si uložte:
-  - koho se to týká (uživatel, email)
-  - čeho se to týká (route/entita)
-  - kdy to začalo
-  - zda je problém reprodukovatelný
-- **Jedna změna na jeden zásah**: nemíchejte nesouvisející opravy; zničí to traceability.
+Pokud neumíte jednou větou popsat očekávaný výsledek a rollback ještě před akcí, nemáte zatím bezpečnou admin akci. Zastavte se, zachyťte evidenci a eskalujte.
 
 ## Triage provozní podpory
 
-Většina admin incidentů spadá do tří košů:
+Veškerá first-line admin podpora má jít stejným vzorem:
 
-1. **Access incident**: uživatel nevidí modul, nemůže editovat, padá forbidden.
-2. **Workflow incident**: schvalování/notifikace jsou stuck nebo matoucí.
-3. **Platform incident**: health degradace, zvýšené chyby, session/auth nestabilita.
+1. Zachyťte přesný text symptomu, route, dotčeného uživatele a timestamp.
+2. Otevřete `/admin` a zařaďte prostředí.
+3. Rozhodněte, zda jde o jednoho uživatele, jednu route, nebo více uživatelů či route.
+4. Udělejte nejmenší bezpečnou admin akci jen tehdy, když ji runbook dovoluje.
+5. Znovu ověřte výsledek a zapište, co se změnilo.
 
-Doporučené pořadí:
+Používejte konzistentně tyto definice stavů:
 
-1. Ověřit identitu uživatele a efektivní roli/scope.
-2. Reprodukovat na stejné route, ideálně s konkrétním entity id.
-3. Podívat se do Admin Console (logs/audit) na korelaci a request ID.
-4. Rozhodnout: technická vada vs očekávané policy chování.
-5. Udělat nejmenší bezpečný fix a ověřit výsledek.
+- **Healthy**: Health se načte, database je connected, scheduler lock je držený, outbox dead-letter count je `0` a logy, audit, sessions i exporty fungují.
+- **Degraded but operable**: `/admin` funguje, ale jedna závislost nebo subsystém je degraded a observabilita stále funguje.
+- **Stop and escalate**: `/admin` failuje, database je disconnected, observability taby failují, exporty failují nebo je špatně admin/user hranice dokumentace.
+
+Ve stavu `Stop and escalate` nepokračujte do access změn. Ve stavu `Degraded but operable` preferujte read-only vyšetřování a jen ty nejnižší-risk kroky popsané v odpovídajícím runbooku.
 
 ## Observabilita a evidence
 
-Admin závěr musí být reprodukovatelný. „Myslím, že je to ok“ není validní closure.
+Kvalita evidence rozhoduje, jestli je eskalace užitečná. Dobrá evidence je přesná, minimální a časově ukotvená. Má pomoct dalšímu týmu problém reprodukovat nebo diagnostikovat bez toho, aby se admin musel vracet a všechno znovu popisovat.
 
-Checklist evidence balíčku:
+Pro většinu případů kvalitní evidence balíček obsahuje:
 
-- přesná route a časové okno
-- dotčení uživatelé + role/scope
-- relevantní audit eventy (co se změnilo, kým)
-- relevantní logy (error, request ID)
-- exporty (CSV/JSON), pokud byly použité
+- dotčeného uživatele nebo dotčenou skupinu
+- přesnou route a akci
+- časové okno a prostředí
+- Health klasifikaci v tom samém čase
+- opakující se request IDs, pokud existují
+- jeden export nebo screenshot, který symptom potvrzuje
+- poznámku, jakou admin akci jste už provedli
 
-Risk poznámka: vyexportujte jen minimum dat, které je potřeba. Evidence exporty mají být co nejúžeji scoped k otázce incidentu/auditu.
-
-Praktická pravidla provenance:
-
-- pokud předáváte evidenci mimo admin tým, přiložte 1 odstavec “co to je” (čas, filtry, otázka)
-- raw export neměňte; jakoukoliv analýzu dělejte jako samostatný soubor
-- pokud máte request ID, vždy ho uložte do ticketu (je to nejrychlejší korelace do logů)
+Admin se má opírat o `/admin` jako o zdroj pravdy pro platform-state otázky. Pokud samotná observabilita failuje, je to součást incidentu. Zachyťte failing tab, použité filtry a časové okno, pak eskalujte místo obcházení problému.
 
 ## Očekávání pro change management
 
-Když měníte přístupy nebo provozní nastavení:
+RiskHub admin práce je bezpečná jen tehdy, když zůstává kontrolovaná a auditovatelná. Každou access nebo session akci berte jako něco, co později možná budete vysvětlovat engineeringu, compliance, security nebo managementu.
 
-- komunikujte intent předem (co se změní, koho se to dotkne)
-- ověřte po změně (co je teď pravda)
-- zapište výsledek (co jste pozorovali a jaké riziko zůstává)
+Před změnou:
 
-Pokud nedokážete vysvětlit změnu ve třech větách, pravděpodobně jste změnil/a příliš mnoho věcí najednou.
+- potvrďte identitu a dotčenou route
+- potvrďte očekávaný výsledek
+- zapište aktuální stav
+
+Během změny:
+
+- měňte jednu proměnnou najednou
+- nekombinujte access edit a revoke session, pokud to případ skutečně nevyžaduje
+- degraded UI stav neberte jako pobídku k manual workaroundům
+
+Po změně:
+
+- po refreshi ověřte nový stav
+- kde je to vhodné, ověřte i user outcome
+- potvrďte existenci audit trailu nebo jiné evidence
+- pokud incident zůstává otevřený, zapište rollback cestu
+
+Tato knihovna záměrně zůstává uvnitř admin operating boundary. Engineering repair kroky patří do engineering runbooků, ne do admin manuálů.
 
 ## Eskalace a předání
 
-Eskalujte, když:
+Eskalujte, pokud platí cokoliv z toho:
 
-- jde o **policy** spor (ownership, limity, akceptace)
-- jde o **data rozhodnutí** (kdo má vlastnit oddělení/entitu)
-- jde o **produktovou vadu**, která vyžaduje engineering
+- Health je ve stavu `Stop and escalate`
+- stejný symptom se neočekávaně týká více uživatelů nebo route
+- neumíte určit last-known-good access stav
+- save vypadá úspěšně, ale po re-auth se chování nezmění
+- audit, log nebo export evidence chybí, i když má existovat
+- problém vyžaduje business rozhodnutí místo operating akce
 
-Formát předání (stručně, ale kompletně):
+Minimum pro handoff:
 
-- co uživatel hlásil
-- co jste ověřili (kroky + výsledky)
-- co ukazují logy/audit
-- co jste změnili (pokud něco)
-- jaké rozhodnutí je potřeba a kdo je owner
+- jednověté shrnutí symptomu
+- přesná route a časové okno
+- dotčený uživatel nebo dotčená skupina
+- Health klasifikace
+- relevantní request IDs
+- zachycená evidence
+- akce, které už jste provedli
+- jasné pojmenování toho, co zůstává neznámé nebo blokované
 
 ## Související dokumentace
 
-- Baseline a confidence checks: [Admin onboarding](./getting-started.md)
-- Přístupy uživatelů: [Správa uživatelů a přístupů](./user-management.md)
-- Provoz konzole: [Admin Console](./console.md)
-- Workflow podpora: [Podpora schvalování](./approvals.md)
-- Evidence exporty: [Reporty a evidence exporty](./reports.md)
+- [Rychlá reference admin incidentů](./incident-quick-reference.md)
+- [Admin onboarding](./getting-started.md)
+- [Admin Console](./console.md)
+- [Správa uživatelů a přístupů](./user-management.md)
+- [Reporty a evidence exporty](./reports.md)

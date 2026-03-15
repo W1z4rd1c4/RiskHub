@@ -93,8 +93,8 @@ This table maps what you see in the sidebar to the canonical manual page.
 | Controls | `/controls` | [Managing Controls](./controls.md) | Control design, ownership, execution logging, evidence, and grouped `By Vendor` review | `controls`, `workflow`, `exports` |
 | Risks | `/risks` | [Managing Risks](./risks.md) | Risk register hygiene, scoring, ownership, linkage, and grouped `By Vendor` review | `risks`, `workflow`, `approvals` |
 | Issues / Findings (if enabled) | `/issues` | [Managing Issues](./issues.md) | Remediation tracking, linking to risks/controls/vendors, closure discipline, and grouped `By Vendor` review | `issues`, `workflow`, `exports` |
-| KRIs | `/kris` | [Managing KRIs](./kris.md) | Thresholds, value recording rules, breach signals, vendor linkage, and grouped `By Vendor` review | `kri`, `notifications`, `exports` |
-| Vendors (if enabled) | `/vendors` | [Managing Vendors](./vendors.md) | Core third-party register, `By Flag` grouping, linked risks/controls/KRIs, create-from-vendor risk/control flows, exports | `vendors`, `workflow`, `exports` |
+| KRIs | `/kris` | [Managing KRIs](./kris.md) | Thresholds, value recording rules, vendor assignment, breach signals, vendor linkage, and grouped `By Vendor` review | `kri`, `notifications`, `exports` |
+| Vendors (if enabled) | `/vendors` | [Managing Vendors](./vendors.md) | Core third-party register, `By Flag` grouping, linked risks/controls/KRIs, create-from-vendor risk/control/KRI flows, exports | `vendors`, `workflow`, `exports` |
 | Departments | `/departments` | [Departments](./departments.md) | Exposure by org unit, drill-down, and responsibility patterns | `departments`, `workflow`, `exports` |
 | Governance (CRO-only, non-admin) | `/governance` | [Governance](./governance.md) | Orphans, ownership gaps, and governance resolution patterns | `governance`, `audit`, `troubleshooting` |
 | Activity Log (permission-gated, non-admin) | `/activity-log` | [Activity Log](./activity-log.md) | “Who changed what”, timeline reconstruction, and audit evidence | `activity-log`, `audit`, `exports` |
@@ -217,5 +217,5 @@ If you see a mismatch between a manual and actual behavior, assume the app is co
 - Start with `./getting-started.md`.
 - Continue with `./risks.md`, `./controls.md`, and `./kris.md`.
 - Then read `./notifications.md` and `./dashboard.md`.
-- If you manage third-party exposure, include `./vendors.md` for vendor catalog operations, `By Flag` grouping, linked KRI review, and vendor-context risk/control creation and linking workflows.
+- If you manage third-party exposure, include `./vendors.md` for vendor catalog operations, `By Flag` grouping, linked KRI review, and vendor-context risk/control/KRI creation and linking workflows.
 - Keep `./faq.md` open as your operational quick-reference.

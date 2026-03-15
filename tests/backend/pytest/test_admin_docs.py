@@ -34,6 +34,9 @@ async def test_admin_docs_endpoint_returns_admin_audience_only_for_platform_admi
 
     documents = response.json()["documents"]
     assert documents
+    assert documents[0]["id"] == "admin_incident-quick-reference"
+    assert documents[1]["id"] == "admin_getting-started"
+    assert any(document["id"] == "admin_incident-quick-reference" for document in documents)
     assert any(document["id"] == "admin_getting-started" for document in documents)
     assert all(document["audience"] == "admin" for document in documents)
     assert all(document["id"].startswith("admin_") for document in documents)
@@ -43,6 +46,21 @@ async def test_admin_docs_endpoint_returns_admin_audience_only_for_platform_admi
     assert all(document.get("version") for document in documents)
     assert all(document.get("last_updated") for document in documents)
     assert all(document.get("source_of_truth") for document in documents)
+
+
+@pytest.mark.asyncio
+async def test_admin_docs_endpoint_returns_localized_incident_quick_reference_for_platform_admin(
+    client_platform_admin: AsyncClient,
+):
+    response = await client_platform_admin.get("/api/v1/admin/docs", params={"locale": "cs"})
+    assert response.status_code == 200
+
+    documents = response.json()["documents"]
+    incident_doc = next((document for document in documents if document["id"] == "admin_incident-quick-reference"), None)
+    assert incident_doc is not None
+    assert incident_doc["audience"] == "admin"
+    assert incident_doc["title"] == "Rychlá reference admin incidentů"
+    assert "Když se něco rozbije" in incident_doc["content"]
 
 
 @pytest.mark.asyncio

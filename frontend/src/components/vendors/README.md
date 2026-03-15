@@ -32,9 +32,16 @@ linked-risks grid. `VendorLinkedControlCard.tsx` mirrors the control gauge card
 visual treatment used on the risk detail page so vendor-linked controls do not
 degrade into a separate list-only UI.
 
-`VendorLinkedKRIsTab.tsx` provides the vendor-side KRI grid. It consumes the
+`VendorLinkedKRIsTab.tsx` provides the vendor-side KRI grid and routed create
+entrypoint. It consumes the
 same backend-derived monitoring fields used by the KRI register/detail views so
 vendor-linked KRIs stay visually and semantically consistent with KRI pages.
+Its action bar now mirrors linked controls: `Link Existing` + `Add KRI`.
+
+`Add KRI` no longer relies on a best-effort follow-up vendor-link step. The
+vendor-context KRI form persists vendor assignment in the same save transaction,
+and failed vendor/risk-link validation keeps the form open instead of returning
+to vendor detail with a partial-success warning.
 
 Vendor link management intentionally hides effectiveness badges in existing-link
 lists because vendor-risk and vendor-control links do not carry effectiveness

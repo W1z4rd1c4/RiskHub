@@ -1,10 +1,10 @@
 ---
 title: Admin Console (/admin)
-version: "2.1"
-last_updated: "2026-03-07"
+version: "2.2"
+last_updated: "2026-03-15"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + admin API endpoints"
-summary: "Runbook pro platform adminy: Health check, application/audit logy, export evidence, triage session a bezpečná operativní podpora."
+summary: "Operator-safe runbook pro Health, Application logs, Audit logs, Sessions a evidence export workflow."
 tags:
   - overview
   - audit
@@ -15,251 +15,188 @@ tags:
 
 # Admin Console (/admin)
 
-**Na této stránce**
-- [Přehled](#prehled)
-- [Kdy to použít](#kdy-to-pouzit)
-- [Předpoklady a bezpečnost](#predpoklady-a-bezpecnost)
-- [Postup krok za krokem](#postup-krok-za-krokem)
-- [Ověření po změně](#overeni-po-zmene)
-- [Rollback](#rollback)
-- [Troubleshooting](#troubleshooting)
-- [Eskalace a předání](#eskalace-a-predani)
-- [Související dokumentace](#souvisejici-dokumentace)
-
 ## Přehled
 
-Admin Console je provozní cockpit pro platform adminy. Je určený pro:
+Admin Console je first-line operator surface pro:
 
-- validaci health stavu služby
-- incident triage (API chyby, auth/session problémy)
-- observability přes application logy a audit logy
+- health validaci
+- incident triage
+- application a audit evidence capture
 - vyšetření a revokaci session
-- bezpečný export minimální evidence pro podporu a compliance
+- low-risk změny log konfigurace
 
 Hlavní route: `/admin`
 
-Důležitá hranice:
+Platform admin má používat `/admin` pro rozhodnutí o stavu platformy místo business modulů.
 
-- Platform admin nemá operovat business moduly (Rizika, Kontroly, KRI, Dodavatele, Issues).
-- Platform admin má ověřovat platformní chování a podporovat governance bezpečně.
-- Přímý business přístup na `/activity-log` a `/governance` je pro `admin` záměrně blokovaný; pro evidenci používejte audit/application logy a admin reports runbook.
+Tento runbook je záměrně psaný pro rychlé operační rozhodnutí. Když admin váhá, zda problém řešit v `/users`, v business modulu nebo v dokumentaci, výchozí bezpečná odpověď je vrátit se do `/admin`, zařadit platform state a teprve potom rozhodnout o další akci.
+
+## Průvodce operator stavem
+
+| Signál | Přijatelný stav | Co udělat, když nesedí |
+|---|---|---|
+| Health page | načte se bez chyby | zastavte access změny a eskalujte |
+| Database | `connected` | zastavte access změny a eskalujte |
+| Scheduler | lock je držený a owner vyplněný | zachyťte evidenci a eskalujte jako runtime incident |
+| Outbox | dead-letter count `0` | zachyťte failures dřív, než se bude řešit retry/replay |
+| Application logs / Audit logs / Sessions | každý tab se načte a jde filtrovat | berte to jako observability outage a eskalujte |
+| Exporty | CSV/JSON export doběhne s očekávaným filtrem | jednou zopakujte s užšími filtry, pak eskalujte |
+
+Definice stavů:
+
+- **Healthy**: všechny signály výše jsou přijatelné.
+- **Degraded but operable**: `/admin` funguje, ale jedna závislost je degraded a logy/audit/sessions stále fungují.
+- **Stop and escalate**: Health failuje, database je disconnected, observability taby failují nebo exporty nefungují.
 
 ## Kdy to použít
 
-Použijte Admin Console, když potřebujete rychle odpovědět:
+Použijte Admin Console, když potřebujete odpovědět:
 
-- „Je backend zdravý a dostupný?“
-- „Dějí se teď chyby?“
-- „Co se změnilo (audit trail) a kdo akci provedl?“
-- „Je session podezřelá nebo zaseknutá?“
-- „Umíme vyexportovat malý výřez logů pro vyšetřování?“
-
-Typické scénáře:
-
-- po deployi / změně prostředí
-- auth incident (uživatelé se odhlašují, nejde se přihlásit)
-- access incident (neočekávané 403 napříč aplikací)
-- audit/compliance požadavek na evidence
+- je platforma teď zdravá?
+- dějí se právě teď chyby?
+- co se změnilo a kdo to změnil?
+- je session podezřelá, stale nebo potřebuje revoke?
+- umím zachytit minimální evidence balíček pro podporu nebo audit?
 
 ## Předpoklady a bezpečnost
 
-Než provedete admin akci, potvrďte:
+Před admin akcí:
 
-- jste přihlášeni jako `admin`
-- jste ve správném prostředí (dev/staging/prod)
-- rozumíte pravidlu „least exposure“ pro logy a exporty
+- potvrďte, že jste přihlášeni jako `admin`
+- potvrďte správné prostředí
+- používejte least-exposure pravidlo pro logy a exporty
 
 Bezpečnostní pravidla:
 
 - nevkládejte raw logy do neautorizovaných kanálů
-- neexportujte víc než je nutné (preferujte úzké okno a konkrétní event typ)
-- berte user ID, emaily, IP adresy a request ID jako citlivé
-- při změně rotace/retence logů zvažte incident response potřeby i storage dopad
-
-Pokud řešíte bezpečnostní incident, postupujte dle security checklistu a zapojte security ownera včas.
+- exportujte jen minimum potřebných dat
+- user ID, emaily, IP adresy a request IDs berte jako citlivé
+- pokud je stav konzole degraded, nepokračujte do access změn
 
 ## Postup krok za krokem
 
-### 1) Health tab: rychlá kontrola připravenosti
+### 1) Health
 
-Cíl: ověřit, že platforma běží a závislosti jsou v pořádku.
+1. Otevřete `/admin` -> **Health**.
+2. Zařaďte stav:
+   - **Healthy**: database connected, scheduler lock držený, outbox dead-letter count `0`
+   - **Degraded but operable**: jedna závislost degraded, ale logy/audit/sessions fungují
+   - **Stop and escalate**: Health failuje nebo database je disconnected
+3. Pokud stav není Healthy, zachyťte ho dřív, než uděláte změnu jinde.
 
-Postup:
-
-1. Otevřete `/admin`.
-2. Vyberte **Health**.
-3. Zkontrolujte:
-   - database status je OK
-   - latency je v očekávaných mezích
-   - uptime odpovídá posledním deployům
-   - scheduler lock je držený a owner instance je vyplněná
-   - poslední běhy scheduleru končí úspěšně
-   - outbox dead-letter count je `0` a poslední dispatch je úspěšný
-4. Pokud je health degradovaný:
-   - otevřete application logy a hledejte korelaci
-   - ověřte DB konektivitu a credy (mimo UI)
-   - pokud scheduler lock není držený, berte to jako singleton/runtime incident
-   - pokud existují dead-letter položky v outboxu, nejdřív si poznamenejte event typy a chyby
-
-### 2) Application logs: vyšetření runtime chyb
-
-Cíl: najít error patterny bez toho, aby se z logů stal data leak.
-
-Postup:
+### 2) Application logs
 
 1. Otevřete **Application logs**.
-2. Filtrovat podle levelu (začněte ERROR).
-3. Zvyšujte počet řádků jen podle potřeby (start small).
-4. Identifikujte:
-   - časové okno
-   - opakující se request ID
-   - endpointy/feature, které se objevují
-5. Export:
-   - JSON pro strukturovanou analýzu
-   - CSV pro rychlý lidský review
+2. Začněte úzkým časovým oknem a při potřebě level `ERROR`.
+3. Hledejte:
+   - opakující se request IDs
+   - opakující se route nebo feature
+   - recurring 401/403/500 patterny
+4. Exportujte jen minimum řádků nutných pro case.
 
-Heuristiky:
-
-- Jedna chyba je stopa. Opakující se chyba je kandidát na root cause.
-- U auth problémů hledejte request ID s 401/403 patterny.
-
-### 3) Audit logs: potvrzení governance akcí
-
-Cíl: vytvořit audit narativ: co se stalo, kdo a kdy.
-
-Postup:
+### 3) Audit logs
 
 1. Otevřete **Audit logs**.
-2. Pokud lze, filtrujte event type.
-3. Použijte úzké okno řádků i času.
-4. Exportujte pouze řádky nutné pro tvrzení.
+2. Filtrujte podle event type a časového okna.
+3. Audit logy použijte pro potvrzení:
+   - access změn
+   - konfiguračních změn
+   - revokace session
+   - approval rozhodnutí, pokud jsou auditovaná
+4. Exportujte jen evidenci potřebnou pro aktuální case.
 
-Audit logy používejte pro:
-
-- změny přístupu
-- konfigurační změny
-- schvalovací rozhodnutí (pokud jsou auditované)
-- revokace session
-
-### 4) Sessions: vyšetření a revokace
-
-Cíl: snížit riziko ukončením podezřelých nebo rozbitých session.
-
-Postup:
+### 4) Sessions
 
 1. Otevřete **Sessions**.
-2. Identifikujte uživatele (email/jméno) a potvrďte identitu bezpečným kanálem.
-3. Zkontrolujte charakteristiky:
-   - last activity
-   - last login
-   - role a department kontext
-4. Pokud je revokace nutná:
-   - revoke session
-   - informujte uživatele, aby se znovu přihlásil
+2. Najděte uživatele podle emailu nebo jména.
+3. Ověřte last activity, last login, roli a department kontext.
+4. Revokujte session jen když je to nutné:
+   - podezření na kompromitaci
+   - offboarding
+   - zaseknutý auth/session stav
 
-Poznámky:
+Revokace session je nevratná. Recovery cesta je re-auth uživatele.
 
-- Revokace session je nevratná.
-- Použijte při podezření na kompromitaci tokenu, offboarding nebo zaseknutý auth stav.
+### 5) Log konfigurace
 
-### 5) Log konfigurace: rotace a retence
-
-Cíl: udržet logy dost dlouho pro incident response bez storage rizika.
-
-Postup:
-
-1. Otevřete panel konfigurace logů.
-2. Upravte rotation size a retention count pro:
-   - application logy
-   - audit logy
-3. Uložte.
-4. Ověřte:
-   - config je po refresh viditelný
-   - exporty stále fungují
-
-Disciplína změn:
-
-- dělejte malé změny
-- vždy si uložte původní hodnoty pro rollback
+1. Otevřete panel log konfigurace.
+2. Před změnou si zapište současné hodnoty.
+3. Udělejte co nejmenší změnu retention/rotation.
+4. Uložte a po refreshi potvrďte persistenci.
+5. Ověřte, že exporty stále fungují.
 
 ## Ověření po změně
 
-Po operativní akci v Admin Console ověřte:
+Po operativní akci v Admin Console potvrďte:
 
-- Health je stabilní (nebo jste zachytili degradaci s timestampy).
-- Scheduler runtime stále ukazuje držený lock a aktuálního ownera.
-- Outbox dead-letter count je nulový, nebo jste selhání zachytili a eskalovali.
-- Exporty odpovídají filtrům/oknu a neobsahují zbytečná data.
-- Revokovaná session už není aktivní a uživatel se umí znovu autentizovat.
-- Po změně log konfigurace jsou nové hodnoty vidět po refresh.
+- klasifikace stavu stále sedí i po akci
+- scheduler ownership je stále viditelný
+- outbox dead-letter count je stále nula, nebo je zachycený pro eskalaci
+- exporty odpovídají filtrům a neobsahují zbytečná data
+- revokované session zmizely a uživatel se umí znovu autentizovat
 
-Pokud je to součást support případu, přiložte:
-
-- prostředí
-- timestampy
-- request ID (pokud existují)
-- minimální export výřez uložený bezpečně
+Pokud si po ověření nejste jistí, zda je problém opravdu uzavřený, neberte to jako hotovo. Stav označte jako otevřený, přiložte evidence balíček a pokračujte eskalací místo dalšího improvizovaného zkoušení.
 
 ## Rollback
 
-- Health check: rollback není (read-only).
-- Exporty: rollback není; exporty ukládejte bezpečně a mažte, když nejsou potřeba.
-- Revokace session: nelze vrátit. „Rollback“ je re-auth uživatele a follow-up.
-- Změna log konfigurace: vraťte původní rotation/retention hodnoty a ověřte stabilitu.
+- Health checky a exporty jsou read-only a nemají rollback
+- revoke session nelze vrátit; recovery je re-auth uživatele
+- změny log konfigurace vracejte obnovením původních zapsaných hodnot
 
 ## Troubleshooting
 
-### Nejde otevřít `/admin`
+### `/admin` nejde otevřít
 
-- Ověřte, že jste `admin`.
-- Ověřte session (re-auth).
-- Pokud to trvá, zkontrolujte backend enforcement a logy.
+- jednou proveďte re-auth
+- potvrďte, že stále máte roli `admin`
+- pokud `/admin` stále failuje, eskalujte jako admin-surface incident
 
-### Health vypadá OK, ale aplikace padá
+### Health je degradovaný
 
-- Podívejte se do application logů na 401/403/500 patterny.
-- Ověřte auth mode a session chování.
-- Ověřte frontend-backend konektivitu (CORS, base URL, proxy).
-- Zkontrolujte, jestli nechybí scheduler lock nebo nejsou v outboxu dead-letter položky.
+- zastavte access změny
+- zachyťte Health stav a timestamp
+- otevřete Application logs pro stejné okno
+- eskalujte s evidence balíčkem
 
-### Outbox dead-letter count je větší než nula
+### Health vypadá healthy, ale route stále failuje
 
-- Poznamenejte si event type, počet pokusů a last error z Health tabu.
-- Podívejte se do scheduler/application logů ve stejném čase.
-- Nečistěte dead-letter řádky bez rozmyslu; nejdřív potvrďte, že business změna už proběhla a že replay je bezpečný.
+- porovnejte failing route, časové okno a opakující se request IDs v Application logs
+- pokud jde o jednoho uživatele, porovnejte role/scope/session stav v `/users` a **Sessions**
+- pokud route dál failuje při healthy Health, eskalujte jako platform defect
 
-### Exporty jsou prázdné/nekompletní
+### Exporty jsou prázdné nebo failují
 
-- Zjednodušte filtry a zkuste znovu.
-- Lehce zvyšte počet řádků.
-- Ověřte, že event type filtr není příliš úzký.
+- jednou zopakujte s menším počtem filtrů a užším časovým oknem
+- pokud UI také neukazuje očekávaná data, berte to jako observability outage
+- eskalujte s failing tabem, použitými filtry a timestampem
 
-### Audit log obsahuje neočekávaná data
+### Audit nebo logy obsahují neočekávaná citlivá data
 
-- Berte jako potenciální security incident.
-- Zastavte další exporty.
-- Eskalujte security/engineering s minimální nutnou evidencí.
+- zastavte další exporty
+- berte to jako security incident
+- eskalujte s minimální potřebnou evidencí
 
 ## Eskalace a předání
 
 Eskalujte, když:
 
-- health ukazuje DB konektivitu problém
-- logy ukazují opakující se chyby bez jasné konfigurační příčiny
-- audit data naznačují neautorizovaný přístup nebo porušení policy
+- database je disconnected
+- scheduler ownership chybí
+- logy ukazují opakující se nevysvětlené chyby
+- observability taby nebo exporty nejsou dostupné
+- audit data naznačují neautorizovanou aktivitu
 
-Dobrý balíček pro předání:
+Dobrý handoff balíček:
 
-- prostředí + časové okno
-- co jste viděli (1 odstavec)
-- co jste zkusili (kroky)
-- minimální exporty (JSON/CSV výřezy) uložené bezpečně
-- relevantní request ID a user emaily (jen v autorizovaných kanálech)
+- prostředí a časové okno
+- Health klasifikace
+- přesná route nebo tab
+- opakující se request IDs
+- minimální exporty nebo screenshoty
 
 ## Související dokumentace
 
-- `./user-management.md`
-- `./departments.md`
-- `./approvals.md`
-- `./reports.md`
-- `./riskhub-config.md`
+- [Rychlá reference admin incidentů](./incident-quick-reference.md)
+- [Správa uživatelů a přístupů](./user-management.md)
+- [Reporty a evidence exporty](./reports.md)
+- [Hranice konfigurace Risk Hub](./riskhub-config.md)

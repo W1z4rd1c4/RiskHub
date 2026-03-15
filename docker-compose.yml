@@ -1,25 +1,33 @@
 # RiskHub Development Docker Compose
 # ==============================================================================
 #
-# RECOMMENDED WORKFLOWS:
+# CANONICAL ENTRYPOINTS:
 #
-# 1. Database only (for local backend development):
-#    docker-compose up -d db
-#    cd backend && uvicorn app.main:app --reload
-#
-# 2. Full stack (all services via Docker):
-#    docker-compose up -d
-#
-# 3. LAN access (access from other devices):
-#    LAN_HOST=192.168.x.x docker-compose up -d
+#   ./scripts/compose.sh up
+#   ./scripts/compose.sh up --profile db-only
+#   ./scripts/compose.sh up --lan 192.168.x.x
+#   ./scripts/compose.sh reset --dataset test
 #
 # ==============================================================================
 
+x-backend-environment: &backend-environment
+  DATABASE_URL: postgresql+asyncpg://riskhub:riskhub_dev@db:5432/riskhub
+  DEBUG: "true"
+  MOCK_AUTH_ENABLED: "true"
+  AUTH_MODE: hybrid_dev
+  SECRET_KEY: dev-secret-key-not-for-production-use
+  REDIS_URL: redis://redis:6379/0
+  ENTRA_TENANT_ID: ${ENTRA_TENANT_ID:-}
+  ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID:-}
+  ENTRA_JIT_PROVISIONING_ENABLED: ${ENTRA_JIT_PROVISIONING_ENABLED:-true}
+  ENTRA_ALLOWED_EMAIL_DOMAINS: ${ENTRA_ALLOWED_EMAIL_DOMAINS:-[]}
+  ENTRA_CLOCK_SKEW_SECONDS: ${ENTRA_CLOCK_SKEW_SECONDS:-60}
+  ENTRA_OIDC_DISCOVERY_URL: ${ENTRA_OIDC_DISCOVERY_URL:-}
+  CORS_ORIGINS: "[\"http://localhost:80\",\"http://localhost:5173\",\"http://frontend:80\",\"http://${LAN_HOST:-localhost}:80\",\"http://${LAN_HOST:-localhost}:8000\"]"
+
 services:
-  # ==========================================================================
-  # PostgreSQL Database
-  # ==========================================================================
   db:
+    profiles: ["db-only", "full"]
     image: postgres:16
     container_name: riskhub-db
     environment:
@@ -31,17 +39,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U riskhub" ]
+      test: ["CMD-SHELL", "pg_isready -U riskhub"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
       - riskhub-network
 
-  # ==========================================================================
-  # Redis (rate limiting / lockout in production; optional in dev)
-  # ==========================================================================
   redis:
+    profiles: ["db-only", "full"]
     image: redis:7-alpine
     container_name: riskhub-redis
     ports:
@@ -54,32 +60,32 @@ services:
     networks:
       - riskhub-network
 
-  # ==========================================================================
-  # Backend API (FastAPI)
-  # ==========================================================================
+  bootstrap:
+    profiles: ["full"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment: *backend-environment
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["sh", "-lc", "python -m alembic upgrade head && python -m app.db.seed"]
+    networks:
+      - riskhub-network
+
   backend:
+    profiles: ["full"]
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: riskhub-backend
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@db:5432/riskhub
-      - DEBUG=true
-      - MOCK_AUTH_ENABLED=true
-      - AUTH_MODE=hybrid_dev
-      - SECRET_KEY=dev-secret-key-not-for-production-use
-      - REDIS_URL=redis://redis:6379/0
-      # Optional Entra ID SSO (for testing SSO in dev)
-      - ENTRA_TENANT_ID=${ENTRA_TENANT_ID:-}
-      - ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID:-}
-      - ENTRA_JIT_PROVISIONING_ENABLED=${ENTRA_JIT_PROVISIONING_ENABLED:-true}
-      - ENTRA_ALLOWED_EMAIL_DOMAINS=${ENTRA_ALLOWED_EMAIL_DOMAINS:-[]}
-      - ENTRA_CLOCK_SKEW_SECONDS=${ENTRA_CLOCK_SKEW_SECONDS:-60}
-      - ENTRA_OIDC_DISCOVERY_URL=${ENTRA_OIDC_DISCOVERY_URL:-}
-      # LAN_HOST allows access from other devices. Set externally: LAN_HOST=192.168.x.x docker-compose up
-      - CORS_ORIGINS=["http://localhost:80","http://localhost:5173","http://frontend:80","http://${LAN_HOST:-localhost}:80","http://${LAN_HOST:-localhost}:8000"]
+    environment: *backend-environment
     ports:
-      # Loopback-only publish keeps backend private to host; frontend /api proxy remains the public entry point.
       - "127.0.0.1:8000:8000"
     volumes:
       - ./backend:/app
@@ -90,7 +96,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/health" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -98,10 +104,8 @@ services:
     networks:
       - riskhub-network
 
-  # ==========================================================================
-  # Frontend (React via nginx)
-  # ==========================================================================
   frontend:
+    profiles: ["full"]
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -112,7 +116,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/" ]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -121,7 +125,6 @@ services:
 
 volumes:
   postgres_data:
-
 
 networks:
   riskhub-network:

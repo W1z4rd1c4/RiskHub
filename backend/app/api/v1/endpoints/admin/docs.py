@@ -14,6 +14,7 @@ from app.schemas.admin import DocumentationEntry, DocumentationResponse
 router = APIRouter()
 
 _DOC_TAGS_BY_STEM: dict[str, list[str]] = {
+    "incident-quick-reference": ["troubleshooting", "incidents"],
     "getting-started": ["onboarding", "basics"],
     "approvals": ["workflow", "approvals"],
     "departments": ["departments", "organization"],
@@ -231,10 +232,16 @@ async def get_documentation(
             )
         )
 
-    # Keep onboarding first, then sort the rest by title.
+    priority_by_slug = {
+        "incident-quick-reference": 0,
+        "getting-started": 1,
+        "console": 2,
+        "user-management": 3,
+    }
+
     documents.sort(
         key=lambda entry: (
-            0 if entry.id.endswith("_getting-started") else 1,
+            priority_by_slug.get(entry.slug, 10),
             entry.title.lower(),
         )
     )

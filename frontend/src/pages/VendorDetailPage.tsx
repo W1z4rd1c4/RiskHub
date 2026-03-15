@@ -28,6 +28,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const { user, hasPermission } = useAuth();
     const canCreateRisk = hasPermission('risks', 'write');
     const canCreateControl = hasPermission('controls', 'write');
+    const canCreateKri = hasPermission('risks', 'write');
 
     const {
         canArchive,
@@ -205,8 +206,10 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                     vendor={vendor}
                     canEdit={canEdit}
                     canCreateControl={canEdit && canCreateControl}
+                    canCreateKri={canEdit && canCreateKri}
                     canCreateRisk={canEdit && canCreateRisk}
                     onAddControl={() => navigate(`/controls/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
+                    onAddKri={() => navigate(`/kris/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
                     onAddRisk={() => navigate(`/risks/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
                     onNavigateToControl={(controlId) => navigate(`/controls/${controlId}`)}
                     onNavigateToKri={(kriId) => navigate(`/kris/${kriId}`)}

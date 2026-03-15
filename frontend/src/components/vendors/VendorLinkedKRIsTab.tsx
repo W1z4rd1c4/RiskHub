@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, Loader2, Target } from 'lucide-react';
+import { AlertCircle, Link as LinkIcon, Loader2, Plus, Target } from 'lucide-react';
 
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import type { ExistingLinkItem } from '@/components/linking/ExistingLinksPanel';
@@ -11,7 +11,9 @@ import type { LinkedKRI } from '@/types/vendorLink';
 
 interface VendorLinkedKRIsTabProps {
     vendorId: number;
+    canCreateKri: boolean;
     canEdit: boolean;
+    onAddKri: () => void;
     onNavigateToKri: (kriId: number) => void;
 }
 
@@ -19,7 +21,9 @@ type DialogMode = 'links-only' | 'search-only';
 
 export function VendorLinkedKRIsTab({
     vendorId,
+    canCreateKri,
     canEdit,
+    onAddKri,
     onNavigateToKri,
 }: VendorLinkedKRIsTabProps) {
     const { t } = useTranslation(['vendors', 'common']);
@@ -100,10 +104,23 @@ export function VendorLinkedKRIsTab({
                                 setIsDialogOpen(true);
                             }}
                             data-testid="vendor-linked-kris-link-existing"
-                            className="flex items-center gap-2 px-4 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all"
+                            className="flex items-center gap-2 px-4 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all border-r border-accent/20"
                         >
+                            <LinkIcon className="h-3 w-3" />
                             {t('links.actions.link_existing')}
                         </button>
+                        {canCreateKri ? (
+                            <button
+                                type="button"
+                                onClick={onAddKri}
+                                data-testid="vendor-linked-kris-add-kri"
+                                className="flex items-center gap-2 px-3 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all"
+                                title={t('links.actions.add_kri')}
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                <span>{t('links.actions.add_kri')}</span>
+                            </button>
+                        ) : null}
                     </div>
                 ) : null}
             </div>
