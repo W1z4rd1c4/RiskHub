@@ -1,10 +1,10 @@
 ---
 title: Admin Console (/admin)
-version: "2.1"
-last_updated: "2026-03-07"
+version: "2.2"
+last_updated: "2026-03-15"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + admin API endpoints"
-summary: "Runbook for platform admins to use the Admin Console for health checks, log/audit export, session triage, and safe operational support."
+summary: "Operator-safe runbook for Health, Application logs, Audit logs, Sessions, and evidence export workflows."
 tags:
   - overview
   - audit
@@ -15,251 +15,184 @@ tags:
 
 # Admin Console (/admin)
 
-**On this page**
-- [Overview](#overview)
-- [When To Use This](#when-to-use-this)
-- [Preconditions and Safety](#preconditions-and-safety)
-- [Step-by-Step Procedure](#step-by-step-procedure)
-- [Verification Checklist](#verification-checklist)
-- [Rollback Strategy](#rollback-strategy)
-- [Troubleshooting](#troubleshooting)
-- [Escalation and Handoff](#escalation-and-handoff)
-- [Related Documentation](#related-documentation)
-
 ## Overview
 
-The Admin Console is the platform-admin operational cockpit. It is designed for:
+The Admin Console is the first-line operator surface for:
 
-- service health validation
-- incident triage (API failures, auth/session issues)
-- observability via application logs and audit logs
+- health validation
+- incident triage
+- application and audit evidence capture
 - session investigation and revocation
-- safe export of limited evidence for support and compliance needs
+- low-risk log configuration changes
 
 Primary route: `/admin`
 
-Important boundary:
+Platform admins should use `/admin` for platform-state decisions instead of business modules.
 
-- Platform admins should not operate business modules (Risks, Controls, KRIs, Vendors, Issues).
-- Platform admins should validate platform behavior and support governance safely.
-- Direct business `/activity-log` and `/governance` access is intentionally blocked for `admin`; use Admin Console audit/application logs and the admin reports runbook instead.
+## Operator State Guide
+
+| Signal | Acceptable state | Operator action if not met |
+|---|---|---|
+| Health page | loads without errors | stop access changes and escalate |
+| Database | `connected` | stop access changes and escalate |
+| Scheduler | lock held and owner populated | capture evidence and escalate as runtime incident |
+| Outbox | dead-letter count `0` | capture failures before any retry or replay discussion |
+| Application logs / Audit logs / Sessions | each tab loads and can be filtered | treat as observability outage and escalate |
+| Exports | CSV/JSON export completes with the intended filter window | retry once with narrower filters, then escalate |
+
+State definitions:
+
+- **Healthy**: all signals above are acceptable.
+- **Degraded but operable**: `/admin` loads, but one dependency is degraded while logs/audit/sessions still work.
+- **Stop and escalate**: Health fails, database is disconnected, observability tabs fail, or exports fail.
 
 ## When To Use This
 
-Use the Admin Console when you need to answer one of these quickly:
+Use the Admin Console when you need to answer:
 
-- “Is the backend healthy and reachable?”
-- “Are errors happening right now?”
-- “What changed (audit trail) and who performed the action?”
-- “Is a user session suspicious or stale?”
-- “Can we export a small subset of logs to support an investigation?”
-
-Typical scenarios:
-
-- after deploy / environment change
-- authentication incidents (users being logged out, failing to log in)
-- data access incidents (unexpected 403s across the app)
-- audit / compliance requests for change evidence
+- is the platform currently healthy?
+- are errors happening right now?
+- what changed and who changed it?
+- is a session suspicious, stale, or in need of revocation?
+- can I capture a minimal evidence package for support or audit?
 
 ## Preconditions and Safety
 
-Before you take any admin action, confirm:
+Before taking an admin action:
 
-- You are logged in as `admin`.
-- You are operating in the intended environment (dev/staging/prod).
-- You understand the “least exposure” rule for logs and exports.
+- confirm you are logged in as `admin`
+- confirm you are in the intended environment
+- use the least-exposure rule for logs and exports
 
 Safety rules:
 
-- Do not paste raw logs into unapproved channels.
-- Do not export more than you need. Prefer narrow windows and specific event types.
-- Treat user IDs, emails, IP addresses, and request IDs as sensitive.
-- When changing log retention/rotation, consider incident response needs and storage impact.
-
-If you are responding to a security incident, follow your security checklist and engage the security owner early.
+- do not paste raw logs into unapproved channels
+- export only the minimum needed data
+- treat user IDs, emails, IP addresses, and request IDs as sensitive
+- do not continue with access changes if the console state is degraded
 
 ## Step-by-Step Procedure
 
-### 1) Health tab: quick platform readiness check
+### 1) Health
 
-Goal: validate that the platform is up and dependency health is acceptable.
+1. Open `/admin` -> **Health**.
+2. Classify the state:
+   - **Healthy**: database connected, scheduler lock held, outbox dead-letter count `0`
+   - **Degraded but operable**: one dependency degraded, but logs/audit/sessions still load
+   - **Stop and escalate**: Health fails or database is disconnected
+3. If the state is not Healthy, capture the state before making changes elsewhere.
 
-Procedure:
-
-1. Open `/admin`.
-2. Select **Health**.
-3. Confirm:
-   - database status is healthy
-   - latency is within expected bounds
-   - uptime is consistent with recent deploys
-   - scheduler lock is held and the owner instance is populated
-   - recent scheduler runs are succeeding
-   - outbox dead-letter count is `0` and last dispatch is succeeding
-4. If health is degraded:
-   - check application logs for correlated errors
-   - verify database connectivity and credentials (outside the UI)
-   - if the scheduler lock is not held, treat that as a singleton/runtime incident
-   - if dead-letter outbox items exist, capture the event types and errors before retrying anything manually
-
-### 2) Application logs tab: investigate runtime failures
-
-Goal: find error patterns without turning logs into a data leak.
-
-Procedure:
+### 2) Application logs
 
 1. Open **Application logs**.
-2. Filter by level if available (focus on ERROR first).
-3. Increase lines only as needed (start small).
-4. Identify:
-   - timestamp window
-   - request IDs that repeat
-   - endpoints or features referenced
-5. Export:
-   - prefer JSON for structured analysis
-   - prefer CSV for quick human review
+2. Start with a narrow time window and `ERROR` level when relevant.
+3. Look for:
+   - repeated request IDs
+   - repeated routes or features
+   - recurring 401/403/500 patterns
+4. Export only the minimum lines needed for the case.
 
-Rules of thumb:
-
-- One error is a clue. A repeating error is a root-cause candidate.
-- When debugging auth, look for request IDs that show 401/403 patterns.
-
-### 3) Audit logs tab: confirm governance actions
-
-Goal: produce an audit narrative: what happened, who did it, and when.
-
-Procedure:
+### 3) Audit logs
 
 1. Open **Audit logs**.
-2. Filter by event type when possible.
-3. Use a narrow line window and a tight time range.
-4. Export only the lines needed to support the claim.
+2. Filter by event type and time window.
+3. Use audit logs to confirm:
+   - access changes
+   - configuration changes
+   - session revocations
+   - approval decisions, if audited
+4. Export only the evidence required for the current case.
 
-Use audit logs for:
-
-- access changes
-- configuration changes
-- approval decisions (if audited)
-- session revocations
-
-### 4) Sessions tab: investigate and revoke sessions
-
-Goal: reduce risk by ending suspicious or broken sessions.
-
-Procedure:
+### 4) Sessions
 
 1. Open **Sessions**.
-2. Identify the user by email/name (confirm identity in a secure channel).
-3. Validate the session characteristics:
-   - last activity time
-   - last login time
-   - role and department context
-4. If revocation is required:
-   - revoke the session
-   - notify the user to log in again
+2. Identify the user by email or name.
+3. Confirm last activity, last login, role, and department context.
+4. Revoke sessions only when needed:
+   - suspected compromise
+   - offboarding
+   - stuck auth/session behavior
 
-Notes:
+Session revocation is not reversible. The recovery path is user re-authentication.
 
-- Session revocation is not reversible.
-- Use revocation when you suspect token compromise, user offboarding, or a stuck auth state.
+### 5) Log configuration
 
-### 5) Log configuration: rotation and retention
-
-Goal: maintain logs long enough for incident response without causing storage risk.
-
-Procedure:
-
-1. In the console, open the log configuration panel.
-2. Adjust rotation size and retention count for:
-   - application logs
-   - audit logs
-3. Save.
-4. Verify:
-   - new config is persisted
-   - exports still work
-
-Change discipline:
-
-- Make small changes.
-- Record the previous values so you can roll back quickly.
+1. Open the log configuration panel.
+2. Record the current values before changing anything.
+3. Make the smallest possible retention/rotation change.
+4. Save and refresh to confirm the values persisted.
+5. Confirm exports still work afterward.
 
 ## Verification Checklist
 
-After using the Admin Console for an operational action, verify:
+After using the Admin Console for an operational action, confirm:
 
-- Health is stable (or you captured the degraded state with timestamps).
-- Scheduler runtime still shows a held lock and a current owner.
-- Outbox dead-letter count is zero or you captured and escalated the failures.
-- Log exports match the intended filter/window and do not include excess data.
-- Any revoked session is no longer active and the user can re-authenticate.
-- If you changed log configuration, the new values are visible after a refresh.
-
-If your action was part of a support case, attach:
-
-- environment
-- timestamps
-- request IDs (if applicable)
-- a minimal export excerpt
+- the state classification is still accurate after your action
+- scheduler ownership is still visible
+- outbox dead-letter count is still zero, or captured for escalation
+- exports match the intended filters and do not contain excess data
+- revoked sessions are gone and the user can re-authenticate
 
 ## Rollback Strategy
 
-- Health checks: no rollback (read-only).
-- Log exports: no rollback; ensure you store exports securely and delete when no longer needed.
-- Session revocation: cannot be undone. If you revoked incorrectly, the “rollback” is user re-authentication and follow-up.
-- Log configuration changes: revert to the prior rotation/retention values and verify stability.
+- Health checks and exports are read-only and have no rollback
+- session revocation is not reversible; recovery is user re-authentication
+- log configuration changes roll back by restoring the prior recorded values
 
 ## Troubleshooting
 
 ### I cannot open `/admin`
 
-- Confirm you are logged in as `admin`.
-- Confirm your session is valid (re-authenticate).
-- If you still cannot access, check backend role enforcement and logs.
+- re-authenticate once
+- confirm you are still operating as `admin`
+- if `/admin` still fails, escalate as an admin-surface incident
 
-### Health looks OK but the app is failing
+### Health is degraded
 
-- Check application logs for 401/403/500 patterns.
-- Verify auth mode and session behavior.
-- Validate frontend-backend connectivity (CORS, base URL, proxy settings).
-- Check whether the scheduler lock is missing or the outbox shows dead-letter items.
+- stop access changes
+- capture the Health state and timestamp
+- open Application logs for the same time window
+- escalate with the evidence package
 
-### Outbox dead-letter count is non-zero
+### Health looks healthy but a route still fails
 
-- Capture the failing event type, attempts, and last error from the Health tab.
-- Check scheduler/application logs for the same time window.
-- Do not clear dead-letter rows blindly; first confirm whether the business action already committed and whether a safe replay path exists.
+- compare the failing route, time window, and repeated request IDs against Application logs
+- if one user is affected, compare role/scope/session state in `/users` and **Sessions**
+- if the route keeps failing while Health stays healthy, escalate as a platform defect
 
-### Exports are empty or incomplete
+### Exports are empty or failing
 
-- Reduce filters and retry.
-- Increase lines slightly.
-- Confirm the event type filter is not too narrow.
+- retry once with fewer filters and a narrower time window
+- if the UI also fails to show expected data, treat it as an observability outage
+- escalate with the failing tab, filters used, and timestamp
 
-### Audit log contains unexpected data
+### Audit or logs contain unexpected sensitive data
 
-- Treat as potential security incident.
-- Stop exporting further data.
-- Escalate to security/engineering with minimal necessary evidence.
+- stop exporting further data
+- treat it as a security incident
+- escalate with the minimum evidence required
 
 ## Escalation and Handoff
 
 Escalate when:
 
-- health indicates database connectivity issues
-- logs show repeated errors without an obvious configuration cause
-- audit data suggests unauthorized access or policy breach
+- database is disconnected
+- scheduler ownership is missing
+- logs show repeated unexplained errors
+- observability tabs or exports are unavailable
+- audit data suggests unauthorized activity
 
-Good handoff bundle:
+Good handoff package:
 
-- environment + time window
-- what you observed (one paragraph)
-- what you tried (steps)
-- minimal exports (JSON/CSV excerpts) stored securely
-- relevant request IDs and user emails (only in approved channels)
+- environment and time window
+- Health classification
+- exact route or tab involved
+- repeated request IDs
+- minimal exports or screenshots
 
 ## Related Documentation
 
-- `./user-management.md`
-- `./departments.md`
-- `./approvals.md`
-- `./reports.md`
-- `./riskhub-config.md`
+- [Admin Incident Quick Reference](./incident-quick-reference.md)
+- [User and Access Governance](./user-management.md)
+- [Reports and Evidence Exports](./reports.md)
+- [Risk Hub Config Boundaries](./riskhub-config.md)

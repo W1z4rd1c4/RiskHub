@@ -1,10 +1,10 @@
 ---
 title: KRI (Key Risk Indicators)
 version: "2.1"
-last_updated: "2026-03-09"
+last_updated: "2026-03-15"
 audience: user
 source_of_truth: "frontend/src/pages/KRIsPage.tsx + frontend/src/pages/KRIDetailPage.tsx + docs/BUSINESS_LOGIC.md"
-summary: "Jak navrhovat a provozovat KRI: thresholdy, breach/overdue logika, zápis hodnot, historie, exporty a monitoring přes notifikace."
+summary: "Jak navrhovat a provozovat KRI: thresholdy, breach/overdue logika, zápis hodnot, přiřazení dodavatelů, historie, exporty a monitoring přes notifikace."
 tags:
   - kri
   - workflow
@@ -132,6 +132,24 @@ Kvalitní KRI vychází z failure módu rizika.
 4. Uložte.
 5. Zapište první hodnotu jako baseline.
 
+Při create/edit nyní můžete rovnou přidat vendor kontext:
+
+- použijte ve formuláři KRI sekci **Navázaní dodavatelé** pro přiřazení jednoho nebo více dodavatelů
+- parent risk zůstává povinný
+- vendor linkage je sekundární monitoring kontext, ne náhrada parent rizika
+- přiřazení dodavatelů se ukládá atomicky spolu s KRI; pokud validace dodavatele selže, KRI se nevytvoří ani neupraví
+- hledání dodavatelů je server-backed, takže výběr není omezený jen na první stránku vendorů
+
+Když KRI zakládáte z detailu dodavatele:
+
+- použije se route `/kris/new?vendor_id=:id&return_to=/vendors/:id`
+- aktuální dodavatel je zobrazený jako aktivní kontext a je zahrnutý automaticky do stejného uložení
+- výběr rizika se ve výchozím stavu filtruje na rizika navázaná na daného dodavatele
+- podle potřeby lze přepnout i na všechna čitelná rizika
+- pokud zvolíte riziko, které na dodavatele navázané není, formulář nabídne navázání rizika nebo pokračování bez této vazby
+- volba **Navázat riziko a pokračovat** požádá backend o vytvoření chybějící vendor-risk vazby i KRI v jedné transakci
+- pokud přiřazení dodavatele nebo požadované navázání rizika selže, formulář zůstane otevřený a nic se částečně neuloží
+
 Recept: *KRI, které se nestanou šumem*
 
 - vybírejte metriky, které umíte získat včas
@@ -195,6 +213,11 @@ KRI interagují s workflow dvěma způsoby:
 
 - **notifikace**: due soon, overdue, near breach, breach detected
 - **schvalování**: citlivé změny mohou být schvalované dle policy
+
+Změny vendor vazeb jsou součástí stejného KRI edit workflow:
+
+- neprivilegované editace KRI, včetně změn sekce **Navázaní dodavatelé**, se odesílají ke schválení místo okamžité aplikace
+- detail KRI po takovém uložení zobrazí banner o schválení a ponechá aktuální KRI i vendor vazby beze změny, dokud se schválení nevyřeší
 
 Praktické signály:
 

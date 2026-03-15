@@ -6,8 +6,9 @@ Validates that KRI mutations require risks:* permissions.
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import select
 
-from app.models import Department, KeyRiskIndicator, Risk
+from app.models import ApprovalRequest, Department, KeyRiskIndicator, Risk, Vendor, VendorKRILink, VendorRiskLink
 from app.models.risk import RiskStatus
 
 
@@ -52,6 +53,48 @@ async def test_kri(db_session, test_risk_for_kri: Risk):
     return kri
 
 
+@pytest_asyncio.fixture
+async def test_vendor_for_kri(db_session, test_department: Department, test_user):
+    vendor = Vendor(
+        name="KRI Vendor Alpha",
+        process="KRI Test Process",
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="outsourcing",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=True,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    return vendor
+
+
+@pytest_asyncio.fixture
+async def second_test_vendor_for_kri(db_session, test_department: Department, test_user):
+    vendor = Vendor(
+        name="KRI Vendor Beta",
+        process="KRI Test Process",
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="outsourcing",
+        risk_score_1_5=2,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=True,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    return vendor
+
+
 @pytest.mark.asyncio
 async def test_admin_can_create_kri(auth_client: AsyncClient, test_risk_for_kri: Risk):
     """Admin should be able to create KRI."""
@@ -78,6 +121,118 @@ async def test_admin_can_update_kri(auth_client: AsyncClient, test_kri: KeyRiskI
         json={"metric_name": "Updated KRI"},
     )
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_admin_can_create_kri_with_vendor_links_atomically(
+    auth_client: AsyncClient,
+    db_session,
+    test_risk_for_kri: Risk,
+    test_vendor_for_kri: Vendor,
+):
+    response = await auth_client.post(
+        "/api/v1/kris",
+        json={
+            "risk_id": test_risk_for_kri.id,
+            "metric_name": "Atomic Vendor KRI",
+            "description": "KRI created with vendor assignment",
+            "unit": "%",
+            "current_value": 50.0,
+            "lower_limit": 0.0,
+            "upper_limit": 100.0,
+            "linked_vendor_ids": [test_vendor_for_kri.id],
+            "ensure_parent_risk_vendor_ids": [test_vendor_for_kri.id],
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert [vendor["id"] for vendor in data["linked_vendors"]] == [test_vendor_for_kri.id]
+
+    kri_id = data["id"]
+    kri_link = (
+        await db_session.execute(
+            select(VendorKRILink).where(
+                VendorKRILink.vendor_id == test_vendor_for_kri.id,
+                VendorKRILink.kri_id == kri_id,
+            )
+        )
+    ).scalar_one_or_none()
+    risk_link = (
+        await db_session.execute(
+            select(VendorRiskLink).where(
+                VendorRiskLink.vendor_id == test_vendor_for_kri.id,
+                VendorRiskLink.risk_id == test_risk_for_kri.id,
+            )
+        )
+    ).scalar_one_or_none()
+
+    assert kri_link is not None
+    assert risk_link is not None
+
+
+@pytest.mark.asyncio
+async def test_create_kri_with_unauthorized_vendor_assignment_is_rejected_without_persisting(
+    client_dept_head: AsyncClient,
+    db_session,
+    test_risk_for_kri: Risk,
+    test_vendor_for_kri: Vendor,
+):
+    metric_name = "Unauthorized Vendor Assignment"
+
+    response = await client_dept_head.post(
+        "/api/v1/kris",
+        json={
+            "risk_id": test_risk_for_kri.id,
+            "metric_name": metric_name,
+            "description": "Should fail because vendor write is missing.",
+            "unit": "%",
+            "current_value": 50.0,
+            "lower_limit": 0.0,
+            "upper_limit": 100.0,
+            "linked_vendor_ids": [test_vendor_for_kri.id],
+        },
+    )
+
+    assert response.status_code == 403
+    persisted = (
+        await db_session.execute(
+            select(KeyRiskIndicator).where(KeyRiskIndicator.metric_name == metric_name)
+        )
+    ).scalar_one_or_none()
+    assert persisted is None
+
+
+@pytest.mark.asyncio
+async def test_admin_update_reconciles_vendor_links_atomically(
+    auth_client: AsyncClient,
+    db_session,
+    test_kri: KeyRiskIndicator,
+    test_vendor_for_kri: Vendor,
+    second_test_vendor_for_kri: Vendor,
+):
+    db_session.add(VendorKRILink(vendor_id=test_vendor_for_kri.id, kri_id=test_kri.id))
+    await db_session.commit()
+
+    response = await auth_client.put(
+        f"/api/v1/kris/{test_kri.id}",
+        json={
+            "metric_name": "Updated with Vendors",
+            "linked_vendor_ids": [second_test_vendor_for_kri.id],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["metric_name"] == "Updated with Vendors"
+    assert [vendor["id"] for vendor in data["linked_vendors"]] == [second_test_vendor_for_kri.id]
+
+    result = await db_session.execute(
+        select(VendorKRILink.vendor_id)
+        .where(VendorKRILink.kri_id == test_kri.id)
+        .order_by(VendorKRILink.vendor_id.asc())
+    )
+    assert list(result.scalars().all()) == [second_test_vendor_for_kri.id]
 
 
 @pytest.mark.asyncio
@@ -504,6 +659,94 @@ async def client_dept_head(db_session, test_user_dept_head):
     app.dependency_overrides.clear()
 
 
+@pytest_asyncio.fixture
+async def test_role_with_write_and_vendor_links(db_session):
+    from sqlalchemy import select
+
+    from app.models import Permission, Role as RoleModel, RolePermission
+
+    role = RoleModel(
+        name="dept_head_vendor_links",
+        display_name="Department Head Vendor Links",
+        description="Non-privileged with risk and vendor write permissions",
+    )
+    db_session.add(role)
+    await db_session.commit()
+
+    for resource, action in [
+        ("risks", "read"),
+        ("risks", "write"),
+        ("vendors", "read"),
+        ("vendors", "write"),
+    ]:
+        perm_result = await db_session.execute(
+            select(Permission).where(Permission.resource == resource, Permission.action == action)
+        )
+        perm = perm_result.scalar_one_or_none()
+        if not perm:
+            perm = Permission(resource=resource, action=action, description=f"{resource} {action}")
+            db_session.add(perm)
+            await db_session.commit()
+        db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+
+    await db_session.commit()
+    return role
+
+
+@pytest_asyncio.fixture
+async def test_user_dept_head_vendor_links(db_session, test_department, test_role_with_write_and_vendor_links):
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.models import Role, RolePermission
+    from app.models import User as UserModel
+
+    user = UserModel(
+        name="Department Head Vendor Links",
+        email="depthead-vendors@test.com",
+        department_id=test_department.id,
+        role_id=test_role_with_write_and_vendor_links.id,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    result = await db_session.execute(
+        select(UserModel)
+        .options(
+            selectinload(UserModel.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
+            selectinload(UserModel.department),
+        )
+        .where(UserModel.id == user.id)
+    )
+    return result.scalar_one()
+
+
+@pytest_asyncio.fixture
+async def client_dept_head_vendor_links(db_session, test_user_dept_head_vendor_links):
+    from httpx import ASGITransport, AsyncClient
+
+    from app.core.config import Settings, get_settings
+    from app.db.session import get_db
+    from app.main import app
+
+    def override_settings():
+        return Settings(mock_auth_enabled=True, debug=True)
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_settings] = override_settings
+
+    transport = ASGITransport(app=app)
+    headers = {"X-Mock-User-Id": str(test_user_dept_head_vendor_links.id)}
+    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+
+
 @pytest.mark.asyncio
 async def test_non_privileged_edit_requires_approval(client_dept_head: AsyncClient, test_kri: KeyRiskIndicator):
     """Non-privileged user editing ANY KRI should receive 202 with approval request."""
@@ -518,6 +761,89 @@ async def test_non_privileged_edit_requires_approval(client_dept_head: AsyncClie
     assert "approval_id" in data
     assert data["action_type"] == "edit"
     assert "pending_changes" in data
+
+
+@pytest.mark.asyncio
+async def test_non_privileged_vendor_link_edit_is_approval_gated_and_applies_on_approval(
+    client: AsyncClient,
+    db_session,
+    test_department,
+    test_role_with_write_and_vendor_links,
+    test_kri: KeyRiskIndicator,
+    test_vendor_for_kri: Vendor,
+    second_test_vendor_for_kri: Vendor,
+    test_user,
+):
+    from app.models import User
+    from app.models.user import AccessScope
+
+    non_privileged_user = User(
+        name="Department Head Vendor Links Inline",
+        email="depthead-vendor-inline@test.com",
+        department_id=test_department.id,
+        role_id=test_role_with_write_and_vendor_links.id,
+        access_scope=AccessScope.DEPARTMENT,
+        is_active=True,
+    )
+    db_session.add(non_privileged_user)
+    await db_session.commit()
+    await db_session.refresh(non_privileged_user)
+
+    db_session.add(VendorKRILink(vendor_id=test_vendor_for_kri.id, kri_id=test_kri.id))
+    await db_session.commit()
+
+    response = await client.put(
+        f"/api/v1/kris/{test_kri.id}",
+        headers={"X-Mock-User-Id": str(non_privileged_user.id)},
+        json={
+            "unit": "count",
+            "frequency": "monthly",
+            "linked_vendor_ids": [second_test_vendor_for_kri.id],
+        },
+    )
+
+    assert response.status_code == 202
+    data = response.json()
+    assert data["pending_changes"]["unit"] == {"old": "%", "new": "count"}
+    assert data["pending_changes"]["frequency"] == {"old": "quarterly", "new": "monthly"}
+    assert data["pending_changes"]["linked_vendor_ids"] == {
+        "old": [test_vendor_for_kri.id],
+        "new": [second_test_vendor_for_kri.id],
+    }
+
+    await db_session.refresh(test_kri)
+    assert test_kri.unit == "%"
+    assert test_kri.frequency == "quarterly"
+    current_vendor_ids = (
+        await db_session.execute(
+            select(VendorKRILink.vendor_id)
+            .where(VendorKRILink.kri_id == test_kri.id)
+            .order_by(VendorKRILink.vendor_id.asc())
+        )
+    ).scalars().all()
+    assert list(current_vendor_ids) == [test_vendor_for_kri.id]
+
+    approval = await db_session.get(ApprovalRequest, data["approval_id"])
+    assert approval is not None
+
+    approve_response = await client.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        headers={"X-Mock-User-Id": str(test_user.id)},
+        json={"resolution_notes": "Approved vendor reassignment"},
+    )
+    assert approve_response.status_code == 200
+
+    await db_session.refresh(test_kri)
+    assert test_kri.unit == "count"
+    assert test_kri.frequency == "monthly"
+    current_vendor_ids = (
+        await db_session.execute(
+            select(VendorKRILink.vendor_id)
+            .where(VendorKRILink.kri_id == test_kri.id)
+            .order_by(VendorKRILink.vendor_id.asc())
+        )
+    ).scalars().all()
+    assert list(current_vendor_ids) == [second_test_vendor_for_kri.id]
 
 
 @pytest.mark.asyncio

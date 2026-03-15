@@ -1,10 +1,10 @@
 ---
 title: Managing Vendors
 version: "2.4"
-last_updated: "2026-03-09"
+last_updated: "2026-03-15"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/*"
-summary: "User guide for the core vendor register: ownership, classification, vendor flags, risk-detail-style linked sections, linked KRIs, routed create-from-vendor flows, exports, and issue context."
+summary: "User guide for the core vendor register: ownership, classification, vendor flags, risk-detail-style linked sections, linked KRIs, routed create-from-vendor flows for risks/controls/KRIs, exports, and issue context."
 tags:
   - vendors
   - workflow
@@ -75,6 +75,7 @@ This matters on the page because:
 - `Link Existing` and `Manage Existing Links` only appear when the user can mutate vendor links
 - `Add Risk` appears only when the user can both edit the vendor context and create risks
 - `Add Control` appears only when the user can both edit the vendor context and create controls
+- `Add KRI` appears only when the user can both edit the vendor context and create KRIs (`risks:write`)
 - `Link Existing` for KRIs appears only when the user can mutate vendor links and can read the target KRIs
 - the vendor page never leaks unreadable risk, control, or KRI names just to preserve counts or layout symmetry
 
@@ -111,7 +112,7 @@ Use create/edit when you need to maintain vendor master data:
 Use linked risks, linked controls, and linked KRIs to connect the vendor to enterprise risk posture:
 
 - use **Link Existing** to attach existing risks, controls, or KRIs
-- use **Add Risk** or **Add Control** to create a brand-new item from the vendor page
+- use **Add Risk**, **Add Control**, or **Add KRI** to create a brand-new item from the vendor page
 - review active and archived linked items in separate visual groups
 - use **Manage Existing Links** to remove stale relationships when they are no longer valid
 
@@ -140,20 +141,34 @@ Use it when you want to answer questions like:
 - which issues are currently open against one vendor context
 - which KRIs monitor vendor-related exposure
 
-### 3. Create a new risk or control from vendor detail
+### 3. Create a new risk, control, or KRI from vendor detail
 
 The vendor page now supports routed create-from-vendor flows:
 
 - **Add Risk** opens the full risk create form at `/risks/new?vendor_id=:id&return_to=/vendors/:id`
 - **Add Control** opens the full control create form at `/controls/new?vendor_id=:id&return_to=/vendors/:id`
-- after save, the app auto-links the new item back to the vendor
+- **Add KRI** opens the full KRI create form at `/kris/new?vendor_id=:id&return_to=/vendors/:id`
+- after save, the app returns to vendor detail with the new item already linked back to the vendor
 - after create, you are returned to the vendor detail page with a confirmation banner and a direct link to the created item
-- if the item is created but linking fails, you still return to vendor detail with a warning banner and a link to the created item for manual follow-up
+- vendor-context KRI create keeps the parent risk mandatory and defaults the step-1 risk picker to risks already linked to that vendor
+- if you choose a risk that is not linked to the vendor, the form prompts you to link the risk first or continue without linking it
+- if you choose **Link risk and continue**, the backend creates the missing vendor-risk link and the KRI in one transaction
+- if vendor assignment or requested risk-linking fails, the KRI is not partially created; the form stays open and shows the blocking error
 
 Create buttons follow normal permissions:
 
 - you must be able to edit the vendor link context
 - and you must also have `risks:write` or `controls:write` for the corresponding create action
+
+### 3a. Assign vendors directly inside the KRI form
+
+KRI create and edit now also support vendor assignment outside vendor detail:
+
+- the KRI form includes a **Linked Vendors** multi-select section
+- a KRI still belongs to exactly one parent risk
+- vendor linkage is secondary monitoring context and can include more than one vendor
+- when opened from vendor detail, the current vendor is included automatically in the same save and the selector can be used for additional vendors
+- non-privileged KRI edits that change linked vendors are approval-gated as part of the normal KRI edit request
 
 ### 4. Raise an issue from vendor context
 
@@ -176,9 +191,9 @@ Typical reasons:
 The vendor page itself does not run a separate approval workflow anymore. That is an intentional product boundary.
 
 - vendor create/edit follows the standard vendor permission model
-- create-from-vendor for risks and controls uses the normal routed risk/control forms
-- if a newly created risk or control would normally trigger approval behavior in its own domain, that behavior still applies there
-- vendor detail only handles the post-create return path, auto-link attempt, confirmation or warning banner, and link management for existing risks, controls, and KRIs
+- create-from-vendor for risks, controls, and KRIs uses the normal routed forms
+- if a newly created risk, control, or KRI would normally trigger approval behavior in its own domain, that behavior still applies there
+- vendor detail only handles the post-create return path, confirmation banner, and link management for existing risks, controls, and KRIs
 
 In practice this means:
 
@@ -204,7 +219,7 @@ Exports now reflect only retained core vendor fields.
 
 - Treating the vendor record as a workflow engine instead of a clean register entry.
 - Leaving owner, department, or process blank.
-- Forgetting that **Add Risk** and **Add Control** return to the vendor page after create.
+- Forgetting that **Add Risk**, **Add Control**, and **Add KRI** return to the vendor page after create.
 - Keeping stale risk/control links after relationship changes.
 - Creating duplicate vendor records instead of updating the existing one.
 

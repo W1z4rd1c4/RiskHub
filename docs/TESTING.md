@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
-> **Version**: 1.5
-> **Last Updated**: 2026-03-09
+> **Version**: 1.6
+> **Last Updated**: 2026-03-15
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
@@ -42,6 +42,13 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - Redis integration tests are marked with `@pytest.mark.redis_integration` and require Docker-backed test dependencies.
 - For docs endpoint behavior, keep role-scoped fixtures (`client_platform_admin`, `client_cro`, `client_employee`) green.
 
+## Development Startup
+
+- Canonical startup guidance lives in [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](./development/README.md).
+- Use `./scripts/dev.sh` for active local backend/frontend iteration.
+- Use `./scripts/compose.sh up` for Docker onboarding/manual appliance-style runs.
+- Use `./scripts/compose.sh reset --dataset test` for deterministic Docker-backed E2E fixture resets.
+
 ## Local Startup Preflight
 
 - `./scripts/dev.sh` now performs a schema-head preflight before it starts the local backend in `full` and `backend` modes.
@@ -54,6 +61,7 @@ cd backend
 ```
 
 - After a local backend launch attempt, `scripts/dev.sh` also verifies backend readiness and prints the backend log tail immediately if startup failed during lifespan initialization.
+- Docker onboarding/reset paths intentionally keep the app startup guards unchanged; migrations and base seeding happen in the `./scripts/compose.sh` bootstrap flow rather than by weakening app startup checks.
 
 ## Frontend Testing Notes
 
@@ -64,9 +72,9 @@ cd backend
 - `/vendors` grouped-view regressions must include `src/pages/__tests__/VendorsPage.grouped-views.test.tsx`.
 - The vendor grouped-view regression gate must cover `All` vs grouped tabs, `By Risk` visibility only with readable risks, grouped fetch behavior under active filters, overlapping vendor membership across linked risks, the `Unlinked Risk` fallback bucket, and `By Flag` multi-membership with the `Insignificant vendors` fallback.
 - Vendor detail parity regressions should run:
-  - `cd frontend && npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/VendorDetailPage.presentation.test.ts src/pages/__tests__/VendorDetailPage.issue-entry.test.tsx src/pages/__tests__/RiskForms.vendor-context.test.tsx src/pages/__tests__/ControlForms.vendor-context.test.tsx`
+  - `cd frontend && npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/VendorDetailPage.presentation.test.ts src/pages/__tests__/VendorDetailPage.issue-entry.test.tsx src/pages/__tests__/RiskForms.vendor-context.test.tsx src/pages/__tests__/ControlForms.vendor-context.test.tsx src/pages/__tests__/KRIForms.vendor-context.test.tsx src/pages/__tests__/KRIDetailPage.edit-approval.test.tsx src/components/__tests__/KRIForm.vendor-context.test.tsx src/components/__tests__/KRIModal.vendor-selection.test.tsx`
   - `cd frontend && npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-contextual-create.spec.ts`
-- The vendor detail regression gate must cover risk-detail-style linked sections, split action bars (`Link Existing` + `Add Risk` / `Add Control`), archived linked-item group rendering, vendor-linked KRIs, and vendor-context routed create flows that auto-link back to the vendor.
+- The vendor detail regression gate must cover risk-detail-style linked sections, split action bars (`Link Existing` + `Add Risk` / `Add Control` / `Add KRI`), archived linked-item group rendering, vendor-linked KRIs, transactional vendor-context KRI create, and approval-aware KRI edit save behavior.
 - Vendor-centric grouped-view regressions should run:
   - `cd frontend && npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/RisksPage.presentation.test.ts src/pages/__tests__/ControlsPage.presentation.test.ts src/pages/__tests__/IssuesPage.grouped-views.test.tsx src/pages/__tests__/KRIsPage.monitoring-status.test.tsx src/pages/__tests__/VendorsPage.grouped-views.test.tsx`
   - `cd frontend && npx playwright test -c ../tests/frontend/e2e/playwright.config.ts --project=chromium ../tests/frontend/e2e/risks.spec.ts ../tests/frontend/e2e/controls.spec.ts ../tests/frontend/e2e/kris.spec.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-workflow.spec.ts --grep "groups linked risks by vendor|groups linked controls by vendor|groups linked KRIs by vendor|groups vendors by flag|links an existing KRI|groups vendor-context issues by vendor"`
@@ -125,7 +133,7 @@ PYTHONPATH=backend pytest tests/backend/pytest/test_vendors.py tests/backend/pyt
 cd frontend
 npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx
 npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/VendorDetailPage.presentation.test.ts src/pages/__tests__/VendorDetailPage.issue-entry.test.tsx
-npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/RiskForms.vendor-context.test.tsx src/pages/__tests__/ControlForms.vendor-context.test.tsx
+npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/RiskForms.vendor-context.test.tsx src/pages/__tests__/ControlForms.vendor-context.test.tsx src/pages/__tests__/KRIForms.vendor-context.test.tsx src/pages/__tests__/KRIDetailPage.edit-approval.test.tsx src/components/__tests__/KRIForm.vendor-context.test.tsx src/components/__tests__/KRIModal.vendor-selection.test.tsx
 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-contextual-create.spec.ts
 ```
 

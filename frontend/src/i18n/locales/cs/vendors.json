@@ -89,9 +89,11 @@
       "manage_existing": "Spravovat existující vazby",
       "add_risk": "Přidat riziko",
       "add_control": "Přidat kontrolu",
+      "add_kri": "Přidat KRI",
       "back_to_vendor": "Zpět na dodavatele",
       "open_risk": "Otevřít riziko",
-      "open_control": "Otevřít kontrolu"
+      "open_control": "Otevřít kontrolu",
+      "open_kri": "Otevřít KRI"
     },
     "archived_risks": "Archivovaná rizika ({{count}})",
     "archived_controls": "Archivované kontroly ({{count}})",
@@ -115,7 +117,8 @@
     },
     "kris": {
       "subtitle": "Připojte KRI, která monitorují expozici a výkonnost dodavatele.",
-      "empty": "Zatím nejsou navázaná KRI."
+      "empty": "Zatím nejsou navázaná KRI.",
+      "created_and_linked": "KRI bylo vytvořeno a navázáno na dodavatele."
     }
   },
   "form": {

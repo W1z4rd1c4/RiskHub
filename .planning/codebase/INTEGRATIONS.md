@@ -1,11 +1,11 @@
 # External Integrations
 
-**Analysis Date:** 2026-02-20
+**Analysis Date:** 2026-03-15
 
 ## Core External Services
 
 ### PostgreSQL
-- Primary relational datastore (local dev stack via `docker-compose.yml`; production via external PostgreSQL contract)
+- Primary relational datastore (dev stack via `docker-compose.yml` and `scripts/compose.sh`; production via external PostgreSQL contract)
 - Async runtime access via SQLAlchemy + `asyncpg` (`backend/app/db/session.py`)
 - Migration path via Alembic (`backend/alembic/`, `backend/alembic/env.py`)
 
@@ -42,7 +42,7 @@
 
 - Frontend nginx proxies `/api/` to `backend:8000` in container network (`frontend/nginx.conf`)
 - Vite dev server proxies `/api` to local backend (`frontend/vite.config.ts`)
-- Development Docker Compose defines local multi-service topology and healthchecks (`docker-compose.yml`)
+- Development Docker Compose defines local multi-service topology, healthchecks, and bootstrap flow (`docker-compose.yml`, `scripts/compose.sh`)
 - Supported production/admin deployment runs through `./scripts/deploy.sh --target docker|linux`, backed by retained `scripts/prod/*` helper scripts
 
 ## CI/Security Integrations
@@ -69,4 +69,4 @@
 
 ---
 
-*Integration audit refreshed on 2026-02-20*
+*Integration audit refreshed on 2026-03-15*

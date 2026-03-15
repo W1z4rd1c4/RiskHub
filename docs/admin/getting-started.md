@@ -1,10 +1,10 @@
 ---
 title: Admin Onboarding and First-Day Runbook
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-15"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + frontend/src/pages/UsersPage.tsx + backend/app/api/v1/endpoints/admin/*"
-summary: "First-day operational runbook for platform admins: validate access, docs audience boundaries, observability, and safe-change readiness."
+summary: "Day-one admin readiness runbook with explicit healthy, degraded, and stop states for platform operators."
 tags:
   - onboarding
   - overview
@@ -18,207 +18,171 @@ tags:
 
 ## Overview
 
-This runbook establishes a safe baseline for platform administration before you execute production-impacting changes.
+Use this runbook to confirm that an environment is safe to operate before you make admin changes. It is the first-day baseline for a new operator and the post-change baseline after releases that may affect authentication, sessions, logs, audit, or the admin console.
 
-The goal is not “learn the UI”. The goal is **operational confidence**:
-
-- you can prove which role you are operating as
-- you can observe platform health, logs, audit trails, and sessions
-- you can confirm the documentation audience split is intact
-- you can support user access incidents without guessing
-- you can make small changes and verify outcomes
+For live incidents, start with [Admin Incident Quick Reference](./incident-quick-reference.md) instead.
 
 ## When To Use This
 
 Use this runbook:
 
-- when you become an on-call / operator for a RiskHub environment
-- after a deployment that touches auth, sessions, or admin console behavior
-- when you suspect the admin/non-admin boundary regressed (for example admins seeing business navigation or vice versa)
-
-Do not use this as a substitute for a production incident playbook. If the system is actively failing, prioritize incident response first.
+- when you first become an operator for an environment
+- after a deployment that changed auth, sessions, logs, audit, or admin console behavior
+- when you want to prove the admin and non-admin boundary is still intact
+- when you need a documented baseline before you begin routine access work
 
 ## Preconditions and Safety
 
-Before you do any admin action, validate:
+Before you begin onboarding checks:
 
-- you are signed in as the correct identity (avoid shared accounts)
-- your account has role `admin` (not CRO/risk manager)
-- you have an escalation path (engineering owner, security owner, business owner)
+- confirm you are signed in with the intended `admin` account
+- confirm you know which environment you are operating in
+- confirm you are not already responding to a live outage that requires incident-first triage
+- keep your checks read-only except for the explicit export drill in this runbook
 
-Safety rules:
+Safety rules for day-one validation:
 
-- Prefer **read-only validation** first (health/logs/audit).
-- If you change configuration (for example log retention), record previous values so you can roll back.
-- If you are unsure whether an action touches business data, stop and verify scope and role boundaries.
+- do not test by widening access for yourself or another user
+- do not treat missing buttons as a prompt to try alternate or manual flows
+- do not continue if the environment falls into `Stop and escalate`
+- capture evidence as you go so you do not have to reconstruct the first hour later
+
+## Readiness States
+
+| State | Criteria | Operator action |
+|---|---|---|
+| Healthy | `/admin` loads, database is connected, scheduler lock is held, outbox dead-letter count is `0`, and Logs, Audit, and Sessions all load | Continue with onboarding and low-risk admin work |
+| Degraded but operable | `/admin` loads, but one dependency is degraded while Logs, Audit, and Sessions still work | Capture evidence, keep actions read-only or low-risk, and escalate if user impact exists |
+| Stop and escalate | Health page fails, database is disconnected, Logs, Audit, or Sessions fail, exports fail, or admin boundaries look wrong | Stop access changes and escalate immediately |
+
+## Do Not Continue With Access Changes If Any Of These Are True
+
+- Health page fails to load
+- database status is `disconnected`
+- Logs, Audit, or Sessions does not load
+- CSV or JSON exports fail
+- `/admin/docs` shows user manuals instead of admin manuals
+- admin navigation shows business-only modules unexpectedly
 
 ## Step-by-Step Procedure
 
-### 1) Confirm identity, role, and expected navigation
+### 1) Confirm identity, role, and navigation
 
 1. Confirm your effective role is `admin`.
-2. Confirm your default landing route is `/admin` (admins should not default to the business dashboard).
-3. Confirm the sidebar shows only admin-safe navigation (typically Settings, Users/Access, Admin Console, Documentation).
-4. Confirm direct navigation to `/activity-log` and `/governance` is denied or redirected. That boundary is expected for `admin`.
+2. Confirm your default landing route is `/admin`.
+3. Confirm the sidebar shows admin-safe navigation only.
+4. Confirm `/activity-log` and `/governance` are denied or redirected for `admin`.
 
-If you see business modules (Risks/Controls/Vendors) as `admin`, treat it as a boundary regression and escalate.
+If you see business modules as `admin`, stop and escalate.
 
-### 2) Validate Admin Console baseline (/admin)
+### 2) Validate the Admin Console baseline
 
-Open `/admin` and validate each tab:
+Open `/admin` and confirm:
 
-1. **Health**
-   - the panel loads quickly (no spinner loops)
-   - the metrics look plausible (CPU/memory/db stats are present)
-2. **Application Logs**
-   - the log feed loads
-   - filtering is responsive
-   - export actions work without leaking secrets
-3. **Audit Logs**
-   - entries load
-   - event type filtering works
-   - CSV/JSON export produces a file with timestamps, event names, and request IDs
-4. **Sessions**
-   - active sessions list loads
-   - session revocation actions are visible (if implemented) and are clearly labeled
+- **Health** loads and shows:
+  - database `connected`
+  - scheduler lock held with a current owner
+  - outbox dead-letter count `0`
+- **Application logs** loads and can be filtered
+- **Audit logs** loads and can be filtered
+- **Sessions** loads and shows active session records
 
-If any tab fails, do not proceed to access changes. Fix observability first, otherwise you will operate blind.
+If any of those fail, treat the environment as not ready for access changes.
 
-### 3) Validate documentation audience split (/admin/docs)
+### 3) Validate the documentation audience split
 
-Open `/admin/docs` and validate:
+Open `/admin/docs` and confirm:
 
-- the audience label indicates **admin documentation**
-- the library contains admin runbooks (not user manuals)
-- doc links behave deterministically:
-  - `./file.md` opens another doc inside the reader
-  - `/path` navigates to app routes
-  - `https://...` opens a new tab
+- the audience label says admin documentation
+- admin runbooks are present
+- internal doc links open inside the reader
+- app route links navigate inside the app
+- external links open in a new tab
 
-Boundary check you should be able to state explicitly:
+You should be able to say:
 
 - “Admins see admin docs only.”
 - “Non-admins see user docs only.”
 
-If you cannot confirm that with confidence, stop and investigate (see Troubleshooting).
+### 4) Validate the access surface
 
-### 4) Validate Access Management surface (/users)
+Open `/users` and confirm:
 
-Open `/users` and validate what mode you are in:
+- the user list loads
+- role, department, manager, and scope are visible in access mode
+- **Edit access** is available for admin mutations
 
-- **Access mode** (privileged access list):
-  - you can see role, department, manager, and access scope
-  - you can open the access edit modal (admin-only mutations)
-- **Directory mode** (read-only lookup list):
-  - you can see user identities but not privileged access controls
+If `/users` is not usable, do not continue with access work.
 
-As an `admin`, you are expected to support access incidents. If `/users` is not usable, you are missing a critical operator surface.
+### 5) Run one minimal safe drill
 
-### 5) Run the “minimal safe change” drill (optional but recommended)
-
-Perform one low-risk, reversible operation:
-
-1. In `/admin` audit logs, export the last 50 lines to CSV.
-2. Verify the export file exists and contains expected columns (timestamp, event, request ID).
+1. In `/admin` -> **Audit logs**, export the last 50 lines to CSV.
+2. Confirm the file exists and includes timestamps, event names, and request IDs.
 3. Do not modify business data during this drill.
-
-This confirms your environment supports evidence capture, which is required for almost every incident.
 
 ## Verification Checklist
 
-Use this checklist to decide whether you are “ready to operate”.
+You are ready to operate only if all of these are true:
 
-- `/admin` loads, all tabs usable (Health, Logs, Audit, Sessions)
-- `/admin/docs` shows admin manuals (no user docs)
-- `/users` loads and shows access mode for admin
-- exports (CSV/JSON) work in admin console
-- you know how to capture request IDs and correlate with errors
-- you know who to escalate to for:
-  - engineering defects
-  - business policy decisions
-  - security/incident severity
-
-If any box is unchecked, your “first fix” should be to restore that capability, not to push forward with risky changes.
+- `/admin` loads and the state is `Healthy`
+- `/admin/docs` shows admin manuals only
+- `/users` is usable for admin work
+- exports work in the Admin Console
+- you can capture request IDs and correlate them with logs
+- you know who receives escalations for engineering, security, and business-policy issues
+- you can explain which actions are read-only, reversible, or irreversible before taking them
 
 ## Rollback Strategy
 
-Onboarding itself is mostly read-only. Rollback applies to any change you made during validation.
+This runbook is mostly read-only. If you changed something during validation:
 
-Rollback rules:
-
-- If you changed log retention/rotation settings, revert to the prior values you recorded.
-- If you revoked a session as part of a drill, document which session was revoked and why.
-- If you changed a user’s access during training, revert it immediately and record the action.
-
-If you cannot confidently roll back a change, you should not make it.
+- revert any log configuration values to the prior recorded values
+- document any session revocation you performed
+- revert any training or test access change immediately
+- note whether the rollback restored the original state or whether escalation is still required
 
 ## Troubleshooting
 
-### I can open `/admin` but `/admin/docs` looks like user docs
+### `/admin/docs` looks like user documentation
 
-Likely causes:
-
-- your account is not truly role `admin` (role mismatch)
-- the docs endpoint audience split regressed
-- stale session (role changed but session not refreshed)
-
-What to do:
-
-1. Log out and back in (clear stale auth).
-2. Re-open `/admin/docs` and verify the audience label.
-3. If still wrong, capture:
-   - your user id/email
-   - current role label
-   - locale used
-   - the list of documents returned (ids)
+1. Log out and back in.
+2. Re-open `/admin/docs`.
+3. If the audience is still wrong, capture user email, role label, locale, and document IDs.
 4. Escalate as an authorization boundary incident.
 
-### Health looks normal but admin tabs fail or show empty feeds
+### Health is degraded during onboarding
 
-What to check:
+- stop before access changes
+- capture the Health state and timestamp
+- open Application logs and record repeated request IDs
+- escalate with the evidence package
 
-- network/API errors in the browser console
-- whether the backend is returning 401/403/500
-- whether the failure is isolated to one tab (logs vs audit vs sessions)
+### `/users` is unavailable during onboarding
 
-What to do:
+- do not use alternate or manual paths for access changes
+- capture the failing route and request IDs
+- escalate as an admin-surface regression
 
-- use request IDs (from logs/audit) to correlate failures
-- if exports fail, treat it as an observability outage (it blocks incident work)
+### The environment is degraded but still partially usable
 
-### I can’t access `/users` or access edits fail
-
-What to check:
-
-- do you see the user list at all (routing/session problem)?
-- do you get forbidden errors on mutation (role mismatch)?
-
-What to do:
-
-- avoid “manual fixes” elsewhere; `/users` is the supported admin surface
-- capture the failing request and escalate as a permissions regression if needed
+- stop treating onboarding as a checklist completion exercise
+- classify the environment as `Degraded but operable`
+- finish only evidence-capture steps that are still safe and read-only
+- open [Admin Console](./console.md) for the precise failure mode and handoff expectations
 
 ## Escalation and Handoff
 
-Escalate immediately if you observe any of these:
+Include:
 
-- admin/non-admin boundaries are mixed (audience leakage)
-- audit logs are missing or exports don’t work
-- sessions cannot be observed/revoked when required
-
-Handoff package:
-
-- what you observed (route + timestamp)
-- what you expected (one sentence)
-- relevant export files (audit/logs)
-- request IDs and error messages
-- the minimal reproduction steps
+- what you observed
+- the route and timestamp
+- the readiness state you classified
+- request IDs and export evidence
+- the smallest reproduction steps
 
 ## Related Documentation
 
-- User access operations: [User and Access Management](./user-management.md)
-- Workflow support: [Approvals Support](./approvals.md)
-- Evidence exports: [Reports and Evidence Exports](./reports.md)
-- Admin Console operations: [Admin Console](./console.md)
-
-Validate effective role and re-authenticate to clear stale session state.
+- [Admin Incident Quick Reference](./incident-quick-reference.md)
+- [Admin Console](./console.md)
+- [User and Access Governance](./user-management.md)
+- [Reports and Evidence Exports](./reports.md)

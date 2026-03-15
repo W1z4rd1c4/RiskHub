@@ -1,10 +1,10 @@
 ---
 title: KRIs (Key Risk Indicators)
 version: "2.1"
-last_updated: "2026-03-09"
+last_updated: "2026-03-15"
 audience: user
 source_of_truth: "frontend/src/pages/KRIsPage.tsx + frontend/src/pages/KRIDetailPage.tsx + docs/BUSINESS_LOGIC.md"
-summary: "How to create and operate KRIs: thresholds, breach/overdue logic, value recording, history review, exports, and notification-driven monitoring."
+summary: "How to create and operate KRIs: thresholds, breach/overdue logic, value recording, vendor assignment, history review, exports, and notification-driven monitoring."
 tags:
   - kri
   - workflow
@@ -128,6 +128,24 @@ Good KRIs start from a risk failure mode.
 4. Save.
 5. Record the first value as a baseline.
 
+You can now add vendor context during create/edit:
+
+- use **Linked Vendors** in the KRI form to attach one or more vendors
+- the parent risk remains mandatory
+- vendor links are secondary monitoring context, not a replacement for the parent risk
+- vendor assignment is saved atomically with the KRI; if vendor validation fails, the KRI is not created or updated
+- vendor search is server-backed, so linked-vendor selection is not capped to the first page of vendors
+
+If you launch KRI create from vendor detail:
+
+- the route is `/kris/new?vendor_id=:id&return_to=/vendors/:id`
+- the current vendor is shown as active context and included automatically in the same save
+- the risk picker defaults to risks already linked to that vendor
+- you can still switch to all readable risks when needed
+- if you pick a risk that is not linked to the vendor, the form prompts you to link that risk first or continue without linking it
+- choosing **Link risk and continue** asks the backend to create the missing vendor-risk link and the KRI in one transaction
+- if vendor assignment or requested risk-linking fails, the form stays open and nothing is partially persisted
+
 Recipe: *choose KRIs that don’t become noise*
 
 - prefer metrics you can actually obtain on schedule
@@ -191,6 +209,11 @@ KRIs interact with workflow in two ways:
 
 - **Notifications**: due soon, overdue, near breach, breach detected
 - **Approvals**: sensitive changes (like risk-level governance changes) can be approval-gated depending on policy
+
+Vendor-link changes are part of the same KRI edit workflow:
+
+- non-privileged KRI edits, including changes to **Linked Vendors**, are queued for approval instead of applying immediately
+- the KRI detail page shows an approval banner and keeps the current KRI and vendor links unchanged until approval is resolved
 
 Practical signals:
 

@@ -89,9 +89,11 @@
       "manage_existing": "Manage Existing Links",
       "add_risk": "Add Risk",
       "add_control": "Add Control",
+      "add_kri": "Add KRI",
       "back_to_vendor": "Back to vendor",
       "open_risk": "Open risk",
-      "open_control": "Open control"
+      "open_control": "Open control",
+      "open_kri": "Open KRI"
     },
     "archived_risks": "Archived risks ({{count}})",
     "archived_controls": "Archived controls ({{count}})",
@@ -115,7 +117,8 @@
     },
     "kris": {
       "subtitle": "Attach KRIs that monitor vendor-related exposure and performance.",
-      "empty": "No linked KRIs yet."
+      "empty": "No linked KRIs yet.",
+      "created_and_linked": "KRI created and linked to the vendor."
     }
   },
   "form": {

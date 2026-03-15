@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Analysis Date:** 2026-02-22
+**Analysis Date:** 2026-03-15
 
 ## Languages
 
@@ -11,7 +11,7 @@
 **Secondary:**
 - JavaScript - tooling/config (`frontend/*.js`)
 - SQL - Alembic migrations (`backend/alembic/versions/`)
-- Shell/Make - local orchestration (`scripts/dev.sh`, `scripts/Makefile`)
+- Shell/Make - local orchestration (`scripts/dev.sh`, `scripts/compose.sh`, `scripts/Makefile`)
 
 ## Runtime and Infrastructure
 
@@ -19,8 +19,8 @@
 - Frontend build runtime: `node:24-alpine` (`frontend/Dockerfile`)
 - Frontend serving runtime: `nginx:alpine` (`frontend/Dockerfile`, `frontend/nginx.conf`)
 - Local Node parity baseline: Node major `24` via `.nvmrc` and `.node-version` for startup/runtime script parity with CI/Docker
-- Database: PostgreSQL 16 (dev stack via `docker-compose.yml`; production contract requires external PostgreSQL)
-- Cache/rate-limit backend: Redis 7 (dev stack via `docker-compose.yml`; production runtime via supported docker/linux deployment targets and `backend/app/main.py`)
+- Database: PostgreSQL 16 (dev stack via `docker-compose.yml` orchestrated by `scripts/compose.sh`; production contract requires external PostgreSQL)
+- Cache/rate-limit backend: Redis 7 (dev stack via `docker-compose.yml` orchestrated by `scripts/compose.sh`; production runtime via supported docker/linux deployment targets and `backend/app/main.py`)
 
 ## Core Frameworks and Libraries
 
@@ -77,4 +77,4 @@
 
 ---
 
-*Stack analysis refreshed on 2026-02-22*
+*Stack analysis refreshed on 2026-03-15*

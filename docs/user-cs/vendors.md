@@ -1,10 +1,10 @@
 ---
 title: Správa dodavatelů
 version: "2.4"
-last_updated: "2026-03-09"
+last_updated: "2026-03-15"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/*"
-summary: "Uživatelský manuál pro základní registr dodavatelů: ownership, klasifikace, vendor flagy, sekce navázaných rizik, kontrol a KRI ve stylu detailu rizika, routed create-from-vendor workflow, exporty a issue kontext."
+summary: "Uživatelský manuál pro základní registr dodavatelů: ownership, klasifikace, vendor flagy, sekce navázaných rizik, kontrol a KRI ve stylu detailu rizika, routed create-from-vendor workflow pro rizika/kontroly/KRI, exporty a issue kontext."
 tags:
   - vendors
   - workflow
@@ -75,6 +75,7 @@ Na stránce se to projevuje takto:
 - `Link Existing` a `Manage Existing Links` se zobrazí jen tehdy, když uživatel může měnit vendor vazby
 - `Add Risk` se zobrazí jen tehdy, když uživatel umí upravit vendor kontext a zároveň zakládat rizika
 - `Add Control` se zobrazí jen tehdy, když uživatel umí upravit vendor kontext a zároveň zakládat kontroly
+- `Add KRI` se zobrazí jen tehdy, když uživatel umí upravit vendor kontext a zároveň zakládat KRI (`risks:write`)
 - `Link Existing` pro KRI se zobrazí jen tehdy, když uživatel může měnit vendor vazby a může číst cílová KRI
 - detail dodavatele nikdy nesmí prozradit názvy nečitelných rizik, kontrol nebo KRI jen kvůli countům nebo layoutu
 
@@ -111,7 +112,7 @@ Create/edit použijte pro údržbu vendor master dat:
 Pomocí navázaných rizik, kontrol a KRI propojte dodavatele s enterprise risk posture:
 
 - použijte **Link Existing** pro navázání existujících rizik, kontrol nebo KRI
-- použijte **Add Risk** nebo **Add Control** pro založení nového záznamu přímo z detailu dodavatele
+- použijte **Add Risk**, **Add Control** nebo **Add KRI** pro založení nového záznamu přímo z detailu dodavatele
 - aktivní a archivované vazby uvidíte v oddělených vizuálních skupinách
 - přes **Manage Existing Links** odstraňujte zastaralé vazby, když už neplatí
 
@@ -140,20 +141,34 @@ Použijte ho, když chcete rychle zjistit:
 - které issues jsou otevřené v kontextu konkrétního dodavatele
 - která KRI monitorují vendor-related expozici
 
-### 3. Vytvoření nového rizika nebo kontroly z detailu dodavatele
+### 3. Vytvoření nového rizika, kontroly nebo KRI z detailu dodavatele
 
 Detail dodavatele nyní podporuje routed create-from-vendor flow:
 
 - **Add Risk** otevírá plný formulář pro riziko na `/risks/new?vendor_id=:id&return_to=/vendors/:id`
 - **Add Control** otevírá plný formulář pro kontrolu na `/controls/new?vendor_id=:id&return_to=/vendors/:id`
-- po uložení aplikace nový záznam automaticky naváže zpět na dodavatele
+- **Add KRI** otevírá plný formulář pro KRI na `/kris/new?vendor_id=:id&return_to=/vendors/:id`
+- po uložení se vrátíte na detail dodavatele a nový záznam už je na dodavatele navázaný
 - po vytvoření se vrátíte na detail dodavatele s potvrzovacím bannerem a přímým odkazem na nový záznam
-- pokud se záznam vytvoří, ale navázání selže, vrátíte se na detail dodavatele s varovným bannerem a odkazem na nový záznam pro ruční dořešení
+- vendor-context create pro KRI nechává parent risk povinný a ve výchozím stavu filtruje krok výběru rizika jen na rizika navázaná na daného dodavatele
+- pokud zvolíte riziko, které navázané není, formulář vás vyzve k navázání rizika nebo k pokračování bez něj
+- pokud zvolíte **Navázat riziko a pokračovat**, backend vytvoří chybějící vendor-risk vazbu i KRI v jedné transakci
+- pokud přiřazení dodavatele nebo požadované navázání rizika selže, KRI se částečně nevytvoří; formulář zůstane otevřený a ukáže blokující chybu
 
 Create tlačítka respektují běžná oprávnění:
 
 - musíte mít možnost upravit vazby dodavatele
 - a zároveň potřebujete `risks:write` nebo `controls:write` pro odpovídající create akci
+
+### 3a. Přiřazení dodavatelů přímo ve formuláři KRI
+
+Formulář KRI nyní podporuje přiřazení dodavatelů i mimo detail dodavatele:
+
+- formulář obsahuje multi-select sekci **Navázaní dodavatelé**
+- KRI dál patří přesně jednomu parent riziku
+- vazba na dodavatele je sekundární monitoring kontext a může obsahovat více dodavatelů
+- při otevření z detailu dodavatele je aktuální dodavatel automaticky zahrnutý do stejného uložení a výběr lze použít pro další dodavatele
+- neprivilegované editace KRI, které mění navázané dodavatele, podléhají schvalování jako součást běžného KRI edit requestu
 
 ### 4. Založení issue z kontextu dodavatele
 
@@ -176,9 +191,9 @@ Typické důvody:
 Samotná vendor stránka už neprovozuje samostatný schvalovací workflow. Je to záměrná produktová hranice.
 
 - create/edit dodavatele používá standardní vendor permission model
-- create-from-vendor pro rizika a kontroly používá běžné routed formuláře pro rizika a kontroly
-- pokud nově založené riziko nebo kontrola v dané doméně podléhá schválení, platí to dál v té doméně
-- detail dodavatele řeší jen návrat po create, pokus o auto-link, confirmation nebo warning banner a správu existujících vazeb na rizika, kontroly a KRI
+- create-from-vendor pro rizika, kontroly a KRI používá běžné routed formuláře
+- pokud nově založené riziko, kontrola nebo KRI v dané doméně podléhá schválení, platí to dál v té doméně
+- detail dodavatele řeší jen návrat po create, confirmation banner a správu existujících vazeb na rizika, kontroly a KRI
 
 Prakticky to znamená:
 
@@ -204,7 +219,7 @@ Exporty nyní obsahují pouze zachovaná základní vendor pole.
 
 - Používat vendor záznam jako workflow engine místo čistého registru.
 - Nechat prázdného ownera, oddělení nebo proces.
-- Zapomenout, že **Add Risk** a **Add Control** vás po vytvoření vrátí zpět na detail dodavatele.
+- Zapomenout, že **Add Risk**, **Add Control** a **Add KRI** vás po vytvoření vrátí zpět na detail dodavatele.
 - Nechat zastaralé risk/control vazby po změně vztahu.
 - Zakládat duplicity místo úpravy existujícího záznamu.
 
