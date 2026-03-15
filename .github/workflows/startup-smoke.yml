@@ -1,0 +1,57 @@
+name: Startup Smoke
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  docker-onboarding-smoke:
+    name: Docker Onboarding Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start canonical Docker onboarding stack
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-artifacts/startup-smoke
+          ./scripts/compose.sh up | tee .ci-artifacts/startup-smoke/compose-up.log
+
+      - name: Verify health and login surfaces
+        run: |
+          set -euo pipefail
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/health | tee .ci-artifacts/startup-smoke/health.json
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/auth/config | tee .ci-artifacts/startup-smoke/auth-config.json
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost/login -o .ci-artifacts/startup-smoke/login.html
+          grep -q 'id="root"' .ci-artifacts/startup-smoke/login.html
+
+      - name: Capture Docker diagnostics
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-artifacts/startup-smoke
+          docker compose -f docker-compose.yml ps -a > .ci-artifacts/startup-smoke/docker-ps.txt 2>&1 || true
+          for service in db redis bootstrap backend frontend; do
+            docker compose -f docker-compose.yml logs --no-color "$service" > ".ci-artifacts/startup-smoke/${service}.log" 2>&1 || true
+          done
+
+      - name: Tear down Docker onboarding stack
+        if: always()
+        run: |
+          set -euo pipefail
+          ./scripts/compose.sh down --volumes
+
+      - name: Upload startup smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: startup-smoke
+          path: .ci-artifacts/startup-smoke
+          retention-days: 30

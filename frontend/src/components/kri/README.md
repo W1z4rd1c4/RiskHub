@@ -13,8 +13,9 @@ UI components for `kri` area.
 
 ## Notes
 
-`KRIGaugeCard.tsx` renders the canonical backend-derived KRI
-`monitoring_status` (`new`, `not_submitted`, `breach`, `warning`, `optimal`)
-and should not recompute reporting-health rules locally.
+`KRIGaugeCard.tsx` renders backend-derived `monitoring_status`
+(`new`, `not_submitted`, `breach`, `warning`, `optimal`) and accepts
+any KRI-shaped view model that carries the display fields it needs.
+It should not recompute reporting-health rules locally.
 
 Keep this README updated when responsibilities or structure in this folder change.

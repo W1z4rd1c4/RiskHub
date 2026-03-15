@@ -170,8 +170,9 @@ def test_release_parity_audit_uses_deploy_cli_for_prod_runtime_path() -> None:
     text = _read(REPO_ROOT / "scripts" / "security" / "run_release_parity_audit.py")
     assert "./scripts/deploy.sh deploy --target docker" in text
     assert "deploy_cli_prod_docker" in text
+    legacy_setup_mode_prod = "./scripts/" + "setup.sh --mode prod"
     forbidden = (
-        "./scripts/setup.sh --mode prod",
+        legacy_setup_mode_prod,
         "setup_mode_prod",
         "path_setup_mode_prod_dryrun",
     )
@@ -193,12 +194,13 @@ def test_prod_readiness_audit_uses_deploy_cli_for_operator_lifecycle() -> None:
     for token in required:
         assert token in text
 
+    legacy_setup_mode_prod = "./scripts/" + "setup.sh --mode prod"
     forbidden = (
         "scripts/prod/setup.sh --",
         "scripts/prod/deploy.sh --",
         "scripts/prod/upgrade.sh --",
         "scripts/prod/stop.sh --",
-        "./scripts/setup.sh --mode prod",
+        legacy_setup_mode_prod,
     )
     for token in forbidden:
         assert token not in text

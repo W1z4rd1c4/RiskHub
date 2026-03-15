@@ -58,7 +58,6 @@ show_help() {
     echo "  This script auto-prefers Homebrew/NVM Node ${NODE_MAJOR_REQUIRED} when available."
     echo "  Override example:"
     echo "    AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh"
-    exit 0
 }
 
 sha256_of_file() {
@@ -298,9 +297,7 @@ print_schema_preflight_failure() {
     echo "  Fix:   cd backend && ./venv/bin/alembic upgrade head"
 }
 
-run_schema_preflight() {
-    echo -e "${YELLOW}Checking database schema revision...${NC}"
-
+collect_schema_preflight_json() {
     local backend_python="$PROJECT_ROOT/backend/venv/bin/python"
     if [ ! -x "$backend_python" ]; then
         echo -e "${RED}Backend virtualenv is missing or incomplete.${NC}"
@@ -350,6 +347,15 @@ PY
         exit 1
     fi
 
+    printf '%s' "$preflight_json"
+}
+
+run_schema_preflight() {
+    echo -e "${YELLOW}Checking database schema revision...${NC}"
+
+    local preflight_json
+    preflight_json="$(collect_schema_preflight_json)"
+
     local preflight_ok
     preflight_ok="$(printf '%s' "$preflight_json" | python3 -c 'import json, sys; print("true" if json.load(sys.stdin)["ok"] else "false")')"
     local current_revisions
@@ -365,6 +371,46 @@ PY
     fi
 
     echo -e "${GREEN}Schema revision matches application head${NC}"
+}
+
+bootstrap_local_database() {
+    echo -e "${YELLOW}Bootstrapping local database (migrations + base seed)...${NC}"
+    cd backend
+    # shellcheck disable=SC1091
+    source venv/bin/activate
+    alembic upgrade head
+    python -m app.db.seed
+    echo -e "${GREEN}Local database bootstrap complete!${NC}"
+    cd ..
+}
+
+ensure_local_schema_ready() {
+    local preflight_json
+    preflight_json="$(collect_schema_preflight_json)"
+
+    local preflight_ok
+    preflight_ok="$(printf '%s' "$preflight_json" | python3 -c 'import json, sys; print("true" if json.load(sys.stdin)["ok"] else "false")')"
+    if [ "$preflight_ok" = "true" ]; then
+        run_schema_preflight
+        return 0
+    fi
+
+    local current_revisions
+    current_revisions="$(printf '%s' "$preflight_json" | python3 -c 'import json, sys; values = json.load(sys.stdin)["current_revisions"]; print(", ".join(values))')"
+    local expected_heads
+    expected_heads="$(printf '%s' "$preflight_json" | python3 -c 'import json, sys; values = json.load(sys.stdin)["expected_heads"]; print(", ".join(values))')"
+    local error_message
+    error_message="$(printf '%s' "$preflight_json" | python3 -c 'import json, sys; value = json.load(sys.stdin)["error_message"]; print("" if value is None else value)')"
+
+    if printf '%s' "$error_message" | grep -Eq "alembic_version is empty or missing|while reading alembic_version"; then
+        echo -e "${YELLOW}Detected a brand-new local database; running first-run bootstrap.${NC}"
+        bootstrap_local_database
+        run_schema_preflight
+        return 0
+    fi
+
+    print_schema_preflight_failure "$current_revisions" "$expected_heads" "$error_message"
+    exit 1
 }
 
 backend_process_alive() {
@@ -511,11 +557,6 @@ print_log_hints() {
     echo "  Frontend: $FRONTEND_LOG_FILE"
 }
 
-forward_to_compose() {
-    echo -e "${YELLOW}Deprecated startup path. Use ./scripts/compose.sh instead.${NC}"
-    exec "$PROJECT_ROOT/scripts/compose.sh" "$@"
-}
-
 start_database() {
     echo -e "${YELLOW}Starting Docker infra for local development...${NC}"
     "$PROJECT_ROOT/scripts/compose.sh" up --profile db-only
@@ -591,7 +632,6 @@ EOF
 
 # Parse arguments
 MODE="full"  # Default: backend + frontend
-LAN_IP=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -599,25 +639,23 @@ while [[ $# -gt 0 ]]; do
             MODE="backend"
             shift
             ;;
-        --docker)
-            MODE="docker"
-            shift
-            ;;
         --daemon)
             DAEMON_MODE="true"
             shift
             ;;
-        --lan)
-            MODE="lan"
-            LAN_IP="$2"
-            shift 2
+        --docker|--lan)
+            echo -e "${RED}Unsupported option: $1${NC}"
+            echo "Use ./scripts/compose.sh for Docker-based startup."
+            exit 1
             ;;
         --help|-h)
             show_help
+            exit 0
             ;;
         *)
             echo -e "${RED}Unknown option: $1${NC}"
             show_help
+            exit 1
             ;;
     esac
 done
@@ -636,15 +674,11 @@ require_node_major_runtime
 print_header
 
 case $MODE in
-    "docker")
-        forward_to_compose up --profile full
-        ;;
-
     "full")
         export_local_dev_env_defaults
         start_database
         setup_backend_venv
-        run_schema_preflight
+        ensure_local_schema_ready
 
         cleanup_local_processes
         stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|Risk App 2)"
@@ -683,20 +717,11 @@ case $MODE in
         wait "$(cat "$BACKEND_PID_FILE")" "$(cat "$FRONTEND_PID_FILE")"
         ;;
 
-    "lan")
-        if [ -z "$LAN_IP" ]; then
-            echo -e "${RED}Error: --lan requires an IP address${NC}"
-            echo "Usage: ./scripts/dev.sh --lan 192.168.1.100"
-            exit 1
-        fi
-        forward_to_compose up --profile full --lan "$LAN_IP"
-        ;;
-
     "backend")
         export_local_dev_env_defaults
         start_database
         setup_backend_venv
-        run_schema_preflight
+        ensure_local_schema_ready
         cleanup_local_processes
         stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|Risk App 2)"
 

@@ -53,7 +53,7 @@ Canonical Source: `.planning/codebase/STRUCTURE.md`, `.planning/codebase/ARCHITE
 
 Root non-dot contract:
 - folders: `backend/`, `frontend/`, `docs/`, `scripts/`, `tests/`
-- files: `AGENTS.md`, `docker-compose.yml`
+- files: `AGENTS.md`, `README.md`, `docker-compose.yml`
 
 ## Source-of-Truth Order
 

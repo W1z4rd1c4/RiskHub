@@ -4,6 +4,7 @@ English-first master index for repository documentation topology.
 
 ## Root Entry Points
 
+- [`/Users/stefanlesnak/Antigravity/Risk App 2/README.md`](../README.md): Repository quick start and canonical startup commands.
 - [`/Users/stefanlesnak/Antigravity/Risk App 2/AGENTS.md`](../AGENTS.md): Agent behavior, source-of-truth order, execution protocol.
 - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/README.md`](./README.md): Product and engineering documentation index.
 - [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/README.md`](../.planning/README.md): Planning state, roadmap, codebase maps, and phase archive entry.
@@ -55,7 +56,7 @@ AGENTS.md
   - [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/codebase/STRUCTURE.md`](../.planning/codebase/STRUCTURE.md)
 - Historical planning archives:
   - [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/phases/README.md`](../.planning/phases/README.md)
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/reference/LEGACY_PATH_MAP.md`](./reference/LEGACY_PATH_MAP.md)
+  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/reference/LEGACY_PATH_MAP.md`](./reference/LEGACY_PATH_MAP.md) (historical path/archive reference)
 
 ## Canonical vs Archival Boundary
 

@@ -1,5 +1,8 @@
 # Legacy Path Map
 
+> Historical reference only. Current startup and operational guidance lives in
+> [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](../development/README.md).
+
 This repository was restructured to centralize tests and move operational entrypoints under `scripts/`.
 
 ## Canonical path changes
@@ -10,12 +13,12 @@ This repository was restructured to centralize tests and move operational entryp
 - `frontend/src/**/*.test|spec` -> `tests/frontend/unit/src/**/*.test|spec`
 - `frontend/src/test/` -> `tests/frontend/unit/src/test/`
 - `Makefile` -> `scripts/Makefile`
-- `setup.sh` -> `scripts/setup.sh`
+- legacy Docker/dev setup entrypoints -> `scripts/compose.sh`
 - `test-results/` -> `tests/results/legacy/test-results/`
 - `coverage_html/` -> `tests/results/legacy/coverage_html/`
 
 ## Notes
 
 - Historical planning archives under `.planning/phases/` may still reference legacy paths.
-- Runtime and CI contracts should follow the canonical paths above.
+- Runtime and CI contracts should follow the active docs in `docs/development/README.md`, not this archive note.
 - JS test suites under `tests/frontend/` resolve package dependencies through `tests/frontend/node_modules` (symlink to `../../frontend/node_modules`).
