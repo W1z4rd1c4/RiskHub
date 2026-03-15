@@ -9,7 +9,7 @@ Folder for `docs/reference` implementation assets.
 ## Contents
 
 - [`file_list.txt`](./file_list.txt)
-- [`LEGACY_PATH_MAP.md`](./LEGACY_PATH_MAP.md)
+- [`LEGACY_PATH_MAP.md`](./LEGACY_PATH_MAP.md) - historical path/archive reference only
 - [`README_COVERAGE_POLICY.md`](./README_COVERAGE_POLICY.md)
 - [`readme_coverage.md`](./readme_coverage.md)
 - [`documentation-topology-audit-2026-02-21.md`](./documentation-topology-audit-2026-02-21.md)

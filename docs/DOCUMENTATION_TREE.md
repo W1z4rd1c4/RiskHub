@@ -4,6 +4,7 @@ English-first master index for repository documentation topology.
 
 ## Root Entry Points
 
+- [`README.md`](../README.md): Repository quick start and canonical startup commands.
 - [`AGENTS.md`](../AGENTS.md): Agent behavior, source-of-truth order, execution protocol.
 - [`docs/README.md`](./README.md): Product and engineering documentation index.
 - [`.planning/README.md`](../.planning/README.md): Planning state, roadmap, codebase maps, and phase archive entry.
@@ -55,7 +56,7 @@ AGENTS.md
   - [`.planning/codebase/STRUCTURE.md`](../.planning/codebase/STRUCTURE.md)
 - Historical planning archives:
   - [`.planning/phases/README.md`](../.planning/phases/README.md)
-  - [`docs/reference/LEGACY_PATH_MAP.md`](./reference/LEGACY_PATH_MAP.md)
+  - [`docs/reference/LEGACY_PATH_MAP.md`](./reference/LEGACY_PATH_MAP.md) (historical path/archive reference)
 
 ## Canonical vs Archival Boundary
 

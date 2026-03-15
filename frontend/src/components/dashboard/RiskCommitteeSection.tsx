@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Building2, Clock, Star, Handshake } from 'lucide-react';
+import { Activity, AlertTriangle, Building2, Clock, Star, Handshake } from 'lucide-react';
 import { dashboardApi } from '@/services/dashboardApi';
 import { useTranslation } from '@/i18n/hooks';
 import { buildVendorDetailPath } from '@/pages/vendors/vendorDetailPresentation';

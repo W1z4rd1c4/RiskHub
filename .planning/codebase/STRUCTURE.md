@@ -22,7 +22,7 @@
 - `backend/app/api/v1/endpoints/` - 153 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
 - `backend/app/models/` - 26 model modules (measured `*.py` snapshot)
 - `backend/app/schemas/` - 23 schema modules (measured `*.py` snapshot)
-- `backend/app/services/` - 65 Python modules (measured `*.py` snapshot; business services + internal refactor packages; facade modules re-export public symbols)
+- `backend/app/services/` - 66 Python modules (measured `*.py` snapshot; business services + internal refactor packages; facade modules re-export public symbols)
 - `backend/app/core/` - configuration, auth, permissions, logging, scheduler
 - `backend/app/middleware/` - security/logging/language middleware
 - `backend/app/integrations/` - AD emulator and vendor-signal connectors
@@ -39,7 +39,7 @@
 
 ### Primary subdirectories
 - `frontend/src/pages/` - 78 tracked files (measured git-tracked snapshot; route-level pages + tests)
-- `frontend/src/components/` - 154 tracked files (measured git-tracked snapshot; components + tests)
+- `frontend/src/components/` - 156 tracked files (measured git-tracked snapshot; components + tests)
 - `frontend/src/services/` - API client and domain service wrappers
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks

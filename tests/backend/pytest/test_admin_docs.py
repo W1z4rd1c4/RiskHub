@@ -5,23 +5,43 @@ import pytest
 from httpx import AsyncClient
 
 
-def _read_frontmatter_strings(path: Path) -> dict[str, str]:
+def _read_frontmatter(path: Path) -> dict[str, str | list[str]]:
     content = path.read_text(encoding="utf-8")
     if not content.startswith("---\n"):
         return {}
 
     lines = content.splitlines()
-    metadata: dict[str, str] = {}
-    for line in lines[1:]:
+    metadata: dict[str, str | list[str]] = {}
+    index = 1
+    while index < len(lines):
+        line = lines[index]
         stripped = line.strip()
         if stripped == "---":
             break
         if not stripped or stripped.startswith("#") or ":" not in stripped:
+            index += 1
             continue
         key, raw_value = stripped.split(":", 1)
+        key = key.strip()
         value = raw_value.strip().strip('"').strip("'")
         if value:
-            metadata[key.strip()] = value
+            metadata[key] = value
+            index += 1
+            continue
+
+        items: list[str] = []
+        index += 1
+        while index < len(lines):
+            item_line = lines[index].strip()
+            if item_line == "---":
+                break
+            if not item_line.startswith("- "):
+                break
+            items.append(item_line[2:].strip().strip('"').strip("'"))
+            index += 1
+        metadata[key] = items
+        continue
+
     return metadata
 
 
@@ -46,6 +66,11 @@ async def test_admin_docs_endpoint_returns_admin_audience_only_for_platform_admi
     assert all(document.get("version") for document in documents)
     assert all(document.get("last_updated") for document in documents)
     assert all(document.get("source_of_truth") for document in documents)
+    incident_doc = next(document for document in documents if document["id"] == "admin_incident-quick-reference")
+    expected_tags = _read_frontmatter(
+        Path(__file__).resolve().parents[3] / "docs" / "admin" / "incident-quick-reference.md"
+    )["tags"]
+    assert incident_doc["tags"] == expected_tags
 
 
 @pytest.mark.asyncio
@@ -107,7 +132,7 @@ async def test_admin_docs_locale_file_level_fallback_for_missing_user_cs_vendors
     assert not missing_cs_vendors_doc.exists()
 
     english_vendors_doc = docs_copy / "user" / "vendors.md"
-    expected_metadata = _read_frontmatter_strings(english_vendors_doc)
+    expected_metadata = _read_frontmatter(english_vendors_doc)
 
     monkeypatch.setenv("RISKHUB_DOCS_BASE_DIR", str(docs_copy))
 
@@ -123,4 +148,4 @@ async def test_admin_docs_locale_file_level_fallback_for_missing_user_cs_vendors
     assert vendors_doc["last_updated"] == expected_metadata["last_updated"]
     assert vendors_doc["source_of_truth"] == expected_metadata["source_of_truth"]
     assert "Managing Vendors" in vendors_doc["content"]
-    assert "vendors" in vendors_doc["tags"] or "third-party" in vendors_doc["tags"]
+    assert vendors_doc["tags"] == expected_metadata["tags"]

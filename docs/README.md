@@ -8,6 +8,7 @@ This file is the primary documentation index for `docs/`.
 
 ## Primary Navigation
 
+- Repo quick start: [`README.md`](../README.md)
 - Master tree (English-first): [`docs/DOCUMENTATION_TREE.md`](./DOCUMENTATION_TREE.md)
 - Agent documentation index: [`docs/agent/README.md`](./agent/README.md)
 - Planning tree root: [`.planning/README.md`](../.planning/README.md)
