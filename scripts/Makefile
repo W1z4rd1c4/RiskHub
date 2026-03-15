@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev dev-full dev-full-lan docker docker-lan docker-reset stop clean test migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5 prod-readiness-audit-local release-parity-audit
+.PHONY: help dev dev-full docker docker-lan docker-reset stop clean test migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 prod-readiness-audit-local release-parity-audit
 
 # Default target
 help:
@@ -35,7 +35,7 @@ help:
 	@echo "  make shell        - Open shell in backend container"
 	@echo "  make clean        - Remove containers, volumes, and caches"
 	@echo "  make verify-prod-install-scripts - Validate Phase 500 prod scripts"
-	@echo "  make verify-startup-scripts - Validate compose/dev/setup startup scripts"
+	@echo "  make verify-startup-scripts - Validate supported dev startup scripts"
 	@echo "  make readme-coverage - Audit README coverage for all in-scope folders"
 	@echo "  make docs-tree-audit - Audit canonical docs-tree topology/link integrity"
 	@echo "  make docs-topology-consistency - Enforce canonical docs topology + structure metrics guard"
@@ -55,9 +55,6 @@ dev:
 
 dev-full:
 	./scripts/dev.sh
-
-dev-full-lan:
-	./scripts/compose.sh up --lan $(IP)
 
 docker:
 	./scripts/compose.sh up
@@ -167,10 +164,8 @@ verify-prod-install-scripts:
 	cd backend && venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py ../tests/backend/pytest/test_deploy_renderer_contracts.py ../tests/backend/pytest/test_deploy_cli_contracts.py ../tests/backend/pytest/test_settings_secret_files.py -q
 
 verify-startup-scripts:
-	bash -n scripts/compose.sh scripts/dev.sh scripts/setup.sh
-	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/compose.sh scripts/dev.sh scripts/setup.sh
-
-verify-setup-wizard: verify-startup-scripts
+	bash -n scripts/compose.sh scripts/dev.sh
+	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/compose.sh scripts/dev.sh
 
 readme-coverage:
 	python3 scripts/tools/readme_coverage.py audit

@@ -33,7 +33,6 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const {
         canArchive,
         canEdit,
-        canEditByOwnership,
         canRestore,
         closeIssueModal,
         error,

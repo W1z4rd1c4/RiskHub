@@ -8,6 +8,7 @@ This file is the primary documentation index for `docs/`.
 
 ## Primary Navigation
 
+- Repo quick start: [`/Users/stefanlesnak/Antigravity/Risk App 2/README.md`](../README.md)
 - Master tree (English-first): [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md`](./DOCUMENTATION_TREE.md)
 - Agent documentation index: [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/agent/README.md`](./agent/README.md)
 - Planning tree root: [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/README.md`](../.planning/README.md)

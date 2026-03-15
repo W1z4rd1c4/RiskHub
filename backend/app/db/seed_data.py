@@ -186,6 +186,7 @@ SAMPLE_CONTROLS = [
 SAMPLE_RISKS = [
     {
         "risk_id_code": "FIN-R01",
+        "name": "Cash Flow Liquidity Risk",
         "process": "Finance",
         "subprocess": "Cash Management",
         "risk_type": "operational",
@@ -204,6 +205,7 @@ SAMPLE_RISKS = [
     },
     {
         "risk_id_code": "IT-R01",
+        "name": "Critical System Access Risk",
         "process": "IT",
         "subprocess": "Access Control",
         "risk_type": "operational",
@@ -222,6 +224,7 @@ SAMPLE_RISKS = [
     },
     {
         "risk_id_code": "UW-R01",
+        "name": "Underpricing Exposure Risk",
         "process": "Underwriting",
         "subprocess": "Policy Issuance",
         "risk_type": "strategic",
@@ -240,6 +243,7 @@ SAMPLE_RISKS = [
     },
     {
         "risk_id_code": "COMP-R01",
+        "name": "Regulatory Compliance Breach Risk",
         "process": "Compliance",
         "subprocess": "Regulatory",
         "risk_type": "strategic",
@@ -258,6 +262,7 @@ SAMPLE_RISKS = [
     },
     {
         "risk_id_code": "FIN-R02",
+        "name": "Claims Reserve Adequacy Risk",
         "process": "Finance",
         "subprocess": "Reserving",
         "risk_type": "operational",
@@ -285,5 +290,4 @@ CONTROL_RISK_LINKS = [
     (4, 4, "high", "Reserve validation ensures adequacy"),
     (5, 0, "medium", "Invoice approval affects cash outflow"),
 ]
-
 

@@ -1,10 +1,16 @@
 import { motion } from 'framer-motion';
-import type { KeyRiskIndicator } from '@/types/kri';
+import type { KeyRiskIndicator, KRIMonitoringFields } from '@/types/kri';
 import { useTranslation } from '@/i18n/hooks';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 
+export type KRIGaugeCardKri = Pick<
+    KeyRiskIndicator,
+    'metric_name' | 'current_value' | 'lower_limit' | 'upper_limit' | 'unit'
+> &
+    KRIMonitoringFields;
+
 interface KRIGaugeCardProps {
-    kri: KeyRiskIndicator;
+    kri: KRIGaugeCardKri;
     onClick?: () => void;
     isOverdue?: boolean;
     daysOverdue?: number;

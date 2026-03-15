@@ -33,7 +33,7 @@ const makeDoc = (overrides: Partial<Record<string, unknown>> = {}) => ({
     source_of_truth: 'docs/BUSINESS_LOGIC.md',
     content: '# Getting Started with RiskHub\nAdmin onboarding guide.',
     audience: 'admin',
-    tags: ['onboarding', 'basics'],
+    tags: ['onboarding', 'overview'],
     ...overrides,
 });
 
@@ -45,7 +45,7 @@ const adminDocsPayload = {
             title: 'Admin Incident Quick Reference',
             summary: 'Use this first when something is broken.',
             content: '# Admin Incident Quick Reference\nUse this first when something is broken.',
-            tags: ['troubleshooting', 'incidents'],
+            tags: ['overview', 'troubleshooting'],
         }),
         makeDoc(),
         makeDoc({
@@ -54,7 +54,7 @@ const adminDocsPayload = {
             title: 'Reports & Exports',
             summary: 'Admin reporting guide.',
             content: '# Reports & Exports\nAdmin reporting guide.',
-            tags: ['reports', 'exports'],
+            tags: ['exports', 'workflow'],
         }),
         makeDoc({
             id: 'admin_user-management',
@@ -62,7 +62,7 @@ const adminDocsPayload = {
             title: 'User Management',
             summary: 'Admin users guide.',
             content: '# User Management\nAdmin users guide.',
-            tags: ['users', 'access'],
+            tags: ['access', 'workflow'],
         }),
     ],
 };
@@ -76,7 +76,7 @@ const userDocsPayload = {
             summary: 'User onboarding guide.',
             content: '# Getting Started with RiskHub\nUser onboarding guide.',
             audience: 'user',
-            tags: ['onboarding', 'basics'],
+            tags: ['onboarding', 'overview'],
         }),
     ],
 };
@@ -99,7 +99,7 @@ const linkedDocsPayload = {
             summary: 'Detailed access governance guide.',
             content: '# User Management\nThis is the user management manual.',
             audience: 'admin',
-            tags: ['users'],
+            tags: ['access'],
         }),
     ],
 };
@@ -179,7 +179,7 @@ describe('DocumentationSettings', () => {
         expect(screen.getByTestId('settings-docs-audience')).toHaveTextContent('Admin documentation');
         expect(screen.getByTestId('settings-doc-tag-admin_incident-quick-reference-troubleshooting')).toBeInTheDocument();
         expect(screen.getByTestId('settings-doc-tag-admin_getting-started-onboarding')).toBeInTheDocument();
-        expect(screen.getByTestId('settings-doc-tag-admin_reports-reports')).toBeInTheDocument();
+        expect(screen.getByTestId('settings-doc-tag-admin_reports-exports')).toBeInTheDocument();
     });
 
     it('filters visible documents by selected tag', async () => {
@@ -192,7 +192,7 @@ describe('DocumentationSettings', () => {
 
         await screen.findByTestId('settings-doc-card-admin_getting-started');
         const uiUser = userEvent.setup();
-        await uiUser.click(screen.getByTestId('settings-docs-filter-reports'));
+        await uiUser.click(screen.getByTestId('settings-docs-filter-exports'));
 
         expect(screen.getByTestId('settings-doc-card-admin_reports')).toBeInTheDocument();
         expect(screen.queryByTestId('settings-doc-card-admin_getting-started')).not.toBeInTheDocument();

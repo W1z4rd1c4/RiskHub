@@ -11,7 +11,9 @@ Usage rule:
 - Use skills when the task clearly matches a skill workflow.
 
 Operational note:
-- Repo skills can be installed globally using `scripts/setup-dev.sh`.
+- Repo skills are kept in the repository for local agent work.
+- User/global skills may also exist under `$CODEX_HOME/skills/`.
+- This repository does not provide or support a repo-managed skill installer.
 
 Verification date:
 - 2026-02-16

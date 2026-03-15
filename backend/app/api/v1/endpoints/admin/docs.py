@@ -13,23 +13,48 @@ from app.schemas.admin import DocumentationEntry, DocumentationResponse
 
 router = APIRouter()
 
-_DOC_TAGS_BY_STEM: dict[str, list[str]] = {
-    "incident-quick-reference": ["troubleshooting", "incidents"],
-    "getting-started": ["onboarding", "basics"],
-    "approvals": ["workflow", "approvals"],
-    "departments": ["departments", "organization"],
-    "reports": ["reports", "exports"],
-    "riskhub-config": ["configuration", "risk-hub"],
-    "user-management": ["users", "access"],
-    "controls": ["controls", "execution"],
-    "dashboard": ["dashboard", "reporting"],
-    "faq": ["faq", "support"],
-    "kris": ["kri", "metrics"],
-    "notifications": ["notifications", "workflow"],
-    "risks": ["risks", "assessment"],
-    "vendors": ["vendors", "third-party"],
-    "readme": ["overview"],
+_FALLBACK_TAG_ALIASES: dict[str, str] = {
+    "activity-log": "activity-log",
+    "approvals": "approvals",
+    "controls": "controls",
+    "departments": "departments",
+    "getting-started": "onboarding",
+    "incident-quick-reference": "troubleshooting",
+    "issues": "issues",
+    "kris": "kri",
+    "readme": "overview",
+    "reports": "exports",
+    "risk-hub": "riskhub",
+    "riskhub-config": "riskhub",
+    "risks": "risks",
+    "user-management": "access",
+    "users": "access",
+    "vendors": "vendors",
 }
+
+_SAFE_FALLBACK_TAGS = frozenset(
+    {
+        "overview",
+        "onboarding",
+        "workflow",
+        "approvals",
+        "notifications",
+        "exports",
+        "audit",
+        "troubleshooting",
+        "settings",
+        "risks",
+        "controls",
+        "kri",
+        "issues",
+        "vendors",
+        "departments",
+        "governance",
+        "access",
+        "riskhub",
+        "activity-log",
+    }
+)
 
 _DOCS_BASE_ENV = "RISKHUB_DOCS_BASE_DIR"
 
@@ -112,22 +137,30 @@ def _parse_frontmatter(content: str) -> tuple[dict[str, str | list[str]], str]:
     return metadata, body
 
 
-def _normalize_tags(stem: str, audience: str) -> list[str]:
-    """Return deterministic tags for document quick filters."""
-    mapped = _DOC_TAGS_BY_STEM.get(stem)
-    if mapped:
-        return mapped
+def _normalize_tag_value(raw_tag: str) -> str | None:
+    normalized = raw_tag.strip().lower().replace("_", "-")
+    if not normalized:
+        return None
+    alias = _FALLBACK_TAG_ALIASES.get(normalized, normalized)
+    if alias in _SAFE_FALLBACK_TAGS:
+        return alias
+    return None
 
-    parts = [segment for segment in re.split(r"[-_]+", stem) if segment and segment != "readme"]
-    if not parts:
-        parts = [audience]
-    return parts[:4]
+
+def _fallback_tags(stem: str) -> list[str]:
+    candidates: list[str] = []
+    for candidate in [stem, *re.split(r"[-_]+", stem)]:
+        normalized = _normalize_tag_value(candidate)
+        if normalized and normalized not in candidates:
+            candidates.append(normalized)
+    if candidates:
+        return candidates[:4]
+    return ["overview"]
 
 
 def _extract_tags_from_metadata(
     metadata: dict[str, str | list[str]],
     stem: str,
-    audience: str,
 ) -> list[str]:
     raw_tags = metadata.get("tags")
     if isinstance(raw_tags, list):
@@ -138,7 +171,7 @@ def _extract_tags_from_metadata(
         parts = [part.strip() for part in raw_tags.split(",") if part.strip()]
         if parts:
             return parts
-    return _normalize_tags(stem, audience)
+    return _fallback_tags(stem)
 
 
 def _extract_summary(content: str, metadata: dict[str, str | list[str]]) -> str | None:
@@ -228,7 +261,7 @@ async def get_documentation(
                 source_of_truth=_metadata_value(metadata, "source_of_truth"),
                 content=display_content,
                 audience=audience,
-                tags=_extract_tags_from_metadata(metadata, stem, audience),
+                tags=_extract_tags_from_metadata(metadata, stem),
             )
         )
 
