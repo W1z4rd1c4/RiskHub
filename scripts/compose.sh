@@ -180,10 +180,16 @@ smoke_check_or_die() {
     die "Backend health endpoint not reachable."
   fi
 
-  log "Smoke check: frontend"
-  if ! curl -fsS "http://localhost:80/" >/dev/null; then
+  log "Smoke check: auth config"
+  if ! curl -fsS "http://localhost:8000/api/v1/auth/config" >/dev/null; then
+    docker logs riskhub-backend --tail 200 || true
+    die "Auth config endpoint not reachable."
+  fi
+
+  log "Smoke check: login page"
+  if ! curl -fsS "http://localhost:80/login" >/dev/null; then
     docker logs riskhub-frontend --tail 200 || true
-    die "Frontend not reachable."
+    die "Login page not reachable."
   fi
 }
 

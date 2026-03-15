@@ -2,100 +2,67 @@
 
 ## Purpose
 
-Folder for `scripts` implementation assets.
+Operational and development automation for RiskHub.
 
-## Contents
+## Supported entrypoints
+
+- `./scripts/dev.sh`
+  - Canonical local contributor startup.
+  - Starts Docker-backed DB + Redis, performs local backend setup/schema preflight, and runs backend or backend+frontend locally.
+- `./scripts/compose.sh`
+  - Canonical Docker onboarding and packaged development startup.
+  - Supports `up`, `down`, `logs`, and deterministic `reset`.
+- `./scripts/deploy.sh`
+  - Canonical production deployment/admin CLI.
+- `make -f scripts/Makefile <target>`
+  - Convenience wrapper around the supported scripts above plus validation/test helpers.
+
+## Directory map
+
+- `deploy/`
+  - Shared library helpers used by `./scripts/deploy.sh`.
+- `prod/`
+  - Retained internal production runtime/install helpers behind the supported deploy CLI.
+- `security/`
+  - Security probes, parity audits, and resilience harnesses.
+- `tools/`
+  - Documentation topology, README coverage, and repository guard utilities.
+- `quality/`
+  - Quality-budget configuration and related support files.
+- `release/`
+  - Release packaging helpers.
+- `runtime-artifacts/`
+  - Generated/runtime-owned artifacts tracked by dedicated README guidance.
+
+## Notable standalone utilities
 
 - `check_docs_contract.py`
-- `compose.sh`
-- `dev.sh`
-- `fix_frontend_auth.py`
-- `install_agent_skills_global.sh`
-- `Makefile`
-- `prod/`
+  - Enforces documentation frontmatter and topology rules.
 - `run_playwright_with_watchdog.sh`
-- `runtime-artifacts/`
-- `security/`
-  - `compose_round5_point3_index.py`
-  - `protocol_contract_probe.py`
-  - `rbac_idor_write_sweep.py`
-  - `real_staging_replay.py`
-  - `run_protocol_contract_probe.sh`
-  - `run_real_staging_replay.sh`
-  - `state_machine_campaign.py`
-- `setup-dev.sh`
-- `setup.sh`
-- `tools/`
+  - Wraps Playwright execution with artifact/watchdog handling.
 - `verify_security_headers.py`
+  - Verifies expected security headers for deployed/frontend targets.
 
-## Notes
+## Startup notes
 
-Keep this README updated when responsibilities or structure in this folder change.
-
-Local development startup note:
-
-- `./scripts/dev.sh` is the canonical local startup entrypoint.
-- `./scripts/compose.sh` is the canonical Docker onboarding/appliance entrypoint.
-- In `full` and `backend` modes it runs a schema-head preflight before launching the backend.
-- If the local database is behind the Alembic head, the script exits early and prints the exact recovery command:
-  `cd backend && ./venv/bin/alembic upgrade head`
-- After backend launch it also performs an explicit readiness check and prints the backend log tail if lifespan startup fails.
-- `./scripts/setup.sh` is a deprecated forwarding shim for the old Docker dev/test setup flow.
-
-Production deployment note:
-
-- `./scripts/deploy.sh` is the only supported production admin CLI.
-- `scripts/prod/` contains retained internal Docker deploy helpers behind the supported deploy CLI.
-
-## Security Probe Command
-
-Run deterministic protocol/contract drift triage:
+- `./scripts/dev.sh` is local-only.
+- `./scripts/compose.sh` is the only supported Docker development entrypoint.
+- If the local database is behind the Alembic head, `./scripts/dev.sh` exits early and prints the recovery command:
 
 ```bash
+cd backend
+./venv/bin/alembic upgrade head
+```
+
+- Production deployment remains separate and must use `./scripts/deploy.sh`.
+
+## Common verification commands
+
+```bash
+make -f scripts/Makefile verify-startup-scripts
+make -f scripts/Makefile docs-topology-consistency
 make -f scripts/Makefile security-contract-probe
 ```
 
-Outputs are written under `tests/results/security/contract-drift-remediation-<timestamp>/protocol/`.
-
-## Round-5 Security Gap Commands
-
-```bash
-make -f scripts/Makefile security-redis-resilience
-make -f scripts/Makefile security-gap-round5
-```
-
-Real staging replay harness:
-
-```bash
-bash scripts/security/run_real_staging_replay.sh
-```
-
-Round-5 Point-3 consolidated findings index:
-
-```bash
-python3 scripts/security/compose_round5_point3_index.py
-```
-
-Default output:
-`tests/results/security/deep-gap-round5-point3-parity-20260221-230550/findings-round5-point3-parity.json`
-
-## Documentation Topology Audit
-
-```bash
-make -f scripts/Makefile docs-tree-audit
-python3 scripts/tools/docs_tree_audit.py --scope full
-```
-
-Outputs are written under:
-`tests/results/docs/docs-tree-audit-<timestamp>/`
-
-## Documentation Topology Consistency Gate
-
-```bash
-make -f scripts/Makefile docs-topology-consistency
-python3 scripts/tools/structure_metrics_guard.py
-python3 scripts/tools/docs_tree_audit.py --scope canonical --max-root-hops 3 --fail-on-unreachable
-```
-
-Outputs are written under:
-`tests/results/docs/structure-metrics-guard-<timestamp>/`
+Security probe outputs are written under `tests/results/security/`.
+Documentation audit outputs are written under `tests/results/docs/`.
