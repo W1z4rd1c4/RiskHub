@@ -15,6 +15,7 @@ AGENTS.md
 ├── docs/README.md
 │   ├── docs/DOCUMENTATION_TREE.md (this file)
 │   ├── docs/agent/README.md
+│   ├── docs/development/README.md
 │   ├── docs/security/README.md
 │   ├── docs/deployment/README.md
 │   ├── docs/reference/README.md
@@ -41,6 +42,8 @@ AGENTS.md
 - Security posture and audits:
   - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/security/README.md`](./security/README.md)
   - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/security/SECURITY.md`](./security/SECURITY.md)
+- Development startup and local workflows:
+  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](./development/README.md)
 - Deployment and operations:
   - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/deployment/README.md`](./deployment/README.md)
 - Agent governance and execution:

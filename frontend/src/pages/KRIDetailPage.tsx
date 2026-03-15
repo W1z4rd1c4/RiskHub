@@ -15,9 +15,12 @@ import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
+import { parseUpdateResult } from '@/lib/approvalUi';
+import { ApiClientError } from '@/services/apiClient';
 import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
 import type { Risk } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
+import type { KRIModalSaveResult } from '@/components/kri/KRIModal';
 
 type TabView = 'overview' | 'history';
 
@@ -25,6 +28,7 @@ export function KRIDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { t } = useTranslation('common');
+    const { t: tErrors } = useTranslation('errorKeys');
     const { t: tIssues } = useTranslation('issues');
     const [kri, setKri] = useState<KeyRiskIndicator | null>(null);
     const [linkedRisk, setLinkedRisk] = useState<Risk | null>(null);
@@ -41,6 +45,7 @@ export function KRIDetailPage() {
     const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<KRIHistoryEntry | null>(null);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [approvalBanner, setApprovalBanner] = useState<{ approvalId: number; message: string } | null>(null);
 
     // Permissions
     const { canRecordKRI, user } = usePermissions();
@@ -111,10 +116,37 @@ export function KRIDetailPage() {
         }
     };
 
-    const handleSave = async (data: Partial<KeyRiskIndicator>) => {
-        if (!kri) return;
-        await kriApi.updateKRI(kri.id, data);
-        await fetchKRI(kri.id);
+    const handleSave = async (data: Partial<KeyRiskIndicator>, vendorIds: number[]): Promise<KRIModalSaveResult> => {
+        if (!kri) {
+            throw new Error(tErrors('save_kri_failed'));
+        }
+        try {
+            const result = await kriApi.updateKRI(kri.id, {
+                ...data,
+                linked_vendor_ids: vendorIds,
+            });
+            const parsed = parseUpdateResult(result);
+            if (parsed.kind === 'approval') {
+                setApprovalBanner({
+                    approvalId: parsed.approvalId,
+                    message: parsed.message,
+                });
+                setIsEditModalOpen(false);
+                return parsed;
+            }
+
+            await fetchKRI(kri.id);
+            setIsEditModalOpen(false);
+            return { kind: 'updated' };
+        } catch (error) {
+            if (error instanceof ApiClientError) {
+                throw error;
+            }
+            if (error instanceof Error) {
+                throw error;
+            }
+            throw new Error(tErrors('save_kri_failed'));
+        }
     };
 
     const handleRecordSuccess = () => {
@@ -240,6 +272,33 @@ export function KRIDetailPage() {
                     </PermissionGate>
                 </div>
             </motion.div>
+
+            {approvalBanner ? (
+                <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100 flex items-start justify-between gap-4"
+                >
+                    <div>
+                        <p className="font-semibold">
+                            {tErrors('approval_submitted')} (ID: {approvalBanner.approvalId})
+                        </p>
+                        <p className="mt-1 text-amber-200/80">
+                            {approvalBanner.message}
+                        </p>
+                        <p className="mt-1 text-xs text-amber-200/60">
+                            {t('kris:detail.approval_banner_help')}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setApprovalBanner(null)}
+                        className="text-xs font-semibold text-amber-200 hover:text-white transition-colors"
+                    >
+                        {t('actions.close')}
+                    </button>
+                </motion.div>
+            ) : null}
 
             {/* Tabs */}
             <div className="flex items-center gap-2 border-b border-white/10 mb-6">

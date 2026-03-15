@@ -444,31 +444,24 @@ class ReleaseParityAudit:
                 "type": "runtime",
             },
             {
-                "id": "dev_sh_docker",
-                "entrypoint": "scripts/dev.sh",
-                "mode": "docker",
-                "command": "./scripts/dev.sh --docker",
+                "id": "compose_sh_up_full",
+                "entrypoint": "scripts/compose.sh",
+                "mode": "full",
+                "command": "./scripts/compose.sh up",
                 "type": "runtime",
             },
             {
-                "id": "dev_sh_lan",
-                "entrypoint": "scripts/dev.sh",
-                "mode": "lan",
-                "command": "./scripts/dev.sh --lan <ip>",
+                "id": "compose_sh_up_db_only",
+                "entrypoint": "scripts/compose.sh",
+                "mode": "db_only",
+                "command": "./scripts/compose.sh up --profile db-only",
                 "type": "runtime",
             },
             {
-                "id": "setup_mode_dev",
-                "entrypoint": "scripts/setup.sh",
-                "mode": "dev",
-                "command": "./scripts/setup.sh --mode dev --yes",
-                "type": "runtime",
-            },
-            {
-                "id": "setup_mode_test",
-                "entrypoint": "scripts/setup.sh",
+                "id": "compose_sh_reset_test",
+                "entrypoint": "scripts/compose.sh",
                 "mode": "test",
-                "command": "./scripts/setup.sh --mode test --yes -- --i-understand-will-wipe-dev-db",
+                "command": "./scripts/compose.sh reset --dataset test",
                 "type": "runtime",
             },
             {
@@ -967,14 +960,14 @@ class ReleaseParityAudit:
         self._stop_local_dev_processes()
 
         docker_containers = ["riskhub-db", "riskhub-redis", "riskhub-backend", "riskhub-frontend"]
-        dev_docker_result = self._run("path_dev_sh_docker", "./scripts/dev.sh --docker", timeout_sec=1800)
-        if dev_docker_result.rc == 0:
+        compose_up_result = self._run("path_compose_sh_up_full", "./scripts/compose.sh up", timeout_sec=2400)
+        if compose_up_result.rc == 0:
             backend_ready = self._wait_http("http://localhost:8000/api/v1/health", timeout_sec=90)
             frontend_ready = self._wait_http("http://localhost/", timeout_sec=90)
-            fp = self._capture_backend_fingerprint("dev_sh_docker", "http://localhost:8000")
-            shot_file = self.ui_dir / "dev_sh_docker_login.png"
+            fp = self._capture_backend_fingerprint("compose_sh_up_full", "http://localhost:8000")
+            shot_file = self.ui_dir / "compose_sh_up_full_login.png"
             ok, shot_hash, ui_state = self._capture_screenshot(
-                "path_dev_sh_docker_screenshot", "http://localhost/login", shot_file
+                "path_compose_sh_up_full_screenshot", "http://localhost/login", shot_file
             )
             fp["screenshot"] = str(shot_file) if ok else None
             fp["screenshot_sha256"] = shot_hash
@@ -983,56 +976,28 @@ class ReleaseParityAudit:
             fp["frontend_ready"] = frontend_ready
             fp["frontend_runtime_kind"] = "container_prod_build"
             fp["docker_state"] = self._docker_container_state(docker_containers)
-            fp["startup_path_id"] = "dev_sh_docker"
+            fp["startup_path_id"] = "compose_sh_up_full"
             self.runtime_fingerprints.append(fp)
         else:
             self.runtime_fingerprints.append(
                 self._launch_failure_fingerprint(
-                    "dev_sh_docker",
-                    "dev_sh_docker",
-                    dev_docker_result,
-                    docker_containers=docker_containers,
-                )
-            )
-
-        setup_dev_result = self._run("path_setup_mode_dev", "./scripts/setup.sh --mode dev --yes", timeout_sec=2400)
-        if setup_dev_result.rc == 0:
-            backend_ready = self._wait_http("http://localhost:8000/api/v1/health", timeout_sec=90)
-            frontend_ready = self._wait_http("http://localhost/", timeout_sec=90)
-            fp = self._capture_backend_fingerprint("setup_mode_dev", "http://localhost:8000")
-            shot_file = self.ui_dir / "setup_mode_dev_login.png"
-            ok, shot_hash, ui_state = self._capture_screenshot(
-                "path_setup_mode_dev_screenshot", "http://localhost/login", shot_file
-            )
-            fp["screenshot"] = str(shot_file) if ok else None
-            fp["screenshot_sha256"] = shot_hash
-            fp["ui_state"] = ui_state
-            fp["backend_ready"] = backend_ready
-            fp["frontend_ready"] = frontend_ready
-            fp["frontend_runtime_kind"] = "container_prod_build"
-            fp["docker_state"] = self._docker_container_state(docker_containers)
-            fp["startup_path_id"] = "setup_mode_dev"
-            self.runtime_fingerprints.append(fp)
-        else:
-            self.runtime_fingerprints.append(
-                self._launch_failure_fingerprint(
-                    "setup_mode_dev",
-                    "setup_mode_dev",
-                    setup_dev_result,
+                    "compose_sh_up_full",
+                    "compose_sh_up_full",
+                    compose_up_result,
                     docker_containers=docker_containers,
                 )
             )
 
         self._run(
-            "path_setup_mode_test_dryrun",
-            "./scripts/setup.sh --mode test --yes --dry-run -- --i-understand-will-wipe-dev-db --no-build",
+            "path_compose_sh_reset_test_dryrun",
+            "./scripts/compose.sh reset --dataset test --dry-run --no-build",
             required=False,
             timeout_sec=900,
         )
         self.runtime_fingerprints.append(
             {
-                "startup_path_id": "setup_mode_test",
-                "context_id": "setup_mode_test_dryrun",
+                "startup_path_id": "compose_sh_reset_test",
+                "context_id": "compose_sh_reset_test_dryrun",
                 "captured_at_utc": self._iso(self._utc_now()),
                 "git_sha_expected": self.baseline.get("git_sha"),
                 "git_sha_observed": self.baseline.get("git_sha"),
@@ -1237,7 +1202,7 @@ class ReleaseParityAudit:
         }
         coverage_notes = {
             "dev_sh_backend": "Covered functionally by backend_runtime_dev; direct blocking invocation omitted.",
-            "dev_sh_lan": "Requires explicit LAN IP and reachable LAN interface; captured as inventory-only in this run.",
+            "compose_sh_up_db_only": "Covered functionally by backend_db_runtime_dev; direct infra-only invocation omitted.",
         }
         for path in self.startup_paths:
             startup_id = path["id"]

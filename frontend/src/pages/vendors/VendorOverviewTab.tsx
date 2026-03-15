@@ -24,9 +24,11 @@ interface VendorOverviewSummary {
 
 interface VendorOverviewTabProps {
     canCreateControl: boolean;
+    canCreateKri: boolean;
     canCreateRisk: boolean;
     canEdit: boolean;
     onAddControl: () => void;
+    onAddKri: () => void;
     onAddRisk: () => void;
     onNavigateToControl: (controlId: number) => void;
     onNavigateToKri: (kriId: number) => void;
@@ -56,9 +58,11 @@ const item = {
 
 export function VendorOverviewTab({
     canCreateControl,
+    canCreateKri,
     canCreateRisk,
     canEdit,
     onAddControl,
+    onAddKri,
     onAddRisk,
     onNavigateToControl,
     onNavigateToKri,
@@ -289,11 +293,13 @@ export function VendorOverviewTab({
                 onNavigateToControl={onNavigateToControl}
             />
 
-            <VendorLinkedKRIsTab
-                vendorId={vendor.id}
-                canEdit={canEdit}
-                onNavigateToKri={onNavigateToKri}
-            />
+                <VendorLinkedKRIsTab
+                    vendorId={vendor.id}
+                    canCreateKri={canCreateKri}
+                    canEdit={canEdit}
+                    onAddKri={onAddKri}
+                    onNavigateToKri={onNavigateToKri}
+                />
 
             <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">
                 <div className="flex items-center gap-1">

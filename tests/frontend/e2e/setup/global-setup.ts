@@ -51,7 +51,8 @@ async function globalSetup(config: FullConfig): Promise<void> {
                 console.error(`   - ${fixture}`);
             }
         }
-        console.error('   Run backend seed first: cd backend && venv/bin/python -m scripts.seed_e2e_all');
+        console.error('   Run deterministic reset first: ./scripts/compose.sh reset --dataset test');
+        console.error('   Manual fallback: cd backend && venv/bin/python -m scripts.seed_e2e_all');
         throw new Error('Required deterministic E2E fixtures are missing.');
     }
     console.log(

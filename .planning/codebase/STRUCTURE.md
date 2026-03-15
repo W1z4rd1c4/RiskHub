@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-03-08
+**Analysis Date:** 2026-03-15
 
 ## Top-Level Layout
 
@@ -9,7 +9,7 @@
 - `docs/` - product/business/admin/user documentation
 - `tests/` - centralized backend/frontend test suites and test result artifacts
 - `.planning/` - roadmap, state, phase plans/summaries, codebase map docs
-- `scripts/` - operational/dev utilities (including canonical `scripts/dev.sh`)
+- `scripts/` - operational/dev utilities (including canonical `scripts/dev.sh` and `scripts/compose.sh`)
 
 ## Backend Tree (`backend/`)
 
@@ -19,17 +19,17 @@
 - `backend/app/db/session.py` - engine/sessionmaker lifecycle + `get_db` dependency (sessionmaker stored on `app.state`)
 
 ### Primary subdirectories
-- `backend/app/api/v1/endpoints/` - 175 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
-- `backend/app/models/` - 37 model modules (measured `*.py` snapshot)
-- `backend/app/schemas/` - 29 schema modules (measured `*.py` snapshot)
-- `backend/app/services/` - 72 Python modules (measured `*.py` snapshot; business services + internal refactor packages; facade modules re-export public symbols)
+- `backend/app/api/v1/endpoints/` - 153 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
+- `backend/app/models/` - 26 model modules (measured `*.py` snapshot)
+- `backend/app/schemas/` - 23 schema modules (measured `*.py` snapshot)
+- `backend/app/services/` - 65 Python modules (measured `*.py` snapshot; business services + internal refactor packages; facade modules re-export public symbols)
 - `backend/app/core/` - configuration, auth, permissions, logging, scheduler
 - `backend/app/middleware/` - security/logging/language middleware
 - `backend/app/integrations/` - AD emulator and vendor-signal connectors
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 137 tracked test files (134 Python) (measured git-tracked snapshot)
+- `tests/backend/pytest/` - 131 tracked test files (128 Python) (measured git-tracked snapshot)
 
 ## Frontend Tree (`frontend/`)
 
@@ -38,8 +38,8 @@
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 81 tracked files (measured git-tracked snapshot; route-level pages + tests)
-- `frontend/src/components/` - 162 tracked files (measured git-tracked snapshot; components + tests)
+- `frontend/src/pages/` - 78 tracked files (measured git-tracked snapshot; route-level pages + tests)
+- `frontend/src/components/` - 154 tracked files (measured git-tracked snapshot; components + tests)
 - `frontend/src/services/` - API client and domain service wrappers
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -47,7 +47,7 @@
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 42 E2E specs (measured git-tracked `*.spec.ts` snapshot; domain-focused test suites)
+- `tests/frontend/e2e/` - 41 E2E specs (measured git-tracked `*.spec.ts` snapshot; domain-focused test suites)
 
 ## Planning and Documentation Structure
 
@@ -56,6 +56,7 @@
 - `.planning/phases/` - detailed phase plans/summaries
 - `.planning/codebase/` - generated codebase reference docs
 - `docs/BUSINESS_LOGIC.md` - domain source of truth
+- `docs/development/README.md` - canonical development startup/runbook
 - `docs/TESTING.md` - testing guidance and workflows
 - `docs/deployment/` - deployment runbooks for supported docker/linux operations and migration guidance
 
@@ -63,8 +64,8 @@
 
 - `.github/workflows/e2e.yml` - CI E2E flow
 - `.github/workflows/security.yml` - security scanning flow
-- `docker-compose.yml` - development service topology
-- `scripts/Makefile` - local command entrypoints
+- `docker-compose.yml` - development service topology consumed by `scripts/compose.sh`
+- `scripts/Makefile` - convenience command aliases around `scripts/dev.sh` and `scripts/compose.sh`
 
 ## Generated or Heavy Directories (avoid manual edits)
 
@@ -76,4 +77,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-03-08*
+*Structure audit refreshed on 2026-03-15*

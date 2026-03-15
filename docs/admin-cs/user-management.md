@@ -1,10 +1,10 @@
 ---
 title: Runbook správy uživatelů a přístupů
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.1"
+last_updated: "2026-03-15"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
-summary: "Provozní runbook pro user lifecycle, role/scope governance, auditovatelné změny přístupů a incident-safe access zásahy."
+summary: "Operator-safe runbook pro přidání uživatele, access změny, deaktivaci účtu a řešení běžných access incidentů."
 tags:
   - access
   - workflow
@@ -17,247 +17,201 @@ tags:
 
 ## Přehled
 
-Tento runbook pokrývá identity lifecycle a governance přístupů pro platformní administrátory. Je psaný pro roli `admin` a soustředí se na **bezpečné, auditovatelné a reverzibilní** access operace.
+Použijte tento runbook pro bezpečnou, auditovatelnou a reverzibilní admin práci v `/users`.
 
 Primární plochy:
 
-- Access Management UI: `/users`
-- Admin Console Sessions (pro revoke): `/admin` → Sessions
+- `/users`
+- `/admin` -> **Sessions**
+- `/admin` -> **Audit logs**
 
-V RiskHubu je přístup kombinace:
-
-- **Role** (odpovědnost uživatele)
-- **Permissions** (`resource:action`)
-- **Access scope** (`global`, `department`, `manager`), který určuje defaultní viditelnost
-- **Oddělení a manager assignment** (routing a delegated visibility)
-
-Proto většina “access bugů” je ve skutečnosti:
+Většina access incidentů má jednu ze čtyř příčin:
 
 - špatná role
-- špatný scope
-- špatné oddělení/manager
-- stale session (změna proběhla, ale uživatel se znovu neautentizoval)
+- špatný access scope
+- špatné oddělení nebo manager assignment
+- stale session po změně
+
+Tento runbook má adminovi pomoci udělat přesnou změnu bez zbytečného rozšiřování přístupu. Pokud je potřeba dlouhé vysvětlování, improvizovaný workaround nebo business rozhodnutí, nejde už o standardní access operaci a správný další krok je evidence capture a handoff.
 
 ## Kdy to použít
 
 Použijte tento runbook, když potřebujete:
 
-- přidat nového uživatele (nebo aktivovat/deaktivovat existujícího)
-- změnit roli/oddělení/managera
-- upravit access scope (admin/CRO-only)
-- řešit access incident (nevidí modul, nejde edit, vidí moc)
-- udělat emergency containment (deaktivace + revoke sessions)
+- přidat nového uživatele
+- upravit profil nebo identity fields
+- změnit roli, scope, oddělení nebo manager assignment
+- deaktivovat nebo reaktivovat uživatele
+- řešit incident „nevidí modul“ nebo „vidí příliš mnoho dat“
 
-Nepoužívejte jej pro řešení business ownership sporů. Pokud ticket je ve skutečnosti „kdo má vlastnit riziko/kontrolu“, je to business rozhodnutí. Vaše role je držet přístupy konzistentní s rozhodnutou policy a dodat evidenci, když chování překvapuje. Admin má takové incidenty ověřovat přes `/users` a `/admin`, ne přes business `/governance` nebo `/activity-log`.
+Nepoužívejte tento runbook pro business ownership nebo policy rozhodnutí. Zachyťte fakta a předejte je dál.
 
 ## Předpoklady a bezpečnost
 
 Před změnou přístupu:
 
-1. Ověřte identitu (user id + email).
-2. Zachyťte kontext požadavku:
-   - jaká route nefunguje (např. `/vendors`)
-   - jaká akce padá (read vs write)
-   - kdy to začalo
-3. Určete blast radius:
-   - rozšíření scope na `global` mění viditelnost napříč organizací
-   - změna role může odemknout write akce
-   - změna oddělení může rozbít reporting a routing ownershipu
+1. Ověřte identitu uživatele.
+2. Zachyťte route, akci a čas začátku incidentu nebo požadavku.
+3. Zapište aktuální roli, scope, oddělení a manager hodnoty.
 
 Bezpečnostní pravidla:
 
-- Preferujte nejmenší změnu, která incident vyřeší.
-- Vyhněte se “dočasně global”, pokud nemáte explicitní souhlas; často to zůstane navždy.
-- Zapište si *původní* hodnoty (role, scope, oddělení, manager) pro okamžitý rollback.
-- Po deaktivaci kvůli containmentu zvažte i revoke sessions (viz postup).
+- udělejte nejmenší změnu, která incident řeší
+- nepoužívejte `global` scope jako zkratku
+- měňte jednu věc v jednom kroku
+- pokud je incident security-sensitive, buďte připraveni revokovat sessions
 
 ## Postup krok za krokem
 
-### A) Přidat nového uživatele
+### Standardní workflow access změny
+
+1. Otevřete `/users` a zkontrolujte aktuální access profil.
+2. Potvrďte požadovanou změnu a očekávaný výsledek.
+3. Proveďte nejmenší bezpečnou změnu.
+4. Obnovte stránku a ověřte nové hodnoty.
+5. Pokud se měnila role nebo scope, požádejte uživatele o re-auth.
+6. Potvrďte, že existuje audit trail.
+
+### Přidat uživatele
 
 1. Otevřete `/users`.
-2. Klikněte **Add user** a otevřete `/users/new`.
-3. Postupujte podle auth mode:
-   - `AUTH_MODE=microsoft_sso` nebo `AUTH_MODE=hybrid_dev`: použijte **Add from AD** na `/users/new`, importujte Entra uživatele a před jeho prvním přihlášením hned nastavte roli, oddělení a active status na `/users/{id}`.
-   - `AUTH_MODE=password`: vyplňte jméno, email, initial password, roli a případně oddělení, pak uživatele vytvořte.
+2. Vyberte **Add user**.
+3. Použijte create flow, který UI právě nabízí:
+   - import nebo external-identity flow
+   - direct-entry flow
+4. Před prvním použitím potvrďte roli, oddělení a active status.
+5. Uložte a ověřte, že se uživatel objeví v `/users`.
 
-Pokud je auth konfigurace dočasně nedostupná, `/users` stále zobrazí aktuální seznam uživatelů, ale akce **Add user** a **Add from AD** zůstanou vypnuté, dokud se konfigurace znovu nenačte. Berte to jako safe degraded mode, ověřte dostupnost auth service/config a potom stránku obnovte.
+Pokud create akce chybí nebo jsou vypnuté, zastavte se a použijte [Rychlou referenci admin incidentů](./incident-quick-reference.md). Neimprovizujte alternativní create postupy.
 
-Pokud **Add from AD** v local/dev ukazuje setup warning, nastavte Entra credentials (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`) nebo `AD_EMULATOR_BASE_URL`, pak obnovte stránku a zkuste to znovu.
-
-Ověření:
-
-- uživatel se objeví v `/users`
-- status je aktivní (pokud bylo zvoleno “active immediately”)
-
-Rollback:
-
-- pokud byl vytvořen špatně, deaktivujte účet a revokujte sessions (pokud existují)
-
-### B) Upravit profil uživatele (name/email/role/oddělení)
+### Upravit profil
 
 1. Z `/users` otevřete detail uživatele.
-2. Měňte jednu kategorii po druhé:
-   - identita (name/email) je nízké riziko, ale stále auditované
-   - role/oddělení je high-impact
+2. Měňte vždy jen jednu kategorii:
+   - identity fields
+   - role nebo oddělení
 3. Uložte.
+4. Po refreshi potvrďte nové hodnoty.
 
-Ověření:
+### Upravit access
 
-- nové hodnoty jsou vidět po refreshi
-- display name role odpovídá záměru
+1. V `/users` otevřete **Edit access**.
+2. Změňte jen pole, která jsou opravdu nutná:
+   - role
+   - oddělení
+   - manager
+   - scope
+3. Uložte.
+4. Po refreshi potvrďte hodnoty v řádku nebo detailu uživatele.
 
-Rollback:
+Změna scope na `global` je významná eskalace. Před uložením si zapište důvod.
 
-- vraťte původní roli/oddělení a uložte
+### Deaktivovat nebo reaktivovat uživatele
 
-### C) Upravit přístup přes Access Edit (role/oddělení/manager/scope)
+Použijte deaktivaci pro offboarding, containment nebo urgentní odebrání přístupu.
 
-Použijte Access Edit modal pro rychlé operace nad access atributy.
-
-1. V `/users` najděte uživatele.
-2. Otevřete **Edit access**.
-3. Udělejte minimální změny:
-   - role: vyberte cílovou roli
-   - oddělení: nastavte jen pokud má být uživatel scopingem omezen
-   - manager: nastavte pokud má mít manager-scoped delegated visibility
-   - scope: měňte jen pokud jste autorizovaný/á; `global` je významná eskalace
-4. Uložte.
-
-Ověření:
-
-- seznam ukazuje nové hodnoty
-- pokud se měnil scope, je vidět v user řádku (access mode)
-
-Rollback:
-
-- znovu otevřete Access Edit a vraťte původní hodnoty
-
-### D) Deaktivace / reaktivace uživatele (containment)
-
-Použijte deaktivaci, když:
-
-- je potřeba rychle odebrat přístup (security/odchod)
-- je podezření na kompromitované credentials
-- uživatel nemá operovat, dokud se nevyřeší policy spor
-
-Postup:
-
-1. V `/users` najděte uživatele.
-2. Spusťte deactivate a potvrďte dialog.
-3. Pokud je případ security-sensitive, revokujte sessions:
-   - otevřete `/admin` → Sessions
-   - vyhledejte sessions uživatele
-   - revokujte sessions
-
-Ověření:
-
-- status je deaktivovaný
-- sessions jsou revokované (pokud bylo provedeno)
-
-Rollback:
-
-- reaktivujte pouze s explicitním souhlasem a instruujte uživatele k re-login
+1. Najděte uživatele v `/users`.
+2. Deaktivujte nebo reaktivujte účet.
+3. Pokud je případ security-sensitive, otevřete `/admin` -> **Sessions** a revokujte aktivní sessions.
+4. Ověřte nový account status a případnou revokaci sessions.
 
 ## Ověření po změně
 
-Po každé změně ověřte:
+Po každé access změně potvrďte:
 
-- změna je vidět v `/users` po refreshi
-- uživatel se dokáže znovu autentizovat (po významné změně role/scope)
-- uživatel vidí přesně očekávané moduly (ani víc, ani méně)
-- auditovatelnost existuje (audit trail má jasnou stopu)
+- nové hodnoty zůstaly po refreshi
+- uživatel se po změně role nebo scope umí znovu autentizovat
+- uživatel nyní vidí přesně očekávané route
+- audit trail změnu zachytil
+- umíte bez hádání popsat current state i zamýšlený rollback
 
-Pokud outcome neumíte ověřit přímo, zachyťte:
-
-- co jste změnil/a (before/after)
-- jakou route má uživatel otestovat
-- jaké je očekávané success kritérium (1 věta)
+Když některý z těchto bodů neumíte potvrdit, berte změnu jako neuzavřenou. Nepřidávejte druhou změnu jen proto, abyste “to dorovnali”. Nejprve vraťte stav nebo eskalujte.
 
 ## Rollback
 
-Rollback má být okamžitý a mechanický:
+Rollback použijte tehdy, když se změna sice uložila správně, ale provozní výsledek je špatný.
 
-1. Vraťte last-known-good hodnoty (role, oddělení, manager, scope).
-2. Pokud proběhl containment:
-   - reaktivujte jen se souhlasem
-   - pokud je podezření na kompromitaci, řešte reset credentials přes IdP/SSO (mimo scope RiskHub UI)
-3. Zdokumentujte:
-   - co bylo vráceno
-   - proč
-   - jaké riziko zůstává
+1. Vraťte last-known-good roli, scope, oddělení a manager hodnoty.
+2. Pokud potřebujete hned vyčistit stale claims, revokujte sessions.
+3. Zdokumentujte, co jste vrátili a proč.
 
-Pokud rollback nejde bez hlubšího šetření, zastavte se a eskalujte.
+Pokud rollback neumíte popsat jednou větou předem, zastavte se a eskalujte.
 
 ## Troubleshooting
 
-### “Změnil/a jsem přístup, ale uživatel to pořád nevidí”
+### „Změnil/a jsem přístup, ale uživatel to pořád nevidí“
 
-Checks:
+Co to obvykle znamená:
 
-- byla změna uložena?
-- není session stale?
-- je modul permission-gated? (např. `vendors:read`, `issues:read`)
-- neomezuje scope viditelnost i při správném oprávnění?
+- stale session
+- špatný scope
+- špatné oddělení nebo manager assignment
 
-Akce:
+Co dělat:
 
-- požádejte uživatele o re-login
-- znovu zkontrolujte roli/scope v `/users`
-- pokud stále failuje, zachyťte error (403) a request ID a korelujte s logy
+1. Ověřte uložené hodnoty v `/users`.
+2. Požádejte uživatele o odhlášení a znovu přihlášení.
+3. Znovu zkontrolujte roli, scope, oddělení a manager assignment.
+4. Pokud route stále failuje, zachyťte přesný error a request ID a eskalujte.
 
-### “Uživatel vidí příliš mnoho dat”
+### „Uživatel vidí příliš mnoho dat“
 
-Checks:
+Co to obvykle znamená:
 
-- není scope `global`?
-- nemá uživatel neočekávaně privileged roli?
+- scope je příliš široký
+- role je privilegovanější, než má být
 
-Akce:
+Co dělat:
 
-- okamžitě vraťte roli/scope
-- pokud jde o security incident, revokujte sessions
-- předání: security nebo business owner podle severity
+1. Okamžitě vraťte last-known-good roli nebo scope.
+2. Pokud je expozice security-sensitive, revokujte sessions.
+3. Ověřte opravu a incident zdokumentujte.
 
-### “Vidím `/users`, ale nejde editovat access”
+### „Vidím `/users`, ale nejde editovat access“
 
-To se stane, když uživatel umí otevřít users page, ale není autorizovaný na mutace.
+Co to obvykle znamená:
 
-Akce:
+- session ve skutečnosti neběží jako `admin`
+- mutation path failuje nebo vrací forbidden
 
-- ověřte, že operujete jako `admin` (ne privileged non-admin)
-- ověřte, že mutace je pro vaši roli povolená
-- pokud by povolená být měla a je forbidden, eskalujte jako auth regres
+Co dělat:
 
-### “Otevřu `/users`, ale Add user / Add from AD chybí nebo jsou vypnuté”
+1. Udělejte jeden re-auth.
+2. Ověřte, že stále máte roli `admin`.
+3. Pokud mutace povolená být má a stále failuje, eskalujte jako authorization defect.
 
-Typicky to znamená, že stránka načetla user data, ale auth konfigurace je dočasně nedostupná nebo se nepodařilo ji načíst. Jde o safe degraded mode, ne o ztrátu dat a obvykle ani ne o RBAC bug.
+### „Add user / Add from AD je vypnuté“
 
-Akce:
+Co to obvykle znamená:
 
-- ověřte, že je auth service/config endpoint dostupný
-- po obnovení auth konfigurace proveďte refresh `/users`
-- pokud problém trvá i po obnově dostupnosti konfigurace, eskalujte to jako konfiguraci/auth regres
+- stránka načetla user list, ale create path je v safe degraded stavu
+
+Co dělat:
+
+1. Otevřete `/admin` a potvrďte Health stav.
+2. Jednou obnovte `/users`.
+3. Pokud create akce zůstávají vypnuté i po healthy refreshi, eskalujte jako admin-surface nebo auth/config incident.
 
 ## Eskalace a předání
 
-Eskalujte na engineering/security, když:
+Eskalujte, když:
 
-- authorization hranice jsou nekonzistentní (stejný user/route, jiné výsledky)
-- audit trail chybí nebo je nekompletní
-- session revoke selže během containmentu
+- access chování je nekonzistentní i po potvrzeném save a re-auth
+- audit trail chybí
+- revoke session selže
+- neumíte určit last-known-good access stav
 
 Balíček pro předání:
 
-- kdo byl dotčen (user id/email)
-- co se změnilo (before/after)
-- která route/akce failuje
-- timestampy + request IDs (pokud jsou)
+- dotčený uživatel
+- route a failing akce
+- before a after access hodnoty
+- timestamp a request IDs
 - co jste ověřil/a a co zůstává neznámé
 
 ## Související dokumentace
 
-- Admin baseline: [Admin onboarding](./getting-started.md)
-- Admin Console (sessions/logs/audit): [Admin Console](./console.md)
-- Workflow podpora: [Podpora schvalování](./approvals.md)
-- Evidence exporty: [Reporty a evidence exporty](./reports.md)
+- [Rychlá reference admin incidentů](./incident-quick-reference.md)
+- [Admin onboarding](./getting-started.md)
+- [Admin Console](./console.md)
+- [Reporty a evidence exporty](./reports.md)

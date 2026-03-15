@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev docker docker-all stop clean test migrate logs shell db-shell lint lint-frontend lint-backend quality-suppression-budget readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5 prod-readiness-audit-local release-parity-audit
+.PHONY: help dev dev-full dev-full-lan docker docker-lan docker-reset stop clean test migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts verify-setup-wizard security-contract-probe security-redis-resilience security-gap-round5 prod-readiness-audit-local release-parity-audit
 
 # Default target
 help:
@@ -11,13 +11,14 @@ help:
 	@echo "Run as: make -f scripts/Makefile <target>"
 	@echo ""
 	@echo "Development:"
-	@echo "  make dev          - Start DB container + local backend (recommended)"
-	@echo "  make dev-full     - Start DB + backend + frontend locally"
-	@echo "  make docker       - Start all services via Docker"
-	@echo "  make stop         - Stop all Docker containers"
+	@echo "  make dev          - Start local backend only via ./scripts/dev.sh --backend"
+	@echo "  make dev-full     - Start local backend + frontend via ./scripts/dev.sh"
+	@echo "  make docker       - Start Docker onboarding stack via ./scripts/compose.sh up"
+	@echo "  make docker-reset - Reset Docker stack with deterministic E2E data"
+	@echo "  make stop         - Stop Docker dev containers"
 	@echo ""
 	@echo "Database:"
-	@echo "  make db           - Start only the database container"
+	@echo "  make db           - Start only DB + Redis via ./scripts/compose.sh up --profile db-only"
 	@echo "  make migrate      - Run Alembic migrations"
 	@echo "  make db-shell     - Open psql shell in database"
 	@echo ""
@@ -34,7 +35,7 @@ help:
 	@echo "  make shell        - Open shell in backend container"
 	@echo "  make clean        - Remove containers, volumes, and caches"
 	@echo "  make verify-prod-install-scripts - Validate Phase 500 prod scripts"
-	@echo "  make verify-setup-wizard - Validate unified setup wizard scripts"
+	@echo "  make verify-startup-scripts - Validate compose/dev/setup startup scripts"
 	@echo "  make readme-coverage - Audit README coverage for all in-scope folders"
 	@echo "  make docs-tree-audit - Audit canonical docs-tree topology/link integrity"
 	@echo "  make docs-topology-consistency - Enforce canonical docs topology + structure metrics guard"
@@ -49,48 +50,33 @@ help:
 # Development
 # =============================================================================
 
-# Start DB + run backend locally (best for development)
-dev: db migrate
-	@echo "Starting backend locally..."
-	@echo "Database: postgresql://riskhub:riskhub_dev@localhost:5432/riskhub"
-	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+dev:
+	./scripts/dev.sh --backend
 
-# Start DB + backend + frontend all locally
-dev-full: db migrate
-	@echo "Starting backend in background..."
-	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
-	@echo "Starting frontend..."
-	cd frontend && npm run dev
+dev-full:
+	./scripts/dev.sh
 
-# Start DB + backend + frontend for LAN access (frontend binds 0.0.0.0)
-dev-full-lan: db migrate
-	@echo "Starting backend in background..."
-	cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
-	@echo "Starting frontend (LAN)..."
-	cd frontend && npm run dev -- --host
+dev-full-lan:
+	./scripts/compose.sh up --lan $(IP)
 
-# Start all services via Docker
 docker:
-	docker-compose up -d
+	./scripts/compose.sh up
 
-# Start for LAN access (usage: make docker-lan IP=192.168.1.100)
 docker-lan:
-	LAN_HOST=$(IP) docker-compose up -d
+	./scripts/compose.sh up --lan $(IP)
 
-# Stop all containers
+docker-reset:
+	./scripts/compose.sh reset --dataset test
+
 stop:
-	docker-compose down
+	./scripts/compose.sh down
 
 # =============================================================================
 # Database
 # =============================================================================
 
-# Start only database
 db:
-	docker-compose up -d db
-	@echo "Waiting for database to be ready..."
-	@sleep 3
-	@docker-compose exec db pg_isready -U riskhub || (echo "DB not ready, waiting..." && sleep 5)
+	./scripts/compose.sh up --profile db-only
 
 # Run migrations
 migrate:
@@ -98,7 +84,13 @@ migrate:
 
 # Open database shell
 db-shell:
-	docker-compose exec db psql -U riskhub -d riskhub
+	@if docker compose version >/dev/null 2>&1; then \
+		docker compose -f docker-compose.yml exec db psql -U riskhub -d riskhub; \
+	elif command -v docker-compose >/dev/null 2>&1; then \
+		docker-compose -f docker-compose.yml exec db psql -U riskhub -d riskhub; \
+	else \
+		echo "Docker Compose not found" >&2; exit 1; \
+	fi
 
 # =============================================================================
 # Testing
@@ -137,15 +129,21 @@ lint: lint-frontend lint-backend
 
 # Tail Docker logs
 logs:
-	docker-compose logs -f
+	./scripts/compose.sh logs
 
 # Backend container shell
 shell:
-	docker-compose exec backend /bin/bash
+	@if docker compose version >/dev/null 2>&1; then \
+		docker compose -f docker-compose.yml exec backend /bin/bash; \
+	elif command -v docker-compose >/dev/null 2>&1; then \
+		docker-compose -f docker-compose.yml exec backend /bin/bash; \
+	else \
+		echo "Docker Compose not found" >&2; exit 1; \
+	fi
 
 # Clean everything
 clean:
-	docker-compose down -v --remove-orphans
+	./scripts/compose.sh down --volumes
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name "node_modules" -exec rm -rf {} + 2>/dev/null || true
@@ -168,9 +166,11 @@ verify-prod-install-scripts:
 	docker run --rm riskhub-redis:verify-prod-install-scripts sh -lc 'test "$$(id -u)" != "0"'
 	cd backend && venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py ../tests/backend/pytest/test_deploy_renderer_contracts.py ../tests/backend/pytest/test_deploy_cli_contracts.py ../tests/backend/pytest/test_settings_secret_files.py -q
 
-verify-setup-wizard:
-	bash -n scripts/setup.sh scripts/dev_test_setup.sh
-	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/setup.sh scripts/dev_test_setup.sh
+verify-startup-scripts:
+	bash -n scripts/compose.sh scripts/dev.sh scripts/setup.sh
+	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/compose.sh scripts/dev.sh scripts/setup.sh
+
+verify-setup-wizard: verify-startup-scripts
 
 readme-coverage:
 	python3 scripts/tools/readme_coverage.py audit

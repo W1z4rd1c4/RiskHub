@@ -7,8 +7,8 @@ Folder for `scripts` implementation assets.
 ## Contents
 
 - `check_docs_contract.py`
+- `compose.sh`
 - `dev.sh`
-- `dev_test_setup.sh`
 - `fix_frontend_auth.py`
 - `install_agent_skills_global.sh`
 - `Makefile`
@@ -35,10 +35,12 @@ Keep this README updated when responsibilities or structure in this folder chang
 Local development startup note:
 
 - `./scripts/dev.sh` is the canonical local startup entrypoint.
+- `./scripts/compose.sh` is the canonical Docker onboarding/appliance entrypoint.
 - In `full` and `backend` modes it runs a schema-head preflight before launching the backend.
 - If the local database is behind the Alembic head, the script exits early and prints the exact recovery command:
   `cd backend && ./venv/bin/alembic upgrade head`
 - After backend launch it also performs an explicit readiness check and prints the backend log tail if lifespan startup fails.
+- `./scripts/setup.sh` is a deprecated forwarding shim for the old Docker dev/test setup flow.
 
 Production deployment note:
 

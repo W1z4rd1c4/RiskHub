@@ -29,8 +29,8 @@ Row schema:
 | rbac_business_logic_guardrails | `RBAC and Business Logic Guardrails` | `docs/BUSINESS_LOGIC.md`; `.planning/codebase/CONCERNS.md` | full | none | 2026-02-16 |
 | frontend_display_guardrails | `Frontend Display Guardrails` | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | none | 2026-02-16 |
 | security_production_guardrails | `Security and Production Guardrails` | `docs/deployment/security-checklist.md`; `docs/deployment/README.md` | full | none | 2026-02-20 |
-| quick_commands | `Quick Commands` | `scripts/dev.sh`; `scripts/Makefile` | full | none | 2026-03-07 |
-| demo_dev_auth_local | `Demo/Dev Auth (local)` | `scripts/dev.sh`; `.planning/codebase/INTEGRATIONS.md` | full | none | 2026-02-20 |
+| quick_commands | `Quick Commands` | `scripts/dev.sh`; `scripts/compose.sh`; `scripts/Makefile`; `docs/development/README.md` | full | none | 2026-03-15 |
+| demo_dev_auth_local | `Demo/Dev Auth (local)` | `scripts/dev.sh`; `docs/development/README.md`; `.planning/codebase/INTEGRATIONS.md` | full | none | 2026-03-15 |
 | repo_hygiene | `Repo Hygiene` | `.planning/codebase/STRUCTURE.md`; `docs/agent/CODEX_WORKING_RULES.md` | full | none | 2026-02-16 |
 | prompting_tooling_best_practices | `Prompting and Tooling Best Practices (OpenAI-Aligned)` | `docs/agent/CODEX_WORKING_RULES.md` | full | none | 2026-02-16 |
 | skills | `Skills` | `docs/agent/SKILLS_RESOLUTION.md` | full | none | 2026-02-16 |

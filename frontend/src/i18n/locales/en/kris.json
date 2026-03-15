@@ -100,6 +100,7 @@
   },
   "actions": {
     "link_risk": "Link Risk",
+    "add_kri": "Add KRI",
     "unarchive": "Unarchive",
     "export": "Export",
     "export_excel": "Export CSV"
@@ -132,6 +133,30 @@
       "all_categories": "All Categories",
       "reporting_owner_default": "Risk Owner (Default)",
       "correction_reason": "Explain why this correction is needed..."
+    }
+  },
+  "vendor_assignment": {
+    "label": "Linked Vendors",
+    "help": "Attach this KRI to one or more vendors in the same save transaction without changing its parent risk.",
+    "search_placeholder": "Search vendors...",
+    "empty": "No vendors found.",
+    "empty_search": "No vendors match the current search.",
+    "vendor_context_label": "Vendor context",
+    "vendor_context_active": "Vendor-selected KRI creation",
+    "vendor_context_help": "This KRI is being created from the vendor page and the current vendor will be included in the same save.",
+    "vendor_context_auto_linked": "The current vendor is included automatically in this save. Use the selector above for additional vendors.",
+    "vendor_risks_only": "Vendor risks",
+    "all_readable_risks": "All readable risks",
+    "risk_linked_to_vendor": "Risk already linked to vendor",
+    "risk_not_linked_to_vendor": "Risk not linked to vendor",
+    "no_vendor_risks_available": "This vendor does not currently have any readable linked risks.",
+    "no_vendor_risks": "No linked vendor risks match the current filters.",
+    "mismatch_dialog": {
+      "title": "Selected risk is not linked to this vendor",
+      "message": "You can link the risk to the vendor before creating the KRI, continue without linking the risk, or cancel and pick a different risk.",
+      "link_risk_and_continue": "Link risk and continue",
+      "continue_without_linking": "Continue without linking risk",
+      "cancel": "Cancel"
     }
   },
   "correction": {
@@ -175,6 +200,9 @@
     "last_updated": "Last Updated",
     "create_indicator": "Create indicator",
     "delete_confirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone."
+  },
+  "detail": {
+    "approval_banner_help": "The KRI and its vendor links stay unchanged until this approval is resolved."
   },
   "value_modal": {
     "title": "Record Value",

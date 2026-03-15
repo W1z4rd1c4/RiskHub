@@ -27,8 +27,8 @@ Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-do
 | RBAC and Business Logic Guardrails | `docs/BUSINESS_LOGIC.md`<br>`.planning/codebase/CONCERNS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Frontend Display Guardrails | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Security and Production Guardrails | `docs/deployment/security-checklist.md`<br>`docs/deployment/README.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Quick Commands | `scripts/dev.sh`<br>`scripts/Makefile` | full | RiskHub Maintainer | 2026-03-07 |
-| Demo/Dev Auth (local) | `scripts/dev.sh`<br>`.planning/codebase/INTEGRATIONS.md` | full | RiskHub Maintainer | 2026-02-22 |
+| Quick Commands | `scripts/dev.sh`<br>`scripts/compose.sh`<br>`scripts/Makefile`<br>`docs/development/README.md` | full | RiskHub Maintainer | 2026-03-15 |
+| Demo/Dev Auth (local) | `scripts/dev.sh`<br>`docs/development/README.md`<br>`.planning/codebase/INTEGRATIONS.md` | full | RiskHub Maintainer | 2026-03-15 |
 | Repo Hygiene | `.planning/codebase/STRUCTURE.md`<br>`docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Prompting and Tooling Best Practices (OpenAI-Aligned) | `docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Skills | `docs/agent/SKILLS_RESOLUTION.md` | full | RiskHub Maintainer | 2026-02-16 |
@@ -218,10 +218,14 @@ Canonical Source: `docs/deployment/security-checklist.md`, `docs/deployment/READ
 
 ## Quick Commands
 
-Canonical Source: `scripts/dev.sh`, `scripts/Makefile`
+Canonical Source: `scripts/dev.sh`, `scripts/compose.sh`, `scripts/Makefile`, `docs/development/README.md`
 
 - Canonical startup (new sessions): `./scripts/dev.sh --daemon`
 - Canonical startup (foreground): `./scripts/dev.sh`
+- Docker onboarding stack: `./scripts/compose.sh up`
+- Docker infra only: `./scripts/compose.sh up --profile db-only`
+- Deterministic Docker reset: `./scripts/compose.sh reset --dataset test`
+- Stop Docker dev stack: `./scripts/compose.sh down`
 - Stop canonical daemon sessions: `screen -S riskhub-backend -X quit && screen -S riskhub-frontend -X quit`
 - Dev backend only: `make -f scripts/Makefile dev`
 - Dev backend + frontend: `make -f scripts/Makefile dev-full`
@@ -233,11 +237,11 @@ Canonical Source: `scripts/dev.sh`, `scripts/Makefile`
 - Release parity fast loop: `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness`
 - Release parity full gate: `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>`
 
-For launch/runbook behavior, treat `scripts/dev.sh` as source of truth.
+For launch/runbook behavior, treat `scripts/dev.sh` and `scripts/compose.sh` as source of truth.
 
 ## Demo/Dev Auth (local)
 
-Canonical Source: `scripts/dev.sh`, `.planning/codebase/INTEGRATIONS.md`
+Canonical Source: `scripts/dev.sh`, `docs/development/README.md`, `.planning/codebase/INTEGRATIONS.md`
 
 Local dev is expected to run in **demo-friendly auth mode** (keeps Playwright E2E stable).
 
@@ -245,6 +249,7 @@ Local dev is expected to run in **demo-friendly auth mode** (keeps Playwright E2
   - `AUTH_MODE=hybrid_dev`
   - `DEBUG=true`
   - `MOCK_AUTH_ENABLED=true`
+- `./scripts/compose.sh up` keeps the same dev/demo auth posture for the Docker onboarding path and serves the login picker at `http://localhost/login`.
 - Local startup/runtime parity with CI and Docker requires Node major `24` (`.nvmrc` and `.node-version`).
 - This enables the demo login picker at `http://localhost:5173/login` via `POST /api/v1/auth/demo-login/{user_id}`.
 - Override example (no demo auth): `AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh`

@@ -1,10 +1,10 @@
 ---
 title: User and Access Governance Runbook
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.1"
+last_updated: "2026-03-15"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
-summary: "Operational runbook for user lifecycle, role/scope governance, auditable access edits, and incident-safe access changes."
+summary: "Operator-safe runbook for adding users, changing access, deactivating accounts, and troubleshooting common access incidents."
 tags:
   - access
   - workflow
@@ -17,300 +17,197 @@ tags:
 
 ## Overview
 
-This runbook covers identity lifecycle and access governance for platform administrators. It is written for the `admin` role and focuses on **safe, auditable, reversible** access operations.
+Use this runbook for safe, auditable, reversible admin work in `/users`.
 
 Primary surfaces:
 
-- Access Management UI: `/users`
-- Admin Console Sessions (for revocation): `/admin` → Sessions
+- `/users`
+- `/admin` -> **Sessions**
+- `/admin` -> **Audit logs**
 
-In RiskHub, user access is a combination of:
-
-- **Role** (what responsibilities a user can take)
-- **Permissions** (`resource:action` capabilities)
-- **Access scope** (`global`, `department`, `manager`) which shapes default visibility
-- **Department and manager assignment** (routing and delegated visibility)
-
-This means most “access bugs” are really one of:
+Most access incidents come from one of four causes:
 
 - wrong role
-- wrong scope
-- wrong department/manager assignment
-- stale session (changes made, but user did not re-authenticate)
+- wrong access scope
+- wrong department or manager assignment
+- stale session after a change
 
 ## When To Use This
 
 Use this runbook when you need to:
 
-- add a new user (or activate/deactivate an existing user)
-- change role/department/manager assignments
-- adjust access scope (admin/CRO-only capability)
-- resolve an access incident (user can’t see a module, can’t edit, sees too much)
-- perform an emergency containment action (disable account, revoke sessions)
+- add a new user
+- update profile or identity fields
+- edit role, scope, department, or manager assignment
+- deactivate or reactivate a user
+- resolve “cannot see module” or “sees too much data” incidents
 
-Do not use this runbook to “fix business ownership disputes”. If a ticket is really “who should own this risk/control”, that is a business decision. Your role is to keep access consistent with the decided policy and to provide evidence when behavior is surprising. Admins should validate those incidents through `/users` and `/admin`, not through business `/governance` or `/activity-log`.
+Do not use this runbook to decide business ownership or policy. Capture the facts and hand those questions off.
 
 ## Preconditions and Safety
 
-Before changing any access attribute:
+Before changing access:
 
-1. Confirm the identity you are changing (user id + email).
-2. Capture the request context:
-   - what route is failing (for example `/vendors`)
-   - what action fails (read vs write)
-   - when it started
-3. Identify the blast radius:
-   - expanding scope to `global` can change visibility across the entire org
-   - role changes can unlock write actions
-   - department changes can break reporting and ownership routing
+1. Confirm the identity you are changing.
+2. Capture the route, action, and start time of the incident or request.
+3. Record the current role, scope, department, and manager values.
 
 Safety rules:
 
-- Prefer the smallest change that resolves the incident.
-- Avoid “temporary global” unless you have explicit approval; it often becomes permanent.
-- Record the *previous* values (role, scope, department, manager) so rollback is immediate.
-- After deactivating a user for containment, consider session revocation as well (see procedure).
+- use the smallest change that resolves the issue
+- avoid temporary `global` scope as a shortcut
+- prefer one change at a time
+- if the incident is security-sensitive, be ready to revoke sessions after the change
 
 ## Step-by-Step Procedure
 
-### A) Add a new user
+### Standard access change workflow
 
-1. Go to `/users`.
-2. Click **Add user** and open `/users/new`.
-3. Follow the flow based on auth mode:
-   - `AUTH_MODE=microsoft_sso` or `AUTH_MODE=hybrid_dev`: use **Add from AD** on `/users/new`, import the Entra user, then immediately configure role/department/active status on `/users/{id}` before first login.
-   - `AUTH_MODE=password`: fill in full name, email, initial password, role, and department (if needed), then create the user.
+1. Open `/users` and review the current access profile.
+2. Confirm the requested change and expected outcome.
+3. Apply the smallest safe change.
+4. Refresh and verify the new values.
+5. Ask the user to re-authenticate if role or scope changed.
+6. Confirm the audit trail exists.
 
-If authentication mode/configuration is temporarily unavailable, `/users` still shows the current user list, but **Add user** and **Add from AD** actions remain unavailable until configuration loads again. Treat this as a safe degraded mode, verify the auth service/config is reachable, then refresh and retry.
+### Add a user
 
-If Add from AD shows a setup warning in local/dev, configure Entra credentials (`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, `ENTRA_CLIENT_SECRET`) or set `AD_EMULATOR_BASE_URL`, then reload and retry.
+1. Open `/users`.
+2. Select **Add user**.
+3. Use the creation flow currently available in the UI:
+   - import or external-identity flow
+   - direct-entry flow
+4. Before first use, confirm role, department, and active status.
+5. Save and verify the user appears in `/users`.
 
-Verification:
+If creation actions are missing or disabled, stop and use [Admin Incident Quick Reference](./incident-quick-reference.md). Do not improvise alternate admin-side creation steps.
 
-- The user appears in `/users`.
-- The user status shows as active (if “active immediately” was selected).
+### Update profile
 
-Rollback:
-
-- If created incorrectly, deactivate the user and revoke sessions (if any exist).
-
-### B) Update a user’s profile (name/email/role/department)
-
-1. From `/users`, open the user detail page.
+1. Open the user detail page from `/users`.
 2. Change one category at a time:
-   - identity fields (name/email) are low-risk but still audited
-   - role/department are high-impact
+   - identity fields
+   - role or department
 3. Save.
+4. Refresh and confirm the updated values are visible.
 
-Verification:
+### Edit access
 
-- The new values are visible on refresh.
-- The user’s role display name matches the intended selection.
+1. In `/users`, open **Edit access**.
+2. Update only the fields required:
+   - role
+   - department
+   - manager
+   - scope
+3. Save.
+4. Refresh and confirm the values in the user row or detail page.
 
-Rollback:
+Changing scope to `global` is a significant expansion. Record the reason before saving.
 
-- Restore prior role/department values and save.
+### Deactivate or reactivate a user
 
-### C) Update access via Access Edit (role/department/manager/scope)
+Use deactivation for offboarding, containment, or urgent access removal.
 
-Use the Access Edit modal when you need to manage access attributes quickly.
-
-1. In `/users`, locate the user.
-2. Open **Edit access**.
-3. Apply the minimal changes:
-   - role: select the target role
-   - department: set only if the user should be scoped by org unit
-   - manager: set if the user should inherit manager-scoped visibility
-   - scope: only adjust if you are authorized; changing to `global` is a significant expansion
-4. Save.
-
-Verification:
-
-- The list reflects the updated values.
-- If scope changed, confirm it is visible in the user row (access mode).
-
-Rollback:
-
-- Re-open Access Edit and restore the prior values you recorded.
-
-### D) Deactivate / Reactivate a user (account containment)
-
-Use deactivation when:
-
-- access must be removed quickly (security or termination)
-- a compromised credential is suspected
-- a user should not operate until a policy dispute is resolved
-
-Procedure:
-
-1. In `/users`, locate the user.
-2. Trigger deactivate and confirm in the dialog.
-3. If the case is security-sensitive, also revoke sessions:
-   - go to `/admin` → Sessions
-   - identify sessions for the user
-   - revoke sessions
-
-Verification:
-
-- User status indicates deactivated.
-- Sessions are revoked (if performed).
-
-Rollback:
-
-- Reactivate if the deactivation was accidental, then instruct the user to re-authenticate.
+1. Locate the user in `/users`.
+2. Deactivate or reactivate the account.
+3. If the case is security-sensitive, open `/admin` -> **Sessions** and revoke active sessions.
+4. Verify the new account status and, if applicable, session revocation.
 
 ## Verification Checklist
 
 After any access change, confirm:
 
-- the change is reflected in `/users` after refresh
-- the user can re-authenticate (if you changed role/scope significantly)
-- the user sees exactly the expected modules (no more, no less)
-- auditability exists (audit logs show a clear event trail)
-
-If you cannot verify user-facing outcomes directly, capture:
-
-- what you changed (before/after)
-- the route the user should test
-- the expected success criteria (one sentence)
+- the new values persist after refresh
+- the user can re-authenticate if role or scope changed
+- the user now sees exactly the intended routes
+- the audit trail reflects the change
+- you can describe the current state and the intended rollback without guessing
 
 ## Rollback Strategy
 
-Rollback should be immediate and mechanical:
+Use rollback when the change saved correctly but produced the wrong operating outcome.
 
-1. Revert to last known-good values (role, department, manager, scope).
-2. If containment actions were taken:
-   - reactivate only with explicit approval
-   - re-issue credentials if compromise is suspected (outside RiskHub scope if handled by SSO/IdP)
-3. Document:
-   - what was reverted
-   - why
-   - what risk remains
+1. Restore the last known good role, scope, department, and manager values.
+2. Revoke sessions if you need stale claims cleared immediately.
+3. Document what you reverted and why.
 
-If a rollback is not possible without deeper investigation, stop and escalate. Access changes are not the right place for improvisation.
+If you cannot describe the rollback in one sentence before acting, stop and escalate.
 
 ## Troubleshooting
 
-### “I changed access but the user still can’t see it”
+### “I changed access but the user still cannot see it”
 
-Checks:
+What it usually means:
 
-- was the change saved successfully?
-- is the user using a stale session?
-- is the missing module permission-gated? (for example `vendors:read`, `issues:read`)
-- is scope restricting visibility even with the permission?
+- stale session
+- wrong scope
+- wrong department or manager assignment
 
-Actions:
+What to do:
 
-- ask the user to log out and log back in
-- re-check role/scope in `/users`
-- if it still fails, capture the exact error (403/forbidden) and request ID and correlate with logs
+1. Confirm the saved values in `/users`.
+2. Ask the user to log out and log back in.
+3. Re-check role, scope, department, and manager assignment.
+4. If the route still fails, capture the exact error and request ID and escalate.
 
 ### “The user sees too much data”
 
-Checks:
+What it usually means:
 
-- was scope expanded to `global`?
-- is the user assigned a privileged role unexpectedly?
+- scope is too broad
+- role is more privileged than intended
 
-Actions:
+What to do:
 
-- revert scope/role to last known-good immediately
-- revoke sessions if the exposure was security-sensitive
-- hand off to security or business owner depending on severity
+1. Revert to the last known good role or scope immediately.
+2. Revoke sessions if the exposure is security-sensitive.
+3. Verify the correction and record the incident.
 
-### “I can view `/users` but can’t edit access”
+### “I can view `/users` but cannot edit access”
 
-This can happen when a user can view the users page but is not authorized to mutate access.
+What it usually means:
 
-Actions:
+- the session is not truly operating as `admin`
+- the mutation path is failing or forbidden
 
-- confirm you are operating as `admin` (not a privileged non-admin)
-- confirm the mutation is allowed for your role
-- if it should be allowed but is forbidden, escalate as an auth regression
+What to do:
 
-### “I can open `/users`, but Add user / Add from AD is missing or disabled”
+1. Re-authenticate once.
+2. Confirm you still have the `admin` role.
+3. If the mutation should be allowed and still fails, escalate as an authorization defect.
 
-This usually means the page could load user data, but auth configuration is temporarily unavailable or failed to load. It is a safe degraded mode, not a data-loss condition and not usually an RBAC bug.
+### “Add user / Add from AD is disabled”
 
-Actions:
+What it usually means:
 
-- verify the auth service/config endpoint is reachable
-- refresh `/users` after configuration recovers
-- if the problem persists after auth config is reachable again, escalate as a configuration/auth regression
+- the page loaded the user list, but the creation path is in a safe degraded state
+
+What to do:
+
+1. Open `/admin` and confirm the Health state.
+2. Refresh `/users` once.
+3. If creation actions are still disabled after a healthy refresh, escalate as an admin-surface or auth/config incident.
 
 ## Escalation and Handoff
 
-Escalate to engineering/security when:
+Escalate when:
 
-- authorization boundaries behave inconsistently (same user, same route, different outcomes)
-- audit trails are missing or incomplete
-- session revocation fails during containment
+- access behavior is inconsistent after a confirmed save and re-authentication
+- audit trails are missing
+- session revocation fails
+- you cannot identify the last known good access state
 
 Handoff package:
 
-- who was affected (user id/email)
-- what was changed (before/after)
-- what route/action is failing
-- timestamps + request IDs (if available)
+- affected user
+- route and failing action
+- before and after access values
+- timestamp and request IDs
 - what you verified and what remains unknown
 
 ## Related Documentation
 
-- Admin onboarding baseline: [Admin Onboarding](./getting-started.md)
-- Admin Console operations (sessions/logs/audit): [Admin Console](./console.md)
-- Workflow support patterns: [Approvals Support](./approvals.md)
-- Evidence exports: [Reports and Evidence Exports](./reports.md)
-
-Treat these operations as high risk:
-
-- role reassignment
-- scope expansion to global
-- department reassignment for active owners
-- manager-chain changes affecting delegated visibility
-
-## Standard Change Workflow
-
-1. Locate user and review current access profile.
-2. Confirm requested change source and approval context.
-3. Apply minimal change.
-4. Verify effective permissions after save.
-5. Check audit log entry and timestamp.
-
-## Deactivation Procedure
-
-Before deactivation:
-
-- identify owned entities and pending workflow items
-- ensure ownership handoff is complete
-- confirm no orphaned governance responsibilities remain
-
-Then deactivate and verify no unintended access artifacts remain.
-
-## Safe Rollback Strategy
-
-If a change causes scope/permission regression:
-
-- revert to last known-good role/scope immediately
-- capture incident context
-- run impact review for affected entities and approvals
-
-## Troubleshooting
-
-### User reports missing data after role change
-
-Check scope first, then department assignment, then ownership exceptions.
-
-### User can access too much data
-
-Likely scope escalation or role drift. Reconcile effective permissions against policy.
-
-### Access change not reflected immediately
-
-Confirm save completed, then re-authenticate to refresh session-bound claims.
-
-## Related Documentation
-
-- `./departments.md`
-- `./approvals.md`
-- `./reports.md`
+- [Admin Incident Quick Reference](./incident-quick-reference.md)
+- [Admin Onboarding](./getting-started.md)
+- [Admin Console](./console.md)
+- [Reports and Evidence Exports](./reports.md)

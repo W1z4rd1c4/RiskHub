@@ -13,6 +13,11 @@ from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.kri import KRIResponse, KRIUpdate
 from app.schemas.vendor_shared import LinkedVendorRead
+from app.services.kri_vendor_assignment import (
+    assign_vendors_to_kri,
+    normalize_vendor_ids,
+    validate_assignable_vendors,
+)
 
 router = APIRouter()
 
@@ -35,7 +40,7 @@ async def update_kri(
         select(KeyRiskIndicator)
         .join(Risk)
         .where(KeyRiskIndicator.id == kri_id)
-        .options(joinedload(KeyRiskIndicator.risk))
+        .options(joinedload(KeyRiskIndicator.risk), selectinload(KeyRiskIndicator.vendor_links))
     )
     kri = result.scalar_one_or_none()
 
@@ -50,6 +55,20 @@ async def update_kri(
         raise HTTPException(status_code=409, detail="Cannot update archived KRI")
 
     update_data = data.model_dump(exclude_unset=True)
+    requested_vendor_ids = update_data.pop("linked_vendor_ids", None)
+    normalized_vendor_ids = (
+        normalize_vendor_ids(requested_vendor_ids)
+        if requested_vendor_ids is not None
+        else None
+    )
+    current_vendor_ids = sorted(link.vendor_id for link in getattr(kri, "vendor_links", []) or [])
+
+    if normalized_vendor_ids is not None:
+        await validate_assignable_vendors(
+            db,
+            current_user=current_user,
+            vendor_ids=normalized_vendor_ids,
+        )
 
     # Reject current_value updates via PUT - must use POST /kris/{id}/values
     if "current_value" in update_data:
@@ -91,6 +110,11 @@ async def update_kri(
             raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
 
         pending_changes = {k: {"old": getattr(kri, k, None), "new": v} for k, v in update_data.items()}
+        if normalized_vendor_ids is not None and normalized_vendor_ids != current_vendor_ids:
+            pending_changes["linked_vendor_ids"] = {
+                "old": current_vendor_ids,
+                "new": normalized_vendor_ids,
+            }
         name_snippet = kri.metric_name[:50] if kri.metric_name else f"KRI-{kri.id}"
 
         approval = ApprovalRequest(
@@ -125,41 +149,37 @@ async def update_kri(
             },
         )
 
-    value_update = update_data.pop("current_value", None)
     extra_changes = {}
-    if value_update is not None:
-        extra_changes["current_value"] = {"old": kri.current_value, "new": value_update}
+    if normalized_vendor_ids is not None and normalized_vendor_ids != current_vendor_ids:
+        extra_changes["linked_vendor_ids"] = {"old": current_vendor_ids, "new": normalized_vendor_ids}
     changes = build_change_set(kri, update_data, extra_changes=extra_changes)
 
-    for field, value in update_data.items():
-        setattr(kri, field, value)
+    try:
+        for field, value in update_data.items():
+            setattr(kri, field, value)
 
-    if value_update is not None:
-        from app.services.kri_history_service import KRIHistoryService
-
-        try:
-            await KRIHistoryService.record_value(
-                db=db,
+        if normalized_vendor_ids is not None:
+            await assign_vendors_to_kri(
+                db,
                 kri=kri,
-                value=value_update,
-                recorded_by_id=current_user.id,
-                is_privileged=can_resolve_approvals(current_user),
+                linked_vendor_ids=normalized_vendor_ids,
             )
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
 
-    # Log activity within the same transaction
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.KRI,
-        entity_id=kri.id,
-        entity_name=f"{kri.metric_name}",
-        action=ActivityAction.UPDATE,
-        actor=current_user,
-        department_id=kri.risk.department_id,
-        changes=changes,
-    )
-    await db.commit()
+        # Log activity within the same transaction
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.KRI,
+            entity_id=kri.id,
+            entity_name=f"{kri.metric_name}",
+            action=ActivityAction.UPDATE,
+            actor=current_user,
+            department_id=kri.risk.department_id,
+            changes=changes,
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     await db.refresh(kri)
 
     result = await db.execute(

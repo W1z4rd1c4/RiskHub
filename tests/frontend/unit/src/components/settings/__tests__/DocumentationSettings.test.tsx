@@ -39,6 +39,14 @@ const makeDoc = (overrides: Partial<Record<string, unknown>> = {}) => ({
 
 const adminDocsPayload = {
     documents: [
+        makeDoc({
+            id: 'admin_incident-quick-reference',
+            slug: 'incident-quick-reference',
+            title: 'Admin Incident Quick Reference',
+            summary: 'Use this first when something is broken.',
+            content: '# Admin Incident Quick Reference\nUse this first when something is broken.',
+            tags: ['troubleshooting', 'incidents'],
+        }),
         makeDoc(),
         makeDoc({
             id: 'admin_reports',
@@ -166,8 +174,10 @@ describe('DocumentationSettings', () => {
 
         renderDocumentationSettings();
 
+        await screen.findByTestId('settings-doc-card-admin_incident-quick-reference');
         await screen.findByTestId('settings-doc-card-admin_getting-started');
         expect(screen.getByTestId('settings-docs-audience')).toHaveTextContent('Admin documentation');
+        expect(screen.getByTestId('settings-doc-tag-admin_incident-quick-reference-troubleshooting')).toBeInTheDocument();
         expect(screen.getByTestId('settings-doc-tag-admin_getting-started-onboarding')).toBeInTheDocument();
         expect(screen.getByTestId('settings-doc-tag-admin_reports-reports')).toBeInTheDocument();
     });

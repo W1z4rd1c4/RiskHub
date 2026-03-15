@@ -35,6 +35,8 @@ class KRIBase(BaseModel):
 class KRICreate(KRIBase):
     """Schema for creating a KRI."""
     risk_id: int
+    linked_vendor_ids: list[int] = Field(default_factory=list)
+    ensure_parent_risk_vendor_ids: list[int] = Field(default_factory=list)
 
 
 class KRIUpdate(BaseModel):
@@ -47,6 +49,7 @@ class KRIUpdate(BaseModel):
     unit: Optional[str] = Field(None, max_length=50)
     frequency: Optional[KRIFrequencyEnum] = None
     reporting_owner_id: Optional[int] = None
+    linked_vendor_ids: Optional[list[int]] = None
 
 
 class KRIMonitoringBundle(BaseModel):

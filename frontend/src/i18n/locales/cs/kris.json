@@ -100,6 +100,7 @@
   },
   "actions": {
     "link_risk": "Propojit riziko",
+    "add_kri": "Přidat KRI",
     "unarchive": "Obnovit z archivu",
     "export": "Export",
     "export_excel": "Exportovat CSV"
@@ -132,6 +133,30 @@
       "all_categories": "Všechny kategorie",
       "reporting_owner_default": "Vlastník rizika (výchozí)",
       "correction_reason": "Vysvětlete, proč je tato oprava potřebná..."
+    }
+  },
+  "vendor_assignment": {
+    "label": "Navázaní dodavatelé",
+    "help": "Připojte toto KRI k jednomu nebo více dodavatelům ve stejné transakci uložení bez změny jeho nadřazeného rizika.",
+    "search_placeholder": "Hledat dodavatele...",
+    "empty": "Nebyli nalezeni žádní dodavatelé.",
+    "empty_search": "Aktuálnímu hledání neodpovídají žádní dodavatelé.",
+    "vendor_context_label": "Kontext dodavatele",
+    "vendor_context_active": "Vytvoření KRI z detailu dodavatele",
+    "vendor_context_help": "Toto KRI se vytváří z detailu dodavatele a aktuální dodavatel bude zahrnutý do stejného uložení.",
+    "vendor_context_auto_linked": "Aktuální dodavatel je do tohoto uložení zahrnutý automaticky. Výběr výše použijte pro další dodavatele.",
+    "vendor_risks_only": "Rizika dodavatele",
+    "all_readable_risks": "Všechna dostupná rizika",
+    "risk_linked_to_vendor": "Riziko už je navázáno na dodavatele",
+    "risk_not_linked_to_vendor": "Riziko není navázáno na dodavatele",
+    "no_vendor_risks_available": "Tento dodavatel aktuálně nemá žádná čitelná navázaná rizika.",
+    "no_vendor_risks": "Žádná navázaná vendor rizika neodpovídají aktuálním filtrům.",
+    "mismatch_dialog": {
+      "title": "Vybrané riziko není navázáno na tohoto dodavatele",
+      "message": "Před vytvořením KRI můžete riziko navázat na dodavatele, pokračovat bez propojení rizika, nebo akci zrušit a vybrat jiné riziko.",
+      "link_risk_and_continue": "Navázat riziko a pokračovat",
+      "continue_without_linking": "Pokračovat bez navázání rizika",
+      "cancel": "Zrušit"
     }
   },
   "correction": {
@@ -175,6 +200,9 @@
     "last_updated": "Naposledy aktualizováno",
     "create_indicator": "Vytvořit indikátor",
     "delete_confirm": "Opravdu chcete smazat \"{{name}}\"? Tuto akci nelze vrátit zpět."
+  },
+  "detail": {
+    "approval_banner_help": "Dokud se schválení nevyřeší, zůstane KRI i jeho vazby na dodavatele beze změny."
   },
   "value_modal": {
     "title": "Zaznamenat hodnotu",

@@ -7,8 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core import activity_logger
-from app.models import ApprovalRequest, KeyRiskIndicator, User
+from app.models import ApprovalRequest, KeyRiskIndicator, User, VendorKRILink
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services.kri_vendor_assignment import assign_vendors_to_kri, ensure_vendors_exist, normalize_vendor_ids
 
 from .constants import EDITABLE_FIELDS
 
@@ -33,7 +34,7 @@ async def _apply_edit_kri(
 
     result = await db.execute(
         select(KeyRiskIndicator)
-        .options(selectinload(KeyRiskIndicator.risk))
+        .options(selectinload(KeyRiskIndicator.risk), selectinload(KeyRiskIndicator.vendor_links).selectinload(VendorKRILink.vendor))
         .where(KeyRiskIndicator.id == approval.resource_id)
     )
     kri = result.scalar_one_or_none()
@@ -218,17 +219,41 @@ async def _apply_kri_generic_edit(
     allowed_fields = EDITABLE_FIELDS.get("kri", set())
     applied_changes: dict = {}
     rejected_fields: list[str] = []
+    current_vendor_ids = sorted(link.vendor_id for link in getattr(kri, "vendor_links", []) or [])
+    legacy_field_aliases = {
+        "measurement_unit": "unit",
+        "reporting_frequency": "frequency",
+    }
 
     # Apply non-value field changes with whitelist enforcement
     for field, vals in changes.items():
-        if field == "current_value":
+        mapped_field = legacy_field_aliases.get(field, field)
+        if mapped_field == "current_value":
             continue  # Handled separately by KRIHistoryService
-        if field not in allowed_fields:
+        if mapped_field == "linked_vendor_ids":
+            requested_vendor_ids = normalize_vendor_ids((vals or {}).get("new"))
+            await ensure_vendors_exist(db, requested_vendor_ids)
+            await assign_vendors_to_kri(
+                db,
+                kri=kri,
+                linked_vendor_ids=requested_vendor_ids,
+            )
+            if requested_vendor_ids != current_vendor_ids:
+                applied_changes["linked_vendor_ids"] = {
+                    "old": current_vendor_ids,
+                    "new": requested_vendor_ids,
+                }
+            current_vendor_ids = requested_vendor_ids
+            continue
+        if mapped_field not in allowed_fields:
             rejected_fields.append(field)
             continue
-        if hasattr(kri, field):
-            setattr(kri, field, vals.get("new"))
-            applied_changes[field] = vals
+        if hasattr(kri, mapped_field):
+            setattr(kri, mapped_field, vals.get("new"))
+            applied_changes[mapped_field] = {
+                "old": vals.get("old"),
+                "new": vals.get("new"),
+            }
 
     # Log rejected fields (security audit, no values logged)
     if rejected_fields:
