@@ -36,10 +36,9 @@ EDITABLE_FIELDS = {
         "upper_limit",
         "lower_limit",
         "current_value",
-        "target_value",
         "reporting_owner_id",
-        "measurement_unit",
-        "reporting_frequency",
+        "unit",
+        "frequency",
+        "linked_vendor_ids",
     },
 }
-

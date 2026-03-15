@@ -13,6 +13,10 @@ from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.kri import KRICreate, KRIResponse
 from app.schemas.vendor_shared import LinkedVendorRead
+from app.services.kri_vendor_assignment import (
+    assign_vendors_to_kri,
+    validate_assignable_vendors,
+)
 
 from .list import router
 
@@ -24,6 +28,9 @@ async def create_kri(
     current_user: User = Depends(require_permission("risks", "write")),
 ):
     """Create a new KRI. Requires risks:write permission."""
+    linked_vendor_ids = data.linked_vendor_ids
+    ensure_parent_risk_vendor_ids = data.ensure_parent_risk_vendor_ids
+
     # Verify risk exists
     risk_result = await db.execute(select(Risk).where(Risk.id == data.risk_id))
     risk = risk_result.scalar_one_or_none()
@@ -37,21 +44,40 @@ async def create_kri(
     if data.lower_limit >= data.upper_limit:
         raise HTTPException(status_code=400, detail="lower_limit must be less than upper_limit")
 
-    kri = KeyRiskIndicator(**data.model_dump())
-    db.add(kri)
-    await db.flush()
-
-    # Log activity within the same transaction
-    await log_activity(
+    await validate_assignable_vendors(
         db,
-        entity_type=ActivityEntityType.KRI,
-        entity_id=kri.id,
-        entity_name=f"{kri.metric_name}",
-        action=ActivityAction.CREATE,
-        actor=current_user,
-        department_id=risk.department_id,
+        current_user=current_user,
+        vendor_ids=[*linked_vendor_ids, *ensure_parent_risk_vendor_ids],
     )
-    await db.commit()
+
+    try:
+        kri = KeyRiskIndicator(
+            **data.model_dump(exclude={"linked_vendor_ids", "ensure_parent_risk_vendor_ids"})
+        )
+        db.add(kri)
+        await db.flush()
+
+        await assign_vendors_to_kri(
+            db,
+            kri=kri,
+            linked_vendor_ids=linked_vendor_ids,
+            ensure_parent_risk_vendor_ids=ensure_parent_risk_vendor_ids,
+        )
+
+        # Log activity within the same transaction
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.KRI,
+            entity_id=kri.id,
+            entity_name=f"{kri.metric_name}",
+            action=ActivityAction.CREATE,
+            actor=current_user,
+            department_id=risk.department_id,
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     await db.refresh(kri)
 
     result = await db.execute(

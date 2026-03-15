@@ -67,6 +67,8 @@ export interface KRICreate {
     unit?: string;
     frequency?: KRIFrequency;
     reporting_owner_id?: number;
+    linked_vendor_ids?: number[];
+    ensure_parent_risk_vendor_ids?: number[];
 }
 
 export interface KRIUpdate {
@@ -78,6 +80,7 @@ export interface KRIUpdate {
     unit?: string;
     frequency?: KRIFrequency;
     reporting_owner_id?: number;
+    linked_vendor_ids?: number[];
 }
 
 export interface KRIListResponse {

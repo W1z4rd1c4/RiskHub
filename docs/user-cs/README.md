@@ -93,8 +93,8 @@ Tato tabulka mapuje položky v menu na kanonický manuál.
 | Kontroly | `/controls` | [Správa kontrol](./controls.md) | Návrh kontroly, ownership, evidence exekuce, grouped `By Vendor` review a export | `controls`, `workflow`, `exports` |
 | Rizika | `/risks` | [Správa rizik](./risks.md) | Hygiena registru, scoring, ownership, vazby a grouped `By Vendor` review | `risks`, `workflow`, `approvals` |
 | Nálezy (pokud jsou zapnuté) | `/issues` | [Správa nálezů](./issues.md) | Remediace, vazby na rizika/kontroly/dodavatele, disciplína uzavírání a grouped `By Vendor` review | `issues`, `workflow`, `exports` |
-| KRI | `/kris` | [Správa KRI](./kris.md) | Limity, zápis hodnot, breach signály, vendor linkage a grouped `By Vendor` review | `kri`, `notifications`, `exports` |
-| Dodavatelé (pokud jsou zapnutí) | `/vendors` | [Správa dodavatelů](./vendors.md) | Základní registr dodavatelů, grupování `By Flag`, navázaná rizika/kontroly/KRI, create-from-vendor workflow pro rizika a kontroly a exporty | `vendors`, `workflow`, `exports` |
+| KRI | `/kris` | [Správa KRI](./kris.md) | Limity, zápis hodnot, přiřazení dodavatelů, breach signály, vendor linkage a grouped `By Vendor` review | `kri`, `notifications`, `exports` |
+| Dodavatelé (pokud jsou zapnutí) | `/vendors` | [Správa dodavatelů](./vendors.md) | Základní registr dodavatelů, grupování `By Flag`, navázaná rizika/kontroly/KRI, create-from-vendor workflow pro rizika, kontroly a KRI a exporty | `vendors`, `workflow`, `exports` |
 | Oddělení | `/departments` | [Oddělení](./departments.md) | Expozice podle org jednotek, drill-down a odpovědnosti | `departments`, `workflow`, `exports` |
 | Governance (jen CRO, ne-admin) | `/governance` | [Governance](./governance.md) | Orphans, ownership mezery a jejich řešení | `governance`, `audit`, `troubleshooting` |
 | Activity Log (permission-gated, ne-admin) | `/activity-log` | [Activity Log](./activity-log.md) | „Kdo změnil co“, časová osa, auditní evidence | `activity-log`, `audit`, `exports` |

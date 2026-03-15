@@ -3,10 +3,8 @@
 # Usage: ./scripts/dev.sh [options]
 #
 # Options:
-#   --docker      Run everything via Docker
 #   --backend     Run only DB + backend (no frontend)
 #   --daemon      Run backend/frontend detached with log + pid files
-#   --lan IP      Configure for LAN access with given IP
 #   --help        Show this help message
 
 set -e
@@ -31,15 +29,6 @@ DAEMON_MODE="false"
 USE_SCREEN_DAEMON="false"
 NODE_MAJOR_REQUIRED="24"
 
-if command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker-compose)
-elif docker compose version >/dev/null 2>&1; then
-    COMPOSE_CMD=(docker compose)
-else
-    echo -e "${RED}Neither docker-compose nor docker compose is available.${NC}"
-    exit 1
-fi
-
 print_header() {
     echo -e "${GREEN}======================================${NC}"
     echo -e "${GREEN} RiskHub Development Environment${NC}"
@@ -53,17 +42,15 @@ show_help() {
     echo "Options:"
     echo "  (no args)   Start DB + backend + frontend locally (default)"
     echo "  --backend   Run only DB + backend (no frontend)"
-    echo "  --docker    Run everything via Docker Compose"
     echo "  --daemon    Start local backend/frontend in detached mode"
-    echo "  --lan IP    Configure for LAN access (e.g., --lan 192.168.1.100)"
     echo "  --help      Show this help message"
     echo ""
     echo "Examples:"
     echo "  ./scripts/dev.sh              # Default: full local dev"
     echo "  ./scripts/dev.sh --backend    # Backend only (no frontend)"
     echo "  ./scripts/dev.sh --daemon     # Detached local dev with PID files"
-    echo "  ./scripts/dev.sh --docker     # All services in Docker"
-    echo "  ./scripts/dev.sh --lan 192.168.1.100  # LAN accessible"
+    echo "  ./scripts/compose.sh up       # Canonical Docker onboarding path"
+    echo "  ./scripts/compose.sh reset --dataset test  # Deterministic Docker reset"
     echo ""
     echo "Demo/dev auth defaults:"
     echo "  Local modes default to AUTH_MODE=hybrid_dev with MOCK_AUTH_ENABLED=true (demo login picker)."
@@ -135,9 +122,9 @@ configure_required_node_runtime() {
     fi
 
     local nvm_candidate
-    nvm_candidate="$(ls -d "$HOME"/.nvm/versions/node/v24*/bin 2>/dev/null | head -n 1 || true)"
+    nvm_candidate="$(find "$HOME/.nvm/versions/node" -maxdepth 2 -type d -name 'v24*' 2>/dev/null | sort | head -n 1 || true)"
     if [ -n "$nvm_candidate" ]; then
-        candidate_dirs+=("$nvm_candidate")
+        candidate_dirs+=("$nvm_candidate/bin")
     fi
 
     local candidate_dir
@@ -174,29 +161,6 @@ require_node_major_runtime() {
         echo "Optional override: NODE24_BIN=/path/to/node24/bin ./scripts/dev.sh"
         exit 1
     fi
-}
-
-wait_for_docker() {
-    if docker info >/dev/null 2>&1; then
-        return 0
-    fi
-
-    if [ "$(uname -s)" = "Darwin" ] && command -v open >/dev/null 2>&1; then
-        echo -e "${YELLOW}Docker daemon is not ready. Launching Docker Desktop...${NC}"
-        open -a Docker || true
-    fi
-
-    echo "Waiting for Docker daemon..."
-    for i in {1..90}; do
-        if docker info >/dev/null 2>&1; then
-            echo -e "${GREEN}Docker daemon is ready!${NC}"
-            return 0
-        fi
-        sleep 2
-    done
-
-    echo -e "${RED}Docker daemon is unavailable. Start Docker and retry.${NC}"
-    exit 1
 }
 
 wait_for_port() {
@@ -466,6 +430,7 @@ start_backend_local() {
         echo "screen:$BACKEND_SCREEN_SESSION" >"$BACKEND_PID_FILE"
     else
         cd backend
+        # shellcheck disable=SC1091
         source venv/bin/activate
         nohup uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 >"$BACKEND_LOG_FILE" 2>&1 &
         echo "$!" >"$BACKEND_PID_FILE"
@@ -546,27 +511,21 @@ print_log_hints() {
     echo "  Frontend: $FRONTEND_LOG_FILE"
 }
 
+forward_to_compose() {
+    echo -e "${YELLOW}Deprecated startup path. Use ./scripts/compose.sh instead.${NC}"
+    exec "$PROJECT_ROOT/scripts/compose.sh" "$@"
+}
+
 start_database() {
-    wait_for_docker
-    echo -e "${YELLOW}Starting PostgreSQL database...${NC}"
-    "${COMPOSE_CMD[@]}" up -d db
-    
-    echo "Waiting for database to be ready..."
-    for i in {1..30}; do
-        if "${COMPOSE_CMD[@]}" exec -T db pg_isready -U riskhub > /dev/null 2>&1; then
-            echo -e "${GREEN}Database is ready!${NC}"
-            return 0
-        fi
-        sleep 1
-    done
-    echo -e "${RED}Database failed to start${NC}"
-    exit 1
+    echo -e "${YELLOW}Starting Docker infra for local development...${NC}"
+    "$PROJECT_ROOT/scripts/compose.sh" up --profile db-only
 }
 
 run_migrations() {
     echo -e "${YELLOW}Running database migrations...${NC}"
     cd backend
     if [ -f "alembic.ini" ]; then
+        # shellcheck disable=SC1091
         source venv/bin/activate
         alembic upgrade head
         echo -e "${GREEN}Migrations complete!${NC}"
@@ -587,6 +546,7 @@ setup_backend_venv() {
     fi
     
     # Activate and install/update dependencies
+    # shellcheck disable=SC1091
     source venv/bin/activate
 
     # Invalidate legacy marker-only dependency cache in favor of hash-based state tracking.
@@ -677,33 +637,26 @@ print_header
 
 case $MODE in
     "docker")
-        wait_for_docker
-        echo -e "${YELLOW}Starting all services via Docker...${NC}"
-        "${COMPOSE_CMD[@]}" up -d
-        echo ""
-        echo -e "${GREEN}Services started!${NC}"
-        echo "  Frontend: http://localhost:80"
-        echo "  Backend:  http://localhost:8000"
-        echo "  Database: localhost:5432"
+        forward_to_compose up --profile full
         ;;
-    
-		    "full")
-		        export_local_dev_env_defaults
-		        start_database
-		        setup_backend_venv
-		        run_schema_preflight
 
-		        cleanup_local_processes
-		        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|Risk App 2)"
-		        stop_known_dev_listeners_on_port 5173 "Frontend" "(vite|npm run dev|node .*vite)"
-		        start_backend_local
-		        if ! wait_for_backend_ready 90; then
-	            exit 1
-	        fi
-		        start_frontend_local
-	        if ! wait_for_port 5173 "Frontend" 90; then
-	            tail -n 100 "$FRONTEND_LOG_FILE" 2>/dev/null || true
-	            exit 1
+    "full")
+        export_local_dev_env_defaults
+        start_database
+        setup_backend_venv
+        run_schema_preflight
+
+        cleanup_local_processes
+        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|Risk App 2)"
+        stop_known_dev_listeners_on_port 5173 "Frontend" "(vite|npm run dev|node .*vite)"
+        start_backend_local
+        if ! wait_for_backend_ready 90; then
+            exit 1
+        fi
+        start_frontend_local
+        if ! wait_for_port 5173 "Frontend" 90; then
+            tail -n 100 "$FRONTEND_LOG_FILE" 2>/dev/null || true
+            exit 1
         fi
 
         print_local_urls
@@ -729,41 +682,32 @@ case $MODE in
         trap "cleanup_local_processes; exit" INT TERM
         wait "$(cat "$BACKEND_PID_FILE")" "$(cat "$FRONTEND_PID_FILE")"
         ;;
-    
+
     "lan")
         if [ -z "$LAN_IP" ]; then
             echo -e "${RED}Error: --lan requires an IP address${NC}"
             echo "Usage: ./scripts/dev.sh --lan 192.168.1.100"
             exit 1
         fi
-        
-        echo -e "${YELLOW}Starting for LAN access on $LAN_IP...${NC}"
-        wait_for_docker
-        LAN_HOST="$LAN_IP" "${COMPOSE_CMD[@]}" up -d
-        
-        echo ""
-        echo -e "${GREEN}Services started for LAN access!${NC}"
-        echo "  Frontend: http://$LAN_IP:80"
-        echo "  Backend:  http://$LAN_IP:8000"
-        echo "  Database: $LAN_IP:5432"
+        forward_to_compose up --profile full --lan "$LAN_IP"
         ;;
-    
-		    "backend")
-		        # Backend only mode
-		        export_local_dev_env_defaults
-		        start_database
-		        setup_backend_venv
-		        run_schema_preflight
-		        cleanup_local_processes
-		        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|Risk App 2)"
-	        
-	        echo ""
-	        echo -e "${YELLOW}Starting backend locally...${NC}"
-	        echo "  Database: postgresql://riskhub:riskhub_dev@localhost:5432/riskhub"
+
+    "backend")
+        export_local_dev_env_defaults
+        start_database
+        setup_backend_venv
+        run_schema_preflight
+        cleanup_local_processes
+        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|Risk App 2)"
+
+        echo ""
+        echo -e "${YELLOW}Starting backend locally...${NC}"
+        echo "  Database: postgresql://riskhub:riskhub_dev@localhost:5432/riskhub"
         echo "  Backend:  http://localhost:8000"
         echo ""
-        
+
         cd backend
+        # shellcheck disable=SC1091
         source venv/bin/activate
         uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
         ;;

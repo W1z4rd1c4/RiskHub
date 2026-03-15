@@ -1,10 +1,10 @@
 ---
 title: Admin onboarding a runbook prvního dne
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-15"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + frontend/src/pages/UsersPage.tsx + backend/app/api/v1/endpoints/admin/*"
-summary: "Provozní runbook pro první den admina: ověření přístupů, audience split dokumentace, observabilita a připravenost na bezpečné změny."
+summary: "Runbook pro day-one readiness admina s explicitními Healthy, Degraded a Stop stavy."
 tags:
   - onboarding
   - overview
@@ -18,201 +18,171 @@ tags:
 
 ## Přehled
 
-Tento runbook nastaví bezpečný baseline pro správu platformy ještě před prvními produkčními zásahy.
+Použijte tento runbook k ověření, že je prostředí bezpečné pro admin provoz ještě před access změnami. Je to day-one baseline pro nového operátora a také post-change baseline po releasu, který mohl ovlivnit auth, sessions, logy, audit nebo admin konzoli.
 
-Cíl není „naučit se UI“. Cíl je **provozní jistota**:
-
-- umíte prokázat, jaká role skutečně operuje
-- umíte pozorovat health, logy, audit a sessions
-- umíte ověřit, že audience split dokumentace funguje
-- umíte řešit access incidenty bez hádání
-- umíte udělat malou změnu a ověřit výsledek
+Pro live incidenty začněte raději [Rychlou referencí admin incidentů](./incident-quick-reference.md).
 
 ## Kdy to použít
 
 Použijte tento runbook:
 
-- když přebíráte prostředí jako on-call / operátor
-- po deploymentu, který zasahuje auth, sessions nebo admin konzoli
-- když máte podezření na regresi admin/non-admin hranice (např. admin vidí business navigaci)
-
-Nepoužívejte jej jako náhradu incident playbooku. Pokud systém aktivně padá, řešte incident jako první.
+- když se stáváte operátorem prostředí
+- po deploymentu, který změnil auth, sessions, logy, audit nebo admin konzoli
+- když chcete potvrdit, že admin a non-admin hranice stále funguje
+- když potřebujete zdokumentovaný baseline ještě před rutinní access prací
 
 ## Předpoklady a bezpečnost
 
-Než uděláte jakoukoliv admin akci, ověřte:
+Než s onboarding kontrolami začnete:
 
-- jste přihlášen/a pod správnou identitou (ne sdílený účet)
-- máte roli `admin` (ne CRO/risk manager)
-- znáte eskalační cestu (engineering owner, security owner, business owner)
+- potvrďte, že jste přihlášeni pod správným `admin` účtem
+- potvrďte, že pracujete ve správném prostředí
+- potvrďte, že nejde o live outage, která už vyžaduje symptom-first triage
+- držte se read-only kroků kromě výslovného export drillu v tomto runbooku
 
-Bezpečnostní pravidla:
+Bezpečnostní pravidla pro day-one validaci:
 
-- preferujte nejprve **read-only validaci** (health/logy/audit)
-- pokud měníte konfiguraci (např. retention logů), zapište si původní hodnoty pro rollback
-- pokud si nejste jistí, zda akce sahá do business dat, zastavte se a ověřte scope/role hranice
+- netestujte tím, že si nebo někomu jinému rozšíříte přístup
+- vypnutá tlačítka neberte jako pobídku k alternativnímu nebo manual postupu
+- pokud prostředí spadne do `Stop and escalate`, nepokračujte
+- evidenci zachytávejte průběžně, ať první hodinu nemusíte zpětně rekonstruovat
+
+## Stavy připravenosti
+
+| Stav | Kritéria | Akce operátora |
+|---|---|---|
+| Healthy | `/admin` se načte, database je connected, scheduler lock je držený, outbox dead-letter count je `0` a Logs, Audit i Sessions se načtou | pokračujte v onboarding a low-risk admin práci |
+| Degraded but operable | `/admin` funguje, ale jedna závislost je degraded a Logs, Audit i Sessions stále fungují | zachyťte evidenci, držte se read-only nebo low-risk akcí a při user dopadu eskalujte |
+| Stop and escalate | Health page failuje, database je disconnected, Logs, Audit nebo Sessions failují, exporty failují nebo admin hranice vypadají špatně | zastavte access změny a ihned eskalujte |
+
+## Nepokračujte do access změn, pokud platí cokoliv z toho
+
+- Health se nenačte
+- database status je `disconnected`
+- Logs, Audit nebo Sessions nefungují
+- CSV nebo JSON export selže
+- `/admin/docs` ukazuje user manuály místo admin manuálů
+- admin navigace neočekávaně ukazuje business-only moduly
 
 ## Postup krok za krokem
 
-### 1) Ověřit identitu, roli a očekávanou navigaci
+### 1) Ověřte identitu, roli a navigaci
 
-1. Ověřte, že vaše efektivní role je `admin`.
-2. Ověřte, že default landing route je `/admin` (admin nemá defaultně dashboard).
-3. Ověřte, že sidebar ukazuje pouze admin-safe navigaci (typicky Settings, Users/Access, Admin Console, Documentation).
-4. Ověřte, že přímá navigace na `/activity-log` a `/governance` je odmítnutá nebo přesměrovaná. Pro `admin` je to očekávané chování.
+1. Ověřte, že efektivní role je `admin`.
+2. Ověřte, že default landing route je `/admin`.
+3. Ověřte, že sidebar ukazuje jen admin-safe navigaci.
+4. Ověřte, že `/activity-log` a `/governance` jsou pro `admin` odmítnuté nebo přesměrované.
 
-Pokud jako `admin` vidíte business moduly (Rizika/Kontroly/Dodavatelé), berte to jako boundary regresi a eskalujte.
+Pokud jako `admin` vidíte business moduly, zastavte se a eskalujte.
 
-### 2) Ověřit baseline Admin Console (/admin)
+### 2) Ověřte baseline Admin Console
 
-Otevřete `/admin` a ověřte každý tab:
+Otevřete `/admin` a potvrďte:
 
-1. **Health**
-   - panel se načte rychle (bez nekonečných spinnerů)
-   - metriky dávají smysl (CPU/memory/db jsou přítomné)
-2. **Application Logs**
-   - feed se načte
-   - filtrování je použitelné
-   - exporty fungují a neobsahují citlivé údaje
-3. **Audit Logs**
-   - entries se načtou
-   - filtrování podle event type funguje
-   - CSV/JSON export vytvoří soubor s timestampy, eventy a request ID
-4. **Sessions**
-   - seznam se načte
-   - revoke akce jsou jasně označené (pokud jsou dostupné)
+- **Health** se načte a ukazuje:
+  - database `connected`
+  - scheduler lock držený s current ownerem
+  - outbox dead-letter count `0`
+- **Application logs** se načtou a jdou filtrovat
+- **Audit logs** se načtou a jdou filtrovat
+- **Sessions** se načtou a ukazují aktivní session záznamy
 
-Pokud některý tab selže, nepokračujte do access změn. Nejprve obnovte observabilitu, jinak budete operovat naslepo.
+Pokud něco z toho failuje, prostředí není připravené pro access změny.
 
-### 3) Ověřit audience split dokumentace (/admin/docs)
+### 3) Ověřte audience split dokumentace
 
-Otevřete `/admin/docs` a ověřte:
+Otevřete `/admin/docs` a potvrďte:
 
-- audience label ukazuje **admin dokumentaci**
-- knihovna obsahuje admin runbooky (ne user manuály)
-- odkazy se chovají deterministicky:
-  - `./file.md` otevře jiný dokument ve čtečce
-  - `/path` naviguje na route v aplikaci
-  - `https://...` otevře nové tab
+- audience label říká admin dokumentace
+- jsou přítomné admin runbooky
+- interní doc odkazy se otevírají ve čtečce
+- app route odkazy navigují v aplikaci
+- externí odkazy se otevírají v novém tabu
 
-Boundary tvrzení, které musíte umět říct bez váhání:
+Musíte být schopni bez váhání říct:
 
 - „Admin vidí jen admin dokumentaci.“
 - „Ne-admin vidí jen user dokumentaci.“
 
-### 4) Ověřit Access Management (/users)
+### 4) Ověřte access surface
 
-Otevřete `/users` a ověřte, v jakém režimu jste:
+Otevřete `/users` a potvrďte:
 
-- **Access režim** (privileged seznam):
-  - vidíte roli, oddělení, managera a access scope
-  - umíte otevřít access edit modal (admin-only mutace)
-- **Directory režim** (read-only):
-  - vidíte identity uživatelů, ale ne privileged ovládání
+- seznam uživatelů se načte
+- v access režimu vidíte roli, oddělení, managera a scope
+- **Edit access** je dostupné pro admin mutace
 
-Jako `admin` máte podporovat access incidenty. Pokud `/users` není použitelné, chybí vám kritická provozní plocha.
+Pokud `/users` není použitelné, nepokračujte do access práce.
 
-### 5) Drill “minimal safe change” (volitelné, ale doporučené)
+### 5) Udělejte jeden minimal safe drill
 
-Udělejte jednu nízkorizikovou, reverzibilní operaci:
-
-1. V `/admin` audit logu vyexportujte posledních 50 řádků do CSV.
-2. Ověřte, že soubor existuje a obsahuje očekávané sloupce (timestamp, event, request ID).
-3. Neprovádějte business změny během tohoto drillu.
+1. V `/admin` -> **Audit logs** vyexportujte posledních 50 řádků do CSV.
+2. Ověřte, že soubor existuje a obsahuje timestampy, event názvy a request IDs.
+3. Během tohoto drillu neměňte business data.
 
 ## Ověření po změně
 
-Checklist pro “ready to operate”:
+Jste ready to operate jen pokud platí vše:
 
-- `/admin` funguje, všechny taby použitelné (Health, Logs, Audit, Sessions)
-- `/admin/docs` zobrazuje admin manuály (žádné user docs)
-- `/users` funguje a admin vidí access režim
-- exporty (CSV/JSON) fungují v admin konzoli
-- umíte zachytit request ID a korelovat s chybami
-- víte, koho eskalovat pro:
-  - engineering defekty
-  - business policy rozhodnutí
-  - security/severity
-
-Pokud některý bod neplatí, vaše “první oprava” je obnovit tuto schopnost, ne tlačit dopředu s rizikovými zásahy.
+- `/admin` se načte a stav je `Healthy`
+- `/admin/docs` ukazuje jen admin manuály
+- `/users` je použitelné pro admin práci
+- exporty v Admin Console fungují
+- umíte zachytit request IDs a korelovat je s logy
+- víte, komu eskalovat engineering, security a business-policy otázky
+- umíte před akcí vysvětlit, které kroky jsou read-only, reverzibilní nebo nevratné
 
 ## Rollback
 
-Onboarding je převážně read-only. Rollback se týká pouze změn, které jste udělal/a během ověřování.
+Tento runbook je převážně read-only. Pokud jste během validace něco změnili:
 
-Rollback pravidla:
-
-- Pokud jste změnil/a log retention/rotation, vraťte hodnoty na původní (které jste si zapsal/a).
-- Pokud jste v rámci drillu revokoval/a session, zdokumentujte kterou a proč.
-- Pokud jste při školení změnil/a přístup uživatele, ihned vraťte a zapište kontext.
-
-Pokud neumíte změnu bezpečně vrátit, nedělejte ji.
+- vraťte log config na původní zapsané hodnoty
+- zdokumentujte případnou revokaci session
+- okamžitě vraťte jakoukoliv tréninkovou nebo testovací access změnu
+- zapište, zda rollback obnovil původní stav, nebo zda je stále nutná eskalace
 
 ## Troubleshooting
 
-### `/admin` jde otevřít, ale `/admin/docs` vypadá jako user dokumentace
+### `/admin/docs` vypadá jako user dokumentace
 
-Typické příčiny:
-
-- role mismatch (nejste skutečně `admin`)
-- audience split endpoint regres
-- stale session (role se změnila, session ne)
-
-Postup:
-
-1. Odhlaste/přihlaste (vyčistěte stale auth).
-2. Znovu otevřete `/admin/docs` a ověřte audience label.
-3. Pokud je to stále špatně, zachyťte:
-   - user id/email
-   - aktuální role label
-   - locale
-   - seznam dokumentů (ids)
+1. Udělejte jeden re-login.
+2. Znovu otevřete `/admin/docs`.
+3. Pokud audience stále nesedí, zachyťte user email, role label, locale a document IDs.
 4. Eskalujte jako authorization boundary incident.
 
-### Health je zelený, ale taby selhávají nebo jsou prázdné
+### Health je během onboardingu degraded
 
-Co ověřit:
+- zastavte access změny
+- zachyťte Health stav a timestamp
+- otevřete Application logs a zapište opakující se request IDs
+- eskalujte s evidence balíčkem
 
-- network/API chyby v browser konzoli
-- zda backend vrací 401/403/500
-- zda je problém izolovaný na jeden tab (logs vs audit vs sessions)
+### `/users` není během onboardingu dostupné
 
-Co dělat:
+- nepoužívejte alternativní nebo manual access cesty
+- zachyťte failing route a request IDs
+- eskalujte jako regres admin surface
 
-- použijte request ID (z logů/auditu) pro korelaci
-- pokud nefungují exporty, berte to jako observability outage (blokuje incident práci)
+### Prostředí je degraded, ale stále částečně použitelné
 
-### `/users` nejde nebo access edit selhává
-
-Co ověřit:
-
-- zobrazí se alespoň seznam? (routing/session problém)
-- vrací mutace forbidden? (role mismatch)
-
-Co dělat:
-
-- nedělejte “ruční opravy” jinde; `/users` je podporovaná admin plocha
-- zachyťte failing request a eskalujte jako permissions regres, pokud to dává smysl
+- přestaňte onboarding brát jako checklist, který musíte dokončit za každou cenu
+- zařaďte prostředí jako `Degraded but operable`
+- dokončete jen evidence-capture kroky, které jsou pořád bezpečné a read-only
+- otevřete [Admin Console](./console.md) pro přesný failure mode a pravidla handoffu
 
 ## Eskalace a předání
 
-Eskalujte okamžitě, pokud pozorujete:
+Přiložte:
 
-- promíchané admin/non-admin hranice (audience leakage)
-- audit logy chybí nebo exporty nefungují
-- sessions nejdou pozorovat/revokovat, když je to potřeba
-
-Balíček pro předání:
-
-- co jste pozoroval/a (route + timestamp)
-- co jste čekal/a (1 věta)
-- relevantní exporty (audit/logs)
-- request ID a chybové hlášky
+- co jste pozoroval/a
+- route a timestamp
+- jaký readiness stav jste určil/a
+- request IDs a export evidence
 - minimální kroky k reprodukci
 
 ## Související dokumentace
 
-- Přístupy uživatelů: [Správa uživatelů a přístupů](./user-management.md)
-- Workflow podpora: [Podpora schvalování](./approvals.md)
-- Evidence exporty: [Reporty a evidence exporty](./reports.md)
-- Provoz konzole: [Admin Console](./console.md)
+- [Rychlá reference admin incidentů](./incident-quick-reference.md)
+- [Admin Console](./console.md)
+- [Správa uživatelů a přístupů](./user-management.md)
+- [Reporty a evidence exporty](./reports.md)

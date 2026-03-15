@@ -1,7 +1,7 @@
 # RiskHub E2E Testing Guide
 
-> **Version**: 1.1
-> **Last Updated**: 2026-02-16
+> **Version**: 1.2
+> **Last Updated**: 2026-03-15
 > **Audience**: QA, Engineering
 > **Source of Truth**: `tests/frontend/e2e/playwright.config.ts`, `tests/frontend/e2e/`, `frontend/package.json`
 
@@ -29,6 +29,12 @@ npm run e2e:business-logic
 2. Frontend app running at `http://localhost:5173` (or Playwright web server configured in `tests/frontend/e2e/playwright.config.ts`).
 3. Deterministic fixture data seeded for E2E when required by suite expectations.
 
+Canonical startup guidance:
+
+- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](./development/README.md)
+- Playwright still defaults to the local Vite frontend on `http://localhost:5173`
+- Docker full-stack at `http://localhost/` is for onboarding/manual verification unless `FRONTEND_URL` is overridden
+
 ## Suite Topology
 
 Primary suite groups in `tests/frontend/e2e/`:
@@ -48,10 +54,10 @@ Primary suite groups in `tests/frontend/e2e/`:
 One-command deterministic reset + full seed (recommended):
 
 ```bash
-./scripts/setup.sh --mode test
+./scripts/compose.sh reset --dataset test
 ```
 
-This uses `docker-compose.yml`, wipes the compose DB volume, runs migrations, then seeds:
+This wipes Docker dev volumes, reruns migrations + base demo seed, then adds deterministic E2E fixtures:
 
 - `python -m app.db.seed` (base demo data)
 - `python -m scripts.seed_e2e_all` (deterministic E2E fixtures)

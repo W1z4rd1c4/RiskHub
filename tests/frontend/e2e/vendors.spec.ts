@@ -1,8 +1,10 @@
 import { test, expect } from './fixtures/auth.fixture';
-import { E2E_KRIS, E2E_VENDORS } from './fixtures/e2e-data';
+import { E2E_KRIS, E2E_RISKS, E2E_VENDORS } from './fixtures/e2e-data';
 import {
+    ensureRiskStatus,
     ensureVendorStatus,
     getKRIByMetricName,
+    linkVendorToRisk,
     unlinkVendorFromKRI,
 } from './helpers/api-auth';
 import { waitForDataLoad } from './helpers/wait';
@@ -139,5 +141,37 @@ test.describe('Vendor Management (Deterministic)', () => {
         await expect(riskManagerPage.getByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name).first()).toBeVisible({
             timeout: 15000,
         });
+    });
+
+    test('Vendor detail Add KRI creates and links the new KRI back to the vendor', async ({ riskManagerPage }) => {
+        const vendorId = await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
+        const riskId = await ensureRiskStatus(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.code, 'active');
+        await linkVendorToRisk(vendorId, riskId);
+
+        const metricName = `E2E-VENDOR-KRI-${Date.now()}`;
+
+        await riskManagerPage.goto(`/vendors/${vendorId}`);
+        await waitForDataLoad(riskManagerPage);
+
+        const linkedKriSection = riskManagerPage.getByTestId('vendor-linked-kris-section');
+        await linkedKriSection.getByTestId('vendor-linked-kris-add-kri').click();
+
+        await expect(riskManagerPage).toHaveURL(new RegExp(`/kris/new\\?vendor_id=${vendorId}`));
+        await expect(riskManagerPage.getByTestId('kri-vendor-context-banner')).toBeVisible({ timeout: 15000 });
+        await riskManagerPage.getByRole('button', { name: new RegExp(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.name, 'i') }).click();
+        await riskManagerPage.getByRole('button', { name: /Next|Další/i }).click();
+        await riskManagerPage.getByPlaceholder(/Customer complaint rate|Míra stížností zákazníků/i).fill(metricName);
+        await riskManagerPage.getByPlaceholder(/Describe what this KRI measures|Popište, co tento KRI měří/i).fill(
+            'E2E KRI created from vendor detail.',
+        );
+        await riskManagerPage.getByRole('button', { name: /Create KRI|Vytvořit KRI/i }).click();
+
+        await expect(riskManagerPage).toHaveURL(new RegExp(`/vendors/${vendorId}$`));
+        await expect(
+            riskManagerPage.getByText(/KRI created and linked to the vendor|KRI bylo vytvořeno a navázáno na dodavatele/i),
+        ).toBeVisible({ timeout: 15000 });
+        await expect(
+            riskManagerPage.getByTestId('vendor-linked-kris-section').getByText(metricName).first(),
+        ).toBeVisible({ timeout: 15000 });
     });
 });
