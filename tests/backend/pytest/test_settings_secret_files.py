@@ -22,7 +22,13 @@ def test_settings_load_secret_values_from_supported_file_env_vars(monkeypatch: p
     entra_client_secret_file = _write_secret(tmp_path / "entra_client_secret", "entra-client-secret\n")
     redis_url_file = _write_secret(tmp_path / "redis_url", "redis://:redis-secret@127.0.0.1:6379/0\n")
 
-    for key in ("DATABASE_URL", "SECRET_KEY", "ENTRA_CLIENT_SECRET", "REDIS_URL"):
+    for key in (
+        "DATABASE_URL",
+        "SECRET_KEY",
+        "ENTRA_CLIENT_SECRET",
+        "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY",
+        "REDIS_URL",
+    ):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("DATABASE_URL_FILE", str(database_url_file))
     monkeypatch.setenv("SECRET_KEY_FILE", str(secret_key_file))
@@ -41,19 +47,130 @@ def test_settings_load_secret_values_from_supported_file_env_vars(monkeypatch: p
     assert settings.redis_url == "redis://:redis-secret@127.0.0.1:6379/0"
     assert settings.entra_tenant_id == "00000000-0000-0000-0000-000000000000"
     assert settings.entra_client_id == "11111111-1111-1111-1111-111111111111"
+    assert settings.entra_confidential_credential is not None
+    assert settings.entra_confidential_credential.mode == "secret"
 
 
-def test_settings_reject_dual_source_secret_values(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    for key in ("DATABASE_URL", "SECRET_KEY", "ENTRA_CLIENT_SECRET", "REDIS_URL"):
+@pytest.mark.parametrize(
+    ("field_name", "env_name", "file_field_name", "file_env_name", "value", "filename"),
+    [
+        (
+            "database_url",
+            "DATABASE_URL",
+            "database_url_file",
+            "DATABASE_URL_FILE",
+            "postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub",
+            "database_url",
+        ),
+        (
+            "secret_key",
+            "SECRET_KEY",
+            "secret_key_file",
+            "SECRET_KEY_FILE",
+            "0123456789abcdef0123456789abcdef",
+            "secret_key",
+        ),
+        (
+            "entra_client_secret",
+            "ENTRA_CLIENT_SECRET",
+            "entra_client_secret_file",
+            "ENTRA_CLIENT_SECRET_FILE",
+            "entra-client-secret",
+            "entra_client_secret",
+        ),
+        (
+            "entra_client_certificate_private_key",
+            "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY",
+            "entra_client_certificate_private_key_file",
+            "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE",
+            "-----BEGIN PRIVATE KEY-----\nTESTKEY\n-----END PRIVATE KEY-----",
+            "entra_client_certificate_private_key",
+        ),
+        (
+            "redis_url",
+            "REDIS_URL",
+            "redis_url_file",
+            "REDIS_URL_FILE",
+            "redis://:redis-secret@127.0.0.1:6379/0",
+            "redis_url",
+        ),
+    ],
+)
+def test_settings_reject_dual_source_secret_values(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    field_name: str,
+    env_name: str,
+    file_field_name: str,
+    file_env_name: str,
+    value: str,
+    filename: str,
+) -> None:
+    for key in (
+        "DATABASE_URL",
+        "SECRET_KEY",
+        "ENTRA_CLIENT_SECRET",
+        "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY",
+        "REDIS_URL",
+    ):
         monkeypatch.delenv(key, raising=False)
-    secret_key_file = _write_secret(tmp_path / "secret_key", "0123456789abcdef0123456789abcdef\n")
+    secret_file = _write_secret(tmp_path / filename, f"{value}\n")
 
-    with pytest.raises(ValidationError, match="SECRET_KEY and SECRET_KEY_FILE cannot both be set"):
-        Settings(
-            _env_file=None,
-            secret_key="0123456789abcdef0123456789abcdef",
-            secret_key_file=str(secret_key_file),
-        )
+    kwargs = {
+        "secret_key": "0123456789abcdef0123456789abcdef",
+        "database_url": "postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub",
+        field_name: value,
+        file_field_name: str(secret_file),
+    }
+
+    with pytest.raises(ValidationError, match=rf"{env_name} and {file_env_name} cannot both be set"):
+        Settings(_env_file=None, **kwargs)
+
+
+def test_settings_support_certificate_credential_and_prefer_it_over_secret(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    certificate_key_file = _write_secret(
+        tmp_path / "entra_client_certificate_private_key",
+        "-----BEGIN PRIVATE KEY-----\nTESTKEY\n-----END PRIVATE KEY-----\n",
+    )
+
+    for key in (
+        "DATABASE_URL",
+        "SECRET_KEY",
+        "ENTRA_CLIENT_SECRET",
+        "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY",
+        "REDIS_URL",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    settings = Settings(
+        _env_file=None,
+        secret_key="0123456789abcdef0123456789abcdef",
+        database_url="postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub",
+        entra_client_secret="legacy-secret",
+        entra_client_certificate_thumbprint="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+        entra_client_certificate_private_key_file=str(certificate_key_file),
+    )
+
+    assert settings.entra_confidential_credential is not None
+    assert settings.entra_confidential_credential.mode == "certificate"
+    assert settings.entra_confidential_credential.client_secret is None
+    assert settings.entra_confidential_credential.client_certificate_thumbprint == "ABCDEF1234567890ABCDEF1234567890ABCDEF12"
+    assert settings.entra_confidential_credential.client_certificate_private_key is not None
+
+
+def test_settings_report_incomplete_certificate_credential_configuration() -> None:
+    settings = Settings(
+        _env_file=None,
+        secret_key="0123456789abcdef0123456789abcdef",
+        database_url="postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub",
+        entra_client_certificate_thumbprint="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+    )
+
+    assert settings.entra_certificate_credential_error is not None
+    assert "Incomplete Entra certificate credential configuration" in settings.entra_certificate_credential_error
+    assert settings.entra_confidential_credential is None
 
 
 @pytest.mark.parametrize(
@@ -70,7 +187,13 @@ def test_settings_reject_missing_or_empty_secret_files(
     content: str | None,
     error: str,
 ) -> None:
-    for key in ("DATABASE_URL", "SECRET_KEY", "ENTRA_CLIENT_SECRET", "REDIS_URL"):
+    for key in (
+        "DATABASE_URL",
+        "SECRET_KEY",
+        "ENTRA_CLIENT_SECRET",
+        "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY",
+        "REDIS_URL",
+    ):
         monkeypatch.delenv(key, raising=False)
     secret_path = tmp_path / filename
     if content is not None:

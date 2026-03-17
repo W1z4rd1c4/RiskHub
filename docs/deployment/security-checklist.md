@@ -1,6 +1,6 @@
 # Production Security Checklist
 
-> **Last Updated**: 2026-03-07
+> **Last Updated**: 2026-03-17
 > **Audience**: DevOps / Security Engineering
 
 ## Config And Startup Guards
@@ -14,7 +14,7 @@ RiskHub production deploys must satisfy these invariants:
 - explicit external PostgreSQL `database_url` secret file
 - explicit `CORS_ORIGINS`
 - reachable `REDIS_URL`
-- valid `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and `entra_client_secret` secret file
+- valid `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and one supported Entra Graph credential mechanism
 - reviewed `TRUSTED_PROXIES` when traffic passes through non-default proxy networks
 
 ## Network
@@ -63,8 +63,10 @@ RiskHub production deploys must satisfy these invariants:
 - Never commit production secrets.
 - Keep `/etc/riskhub` on an encrypted disk or encrypted mount.
 - `./scripts/deploy.sh secrets-edit ...` keeps its temporary edit workspace on the same host-managed deployment path as `--secret-dir`, not under `/tmp`.
-- Store `SECRET_KEY`, database credentials, Redis password, and `ENTRA_CLIENT_SECRET` in a secret manager when possible.
+- Store `SECRET_KEY`, database credentials, Redis password, and the active Entra confidential credential material in a secret manager when possible.
 - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` are not secret values.
+- Prefer file-backed certificate credential mode over shared client secret when your Entra app registration supports it.
+- Keep certificate PEM material only in `/etc/riskhub/secrets/entra_client_certificate_private_key`; do not inline it into non-secret env files.
 - Do not print secrets into shell history or CI logs.
 
 ## Supply Chain

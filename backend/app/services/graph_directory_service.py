@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import importlib
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 
-from app.core.config import Settings
+from app.core.config import EntraConfidentialCredential, Settings
 from app.core.outbound_guard import OutboundRequestError, build_outbound_client, guard_outbound_url
 from app.schemas.directory import DirectoryUserRead
 
@@ -113,10 +114,18 @@ class GraphDirectoryService:
 
         tenant_id = self._settings.entra_tenant_id
         client_id = self._settings.entra_client_id
-        client_secret = self._settings.entra_client_secret
-        if not tenant_id or not client_id or not client_secret:
+        if not tenant_id or not client_id:
             raise GraphProviderUnavailableError(
-                "Graph credentials are not configured (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET)"
+                "Graph credentials are not configured (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, and an Entra Graph credential)."
+            )
+
+        if self._settings.entra_certificate_credential_error:
+            raise GraphProviderUnavailableError(self._settings.entra_certificate_credential_error)
+
+        credential = self._settings.entra_confidential_credential
+        if credential is None:
+            raise GraphProviderUnavailableError(
+                "Graph credentials are not configured (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, and an Entra Graph credential)."
             )
 
         token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
@@ -125,31 +134,11 @@ class GraphDirectoryService:
         except OutboundRequestError as exc:
             raise GraphProviderUnavailableError(str(exc)) from exc
 
-        async with build_outbound_client(
-            settings=self._settings,
-            timeout_seconds=self._settings.graph_timeout_seconds,
-        ) as client:
-            try:
-                response = await client.post(
-                    token_url,
-                    data={
-                        "client_id": client_id,
-                        "client_secret": client_secret,
-                        "scope": _GRAPH_SCOPE,
-                        "grant_type": "client_credentials",
-                    },
-                    headers={"Content-Type": "application/x-www-form-urlencoded"},
-                )
-            except httpx.HTTPError as exc:
-                raise GraphProviderUnavailableError(f"Failed to acquire Graph token: {exc}") from exc
-
-        if response.status_code >= 400:
-            detail = response.text[:200]
-            raise GraphProviderUnavailableError(
-                f"Failed to acquire Graph token ({response.status_code}): {detail}"
-            )
-
-        payload: dict[str, Any] = response.json()
+        payload = await self._acquire_graph_token_with_msal(
+            tenant_id=tenant_id,
+            client_id=client_id,
+            credential=credential,
+        )
         access_token = payload.get("access_token")
         expires_in = payload.get("expires_in")
         if not isinstance(access_token, str) or not access_token:
@@ -159,6 +148,56 @@ class GraphDirectoryService:
         self._token = access_token
         self._token_expiry = now + timedelta(seconds=max(lifetime, 60))
         return self._token
+
+    async def _acquire_graph_token_with_msal(
+        self,
+        *,
+        tenant_id: str,
+        client_id: str,
+        credential: EntraConfidentialCredential,
+    ) -> dict[str, Any]:
+        try:
+            msal = importlib.import_module("msal")
+        except ModuleNotFoundError as exc:
+            raise GraphProviderUnavailableError(
+                "MSAL Python is not installed; cannot acquire Graph token."
+            ) from exc
+
+        authority = f"https://login.microsoftonline.com/{tenant_id}"
+        client_credential: str | dict[str, str]
+        if credential.mode == "certificate":
+            assert credential.client_certificate_private_key is not None
+            assert credential.client_certificate_thumbprint is not None
+            client_credential = {
+                "private_key": credential.client_certificate_private_key,
+                "thumbprint": credential.client_certificate_thumbprint,
+            }
+        else:
+            assert credential.client_secret is not None
+            client_credential = credential.client_secret
+
+        try:
+            app = msal.ConfidentialClientApplication(  # type: ignore[attr-defined]
+                client_id=client_id,
+                authority=authority,
+                client_credential=client_credential,
+            )
+            result = await self._run_in_thread(app.acquire_token_for_client, scopes=[_GRAPH_SCOPE])
+        except Exception as exc:  # pragma: no cover - exact dependency/runtime exception varies
+            raise GraphProviderUnavailableError(f"Failed to acquire Graph token: {exc}") from exc
+
+        if not isinstance(result, dict):
+            raise GraphProviderUnavailableError("Graph token response is invalid")
+        if "access_token" in result:
+            return result
+
+        detail = result.get("error_description") or result.get("error") or "unknown error"
+        raise GraphProviderUnavailableError(f"Failed to acquire Graph token: {detail}")
+
+    async def _run_in_thread(self, fn, *args, **kwargs):
+        import asyncio
+
+        return await asyncio.to_thread(fn, *args, **kwargs)
 
     def _to_directory_user(self, payload: dict[str, Any]) -> DirectoryUserRead:
         oid = payload.get("id")
