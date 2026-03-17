@@ -174,11 +174,13 @@ class DirectoryProviderService:
             return _ADEmulatorDirectoryService(settings)
 
         # auto mode
-        if settings.entra_tenant_id and settings.entra_client_id and settings.entra_client_secret:
+        if settings.entra_certificate_credential_error:
+            raise DirectoryProviderUnavailableError(settings.entra_certificate_credential_error)
+        if settings.entra_tenant_id and settings.entra_client_id and settings.entra_confidential_credential is not None:
             return GraphDirectoryService(settings)
         if settings.ad_emulator_base_url:
             return _ADEmulatorDirectoryService(settings)
 
         raise DirectoryProviderUnavailableError(
-            "No directory provider configured. Set ENTRA_CLIENT_SECRET for Graph or AD_EMULATOR_BASE_URL for fallback."
+            "No directory provider configured. Set an Entra Graph credential or AD_EMULATOR_BASE_URL for fallback."
         )

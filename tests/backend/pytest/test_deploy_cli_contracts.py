@@ -9,6 +9,8 @@ import tarfile
 import tempfile
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy.sh"
 
@@ -44,6 +46,14 @@ def _write_secrets(path: Path, **overrides: str) -> None:
         secret_path = path / key
         secret_path.write_text(value, encoding="utf-8")
         secret_path.chmod(0o440)
+
+
+def _write_secret_value(secret_dir: Path, name: str, value: str) -> None:
+    secret_path = secret_dir / name
+    if secret_path.exists():
+        secret_path.chmod(0o640)
+    secret_path.write_text(value, encoding="utf-8")
+    secret_path.chmod(0o440)
 
 
 def _write_exec(path: Path, content: str) -> None:
@@ -222,6 +232,7 @@ def test_init_writes_non_secret_config_and_secret_scaffold() -> None:
         assert (secret_dir / "secret_key").exists()
         assert (secret_dir / "redis_password").exists()
         assert (secret_dir / "entra_client_secret").exists()
+        assert (secret_dir / "entra_client_certificate_private_key").exists()
         assert runtime_dir.exists()
         assert (runtime_dir.stat().st_mode & 0o777) == 0o750
         text = config_path.read_text(encoding="utf-8")
@@ -520,27 +531,227 @@ def test_preflight_reports_missing_docker_prerequisite() -> None:
         assert "Missing required command: docker" in output
 
 
-def test_secrets_check_rejects_placeholder_values() -> None:
+@pytest.mark.parametrize(
+    ("secret_name", "placeholder_value", "expected_message"),
+    [
+        ("database_url", "CHANGE_ME_DATABASE_URL\n", "database_url still contains the placeholder value"),
+        (
+            "secret_key",
+            "CHANGE_ME_SECRET_KEY_AT_LEAST_32_CHARACTERS\n",
+            "secret_key still contains the placeholder value",
+        ),
+        ("redis_password", "CHANGE_ME_REDIS_PASSWORD\n", "redis_password still contains the placeholder value"),
+    ],
+)
+def test_secrets_check_rejects_placeholder_values(
+    secret_name: str,
+    placeholder_value: str,
+    expected_message: str,
+) -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-secrets-check-") as td:
         tmp = Path(td)
         secret_dir = tmp / "secrets"
-        secret_dir.mkdir()
-        secret_dir.chmod(0o750)
-        for name, value in (
-            ("database_url", "CHANGE_ME_DATABASE_URL\n"),
-            ("secret_key", "CHANGE_ME_SECRET_KEY_AT_LEAST_32_CHARACTERS\n"),
-            ("redis_password", "CHANGE_ME_REDIS_PASSWORD\n"),
-            ("entra_client_secret", "CHANGE_ME_ENTRA_CLIENT_SECRET\n"),
-        ):
-            secret_path = secret_dir / name
-            secret_path.write_text(value, encoding="utf-8")
-            secret_path.chmod(0o440)
+        _write_secrets(secret_dir, **{secret_name: placeholder_value})
 
         result = _run_cli(["secrets-check", "--target", "docker", "--secret-dir", str(secret_dir)], os.environ.copy())
 
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
-        assert "database_url still contains the placeholder value" in output
+        assert expected_message in output
+
+
+def test_secrets_check_allows_placeholder_values_for_optional_entra_scaffold_files() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-secrets-check-optional-") as td:
+        tmp = Path(td)
+        secret_dir = tmp / "secrets"
+        _write_secrets(
+            secret_dir,
+            entra_client_secret="CHANGE_ME_ENTRA_CLIENT_SECRET\n",
+            entra_client_certificate_private_key="CHANGE_ME_ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY\n",
+        )
+
+        result = _run_cli(["secrets-check", "--target", "docker", "--secret-dir", str(secret_dir)], os.environ.copy())
+
+        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+
+
+def test_preflight_rejects_certificate_placeholder_before_prod_preflight() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-cert-placeholder-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(
+            config_path,
+            ENTRA_CLIENT_CERTIFICATE_THUMBPRINT="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+        )
+        _write_secrets(
+            secret_dir,
+            entra_client_certificate_private_key="CHANGE_ME_ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY\n",
+        )
+        (secret_dir / "entra_client_secret").unlink()
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        result = _run_cli(
+            [
+                "preflight",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--yes",
+            ],
+            env,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert (
+            "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT is set but no valid "
+            "entra_client_certificate_private_key secret file was found"
+        ) in output
+        assert "Preflight: OK" not in output
+
+
+def test_preflight_accepts_secret_mode_with_unused_certificate_placeholder_from_init_scaffold() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-secret-mode-scaffold-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        init_result = _run_cli(
+            ["init", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir)],
+            env,
+        )
+        assert init_result.returncode == 0, f"{init_result.stdout}\n{init_result.stderr}"
+
+        _write_config(config_path)
+        _write_secret_value(
+            secret_dir,
+            "database_url",
+            "postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub\n",
+        )
+        _write_secret_value(secret_dir, "secret_key", "0123456789abcdef0123456789abcdef\n")
+        _write_secret_value(secret_dir, "redis_password", "redis-secret\n")
+        _write_secret_value(secret_dir, "entra_client_secret", "entra-client-secret\n")
+
+        result = _run_cli(
+            [
+                "preflight",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--yes",
+            ],
+            env,
+        )
+
+        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+
+
+def test_preflight_accepts_certificate_mode_with_unused_client_secret_placeholder_from_init_scaffold() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-cert-mode-scaffold-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        init_result = _run_cli(
+            ["init", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir)],
+            env,
+        )
+        assert init_result.returncode == 0, f"{init_result.stdout}\n{init_result.stderr}"
+
+        _write_config(
+            config_path,
+            ENTRA_CLIENT_CERTIFICATE_THUMBPRINT="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+        )
+        _write_secret_value(
+            secret_dir,
+            "database_url",
+            "postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub\n",
+        )
+        _write_secret_value(secret_dir, "secret_key", "0123456789abcdef0123456789abcdef\n")
+        _write_secret_value(secret_dir, "redis_password", "redis-secret\n")
+        _write_secret_value(
+            secret_dir,
+            "entra_client_certificate_private_key",
+            "-----BEGIN PRIVATE KEY-----\nTESTKEY\n-----END PRIVATE KEY-----\n",
+        )
+
+        result = _run_cli(
+            [
+                "preflight",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--yes",
+            ],
+            env,
+        )
+
+        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+
+
+def test_preflight_accepts_certificate_mode_without_entra_client_secret() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-cert-preflight-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(
+            config_path,
+            ENTRA_CLIENT_CERTIFICATE_THUMBPRINT="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+        )
+        _write_secrets(
+            secret_dir,
+            entra_client_certificate_private_key="-----BEGIN PRIVATE KEY-----\nTESTKEY\n-----END PRIVATE KEY-----\n",
+        )
+        (secret_dir / "entra_client_secret").unlink()
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        result = _run_cli(
+            [
+                "preflight",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--yes",
+            ],
+            env,
+        )
+
+        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
 
 
 def test_preflight_reports_config_validation_failures() -> None:

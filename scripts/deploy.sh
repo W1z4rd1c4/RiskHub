@@ -158,7 +158,7 @@ deploy_secrets_init() {
   local force="$1"
   ensure_secret_dir_scaffold
   local name path
-  for name in database_url secret_key entra_client_secret redis_password; do
+  for name in database_url secret_key entra_client_secret entra_client_certificate_private_key redis_password; do
     path="$(secret_path "$name")"
     if [[ -e "$path" && "$force" != "true" ]]; then
       die "Secret file already exists: ${path} (use --force to overwrite)"
@@ -287,28 +287,35 @@ secrets_check() {
   check_secret_dir_mode "$SECRET_DIR" || die "Secret directory permissions are too open: ${SECRET_DIR}"
   warn_if_secret_ownership_is_not_root_riskhub "$SECRET_DIR"
 
-  local database_url_path secret_key_path entra_client_secret_path redis_password_path
+  local database_url_path secret_key_path entra_client_secret_path entra_client_certificate_private_key_path redis_password_path
   database_url_path="$(secret_path database_url)"
   secret_key_path="$(secret_path secret_key)"
   entra_client_secret_path="$(secret_path entra_client_secret)"
+  entra_client_certificate_private_key_path="$(secret_path entra_client_certificate_private_key)"
   redis_password_path="$(secret_path redis_password)"
 
   local path
-  for path in "$database_url_path" "$secret_key_path" "$entra_client_secret_path" "$redis_password_path"; do
+  for path in "$database_url_path" "$secret_key_path" "$redis_password_path"; do
     require_file "$path"
     check_secret_file_mode "$path" || die "Secret file permissions are too open: ${path}"
     warn_if_secret_ownership_is_not_root_riskhub "$path"
   done
+  if [[ -f "$entra_client_secret_path" ]]; then
+    check_secret_file_mode "$entra_client_secret_path" || die "Secret file permissions are too open: ${entra_client_secret_path}"
+    warn_if_secret_ownership_is_not_root_riskhub "$entra_client_secret_path"
+  fi
+  if [[ -f "$entra_client_certificate_private_key_path" ]]; then
+    check_secret_file_mode "$entra_client_certificate_private_key_path" || die "Secret file permissions are too open: ${entra_client_certificate_private_key_path}"
+    warn_if_secret_ownership_is_not_root_riskhub "$entra_client_certificate_private_key_path"
+  fi
 
-  local database_url secret_key entra_client_secret redis_password
+  local database_url secret_key redis_password
   database_url="$(cat "$database_url_path")"
   secret_key="$(cat "$secret_key_path")"
-  entra_client_secret="$(cat "$entra_client_secret_path")"
   redis_password="$(cat "$redis_password_path")"
 
   [[ "${database_url%$'\n'}" != "$(secret_placeholder database_url)" ]] || die "database_url still contains the placeholder value"
   [[ "${secret_key%$'\n'}" != "$(secret_placeholder secret_key)" ]] || die "secret_key still contains the placeholder value"
-  [[ "${entra_client_secret%$'\n'}" != "$(secret_placeholder entra_client_secret)" ]] || die "entra_client_secret still contains the placeholder value"
   [[ "${redis_password%$'\n'}" != "$(secret_placeholder redis_password)" ]] || die "redis_password still contains the placeholder value"
 
   database_url="${database_url%$'\n'}"
@@ -317,7 +324,6 @@ secrets_check() {
     die "database_url must not target docker-compose hostname 'db'"
   fi
   [[ ${#secret_key} -ge 32 ]] || die "secret_key must be at least 32 characters long"
-  [[ -n "${entra_client_secret%$'\n'}" ]] || die "entra_client_secret must not be empty"
   [[ -n "${redis_password%$'\n'}" ]] || die "redis_password must not be empty"
 }
 

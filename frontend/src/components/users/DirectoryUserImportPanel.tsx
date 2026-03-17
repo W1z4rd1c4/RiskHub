@@ -118,7 +118,7 @@ export function DirectoryUserImportPanel({
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
                     {t('users.directory_setup_help', {
                         defaultValue:
-                            'Configure ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET or AD_EMULATOR_BASE_URL, then retry.',
+                            'Configure ENTRA_TENANT_ID, ENTRA_CLIENT_ID, and a client secret or certificate credential, or set AD_EMULATOR_BASE_URL, then retry.',
                     })}
                 </div>
             )}

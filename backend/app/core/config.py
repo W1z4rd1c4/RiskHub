@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
@@ -33,6 +34,21 @@ def _read_secret_value(file_env_name: str, raw_path: Any) -> str:
     if value == "":
         raise ValueError(f"{file_env_name} must not point to an empty file: {path}")
     return value
+
+
+def _normalize_optional_string(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
+@dataclass(frozen=True)
+class EntraConfidentialCredential:
+    mode: Literal["secret", "certificate"]
+    client_secret: str | None = None
+    client_certificate_private_key: str | None = None
+    client_certificate_thumbprint: str | None = None
 
 
 class Settings(BaseSettings):
@@ -77,6 +93,17 @@ class Settings(BaseSettings):
     entra_client_secret_file: str | None = Field(
         default=None,
         validation_alias=AliasChoices("ENTRA_CLIENT_SECRET_FILE", "entra_client_secret_file"),
+        exclude=True,
+        repr=False,
+    )
+    entra_client_certificate_thumbprint: str | None = None
+    entra_client_certificate_private_key: str | None = None
+    entra_client_certificate_private_key_file: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE",
+            "entra_client_certificate_private_key_file",
+        ),
         exclude=True,
         repr=False,
     )
@@ -159,6 +186,12 @@ class Settings(BaseSettings):
                 "entra_client_secret_file",
                 "ENTRA_CLIENT_SECRET_FILE",
             ),
+            (
+                "entra_client_certificate_private_key",
+                "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY",
+                "entra_client_certificate_private_key_file",
+                "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE",
+            ),
             ("redis_url", "REDIS_URL", "redis_url_file", "REDIS_URL_FILE"),
         )
 
@@ -173,6 +206,47 @@ class Settings(BaseSettings):
             resolved[file_field_name] = str(file_path)
 
         return resolved
+
+    @property
+    def normalized_entra_client_secret(self) -> str | None:
+        return _normalize_optional_string(self.entra_client_secret)
+
+    @property
+    def normalized_entra_client_certificate_thumbprint(self) -> str | None:
+        return _normalize_optional_string(self.entra_client_certificate_thumbprint)
+
+    @property
+    def normalized_entra_client_certificate_private_key(self) -> str | None:
+        return _normalize_optional_string(self.entra_client_certificate_private_key)
+
+    @property
+    def entra_certificate_credential_error(self) -> str | None:
+        has_thumbprint = self.normalized_entra_client_certificate_thumbprint is not None
+        has_private_key = self.normalized_entra_client_certificate_private_key is not None
+        if has_thumbprint != has_private_key:
+            return (
+                "Incomplete Entra certificate credential configuration. "
+                "Set both ENTRA_CLIENT_CERTIFICATE_THUMBPRINT and "
+                "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY(_FILE)."
+            )
+        return None
+
+    @property
+    def entra_confidential_credential(self) -> EntraConfidentialCredential | None:
+        if self.entra_certificate_credential_error is None:
+            thumbprint = self.normalized_entra_client_certificate_thumbprint
+            private_key = self.normalized_entra_client_certificate_private_key
+            if thumbprint and private_key:
+                return EntraConfidentialCredential(
+                    mode="certificate",
+                    client_certificate_private_key=private_key,
+                    client_certificate_thumbprint=thumbprint,
+                )
+
+        client_secret = self.normalized_entra_client_secret
+        if client_secret:
+            return EntraConfidentialCredential(mode="secret", client_secret=client_secret)
+        return None
 
     model_config = {
         "env_file": ".env",
