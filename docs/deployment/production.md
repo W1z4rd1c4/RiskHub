@@ -1,6 +1,6 @@
 # Production Quickstart
 
-> **Last Updated**: 2026-03-07
+> **Last Updated**: 2026-03-17
 > **Audience**: Production administrators
 
 ## Choose A Target
@@ -12,7 +12,7 @@ Both targets require:
 
 - external PostgreSQL
 - a public RiskHub URL
-- Microsoft Entra app credentials
+- Microsoft Entra app credentials, including one confidential credential method for Graph (`client secret` or `certificate credential`)
 - access to the release assets for the version you want to deploy
 - an encrypted host disk or encrypted mount for `/etc/riskhub`
 
@@ -60,7 +60,7 @@ or
 ./scripts/deploy.sh secrets-edit --target linux --secret-dir /etc/riskhub/secrets
 ```
 
-`ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` stay in the non-secret config. Database credentials, `SECRET_KEY`, `ENTRA_CLIENT_SECRET`, and the Redis password live in `/etc/riskhub/secrets/`. `secrets-edit` keeps its temporary edit buffer on the same host-managed deployment path as the secret directory, not under `/tmp`.
+`ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` stay in the non-secret config. Database credentials, `SECRET_KEY`, and the Redis password live in `/etc/riskhub/secrets/`. `init` scaffolds both optional Entra secret files so the secret directory layout is ready for either confidential-credential mode. For Entra Graph credentials, production supports either `ENTRA_CLIENT_SECRET_FILE` or the preferred certificate mode: `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` in `riskhub.env` plus the PEM private key at `/etc/riskhub/secrets/entra_client_certificate_private_key`. `secrets-edit` keeps its temporary edit buffer on the same host-managed deployment path as the secret directory, not under `/tmp`, and remains line-based, so certificate PEM material should be managed directly in the dedicated secret file rather than pasted into `secrets-edit`. The unused optional Entra file may remain on its scaffold placeholder; preflight validates only the credential mode selected by `riskhub.env`.
 
 ## 3. Run Preflight
 
@@ -72,7 +72,7 @@ or
 ./scripts/deploy.sh preflight --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
 ```
 
-Preflight validates the config, target prerequisites, secret directory permissions, placeholder-secret removal, and the frontend bind port.
+Preflight validates the config, target prerequisites, secret directory permissions, placeholder-secret removal for required secrets, the active Entra confidential credential mode, and the frontend bind port.
 
 ## 4. Deploy
 

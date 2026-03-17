@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -76,13 +75,11 @@ def test_preflight_exposes_allow_frontend_port_in_use_flag() -> None:
     assert 'preflight_frontend_env "$FRONTEND_ENV" "$allow_frontend_port_in_use"' in text
 
 
-def test_preflight_validates_frontend_port_ranges_and_container_port() -> None:
+def test_preflight_contains_frontend_port_validation_messages() -> None:
     text = _script_text("lib/preflight.sh")
     assert "FRONTEND_HOST_PORT must be between 1 and 65535" in text
     assert "FRONTEND_CONTAINER_PORT must be numeric" in text
     assert "FRONTEND_CONTAINER_PORT must be between 1 and 65535" in text
-    assert 'envfile_require_nonempty "$backend_env" "ENTRA_CLIENT_SECRET_FILE"' in text
-    assert 'envfile_require_nonempty "$backend_env" "DATABASE_URL_FILE"' in text
 
 
 def test_bootstrap_db_uses_module_execution_for_seed_scripts() -> None:

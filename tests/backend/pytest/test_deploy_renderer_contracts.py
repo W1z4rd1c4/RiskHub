@@ -113,16 +113,104 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
         assert docker_backend["DATABASE_URL_FILE"] == str(secret_dir / "database_url")
         assert docker_backend["SECRET_KEY_FILE"] == str(secret_dir / "secret_key")
         assert docker_backend["ENTRA_CLIENT_SECRET_FILE"] == str(secret_dir / "entra_client_secret")
+        assert "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT" not in docker_backend
+        assert "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE" not in docker_backend
         assert docker_backend["REDIS_URL_FILE"] == str(runtime_dir / "redis_url")
         assert "DATABASE_URL" not in docker_backend
         assert "SECRET_KEY" not in docker_backend
         assert "ENTRA_CLIENT_SECRET" not in docker_backend
+        assert "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY" not in docker_backend
         assert "REDIS_PASSWORD" not in docker_backend
         assert (docker_out / "redis_url").read_text(encoding="utf-8") == "redis://:redis-secret@redis:6379/0\n"
         assert (linux_out / "redis_url").read_text(encoding="utf-8") == "redis://:redis-secret@127.0.0.1:6379/0\n"
         assert docker_meta["SERVER_NAME"] == "riskhub.example.com"
         assert docker_meta["FRONTEND_BIND_PORT"] == "18080"
         assert linux_meta["BACKEND_BIND_PORT"] == "8000"
+        assert docker_meta["ENTRA_GRAPH_CREDENTIAL_MODE"] == "secret"
+
+
+def test_renderer_prefers_certificate_mode_and_omits_secret_file_from_runtime_env() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-cert-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        out_dir = tmp / "rendered"
+        _write_config(
+            config_path,
+            ENTRA_CLIENT_CERTIFICATE_THUMBPRINT="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+        )
+        _write_secrets(
+            secret_dir,
+            entra_client_certificate_private_key="-----BEGIN PRIVATE KEY-----\nTESTKEY\n-----END PRIVATE KEY-----\n",
+        )
+
+        subprocess.run(
+            [
+                "python3",
+                str(RENDERER),
+                "write-runtime",
+                "--config",
+                str(config_path),
+                "--target",
+                "docker",
+                "--secret-dir",
+                str(secret_dir),
+                "--runtime-dir",
+                str(runtime_dir),
+                "--out-dir",
+                str(out_dir),
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+
+        backend_env = _parse_env(out_dir / "backend.env")
+        metadata = _parse_env(out_dir / "metadata.env")
+
+        assert backend_env["ENTRA_CLIENT_CERTIFICATE_THUMBPRINT"] == "ABCDEF1234567890ABCDEF1234567890ABCDEF12"
+        assert backend_env["ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE"] == str(
+            secret_dir / "entra_client_certificate_private_key"
+        )
+        assert "ENTRA_CLIENT_SECRET_FILE" not in backend_env
+        assert metadata["ENTRA_GRAPH_CREDENTIAL_MODE"] == "certificate"
+
+
+def test_renderer_rejects_partial_certificate_configuration() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-cert-invalid-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(
+            config_path,
+            ENTRA_CLIENT_CERTIFICATE_THUMBPRINT="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+        )
+        _write_secrets(secret_dir)
+
+        result = subprocess.run(
+            [
+                "python3",
+                str(RENDERER),
+                "show-json",
+                "--config",
+                str(config_path),
+                "--target",
+                "docker",
+                "--secret-dir",
+                str(secret_dir),
+                "--runtime-dir",
+                str(runtime_dir),
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT is set but no valid entra_client_certificate_private_key" in output
 
 
 def test_renderer_enforces_scheduler_singleton_runtime_contract() -> None:
