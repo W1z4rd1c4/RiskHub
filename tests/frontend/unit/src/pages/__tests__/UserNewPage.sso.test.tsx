@@ -3,9 +3,19 @@ import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 import { UserNewPage } from '@/pages/UserNewPage';
 import type { AuthConfigResponse } from '@/services/authApi';
+import adminEn from '@/i18n/locales/en/admin.json';
 
 const mockNavigate = vi.fn();
 const mockGetAuthConfig = vi.fn();
+
+function resolveAdminTranslation(key: string): string | undefined {
+    return key.split('.').reduce<unknown>((current, part) => {
+        if (current && typeof current === 'object' && part in current) {
+            return (current as Record<string, unknown>)[part];
+        }
+        return undefined;
+    }, adminEn) as string | undefined;
+}
 
 vi.mock('@/hooks/usePermissions', () => ({
     usePermissions: () => ({
@@ -15,7 +25,8 @@ vi.mock('@/hooks/usePermissions', () => ({
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string, opts?: { defaultValue?: string }) => opts?.defaultValue ?? key,
+        t: (key: string, opts?: { defaultValue?: string }) =>
+            resolveAdminTranslation(key) ?? opts?.defaultValue ?? key,
     }),
 }));
 
@@ -104,6 +115,8 @@ describe('UserNewPage SSO mode', () => {
 
         await screen.findByText('Directory import panel');
         expect(document.querySelector('input[type="password"]')).toBeNull();
+        expect(screen.queryByText(adminEn.user_new.directory_setup_hint_title)).not.toBeInTheDocument();
+        expect(screen.queryByText(adminEn.user_new.directory_setup_hint_body)).not.toBeInTheDocument();
     });
 
     it('renders directory import flow and no password field in hybrid_dev mode', async () => {
@@ -128,7 +141,9 @@ describe('UserNewPage SSO mode', () => {
 
         await screen.findByText('Directory import panel');
         expect(document.querySelector('input[type="password"]')).toBeNull();
-        expect(screen.getByText('Directory provider setup required')).toBeInTheDocument();
+        expect(screen.getByText(adminEn.user_new.directory_setup_hint_title)).toBeInTheDocument();
+        expect(screen.getByText(adminEn.user_new.directory_setup_hint_body)).toBeInTheDocument();
+        expect(screen.getByText('SSO enabled by AUTH_MODE but missing ENTRA_TENANT_ID/ENTRA_CLIENT_ID')).toBeInTheDocument();
     });
 
     it('renders password form in password mode', async () => {
@@ -187,6 +202,7 @@ describe('UserNewPage SSO mode', () => {
         render(<UserNewPage />);
 
         fireEvent.click(await screen.findByRole('button', { name: 'Simulate provider unavailable' }));
-        expect(screen.getByText('Directory provider setup required')).toBeInTheDocument();
+        expect(screen.getByText(adminEn.user_new.directory_setup_hint_title)).toBeInTheDocument();
+        expect(screen.getByText(adminEn.user_new.directory_setup_hint_body)).toBeInTheDocument();
     });
 });

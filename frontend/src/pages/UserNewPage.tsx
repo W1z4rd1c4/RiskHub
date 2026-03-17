@@ -229,7 +229,7 @@ export function UserNewPage() {
                                 {t('user_new.directory_setup_hint_body', {
                                     ns: 'admin',
                                     defaultValue:
-                                        'Configure Entra credentials (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, ENTRA_CLIENT_SECRET) or AD emulator (AD_EMULATOR_BASE_URL), then reload.',
+                                        'Configure Entra credentials (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, plus client secret or certificate credential) or AD emulator (AD_EMULATOR_BASE_URL), then reload.',
                                 })}
                             </p>
                             {authConfig?.sso_error && (

@@ -1,6 +1,6 @@
 # Deployment Reference
 
-> **Last Updated**: 2026-03-07
+> **Last Updated**: 2026-03-17
 > **Audience**: Operators and maintainers
 
 ## Operator Config
@@ -23,6 +23,7 @@ Optional keys:
 
 - `API_WORKERS` default `4`
 - `FRONTEND_BIND_PORT` default `80`
+- `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` when using certificate credential mode
 
 Secret directory:
 
@@ -34,8 +35,19 @@ Required files:
 
 - `database_url`
 - `secret_key`
-- `entra_client_secret`
 - `redis_password`
+
+Entra confidential credential files:
+
+- client secret mode: `entra_client_secret`
+- certificate mode: `entra_client_certificate_private_key`
+
+Production requires one supported Entra Graph credential mechanism:
+
+- `ENTRA_CLIENT_SECRET_FILE`, or
+- `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` + `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`
+
+If both are configured, certificate mode is preferred and becomes the active runtime mode.
 
 ## Derived Internally
 
@@ -47,7 +59,9 @@ These are rendered by the deploy tooling and are not operator-edited:
 - `REDIS_URL`
 - `DATABASE_URL_FILE`
 - `SECRET_KEY_FILE`
-- `ENTRA_CLIENT_SECRET_FILE`
+- `ENTRA_CLIENT_SECRET_FILE` or
+- `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT`
+- `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`
 - `REDIS_URL_FILE`
 - scheduler singleton settings
 - target-specific nginx/systemd/docker runtime files
@@ -128,6 +142,7 @@ Linux target:
 - `SECRET_KEY_FILE` resolves to a value with length at least `32`
 - explicit `CORS_ORIGINS`
 - explicit `DATABASE_URL_FILE`
+- one valid Entra confidential credential mechanism for Graph directory access
 - reachable `REDIS_URL_FILE`
 - `/docs` and `/openapi.json` disabled in production
 - smoke checks fail if:
