@@ -14,6 +14,8 @@ REPORTS_DIR="$ARTIFACT_ROOT/reports"
 TMP_DIR="$ARTIFACT_ROOT/tmp"
 MATRIX_NDJSON="$TMP_DIR/command-matrix.ndjson"
 MATRIX_JSON="$REPORTS_DIR/command-matrix.json"
+RUN_STATUS_JSON="$REPORTS_DIR/run_status.json"
+REPORT_ARTIFACT_PATH="$REPORTS_DIR/report.md"
 
 mkdir -p "$META_DIR" "$LOG_DIR" "$REPORTS_DIR" "$TMP_DIR"
 mkdir -p "$ROOT_DIR/tests/results/prod" "$ROOT_DIR/docs/security/reports"
@@ -22,6 +24,157 @@ mkdir -p "$ROOT_DIR/tests/results/prod" "$ROOT_DIR/docs/security/reports"
 log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"
 }
+
+write_locked_file() {
+  local path="$1"
+  local content="$2"
+  local mode="${3:-440}"
+  local parent
+  parent="$(dirname "$path")"
+  mkdir -p "$parent"
+  chmod 750 "$parent" || true
+
+  local tmp_file
+  tmp_file="$(mktemp "${parent}/.riskhub-audit-write.XXXXXX")"
+  printf '%s' "$content" >"$tmp_file"
+  chmod "$mode" "$tmp_file"
+  mv -f "$tmp_file" "$path"
+}
+
+required_failures=0
+planned_run_complete=false
+
+emit_incomplete_artifacts() {
+  local exit_code="$1"
+  local run_status="aborted"
+  if [[ -s "$MATRIX_NDJSON" || "$required_failures" -gt 0 ]]; then
+    run_status="partial"
+  fi
+
+  python3 - "$MATRIX_NDJSON" "$MATRIX_JSON" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+ndjson_path = Path(sys.argv[1])
+out_path = Path(sys.argv[2])
+rows = []
+if ndjson_path.exists():
+    for line in ndjson_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        rows.append(json.loads(line))
+out_path.write_text(json.dumps(rows, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+PY
+
+  python3 - "$RUN_ID" "$ARTIFACT_ROOT" "$REPORT_PATH" "$RUN_STATUS_JSON" "$REPORT_ARTIFACT_PATH" "$MATRIX_JSON" "$required_failures" "$exit_code" "$run_status" <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+run_id = sys.argv[1]
+artifact_root = Path(sys.argv[2])
+report_path = Path(sys.argv[3])
+run_status_path = Path(sys.argv[4])
+report_artifact_path = Path(sys.argv[5])
+matrix_path = Path(sys.argv[6])
+required_failures = int(sys.argv[7])
+exit_code = int(sys.argv[8])
+status = sys.argv[9]
+
+rows = []
+if matrix_path.exists():
+    rows = json.loads(matrix_path.read_text(encoding="utf-8"))
+
+payload = {
+    "run_id": run_id,
+    "status": status,
+    "generated_at_utc": datetime.now(UTC).isoformat(),
+    "artifact_root": str(artifact_root),
+    "report": str(report_path),
+    "report_artifact": str(report_artifact_path),
+    "matrix": str(matrix_path),
+    "exit_code": exit_code,
+    "required_failures": required_failures,
+    "completed_command_count": len(rows),
+    "planned_run_complete": False,
+}
+run_status_path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+
+findings = [
+    {
+        "id": "prod-readiness-audit-incomplete",
+        "severity": "High",
+        "surface": "docker",
+        "classification": "environment-only issue" if status == "aborted" else "audit-harness issue",
+        "summary": "The local production-readiness audit did not reach planned completion, but partial evidence was preserved.",
+        "artifact_root": str(artifact_root),
+        "run_status": str(run_status_path),
+        "exit_code": exit_code,
+        "required_failures": required_failures,
+    }
+]
+(artifact_root / "reports" / "findings.json").write_text(
+    json.dumps(findings, indent=2, ensure_ascii=True) + "\n",
+    encoding="utf-8",
+)
+
+scorecard = [
+    {
+        "domain": "Audit execution",
+        "soc2_mapping": "CC7.2",
+        "status": status.upper(),
+        "score_0_to_5": 0 if status == "aborted" else 1,
+        "notes": "Run envelope preserved via EXIT finalization after an incomplete execution.",
+    }
+]
+(artifact_root / "reports" / "scorecard.json").write_text(
+    json.dumps(scorecard, indent=2, ensure_ascii=True) + "\n",
+    encoding="utf-8",
+)
+
+report_text = "\n".join(
+    [
+        f"# Production Readiness Deep Audit ({datetime.now(UTC).date().isoformat()})",
+        "",
+        "## Result",
+        f"- Decision: **NO-GO**",
+        f"- Run status: **{status.upper()}**",
+        f"- Run ID: `{run_id}`",
+        f"- Artifact root: `{artifact_root}`",
+        f"- Exit code: `{exit_code}`",
+        f"- Required command failures recorded: `{required_failures}`",
+        "",
+        "## Evidence map",
+        f"- Command matrix: `{matrix_path}`",
+        f"- Run status: `{run_status_path}`",
+        f"- Findings: `{artifact_root / 'reports' / 'findings.json'}`",
+        f"- Scorecard: `{artifact_root / 'reports' / 'scorecard.json'}`",
+        "",
+        "## Notes/limitations",
+        "- This run aborted before the full operator lifecycle completed.",
+        "- The machine-readable envelope was preserved intentionally for auditability.",
+    ]
+) + "\n"
+report_artifact_path.write_text(report_text, encoding="utf-8")
+report_path.write_text(report_text, encoding="utf-8")
+PY
+}
+
+finalize_on_exit() {
+  local exit_code=$?
+  trap - EXIT
+  if [[ "$planned_run_complete" != "true" ]]; then
+    emit_incomplete_artifacts "$exit_code"
+  fi
+  exit "$exit_code"
+}
+
+trap finalize_on_exit EXIT
 
 pick_free_port() {
   python3 - "$1" "$2" <<'PY'
@@ -44,8 +197,6 @@ for port in range(start, end + 1):
 raise SystemExit(f"No free port found in range {start}-{end}")
 PY
 }
-
-required_failures=0
 
 run_cmd() {
   local id="$1"
@@ -237,24 +388,11 @@ chmod 600 "$CONFIG_PATH"
 mkdir -p "$SECRET_DIR_PATH" "$RUNTIME_DIR_PATH"
 chmod 750 "$SECRET_DIR_PATH" "$RUNTIME_DIR_PATH"
 
-cat >"$SECRET_DIR_PATH/database_url" <<EOF
-postgresql+asyncpg://riskhub:riskhub_audit@host.docker.internal:${POSTGRES_PORT}/riskhub
-EOF
-cat >"$SECRET_DIR_PATH/secret_key" <<'EOF'
-phase500-local-test-key-phase500-local-test
-EOF
-cat >"$SECRET_DIR_PATH/entra_client_secret" <<'EOF'
-phase500-test-entra-client-secret
-EOF
-cat >"$SECRET_DIR_PATH/redis_password" <<'EOF'
-riskhub_audit_redis_password
-EOF
-chmod 440 "$SECRET_DIR_PATH/database_url" "$SECRET_DIR_PATH/secret_key" "$SECRET_DIR_PATH/entra_client_secret" "$SECRET_DIR_PATH/redis_password"
-
-cat >"$RUNTIME_DIR_PATH/redis_url" <<'EOF'
-redis://:riskhub_audit_redis_password@redis:6379/0
-EOF
-chmod 440 "$RUNTIME_DIR_PATH/redis_url"
+write_locked_file "$SECRET_DIR_PATH/database_url" "postgresql+asyncpg://riskhub:riskhub_audit@host.docker.internal:${POSTGRES_PORT}/riskhub"$'\n'
+write_locked_file "$SECRET_DIR_PATH/secret_key" "phase500-local-test-key-phase500-local-test"$'\n'
+write_locked_file "$SECRET_DIR_PATH/entra_client_secret" "phase500-test-entra-client-secret"$'\n'
+write_locked_file "$SECRET_DIR_PATH/redis_password" "riskhub_audit_redis_password"$'\n'
+write_locked_file "$RUNTIME_DIR_PATH/redis_url" "redis://:riskhub_audit_redis_password@redis:6379/0"$'\n'
 
 cat >"$TMP_DIR/backend_valid.env" <<EOF
 DEBUG=false
@@ -350,7 +488,7 @@ if ndjson_path.exists():
 out_path.write_text(json.dumps(rows, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
 PY
 
-python3 - "$ROOT_DIR" "$RUN_ID" "$ARTIFACT_ROOT" "$REPORT_PATH" "$MATRIX_JSON" "$required_failures" "$TMP_DIR" "$REPORTS_DIR" <<'PY'
+python3 - "$ROOT_DIR" "$RUN_ID" "$ARTIFACT_ROOT" "$REPORT_PATH" "$MATRIX_JSON" "$required_failures" "$TMP_DIR" "$REPORTS_DIR" "$RUN_STATUS_JSON" "$REPORT_ARTIFACT_PATH" <<'PY'
 from __future__ import annotations
 
 import json
@@ -367,6 +505,8 @@ matrix_path = Path(sys.argv[5])
 required_failures = int(sys.argv[6])
 tmp_dir = Path(sys.argv[7])
 reports_dir = Path(sys.argv[8])
+run_status_path = Path(sys.argv[9])
+report_artifact_path = Path(sys.argv[10])
 logs_dir = artifact_root / "logs"
 
 matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
@@ -768,6 +908,7 @@ summary_payload = {
     "decision": decision,
     "artifact_root": str(artifact_root),
     "report": str(report_path),
+    "report_artifact": str(report_artifact_path),
     "open_high_critical_count": open_high_critical_count,
     "required_failures": required_failures,
 }
@@ -827,6 +968,22 @@ notes_lines = [
 ]
 
 report_path.write_text("\n".join(result_lines + evidence_lines + notes_lines) + "\n", encoding="utf-8")
+report_artifact_path.write_text("\n".join(result_lines + evidence_lines + notes_lines) + "\n", encoding="utf-8")
+write_json(
+    run_status_path,
+    {
+        "run_id": run_id,
+        "status": "complete",
+        "generated_at_utc": datetime.now(UTC).isoformat(),
+        "artifact_root": str(artifact_root),
+        "report": str(report_path),
+        "report_artifact": str(report_artifact_path),
+        "matrix": str(reports_dir / "command-matrix.json"),
+        "required_failures": required_failures,
+        "decision": decision,
+        "planned_run_complete": True,
+    },
+)
 
 phase500_report = root / "docs/security/reports/phase500-prod-deep-audit-2026-02-21.md"
 if phase500_report.exists() and all(item["status"] == "fixed" for item in prior_runtime):
@@ -836,5 +993,6 @@ if phase500_report.exists() and all(item["status"] == "fixed" for item in prior_
         phase500_report.write_text(supersession + "\n\n" + existing, encoding="utf-8")
 PY
 
+planned_run_complete=true
 log "Production readiness local audit complete: $ARTIFACT_ROOT"
 log "Report: $REPORT_PATH"

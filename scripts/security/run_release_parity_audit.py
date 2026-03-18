@@ -99,10 +99,13 @@ class ReleaseParityAudit:
         self.static_resolution: dict[str, Any] = {}
         self.runtime_fingerprints: list[dict[str, Any]] = []
         self.toolchain_fingerprint: dict[str, Any] = {}
+        self.startup_preflight: dict[str, Any] = {}
+        self.launch_failure_analysis: list[dict[str, Any]] = []
         self.dep_diffs: dict[str, Any] = {}
         self.ui_parity: dict[str, Any] = {}
         self.findings: list[dict[str, Any]] = []
         self.decision: dict[str, Any] = {}
+        self.run_status: dict[str, Any] = {}
 
         for path in [
             self.artifact_root,
@@ -241,6 +244,261 @@ class ReleaseParityAudit:
             if missing_match:
                 versions[self._canonical_package_name(missing_match.group(1))] = None
         return versions
+
+    @staticmethod
+    def _node_major_from_binary(binary: str) -> int | None:
+        try:
+            completed = subprocess.run(
+                [binary, "-p", "process.versions.node.split('.')[0]"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            return None
+        if completed.returncode != 0:
+            return None
+        value = (completed.stdout or "").strip()
+        return int(value) if value.isdigit() else None
+
+    def _detect_dev_sh_effective_node(self) -> dict[str, Any]:
+        required_major = 24
+
+        def candidate_payload(bin_dir: Path, source: str) -> dict[str, Any] | None:
+            node_binary = bin_dir / "node"
+            npm_binary = bin_dir / "npm"
+            if not node_binary.is_file() or not os.access(node_binary, os.X_OK):
+                return None
+            if not npm_binary.is_file() or not os.access(npm_binary, os.X_OK):
+                return None
+            major = self._node_major_from_binary(str(node_binary))
+            if major != required_major:
+                return None
+            version_result = subprocess.run(
+                [str(node_binary), "--version"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            npm_result = subprocess.run(
+                [str(npm_binary), "--version"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            return {
+                "selected": True,
+                "required_major": required_major,
+                "source": source,
+                "node_path": str(node_binary),
+                "npm_path": str(npm_binary),
+                "node_version": (version_result.stdout or "").strip(),
+                "npm_version": (npm_result.stdout or "").strip(),
+                "major": major,
+            }
+
+        current_node = shutil.which("node")
+        current_npm = shutil.which("npm")
+        if current_node and current_npm and self._node_major_from_binary(current_node) == required_major:
+            version_result = subprocess.run(
+                [current_node, "--version"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            npm_result = subprocess.run(
+                [current_npm, "--version"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            return {
+                "selected": True,
+                "required_major": required_major,
+                "source": "PATH",
+                "node_path": current_node,
+                "npm_path": current_npm,
+                "node_version": (version_result.stdout or "").strip(),
+                "npm_version": (npm_result.stdout or "").strip(),
+                "major": required_major,
+            }
+
+        candidate_dirs: list[tuple[Path, str]] = []
+        node24_bin = os.environ.get("NODE24_BIN")
+        if node24_bin:
+            candidate_dirs.append((Path(node24_bin), "NODE24_BIN"))
+        candidate_dirs.extend(
+            [
+                (Path("/opt/homebrew/opt/node@24/bin"), "homebrew_default"),
+                (Path("/usr/local/opt/node@24/bin"), "homebrew_usr_local"),
+            ]
+        )
+
+        brew_binary = shutil.which("brew")
+        if brew_binary:
+            brew_prefix = subprocess.run(
+                [brew_binary, "--prefix", "node@24"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            prefix = (brew_prefix.stdout or "").strip()
+            if prefix:
+                candidate_dirs.append((Path(prefix) / "bin", "brew_prefix"))
+
+        nvm_root = Path.home() / ".nvm" / "versions" / "node"
+        if nvm_root.exists():
+            for match in sorted(nvm_root.glob("v24*/bin")):
+                candidate_dirs.append((match, "nvm"))
+
+        seen: set[str] = set()
+        for bin_dir, source in candidate_dirs:
+            key = str(bin_dir)
+            if key in seen:
+                continue
+            seen.add(key)
+            payload = candidate_payload(bin_dir, source)
+            if payload is not None:
+                return payload
+
+        host_major = self._node_major_from_binary(current_node) if current_node else None
+        return {
+            "selected": False,
+            "required_major": required_major,
+            "source": None,
+            "node_path": current_node,
+            "npm_path": current_npm,
+            "node_version": self.toolchain_fingerprint.get("host_node", {}).get("value"),
+            "npm_version": self.toolchain_fingerprint.get("host_npm", {}).get("value"),
+            "major": host_major,
+        }
+
+    @staticmethod
+    def _port_listeners(port: int) -> list[dict[str, Any]]:
+        try:
+            completed = subprocess.run(
+                ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            return []
+        if completed.returncode != 0:
+            return []
+        listeners: list[dict[str, Any]] = []
+        for raw_line in completed.stdout.splitlines()[1:]:
+            line = raw_line.strip()
+            if not line:
+                continue
+            parts = re.split(r"\s+", line, maxsplit=8)
+            if len(parts) < 9:
+                continue
+            listeners.append(
+                {
+                    "command": parts[0],
+                    "pid": parts[1],
+                    "user": parts[2],
+                    "name": parts[8],
+                }
+            )
+        return listeners
+
+    def _capture_startup_preflight(self) -> None:
+        docker_available = False
+        docker_message = ""
+        try:
+            completed = subprocess.run(
+                ["docker", "info"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            docker_available = completed.returncode == 0
+            docker_message = ((completed.stdout or "") + (completed.stderr or "")).strip()
+        except OSError as exc:
+            docker_message = str(exc)
+
+        preflight = {
+            "captured_at_utc": self._iso(self._utc_now()),
+            "docker_daemon": {
+                "available": docker_available,
+                "message": docker_message[:4000],
+            },
+            "ports": {
+                "8000": self._port_listeners(8000),
+                "5173": self._port_listeners(5173),
+                "80": self._port_listeners(80),
+            },
+            "toolchain": {
+                "dev_sh_effective_node": self._detect_dev_sh_effective_node(),
+                "backend_venv_python_exists": (ROOT_DIR / "backend" / "venv" / "bin" / "python").exists(),
+                "frontend_lockfile_exists": (ROOT_DIR / "frontend" / "package-lock.json").exists(),
+            },
+        }
+        self.startup_preflight = preflight
+        self._write_json(self.fingerprints_dir / "startup-preflight.json", preflight)
+
+    @staticmethod
+    def _classify_launch_failure(startup_path_id: str, log_text: str, launch_rc: int) -> dict[str, Any]:
+        log_lower = log_text.lower()
+
+        def result(
+            classification: str,
+            code: str,
+            summary: str,
+        ) -> dict[str, Any]:
+            return {
+                "classification": classification,
+                "code": code,
+                "summary": summary,
+                "launch_rc": launch_rc,
+            }
+
+        if "dev_port_conflict_unexpected_process" in log_lower:
+            return result(
+                "environment_contamination",
+                "unexpected_port_owner",
+                "A required local port was owned by an unexpected process on the audit host.",
+            )
+        if "docker daemon is unavailable" in log_lower or "cannot connect to the docker daemon" in log_lower:
+            return result(
+                "environment_contamination",
+                "docker_daemon_unavailable",
+                "Docker was unavailable on the audit host for a Docker-backed startup path.",
+            )
+        if "docker is required" in log_lower or "docker daemon not reachable" in log_lower:
+            return result(
+                "environment_contamination",
+                "docker_tooling_missing",
+                "Docker tooling was unavailable for a Docker-backed startup path.",
+            )
+        if "unsupported node.js major" in log_lower or "node.js is required but was not found" in log_lower or "npm is required but was not found" in log_lower:
+            return result(
+                "environment_contamination",
+                "toolchain_mismatch",
+                "Node/npm on the audit host could not satisfy the startup script requirements.",
+            )
+        packaging_markers = (
+            "backend/venv/bin/python",
+            "./venv/bin/python",
+            "package-lock.json",
+            "requirements.txt",
+            "no such file or directory",
+            "missing required file",
+            "missing required directory",
+        )
+        if any(marker in log_lower for marker in packaging_markers):
+            return result(
+                "environment_contamination",
+                "parity_artifact_incomplete",
+                "The parity workspace or generated artifacts were incomplete for this startup path.",
+            )
+        return result(
+            "product_failure",
+            "startup_path_failed",
+            f"Startup path {startup_path_id} failed before parity fingerprints could be captured.",
+        )
 
     def _stop_local_dev_processes(self) -> None:
         self._run(
@@ -664,6 +922,7 @@ class ReleaseParityAudit:
                 if line and not line.startswith("$ "):
                     last = line.strip()
             toolchain[key] = {"rc": res.rc, "value": last}
+        toolchain["dev_sh_effective_node"] = self._detect_dev_sh_effective_node()
         self.toolchain_fingerprint = toolchain
         self._write_json(self.fingerprints_dir / "toolchain.json", toolchain)
 
@@ -778,6 +1037,8 @@ class ReleaseParityAudit:
         *,
         docker_containers: list[str] | None = None,
     ) -> dict[str, Any]:
+        log_text = Path(launch_result.log_path).read_text(encoding="utf-8", errors="replace")
+        failure = self._classify_launch_failure(startup_path_id, log_text, launch_result.rc)
         fp: dict[str, Any] = {
             "startup_path_id": startup_path_id,
             "context_id": context_id,
@@ -787,9 +1048,18 @@ class ReleaseParityAudit:
             "launch_failed": True,
             "launch_rc": launch_result.rc,
             "launch_log": launch_result.log_path,
+            "launch_failure": failure,
         }
         if docker_containers:
             fp["docker_state"] = self._docker_container_state(docker_containers)
+        self.launch_failure_analysis.append(
+            {
+                "startup_path_id": startup_path_id,
+                "context_id": context_id,
+                "launch_log": launch_result.log_path,
+                **failure,
+            }
+        )
         return fp
 
     def _capture_dependencies(self) -> None:
@@ -1398,18 +1668,39 @@ class ReleaseParityAudit:
             if not fp.get("launch_failed"):
                 continue
             startup_path_id = fp.get("startup_path_id", "unknown")
-            findings.append(
-                {
-                    "id": f"P1-startup-path-failed-{startup_path_id}",
-                    "severity": "P1",
-                    "classification": "unexpected",
-                    "summary": "Startup command failed for this path before parity fingerprints could be captured.",
-                    "startup_path_id": startup_path_id,
-                    "context_id": fp.get("context_id"),
-                    "launch_rc": fp.get("launch_rc"),
-                    "launch_log": fp.get("launch_log"),
-                }
-            )
+            failure = fp.get("launch_failure", {})
+            if failure.get("classification") == "environment_contamination":
+                findings.append(
+                    {
+                        "id": f"ENV-startup-path-{startup_path_id}-{failure.get('code', 'unknown')}",
+                        "severity": "ENV",
+                        "classification": "environment_contamination",
+                        "summary": failure.get(
+                            "summary",
+                            "The audit host was not valid evidence for this startup path.",
+                        ),
+                        "startup_path_id": startup_path_id,
+                        "context_id": fp.get("context_id"),
+                        "launch_rc": fp.get("launch_rc"),
+                        "launch_log": fp.get("launch_log"),
+                    }
+                )
+            else:
+                findings.append(
+                    {
+                        "id": f"P1-startup-path-failed-{startup_path_id}",
+                        "severity": "P1",
+                        "classification": "unexpected",
+                        "summary": failure.get(
+                            "summary",
+                            "Startup command failed for this path before parity fingerprints could be captured.",
+                        ),
+                        "startup_path_id": startup_path_id,
+                        "context_id": fp.get("context_id"),
+                        "launch_rc": fp.get("launch_rc"),
+                        "launch_log": fp.get("launch_log"),
+                    }
+                )
 
         for diff in self.dep_diffs.get("backend_drift", []):
             findings.append(
@@ -1442,21 +1733,30 @@ class ReleaseParityAudit:
         if node_versions:
             expected_node_major = int(str(node_versions[0]).split(".")[0])
 
-        host_node_value = self.toolchain_fingerprint.get("host_node", {}).get("value", "")
-        host_node_major = None
-        match = re.search(r"v?([0-9]+)", str(host_node_value))
-        if match:
-            host_node_major = int(match.group(1))
-        if expected_node_major and host_node_major and host_node_major != expected_node_major:
+        effective_node = self.toolchain_fingerprint.get("dev_sh_effective_node", {})
+        effective_node_major = effective_node.get("major")
+        if expected_node_major and effective_node_major and effective_node_major != expected_node_major:
             findings.append(
                 {
                     "id": "P2-node-major-mismatch",
                     "severity": "P2",
                     "classification": "unexpected",
-                    "summary": "Host Node major version differs from CI/Docker baseline.",
+                    "summary": "Effective Node runtime for scripts/dev.sh differs from the CI/Docker baseline.",
                     "expected_node_major": expected_node_major,
-                    "observed_node_major": host_node_major,
+                    "observed_node_major": effective_node_major,
                     "evidence": [str(self.fingerprints_dir / "toolchain.json"), str(self.artifact_root / "static-resolution.json")],
+                }
+            )
+        elif expected_node_major and not effective_node.get("selected"):
+            findings.append(
+                {
+                    "id": "ENV-dev-sh-node-runtime-unavailable",
+                    "severity": "ENV",
+                    "classification": "environment_contamination",
+                    "summary": "scripts/dev.sh could not resolve a Node runtime matching the CI/Docker baseline on this host.",
+                    "expected_node_major": expected_node_major,
+                    "observed_node_major": effective_node_major,
+                    "evidence": [str(self.fingerprints_dir / "toolchain.json"), str(self.fingerprints_dir / "startup-preflight.json")],
                 }
             )
 
@@ -1488,15 +1788,21 @@ class ReleaseParityAudit:
                 }
             )
 
-        if self.required_failures > 0 and not any(
-            str(item["id"]).startswith("P1-startup-path-failed-") for item in findings
-        ):
+        env_only_launch_failures = any(
+            item["classification"] == "environment_contamination" for item in findings
+        )
+        product_launch_failures = any(str(item["id"]).startswith("P1-startup-path-failed-") for item in findings)
+        if self.required_failures > 0 and not product_launch_failures:
             findings.append(
                 {
-                    "id": "P1-required-command-failures",
-                    "severity": "P1",
-                    "classification": "unexpected",
-                    "summary": "One or more required audit commands failed.",
+                    "id": "ENV-required-command-failures" if env_only_launch_failures else "P1-required-command-failures",
+                    "severity": "ENV" if env_only_launch_failures else "P1",
+                    "classification": "environment_contamination" if env_only_launch_failures else "unexpected",
+                    "summary": (
+                        "One or more required audit commands failed because the host environment was not valid release evidence."
+                        if env_only_launch_failures
+                        else "One or more required audit commands failed."
+                    ),
                     "required_failures": self.required_failures,
                     "evidence": [str(self.artifact_root / "matrix.json")],
                 }
@@ -1504,12 +1810,21 @@ class ReleaseParityAudit:
 
         self.findings = findings
         self._write_json(self.artifact_root / "findings.json", findings)
+        self._write_json(
+            self.fingerprints_dir / "launch-failure-analysis.json",
+            self.launch_failure_analysis,
+        )
 
         has_p0_p1 = any(item["severity"] in {"P0", "P1"} for item in findings)
         has_p2 = any(item["severity"] == "P2" for item in findings)
+        has_environment_contamination = any(
+            item["classification"] == "environment_contamination" for item in findings
+        )
 
         if has_p0_p1:
             decision = "NO-GO"
+        elif has_environment_contamination:
+            decision = "INVALID_ENVIRONMENT"
         elif has_p2:
             decision = "CONDITIONAL"
         else:
@@ -1524,6 +1839,7 @@ class ReleaseParityAudit:
                 "P0": sum(1 for item in findings if item["severity"] == "P0"),
                 "P1": sum(1 for item in findings if item["severity"] == "P1"),
                 "P2": sum(1 for item in findings if item["severity"] == "P2"),
+                "ENV": sum(1 for item in findings if item["severity"] == "ENV"),
             },
             "go_criteria": "No unresolved P0/P1 findings",
         }
@@ -1532,6 +1848,16 @@ class ReleaseParityAudit:
     def _write_report(self) -> None:
         matrix_path = self.artifact_root / "matrix.json"
         self._write_json(matrix_path, [entry.to_json() for entry in self.command_results])
+        self.run_status = {
+            "run_id": self.run_id,
+            "generated_at_utc": self._iso(self._utc_now()),
+            "status": "complete",
+            "decision": self.decision.get("decision", "UNKNOWN"),
+            "required_failures": self.required_failures,
+            "artifact_root": str(self.artifact_root),
+            "matrix": str(matrix_path),
+        }
+        self._write_json(self.artifact_root / "run_status.json", self.run_status)
 
         report_lines = [
             f"# Release Parity Audit ({self.run_id})",
@@ -1546,9 +1872,12 @@ class ReleaseParityAudit:
             f"- Startup inventory: `{self.artifact_root / 'startup-paths.json'}`",
             f"- Runtime fingerprints: `{self.fingerprints_dir / 'runtime.json'}`",
             f"- Toolchain fingerprint: `{self.fingerprints_dir / 'toolchain.json'}`",
+            f"- Startup preflight: `{self.fingerprints_dir / 'startup-preflight.json'}`",
+            f"- Launch-failure analysis: `{self.fingerprints_dir / 'launch-failure-analysis.json'}`",
             f"- Dependency diffs: `{self.deps_dir / 'diffs.json'}`",
             f"- UI parity: `{self.ui_dir / 'parity.json'}`",
             f"- Command matrix: `{self.artifact_root / 'matrix.json'}`",
+            f"- Run status: `{self.artifact_root / 'run_status.json'}`",
             "",
             "## Findings",
         ]
@@ -1561,6 +1890,8 @@ class ReleaseParityAudit:
                 )
                 if finding["severity"] in {"P0", "P1"}:
                     report_lines.append("  - Release impact: blocks GO.")
+                elif finding["severity"] == "ENV":
+                    report_lines.append("  - Release impact: invalidates this host as release evidence until rerun on a clean environment.")
 
         report_lines.extend(
             [
@@ -1594,6 +1925,9 @@ class ReleaseParityAudit:
                 elif str(finding["id"]).startswith("P1-startup-path-failed-"):
                     report_lines.append("   - Fix: repair startup path command and ensure it reaches healthy backend/frontend state.")
                     report_lines.append("   - Guard: add script-level smoke checks for each startup entrypoint before release cut.")
+                elif finding["severity"] == "ENV":
+                    report_lines.append("   - Fix: clean the host environment or provide the missing prerequisite, then rerun parity on a valid evidence host.")
+                    report_lines.append("   - Guard: preserve the startup preflight gate and launch-failure classification to prevent false product blockers.")
                 elif finding["severity"] == "P1":
                     report_lines.append("   - Fix: pin backend runtime dependencies for release reproducibility and rebuild release image.")
                     report_lines.append("   - Guard: add backend dependency parity gate comparing local lock set vs image lock set.")
@@ -1626,6 +1960,7 @@ class ReleaseParityAudit:
         self._build_startup_inventory()
         self._extract_static_resolution()
         self._capture_toolchain()
+        self._capture_startup_preflight()
         self._run_dynamic_paths()
         self._capture_dependencies()
         self._evaluate_ui_parity()
