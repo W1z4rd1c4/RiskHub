@@ -31,3 +31,10 @@ def test_dev_script_schema_preflight_prints_actionable_migration_command() -> No
     assert "Bootstrapping local database (migrations + base seed)..." in text
     assert "Backend failed during startup." in text
     assert "Backend process exited before becoming ready." in text
+
+
+def test_dev_script_unexpected_port_conflict_marker_is_machine_readable() -> None:
+    text = DEV_SCRIPT.read_text(encoding="utf-8")
+
+    assert "DEV_PORT_CONFLICT_UNEXPECTED_PROCESS" in text
+    assert "refusing to stop unexpected process on port" in text.lower()

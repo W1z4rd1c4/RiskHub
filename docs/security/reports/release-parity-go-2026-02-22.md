@@ -1,3 +1,5 @@
+> Supersession note (2026-03-17): This February 22 `GO` result is no longer the current release truth. See `docs/security/reports/pre-release-deploy-install-audit-2026-03-17.md` and `tests/results/pre-release-deploy-install-review-20260317T143939Z` for the latest pre-release deployment/install review, which concluded `NO-GO`.
+
 # Release Parity Audit GO Report (2026-02-22)
 
 ## Result

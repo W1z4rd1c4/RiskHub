@@ -21,6 +21,7 @@ Historical and current security scan/pentest/remediation reports.
 - [`deep-scan-round3-2026-02-20.md`](./deep-scan-round3-2026-02-20.md)
 - [`deep-scan-round3-runtimefix-2026-02-21.md`](./deep-scan-round3-runtimefix-2026-02-21.md)
 - [`phase500-prod-deep-audit-2026-02-21.md`](./phase500-prod-deep-audit-2026-02-21.md)
+- [`pre-release-deploy-install-audit-2026-03-17.md`](./pre-release-deploy-install-audit-2026-03-17.md)
 - [`prod-readiness-deep-audit-2026-02-22.md`](./prod-readiness-deep-audit-2026-02-22.md)
 - [`release-parity-go-2026-02-22.md`](./release-parity-go-2026-02-22.md)
 

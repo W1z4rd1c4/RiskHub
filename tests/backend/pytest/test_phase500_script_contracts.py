@@ -203,6 +203,23 @@ def test_prod_readiness_audit_uses_deploy_cli_for_operator_lifecycle() -> None:
         assert token not in text
 
 
+def test_prod_readiness_audit_preserves_run_status_and_exit_finalization() -> None:
+    text = _read(REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh")
+
+    assert 'RUN_STATUS_JSON="$REPORTS_DIR/run_status.json"' in text
+    assert 'REPORT_ARTIFACT_PATH="$REPORTS_DIR/report.md"' in text
+    assert "write_locked_file()" in text
+    assert "emit_incomplete_artifacts()" in text
+    assert "trap finalize_on_exit EXIT" in text
+
+
+def test_redis_entrypoint_allows_passthrough_commands_for_image_contract_checks() -> None:
+    text = _read(REPO_ROOT / "docker" / "redis" / "entrypoint.sh")
+
+    assert 'if [ "$#" -gt 0 ] && [ "$1" != "redis-server" ]; then' in text
+    assert 'exec "$@"' in text
+
+
 def test_active_docs_do_not_reference_removed_or_unsupported_deployment_paths() -> None:
     forbidden_tokens = (
         "scripts/prod/setup.sh",

@@ -2,6 +2,10 @@
 set -eu
 
 password_file="${RISKHUB_REDIS_PASSWORD_FILE:-/etc/riskhub/secrets/redis_password}"
+if [ "$#" -gt 0 ] && [ "$1" != "redis-server" ]; then
+  exec "$@"
+fi
+
 if [ ! -f "${password_file}" ]; then
   echo "Missing redis password file: ${password_file}" >&2
   exit 1

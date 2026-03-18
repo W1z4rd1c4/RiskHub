@@ -216,6 +216,7 @@ stop_known_dev_listeners_on_port() {
     local port="$1"
     local name="$2"
     local allowed_regex="$3"
+    local unexpected_process_marker="DEV_PORT_CONFLICT_UNEXPECTED_PROCESS"
 
     local pids
     pids="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null || true)"
@@ -230,7 +231,7 @@ stop_known_dev_listeners_on_port() {
         if echo "$cmd" | grep -Eq "$allowed_regex"; then
             kill "$pid" >/dev/null 2>&1 || true
         else
-            echo -e "${RED}Refusing to stop unexpected process on port ${port} (PID ${pid}).${NC}"
+            echo -e "${RED}${unexpected_process_marker}: refusing to stop unexpected process on port ${port} (PID ${pid}).${NC}"
             echo "Command: $cmd"
             echo "Stop it manually and retry."
             exit 1
@@ -246,7 +247,7 @@ stop_known_dev_listeners_on_port() {
             if echo "$cmd" | grep -Eq "$allowed_regex"; then
                 kill -9 "$pid" >/dev/null 2>&1 || true
             else
-                echo -e "${RED}Port ${port} is still in use by an unexpected process (PID ${pid}).${NC}"
+                echo -e "${RED}${unexpected_process_marker}: port ${port} is still in use by an unexpected process (PID ${pid}).${NC}"
                 echo "Command: $cmd"
                 echo "Stop it manually and retry."
                 exit 1
