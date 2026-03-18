@@ -8,6 +8,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
+from app.core.approval_display import approval_resource_label
 from app.core.permissions import can_read_issue_id, can_read_risk_id
 from app.core.datetime_utils import utc_now
 from app.core.logging import get_logger
@@ -205,7 +206,7 @@ async def _handle_approval_request_created(db: AsyncSession, payload: dict) -> N
 
     action_label = "delete" if approval.action_type.value == "delete" else "edit"
     if approval.primary_approver_id and approval.primary_approver_id != approval.requested_by_id:
-        resource_label = approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}"
+        resource_label = approval_resource_label(approval)
         await NotificationService.create_notification_once(
             db=db,
             user_id=approval.primary_approver_id,

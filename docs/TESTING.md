@@ -30,7 +30,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Docs topology consistency | `cd . && make -f scripts/Makefile docs-topology-consistency` | README coverage, docs tree audit scope, and structure metrics consistency |
 | Suppression budget only | `cd . && make -f scripts/Makefile quality-suppression-budget` | Enforce backend suppression allowlist max budget/no-expired entries |
 | Docs contract | `cd . && python3 scripts/check_docs_contract.py` | Header/parity/link/audience checks |
-| Release parity (fast) | `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness` | Fast rerun loop for startup/dependency/UI parity checks |
+| Release parity (fast, non-blocking lane) | `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness` | Monitoring lane for startup/dependency/UI parity checks (main/nightly; not PR-blocking) |
 | Release parity (full) | `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>` | Final pre-release parity gate including prod-readiness execution/ingestion |
 
 ## Backend Testing Notes
@@ -81,6 +81,10 @@ cd backend
 - Backend vendor-link regressions must cover linked KRI list/link/unlink behavior and vendor summaries on risk/control/issue/KRI list payloads:
   - `cd /Users/stefanlesnak/Antigravity/Risk App 2 && PYTHONPATH=backend pytest tests/backend/pytest/test_vendor_links.py -q`
 - Playwright runs live browser flows from `tests/frontend/e2e`.
+- CI E2E contract requires demo auth mode:
+  - backend env includes `AUTH_MODE=hybrid_dev`, `DEBUG=true`, `MOCK_AUTH_ENABLED=true`
+  - deterministic seed commands run without tolerance (`python -m app.db.seed` and `python -m scripts.seed_e2e_all`)
+  - backend preflight must confirm `/api/v1/auth/config` reports `demo_login_enabled=true`
 - Role-sensitive behavior must be verified for admin/non-admin views when docs contracts change.
 
 ## Release Gate (Parity)
@@ -88,6 +92,7 @@ cd backend
 - For release candidates, parity artifacts are emitted under `tests/results/release-parity-audit-<run-id>/`.
 - Evaluate `decision.json` at that path.
 - Release candidate is blocked unless parity `decision` is `GO`.
+- Fast parity audits are intentionally non-blocking and should run on `main` and/or nightly schedules for drift monitoring.
 
 ## Quality Gate Contract (Blocking)
 

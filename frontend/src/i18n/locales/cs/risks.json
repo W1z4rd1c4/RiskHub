@@ -316,7 +316,7 @@
     "archive_message": "\"{{riskName}}\"\n\nTímto přesunete riziko do archivovaného stavu."
   },
   "messages": {
-    "archive_submitted_for_approval": "Požadavek na archivaci byl odeslán ke schválení (ID: {{approvalId}}). Riziko zatím nebylo archivováno.",
+    "archive_submitted_for_approval": "Požadavek na archivaci byl odeslán ke schválení. Riziko zatím nebylo archivováno.",
     "restore_success": "Riziko bylo úspěšně obnoveno.",
     "view_pending_approvals_prefix": "Zobrazit čekající schválení v sekci",
     "view_pending_approvals_suffix": "."

@@ -177,7 +177,7 @@
     }
   },
   "detail": {
-    "archive_approval_submitted": "Požadavek na archivaci byl odeslán ke schválení (ID: {{approvalId}}). Kontrola zatím nebyla archivována.",
+    "archive_approval_submitted": "Požadavek na archivaci byl odeslán ke schválení. Kontrola zatím nebyla archivována.",
     "control_restored": "Kontrola byla úspěšně obnovena.",
     "linked_risks_load_failed": "Nepodařilo se načíst propojená rizika. K těmto datům nemusíte mít přístup.",
     "view_pending_approvals": "Čekající schválení zobrazíte v",
