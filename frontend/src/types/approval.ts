@@ -24,6 +24,8 @@ export interface ApprovalRequest {
     resolved_at: string | null;
     resolution_notes: string | null;
     created_at: string;
+    can_approve: boolean;
+    can_reject: boolean;
 }
 
 export interface ApprovalListResponse {

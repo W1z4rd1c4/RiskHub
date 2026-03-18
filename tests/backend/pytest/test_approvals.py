@@ -15,6 +15,7 @@ from app.models import (
     ApprovalStatus,
     KeyRiskIndicator,
     Role,
+    User,
 )
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
@@ -72,6 +73,129 @@ async def test_create_approval_with_reason(auth_client: AsyncClient, test_risk):
     assert data["status"] == "pending"
     assert data["resource_type"] == "risk"
     assert data["reason"] == "No longer applicable to business"
+    assert data["can_approve"] is False
+    assert data["can_reject"] is True
+
+
+@pytest.mark.asyncio
+async def test_pending_queue_and_count_use_combined_non_privileged_predicate(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user: User,
+    test_user_employee: User,
+):
+    own_pending_privileged = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user_employee.id,
+        reason="Own privileged pending",
+        status=ApprovalStatus.PENDING_PRIVILEGED,
+    )
+    primary_pending = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user.id,
+        primary_approver_id=test_user_employee.id,
+        reason="Primary pending",
+        status=ApprovalStatus.PENDING,
+    )
+    unrelated_pending = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user.id,
+        primary_approver_id=test_user.id,
+        reason="Unrelated pending",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add_all([own_pending_privileged, primary_pending, unrelated_pending])
+    await db_session.commit()
+
+    headers = {"X-Mock-User-Id": str(test_user_employee.id)}
+
+    list_response = await client.get("/api/v1/approvals?status=pending", headers=headers)
+    assert list_response.status_code == 200
+    items = list_response.json()["items"]
+    item_ids = {item["id"] for item in items}
+    assert own_pending_privileged.id in item_ids
+    assert primary_pending.id in item_ids
+    assert unrelated_pending.id not in item_ids
+
+    own_item = next(item for item in items if item["id"] == own_pending_privileged.id)
+    assert own_item["can_approve"] is False
+    assert own_item["can_reject"] is False
+
+    primary_item = next(item for item in items if item["id"] == primary_pending.id)
+    assert primary_item["can_approve"] is True
+    assert primary_item["can_reject"] is False
+
+    count_response = await client.get("/api/v1/approvals/pending/count", headers=headers)
+    assert count_response.status_code == 200
+    assert count_response.json()["count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_self_approval_is_forbidden_for_approve(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user: User,
+):
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user.id,
+        primary_approver_id=test_user.id,
+        reason="Own request",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Attempted self approval"},
+    )
+    assert response.status_code == 403
+    assert "cannot approve their own requests" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_approve_sanitizes_500_detail_on_commit_failure(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user_employee.id,
+        reason="Trigger failure",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+
+    async def _raise_enqueue(*args, **kwargs):
+        raise RuntimeError("db exploded sensitive details")
+
+    monkeypatch.setattr("app.api.v1.endpoints.approvals.resolve.OutboxService.enqueue", _raise_enqueue)
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Approve"},
+    )
+    assert response.status_code == 500
+    detail = response.json()["detail"]
+    assert detail == "Failed to process approval request"
+    assert "db exploded" not in detail.lower()
 
 
 @pytest.mark.asyncio
@@ -107,6 +231,78 @@ async def test_get_approval_by_id(auth_client: AsyncClient, test_risk):
 
 
 @pytest.mark.asyncio
+async def test_primary_approver_can_get_approval_by_id(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user: User,
+    test_user_employee: User,
+):
+    """Primary approver can read approval detail and receives row action booleans."""
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user.id,
+        primary_approver_id=test_user_employee.id,
+        reason="Primary approval detail visibility",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+
+    response = await client_employee.get(f"/api/v1/approvals/{approval.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == approval.id
+    assert data["can_approve"] is True
+    assert data["can_reject"] is False
+
+
+@pytest.mark.asyncio
+async def test_non_privileged_non_requester_non_primary_cannot_get_approval_by_id(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user: User,
+    test_user_employee: User,
+    test_role_employee: Role,
+):
+    """Non-privileged users who are neither requester nor primary approver cannot read detail."""
+    from app.models.user import AccessScope
+
+    outsider = User(
+        name="Approval Outsider",
+        email="approval-outsider@test.com",
+        role_id=test_role_employee.id,
+        department_id=test_user.department_id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(outsider)
+    await db_session.commit()
+    await db_session.refresh(outsider)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user.id,
+        primary_approver_id=test_user_employee.id,
+        reason="Restricted detail visibility",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+
+    response = await client.get(
+        f"/api/v1/approvals/{approval.id}",
+        headers={"X-Mock-User-Id": str(outsider.id)},
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_cancel_own_request(auth_client: AsyncClient, test_risk):
     """Test user can cancel their own pending request."""
     # Create request
@@ -122,36 +318,52 @@ async def test_cancel_own_request(auth_client: AsyncClient, test_risk):
 
 
 @pytest.mark.asyncio
-async def test_cannot_cancel_already_resolved_request(auth_client: AsyncClient, test_risk):
+async def test_cannot_cancel_already_resolved_request(
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+    test_risk,
+):
     """Test cannot cancel an already-approved request."""
-    # Create request
-    create_response = await auth_client.post(
+    # Create request as a non-privileged user
+    create_response = await client_employee.post(
         "/api/v1/approvals", json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Test reason"}
     )
     approval_id = create_response.json()["id"]
 
-    # Approve it (auth_client has admin role)
-    await auth_client.post(f"/api/v1/approvals/{approval_id}/approve", json={"resolution_notes": "Approved"})
+    # Approve it (CRO role)
+    approve_response = await client_cro.post(
+        f"/api/v1/approvals/{approval_id}/approve",
+        json={"resolution_notes": "Approved"},
+    )
+    assert approve_response.status_code == 200
 
     # Try to cancel - should fail
-    response = await auth_client.post(f"/api/v1/approvals/{approval_id}/cancel")
+    response = await client_cro.post(f"/api/v1/approvals/{approval_id}/cancel")
     assert response.status_code == 400
 
 
 @pytest.mark.asyncio
-async def test_cannot_approve_already_resolved_request(auth_client: AsyncClient, test_risk):
+async def test_cannot_approve_already_resolved_request(
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+    test_risk,
+):
     """Test cannot approve an already-rejected request."""
     # Create request
-    create_response = await auth_client.post(
+    create_response = await client_employee.post(
         "/api/v1/approvals", json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Test reason"}
     )
     approval_id = create_response.json()["id"]
 
     # Reject it first
-    await auth_client.post(f"/api/v1/approvals/{approval_id}/reject", json={"resolution_notes": "Rejected"})
+    reject_response = await client_cro.post(
+        f"/api/v1/approvals/{approval_id}/reject",
+        json={"resolution_notes": "Rejected"},
+    )
+    assert reject_response.status_code == 200
 
     # Try to approve - should fail
-    response = await auth_client.post(
+    response = await client_cro.post(
         f"/api/v1/approvals/{approval_id}/approve", json={"resolution_notes": "Try again"}
     )
     assert response.status_code == 400
@@ -244,6 +456,7 @@ async def test_approve_kri_history_correction_applies_change(
     db_session: AsyncSession,
     test_risk,
     test_user,
+    test_user_employee,
 ):
     """Test approving a KRI history correction updates the entry and current value."""
     period_start, period_end = KRIHistoryService.latest_closed_period_for_date(date.today(), KRIFrequency.monthly.value)
@@ -282,7 +495,7 @@ async def test_approve_kri_history_correction_applies_change(
         resource_type=ApprovalResourceType.KRI,
         resource_id=kri.id,
         resource_name="Approval KRI (history correction)",
-        requested_by_id=test_user.id,
+        requested_by_id=test_user_employee.id,
         reason="Correction required",
         action_type=ApprovalActionType.EDIT,
         pending_changes={
@@ -315,6 +528,7 @@ async def test_approve_kri_value_submission_with_period_end(
     db_session: AsyncSession,
     test_risk,
     test_user,
+    test_user_employee,
 ):
     """Test approving a KRI value submission records history with period_end."""
     today = date.today()
@@ -340,7 +554,7 @@ async def test_approve_kri_value_submission_with_period_end(
         resource_type=ApprovalResourceType.KRI,
         resource_id=kri.id,
         resource_name="Value Submission KRI (value submission)",
-        requested_by_id=test_user.id,
+        requested_by_id=test_user_employee.id,
         reason="KRI value submission: 55.0",
         action_type=ApprovalActionType.EDIT,
         pending_changes={
@@ -377,6 +591,64 @@ async def test_approve_kri_value_submission_with_period_end(
     entry = result.scalar_one_or_none()
     assert entry is not None
     assert entry.value == 55.0
+
+
+@pytest.mark.asyncio
+async def test_approve_kri_value_submission_sanitizes_internal_500_detail(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    today = date.today()
+    _, closed_period_end = KRIHistoryService.latest_closed_period_for_date(today, KRIFrequency.monthly.value)
+
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Value Submission KRI Failure",
+        description="KRI used to test sanitized internal failures",
+        current_value=30.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name="Value Submission KRI Failure (value submission)",
+        requested_by_id=test_user_employee.id,
+        reason="KRI value submission failure",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={
+            "current_value": {"old": 30.0, "new": 55.0},
+            "period_end": closed_period_end.isoformat(),
+            "recorded_at": datetime.now(UTC).isoformat(),
+        },
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    async def _raise_runtime_error(*args, **kwargs):
+        raise RuntimeError("super-sensitive database internals")
+
+    monkeypatch.setattr("app.services.kri_history_service.KRIHistoryService.record_value", _raise_runtime_error)
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Approve value submission"},
+    )
+    assert response.status_code == 500
+    detail = response.json()["detail"]
+    assert detail == "Internal server error during KRI approval execution"
+    assert "super-sensitive" not in detail.lower()
 
 
 @pytest.mark.asyncio
@@ -628,20 +900,25 @@ async def test_non_privileged_cannot_cancel_other_users_request(
 @pytest.mark.asyncio
 async def test_privileged_user_cannot_cancel_already_resolved(
     client_cro: AsyncClient,
-    auth_client: AsyncClient,
+    client_risk_manager: AsyncClient,
+    client_employee: AsyncClient,
     db_session: AsyncSession,
     test_risk,
 ):
     """Test privileged user cannot cancel an already approved/rejected request."""
     # Create request
-    create_response = await auth_client.post(
+    create_response = await client_employee.post(
         "/api/v1/approvals", json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Test request"}
     )
     assert create_response.status_code == 201
     approval_id = create_response.json()["id"]
 
-    # Admin approves it
-    await auth_client.post(f"/api/v1/approvals/{approval_id}/approve", json={"resolution_notes": "Approved"})
+    # Risk manager approves it
+    approve_response = await client_risk_manager.post(
+        f"/api/v1/approvals/{approval_id}/approve",
+        json={"resolution_notes": "Approved"},
+    )
+    assert approve_response.status_code == 200
 
     # CRO tries to cancel → 400
     cancel_response = await client_cro.post(f"/api/v1/approvals/{approval_id}/cancel")

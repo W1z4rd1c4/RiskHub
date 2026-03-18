@@ -84,7 +84,7 @@ export function KRIForm({
     const navigate = useNavigate();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [approvalQueued, setApprovalQueued] = useState<{ id: number; message: string } | null>(null);
+    const [approvalQueued, setApprovalQueued] = useState<{ message: string } | null>(null);
     const [currentStep, setCurrentStep] = useState(0);
 
     const [riskSearch, setRiskSearch] = useState('');
@@ -432,7 +432,6 @@ export function KRIForm({
                 const parsed = parseUpdateResult(result);
                 if (parsed.kind === 'approval') {
                     setApprovalQueued({
-                        id: parsed.approvalId,
                         message: parsed.message,
                     });
                     setIsSubmitting(false);
@@ -521,7 +520,7 @@ export function KRIForm({
                             <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
                             <div className="flex-1">
                                 <p className="text-amber-200 text-sm font-medium">
-                                    {t('approval_submitted', { ns: 'errorKeys' })} (ID: {approvalQueued.id})
+                                    {t('approval_submitted', { ns: 'errorKeys' })}
                                 </p>
                                 <p className="text-amber-400/80 text-xs mt-1">
                                     {approvalQueued.message.startsWith('errorKeys.')

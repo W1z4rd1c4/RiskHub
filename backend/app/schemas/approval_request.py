@@ -69,6 +69,8 @@ class ApprovalRequestRead(BaseModel):
     resolution_notes: str | None = None
 
     created_at: datetime
+    can_approve: bool
+    can_reject: bool
 
     model_config = {"from_attributes": True}
 

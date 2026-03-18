@@ -177,7 +177,7 @@
     }
   },
   "detail": {
-    "archive_approval_submitted": "Archive request submitted for approval (ID: {{approvalId}}). The control has not been archived yet.",
+    "archive_approval_submitted": "Archive request submitted for approval. The control has not been archived yet.",
     "control_restored": "Control restored successfully.",
     "linked_risks_load_failed": "Unable to load linked risks. You may not have access to this data.",
     "view_pending_approvals": "View pending approvals in the",

@@ -5,7 +5,10 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ApprovalRequest, ApprovalResourceType, Control, KeyRiskIndicator, Risk
+from app.core.approval_display import approval_resource_label
+from app.core.permissions import can_resolve_approvals
+from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus, Control, KeyRiskIndicator, Risk
+from app.models.user import User
 
 logger = logging.getLogger("app.api.v1.endpoints.approvals")
 
@@ -27,15 +30,32 @@ async def _get_approval_department_id(db: AsyncSession, approval: ApprovalReques
     return None
 
 
-def _build_approval_read(approval: ApprovalRequest) -> dict:
+def _build_approval_permissions(approval: ApprovalRequest, current_user: User) -> tuple[bool, bool]:
+    is_privileged = can_resolve_approvals(current_user)
+    is_requester = approval.requested_by_id == current_user.id
+    is_primary_approver = approval.primary_approver_id == current_user.id
+    is_pending = approval.status in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED)
+
+    can_approve = (
+        not is_requester
+        and (
+            (approval.status == ApprovalStatus.PENDING and (is_primary_approver or is_privileged))
+            or (approval.status == ApprovalStatus.PENDING_PRIVILEGED and is_privileged)
+        )
+    )
+    can_reject = is_pending and is_privileged
+    return can_approve, can_reject
+
+
+def _build_approval_read(approval: ApprovalRequest, current_user: User) -> dict:
     """Build ApprovalRequestRead dict from model with user names."""
     pending_changes = approval.pending_changes
+    can_approve, can_reject = _build_approval_permissions(approval, current_user)
 
     return {
         "id": approval.id,
         "resource_type": approval.resource_type.value,
         "resource_id": approval.resource_id,
-        "resource_name": approval.resource_name,
         "action_type": approval.action_type.value if approval.action_type else "delete",
         "pending_changes": pending_changes,
         "status": approval.status.value.lower(),
@@ -48,4 +68,7 @@ def _build_approval_read(approval: ApprovalRequest) -> dict:
         "resolved_at": approval.resolved_at,
         "resolution_notes": approval.resolution_notes,
         "created_at": approval.created_at,
+        "resource_name": approval_resource_label(approval),
+        "can_approve": can_approve,
+        "can_reject": can_reject,
     }

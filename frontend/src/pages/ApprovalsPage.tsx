@@ -73,7 +73,6 @@ export default function ApprovalsPage() {
                     approvals={approvals}
                     loading={loading}
                     expandedRows={expandedRows}
-                    canResolve={canResolve}
                     currentUserId={user?.id}
                     onToggleRow={toggleRow}
                     onApprove={openApproveDialog}

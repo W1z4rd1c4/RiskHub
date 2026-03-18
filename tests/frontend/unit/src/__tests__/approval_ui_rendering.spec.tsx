@@ -241,10 +241,9 @@ describe('Approval Banner UI Contract', () => {
      * They document what should happen when an approval response is received.
      */
 
-    it('approval banner should contain approval ID', () => {
-        // Contract: When approval_id is 42, banner should display "42"
-        const bannerContent = 'Submitted for approval (ID: 42)';
-        expect(bannerContent).toContain('42');
+    it('approval banner should not include raw numeric approval IDs', () => {
+        const bannerContent = 'Submitted for approval';
+        expect(bannerContent).not.toContain('(ID:');
         expect(bannerContent).toContain('Submitted for approval');
     });
 

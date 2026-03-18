@@ -21,7 +21,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
     const [newValue, setNewValue] = useState(entry.value.toString());
     const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [result, setResult] = useState<{ type: 'success' | 'approval'; messageKey: string; approvalId?: number } | null>(null);
+    const [result, setResult] = useState<{ type: 'success' | 'approval'; messageKey: string } | null>(null);
     const [errorKey, setErrorKey] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -39,7 +39,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
 
             if ('approval_id' in response) {
                 // 202 - Approval required
-                setResult({ type: 'approval', messageKey: 'correction.approval_submitted_with_id', approvalId: response.approval_id });
+                setResult({ type: 'approval', messageKey: 'errorKeys:approval_submitted' });
             } else {
                 // 200 - Immediate update
                 setResult({ type: 'success', messageKey: 'correction.success' });
@@ -104,9 +104,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
                                 <div className={`p-4 rounded-lg flex items-center gap-3 ${result.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
                                     {result.type === 'success' ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />}
                                     <span className="text-sm">
-                                        {result.approvalId
-                                            ? t(result.messageKey, { approvalId: result.approvalId })
-                                            : t(result.messageKey)}
+                                        {t(result.messageKey)}
                                     </span>
                                 </div>
                             )}

@@ -13,3 +13,5 @@ Playwright E2E suite for `approval-workflows`.
 ## Notes
 
 Keep this README updated when responsibilities or structure in this folder change.
+This bundle now includes a deterministic row-action contract check:
+primary-approver pending rows must expose `Approve` and hide `Reject`.

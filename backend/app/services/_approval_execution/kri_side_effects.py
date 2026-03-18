@@ -120,9 +120,9 @@ async def _apply_kri_history_correction(
     except ValueError as e:
         logger.error(f"KRI history correction failed: {e}")
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Unexpected error in KRI history correction: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+    except Exception:
+        logger.exception("Unexpected error in KRI history correction approval flow")
+        raise HTTPException(status_code=500, detail="Internal server error during KRI approval execution")
 
 
 async def _apply_kri_value_submission(
@@ -199,9 +199,9 @@ async def _apply_kri_value_submission(
     except ValueError as e:
         logger.error(f"KRI value recording failed (submit): {e}")
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Unexpected error in KRI value recording: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+    except Exception:
+        logger.exception("Unexpected error in KRI value submission approval flow")
+        raise HTTPException(status_code=500, detail="Internal server error during KRI approval execution")
 
 
 async def _apply_kri_generic_edit(
