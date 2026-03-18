@@ -74,6 +74,23 @@
 
 ## Session Context
 
+### Pre-Release Deployment / Installation Deep Review (2026-03-17)
+
+- Current release status is **NO-GO** based on the latest pre-release deployment/install review.
+- Human report:
+  - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/security/reports/pre-release-deploy-install-audit-2026-03-17.md`
+- Review artifact root:
+  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z`
+- Supporting parity artifacts:
+  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/release-parity-audit-20260317T143939Z-skip`
+  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/release-parity-audit-20260317T143939Z-full`
+- This supersedes the February 22 release-readiness `GO/PASS` stance as current truth.
+- Blocking reasons at closeout:
+  - `make -f scripts/Makefile verify-prod-install-scripts` currently fails on `main`
+  - Docker deploy dry-run corrupts rendered runtime-file arguments via stdout pollution
+  - `scripts/security/run_prod_readiness_audit_local.sh` aborts before meaningful lifecycle evidence
+  - the mandatory Linux production wave was not executed on a real Linux host, so overall release sign-off remains incomplete
+
 ### Reliability Hardening Follow-Up (2026-03-07)
 
 - ✅ Completed scheduler ownership hardening with Postgres advisory locking, runtime/job ledgering, and admin-visible scheduler status.
