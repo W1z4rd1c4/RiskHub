@@ -65,12 +65,14 @@ jobs:
           SECRET_KEY: test-secret-key-for-ci-testing-only
           DEBUG: 'true'
           MOCK_AUTH_ENABLED: 'true'
+          AUTH_MODE: hybrid_dev
         run: |
           # Run migrations
           alembic upgrade head
           
-          # Seed test data
-          python -c "from app.db.seed import seed_database; import asyncio; asyncio.run(seed_database())" || true
+          # Seed deterministic test data
+          python -m app.db.seed
+          python -m scripts.seed_e2e_all
           
           # Start server in background
           uvicorn app.main:app --host 0.0.0.0 --port 8000 &
@@ -78,6 +80,18 @@ jobs:
           # Wait for server
           sleep 10
           curl -f http://localhost:8000/health || exit 1
+
+          # Auth contract check required by E2E demo-login helper
+          python - <<'PY'
+          import json
+          import urllib.request
+
+          with urllib.request.urlopen("http://localhost:8000/api/v1/auth/config", timeout=10) as response:
+              payload = json.load(response)
+
+          assert payload.get("demo_login_enabled") is True, payload
+          assert payload.get("auth_mode") == "hybrid_dev", payload
+          PY
 
       - name: Run E2E tests
         working-directory: frontend

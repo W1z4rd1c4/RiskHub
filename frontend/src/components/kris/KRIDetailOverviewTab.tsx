@@ -188,11 +188,7 @@ export function KRIDetailOverviewTab({
                 className="glass-card lg:col-span-3"
             >
                 <h3 className="text-xs font-black text-white uppercase tracking-widest mb-4">{t('overview.metadata', { ns: 'kris' })}</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                        <span className="text-[10px] text-slate-500 uppercase tracking-widest">{t('overview.kri_id', { ns: 'kris' })}</span>
-                        <p className="text-sm font-bold text-white">{kri.id}</p>
-                    </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-widest">{t('fields.unit', { ns: 'kris' })}</span>
                         <p className="text-sm font-bold text-white">{kri.unit || '—'}</p>

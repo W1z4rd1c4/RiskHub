@@ -98,6 +98,27 @@ async def test_shell_summary_returns_expected_counts_and_governance_visibility(
                 reason="Need approval",
                 status=ApprovalStatus.PENDING,
             ),
+            ApprovalRequest(
+                resource_type=ApprovalResourceType.RISK,
+                resource_id=risk.id,
+                resource_name=risk.name,
+                action_type=ApprovalActionType.EDIT,
+                pending_changes={"description": {"old": "", "new": "Updated description"}},
+                requested_by_id=test_user_employee.id,
+                reason="Need privileged approval",
+                status=ApprovalStatus.PENDING_PRIVILEGED,
+            ),
+            ApprovalRequest(
+                resource_type=ApprovalResourceType.RISK,
+                resource_id=risk.id,
+                resource_name=risk.name,
+                action_type=ApprovalActionType.EDIT,
+                pending_changes={"category": {"old": "Operational", "new": "Strategic"}},
+                requested_by_id=test_user.id,
+                primary_approver_id=test_user_employee.id,
+                reason="Primary approver queue item",
+                status=ApprovalStatus.PENDING,
+            ),
             RiskQuestionnaire(
                 risk_id=risk.id,
                 assigned_to_user_id=test_user_employee.id,
@@ -122,7 +143,7 @@ async def test_shell_summary_returns_expected_counts_and_governance_visibility(
     assert employee_resp.status_code == 200
     employee_data = employee_resp.json()
     assert employee_data["unread_notifications_count"] == 1
-    assert employee_data["pending_approvals_count"] == 1
+    assert employee_data["pending_approvals_count"] == 3
     assert employee_data["questionnaire_inbox_count"] == 1
     assert employee_data["orphan_total_count"] == 0
     assert employee_data["can_view_governance"] is False
@@ -130,7 +151,7 @@ async def test_shell_summary_returns_expected_counts_and_governance_visibility(
     cro_resp = await client.get("/api/v1/users/me/shell-summary", headers=_headers_for(test_user_cro))
     assert cro_resp.status_code == 200
     cro_data = cro_resp.json()
-    assert cro_data["pending_approvals_count"] == 1
+    assert cro_data["pending_approvals_count"] == 3
     assert cro_data["orphan_total_count"] == 1
     assert cro_data["can_view_governance"] is True
 

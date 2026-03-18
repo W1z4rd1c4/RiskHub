@@ -53,7 +53,7 @@ export function ControlDetailPage() {
     const [isLoadingRisk, setIsLoadingRisk] = useState(false);
     const [linkedRisksErrorKey, setLinkedRisksErrorKey] = useState<string | null>(null);
     const [linkErrorKey, setLinkErrorKey] = useState<string | null>(null);
-    const [approvalMessage, setApprovalMessage] = useState<{ key: string; approvalId?: number; isError?: boolean } | null>(null);
+    const [approvalMessage, setApprovalMessage] = useState<{ key: string; isError?: boolean } | null>(null);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
     const fetchControl = useCallback(async () => {
@@ -103,7 +103,6 @@ export function ControlDetailPage() {
             if (isApprovalCreatedResponse(response)) {
                 setApprovalMessage({
                     key: 'controls:detail.archive_approval_submitted',
-                    approvalId: response.approval_id,
                     isError: false,
                 });
                 setIsArchiveDialogOpen(false);
@@ -217,11 +216,9 @@ export function ControlDetailPage() {
                     <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
                     <div>
                         <p className="text-sm font-medium">
-                            {approvalMessage.approvalId
-                                ? t(approvalMessage.key, { approvalId: approvalMessage.approvalId })
-                                : (approvalMessage.key.startsWith('errorKeys.')
-                                    ? t(approvalMessage.key, { ns: 'errorKeys' })
-                                    : t(approvalMessage.key))}
+                            {approvalMessage.key.startsWith('errorKeys.')
+                                ? t(approvalMessage.key, { ns: 'errorKeys' })
+                                : t(approvalMessage.key)}
                         </p>
                         {!approvalMessage.isError && (
                             <p className="text-xs mt-1 opacity-75">

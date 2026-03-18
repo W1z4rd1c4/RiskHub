@@ -53,7 +53,7 @@ export function RiskForm({
     const [error, setError] = useState<string | null>(null);
 
     // Approval-queued state for edit flows (HTTP 202)
-    const [approvalQueued, setApprovalQueued] = useState<{ id: number; message: string } | null>(null);
+    const [approvalQueued, setApprovalQueued] = useState<{ message: string } | null>(null);
 
     // Fetch risk types from Risk Hub
     const { riskTypes, isLoading: riskTypesLoading } = useRiskTypes();
@@ -265,7 +265,6 @@ export function RiskForm({
                 const parsed = parseUpdateResult(result);
                 if (parsed.kind === 'approval') {
                     setApprovalQueued({
-                        id: parsed.approvalId,
                         message: parsed.message,
                     });
                     setIsSubmitting(false);
@@ -323,7 +322,7 @@ export function RiskForm({
                         <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
                             <p className="text-amber-200 text-sm font-medium">
-                                {t('approval_submitted', { ns: 'errorKeys' })} (ID: {approvalQueued.id})
+                                {t('approval_submitted', { ns: 'errorKeys' })}
                             </p>
                             <p className="text-amber-400/80 text-xs mt-1">
                                 {approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}

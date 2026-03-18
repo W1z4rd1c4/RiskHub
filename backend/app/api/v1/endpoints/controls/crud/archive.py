@@ -70,7 +70,7 @@ async def delete_control(
         raise HTTPException(status_code=400, detail="Deletion request already pending")
 
     # Create approval request - ITEM STAYS VISIBLE
-    name_snippet = control.name[:50] if control.name else ""
+    name_snippet = (control.name or "").strip()[:50]
 
     # Get primary approver (Risk Owner of highest-priority linked risk)
     from app.core.approval_helpers import (
@@ -89,7 +89,7 @@ async def delete_control(
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.CONTROL,
         resource_id=control.id,
-        resource_name=f"Control #{control.id}: {name_snippet}",
+        resource_name=name_snippet or "Unknown control",
         requested_by_id=current_user.id,
         reason=reason,
         status=ApprovalStatus.PENDING,

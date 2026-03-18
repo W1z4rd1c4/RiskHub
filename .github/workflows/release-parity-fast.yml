@@ -1,0 +1,56 @@
+name: Release Parity Fast Audit
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '15 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  parity-fast:
+    name: Fast Parity Audit (Non-Blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies (venv fingerprint parity)
+        run: |
+          set -euo pipefail
+          python -m venv backend/venv
+          backend/venv/bin/pip install --upgrade pip
+          backend/venv/bin/pip install -r backend/requirements.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run fast parity audit
+        env:
+          RUN_ID: fast-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          python3 scripts/security/run_release_parity_audit.py --run-id "${RUN_ID}" --skip-prod-readiness
+
+      - name: Upload parity artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-parity-fast-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tests/results/release-parity-audit-fast-${{ github.run_id }}-${{ github.run_attempt }}/
+          retention-days: 14

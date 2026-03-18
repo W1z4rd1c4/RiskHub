@@ -128,11 +128,11 @@ async def _create_control_edit_approval_if_required(
     if primary_approver_id == current_user.id:
         primary_approver_id = None
 
-    name_snippet = control.name[:50] if control.name else ""
+    name_snippet = (control.name or "").strip()[:50]
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.CONTROL,
         resource_id=control.id,
-        resource_name=f"Control #{control.id}: {name_snippet}",
+        resource_name=name_snippet or "Unknown control",
         requested_by_id=current_user.id,
         reason=approval_reason,
         action_type=ApprovalActionType.EDIT,

@@ -36,6 +36,8 @@ async def _count_pending_approvals(db: AsyncSession, current_user: User) -> int:
             or_(
                 (ApprovalRequest.status == ApprovalStatus.PENDING) & (ApprovalRequest.requested_by_id == current_user.id),
                 (ApprovalRequest.status == ApprovalStatus.PENDING) & (ApprovalRequest.primary_approver_id == current_user.id),
+                (ApprovalRequest.status == ApprovalStatus.PENDING_PRIVILEGED)
+                & (ApprovalRequest.requested_by_id == current_user.id),
             )
         )
     )

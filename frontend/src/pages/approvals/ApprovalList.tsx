@@ -21,7 +21,6 @@ interface ApprovalListProps {
     approvals: ApprovalRequest[];
     loading: boolean;
     expandedRows: Set<number>;
-    canResolve: boolean;
     currentUserId?: number | null;
     onToggleRow: (approvalId: number) => void;
     onApprove: (approval: ApprovalRequest) => void;
@@ -34,7 +33,6 @@ export function ApprovalList({
     approvals,
     loading,
     expandedRows,
-    canResolve,
     currentUserId,
     onToggleRow,
     onApprove,
@@ -172,22 +170,26 @@ export function ApprovalList({
                                     </button>
                                 )}
 
-                                {canResolve && (approval.status === 'pending' || approval.status === 'pending_privileged') && (
+                                {(approval.status === 'pending' || approval.status === 'pending_privileged') && (
                                     <>
-                                        <button
-                                            onClick={() => onApprove(approval)}
-                                            className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors border border-emerald-500/20"
-                                            title={t('common:actions.approve')}
-                                        >
-                                            <Check className="h-4 w-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => onReject(approval)}
-                                            className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors border border-rose-500/20"
-                                            title={t('common:actions.reject')}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
+                                        {approval.can_approve && (
+                                            <button
+                                                onClick={() => onApprove(approval)}
+                                                className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors border border-emerald-500/20"
+                                                title={t('common:actions.approve')}
+                                            >
+                                                <Check className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                        {approval.can_reject && (
+                                            <button
+                                                onClick={() => onReject(approval)}
+                                                className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors border border-rose-500/20"
+                                                title={t('common:actions.reject')}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        )}
                                     </>
                                 )}
 

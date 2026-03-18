@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
+from app.core.approval_display import approval_resource_label
 from app.core.activity_logger import log_activity
 from app.core.datetime_utils import utc_now
 from app.core.permissions import can_resolve_approvals
@@ -89,13 +90,10 @@ async def approve_request(
             )
             await db.commit()
             logger.info("Commit successful")
-        except Exception as e:
-            import traceback
-
-            logger.error(f"Error applying approval {approval_id}: {str(e)}")
-            logger.error(traceback.format_exc())
+        except Exception:
+            logger.exception("Error applying approval %s", approval_id)
             await db.rollback()
-            raise HTTPException(status_code=500, detail=f"Database error during approval: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to process approval request")
     else:
         # PENDING → PENDING_PRIVILEGED: Log escalation and notify privileged users
         from app.services.approval_execution_service import get_approval_department_id
@@ -106,7 +104,7 @@ async def approve_request(
             db,
             entity_type=ActivityEntityType.APPROVAL,
             entity_id=approval.id,
-            entity_name=approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}",
+            entity_name=approval_resource_label(approval),
             action=ActivityAction.ESCALATE,
             actor=current_user,
             department_id=department_id,
@@ -132,7 +130,7 @@ async def approve_request(
     )
     approval = result.scalar_one()
 
-    return _build_approval_read(approval)
+    return _build_approval_read(approval, current_user)
 
 
 @router.post("/{approval_id}/reject", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)
@@ -177,7 +175,7 @@ async def reject_request(
         db,
         entity_type=ActivityEntityType.APPROVAL,
         entity_id=approval.id,
-        entity_name=approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}",
+        entity_name=approval_resource_label(approval),
         action=ActivityAction.REJECT,
         actor=current_user,
         department_id=department_id,
@@ -201,7 +199,7 @@ async def reject_request(
     )
     approval = result.scalar_one()
 
-    return _build_approval_read(approval)
+    return _build_approval_read(approval, current_user)
 
 
 @router.post("/{approval_id}/cancel", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)
@@ -249,7 +247,7 @@ async def cancel_request(
         db,
         entity_type=ActivityEntityType.APPROVAL,
         entity_id=approval.id,
-        entity_name=approval.resource_name or f"{approval.resource_type.value}-{approval.resource_id}",
+        entity_name=approval_resource_label(approval),
         action=ActivityAction.CANCEL,
         actor=current_user,
         department_id=department_id,
@@ -275,7 +273,7 @@ async def cancel_request(
     )
     approval = result.scalar_one()
 
-    return _build_approval_read(approval)
+    return _build_approval_read(approval, current_user)
 
 
 @router.get(
@@ -291,8 +289,8 @@ async def get_pending_count(
     """
     Get count of pending approvals for badge display.
     - Privileged users: count of all pending requests (PENDING + PENDING_PRIVILEGED)
-    - Primary approvers (Risk Owners): count of requests they need to approve
-    - Others: count of their own pending requests
+    - Non-privileged users: own requests in PENDING/PENDING_PRIVILEGED plus
+      primary-approver requests in PENDING
     """
     if can_resolve_approvals(current_user):
         # Count all pending/pending_privileged for approvers
@@ -309,7 +307,7 @@ async def get_pending_count(
             .where(
                 or_(
                     # Own pending requests
-                    (ApprovalRequest.status == ApprovalStatus.PENDING)
+                    (ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]))
                     & (ApprovalRequest.requested_by_id == current_user.id),
                     # Requests where user is primary approver
                     (ApprovalRequest.status == ApprovalStatus.PENDING)
@@ -360,5 +358,5 @@ async def list_my_approval_requests(
     approvals = result.scalars().all()
 
     return ApprovalRequestListResponse(
-        items=[_build_approval_read(a) for a in approvals], total=total, skip=skip, limit=limit
+        items=[_build_approval_read(a, current_user) for a in approvals], total=total, skip=skip, limit=limit
     )

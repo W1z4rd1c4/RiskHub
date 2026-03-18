@@ -71,7 +71,7 @@ async def _get_item_details(
         result = await db.execute(select(Risk).options(selectinload(Risk.department)).where(Risk.id == item_id))
         risk = result.scalar_one_or_none()
         if risk:
-            item_name = risk.name or f"Risk #{risk.id}"
+            item_name = risk.name or "Unknown risk"
             item_description = risk.description
             item_identifier = risk.risk_id_code
             if risk.department:
@@ -83,9 +83,9 @@ async def _get_item_details(
         )
         control = result.scalar_one_or_none()
         if control:
-            item_name = control.name or f"Control #{control.id}"
+            item_name = control.name or "Unknown control"
             item_description = control.description
-            item_identifier = str(control.id)
+            item_identifier = None
             if control.department:
                 department_name = control.department.name
 
@@ -95,9 +95,9 @@ async def _get_item_details(
         result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == item_id))
         kri = result.scalar_one_or_none()
         if kri:
-            item_name = kri.metric_name or f"KRI #{kri.id}"
+            item_name = kri.metric_name or "Unknown KRI"
             item_description = kri.description
-            item_identifier = str(kri.id)
+            item_identifier = None
             risk_res = await db.execute(
                 select(Risk).options(selectinload(Risk.department)).where(Risk.id == kri.risk_id)
             )

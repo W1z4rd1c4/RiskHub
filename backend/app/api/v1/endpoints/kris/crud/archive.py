@@ -77,11 +77,11 @@ async def delete_kri(
         raise HTTPException(status_code=400, detail="Deletion request already pending")
 
     # Create approval request - ITEM STAYS VISIBLE
-    name_snippet = kri.metric_name[:50] if kri.metric_name else f"KRI-{kri.id}"
+    name_snippet = (kri.metric_name or "").strip()[:50]
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.KRI,
         resource_id=kri.id,
-        resource_name=name_snippet,
+        resource_name=name_snippet or "Unknown KRI",
         requested_by_id=current_user.id,
         reason=reason,
         status=ApprovalStatus.PENDING,

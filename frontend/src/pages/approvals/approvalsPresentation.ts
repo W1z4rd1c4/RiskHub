@@ -17,14 +17,11 @@ export const APPROVAL_TABS: ReadonlyArray<{ value: ApprovalsFilter; labelKey: st
     { value: 'all', labelKey: 'tabs.history' },
 ];
 
-export function buildApprovalListParams(filter: ApprovalsFilter, canResolve: boolean): ApprovalListParams {
+export function buildApprovalListParams(filter: ApprovalsFilter, _canResolve: boolean): ApprovalListParams {
     const params: ApprovalListParams = { limit: 100 };
 
     if (filter === 'pending') {
         params.status = 'pending';
-        if (!canResolve) {
-            params.my_requests = true;
-        }
     } else if (filter === 'mine') {
         params.my_requests = true;
     }

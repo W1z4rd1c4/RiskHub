@@ -70,6 +70,13 @@
 ## Release Gate Note
 
 - For production release cuts, parity is a gate and `tests/results/release-parity-audit-<run-id>/decision.json` must report `GO`.
+- Fast parity audits are non-blocking monitoring lanes (for `main`/nightly drift visibility), not PR/push required checks.
+
+## E2E CI Contract Notes
+
+- E2E CI must run backend in demo-auth mode: `AUTH_MODE=hybrid_dev`, `DEBUG=true`, `MOCK_AUTH_ENABLED=true`.
+- E2E CI seeding must be strict (no tolerant `|| true`): run `python -m app.db.seed` and `python -m scripts.seed_e2e_all`.
+- E2E CI should hard-fail if `/api/v1/auth/config` does not report `demo_login_enabled=true`.
 
 ## Practical Gaps to Watch
 
