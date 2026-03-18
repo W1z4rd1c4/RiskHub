@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 
-COMMAND="${1:-}"
+COMMAND=""
 PROFILE="full"
 LAN_IP=""
 NO_BUILD=false
@@ -25,6 +25,11 @@ Usage:
 
 Canonical Docker onboarding/appliance path for RiskHub development.
 EOF
+}
+
+print_usage_and_exit() {
+  usage
+  exit "${1:-0}"
 }
 
 timestamp() {
@@ -260,10 +265,17 @@ start_full_stack() {
   log "  Demo login: http://localhost/login"
 }
 
-if [[ -z "$COMMAND" ]]; then
-  usage
-  exit 1
+if [[ $# -eq 0 ]]; then
+  print_usage_and_exit 1
 fi
+
+case "${1:-}" in
+  -h|--help|help)
+    print_usage_and_exit 0
+    ;;
+esac
+
+COMMAND="$1"
 shift
 
 while [[ $# -gt 0 ]]; do
@@ -300,8 +312,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -h|--help)
-      usage
-      exit 0
+      print_usage_and_exit 0
       ;;
     *)
       if [[ "$COMMAND" == "logs" && -z "$LOG_SERVICE" ]]; then

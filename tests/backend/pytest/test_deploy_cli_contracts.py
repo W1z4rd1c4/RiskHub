@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import tarfile
@@ -334,7 +335,8 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
             env,
         )
         assert preflight.returncode == 0, f"{preflight.stdout}\n{preflight.stderr}"
-        assert "scripts/prod/preflight.sh" in preflight.stdout
+        preflight_output = f"{preflight.stdout}\n{preflight.stderr}"
+        assert "scripts/prod/preflight.sh" in preflight_output
 
         deploy = _run_cli(
             [
@@ -357,11 +359,12 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
             env,
         )
         assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
-        assert "docker pull ghcr.io/example/riskhub-backend:test" in deploy.stdout
-        assert "docker pull ghcr.io/example/riskhub-redis:test" in deploy.stdout
-        assert "scripts/prod/install_backend.sh" in deploy.stdout
-        assert "scripts/prod/install_redis.sh" in deploy.stdout
-        assert f"RISKHUB_DEFAULT_SECRET_DIR={secret_dir}" in deploy.stdout
+        deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
+        assert "docker pull ghcr.io/example/riskhub-backend:test" in deploy_output
+        assert "docker pull ghcr.io/example/riskhub-redis:test" in deploy_output
+        assert "scripts/prod/install_backend.sh" in deploy_output
+        assert "scripts/prod/install_redis.sh" in deploy_output
+        assert f"RISKHUB_DEFAULT_SECRET_DIR={secret_dir}" in deploy_output
 
         upgrade_env = env | {
             "DOCKER_BACKEND_EXISTS": "1",
@@ -389,8 +392,9 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
             upgrade_env,
         )
         assert upgrade.returncode == 0, f"{upgrade.stdout}\n{upgrade.stderr}"
-        assert "--previous-image ghcr.io/example/riskhub-backend:previous" in upgrade.stdout
-        assert "--previous-image ghcr.io/example/riskhub-frontend:previous" in upgrade.stdout
+        upgrade_output = f"{upgrade.stdout}\n{upgrade.stderr}"
+        assert "--previous-image ghcr.io/example/riskhub-backend:previous" in upgrade_output
+        assert "--previous-image ghcr.io/example/riskhub-frontend:previous" in upgrade_output
 
         rollback = _run_cli(
             [
@@ -409,7 +413,63 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
             env,
         )
         assert rollback.returncode == 0, f"{rollback.stdout}\n{rollback.stderr}"
-        assert "scripts/prod/rollback.sh" in rollback.stdout
+        rollback_output = f"{rollback.stdout}\n{rollback.stderr}"
+        assert "scripts/prod/rollback.sh" in rollback_output
+
+
+def test_docker_deploy_dry_run_keeps_env_arguments_and_rendered_env_files_clean() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-dryrun-clean-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        deploy = _run_cli(
+            [
+                "deploy",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--backend-image",
+                "ghcr.io/example/riskhub-backend:test",
+                "--frontend-image",
+                "ghcr.io/example/riskhub-frontend:test",
+                "--redis-image",
+                "ghcr.io/example/riskhub-redis:test",
+                "--dry-run",
+                "--yes",
+            ],
+            env,
+        )
+
+        assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
+        deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
+        assert "+ mkdir -p" in deploy.stderr
+        assert "+ mkdir -p" not in deploy.stdout
+
+        env_args = re.findall(r"--(backend|frontend)-env\s+([^\s]+)", deploy_output)
+        assert env_args, deploy_output
+        for _, raw_path in env_args:
+            clean_path = raw_path.strip("\"'")
+            assert clean_path.endswith(".env")
+            assert "+ " not in clean_path
+            env_file = Path(clean_path)
+            if env_file.exists():
+                for line in env_file.read_text(encoding="utf-8").splitlines():
+                    if not line.strip():
+                        continue
+                    assert "=" in line
+                    assert not line.startswith("+ ")
 
 
 def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> None:
@@ -454,9 +514,10 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
             env,
         )
         assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
-        assert "riskhub-linux-v-test.tar.gz" in deploy.stdout
-        assert "riskhub-redis.service" in deploy.stdout
-        assert "systemctl restart nginx" in deploy.stdout
+        deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
+        assert "riskhub-linux-v-test.tar.gz" in deploy_output
+        assert "riskhub-redis.service" in deploy_output
+        assert "systemctl restart nginx" in deploy_output
 
         release_dir = linux_root / "releases" / "v-previous"
         release_dir.mkdir(parents=True)
@@ -482,7 +543,8 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
             env,
         )
         assert upgrade.returncode == 0, f"{upgrade.stdout}\n{upgrade.stderr}"
-        assert "ln -sfn" in upgrade.stdout
+        upgrade_output = f"{upgrade.stdout}\n{upgrade.stderr}"
+        assert "ln -sfn" in upgrade_output
 
         rollback = _run_cli(
             [
@@ -499,7 +561,8 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
             env,
         )
         assert rollback.returncode == 0, f"{rollback.stdout}\n{rollback.stderr}"
-        assert "systemctl restart nginx" in rollback.stdout
+        rollback_output = f"{rollback.stdout}\n{rollback.stderr}"
+        assert "systemctl restart nginx" in rollback_output
 
 
 def test_preflight_reports_missing_docker_prerequisite() -> None:
