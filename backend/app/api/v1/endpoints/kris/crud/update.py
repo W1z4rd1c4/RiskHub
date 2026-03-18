@@ -115,12 +115,12 @@ async def update_kri(
                 "old": current_vendor_ids,
                 "new": normalized_vendor_ids,
             }
-        name_snippet = kri.metric_name[:50] if kri.metric_name else f"KRI-{kri.id}"
+        name_snippet = (kri.metric_name or "").strip()[:50]
 
         approval = ApprovalRequest(
             resource_type=ApprovalResourceType.KRI,
             resource_id=kri.id,
-            resource_name=name_snippet,
+            resource_name=name_snippet or "Unknown KRI",
             requested_by_id=current_user.id,
             reason=f"Edit to KRI '{name_snippet}' requires approval",
             action_type=ApprovalActionType.EDIT,

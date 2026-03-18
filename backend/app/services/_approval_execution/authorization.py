@@ -22,6 +22,13 @@ def assert_can_approve(
     """
     is_privileged = can_resolve_approvals(current_user)
     is_primary_approver = approval.primary_approver_id == current_user.id
+    is_requester = approval.requested_by_id == current_user.id
+
+    if is_requester:
+        raise HTTPException(
+            status_code=403,
+            detail="Users cannot approve their own requests",
+        )
 
     if approval.status == ApprovalStatus.PENDING:
         if not is_primary_approver and not is_privileged:
@@ -96,4 +103,3 @@ def apply_status_transition(
 
     # Should not reach here if assert_can_approve was called
     return False
-

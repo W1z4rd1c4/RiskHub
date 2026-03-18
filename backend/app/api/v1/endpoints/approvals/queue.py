@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -62,7 +62,8 @@ async def create_approval_request(
             raise HTTPException(status_code=404, detail="Control not found")
         # Verify requester has access to resource's department
         check_department_access(resource.department_id, current_user)
-        resource_name = f"Control #{resource.id}: {resource.name[:50] if resource.name else ''}"
+        control_label = (resource.name or "").strip()[:50]
+        resource_name = control_label or "Unknown control"
         department_id = resource.department_id
     elif request_data.resource_type == ApprovalResourceTypeEnum.kri:
         # Load KRI with linked Risk for department access check
@@ -78,7 +79,8 @@ async def create_approval_request(
         if not resource.risk:
             raise HTTPException(status_code=404, detail="KRI has no linked risk")
         check_department_access(resource.risk.department_id, current_user)
-        resource_name = (resource.metric_name or f"KRI-{resource.id}")[:50]
+        kri_label = (resource.metric_name or "").strip()[:50]
+        resource_name = kri_label or "Unknown KRI"
         department_id = resource.risk.department_id
 
     # Check for existing pending request (both PENDING and PENDING_PRIVILEGED)
@@ -118,7 +120,7 @@ async def create_approval_request(
     )
     approval = result.scalar_one()
 
-    return _build_approval_read(approval)
+    return _build_approval_read(approval, current_user)
 
 
 @router.get("", response_model=ApprovalRequestListResponse)
@@ -144,22 +146,43 @@ async def list_approval_requests(
     )
     base_query = select(ApprovalRequest)
 
+    is_privileged = can_resolve_approvals(current_user)
+
     # Permission-based filtering
-    if can_resolve_approvals(current_user):
+    if is_privileged:
         # Privileged users can see all, but can filter to just their own
         if my_requests:
             base_query = base_query.where(ApprovalRequest.requested_by_id == current_user.id)
     else:
-        # Non-privileged users only see their own
-        base_query = base_query.where(ApprovalRequest.requested_by_id == current_user.id)
+        # Non-privileged users default to their own requests, except pending queue where
+        # primary-approver items are also included.
+        if not (status_filter == ApprovalStatusEnum.pending and not my_requests):
+            base_query = base_query.where(ApprovalRequest.requested_by_id == current_user.id)
 
     # Apply filters
     if status_filter:
         if status_filter == ApprovalStatusEnum.pending:
-            # Treat "pending" as the entire approval queue (incl. tier-2 privileged pending)
-            base_query = base_query.where(
-                ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
-            )
+            if is_privileged:
+                base_query = base_query.where(
+                    ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
+                )
+            elif my_requests:
+                base_query = base_query.where(
+                    ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
+                )
+            else:
+                base_query = base_query.where(
+                    or_(
+                        and_(
+                            ApprovalRequest.requested_by_id == current_user.id,
+                            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
+                        ),
+                        and_(
+                            ApprovalRequest.primary_approver_id == current_user.id,
+                            ApprovalRequest.status == ApprovalStatus.PENDING,
+                        ),
+                    )
+                )
         else:
             base_query = base_query.where(ApprovalRequest.status == ApprovalStatus(status_filter.value.upper()))
     if resource_type:
@@ -184,7 +207,7 @@ async def list_approval_requests(
     valid_items = []
     for a in approvals:
         try:
-            valid_items.append(_build_approval_read(a))
+            valid_items.append(_build_approval_read(a, current_user))
         except Exception as e:
             logger.error(f"Skipping corrupted approval request {a.id}: {e}")
             continue

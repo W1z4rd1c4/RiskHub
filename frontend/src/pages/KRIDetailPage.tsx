@@ -45,7 +45,7 @@ export function KRIDetailPage() {
     const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<KRIHistoryEntry | null>(null);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [approvalBanner, setApprovalBanner] = useState<{ approvalId: number; message: string } | null>(null);
+    const [approvalBanner, setApprovalBanner] = useState<{ message: string } | null>(null);
 
     // Permissions
     const { canRecordKRI, user } = usePermissions();
@@ -128,7 +128,6 @@ export function KRIDetailPage() {
             const parsed = parseUpdateResult(result);
             if (parsed.kind === 'approval') {
                 setApprovalBanner({
-                    approvalId: parsed.approvalId,
                     message: parsed.message,
                 });
                 setIsEditModalOpen(false);
@@ -281,7 +280,7 @@ export function KRIDetailPage() {
                 >
                     <div>
                         <p className="font-semibold">
-                            {tErrors('approval_submitted')} (ID: {approvalBanner.approvalId})
+                            {tErrors('approval_submitted')}
                         </p>
                         <p className="mt-1 text-amber-200/80">
                             {approvalBanner.message}

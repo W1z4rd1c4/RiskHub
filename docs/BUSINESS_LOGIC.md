@@ -391,8 +391,20 @@ KRI edit notes:
 - Users **cannot approve their own requests**
 - If the primary approver (owner) is the requester, it escalates to Department Head
 - If Department Head is also the requester, it escalates directly to Privileged
+- API approval authorization enforces this rule; UI flags mirror backend (`can_approve=false` when requester)
 
-### 5.5 Request Cancellation
+### 5.5 Pending Queue Semantics
+
+- Privileged users (`CRO`, `Risk Manager`, `Admin`) see pending statuses: `PENDING` + `PENDING_PRIVILEGED`.
+- Non-privileged users see pending items by combined predicate:
+  - own requests with status in `{PENDING, PENDING_PRIVILEGED}`, plus
+  - items where they are `primary_approver_id` and status is `PENDING`.
+- Approval list/detail payloads include backend-computed row actions:
+  - `can_approve`
+  - `can_reject`
+  Frontend must consume these flags directly rather than inferring from role.
+
+### 5.6 Request Cancellation
 
 | Status | Who Can Cancel | Result |
 |--------|---------------|--------|

@@ -27,11 +27,10 @@ function createQuestionnaire(overrides: Partial<RiskQuestionnaireListItem> = {})
 
 describe('Approvals page presentation helpers', () => {
     describe('buildApprovalListParams', () => {
-        it('adds pending status and my_requests for non-resolvers', () => {
+        it('adds pending status for non-resolvers', () => {
             expect(buildApprovalListParams('pending', false)).toEqual({
                 limit: 100,
                 status: 'pending',
-                my_requests: true,
             });
         });
 
@@ -76,8 +75,9 @@ describe('Approvals page presentation helpers', () => {
         });
 
         it('returns the in-progress accent badge', () => {
-            const questionnaire = createQuestionnaire({ status: 'in_progress' });
-            expect(getQuestionnaireStatusBadge(questionnaire)).toContain('text-accent');
+            const now = Date.parse('2026-03-05T09:00:00Z');
+            const questionnaire = createQuestionnaire({ status: 'in_progress', due_at: '2026-03-20T09:00:00Z' });
+            expect(getQuestionnaireStatusBadge(questionnaire, now)).toContain('text-accent');
         });
     });
 });

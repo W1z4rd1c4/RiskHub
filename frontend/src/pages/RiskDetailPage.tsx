@@ -51,7 +51,7 @@ export function RiskDetailPage() {
     // Delete confirmation dialog state
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [approvalMessage, setApprovalMessage] = useState<{ key: string; isError: boolean; values?: Record<string, unknown> } | null>(null);
+    const [approvalMessage, setApprovalMessage] = useState<{ key: string; isError: boolean } | null>(null);
     const [linkErrorKey, setLinkErrorKey] = useState<string | null>(null);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
@@ -158,7 +158,6 @@ export function RiskDetailPage() {
                     {
                         key: 'risks:messages.archive_submitted_for_approval',
                         isError: false,
-                        values: { approvalId: response.approval_id },
                     }
                 );
                 setIsDeleteDialogOpen(false);
@@ -269,7 +268,7 @@ export function RiskDetailPage() {
                         <p className="text-sm font-medium">
                             {approvalMessage.isError
                                 ? t(approvalMessage.key, { ns: 'errorKeys' })
-                                : t(approvalMessage.key, approvalMessage.values)}
+                                : t(approvalMessage.key)}
                         </p>
                         {!approvalMessage.isError && (
                             <p className="text-xs mt-1 opacity-75">

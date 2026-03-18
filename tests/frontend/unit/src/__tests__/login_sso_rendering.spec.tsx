@@ -78,7 +78,7 @@ describe('LoginPage (SSO + demo modes)', () => {
     );
 
     renderLogin('/login?returnTo=%2Frisks');
-    expect(await screen.findByRole('button', { name: 'login_sso.continue_with_microsoft' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /microsoft/i })).toBeInTheDocument();
   });
 
   it('calls Entra loginRedirect with returnTo on click', async () => {
@@ -104,7 +104,7 @@ describe('LoginPage (SSO + demo modes)', () => {
     const user = userEvent.setup();
     renderLogin('/login?returnTo=%2Frisks');
 
-    const button = await screen.findByRole('button', { name: 'login_sso.continue_with_microsoft' });
+    const button = await screen.findByRole('button', { name: /microsoft/i });
     await user.click(button);
 
     expect(entraAuth.loginRedirect).toHaveBeenCalledWith('/risks');

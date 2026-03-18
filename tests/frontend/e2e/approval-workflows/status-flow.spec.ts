@@ -29,6 +29,19 @@ test.describe('Approval Status Flow (Deterministic)', () => {
         await expect(approvalsPage.getCard(privilegedIndex).locator('button[title="Approve"]')).toBeVisible();
     });
 
+    test('Primary approver row shows approve but not reject', async ({ deptHeadPage }) => {
+        const approvalsPage = new ApprovalsPage(deptHeadPage);
+        await approvalsPage.navigate();
+
+        const primaryIndex = await approvalsPage.findCardByReason(
+            E2E_APPROVALS.PENDING_RISK_DELETE.reason,
+        );
+        expect(primaryIndex).toBeGreaterThanOrEqual(0);
+
+        expect(await approvalsPage.isApproveButtonVisible(primaryIndex)).toBe(true);
+        expect(await approvalsPage.isRejectButtonVisible(primaryIndex)).toBe(false);
+    });
+
     test('Employee My Requests tab shows seeded request created by employee', async ({ employeePage }) => {
         const approvalsPage = new ApprovalsPage(employeePage);
         await approvalsPage.navigate();

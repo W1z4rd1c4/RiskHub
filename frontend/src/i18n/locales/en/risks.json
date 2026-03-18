@@ -316,7 +316,7 @@
     "archive_message": "\"{{riskName}}\"\n\nThis will move the risk to archived status."
   },
   "messages": {
-    "archive_submitted_for_approval": "Archive request submitted for approval (ID: {{approvalId}}). The risk has not been archived yet.",
+    "archive_submitted_for_approval": "Archive request submitted for approval. The risk has not been archived yet.",
     "restore_success": "Risk restored successfully.",
     "view_pending_approvals_prefix": "View pending approvals in the",
     "view_pending_approvals_suffix": "section."
